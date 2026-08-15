@@ -1,7 +1,8 @@
 # Plaintext secrets — NEVER commit. Only *.sops / *.env.sops belong in git.
+# NOTE: compose/*/.env.git IS committed — it is the NON-secret git layer Arcane
+# ingests (README §4). Secrets never go there; the pre-commit scan enforces it.
 .env
 compose/*/.env
-compose/*/.env.git
 compose/*/project.env
 *.key
 *.pem
