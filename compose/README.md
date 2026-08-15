@@ -14,15 +14,26 @@ config, no file-based `.txt` docker secrets. Deploy with `scripts/gitops-deploy.
 `runbooks/deploy-service.md` for how the effective `.env` is materialised (Arcane GitOps does not
 merge `.env.git`/`project.env`).
 
-### Volume standard
+### Volume standard — the decision (apply to EVERY mount a service needs)
 
-- **Simple file data → absolute bind mount** `/opt/docker/appdata/<svc>/<role>` (`<role>` = the
-  data's purpose: `data`, `config`, …). One tree, swept wholesale by `backup-restic.sh`. Never
-  relative in-project-dir data.
-- **Database engines (mongo/redis/typesense/…) → named volumes**, so docker manages their
-  per-engine uid. Label every named volume `com.aliammar.service: <svc>` and
-  `com.aliammar.backup: critical|rebuildable`. `backup-restic.sh` backs up the **critical** ones
-  directly by mountpoint; rebuildable ones (caches) are skipped.
+| the data is… | → type | host name | label |
+|---|---|---|---|
+| a **standalone DB-engine** container's storage — mongo, postgres, standalone redis, **meilisearch**, typesense, elasticsearch… | **named volume** | `<role>` (docker-managed; compose prefixes `<svc>_`) | **required** on the volume: `com.aliammar.service: <svc>` + `com.aliammar.backup: critical\|rebuildable` |
+| **everything else** — app data, configs, uploads, media, an app's **embedded SQLite** | **bind mount** | `/opt/docker/appdata/<svc>/<role>` | none (located by path; in the restic appdata sweep) |
+| a **repo-tracked** config/code file (init scripts, patches) | relative mount | `./…:…:ro` (GitOps-synced) | none |
+
+Rules that make it unambiguous:
+- `<svc>` = the compose dir name (lowercase). `<role>` = a short purpose noun: `data`, `config`,
+  `index`, `db`, `plugins`… **Every bind mount gets a `<role>` subdir even if the service has only
+  one** (so `…/calibre/config`, never `…/calibre`). Don't repeat `<svc>` in `<role>`
+  (`…/marinara/data`, not `…/marinara/marinara-data`).
+- **`critical`** = primary source of truth, not reconstructable (user data, a primary DB).
+  **`rebuildable`** = cache / derived / re-indexable (search indexes, redis-as-cache, poster caches).
+- `backup-restic.sh` backs up `/opt/docker/appdata` (all bind mounts) **plus** named volumes
+  labelled `com.aliammar.backup=critical`. Rebuildable named volumes are never backed up; put a
+  rebuildable *bind-mount* cache under a name matched by the script's `--exclude` list.
+- Switching a named volume ↔ bind mount: remove the orphan (`docker volume rm <svc>_<role>`, or
+  `rm -rf` the stale appdata dir) so restic doesn't grab dead data.
 
 ## The env-layering contract (Arcane, resolved in plan §4)
 

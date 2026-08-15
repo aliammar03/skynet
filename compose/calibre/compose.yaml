@@ -13,7 +13,7 @@ services:
       DISABLE_IPV6: "true"
 
     volumes:
-      - /opt/docker/appdata/calibre:/config
+      - /opt/docker/appdata/calibre/config:/config
 
     shm_size: "1gb"
     stop_grace_period: 1m

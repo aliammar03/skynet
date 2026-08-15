@@ -43,7 +43,7 @@ services:
     environment:
       MEILI_NO_ANALYTICS: "true"
     volumes:
-      - /opt/docker/appdata/karakeep/meilisearch:/meili_data
+      - meili_data:/meili_data
     networks:
       - backend
 
@@ -52,3 +52,10 @@ networks:
   dmz:
     external: true
     name: dmz
+
+volumes:
+  # meilisearch = standalone DB engine; index is re-buildable from the app's SQLite data
+  meili_data:
+    labels:
+      com.aliammar.service: karakeep
+      com.aliammar.backup: rebuildable

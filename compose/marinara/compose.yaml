@@ -7,7 +7,7 @@ services:
     env_file:
       - .env
     volumes:
-      - /opt/docker/appdata/marinara/marinara-data:/app/data
+      - /opt/docker/appdata/marinara/data:/app/data
     restart: unless-stopped
     networks:
       dmz:
