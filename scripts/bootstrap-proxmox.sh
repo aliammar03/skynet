@@ -25,9 +25,7 @@ pveum role add OpsOperator \
   2>/dev/null || pveum role modify OpsOperator \
   -privs "VM.Audit,VM.PowerMgmt,VM.Config.Disk,VM.Config.CPU,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.Allocate,VM.Clone,VM.Console,VM.Snapshot,VM.Snapshot.Rollback,Datastore.AllocateSpace,Datastore.Audit"
 
-echo "==> operate ACL: OpsOperator on /pool/ops-managed"
-pveum acl modify /pool/ops-managed --tokens 'svc-ops@pve!operate' --roles OpsOperator
-
+# Tokens MUST exist before any ACL can reference them (plan §7 order).
 echo
 echo "==> TOKENS — copy these ONCE, they are shown only now:"
 echo "--- readonly (privsep 0, PVEAuditor at /) ---"
@@ -36,5 +34,8 @@ pveum user token add svc-ops@pve readonly --privsep 0 --output-format json || \
 echo "--- operate (privsep 1, OpsOperator on ops-managed) ---"
 pveum user token add svc-ops@pve operate --privsep 1 --output-format json || \
   echo "(token 'operate' may already exist — recreate with: pveum user token remove svc-ops@pve operate)"
+
+echo "==> operate ACL: OpsOperator on /pool/ops-managed (token created above)"
+pveum acl modify /pool/ops-managed --tokens 'svc-ops@pve!operate' --roles OpsOperator
 echo
 echo "Reminder: OPNsense VM 5001 never joins ops-managed. Same for CT 635, CT 837, VM 2020."
