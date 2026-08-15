@@ -2,9 +2,15 @@
 
 ```
 compose/<service>/
-├── compose.yaml   # pinned versions; Arcane makes this read-only in its UI
-└── .env.sops      # encrypted env (the project.env override layer); plaintext .env gitignored
+├── compose.yaml   # pinned image DIGESTS; env_file: .env; Arcane makes this read-only in its UI
+├── .env.git       # NON-secret config, committed plaintext — Arcane's git layer
+└── .env.sops      # secrets ONLY, sops+age (keys visible in diffs, values encrypted)
 ```
+
+**The canonical "skynet way" for every service** (the standard this repo enforces):
+digest-pinned images · `env_file: .env` · non-secret config in committed `.env.git` ·
+secrets only in `.env.sops` · deployed via Arcane GitOps Sync from this repo. No inline
+compose secrets, no file-based `.txt` docker secrets.
 
 ## The env-layering contract (Arcane, resolved in plan §4)
 
