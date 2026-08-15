@@ -33,6 +33,7 @@ set -a; source <(sudo cat "${ARC_ENV}"); set +a
 : "${ARCANE_URL:?ARCANE_URL missing from ${ARC_ENV}}"
 : "${ARCANE_TOKEN:?ARCANE_TOKEN missing from ${ARC_ENV}}"
 ENVID="${ARCANE_ENV_ID:-0}"
+BRANCH="${GITOPS_BRANCH:-main}"   # override during migration to verify off a feature branch
 SSH_HOST="root@$(printf '%s' "${ARCANE_URL}" | sed -E 's#^https?://([^:/]+).*#\1#')"
 
 arc() { # arc METHOD PATH [curl-args...]
@@ -50,14 +51,20 @@ REPO_ID="$(arc GET "/customize/git-repositories" \
 SID="$(arc GET "/environments/${ENVID}/gitops-syncs" \
   | jq -r --arg n "${SVC}" '.data[] | select(.name==$n or .projectName==$n) | .id' | head -1)"
 if [ -z "${SID}" ]; then
-  echo "==> creating GitOps sync for ${SVC}"
+  echo "==> creating GitOps sync for ${SVC} (branch ${BRANCH})"
   SID="$(arc POST "/environments/${ENVID}/gitops-syncs" -H 'Content-Type: application/json' \
-    -d "$(jq -nc --arg n "${SVC}" --arg r "${REPO_ID}" --arg c "${COMPOSE_REL}" \
-        '{name:$n, projectName:$n, repositoryId:$r, branch:"main", composePath:$c,
+    -d "$(jq -nc --arg n "${SVC}" --arg r "${REPO_ID}" --arg c "${COMPOSE_REL}" --arg b "${BRANCH}" \
+        '{name:$n, projectName:$n, repositoryId:$r, branch:$b, composePath:$c,
           syncDirectory:true, autoSync:true, syncInterval:180}')" \
     | jq -r '.data.id')"
 else
-  echo "==> GitOps sync exists for ${SVC} (${SID}); pulling latest"
+  CUR_BRANCH="$(arc GET "/environments/${ENVID}/gitops-syncs/${SID}" | jq -r '.data.branch')"
+  if [ "${CUR_BRANCH}" != "${BRANCH}" ]; then
+    echo "==> repointing ${SVC} sync ${CUR_BRANCH} -> ${BRANCH}"
+    arc PUT "/environments/${ENVID}/gitops-syncs/${SID}" -H 'Content-Type: application/json' \
+      -d "$(jq -nc --arg b "${BRANCH}" '{branch:$b}')" >/dev/null
+  fi
+  echo "==> GitOps sync exists for ${SVC} (${SID}); pulling latest (branch ${BRANCH})"
   arc POST "/environments/${ENVID}/gitops-syncs/${SID}/sync" >/dev/null
 fi
 sleep 2
