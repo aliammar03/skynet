@@ -14,6 +14,10 @@ compose/<svc>/.env.sops      # secrets only (sops+age); omit if the service has 
   (structural keys like a computed `REDIS_URL` that interpolate a secret are the exception).
 - **One role tag** via `x-arcane.tags` (`media`/`ai`/`books`/`bookmarks`/…, stable colour per
   role — see compose README). Arcane applies it on sync; `gitops-deploy.sh` reports/warns.
+- **A healthcheck on every service** (image built-in or compose-declared) so Arcane reports
+  `(healthy)` and dependents can use `condition: service_healthy`. Match the probe to the image's
+  tools (curl/wget/node/bash-`/dev/tcp`) — see the compose README table. `gitops-deploy.sh` warns
+  if any service lacks one.
 - **No Docker file-secrets, no `*.txt` secrets.** One secret store: `.env.sops`.
 - **Volumes:** simple file data → absolute `/opt/docker/appdata/<svc>/<role>` bind mounts
   (swept by `backup-restic.sh`). Database engines → **named** volumes, each labelled

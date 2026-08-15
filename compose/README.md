@@ -9,10 +9,27 @@ compose/<service>/
 
 **The canonical "skynet way" for every service** (the standard this repo enforces):
 digest-pinned images · `env_file: .env` · non-secret config in committed `.env.git` ·
-secrets only in `.env.sops` · deployed via Arcane GitOps Sync from this repo. No inline compose
-config, no file-based `.txt` docker secrets. Deploy with `scripts/gitops-deploy.sh <svc>` — see
-`runbooks/deploy-service.md` for how the effective `.env` is materialised (Arcane GitOps does not
-merge `.env.git`/`project.env`).
+secrets only in `.env.sops` · **a healthcheck on every service** (below) · deployed via Arcane
+GitOps Sync from this repo. No inline compose config, no file-based `.txt` docker secrets. Deploy
+with `scripts/gitops-deploy.sh <svc>` — see `runbooks/deploy-service.md` for how the effective
+`.env` is materialised (Arcane GitOps does not merge `.env.git`/`project.env`).
+
+### Healthchecks — one per service
+
+Every service **must** report health (so Arcane shows `(healthy)` and dependents can wait on
+`condition: service_healthy`). Either the image ships a built-in `HEALTHCHECK` (e.g. aiostreams,
+karakeep-web) or the compose declares one. Prefer a real endpoint probe; fall back to a TCP
+port-open when the image lacks an HTTP client. Use whatever tool the image actually has:
+
+| image has | pattern |
+|---|---|
+| `curl` | `["CMD","curl","-fsS","-o","/dev/null","http://localhost:<port>/health"]` |
+| busybox `wget` | `["CMD","wget","-q","-O","/dev/null","http://127.0.0.1:<port>/…"]` (use `127.0.0.1`) |
+| `node` only | `["CMD","node","-e","require('http').get('http://127.0.0.1:<port>/',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"]` |
+| `bash` only | `["CMD","bash","-c","exec 3<>/dev/tcp/127.0.0.1/<port>"]` (TCP port-open) |
+
+Standard timing: `interval: 30s, timeout: 10s, retries: 3, start_period: 10–30s`.
+`gitops-deploy.sh` warns after every deploy if any service has no health status.
 
 ### Volume standard — the decision (apply to EVERY mount a service needs)
 
