@@ -39,6 +39,10 @@ The docker-dmz restic repo is `rclone:gdrive:Skynet/Backups/restic/docker-dmz`
 1. T2 PBS token → list snapshots → **PBS restore** into `ops-managed`.
 2. Boot → verify. (Never restore an excluded guest without an explicit T3 grant.)
 
+> **Off-site (L5) restore is UNTESTED** as of A4. If PBS itself is gone, first pull the
+> datastore back from `gdrive:Skynet/Backups/pbs` per `runbooks/dr/DR-core-node.md`, then
+> restore normally. That gdrive→PBS round-trip has not yet been drilled — do it in A6.
+
 ## "What can we restore right now?"
 
 `restic snapshots` (per host) + PBS index + `git tag` / commit history. Report the menu.

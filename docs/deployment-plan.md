@@ -373,6 +373,8 @@ Landed as the A4 PR. Google Drive layout: `gdrive:Skynet/Backups/{restic/<host>,
   CA (Ali, one-time); rclone installed; `pbs-gdrive.env` → datastore `/mnt/datastore/unraid`.
   Nightly timer `skynet-pbs-gdrive` live (04:00). Dry-run verified scope = **67.97 GiB on-disk**
   (dedup 24.97× of 1.657 TiB logical) — fits Drive with room to spare.
+  ⚠️ Only the **upload** is proven; the gdrive→PBS **restore** round-trip is **UNTESTED** —
+  drill it in A6 (unlike L3, which was witnessed end-to-end).
 
 **Findings recorded (not worked around):**
 - **Datastore sizing:** `df` on the Unraid NFS user-share reports the *whole array* (~6.5 TB),
