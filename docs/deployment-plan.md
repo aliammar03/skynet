@@ -350,8 +350,9 @@ Every agent phase ends the same way: a PR + a written summary; your merge is the
 | **A2 — Credentials ceremony** | ✅ complete | all 9 checkpoints validated (see results below) |
 | **A3 — Truth sync + consolidation** | ✅ complete | PRs #2–#14 — all six docker-dmz stacks on the "skynet way": pinned digests, `.env.git`/`.env.sops`, Arcane GitOps deploy via `scripts/gitops-deploy.sh`, standard volumes + `skynet.*` labels |
 | **A4 — Backups** | ✅ complete | L3 restic + witnessed restore; L5 PBS→gdrive live (see "A4 results") |
-| A5 — Visibility | ☐ pending | — |
-| A6 — Graduation | ☐ pending | — |
+| **A4.5 — Backup tooling** | ✅ complete | PR #20 — `provision-restic.sh` (any host), on-demand tagged backups, backup docs |
+| **A5 — Visibility** | 🔬 in review | PRs #21 (render-docs, agent+fallback nightly, engine/model selector, weekly CLI update, CLAUDE.md, Obsidian) + #22 (per-host grant certs) |
+| A6 — Graduation | ⏭ next | see "Resuming at A6" |
 
 **A2 checkpoint results** — every row of the table below was executed and validated: (1) Proxmox svc-ops tokens on core (10.10.50.11) + network (10.10.50.10), collectors return JSON [ACL-before-token bug fixed, PR #2]; (2) workstation CA + `gr`, test grant signed & lapsed; (3) Arcane `X-API-Key` lists projects; (4) Technitium token (10.10.70.50, `ops` group), zones collected; (5) rclone→gdrive OAuth conf on the VM; (6) OPNsense os-git-backup → `skynet-opnsense`, firewall mirrored; (7) Renovate app (scan+alert), bump PRs open; (8) PBS client-side encryption, key in kit; (9) survival kit printed + `gr vm-docker-dmz 10m` watched to expiry.
 
@@ -391,6 +392,39 @@ Landed as the A4 PR. Google Drive layout: `gdrive:Skynet/Backups/{restic/<host>,
   `ssh root@10.10.20.40 systemctl start skynet-pbs-gdrive.service` if desired.
 
 Carry-over before A4: once **PR #14** merges, flip the branch-tracked syncs (calibre, marinara, karakeep, silly, aiometadata) from `phase/a3-gitops-deploy` → `main` — one `scripts/gitops-deploy.sh <svc>` each (see the `skynet-service-standard` memory).
+
+### A5 results — Visibility (in review: PRs #21, #22)
+
+- **render-docs pipeline** (`scripts/render-docs.sh`): full Obsidian set from `inventory/`
+  (network map, VLANs, firewall, per-node hosts, services, backup status), committed to
+  `docs/generated/` (machine-owned). Plus **`05-state-of-the-lab.md`**, an LLM-authored narrative
+  regenerated nightly.
+- **Nightly** (`skynet-nightly.timer`, 03:30, report-only): `bin/ops nightly` tries
+  **primary engine → fallback engine → deterministic `scripts/nightly.sh`**. Engine/model chosen
+  in `~/.config/skynet-ops/ops.env` (`OPS_ENGINE`, `OPS_ENGINE_FALLBACK`, `OPS_CODEX_MODEL`,
+  `OPS_CLAUDE_MODEL`).
+- **Weekly** (`skynet-cli-update.timer`, Sun 05:00): `scripts/update-clis.sh` updates both CLIs
+  and writes each provider's current `--model` ids as commented suggestions into `ops.env`.
+- **Engine-agnostic:** `CLAUDE.md` imports `AGENTS.md`. **Obsidian:** `docs/obsidian-setup.md`.
+- **Grant fix (PR #22):** per-host certs (`~/.ssh/certs/<host>-cert.pub`) + a `Match user root`
+  ssh_config block so grants coexist. Config-level verified; **end-to-end grant with a per-host
+  cert is UNTESTED** → drill in A6. Needs Ali to re-run `bootstrap-workstation.sh`.
+
+### Resuming at A6 — Graduation (next session)
+
+**Prereqs:** merge PRs #21 + #22; after #22, re-run `scripts/bootstrap-workstation.sh` on the
+workstation; install the Obsidian vault (`docs/obsidian-setup.md`).
+
+**A6 goal — stop trusting, start proving.** Three drills:
+1. **Untested backup restore — L5:** prove the gdrive→PBS round-trip (pull the datastore from
+   `gdrive:Skynet/Backups/pbs`, re-add it, restore one small guest). See `runbooks/dr/DR-core-node.md`.
+2. **Untested grant path:** issue a real `gr <host>` under the **new per-host cert** flow and
+   confirm root login works + that a second host's grant coexists (the A5 fix, verified only at
+   config level so far).
+3. **A6 proper (plan §13):** a DR tabletop of `DR-network-node.md`; one real end-to-end guest
+   restore from PBS; one "update all guests" run under a fleet grant. Final sign-off.
+
+**Also pending:** watch a week of nightly PRs; experiment with `OPS_ENGINE=claude` vs `codex`.
 
 ### The A2 checkpoint table — everything that is structurally yours
 
