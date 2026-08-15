@@ -1,0 +1,21 @@
+[Unit]
+# Installed on vm-skynet-ops. Report-only nightly maintenance pass (plan §9/§11, A5).
+# Runs bin/ops nightly, which prefers the LLM engine and falls back to scripts/nightly.sh.
+Description=skynet nightly maintenance (report-only)
+Documentation=https://github.com/aliammar03/skynet/blob/main/runbooks/nightly.md
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=ali
+WorkingDirectory=/home/ali/skynet
+# The engine + git/gh creds live in ali's home; give the unit a login-like environment.
+Environment=HOME=/home/ali
+Environment=PATH=/home/ali/.npm-global/bin:/usr/local/bin:/usr/bin:/bin
+# Optional overrides (OPS_ENGINE=codex|claude, OPS_NIGHTLY_MODE=script, etc.) — edit this file,
+# not the unit, to experiment. The leading '-' makes it optional.
+EnvironmentFile=-/home/ali/.config/skynet-ops/ops.env
+ExecStart=/home/ali/skynet/bin/ops nightly
+TimeoutStartSec=30m
+Nice=10

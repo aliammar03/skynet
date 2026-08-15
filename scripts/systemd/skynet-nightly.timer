@@ -1,0 +1,11 @@
+[Unit]
+Description=Nightly skynet maintenance (report-only)
+
+[Timer]
+# 03:30 — between the docker restic window (02:30) and the PBS off-site sync (04:00).
+OnCalendar=*-*-* 03:30:00
+RandomizedDelaySec=15m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

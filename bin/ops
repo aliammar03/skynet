@@ -9,9 +9,16 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${REPO_DIR}"
 
-# ── the one agent-specific line ───────────────────────────────────────────────
-# Codex: 'codex exec --full-auto'   |   Claude Code: 'claude -p --permission-mode acceptEdits'
-OPS_ENGINE_CMD="${OPS_ENGINE_CMD:-codex exec --full-auto}"
+# ── engine selection ──────────────────────────────────────────────────────────
+# Pick the engine with OPS_ENGINE=codex|claude (experiment freely to see what's best).
+# OPS_ENGINE_CMD overrides the mapping entirely if you need custom flags.
+OPS_ENGINE="${OPS_ENGINE:-codex}"
+case "${OPS_ENGINE}" in
+  codex)  OPS_ENGINE_DEFAULT='codex exec --full-auto' ; OPS_ENGINE_BIN='codex'  ;;
+  claude) OPS_ENGINE_DEFAULT='claude -p --permission-mode acceptEdits' ; OPS_ENGINE_BIN='claude' ;;
+  *) echo "unknown OPS_ENGINE '${OPS_ENGINE}' (use codex|claude, or set OPS_ENGINE_CMD)" >&2; exit 2 ;;
+esac
+OPS_ENGINE_CMD="${OPS_ENGINE_CMD:-${OPS_ENGINE_DEFAULT}}"
 # ──────────────────────────────────────────────────────────────────────────────
 
 collect_all() {
@@ -34,8 +41,16 @@ case "${cmd}" in
     ;;
   nightly)
     # Report-only until actions are promoted to the AGENTS.md auto-approve list.
-    exec ${OPS_ENGINE_CMD} \
-      "Run the nightly maintenance pass per runbooks/nightly.md. Report-only: refresh inventory, harvest the root-grant audit, render docs, and open a PR with the summary. Take no T2 write or granted-root action unless it is on the AGENTS.md auto-approve list."
+    # Prefer the LLM engine; fall back to the deterministic script if it can't run.
+    prompt="Run the nightly maintenance pass per runbooks/nightly.md. Report-only: refresh inventory (bin/ops collect), envsync, harvest the root-grant audit if a grant is active, then render docs (scripts/render-docs.sh) AND (re)write the human-readable narrative docs/generated/05-state-of-the-lab.md — a beautifully formatted, honest 'state of the lab' with agent commentary and what changed since last night (diff against main). Finally open a PR on branch inventory/\$(date +%F) with the summary. Take no T2 write or granted-root action unless it is on the AGENTS.md auto-approve list. Never merge."
+    if [ "${OPS_NIGHTLY_MODE:-agent}" = agent ] && command -v "${OPS_ENGINE_BIN}" >/dev/null 2>&1; then
+      echo "== nightly via engine: ${OPS_ENGINE} =="
+      if ${OPS_ENGINE_CMD} "${prompt}"; then exit 0; fi
+      echo "engine '${OPS_ENGINE}' failed — falling back to deterministic nightly" >&2
+    else
+      echo "engine '${OPS_ENGINE_BIN}' unavailable or OPS_NIGHTLY_MODE=script — deterministic nightly" >&2
+    fi
+    exec ./scripts/nightly.sh
     ;;
   *) echo "unknown command: ${cmd}" >&2; exit 2 ;;
 esac
