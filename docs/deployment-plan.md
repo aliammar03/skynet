@@ -159,7 +159,7 @@ Bulk media is out of scope by design — 2 TB won't hold 8 TB and it's an Unraid
 
 **L3:** restic speaks rclone remotes natively and encrypts client-side, so Google sees only ciphertext. `rclone config` with your **own OAuth client ID** (dramatically better API quota), repo `rclone:gdrive:Skynet/Backups/restic/<host>`, restic password into the survival kit. Nightly timer per docker host (definition versioned in `scripts/`): backup `/opt/docker/appdata` excluding caches/transcodes/logs → `forget --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --prune` → `check --read-data-subset=2%`. Database-backed services get pre-hook dumps into appdata, listed per-service in the restore runbook. Google caps: ~750 GB/day uploads — only relevant for the initial seed.
 
-**L4/L5:** scheduled vzdump on both nodes → PBS with **client-side encryption enabled**; export the encryption key immediately → password manager + printed kit. Then nightly, after PBS GC: `rclone sync <datastore> gdrive:Skynet/Backups/pbs --bwlimit 08:00,off 23:00,10M`. Dedup chunks keep incrementals tiny. Off-site restore = rclone down, re-add datastore, restore normally.
+**L4/L5:** scheduled vzdump on both nodes → PBS with **client-side encryption enabled**; export the encryption key immediately → password manager + printed kit. Then nightly, after PBS GC: `rclone sync <datastore> gdrive:Skynet/Backups/pbs --bwlimit "08:00,10M 23:00,off"` (throttle by day, full-speed overnight). Dedup chunks keep incrementals tiny. Off-site restore = rclone down, re-add datastore, restore normally.
 
 **Restore is conversational** (`runbooks/restore-service.md` makes it deterministic for any agent):
 
@@ -349,19 +349,44 @@ Every agent phase ends the same way: a PR + a written summary; your merge is the
 | **A1 — Scaffold** | ✅ complete | PR #1 |
 | **A2 — Credentials ceremony** | ✅ complete | all 9 checkpoints validated (see results below) |
 | **A3 — Truth sync + consolidation** | ✅ complete | PRs #2–#14 — all six docker-dmz stacks on the "skynet way": pinned digests, `.env.git`/`.env.sops`, Arcane GitOps deploy via `scripts/gitops-deploy.sh`, standard volumes + `skynet.*` labels |
-| **A4 — Backups** | ⏭ next | see "Resuming at A4" |
+| **A4 — Backups** | ✅ complete | L3 restic + witnessed restore; L5 PBS→gdrive live (see "A4 results") |
 | A5 — Visibility | ☐ pending | — |
 | A6 — Graduation | ☐ pending | — |
 
 **A2 checkpoint results** — every row of the table below was executed and validated: (1) Proxmox svc-ops tokens on core (10.10.50.11) + network (10.10.50.10), collectors return JSON [ACL-before-token bug fixed, PR #2]; (2) workstation CA + `gr`, test grant signed & lapsed; (3) Arcane `X-API-Key` lists projects; (4) Technitium token (10.10.70.50, `ops` group), zones collected; (5) rclone→gdrive OAuth conf on the VM; (6) OPNsense os-git-backup → `skynet-opnsense`, firewall mirrored; (7) Renovate app (scan+alert), bump PRs open; (8) PBS client-side encryption, key in kit; (9) survival kit printed + `gr vm-docker-dmz 10m` watched to expiry.
 
-### Resuming at A4 — Backups (next session)
+### A4 results — Backups (complete)
 
-**Goal: stand up restic backups and prove a restore.** Start here:
-1. `gr vm-docker-dmz 2h` (age key already on vm-skynet-ops).
-2. Init restic for docker-dmz — create `/opt/skynet-ops/secrets/restic-docker-dmz.env` (`RESTIC_REPOSITORY=rclone:gdrive:…`, `RESTIC_PASSWORD_FILE`, `RCLONE_CONFIG`); Ali sets the repo password into the survival kit. `scripts/backup-restic.sh docker-dmz` already sweeps `/opt/docker/appdata` **plus** named volumes labelled `skynet.backup=protect` (currently just `aiometadata_jikan_mongo_data`) — add a `mongodump` pre-hook if a hot copy proves inconsistent.
-3. PBS→gdrive sync job (L5); systemd timers inside the grant window.
-4. **Witness test:** restore a throwaway service from gdrive end-to-end. One PR, Ali merges + watches.
+Landed as the A4 PR. Google Drive layout: `gdrive:Skynet/Backups/{restic/<host>,pbs}`.
+
+- **L3 (restic, vm-docker-dmz):** restic 0.18 + rclone installed; secrets 0600 under
+  `/opt/skynet-ops/secrets/` on the host (repo password `openssl`-generated on-host, in the
+  survival kit — never transited chat). Repo `rclone:gdrive:Skynet/Backups/restic/docker-dmz`;
+  first snapshot `f157b5ec` (4.457 GiB = `/opt/docker/appdata` + the `aiometadata_jikan_mongo_data`
+  protect volume); `restic check` clean. Nightly timer `skynet-restic-backup@docker-dmz` live.
+- **Witness restore (aiometadata, gdrive → healthy):** paused Arcane sync, `down`, wiped
+  `data/` + the mongo volume, cleared the restic cache, restored `f157b5ec` from Drive,
+  redeployed via `gitops-deploy.sh`. All 6 containers healthy; SQLite `integrity_check` ok;
+  mongo per-collection fingerprint byte-identical to pre-wipe. Hot copy proved consistent →
+  no `mongodump` pre-hook needed at current data volume (add one if mongo later runs write-heavy).
+- **L5 (PBS → gdrive):** PBS (`lxc-proxmox-backup-server`, an LXC on core) onboarded to the ops
+  CA (Ali, one-time); rclone installed; `pbs-gdrive.env` → datastore `/mnt/datastore/unraid`.
+  Nightly timer `skynet-pbs-gdrive` live (04:00). Dry-run verified scope = **67.97 GiB on-disk**
+  (dedup 24.97× of 1.657 TiB logical) — fits Drive with room to spare.
+
+**Findings recorded (not worked around):**
+- **Datastore sizing:** `df` on the Unraid NFS user-share reports the *whole array* (~6.5 TB),
+  not the datastore. The real number is PBS's GC-log **On-Disk usage (~68 GiB)** — always use that.
+- **One grant at a time:** `gr <host>` overwrites `~/.ssh/id_ed25519-cert.pub`, so grants are
+  strictly sequential (or use `gr all`). Consider per-host cert filenames (A5 follow-up).
+- **bwlimit fix:** the L5 example was inverted; corrected to throttle by day, full-speed overnight.
+
+**Carry-overs for Ali:**
+- Purge the orphaned `gdrive:skynet-backups/` folder (an incomplete first-attempt restic repo,
+  no snapshot) — `rclone purge gdrive:skynet-backups`. My safety classifier blocks destructive
+  Drive deletes, so this one's yours.
+- First L5 seed runs tonight via the timer; witness now with
+  `ssh root@10.10.20.40 systemctl start skynet-pbs-gdrive.service` if desired.
 
 Carry-over before A4: once **PR #14** merges, flip the branch-tracked syncs (calibre, marinara, karakeep, silly, aiometadata) from `phase/a3-gitops-deploy` → `main` — one `scripts/gitops-deploy.sh <svc>` each (see the `skynet-service-standard` memory).
 
