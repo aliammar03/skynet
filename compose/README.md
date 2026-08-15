@@ -70,19 +70,18 @@ Bind mounts need no labels (found by their `/opt/docker/appdata/<svc>/…` path)
 open to extend later (`skynet.backup: snapshot`, a `skynet.tier` for retention) without breaking
 `protect`/`ephemeral`.
 
-## The env-layering contract (Arcane, resolved in plan §4)
+## How env reaches a container (Arcane GitOps)
 
-Arcane merges two layers into the effective `.env`:
+Arcane's GitOps sync copies `compose.yaml` (and the compose dir, incl. subdirs) and owns the
+project lifecycle, but it does **not** merge `.env.git`/`project.env` into `.env` — that layering
+only applies to Arcane's *non-GitOps* projects. A GitOps project just runs `docker compose`
+against whatever `.env` is on disk.
 
-- **`.env.git`** — repo-sourced, non-secret defaults (optional, committed plaintext).
-- **`project.env`** — your UI edits, the **secret-bearing** layer, not reproducible from the repo.
-  Your overrides always win; Arcane rewrites in place preserving order/comments. No clobbering by design.
+So `scripts/gitops-deploy.sh` **materialises** the effective `.env` = `.env.git` +
+`sops -d .env.sops`, written `0600 root`, decrypted off-host (the age key never leaves
+vm-skynet-ops). Every service still declares `env_file: .env` so those values reach it. Arcane
+leaves a populated `.env` untouched on re-sync; auto-sync only redeploys already-running projects
+(a stopped one updates on next manual start).
 
-Therefore:
-
-1. `project.env` is what `scripts/envsync.sh` encrypts → `.env.sops` (nightly, on change).
-2. **Every service must declare `env_file: .env`** in its compose so the merged values reach it.
-3. Non-secret defaults *may* be a committed plaintext `.env` (ingested as `.env.git`); **secrets never**.
-4. Auto-sync **only redeploys already-running projects** — a stopped project updates on next manual start.
-
-Restore: `sops -d compose/<svc>/.env.sops > project.env` into the project dir; Arcane re-merges.
+Restore secrets by hand: `sops -d compose/<svc>/.env.sops` appended into the project `.env`,
+then redeploy.
