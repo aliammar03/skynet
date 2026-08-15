@@ -15,6 +15,17 @@
    - SSH lockdown (`PermitRootLogin prohibit-password`, no password auth);
    - `unattended-upgrades`;
    - `fail2ban` where sensible;
-   - restic timer (`backup-restic.sh <newhost>`), guest-firewall notes.
+   - **restic backups** — one command from skynet-ops (installs restic+rclone, stages secrets
+     0600, generates the repo password on-host, deploys `backup-restic.sh` + the nightly timer,
+     inits the repo). Pick what to back up: `--docker` (appdata + `skynet.backup=protect`
+     volumes) and/or `--path DIR` (any folder), repeatable:
+     ```
+     scripts/provision-restic.sh <newhost> root@<ip> --docker            # docker host
+     scripts/provision-restic.sh <newhost> root@<ip> --path /srv/data    # plain host
+     scripts/provision-restic.sh <newhost> root@<ip> --docker --path /srv/extra --time 03:15
+     ```
+     Idempotent (never regenerates the password / re-inits an existing repo). Afterwards save
+     the repo password to the survival kit: `ssh root@<ip> cat /opt/skynet-ops/secrets/restic-<newhost>.pass`.
+   - guest-firewall notes.
 5. **PR** recording the new host in `inventory/`, DNS (Technitium T2), and `docs/`. Ali merges.
    The cert expires on its own — no de-provisioning step.
