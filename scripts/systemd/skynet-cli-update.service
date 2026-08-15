@@ -1,0 +1,17 @@
+[Unit]
+# Installed on vm-skynet-ops. Weekly: update the agent CLIs + refresh model suggestions in the
+# engine env (A5). Safe unattended — a broken CLI just makes the nightly fall back.
+Description=skynet weekly CLI update + model-suggestion refresh
+Documentation=https://github.com/aliammar03/skynet/blob/main/scripts/update-clis.sh
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=ali
+WorkingDirectory=/home/ali/skynet
+Environment=HOME=/home/ali
+Environment=PATH=/home/ali/.npm-global/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/ali/skynet/scripts/update-clis.sh
+TimeoutStartSec=20m
+Nice=15
