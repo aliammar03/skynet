@@ -1,0 +1,17 @@
+# Runbook — update all guests
+
+**Tier:** T2 snapshot + T2+ fleet root grant. **Trigger:** *"Update all guests."*
+
+## Steps
+
+1. **Plan from inventory:** order, reboot needs (kernel), pin exceptions. Present once; Ali
+   approves the plan and issues `grant-root all 4h`.
+2. **Per guest** (skip all pool-excluded guests):
+   1. Proxmox snapshot (T2 — the role has `VM.Snapshot`/`VM.Snapshot.Rollback` for exactly this).
+   2. `apt full-upgrade`.
+   3. reboot **if** a new kernel was installed.
+   4. health verify.
+   5. **Failure → snapshot rollback + flag, continue with the rest.** Do not abort the run.
+3. **Summary at the end**, interruptions only for failures. Commit refreshed inventory.
+
+> Renovate handles container image bumps separately (one PR per bump) — see runbook flow in plan §12.

@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# grant-root — WORKSTATION-ONLY. Signs an auto-expiring root cert for the ops agent (plan §8).
+# This script is committed here so bootstrap-workstation.sh can install it to ~/bin/grant-root.
+# It MUST run on Ali's workstation, where the CA private key lives. It must NEVER run on the VM —
+# if the agent could sign its own cert, every trust tier in the plan would be decoration.
+#
+# USAGE: grant-root <hostname|all> [duration, default 2h]
+#   grant-root docker-dmz 1h    # root on one host for 1 hour
+#   grant-root all 4h           # fleet-wide window for an update run
+# The cert carries its own expiry; when it lapses, sshd simply refuses it. No cleanup.
+set -euo pipefail
+
+HOST="${1:?host or 'all'}"; DUR="${2:-2h}"
+CA_KEY="${HOME}/.skynet-ca/ops_ca"
+VM="ali@10.10.90.90"
+
+[ -f "${CA_KEY}" ] || { echo "CA not found at ${CA_KEY} — run bootstrap-workstation.sh first" >&2; exit 1; }
+
+scp "${VM}:.ssh/id_ed25519.pub" /tmp/ops.pub
+ssh-keygen -s "${CA_KEY}" \
+  -I "grant+${HOST}+$(date -Iseconds)+by-ali" \
+  -n "ops-root-${HOST}" \
+  -V "+${DUR}" \
+  /tmp/ops.pub
+scp /tmp/ops-cert.pub "${VM}:.ssh/id_ed25519-cert.pub"
+rm -f /tmp/ops.pub /tmp/ops-cert.pub
+echo "root on ${HOST} for ${DUR} — expires itself."

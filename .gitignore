@@ -1,0 +1,19 @@
+# Plaintext secrets — NEVER commit. Only *.sops / *.env.sops belong in git.
+.env
+compose/*/.env
+compose/*/.env.git
+compose/*/project.env
+*.key
+*.pem
+id_ed25519
+id_ed25519-cert.pub
+age.key
+
+# Local agent scratch / runtime
+/tmp/
+*.tmp
+*.log
+.DS_Store
+
+# Collector working files (final JSON is committed by the collectors themselves)
+inventory/**/*.partial.json
