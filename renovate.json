@@ -2,5 +2,13 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
-  ]
+  ],
+  "dependencyDashboard": true,
+  "dependencyDashboardTitle": "Renovate — dependency updates (tick to open a PR)",
+  "dependencyDashboardApproval": true,
+  "prConcurrentLimit": 5,
+  "vulnerabilityAlerts": {
+    "dependencyDashboardApproval": false,
+    "labels": ["security"]
+  }
 }
