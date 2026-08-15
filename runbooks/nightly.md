@@ -9,14 +9,19 @@ auto-approve list.
 `bin/ops nightly` prefers the **LLM engine**, and **falls back to a deterministic script** if
 the engine can't run (missing/unauthed/errors) — so the nightly always produces a report.
 
-- **Pick the engine:** `OPS_ENGINE=codex` (default) or `OPS_ENGINE=claude`. Set it in the
-  timer's env file (`/home/ali/.config/skynet-ops/ops.env`) to experiment without editing units.
-  `OPS_ENGINE_CMD` overrides the command entirely; `OPS_NIGHTLY_MODE=script` forces the
-  deterministic path.
-- **Agent path** (`OPS_ENGINE_BIN` present): the engine runs the pass below and additionally
-  (re)writes the human-readable narrative `docs/generated/05-state-of-the-lab.md`.
-- **Fallback path** (`scripts/nightly.sh`): the same inventory refresh + render + PR, minus the
-  LLM-authored narrative and the root-grant audit.
+- **Engine order:** nightly tries **primary → fallback engine → deterministic script**. Set it
+  all in the timer's env file (`/home/ali/.config/skynet-ops/ops.env`, example:
+  `scripts/systemd/ops.env.example`) — edits apply on the next run, no unit editing:
+  - `OPS_ENGINE=codex|claude` — primary (default `codex`).
+  - `OPS_ENGINE_FALLBACK=codex|claude|none` — secondary engine (default: the *other* one; so
+    "prefer claude, run codex as fallback" is just `OPS_ENGINE=claude`).
+  - `OPS_CODEX_MODEL` / `OPS_CLAUDE_MODEL` — model per engine (unset = engine default).
+  - `OPS_ENGINE_CMD` — full override of the primary command; `OPS_NIGHTLY_MODE=script` forces
+    the deterministic path.
+- **Agent path:** the engine runs the pass below and additionally (re)writes the human-readable
+  narrative `docs/generated/05-state-of-the-lab.md`.
+- **Fallback path** (`scripts/nightly.sh`): reached when *every* configured engine fails/absent —
+  the same inventory refresh + render + PR, minus the LLM-authored narrative and grant audit.
 
 ## Steps (both paths)
 
