@@ -1,38 +1,23 @@
-# ──────────────────────────────────────────────
-# Marinara Engine — Docker Compose
-# ──────────────────────────────────────────────
+# Marinara Engine — the skynet way: structural only; all config/secrets in .env
+# (.env.git non-secret + .env.sops secrets, materialised by scripts/gitops-deploy.sh).
+x-arcane:
+  tags:
+    - name: ai
+      color: blue
+
 services:
   marinara:
-    # Use the pre-built image from GHCR
     image: ghcr.io/pasta-devs/marinara-engine:latest@sha256:eed2d2f7db49d5867f30f90d314c2f668f767246cd6e7a48907c3386720be0db
     init: true
+    env_file:
+      - .env
+    volumes:
+      - /opt/docker/appdata/marinara/data:/app/data
+    restart: unless-stopped
     networks:
       dmz:
         ipv4_address: 10.10.100.85
-    volumes:
-      - /opt/docker/appdata/marinara/marinara-data:/app/data
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
-      - DATA_DIR=/app/data
-      - FILE_STORAGE_DIR=/app/data/storage
-      - MARINARA_DOCKER=true
-      - ALLOW_UNAUTHENTICATED_REMOTE=true
-      - AUTO_CREATE_DEFAULT_CONNECTION=${AUTO_CREATE_DEFAULT_CONNECTION:-true}
-      # Secrets moved to the env layer (project.env -> .env.sops). Set these in Arcane's env:
-      #   ENCRYPTION_KEY (AES key for API-key encryption), ADMIN_SECRET, and optionally
-      #   BASIC_AUTH_USER / BASIC_AUTH_PASS before exposing beyond localhost.
-      - TZ=Asia/Karachi        # IANA timezone for time-based features (e.g. character schedules)
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY:?set in project.env}
-      - ADMIN_SECRET=${ADMIN_SECRET:?set in project.env}
-      - IMAGE_LOCAL_URLS_ENABLED=true
-      - PROVIDER_LOCAL_URLS_ENABLED=true
-      - TRUSTED_HOSTS=marinara.aliammar.net
-      - CSRF_TRUSTED_ORIGINS=https://marinara.aliammar.net
-      # - LOG_LEVEL=debug              # Set to "debug" to log full prompts & responses
-    restart: unless-stopped
-    
+
 networks:
   dmz:
     external: true

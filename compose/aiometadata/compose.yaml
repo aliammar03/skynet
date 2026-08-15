@@ -1,25 +1,14 @@
-name: Aiometadata
+name: aiometadata
+
+# Consolidated onto the skynet way: no Docker file-secrets. All secrets live in
+# .env.sops (single store) and reach services as env vars / ${JIKAN_*} interpolation
+# from the materialised .env. jikan config files (.env.compose, mongo-init.js,
+# RepositoryQuery.php) are committed under ./jikan and synced by Arcane GitOps.
 
 x-arcane:
   tags:
-    - name: media
+    - name: media          # skynet role tag (one per service; see compose/README.md)
       color: purple
-    - name: critical
-      color: red
-
-secrets:
-  jikan_db_username:
-    file: ./jikan/secrets/db_username.txt
-  jikan_db_password:
-    file: ./jikan/secrets/db_password.txt
-  jikan_db_admin_username:
-    file: ./jikan/secrets/db_admin_username.txt
-  jikan_db_admin_password:
-    file: ./jikan/secrets/db_admin_password.txt
-  jikan_redis_password:
-    file: ./jikan/secrets/redis_password.txt
-  jikan_typesense_api_key:
-    file: ./jikan/secrets/typesense_api_key.txt
 
 services:
   aiometadata:
@@ -34,9 +23,10 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - data:/app/addon/data
-      - poster_cache:/app/poster-cache
-      - cold_store:/app/cold-store
+      # simple file data -> absolute appdata bind mounts (backup-friendly, in the restic sweep)
+      - /opt/docker/appdata/aiometadata/data:/app/addon/data
+      - /opt/docker/appdata/aiometadata/poster-cache:/app/poster-cache
+      - /opt/docker/appdata/aiometadata/cold-store:/app/cold-store
     networks:
       backend:
       dmz:
@@ -98,11 +88,12 @@ services:
     user: "10001:10001"
     env_file:
       - ./jikan/.env.compose
-    secrets:
-      - jikan_db_username
-      - jikan_db_password
-      - jikan_redis_password
-      - jikan_typesense_api_key
+    environment:
+      REDIS_PASSWORD: ${JIKAN_REDIS_PASSWORD}
+      DB_USERNAME: ${JIKAN_DB_USERNAME}
+      DB_ADMIN: ${JIKAN_DB_USERNAME}
+      DB_PASSWORD: ${JIKAN_DB_PASSWORD}
+      TYPESENSE_API_KEY: ${JIKAN_TYPESENSE_API_KEY}
     volumes:
       - ./jikan/RepositoryQuery.php:/app/app/Support/RepositoryQuery.php:ro
     expose:
@@ -145,14 +136,12 @@ services:
       - --wiredTigerCacheSizeGB
       - "0.5"
     environment:
-      MONGO_INITDB_ROOT_USERNAME_FILE: /run/secrets/jikan_db_admin_username
-      MONGO_INITDB_ROOT_PASSWORD_FILE: /run/secrets/jikan_db_admin_password
+      MONGO_INITDB_ROOT_USERNAME: ${JIKAN_DB_ADMIN_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${JIKAN_DB_ADMIN_PASSWORD}
       MONGO_INITDB_DATABASE: jikan_admin
-    secrets:
-      - jikan_db_username
-      - jikan_db_password
-      - jikan_db_admin_username
-      - jikan_db_admin_password
+      # consumed by mongo-init.js (process.env) to create the jikan app user
+      JIKAN_DB_USERNAME: ${JIKAN_DB_USERNAME}
+      JIKAN_DB_PASSWORD: ${JIKAN_DB_PASSWORD}
     volumes:
       - jikan_mongo_data:/data/db
       - ./jikan/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
@@ -181,14 +170,14 @@ services:
     image: docker.io/redis:6.2.23-alpine@sha256:ec5e187c913d422cdf60f4216a5fdfb95246792c6de6fe21ff5bed75cbfc8c23
     restart: unless-stopped
     init: true
-    secrets:
-      - jikan_redis_password
+    environment:
+      JIKAN_REDIS_PASSWORD: ${JIKAN_REDIS_PASSWORD}
     command:
       - /bin/sh
       - -ec
       - |
         exec redis-server \
-          --requirepass "$$(cat /run/secrets/jikan_redis_password)" \
+          --requirepass "$$JIKAN_REDIS_PASSWORD" \
           --appendonly yes \
           --appendfsync everysec \
           --maxmemory 256mb \
@@ -200,7 +189,7 @@ services:
     healthcheck:
       test:
         - CMD-SHELL
-        - redis-cli --no-auth-warning -a "$$(cat /run/secrets/jikan_redis_password)" ping | grep -q PONG
+        - redis-cli --no-auth-warning -a "$$JIKAN_REDIS_PASSWORD" ping | grep -q PONG
       interval: 10s
       timeout: 5s
       retries: 10
@@ -219,18 +208,14 @@ services:
     image: docker.io/typesense/typesense:0.24.1@sha256:9bcff2b829f12074426ca044b56160ca9d777a0c488303469143dd9f8259d4dd
     restart: unless-stopped
     init: true
+    environment:
+      TYPESENSE_API_KEY: ${JIKAN_TYPESENSE_API_KEY}
     entrypoint:
-      - /bin/sh
+      - /opt/typesense-server
     command:
-      - -ec
-      - |
-        exec env TYPESENSE_API_KEY="$$(cat /run/secrets/jikan_typesense_api_key)" \
-          /opt/typesense-server \
-          --data-dir /data \
-          --thread-pool-size=8 \
-          --num-collections-parallel-load=2
-    secrets:
-      - jikan_typesense_api_key
+      - --data-dir=/data
+      - --thread-pool-size=8
+      - --num-collections-parallel-load=2
     volumes:
       - jikan_typesense_data:/data
     networks:
@@ -257,39 +242,30 @@ networks:
     external: true
     name: dmz
 
+# Named volumes are for DATABASE ENGINES only (docker manages their per-engine uid).
+# restic backs up those labelled `skynet.backup: protect` directly (see backup-restic.sh).
+# Simple file data lives on absolute /opt/docker/appdata bind mounts instead.
 volumes:
-  data:
+  redis_data:            # aiometadata cache — regenerable
     labels:
-      com.aliammar.service: aiometadata
-      com.aliammar.backup: critical
+      skynet.service: aiometadata
+      skynet.backup: ephemeral
+      skynet.managed: gitops
 
-  poster_cache:
+  jikan_mongo_data:      # jikan primary DB — source of truth
     labels:
-      com.aliammar.service: aiometadata
-      com.aliammar.backup: rebuildable
+      skynet.service: aiometadata
+      skynet.backup: protect
+      skynet.managed: gitops
 
-  cold_store:
+  jikan_redis_data:      # jikan cache — regenerable
     labels:
-      com.aliammar.service: aiometadata
-      com.aliammar.backup: rebuildable
+      skynet.service: aiometadata
+      skynet.backup: ephemeral
+      skynet.managed: gitops
 
-  redis_data:
+  jikan_typesense_data:  # jikan search index — re-indexable
     labels:
-      com.aliammar.service: aiometadata
-      com.aliammar.backup: rebuildable
-
-  jikan_mongo_data:
-    labels:
-      com.aliammar.service: jikan
-      com.aliammar.backup: critical
-
-  jikan_redis_data:
-    labels:
-      com.aliammar.service: jikan
-      com.aliammar.backup: rebuildable
-
-  jikan_typesense_data:
-    labels:
-      com.aliammar.service: jikan
-      com.aliammar.backup: rebuildable
-
+      skynet.service: aiometadata
+      skynet.backup: ephemeral
+      skynet.managed: gitops

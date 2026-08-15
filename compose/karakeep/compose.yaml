@@ -1,8 +1,13 @@
 name: karakeep
 
+x-arcane:
+  tags:
+    - name: bookmarks
+      color: orange
+
 services:
   web:
-    image: ghcr.io/karakeep-app/karakeep:${KARAKEEP_VERSION:-release}
+    image: ghcr.io/karakeep-app/karakeep:release@sha256:b069e4307dec06ea06d16989c6861c30a1ff208568be44ed5fb5d422cd3e950c
     restart: unless-stopped
     volumes:
       - /opt/docker/appdata/karakeep/data:/data
@@ -43,7 +48,7 @@ services:
     environment:
       MEILI_NO_ANALYTICS: "true"
     volumes:
-      - /opt/docker/appdata/karakeep/meilisearch:/meili_data
+      - meili_data:/meili_data
     networks:
       - backend
 
@@ -52,3 +57,11 @@ networks:
   dmz:
     external: true
     name: dmz
+
+volumes:
+  # meilisearch = standalone DB engine; index is re-indexable from the app's SQLite data
+  meili_data:
+    labels:
+      skynet.service: karakeep
+      skynet.backup: ephemeral
+      skynet.managed: gitops

@@ -1,3 +1,8 @@
+x-arcane:
+  tags:
+    - name: books
+      color: green
+
 services:
   calibre:
     image: lscr.io/linuxserver/calibre:latest@sha256:f4a17653e7851c4642583ba2cd292509f90b4b8e123596af38b6ee02154676be
@@ -13,7 +18,7 @@ services:
       DISABLE_IPV6: "true"
 
     volumes:
-      - /opt/docker/appdata/calibre:/config
+      - /opt/docker/appdata/calibre/config:/config
 
     shm_size: "1gb"
     stop_grace_period: 1m

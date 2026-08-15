@@ -1,3 +1,8 @@
+x-arcane:
+  tags:
+    - name: media
+      color: purple
+
 services:
   aiostreams:
     image: ghcr.io/viren070/aiostreams:nightly@sha256:c06903e7e17b1e9ae9cf681841fed1fa5a40880420b61781cc8aea5c8fc5b2bd
