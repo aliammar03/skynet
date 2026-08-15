@@ -25,9 +25,10 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - data:/app/addon/data
-      - poster_cache:/app/poster-cache
-      - cold_store:/app/cold-store
+      # simple file data -> absolute appdata bind mounts (backup-friendly, in the restic sweep)
+      - /opt/docker/appdata/aiometadata/data:/app/addon/data
+      - /opt/docker/appdata/aiometadata/poster-cache:/app/poster-cache
+      - /opt/docker/appdata/aiometadata/cold-store:/app/cold-store
     networks:
       backend:
       dmz:
@@ -243,22 +244,10 @@ networks:
     external: true
     name: dmz
 
+# Named volumes are for DATABASE ENGINES only (docker manages their per-engine uid).
+# restic backs up those labelled `com.aliammar.backup: critical` directly (see backup-restic.sh).
+# Simple file data lives on absolute /opt/docker/appdata bind mounts instead.
 volumes:
-  data:
-    labels:
-      com.aliammar.service: aiometadata
-      com.aliammar.backup: critical
-
-  poster_cache:
-    labels:
-      com.aliammar.service: aiometadata
-      com.aliammar.backup: rebuildable
-
-  cold_store:
-    labels:
-      com.aliammar.service: aiometadata
-      com.aliammar.backup: rebuildable
-
   redis_data:
     labels:
       com.aliammar.service: aiometadata
