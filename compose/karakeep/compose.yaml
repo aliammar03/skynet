@@ -2,7 +2,7 @@ name: karakeep
 
 services:
   web:
-    image: ghcr.io/karakeep-app/karakeep:${KARAKEEP_VERSION:-release}
+    image: ghcr.io/karakeep-app/karakeep:release@sha256:b069e4307dec06ea06d16989c6861c30a1ff208568be44ed5fb5d422cd3e950c
     restart: unless-stopped
     volumes:
       - /opt/docker/appdata/karakeep/data:/data
