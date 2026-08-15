@@ -245,25 +245,29 @@ networks:
     name: dmz
 
 # Named volumes are for DATABASE ENGINES only (docker manages their per-engine uid).
-# restic backs up those labelled `com.aliammar.backup: critical` directly (see backup-restic.sh).
+# restic backs up those labelled `skynet.backup: protect` directly (see backup-restic.sh).
 # Simple file data lives on absolute /opt/docker/appdata bind mounts instead.
 volumes:
-  redis_data:
+  redis_data:            # aiometadata cache — regenerable
     labels:
-      com.aliammar.service: aiometadata
-      com.aliammar.backup: rebuildable
+      skynet.service: aiometadata
+      skynet.backup: ephemeral
+      skynet.managed: gitops
 
-  jikan_mongo_data:
+  jikan_mongo_data:      # jikan primary DB — source of truth
     labels:
-      com.aliammar.service: jikan
-      com.aliammar.backup: critical
+      skynet.service: aiometadata
+      skynet.backup: protect
+      skynet.managed: gitops
 
-  jikan_redis_data:
+  jikan_redis_data:      # jikan cache — regenerable
     labels:
-      com.aliammar.service: jikan
-      com.aliammar.backup: rebuildable
+      skynet.service: aiometadata
+      skynet.backup: ephemeral
+      skynet.managed: gitops
 
-  jikan_typesense_data:
+  jikan_typesense_data:  # jikan search index — re-indexable
     labels:
-      com.aliammar.service: jikan
-      com.aliammar.backup: rebuildable
+      skynet.service: aiometadata
+      skynet.backup: ephemeral
+      skynet.managed: gitops

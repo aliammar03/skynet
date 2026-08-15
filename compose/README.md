@@ -18,7 +18,7 @@ merge `.env.git`/`project.env`).
 
 | the data is… | → type | host name | label |
 |---|---|---|---|
-| a **standalone DB-engine** container's storage — mongo, postgres, standalone redis, **meilisearch**, typesense, elasticsearch… | **named volume** | `<role>` (docker-managed; compose prefixes `<svc>_`) | **required** on the volume: `com.aliammar.service: <svc>` + `com.aliammar.backup: critical\|rebuildable` |
+| a **standalone DB-engine** container's storage — mongo, postgres, standalone redis, **meilisearch**, typesense, elasticsearch… | **named volume** | `<role>` (docker-managed; compose prefixes `<svc>_`) | **required** — see labels below |
 | **everything else** — app data, configs, uploads, media, an app's **embedded SQLite** | **bind mount** | `/opt/docker/appdata/<svc>/<role>` | none (located by path; in the restic appdata sweep) |
 | a **repo-tracked** config/code file (init scripts, patches) | relative mount | `./…:…:ro` (GitOps-synced) | none |
 
@@ -27,13 +27,23 @@ Rules that make it unambiguous:
   `index`, `db`, `plugins`… **Every bind mount gets a `<role>` subdir even if the service has only
   one** (so `…/calibre/config`, never `…/calibre`). Don't repeat `<svc>` in `<role>`
   (`…/marinara/data`, not `…/marinara/marinara-data`).
-- **`critical`** = primary source of truth, not reconstructable (user data, a primary DB).
-  **`rebuildable`** = cache / derived / re-indexable (search indexes, redis-as-cache, poster caches).
-- `backup-restic.sh` backs up `/opt/docker/appdata` (all bind mounts) **plus** named volumes
-  labelled `com.aliammar.backup=critical`. Rebuildable named volumes are never backed up; put a
-  rebuildable *bind-mount* cache under a name matched by the script's `--exclude` list.
 - Switching a named volume ↔ bind mount: remove the orphan (`docker volume rm <svc>_<role>`, or
   `rm -rf` the stale appdata dir) so restic doesn't grab dead data.
+
+### Volume labels — the `skynet.*` namespace
+
+**Every named volume carries all three:**
+
+| label | values | meaning / who reads it |
+|---|---|---|
+| `skynet.service` | the service name | groups a volume to its service (`docker volume ls --filter label=skynet.service=<svc>`). Organizational today; A4 restore tooling will use it. |
+| `skynet.backup` | `protect` \| `ephemeral` | **the backup intent** — `protect` = source of truth, `backup-restic.sh` pulls it into the backup; `ephemeral` = cache/index/regenerable, skipped. |
+| `skynet.managed` | `gitops` | marks the volume as owned by this repo's GitOps flow (vs a hand-made stray). |
+
+Reads like a sentence: *skynet: protect this, it's aiometadata's, managed by gitops.*
+Bind mounts need no labels (found by their `/opt/docker/appdata/<svc>/…` path). The vocabulary is
+open to extend later (`skynet.backup: snapshot`, a `skynet.tier` for retention) without breaking
+`protect`/`ephemeral`.
 
 ## The env-layering contract (Arcane, resolved in plan §4)
 

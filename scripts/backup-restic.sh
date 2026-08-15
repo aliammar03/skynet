@@ -9,14 +9,14 @@
 #
 # WHAT GETS BACKED UP (the skynet volume standard):
 #   1. /opt/docker/appdata — all simple-file data (services bind-mount here).
-#   2. Database-engine named volumes labelled `com.aliammar.backup=critical` — backed up
-#      directly by their mountpoints (mongo/postgres/etc. keep data in named volumes so
-#      docker manages per-engine uid). Rebuildable volumes/caches are skipped.
+#   2. Database-engine named volumes labelled `skynet.backup=protect` — backed up directly
+#      by their mountpoints (mongo/postgres/etc. keep data in named volumes so docker manages
+#      per-engine uid). Volumes labelled `skynet.backup=ephemeral` (caches/indexes) are skipped.
 set -euo pipefail
 host="${1:?usage: backup-restic.sh <host-label>}"
 secret="/opt/skynet-ops/secrets/restic-${host}.env"
 APPDATA="${APPDATA:-/opt/docker/appdata}"
-BACKUP_LABEL="${BACKUP_LABEL:-com.aliammar.backup=critical}"
+BACKUP_LABEL="${BACKUP_LABEL:-skynet.backup=protect}"
 
 if ! sudo test -f "${secret}"; then
   echo "no restic config yet (${secret}) — idle until A4 init" >&2
