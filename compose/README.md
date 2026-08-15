@@ -9,8 +9,11 @@ compose/<service>/
 
 **The canonical "skynet way" for every service** (the standard this repo enforces):
 digest-pinned images · `env_file: .env` · non-secret config in committed `.env.git` ·
-secrets only in `.env.sops` · deployed via Arcane GitOps Sync from this repo. No inline
-compose secrets, no file-based `.txt` docker secrets.
+secrets only in `.env.sops` · **backup-friendly volumes** (absolute `/opt/docker/appdata/<svc>/…`
+bind mounts, or named volumes labelled `com.aliammar.backup`; never relative in-project-dir data) ·
+deployed via Arcane GitOps Sync from this repo. No inline compose config, no file-based `.txt`
+docker secrets. Deploy with `scripts/gitops-deploy.sh <svc>` — see `runbooks/deploy-service.md`
+for how the effective `.env` is materialised (Arcane GitOps does not merge `.env.git`/`project.env`).
 
 ## The env-layering contract (Arcane, resolved in plan §4)
 
