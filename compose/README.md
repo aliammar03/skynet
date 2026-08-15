@@ -9,11 +9,20 @@ compose/<service>/
 
 **The canonical "skynet way" for every service** (the standard this repo enforces):
 digest-pinned images · `env_file: .env` · non-secret config in committed `.env.git` ·
-secrets only in `.env.sops` · **backup-friendly volumes** (absolute `/opt/docker/appdata/<svc>/…`
-bind mounts, or named volumes labelled `com.aliammar.backup`; never relative in-project-dir data) ·
-deployed via Arcane GitOps Sync from this repo. No inline compose config, no file-based `.txt`
-docker secrets. Deploy with `scripts/gitops-deploy.sh <svc>` — see `runbooks/deploy-service.md`
-for how the effective `.env` is materialised (Arcane GitOps does not merge `.env.git`/`project.env`).
+secrets only in `.env.sops` · deployed via Arcane GitOps Sync from this repo. No inline compose
+config, no file-based `.txt` docker secrets. Deploy with `scripts/gitops-deploy.sh <svc>` — see
+`runbooks/deploy-service.md` for how the effective `.env` is materialised (Arcane GitOps does not
+merge `.env.git`/`project.env`).
+
+### Volume standard
+
+- **Simple file data → absolute bind mount** `/opt/docker/appdata/<svc>/<role>` (`<role>` = the
+  data's purpose: `data`, `config`, …). One tree, swept wholesale by `backup-restic.sh`. Never
+  relative in-project-dir data.
+- **Database engines (mongo/redis/typesense/…) → named volumes**, so docker manages their
+  per-engine uid. Label every named volume `com.aliammar.service: <svc>` and
+  `com.aliammar.backup: critical|rebuildable`. `backup-restic.sh` backs up the **critical** ones
+  directly by mountpoint; rebuildable ones (caches) are skipped.
 
 ## The env-layering contract (Arcane, resolved in plan §4)
 

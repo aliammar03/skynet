@@ -13,8 +13,11 @@ compose/<svc>/.env.sops      # secrets only (sops+age); omit if the service has 
 - **No inline `environment:` config** — put config in `.env.git`, not scattered in compose
   (structural keys like a computed `REDIS_URL` that interpolate a secret are the exception).
 - **No Docker file-secrets, no `*.txt` secrets.** One secret store: `.env.sops`.
-- **Backup-friendly volumes:** absolute `/opt/docker/appdata/<svc>/...` bind mounts, or
-  **named** docker volumes labelled `com.aliammar.backup`. Never relative in-project-dir data.
+- **Volumes:** simple file data → absolute `/opt/docker/appdata/<svc>/<role>` bind mounts
+  (swept by `backup-restic.sh`). Database engines → **named** volumes labelled
+  `com.aliammar.service` + `com.aliammar.backup: critical|rebuildable` (restic backs up the
+  critical ones directly). Never relative in-project-dir data. When switching a named volume to a
+  bind mount, remove the now-orphaned named volume (`docker volume rm <project>_<name>`).
 
 ## How env actually reaches the container (important)
 
