@@ -16,8 +16,10 @@ fi
 # shellcheck disable=SC1090
 eval "$(sudo cat "${secret}")"
 : "${PVE_HOST:?}" "${PVE_TOKEN:?}"
+: "${PVE_CACERT:?set PVE_CACERT in ${secret} to a pinned cert — run: scripts/pin-cert.sh ${PVE_HOST:-<host>} 8006 /opt/skynet-ops/certs/proxmox-${node}.crt}"
+[ -r "${PVE_CACERT}" ] || { echo "PVE_CACERT ${PVE_CACERT} not readable (pins live in /opt/skynet-ops/certs, 0644)" >&2; exit 1; }
 
-api() { curl -sSf --max-time 15 -H "Authorization: PVEAPIToken=${PVE_TOKEN}" \
+api() { curl -sSf --max-time 15 --cacert "${PVE_CACERT}" -H "Authorization: PVEAPIToken=${PVE_TOKEN}" \
         "https://${PVE_HOST}:8006/api2/json/$1"; }
 
 out="${REPO_DIR}/inventory/proxmox-${node}.json"

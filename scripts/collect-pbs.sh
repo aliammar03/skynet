@@ -16,13 +16,15 @@ fi
 # shellcheck disable=SC1090
 eval "$(sudo cat "${secret}")"
 : "${PBS_HOST:?}" "${PBS_TOKEN:?}"
+: "${PBS_CACERT:?set PBS_CACERT in ${secret} — run: scripts/pin-cert.sh ${PBS_HOST:-<host>} 8007 /opt/skynet-ops/certs/pbs.crt}"
+[ -r "${PBS_CACERT}" ] || { echo "PBS_CACERT ${PBS_CACERT} not readable" >&2; exit 1; }
 
 if ! timeout 5 bash -c "</dev/tcp/${PBS_HOST}/8007" 2>/dev/null; then
   echo "PBS ${PBS_HOST}:8007 unreachable — see A1 finding; not writing inventory" >&2
   exit 1
 fi
 
-api() { curl -sSf --max-time 15 -H "Authorization: PBSAPIToken=${PBS_TOKEN}" \
+api() { curl -sSf --max-time 15 --cacert "${PBS_CACERT}" -H "Authorization: PBSAPIToken=${PBS_TOKEN}" \
         "https://${PBS_HOST}:8007/api2/json/$1"; }
 
 out="${REPO_DIR}/inventory/pbs.json"

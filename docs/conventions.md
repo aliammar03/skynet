@@ -33,6 +33,18 @@ Rules every agent and every PR must follow. Short, enforceable, testable.
   **Secrets never** — they live only in `project.env` (→ `.env.sops`).
 - One Arcane Git Sync per project dir; auto-sync on; Arcane auto-update off for git-synced projects.
 
+## TLS to internal APIs — pin, never `-k`
+
+Proxmox, PBS, and Technitium serve self-signed / private-CA certs. Collectors **never**
+disable verification (`curl -k`) — the ops brain holds write tokens, so a MITM downgrade is
+unacceptable. Instead each endpoint's cert is **pinned**:
+
+- Pin once with `scripts/pin-cert.sh <host> <port> /opt/skynet-ops/certs/<name>.crt`.
+- Collectors verify with `curl --cacert <pin>`; the pin path is `*_CACERT` in the secret env.
+- **Pins are public** (a server cert is not a secret): they live in `/opt/skynet-ops/certs/`
+  (dir 0755, files 0644, readable by the collector user) — *not* in `secrets/`.
+- Re-pin if an endpoint rotates its cert (the collector will fail closed until you do).
+
 ## Generated / auto content — do not hand-edit
 
 - `inventory/**` and `docs/generated/**` are machine-written. Edit the collector or renderer, never the output.

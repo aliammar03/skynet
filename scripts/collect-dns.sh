@@ -15,13 +15,16 @@ fi
 # shellcheck disable=SC1090
 eval "$(sudo cat "${secret}")"
 : "${TECH_HOST:?}" "${TECH_TOKEN:?}"
+: "${TECH_CACERT:?set TECH_CACERT in ${secret} — run: scripts/pin-cert.sh ${TECH_HOST:-<host>} 53443 /opt/skynet-ops/certs/technitium.crt}"
+[ -r "${TECH_CACERT}" ] || { echo "TECH_CACERT ${TECH_CACERT} not readable" >&2; exit 1; }
+curlp() { curl -sSf --max-time 15 --cacert "${TECH_CACERT}" "$@"; }
 
 base="https://${TECH_HOST}:53443/api"
-zones="$(curl -sSf --max-time 15 "${base}/zones/list?token=${TECH_TOKEN}" | jq '.response.zones')"
+zones="$(curlp "${base}/zones/list?token=${TECH_TOKEN}" | jq '.response.zones')"
 
 # Pull records per zone (read-only).
 records="$(echo "${zones}" | jq -r '.[].name' | while read -r z; do
-  curl -sSf --max-time 15 "${base}/zones/records/get?token=${TECH_TOKEN}&domain=${z}&zone=${z}&listZone=true" \
+  curlp "${base}/zones/records/get?token=${TECH_TOKEN}&domain=${z}&zone=${z}&listZone=true" \
     | jq --arg z "${z}" '{zone:$z, records:.response.records}'
 done | jq -s '.')"
 
