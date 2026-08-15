@@ -341,6 +341,30 @@ The bootstrap has a chicken-and-egg core: the agent can't build its own VM, mint
 
 Every agent phase ends the same way: a PR + a written summary; your merge is the starting gun for the next phase. That cadence is deliberate — it's also your git education, escalating from "merge a scaffold" to "review an infrastructure change" across six phases.
 
+### Build status (living record — updated 2026-08-15)
+
+| Phase | Status | Landed as |
+|---|---|---|
+| H0–H2 + Handover | ✅ complete | bootstrap by Ali |
+| **A1 — Scaffold** | ✅ complete | PR #1 |
+| **A2 — Credentials ceremony** | ✅ complete | all 9 checkpoints validated (see results below) |
+| **A3 — Truth sync + consolidation** | ✅ complete | PRs #2–#14 — all six docker-dmz stacks on the "skynet way": pinned digests, `.env.git`/`.env.sops`, Arcane GitOps deploy via `scripts/gitops-deploy.sh`, standard volumes + `skynet.*` labels |
+| **A4 — Backups** | ⏭ next | see "Resuming at A4" |
+| A5 — Visibility | ☐ pending | — |
+| A6 — Graduation | ☐ pending | — |
+
+**A2 checkpoint results** — every row of the table below was executed and validated: (1) Proxmox svc-ops tokens on core (10.10.50.11) + network (10.10.50.10), collectors return JSON [ACL-before-token bug fixed, PR #2]; (2) workstation CA + `gr`, test grant signed & lapsed; (3) Arcane `X-API-Key` lists projects; (4) Technitium token (10.10.70.50, `ops` group), zones collected; (5) rclone→gdrive OAuth conf on the VM; (6) OPNsense os-git-backup → `skynet-opnsense`, firewall mirrored; (7) Renovate app (scan+alert), bump PRs open; (8) PBS client-side encryption, key in kit; (9) survival kit printed + `gr vm-docker-dmz 10m` watched to expiry.
+
+### Resuming at A4 — Backups (next session)
+
+**Goal: stand up restic backups and prove a restore.** Start here:
+1. `gr vm-docker-dmz 2h` (age key already on vm-skynet-ops).
+2. Init restic for docker-dmz — create `/opt/skynet-ops/secrets/restic-docker-dmz.env` (`RESTIC_REPOSITORY=rclone:gdrive:…`, `RESTIC_PASSWORD_FILE`, `RCLONE_CONFIG`); Ali sets the repo password into the survival kit. `scripts/backup-restic.sh docker-dmz` already sweeps `/opt/docker/appdata` **plus** named volumes labelled `skynet.backup=protect` (currently just `aiometadata_jikan_mongo_data`) — add a `mongodump` pre-hook if a hot copy proves inconsistent.
+3. PBS→gdrive sync job (L5); systemd timers inside the grant window.
+4. **Witness test:** restore a throwaway service from gdrive end-to-end. One PR, Ali merges + watches.
+
+Carry-over before A4: once **PR #14** merges, flip the branch-tracked syncs (calibre, marinara, karakeep, silly, aiometadata) from `phase/a3-gitops-deploy` → `main` — one `scripts/gitops-deploy.sh <svc>` each (see the `skynet-service-standard` memory).
+
 ### The A2 checkpoint table — everything that is structurally yours
 
 Each row is one action, prepared entirely by the agent, human-only for a hard reason:

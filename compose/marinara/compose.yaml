@@ -1,5 +1,10 @@
 # Marinara Engine — the skynet way: structural only; all config/secrets in .env
 # (.env.git non-secret + .env.sops secrets, materialised by scripts/gitops-deploy.sh).
+x-arcane:
+  tags:
+    - name: ai
+      color: blue
+
 services:
   marinara:
     image: ghcr.io/pasta-devs/marinara-engine:latest@sha256:eed2d2f7db49d5867f30f90d314c2f668f767246cd6e7a48907c3386720be0db

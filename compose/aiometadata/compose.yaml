@@ -7,10 +7,8 @@ name: aiometadata
 
 x-arcane:
   tags:
-    - name: media
+    - name: media          # skynet role tag (one per service; see compose/README.md)
       color: purple
-    - name: critical
-      color: red
 
 services:
   aiometadata:

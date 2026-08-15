@@ -30,6 +30,31 @@ Rules that make it unambiguous:
 - Switching a named volume ↔ bind mount: remove the orphan (`docker volume rm <svc>_<role>`, or
   `rm -rf` the stale appdata dir) so restic doesn't grab dead data.
 
+### Role tag — one `x-arcane` tag per service
+
+Every service declares **exactly one role tag** in its compose so Arcane's UI groups the fleet
+at a glance (Arcane applies `x-arcane.tags` automatically on GitOps sync — `sources: [compose]`):
+
+```yaml
+x-arcane:
+  tags:
+    - name: media       # the role
+      color: purple
+```
+
+Role → colour (keep it consistent so a colour always means the same role):
+
+| role | colour | examples |
+|---|---|---|
+| `media` | purple | aiostreams, aiometadata |
+| `ai` | blue | marinara, silly |
+| `books` | green | calibre |
+| `bookmarks` | amber | karakeep |
+
+One role per service (it's a *category*, not a severity — no `critical`/`important` tags). New
+roles are fine; give each its own stable colour. `scripts/gitops-deploy.sh` reports the applied
+tag after every deploy and warns if a service is untagged.
+
 ### Volume labels — the `skynet.*` namespace
 
 **Every named volume carries all three:**

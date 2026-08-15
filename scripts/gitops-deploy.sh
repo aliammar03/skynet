@@ -99,3 +99,12 @@ for i in $(seq 1 20); do
 done
 echo "==> ${SVC}: project status = ${ST:-unknown}"
 ssh "${SSH_HOST}" "docker ps --filter label=com.docker.compose.project --format '{{.Names}}\t{{.Status}}' | grep -i '${SVC}' || true"
+
+# --- role tag (skynet standard: exactly one x-arcane role tag per service; Arcane applies
+#     it from the synced compose). Report it, and warn if the service is untagged. ---
+TAGS="$(arc GET "/environments/${ENVID}/projects/${PROJ}" | jq -r '(.data.tags // [])|map(.name)|join(", ")')"
+if [ -n "${TAGS}" ]; then
+  echo "==> ${SVC}: role tag(s) = ${TAGS}"
+else
+  echo "==> ${SVC}: WARNING — no role tag; add x-arcane.tags to compose/${SVC}/compose.yaml" >&2
+fi

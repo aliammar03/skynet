@@ -12,6 +12,8 @@ compose/<svc>/.env.sops      # secrets only (sops+age); omit if the service has 
 
 - **No inline `environment:` config** — put config in `.env.git`, not scattered in compose
   (structural keys like a computed `REDIS_URL` that interpolate a secret are the exception).
+- **One role tag** via `x-arcane.tags` (`media`/`ai`/`books`/`bookmarks`/…, stable colour per
+  role — see compose README). Arcane applies it on sync; `gitops-deploy.sh` reports/warns.
 - **No Docker file-secrets, no `*.txt` secrets.** One secret store: `.env.sops`.
 - **Volumes:** simple file data → absolute `/opt/docker/appdata/<svc>/<role>` bind mounts
   (swept by `backup-restic.sh`). Database engines → **named** volumes, each labelled
