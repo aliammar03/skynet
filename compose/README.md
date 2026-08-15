@@ -49,7 +49,7 @@ Role → colour (keep it consistent so a colour always means the same role):
 | `media` | purple | aiostreams, aiometadata |
 | `ai` | blue | marinara, silly |
 | `books` | green | calibre |
-| `bookmarks` | amber | karakeep |
+| `bookmarks` | orange | karakeep |
 
 One role per service (it's a *category*, not a severity — no `critical`/`important` tags). New
 roles are fine; give each its own stable colour. `scripts/gitops-deploy.sh` reports the applied

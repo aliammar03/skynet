@@ -3,7 +3,7 @@ name: karakeep
 x-arcane:
   tags:
     - name: bookmarks
-      color: amber
+      color: orange
 
 services:
   web:
