@@ -5,9 +5,14 @@
 # if the agent could sign its own cert, every trust tier in the plan would be decoration.
 #
 # USAGE: grant-root <hostname|all> [duration, default 2h]
-#   grant-root docker-dmz 1h    # root on one host for 1 hour
-#   grant-root all 4h           # fleet-wide window for an update run
+#   grant-root vm-docker-dmz 1h   # root on one host for 1 hour
+#   grant-root all 4h             # fleet-wide window for an update run
 # The cert carries its own expiry; when it lapses, sshd simply refuses it. No cleanup.
+#
+# PER-HOST CERTS: the signed cert is placed at ~/.ssh/certs/<host>-cert.pub on skynet-ops (not
+# the single ~/.ssh/id_ed25519-cert.pub). skynet-ops' ssh_config presents the right one per host
+# (Match user root), so grants for different hosts NO LONGER clobber each other — issue several
+# and they coexist until each expires on its own.
 set -euo pipefail
 
 HOST="${1:?host or 'all'}"; DUR="${2:-2h}"
@@ -22,6 +27,11 @@ ssh-keygen -s "${CA_KEY}" \
   -n "ops-root-${HOST}" \
   -V "+${DUR}" \
   /tmp/ops.pub
-scp /tmp/ops-cert.pub "${VM}:.ssh/id_ed25519-cert.pub"
+# Place the cert in the per-host slot (dir created 0700).
+ssh "${VM}" 'mkdir -p ~/.ssh/certs && chmod 700 ~/.ssh ~/.ssh/certs'
+scp /tmp/ops-cert.pub "${VM}:.ssh/certs/${HOST}-cert.pub"
 rm -f /tmp/ops.pub /tmp/ops-cert.pub
-echo "root on ${HOST} for ${DUR} — expires itself."
+# Refresh skynet-ops' ssh_config so `ssh root@${HOST}` presents this cert (coexists with others).
+ssh "${VM}" 'test -x ~/skynet/scripts/skynet-ops-ssh-certs.sh && ~/skynet/scripts/skynet-ops-ssh-certs.sh' || \
+  echo "note: run scripts/skynet-ops-ssh-certs.sh on skynet-ops once to wire ssh_config" >&2
+echo "root on ${HOST} for ${DUR} — cert at ~/.ssh/certs/${HOST}-cert.pub, expires itself."
