@@ -3,7 +3,7 @@
 # TIER: runs on/against the docker host; restic encrypts client-side (Google sees ciphertext).
 # USAGE: backup-restic.sh <host-label>
 #   Reads /opt/skynet-ops/secrets/restic-<host>.env:
-#     export RESTIC_REPOSITORY='rclone:gdrive:skynet-backups/restic/<host>'
+#     export RESTIC_REPOSITORY='rclone:gdrive:Skynet/Backups/restic/<host>'
 #     export RESTIC_PASSWORD_FILE=/opt/skynet-ops/secrets/restic-<host>.pass
 #     export RCLONE_CONFIG=/opt/skynet-ops/secrets/rclone.conf
 #

@@ -18,7 +18,7 @@ eval "$(sudo cat "${secret}")"
 : "${PBS_DATASTORE_PATH:?}" "${RCLONE_CONFIG:?}"
 export RCLONE_CONFIG
 
-rclone sync "${PBS_DATASTORE_PATH}" gdrive:skynet-backups/pbs \
+rclone sync "${PBS_DATASTORE_PATH}" gdrive:Skynet/Backups/pbs \
   --bwlimit "08:00,off 23:00,10M" \
   --transfers 4 --checkers 8 --fast-list
-echo "PBS datastore synced to gdrive:skynet-backups/pbs"
+echo "PBS datastore synced to gdrive:Skynet/Backups/pbs"

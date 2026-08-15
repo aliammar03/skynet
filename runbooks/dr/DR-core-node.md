@@ -4,7 +4,7 @@ Core dies carrying PBS, so the off-site copy on Google Drive (L5) is the way bac
 
 ## Steps
 
-1. **Pull the datastore from Google Drive** (L5): `rclone sync gdrive:skynet-backups/pbs <local>`.
+1. **Pull the datastore from Google Drive** (L5): `rclone sync gdrive:Skynet/Backups/pbs <local>`.
 2. **Stand PBS up first**, re-add the datastore, re-import the client-side encryption key
    (from the survival kit — it never transited the agent).
 3. **Then** bring up Unraid, skynet-ops, and the rest, restoring guests from PBS normally.

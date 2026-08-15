@@ -1,0 +1,18 @@
+[Unit]
+# Templated per docker host: enable as skynet-restic-backup@<host-label>.timer
+# e.g. skynet-restic-backup@docker-dmz — %i is the <host-label> passed to backup-restic.sh,
+# which reads /opt/skynet-ops/secrets/restic-%i.env. Plan §6 L3.
+Description=skynet restic backup (%i) -> Google Drive
+Documentation=https://github.com/aliammar03/skynet/blob/main/runbooks/restore-service.md
+Wants=network-online.target docker.service
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+# Runs as root (default): must read /var/lib/docker/volumes/* and /opt/docker/appdata.
+ExecStart=/opt/skynet-ops/scripts/backup-restic.sh %i
+# Be a good citizen on a shared docker host.
+Nice=10
+IOSchedulingClass=idle
+# restic + rclone can be memory-hungry on prune; give it room but cap runaway.
+TimeoutStartSec=4h
