@@ -1,0 +1,12 @@
+[Unit]
+Description=Nightly skynet restic backup (%i)
+
+[Timer]
+# 02:30 + up to 30m jitter, so multiple hosts don't hit Google Drive at once.
+OnCalendar=*-*-* 02:30:00
+RandomizedDelaySec=30m
+# Catch up if the host was asleep at 02:30.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

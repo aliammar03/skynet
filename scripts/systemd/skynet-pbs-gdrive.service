@@ -1,0 +1,14 @@
+[Unit]
+# Installed INSIDE the PBS host (lxc-proxmox-backup-server). Plan §6 L5.
+# Off-site copy of the already-encrypted PBS datastore to Google Drive.
+Description=skynet PBS datastore -> Google Drive off-site sync (L5)
+Documentation=https://github.com/aliammar03/skynet/blob/main/runbooks/dr/DR-core-node.md
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/skynet-ops/scripts/backup-pbs-gdrive.sh
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=6h

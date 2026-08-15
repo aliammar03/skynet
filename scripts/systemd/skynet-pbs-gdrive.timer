@@ -1,0 +1,12 @@
+[Unit]
+Description=Nightly PBS datastore off-site sync to Google Drive
+
+[Timer]
+# 04:00 — after the docker restic window (02:30) and after PBS garbage-collection,
+# so rclone only ships already-GC'd, deduplicated, client-side-encrypted chunks.
+OnCalendar=*-*-* 04:00:00
+RandomizedDelaySec=20m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

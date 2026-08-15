@@ -18,7 +18,10 @@ eval "$(sudo cat "${secret}")"
 : "${PBS_DATASTORE_PATH:?}" "${RCLONE_CONFIG:?}"
 export RCLONE_CONFIG
 
-rclone sync "${PBS_DATASTORE_PATH}" gdrive:skynet-backups/pbs \
-  --bwlimit "08:00,off 23:00,10M" \
+# bwlimit timetable: throttle to 10 MiB/s during waking hours (08:00), unlimited overnight
+# (23:00 -> off) when the timer actually runs. The datastore is already deduplicated +
+# compressed on disk (see plan §6), so this uploads the on-disk footprint, not logical size.
+rclone sync "${PBS_DATASTORE_PATH}" gdrive:Skynet/Backups/pbs \
+  --bwlimit "08:00,10M 23:00,off" \
   --transfers 4 --checkers 8 --fast-list
-echo "PBS datastore synced to gdrive:skynet-backups/pbs"
+echo "PBS datastore synced to gdrive:Skynet/Backups/pbs"
