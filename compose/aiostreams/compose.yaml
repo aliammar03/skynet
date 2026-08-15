@@ -1,0 +1,17 @@
+services:
+  aiostreams:
+    image: ghcr.io/viren070/aiostreams:nightly
+    container_name: aiostreams
+    restart: unless-stopped
+    ports:
+      - 3000:3000
+    env_file:
+      - .env
+    volumes:
+      - /opt/docker/appdata/aiostreams/data:/app/data
+    networks:
+      dmz:
+        ipv4_address: 10.10.100.65
+networks:
+  dmz:
+    external: true

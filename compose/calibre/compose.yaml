@@ -1,0 +1,28 @@
+services:
+  calibre:
+    image: lscr.io/linuxserver/calibre:latest
+    container_name: calibre
+    hostname: calibre
+
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: Asia/Karachi
+      UMASK: "022"
+      TITLE: Calibre Admin
+      DISABLE_IPV6: "true"
+
+    volumes:
+      - /opt/docker/appdata/calibre:/config
+
+    shm_size: "1gb"
+    stop_grace_period: 1m
+    restart: unless-stopped
+
+    networks:
+      dmz:
+        ipv4_address: 10.10.100.53
+
+networks:
+  dmz:
+    external: true

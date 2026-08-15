@@ -1,0 +1,54 @@
+name: karakeep
+
+services:
+  web:
+    image: ghcr.io/karakeep-app/karakeep:${KARAKEEP_VERSION:-release}
+    restart: unless-stopped
+    volumes:
+      - /opt/docker/appdata/karakeep/data:/data
+    env_file:
+      - .env
+    environment:
+      MEILI_ADDR: http://meilisearch:7700
+      BROWSER_WEB_URL: http://chrome:9222
+      DATA_DIR: /data
+    networks:
+      backend:
+      dmz:
+        ipv4_address: 10.10.100.75
+    depends_on:
+      - chrome
+      - meilisearch
+
+  chrome:
+    image: zenika/alpine-chrome:124
+    restart: unless-stopped
+    command:
+      - --no-sandbox
+      - --disable-gpu
+      - --disable-dev-shm-usage
+      - --remote-debugging-address=0.0.0.0
+      - --remote-debugging-port=9222
+      - --hide-scrollbars
+      - --disable-blink-features=AutomationControlled
+      - --window-size=1440,900
+    networks:
+      - backend
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.41.0
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      MEILI_NO_ANALYTICS: "true"
+    volumes:
+      - /opt/docker/appdata/karakeep/meilisearch:/meili_data
+    networks:
+      - backend
+
+networks:
+  backend:
+  dmz:
+    external: true
+    name: dmz

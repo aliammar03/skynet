@@ -1,0 +1,295 @@
+name: Aiometadata
+
+x-arcane:
+  tags:
+    - name: media
+      color: purple
+    - name: critical
+      color: red
+
+secrets:
+  jikan_db_username:
+    file: ./jikan/secrets/db_username.txt
+  jikan_db_password:
+    file: ./jikan/secrets/db_password.txt
+  jikan_db_admin_username:
+    file: ./jikan/secrets/db_admin_username.txt
+  jikan_db_admin_password:
+    file: ./jikan/secrets/db_admin_password.txt
+  jikan_redis_password:
+    file: ./jikan/secrets/redis_password.txt
+  jikan_typesense_api_key:
+    file: ./jikan/secrets/typesense_api_key.txt
+
+services:
+  aiometadata:
+    image: ghcr.io/cedya77/aiometadata:latest@sha256:386ef4acbb81004417b10d176f8a4635927d21dfdd95abd4c23a91c46515315e
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env
+    environment:
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - data:/app/addon/data
+      - poster_cache:/app/poster-cache
+      - cold_store:/app/cold-store
+    networks:
+      backend:
+      dmz:
+        ipv4_address: 10.10.100.66
+    mem_limit: 4g
+    mem_reservation: 512m
+    cpus: "4.0"
+    pids_limit: 512
+    stop_grace_period: 30s
+    logging:
+      driver: local
+      options:
+        max-size: 20m
+        max-file: "5"
+
+  redis:
+    image: docker.io/redis:7.2.15-alpine@sha256:05a97a479bc73de66f087dc05b569010772880f778cc8671fa6b8aadee32e5c6
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env
+    command:
+      - sh
+      - -ec
+      - |
+        exec redis-server \
+          --appendonly yes \
+          --appendfsync everysec \
+          --save 3600 1 \
+          --requirepass "$$REDIS_PASSWORD" \
+          --maxmemory 1gb \
+          --maxmemory-policy allkeys-lfu
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - redis-cli --no-auth-warning -a "$${REDIS_PASSWORD}" ping | grep -q PONG
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    mem_limit: 1536m
+    mem_reservation: 128m
+    cpus: "1.0"
+    pids_limit: 128
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  jikan_rest:
+    image: docker.io/jikanme/jikan-rest:latest@sha256:505f06101617c337db5b301701258de63a55f6593b0181cf2d84c92ff49cee9d
+    restart: unless-stopped
+    init: true
+    user: "10001:10001"
+    env_file:
+      - ./jikan/.env.compose
+    secrets:
+      - jikan_db_username
+      - jikan_db_password
+      - jikan_redis_password
+      - jikan_typesense_api_key
+    volumes:
+      - ./jikan/RepositoryQuery.php:/app/app/Support/RepositoryQuery.php:ro
+    expose:
+      - "8080"
+    networks:
+      backend:
+      jikan_egress:
+        gw_priority: 1
+    depends_on:
+      jikan_mongo:
+        condition: service_healthy
+      jikan_redis:
+        condition: service_healthy
+      jikan_typesense:
+        condition: service_started
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget --spider -q 'http://127.0.0.1:2114/health?plugin=http'
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    mem_limit: 2g
+    mem_reservation: 256m
+    cpus: "3.0"
+    pids_limit: 512
+    stop_grace_period: 30s
+    logging:
+      driver: local
+      options:
+        max-size: 20m
+        max-file: "5"
+
+  jikan_mongo:
+    image: docker.io/mongo:focal@sha256:862b0007cff02d5b331c3199a68a7aa0749f49952f2f368c81c50b78adc47c8c
+    restart: unless-stopped
+    init: true
+    command:
+      - --wiredTigerCacheSizeGB
+      - "0.5"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME_FILE: /run/secrets/jikan_db_admin_username
+      MONGO_INITDB_ROOT_PASSWORD_FILE: /run/secrets/jikan_db_admin_password
+      MONGO_INITDB_DATABASE: jikan_admin
+    secrets:
+      - jikan_db_username
+      - jikan_db_password
+      - jikan_db_admin_username
+      - jikan_db_admin_password
+    volumes:
+      - jikan_mongo_data:/data/db
+      - ./jikan/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - backend
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - mongosh mongodb://localhost:27017 --quiet --eval 'quit(db.runCommand("ping").ok ? 0:2)'
+      interval: 20s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
+    mem_limit: 2g
+    mem_reservation: 256m
+    cpus: "2.0"
+    pids_limit: 512
+    stop_grace_period: 60s
+    logging:
+      driver: local
+      options:
+        max-size: 20m
+        max-file: "5"
+
+  jikan_redis:
+    image: docker.io/redis:6.2.23-alpine@sha256:ec5e187c913d422cdf60f4216a5fdfb95246792c6de6fe21ff5bed75cbfc8c23
+    restart: unless-stopped
+    init: true
+    secrets:
+      - jikan_redis_password
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        exec redis-server \
+          --requirepass "$$(cat /run/secrets/jikan_redis_password)" \
+          --appendonly yes \
+          --appendfsync everysec \
+          --maxmemory 256mb \
+          --maxmemory-policy allkeys-lru
+    volumes:
+      - jikan_redis_data:/data
+    networks:
+      - backend
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - redis-cli --no-auth-warning -a "$$(cat /run/secrets/jikan_redis_password)" ping | grep -q PONG
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    mem_limit: 512m
+    mem_reservation: 64m
+    cpus: "0.5"
+    pids_limit: 128
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  jikan_typesense:
+    image: docker.io/typesense/typesense:0.24.1@sha256:9bcff2b829f12074426ca044b56160ca9d777a0c488303469143dd9f8259d4dd
+    restart: unless-stopped
+    init: true
+    entrypoint:
+      - /bin/sh
+    command:
+      - -ec
+      - |
+        exec env TYPESENSE_API_KEY="$$(cat /run/secrets/jikan_typesense_api_key)" \
+          /opt/typesense-server \
+          --data-dir /data \
+          --thread-pool-size=8 \
+          --num-collections-parallel-load=2
+    secrets:
+      - jikan_typesense_api_key
+    volumes:
+      - jikan_typesense_data:/data
+    networks:
+      - backend
+    mem_limit: 1g
+    mem_reservation: 128m
+    cpus: "1.5"
+    pids_limit: 512
+    stop_grace_period: 30s
+    logging:
+      driver: local
+      options:
+        max-size: 20m
+        max-file: "5"
+
+networks:
+  backend:
+    internal: true
+
+  jikan_egress:
+    driver: bridge
+
+  dmz:
+    external: true
+    name: dmz
+
+volumes:
+  data:
+    labels:
+      com.aliammar.service: aiometadata
+      com.aliammar.backup: critical
+
+  poster_cache:
+    labels:
+      com.aliammar.service: aiometadata
+      com.aliammar.backup: rebuildable
+
+  cold_store:
+    labels:
+      com.aliammar.service: aiometadata
+      com.aliammar.backup: rebuildable
+
+  redis_data:
+    labels:
+      com.aliammar.service: aiometadata
+      com.aliammar.backup: rebuildable
+
+  jikan_mongo_data:
+    labels:
+      com.aliammar.service: jikan
+      com.aliammar.backup: critical
+
+  jikan_redis_data:
+    labels:
+      com.aliammar.service: jikan
+      com.aliammar.backup: rebuildable
+
+  jikan_typesense_data:
+    labels:
+      com.aliammar.service: jikan
+      com.aliammar.backup: rebuildable
+
