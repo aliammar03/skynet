@@ -228,9 +228,15 @@ HOST="${1:?host or 'all'}"; DUR="${2:-2h}"
 scp ali@10.10.90.90:.ssh/id_ed25519.pub /tmp/ops.pub
 ssh-keygen -s ~/.skynet-ca/ops_ca -I "grant+${HOST}+$(date -Iseconds)+by-ali" \
   -n "ops-root-${HOST}" -V "+${DUR}" /tmp/ops.pub
-scp /tmp/ops-cert.pub ali@10.10.90.90:.ssh/id_ed25519-cert.pub
+scp /tmp/ops-cert.pub ali@10.10.90.90:.ssh/certs/${HOST}-cert.pub   # per-host slot
+ssh ali@10.10.90.90 '~/skynet/scripts/skynet-ops-ssh-certs.sh'      # ssh_config presents it for root@${HOST}
 echo "root on ${HOST} for ${DUR} — expires itself."
 ```
+
+**Per-host certs (A5 fix):** each grant lands in `~/.ssh/certs/<host>-cert.pub` and
+`skynet-ops-ssh-certs.sh` refreshes a `Match user root` block in skynet-ops' `~/.ssh/config`, so
+`ssh root@<host>` presents the matching cert and **multiple host grants coexist** (they no longer
+overwrite one shared `id_ed25519-cert.pub`). svc-ops (T1) connections are unaffected.
 
 `grant-root docker-dmz 2h` → agent has root on that one host for two hours. `grant-root all 4h` → fleet-wide window for an update run. The cert's KeyID (`grant+host+timestamp+by-ali`) lands in every host's sshd log on every use — the audit trail writes itself, and the nightly run greps it into `inventory/`.
 
@@ -243,7 +249,7 @@ The conversation looks like this:
 1. You (in the agent session): *"container aiometadata keeps dying, figure it out."*
 2. Agent tries T2 first (logs via unprivileged `svc-ops`, docker events via context). If root is genuinely needed, it stops and prints the request in copy-ready form: *"I need root on docker-dmz — journal access and a disk check. Run: `grant-root docker-dmz 1h`. I'll proceed the moment the cert lands."*
 3. You run that in your workstation terminal — you're SSH'd into skynet-ops from that same workstation anyway, so it's a second tmux pane or a second tab, ~2 seconds. The script fetches the agent's pubkey, signs it, pushes the cert back.
-4. The agent notices the cert appear (it polls `~/.ssh/id_ed25519-cert.pub` and checks validity/principal with `ssh-keygen -L` for ~2 min after requesting), says nothing further, and gets to work. When the cert expires, sshd shuts the door without anyone doing anything.
+4. The agent notices the cert appear (it polls `~/.ssh/certs/<host>-cert.pub` and checks validity/principal with `ssh-keygen -L` for ~2 min after requesting), says nothing further, and gets to work. When the cert expires, sshd shuts the door without anyone doing anything.
 
 Friction-reduction, in order of effort: a shell alias (`alias gr='~/skynet/bin/grant-root'`) so the ceremony is `gr docker-dmz 1h`; the agent always naming the *narrowest* host and *shortest* duration that covers the plan (AGENTS.md requirement, and over-asking is a flag); and, optional future nicety, an ntfy action button on your phone that triggers the signing script on the workstation — approval from the couch. What never gets built: any path where the signature happens on skynet-ops.
 
@@ -379,8 +385,9 @@ Landed as the A4 PR. Google Drive layout: `gdrive:Skynet/Backups/{restic/<host>,
 **Findings recorded (not worked around):**
 - **Datastore sizing:** `df` on the Unraid NFS user-share reports the *whole array* (~6.5 TB),
   not the datastore. The real number is PBS's GC-log **On-Disk usage (~68 GiB)** — always use that.
-- **One grant at a time:** `gr <host>` overwrites `~/.ssh/id_ed25519-cert.pub`, so grants are
-  strictly sequential (or use `gr all`). Consider per-host cert filenames (A5 follow-up).
+- **One grant at a time:** ~~`gr <host>` overwrites `~/.ssh/id_ed25519-cert.pub`, so grants are
+  strictly sequential~~ — **fixed in A5:** grants now use per-host cert files
+  (`~/.ssh/certs/<host>-cert.pub`) + a `Match user root` ssh_config block, so they coexist.
 - **bwlimit fix:** the L5 example was inverted; corrected to throttle by day, full-speed overnight.
 
 **Carry-overs for Ali:**
