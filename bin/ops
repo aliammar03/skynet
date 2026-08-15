@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# ops — the agent runner wrapper. Swapping engines changes ONE line: $OPS_ENGINE_CMD below.
+# USAGE:
+#   bin/ops nightly            # run the report-only nightly maintenance pass
+#   bin/ops run "<prompt>"     # hand an ad-hoc task to the configured engine
+#   bin/ops collect            # refresh inventory (all collectors), no agent
+# The engine is agent-agnostic by contract (AGENTS.md). Codex CLI is the default daily driver.
+set -euo pipefail
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "${REPO_DIR}"
+
+# ── the one agent-specific line ───────────────────────────────────────────────
+# Codex: 'codex exec --full-auto'   |   Claude Code: 'claude -p --permission-mode acceptEdits'
+OPS_ENGINE_CMD="${OPS_ENGINE_CMD:-codex exec --full-auto}"
+# ──────────────────────────────────────────────────────────────────────────────
+
+collect_all() {
+  echo "== refreshing inventory =="
+  ./scripts/collect-proxmox.sh core    || true
+  ./scripts/collect-proxmox.sh network || true
+  ./scripts/collect-pbs.sh             || true
+  ./scripts/collect-docker.sh docker-dmz || true
+  ./scripts/collect-dns.sh             || true
+  ./scripts/collect-firewall.sh        || true
+  ./scripts/render-docs.sh             || true
+}
+
+cmd="${1:-nightly}"; shift || true
+case "${cmd}" in
+  collect) collect_all ;;
+  run)
+    prompt="${1:?usage: bin/ops run \"<prompt>\"}"
+    exec ${OPS_ENGINE_CMD} "${prompt}"
+    ;;
+  nightly)
+    # Report-only until actions are promoted to the AGENTS.md auto-approve list.
+    exec ${OPS_ENGINE_CMD} \
+      "Run the nightly maintenance pass per runbooks/nightly.md. Report-only: refresh inventory, harvest the root-grant audit, render docs, and open a PR with the summary. Take no T2 write or granted-root action unless it is on the AGENTS.md auto-approve list."
+    ;;
+  *) echo "unknown command: ${cmd}" >&2; exit 2 ;;
+esac

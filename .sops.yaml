@@ -1,0 +1,6 @@
+# sops encryption rules. The matching private key lives ONLY at
+# /opt/skynet-ops/secrets/age.key (root:root 0600) and in the survival kit.
+# Without the private key, every .env.sops in history is unrecoverable.
+creation_rules:
+  - path_regex: compose/.*/\.env\.sops$
+    age: age1stah9c426pq0xf3k4qc58e92vs263lf6uvze2f6nmx84nvk86cusfgexyw
