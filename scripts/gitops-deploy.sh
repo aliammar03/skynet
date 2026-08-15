@@ -108,3 +108,11 @@ if [ -n "${TAGS}" ]; then
 else
   echo "==> ${SVC}: WARNING — no role tag; add x-arcane.tags to compose/${SVC}/compose.yaml" >&2
 fi
+
+# --- healthcheck coverage (skynet standard: every service declares one; image-built-in counts) ---
+MISSING="$(ssh "${SSH_HOST}" "for c in \$(docker ps --filter label=com.docker.compose.project=${SVC} --format '{{.Names}}'); do \
+  [ \"\$(docker inspect \"\$c\" --format '{{if .State.Health}}ok{{else}}none{{end}}')\" = none ] && echo \"\$c\"; done")"
+if [ -n "${MISSING}" ]; then
+  echo "==> ${SVC}: WARNING — service(s) without a healthcheck (add one to compose):" >&2
+  echo "${MISSING}" | sed 's/^/      /' >&2
+fi
