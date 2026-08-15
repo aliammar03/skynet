@@ -9,7 +9,8 @@
 3. **restic restore** the dated snapshot of `/opt/docker/appdata` for that host
    (`restic snapshots` to find it; `restic restore <id> --target /`).
 4. **Env for that point in time:** `git checkout <commit> -- compose/<svc>/.env.sops`, then
-   `sops -d compose/<svc>/.env.sops > project.env` in the project dir. Arcane re-merges with `.env.git`.
+   `SOPS_AGE_KEY_FILE=/opt/skynet-ops/secrets/age.key sops -d --input-type dotenv --output-type dotenv compose/<svc>/.env.sops > project.env`
+   (decrypt on skynet-ops where the age key lives, then push `project.env` to the host). Arcane re-merges with `.env.git`.
 5. **Resume Arcane sync**, **health check**, **report**.
 
 > DB-backed services: the nightly pre-hook dumped the DB into appdata. Restore the dump,
