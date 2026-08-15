@@ -356,8 +356,9 @@ Every agent phase ends the same way: a PR + a written summary; your merge is the
 | **A2 — Credentials ceremony** | ✅ complete | all 9 checkpoints validated (see results below) |
 | **A3 — Truth sync + consolidation** | ✅ complete | PRs #2–#14 — all six docker-dmz stacks on the "skynet way": pinned digests, `.env.git`/`.env.sops`, Arcane GitOps deploy via `scripts/gitops-deploy.sh`, standard volumes + `skynet.*` labels |
 | **A4 — Backups** | ✅ complete | L3 restic + witnessed restore; L5 PBS→gdrive live (see "A4 results") |
-| A5 — Visibility | ☐ pending | — |
-| A6 — Graduation | ☐ pending | — |
+| **A4.5 — Backup tooling** | ✅ complete | PR #20 — `provision-restic.sh` (any host), on-demand tagged backups, backup docs |
+| **A5 — Visibility** | ✅ complete | PRs #21 (render-docs, agent+fallback nightly, engine/model selector, weekly CLI update, CLAUDE.md, Obsidian) + #22 (per-host grant certs) |
+| **A6 — Graduation** | ⏭ next | see "Resuming at A6" — includes drilling two UNTESTED items |
 
 **A2 checkpoint results** — every row of the table below was executed and validated: (1) Proxmox svc-ops tokens on core (10.10.50.11) + network (10.10.50.10), collectors return JSON [ACL-before-token bug fixed, PR #2]; (2) workstation CA + `gr`, test grant signed & lapsed; (3) Arcane `X-API-Key` lists projects; (4) Technitium token (10.10.70.50, `ops` group), zones collected; (5) rclone→gdrive OAuth conf on the VM; (6) OPNsense os-git-backup → `skynet-opnsense`, firewall mirrored; (7) Renovate app (scan+alert), bump PRs open; (8) PBS client-side encryption, key in kit; (9) survival kit printed + `gr vm-docker-dmz 10m` watched to expiry.
 
@@ -386,8 +387,9 @@ Landed as the A4 PR. Google Drive layout: `gdrive:Skynet/Backups/{restic/<host>,
 - **Datastore sizing:** `df` on the Unraid NFS user-share reports the *whole array* (~6.5 TB),
   not the datastore. The real number is PBS's GC-log **On-Disk usage (~68 GiB)** — always use that.
 - **One grant at a time:** ~~`gr <host>` overwrites `~/.ssh/id_ed25519-cert.pub`, so grants are
-  strictly sequential~~ — **fixed in A5:** grants now use per-host cert files
+  strictly sequential~~ — **fixed in A5 (PR #22):** grants now use per-host cert files
   (`~/.ssh/certs/<host>-cert.pub`) + a `Match user root` ssh_config block, so they coexist.
+  Config-verified only; **end-to-end grant with a per-host cert is UNTESTED — drill in A6.**
 - **bwlimit fix:** the L5 example was inverted; corrected to throttle by day, full-speed overnight.
 
 **Carry-overs for Ali:**
@@ -398,6 +400,34 @@ Landed as the A4 PR. Google Drive layout: `gdrive:Skynet/Backups/{restic/<host>,
   `ssh root@10.10.20.40 systemctl start skynet-pbs-gdrive.service` if desired.
 
 Carry-over before A4: once **PR #14** merges, flip the branch-tracked syncs (calibre, marinara, karakeep, silly, aiometadata) from `phase/a3-gitops-deploy` → `main` — one `scripts/gitops-deploy.sh <svc>` each (see the `skynet-service-standard` memory).
+
+### A5 results — Visibility (complete: PRs #21, #22)
+
+- **render-docs** (`scripts/render-docs.sh`): full Obsidian set from `inventory/` (network map,
+  VLANs, firewall, per-node hosts, services, backup status) in `docs/generated/` (machine-owned),
+  plus **`05-state-of-the-lab.md`**, an LLM-authored narrative regenerated nightly.
+- **Nightly** (`skynet-nightly.timer`, 03:30, report-only): `bin/ops nightly` tries **primary
+  engine → fallback engine → deterministic `scripts/nightly.sh`**. Engine/model in
+  `~/.config/skynet-ops/ops.env` (`OPS_ENGINE`, `OPS_ENGINE_FALLBACK`, `OPS_CODEX_MODEL`,
+  `OPS_CLAUDE_MODEL`).
+- **Weekly** (`skynet-cli-update.timer`, Sun 05:00): updates both CLIs + writes each provider's
+  current `--model` ids as commented suggestions into `ops.env`.
+- **Engine-agnostic:** `CLAUDE.md` imports `AGENTS.md`. **Obsidian:** `docs/obsidian-setup.md`.
+- **Grant fix (PR #22):** per-host certs + `Match user root` ssh_config so grants coexist.
+
+### Resuming at A6 — Graduation (next session)
+
+**Prereqs (once):** re-run `scripts/bootstrap-workstation.sh` on the workstation (so `gr` uses
+per-host certs); install the Obsidian vault (`docs/obsidian-setup.md`); glance at a couple of the
+nightly `inventory/<date>` PRs.
+
+**A6 goal — stop trusting, start proving.** Drills:
+1. **UNTESTED — L5 restore:** prove the gdrive→PBS round-trip (pull the datastore from
+   `gdrive:Skynet/Backups/pbs`, re-add it, restore one small guest). See `runbooks/dr/DR-core-node.md`.
+2. **UNTESTED — per-host grant path:** issue a real `gr <host>` under the new per-host-cert flow;
+   confirm root login works AND a second host's grant coexists (A5 fix, config-verified only).
+3. **A6 proper (plan §13):** DR tabletop of `DR-network-node.md`; one real end-to-end guest
+   restore from PBS; one "update all guests" run under a fleet grant → final sign-off.
 
 ### The A2 checkpoint table — everything that is structurally yours
 

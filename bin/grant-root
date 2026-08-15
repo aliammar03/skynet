@@ -13,6 +13,10 @@
 # the single ~/.ssh/id_ed25519-cert.pub). skynet-ops' ssh_config presents the right one per host
 # (Match user root), so grants for different hosts NO LONGER clobber each other — issue several
 # and they coexist until each expires on its own.
+#
+# STATUS: config-level verified (ssh -G, svc-ops unaffected, certs coexist). The end-to-end path
+# — a real `gr` producing a per-host cert AND root login succeeding via it — is UNTESTED; drill
+# it in A6. (Also: re-run bootstrap-workstation.sh on the workstation so `gr` uses this version.)
 set -euo pipefail
 
 HOST="${1:?host or 'all'}"; DUR="${2:-2h}"
