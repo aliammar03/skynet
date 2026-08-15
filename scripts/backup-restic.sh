@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # backup-restic.sh — nightly restic backup of a host → Google Drive (plan §6 L3).
 # TIER: runs on/against the host; restic encrypts client-side (Google sees ciphertext).
-# Provisioned by scripts/provision-restic.sh (A4.5). USAGE: backup-restic.sh <host-label>
+# Provisioned by scripts/provision-restic.sh (A4.5). USAGE: backup-restic.sh <host-label> [tag ...]
+# The systemd timer passes no tags (snapshot tagged `scheduled`); on-demand runs pass one or
+# more tags (snapshot tagged `manual` + those tags) so a pre-change backup is easy to find:
+#   restic snapshots --tag manual        # e.g. before a risky change: backup-restic.sh <label> pre-<reason>
 #
 #   Reads /opt/skynet-ops/secrets/restic-<label>.env:
 #     export RESTIC_REPOSITORY='rclone:gdrive:Skynet/Backups/restic/<label>'
@@ -17,7 +20,10 @@
 #      named volumes labelled $BACKUP_LABEL (db engines keep data in named volumes so docker
 #      manages per-engine uid). Volumes labelled skynet.backup=ephemeral are simply not selected.
 set -euo pipefail
-host="${1:?usage: backup-restic.sh <host-label>}"
+host="${1:?usage: backup-restic.sh <host-label> [tag ...]}"; shift
+# Distinguish scheduled vs on-demand snapshots by tag.
+tags=(--tag scheduled)
+if [ "$#" -gt 0 ]; then tags=(--tag manual); for t in "$@"; do tags+=(--tag "${t}"); done; fi
 secret="/opt/skynet-ops/secrets/restic-${host}.env"
 APPDATA="${APPDATA:-/opt/docker/appdata}"
 BACKUP_LABEL="${BACKUP_LABEL:-skynet.backup=protect}"
@@ -72,7 +78,8 @@ fi
 [ "${#targets[@]}" -gt 0 ] || { echo "no backup targets resolved for ${host} — set BACKUP_PATHS and/or BACKUP_DOCKER" >&2; exit 1; }
 echo "restic targets (${#targets[@]}): ${targets[*]}"
 
-restic backup "${targets[@]}" "${excludes[@]}"
+echo "snapshot tags: ${tags[*]}"
+restic backup "${targets[@]}" "${excludes[@]}" "${tags[@]}"
 restic forget --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --prune
 restic check --read-data-subset=2%
 echo "restic backup complete for ${host}"

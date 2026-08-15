@@ -1,6 +1,11 @@
 # Runbook — restore a service (conversational, deterministic)
 
 **Tier:** T2 + (if VM restore) T2 PBS token. **Goal:** any agent can execute this verbatim.
+**Companion:** [`backup.md`](backup.md) (how backups run / how to take one) ·
+[`../docs/backup-strategy.md`](../docs/backup-strategy.md) (the why).
+
+> **Finding a snapshot:** `restic snapshots` lists all; `restic snapshots --tag manual` finds
+> on-demand *pre-change* backups (taken before a risky change), `--tag scheduled` the nightly ones.
 
 ## "Restore <svc> to <when>" (container app data)
 
