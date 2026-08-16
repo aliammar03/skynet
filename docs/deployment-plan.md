@@ -359,7 +359,7 @@ Every agent phase ends the same way: a PR + a written summary; your merge is the
 | **A4.5 — Backup tooling** | ✅ complete | PR #20 — `provision-restic.sh` (any host), on-demand tagged backups, backup docs |
 | **A5 — Visibility** | ✅ complete | PRs #21 (render-docs, agent+fallback nightly, engine/model selector, weekly CLI update, CLAUDE.md, Obsidian) + #22 (per-host grant certs) |
 | **A5.5 — L5 off-site reseed** | ◐ in progress | PR #24 — A6's L5 drill found the gdrive copy ~46% incomplete (6h-timeout kill, no completion check); fixed + reseeding. Closes on a green re-drill. See "A4 results" + "Resuming at A6" |
-| **A6 — Graduation** | ◑ in progress | Drills 1–2 done (drill 1 caught the A5.5 gap); A6-proper (§13) not started. See "Resuming at A6" |
+| **A6 — Graduation** | ✅ complete | All three drills passed (2026-08-16): DR tabletop, real encrypted-guest restore, fleet "update all guests". Caught + fixed a T2 operate-token gap along the way. See "A6 results — Graduation" |
 
 **A2 checkpoint results** — every row of the table below was executed and validated: (1) Proxmox svc-ops tokens on core (10.10.50.11) + network (10.10.50.10), collectors return JSON [ACL-before-token bug fixed, PR #2]; (2) workstation CA + `gr`, test grant signed & lapsed; (3) Arcane `X-API-Key` lists projects; (4) Technitium token (10.10.70.50, `ops` group), zones collected; (5) rclone→gdrive OAuth conf on the VM; (6) OPNsense os-git-backup → `skynet-opnsense`, firewall mirrored; (7) Renovate app (scan+alert), bump PRs open; (8) PBS client-side encryption, key in kit; (9) survival kit printed + `gr vm-docker-dmz 10m` watched to expiry.
 
@@ -419,6 +419,47 @@ Carry-over before A4: once **PR #14** merges, flip the branch-tracked syncs (cal
   current `--model` ids as commented suggestions into `ops.env`.
 - **Engine-agnostic:** `CLAUDE.md` imports `AGENTS.md`. **Obsidian:** `docs/obsidian-setup.md`.
 - **Grant fix (PR #22):** per-host certs + `Match user root` ssh_config so grants coexist.
+
+### A6 results — Graduation (complete: 2026-08-16)
+
+**Goal — stop trusting, start proving.** All three drills passed; each earned its keep by
+surfacing a latent gap. (The "Resuming at A6" notes below are now historical.)
+
+1. **DR tabletop** (`runbooks/dr/DR-network-node.md`, no live changes) — found two defects that
+   would block a real recovery: the runbook named a repo that doesn't exist
+   (`skynet-opnsense-backup` → actual **`skynet-opnsense`**), and the NIC passthrough PCI IDs it
+   points at weren't in the repo. Both fixed; real IDs captured in `runbooks/dr/pci-passthrough.md`
+   (two Intel 82576 dual-port NICs on bus 03/04, `ovmf`/`q35`). Secondary PBS path confirmed to
+   have a live VM 5001 restore point.
+
+2. **Real end-to-end guest restore** — Ali **deleted CT 101**, then restored it from a fresh
+   client-side **encrypted** PBS backup. Agent proved the vault first (decrypt + reconstruct on the
+   PBS host with Ali's survival-kit key → byte-identical to the live datastore; a negative control
+   confirmed it's unrecoverable without the key); Ali then `pct restore`'d it live on the core node
+   (node root = T3). Full loop: guest gone → encrypted vault → restored + healthy.
+
+3. **"Update all guests" fleet run** (`runbooks/update-guests.md`) under one `gr all` grant — both
+   onboarded hosts (`vm-docker-dmz`, `lxc-proxmox-backup-server`) snapshotted/backed-up →
+   `apt full-upgrade` → health-verified. **Caught a T2 gap:** the operate token was privilege-
+   separated but the user held only PVEAuditor, so `user ∩ token` stripped every write privilege —
+   the "operate" token could list but never snapshot/backup. Fixed (user granted OpsOperator on the
+   pool; `bootstrap-proxmox.sh` updated so a rebuild is correct). Also: CT 240 can't be snapshotted
+   (its NFS datastore mountpoint blocks LXC snapshots) and wasn't in any backup job — protected it
+   with a vzdump to `local` before patching.
+
+**Trust-tier note (T2):** backup/snapshot are now explicit **T2** capabilities (non-destructive),
+scoped to `ops-managed` guests + the `local` backup-target storage. `OpsOperator` gains `VM.Backup`;
+an ACL grants the operate token this on the target storage. Blast radius is unchanged (still the two
+`ops-managed` pools) — this only makes the already-intended capability function.
+
+**Follow-ups (open):**
+- CT 240 (PBS host) needs an **ongoing** backup strategy, not just the one-off vzdump — restic-to-
+  gdrive (config paths) or a scheduled vzdump. Tracked as a `SKY-###` directive.
+- PBS is on the subscription-only `enterprise.proxmox.com` apt repo (harmless 401 each run) — switch
+  to `pbs-no-subscription` to silence.
+
+**Graduation.** Steady state begins: nightly report-only maintenance (`bin/ops nightly`), inventory
+as a living document, project work on request — every action still PR-gated / grant-gated per §9.
 
 ### Resuming at A6 — Graduation (next session)
 
