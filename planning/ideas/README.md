@@ -1,9 +1,15 @@
-# ideas — shaped, not yet committed
+# 🌱 ideas — shaped, not yet committed
 
-Captured ideas with a **SKY-###** and a `horizon: short | long` tag. Enough shape to judge
-"is this worth doing?" — problem + rough approach — but no phased plan yet.
+scratchpad ▸ **`ideas`** ▸ backlog ▸ projects ▸ archive
 
-- 🌱 **short** — weeks; fits the current system as-is.
-- 🔭 **long** — vision-level; may need an overhaul or new trust boundary.
+**Where a thought earns a name.** Everything here has a **SKY-###** and enough shape to answer
+one question: *is this worth doing?* — the problem, and a rough approach. Not a plan yet; a
+pitch. Argue with it, sharpen it, or let it sit.
 
-Promote a keeper to the ready queue: `bin/plan promote SKY-### backlog`.
+Every idea declares a **horizon**:
+
+- 🌱 **short** — weeks of work; fits the current system exactly as it stands.
+- 🔭 **long** — vision-level; may demand an overhaul, a new service, or a whole new trust boundary.
+
+**→ Out:** a keeper graduates to the ready queue with `bin/plan promote SKY-### backlog`.
+Not convinced? It stays here until it is — or quietly dies (no shame; scratchpad is upstream).
