@@ -80,6 +80,10 @@ edit compose/<svc>/ → branch → PR → Ali merges
 - Env layering: repo-sourced `.env.git` + UI-edited `project.env` → merged effective `.env`.
   Your overrides (`project.env`) always win. **`project.env` is the secret-bearing layer** —
   it is what `envsync.sh` encrypts. Every service needs `env_file: .env` in its compose (see `docs/conventions.md`).
+- **Procedures beyond this loop** — deploy, nightly, provision, backup/restore, guest updates,
+  disaster recovery — live as engine-neutral markdown runbooks, catalogued (with tier + trigger)
+  in [`runbooks/README.md`](runbooks/README.md). Read one when a task or a `SKY-###` execute
+  prompt calls for it; they stay out of the always-loaded context by design.
 
 ---
 
