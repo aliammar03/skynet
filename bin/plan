@@ -1,0 +1,193 @@
+#!/usr/bin/env bash
+# plan — scaffold & shepherd Skynet Directives (SKY-###) through planning/.
+# Vendor-neutral plain bash (plan §"agent-agnostic"); the agent or Ali can run it.
+# See planning/README.md for the lifecycle. IDs are minted once and kept for life.
+#
+#   plan scratch "quick thought"        drop a note in scratchpad/ (no ID)
+#   plan idea "title" [--long]          mint next SKY-### in ideas/  (--long = horizon long)
+#   plan idea planning/scratchpad/x.md  promote a scratch note into a new idea
+#   plan service "some app"             sketch a planned service in services/
+#   plan promote SKY-### <stage>        move between ideas|backlog|projects|services|archive
+#   plan start SKY-###                  shortcut: promote to projects/ (status in-progress)
+#   plan archive SKY-### [--abandon]    move to archive/ (done, or killed)
+#   plan show SKY-###                   print the file's path
+#   plan list                           regenerate the roadmap table in planning/README.md
+set -euo pipefail
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+P="${REPO_DIR}/planning"
+TODAY="$(date +%F)"
+STAGES="scratchpad ideas backlog projects services archive"
+
+die() { echo "plan: $*" >&2; exit 1; }
+slugify() { echo "$1" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g'; }
+
+# next SKY-### across the whole tree (never reuses an id, even from archive)
+next_id() {
+  local max n
+  max=0
+  while IFS= read -r n; do [ "$n" -gt "$max" ] 2>/dev/null && max="$n"; done < <(
+    grep -rhoE '^id:[[:space:]]*SKY-[0-9]+' "${P}" 2>/dev/null | grep -oE '[0-9]+' | sed 's/^0*//'
+  )
+  printf 'SKY-%03d' "$((max + 1))"
+}
+
+# locate a directive file by id, anywhere under planning/
+find_file() {
+  local id="$1" f
+  f="$(grep -rlE "^id:[[:space:]]*${id}\b" "${P}" 2>/dev/null | head -1 || true)"
+  [ -n "$f" ] || die "no directive ${id} found under planning/"
+  echo "$f"
+}
+
+# frontmatter get / set (keys are unique, live in the leading --- block)
+fm_get() { sed -n '/^---$/,/^---$/p' "$1" | grep -E "^$2:" | head -1 | sed -E "s/^$2:[[:space:]]*//"; }
+fm_set() {
+  local file="$1" key="$2" val="$3"
+  sed -i -E "0,/^${key}:.*/s//${key}: ${val//\//\\/}/" "$file"
+}
+
+# move a file between stages, preserving git history when tracked
+move_to() {
+  local src="$1" destdir="$2" base
+  base="$(basename "$src")"
+  mkdir -p "$destdir"
+  if git -C "${REPO_DIR}" ls-files --error-unmatch "$src" >/dev/null 2>&1; then
+    git -C "${REPO_DIR}" mv "$src" "${destdir}/${base}"
+  else
+    mv "$src" "${destdir}/${base}"
+  fi
+  echo "${destdir}/${base}"
+}
+
+# stamp a fresh directive from TEMPLATE.md
+scaffold() {
+  local id="$1" title="$2" stage="$3" horizon="${4:-short}" body="${5:-}"
+  local slug dest
+  slug="$(slugify "$title")"
+  dest="${P}/${stage}/${id}-${slug}.md"
+  [ -e "$dest" ] && die "$dest already exists"
+  sed -e "s/SKY-000-slug/${id}-${slug}/g" \
+      -e "s/SKY-000/${id}/g" \
+      -e "s/<short imperative title>/${title}/" \
+      -e "s/# ${id} · <Title>/# ${id} · ${title}/" \
+      "${P}/TEMPLATE.md" > "$dest"
+  fm_set "$dest" created "$TODAY"
+  fm_set "$dest" updated "$TODAY"
+  fm_set "$dest" horizon "$horizon"
+  [ -n "$body" ] && printf '\n%s\n' "$body" >> "$dest"
+  echo "$dest"
+}
+
+cmd_scratch() {
+  local note="${*:-}" f="${P}/scratchpad/${TODAY}.md"
+  [ -f "$f" ] || printf '# scratchpad — %s\n' "$TODAY" > "$f"
+  if [ -n "$note" ]; then printf -- '- %s — %s\n' "$(date +%H:%M)" "$note" >> "$f"; fi
+  echo "$f"
+}
+
+cmd_idea() {
+  local horizon=short arg="" a
+  for a in "$@"; do case "$a" in --long) horizon=long;; --short) horizon=short;; *) arg="$a";; esac; done
+  [ -n "$arg" ] || die 'usage: plan idea "title" [--long]  |  plan idea <scratch-file>'
+  local id title body=""
+  id="$(next_id)"
+  if [ -f "$arg" ]; then
+    title="$(basename "$arg" .md)"
+    body="## From scratchpad
+$(cat "$arg")"
+    title="$(echo "$title" | sed -E 's/^[0-9-]+//')"; [ -n "$title" ] || title="idea"
+  else
+    title="$arg"
+  fi
+  local dest; dest="$(scaffold "$id" "$title" ideas "$horizon" "$body")"
+  [ -f "$arg" ] && { rm -f "$arg"; echo "(consumed scratch note $arg)"; }
+  fm_set "$dest" status draft
+  echo "minted ${id} → ${dest} (horizon: ${horizon})"
+  cmd_list >/dev/null; echo "roadmap updated."
+}
+
+cmd_service() {
+  [ -n "${1:-}" ] || die 'usage: plan service "service name"'
+  local id dest; id="$(next_id)"
+  dest="$(scaffold "$id" "$1" services short "## Service notes
+- **What / why:**
+- **Image & compose:**
+- **Secrets / DNS / backup needs:**")"
+  fm_set "$dest" status draft
+  echo "sketched ${id} → ${dest}"; cmd_list >/dev/null; echo "roadmap updated."
+}
+
+cmd_promote() {
+  local id="${1:-}" stage="${2:-}"
+  [ -n "$id" ] && [ -n "$stage" ] || die "usage: plan promote SKY-### <${STAGES// /|}>"
+  echo " $STAGES " | grep -q " $stage " || die "unknown stage '$stage' (one of: $STAGES)"
+  local src dest; src="$(find_file "$id")"
+  dest="$(move_to "$src" "${P}/${stage}")"
+  case "$stage" in
+    backlog) fm_set "$dest" status approved;;
+    projects) fm_set "$dest" status in-progress;;
+    archive) fm_set "$dest" status done;;
+  esac
+  fm_set "$dest" updated "$TODAY"
+  echo "$id → $stage : $dest"; cmd_list >/dev/null; echo "roadmap updated."
+}
+
+cmd_start()   { cmd_promote "${1:-}" projects; }
+cmd_archive() {
+  local id="${1:-}" abandon="${2:-}"; [ -n "$id" ] || die "usage: plan archive SKY-### [--abandon]"
+  local src dest; src="$(find_file "$id")"; dest="$(move_to "$src" "${P}/archive")"
+  [ "$abandon" = "--abandon" ] && fm_set "$dest" status abandoned || fm_set "$dest" status done
+  fm_set "$dest" updated "$TODAY"
+  echo "$id archived: $dest"; cmd_list >/dev/null; echo "roadmap updated."
+}
+
+cmd_show() { find_file "${1:?usage: plan show SKY-###}"; }
+
+cmd_list() {
+  local rows="" f id title status horizon phases cur stage phase hz
+  while IFS= read -r f; do
+    [ -e "$f" ] || continue
+    id="$(fm_get "$f" id)"; [ -n "$id" ] || continue
+    title="$(fm_get "$f" title)"; status="$(fm_get "$f" status)"
+    horizon="$(fm_get "$f" horizon)"; phases="$(fm_get "$f" phases)"; cur="$(fm_get "$f" current_phase)"
+    stage="$(basename "$(dirname "$f")")"
+    phase="—"; [ "$stage" = projects ] && [ -n "$phases" ] && phase="${cur:-0}/${phases}"
+    hz="—"; case "$horizon" in short) hz="🌱 short";; long) hz="🔭 long";; esac
+    rows+="| ${id} | ${title} | ${stage} | ${status} | ${phase} | ${hz} |
+"
+  done < <(find "${P}" -mindepth 2 -name 'SKY-*.md' | sort)
+
+  local table
+  if [ -n "$rows" ]; then
+    rows="$(printf '%s' "$rows" | sort)"   # by ID (zero-padded → lexical == numeric)
+    table="| ID | Title | Stage | Status | Phase | Horizon |
+|---|---|---|---|---|---|
+${rows}"
+  else
+    table="_No directives yet. \`bin/plan idea \"…\"\` to start._"
+  fi
+  # splice between the ROADMAP markers in planning/README.md
+  local rme="${P}/README.md" tmp; tmp="$(mktemp)"
+  awk -v tbl="$table" '
+    /<!-- ROADMAP:START/ {print; print tbl; skip=1; next}
+    /<!-- ROADMAP:END/   {skip=0}
+    skip!=1 {print}
+  ' "$rme" > "$tmp" && mv "$tmp" "$rme"
+  [ "${1:-}" = "--quiet" ] || { printf '%s\n' "$table"; }
+}
+
+cmd_help() { sed -n '2,20p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+
+case "${1:-help}" in
+  scratch) shift; cmd_scratch "$@";;
+  idea)    shift; cmd_idea "$@";;
+  service) shift; cmd_service "$@";;
+  promote) shift; cmd_promote "$@";;
+  start)   shift; cmd_start "$@";;
+  archive) shift; cmd_archive "$@";;
+  show)    shift; cmd_show "$@";;
+  list)    shift; cmd_list "$@";;
+  help|-h|--help) cmd_help;;
+  *) die "unknown command '$1' (try: plan help)";;
+esac
