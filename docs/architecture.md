@@ -17,7 +17,7 @@ included — from a laptop and a phone hotspot.
 | Component | Role | Tier |
 |---|---|---|
 | GitHub `skynet` | Operational truth (compose, runbooks, inventory, docs) | — |
-| GitHub `skynet-opnsense-backup` | Auto-pushed `config.xml` — firewall/router truth that survives the router | — |
+| GitHub `skynet-opnsense` | Auto-pushed `config.xml` — firewall/router truth that survives the router | — |
 | Arcane | GitOps reconciler for docker compose projects (host 10.10.100.15) | T2 |
 | Proxmox core / network | Hypervisors; `ops-managed` pools are the write blast radius | T1 read / T2 pool |
 | PBS (10.10.20.40) | Guest backups, client-side encrypted | T1 / T2 |

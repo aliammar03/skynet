@@ -107,7 +107,7 @@ skynet/
 └── bin/ops                      # agent runner wrapper — the one agent-specific line
 ```
 
-**`skynet-opnsense-backup`** — automatic pushes from the OPNsense **os-git-backup** plugin: every firewall change auto-commits `config.xml`. Complete firewall/DHCP/alias truth with zero standing management-plane access — and, critically for DR, the router config survives the router. Private; config.xml carries hashed secrets.
+**`skynet-opnsense`** — automatic pushes from the OPNsense **os-git-backup** plugin: every firewall change auto-commits `config.xml`. Complete firewall/DHCP/alias truth with zero standing management-plane access — and, critically for DR, the router config survives the router. Private; config.xml carries hashed secrets.
 
 ### The loop, with Arcane driving deployment
 
