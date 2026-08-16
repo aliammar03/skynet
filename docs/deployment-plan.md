@@ -358,7 +358,8 @@ Every agent phase ends the same way: a PR + a written summary; your merge is the
 | **A4 — Backups** | ✅ complete | L3 restic + witnessed restore; L5 PBS→gdrive live (see "A4 results") |
 | **A4.5 — Backup tooling** | ✅ complete | PR #20 — `provision-restic.sh` (any host), on-demand tagged backups, backup docs |
 | **A5 — Visibility** | ✅ complete | PRs #21 (render-docs, agent+fallback nightly, engine/model selector, weekly CLI update, CLAUDE.md, Obsidian) + #22 (per-host grant certs) |
-| **A6 — Graduation** | ⏭ next | see "Resuming at A6" — includes drilling two UNTESTED items |
+| **A5.5 — L5 off-site reseed** | ◐ in progress | PR #24 — A6's L5 drill found the gdrive copy ~46% incomplete (6h-timeout kill, no completion check); fixed + reseeding. Closes on a green re-drill. See "A4 results" + "Resuming at A6" |
+| **A6 — Graduation** | ◑ in progress | Drills 1–2 done (drill 1 caught the A5.5 gap); A6-proper (§13) not started. See "Resuming at A6" |
 
 **A2 checkpoint results** — every row of the table below was executed and validated: (1) Proxmox svc-ops tokens on core (10.10.50.11) + network (10.10.50.10), collectors return JSON [ACL-before-token bug fixed, PR #2]; (2) workstation CA + `gr`, test grant signed & lapsed; (3) Arcane `X-API-Key` lists projects; (4) Technitium token (10.10.70.50, `ops` group), zones collected; (5) rclone→gdrive OAuth conf on the VM; (6) OPNsense os-git-backup → `skynet-opnsense`, firewall mirrored; (7) Renovate app (scan+alert), bump PRs open; (8) PBS client-side encryption, key in kit; (9) survival kit printed + `gr vm-docker-dmz 10m` watched to expiry.
 
@@ -425,13 +426,29 @@ Carry-over before A4: once **PR #14** merges, flip the branch-tracked syncs (cal
 per-host certs); install the Obsidian vault (`docs/obsidian-setup.md`); glance at a couple of the
 nightly `inventory/<date>` PRs.
 
-**A6 goal — stop trusting, start proving.** Drills:
-1. **UNTESTED — L5 restore:** prove the gdrive→PBS round-trip (pull the datastore from
-   `gdrive:Skynet/Backups/pbs`, re-add it, restore one small guest). See `runbooks/dr/DR-core-node.md`.
-2. **UNTESTED — per-host grant path:** issue a real `gr <host>` under the new per-host-cert flow;
-   confirm root login works AND a second host's grant coexists (A5 fix, config-verified only).
-3. **A6 proper (plan §13):** DR tabletop of `DR-network-node.md`; one real end-to-end guest
-   restore from PBS; one "update all guests" run under a fleet grant → final sign-off.
+**A6 goal — stop trusting, start proving.** Progress as of 2026-08-16:
+1. **L5 restore drill — ✅ DONE, and it earned its keep.** The gdrive→PBS round-trip **failed**:
+   restoring CT 101 needed 184 chunks, only 93 were on Drive. The whole off-site copy was ~46%
+   incomplete (39,063 chunks local vs ~20,986 on Drive) — the nightly sync was TERM-killed at a 6h
+   timeout every night and nothing verified completion. Fixed in **PR #24** (timeout→20h, unthrottled
+   seed, `rclone check` guard). Spun out as **A5.5**: a one-time reseed is running, then the CT 101
+   restore drill re-runs to close L5 for real. See "A4 results" + `runbooks/dr/DR-core-node.md`.
+2. **Per-host grant path — ✅ DONE, PASS.** Drilled two coexisting grants
+   (`lxc-proxmox-backup-server` + `vm-docker-dmz`); both root logins worked in one window. The A5
+   fix (per-host certs + `Match user root`) is now proven live, not just config-verified. Note:
+   `gr <host>` must use the target's real `hostname` (principal `ops-root-$(hostname)`).
+3. **A6 proper (plan §13) — ☐ NOT STARTED.** DR tabletop of `DR-network-node.md`; one real
+   end-to-end guest restore from PBS (live datastore); one "update all guests" run under a fleet
+   grant → final sign-off. **Blocked on A5.5** closing first.
+
+**Resume A5.5 (reseed):** confirm `ssh root@10.10.20.40 'tail -3 /root/reseed-monitor.log'` shows
+`FINISHED result=success` (needs a fresh `gr lxc-proxmox-backup-server`), then re-run the CT 101
+restore drill (its 184 chunks should all be present now); Ali imports the PBS encryption key from the
+survival kit for the decrypt/restore step. Green → mark L5/A5.5 complete here.
+
+**Resume A6 proper:** once A5.5 is green, do §13 (a) DR-network-node tabletop with Ali, (b) a real PBS
+guest restore under `gr lxc-proxmox-backup-server`, (c) an "update all guests" run under `gr all <dur>`
+→ sign-off. Plan each loudly per AGENTS.md; Ali issues grants + merges.
 
 ### The A2 checkpoint table — everything that is structurally yours
 
