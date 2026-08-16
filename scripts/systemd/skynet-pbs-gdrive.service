@@ -11,4 +11,10 @@ Type=oneshot
 ExecStart=/opt/skynet-ops/scripts/backup-pbs-gdrive.sh
 Nice=10
 IOSchedulingClass=idle
-TimeoutStartSec=6h
+# TimeoutStartSec was 6h — but the FIRST full seed of the ~39k-file chunk store to Google
+# Drive takes longer than that (Drive throughput is bound by per-file API rate, not bandwidth).
+# systemd was TERM-killing the job at the 6h mark every night, so it never got past chunk
+# shard ~855f and ~46% of the datastore never uploaded (found in A6, 2026-08-16). Steady-state
+# incrementals are tiny; only the initial seed is long. Give it room, still bounded well under
+# the 24h re-trigger so a genuinely hung rclone can't run forever.
+TimeoutStartSec=20h
