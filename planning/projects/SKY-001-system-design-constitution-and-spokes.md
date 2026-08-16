@@ -6,7 +6,7 @@ horizon: long
 created: 2026-08-16
 updated: 2026-08-16
 phases: 4
-current_phase: 1
+current_phase: 2
 tier_touched: [T1, T2, T2+, T3]   # docs-only, NO grants — but it rewrites the governing contract for
                                   # every tier (incl. the T3 wording + the merge dial), so it IS the
                                   # design-doc PR the boundary-change rule requires.
@@ -82,7 +82,7 @@ Exit criteria: on a branch, PBS directive is SKY-002 with clean self-refs, SKY-0
 memory points at SKY-002 for PBS, `next_id` → SKY-003. → PR.
 Grants / human actions: Ali merges the P1 PR.
 
-### Phase 2 — Author the new design (additive)  (~1–2h)   `[ ]` not started
+### Phase 2 — Author the new design (additive)  (~1–2h)   `[x]` done
 Steps:
 1. Write `docs/system-design.md` (constitution): invariants (hard laws vs dials), trust model,
    agent-agnostic contract, **extension points**, **growth directions**, spoke index (open set).
@@ -147,3 +147,7 @@ Follow AGENTS.md as above.
   the deployment plan?" Decided: retire it whole, author a constitution + spokes system design
   built for expansion (sci-fi flavor kept). Full approved plan lives in the session that minted
   this. P1 executing: renumbered the misfiled PBS directive to SKY-002. See [[skynet-a6-next]].
+- 2026-08-16 — **P1 merged** (PR #32): renumber + directive minted. **P2 done** (this PR): authored
+  `docs/system-design.md` (constitution) + 6 spokes under `docs/design/` + `docs/history/build-log.md`;
+  bannered the old plan "SUPERSEDED". Additive — old plan still present; all internal links resolve.
+  Next: P3 (`git mv` plan → `history/`, re-point the 7 refs, reword the merge/tiebreaker contract).
