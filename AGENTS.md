@@ -83,7 +83,20 @@ edit compose/<svc>/ → branch → PR → Ali merges
 
 ---
 
-## 5. Judgement Day checklist (hard invariants — never violate)
+## 5. Planning future work (`planning/`)
+
+Non-trivial additions and overhauls are captured as **Skynet Directives** (`SKY-###`) in
+[`planning/`](planning/README.md) — raw thoughts in `scratchpad/`, shaped in `ideas/`, queued in
+`backlog/`, executed from `projects/`, retired to `archive/`; `services/` catalogs services to add.
+Use `bin/plan` to mint/move directives and regenerate the roadmap. Each project directive carries
+its own **▶ Execute prompt** and per-phase **Continue prompt**, so running or resuming one is a
+single paste. Phases are sized to ~1–2h and end with a close-out (PR + `SKY-###-progress` memory +
+frontmatter bump). A directive touching **T2+/T3** or a blast-radius boundary must also PR
+`docs/deployment-plan.md` (§1 rules still apply).
+
+---
+
+## 6. Judgement Day checklist (hard invariants — never violate)
 
 - No standing route or credential to OPNsense, Management Caddy, Authentik, Proxmox node
   root, Unraid root, or Technitium settings. Dormant alias + per-session secrets, same-day revocation.
@@ -100,6 +113,6 @@ edit compose/<svc>/ → branch → PR → Ali merges
 
 ---
 
-## 6. When in doubt
+## 7. When in doubt
 
 Stop and ask. A paused build is recoverable; an overreached one is not.
