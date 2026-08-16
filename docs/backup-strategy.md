@@ -4,8 +4,8 @@
 protects, where copies live, how they're encrypted, and how long they're kept. The *how*
 (day-to-day operation, provisioning, restoring) lives in the runbooks:
 [`runbooks/backup.md`](../runbooks/backup.md) and
-[`runbooks/restore-service.md`](../runbooks/restore-service.md). The authoritative design is
-[`deployment-plan.md` §6](deployment-plan.md); this page is the distilled, current-reality view.
+[`runbooks/restore-service.md`](../runbooks/restore-service.md). This page **is** the backup spoke
+of the [system design](system-design.md) — the current-reality view of the layered model.
 
 ---
 

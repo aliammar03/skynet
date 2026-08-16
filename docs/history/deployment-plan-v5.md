@@ -1,11 +1,10 @@
 # skynet-ops — AI Operations Layer for Skynet (v5, final)
 
-> ⚠️ **SUPERSEDED (2026-08-16).** This plan drove Skynet's build to graduation and is now retired.
-> The living, authoritative design is [`system-design.md`](system-design.md) (the constitution) +
-> [`design/`](design/) (the spokes); the build story it left behind is
-> [`history/build-log.md`](history/build-log.md). This file is kept only until it's archived
-> verbatim to `history/deployment-plan-v5.md` (SKY-001, Phase 3). **Do not edit it** — change the
-> system design instead.
+> ⚠️ **ARCHIVED — the birth plan (v5), frozen 2026-08-16.** This plan drove Skynet's build from an
+> empty VM to graduation, then retired under SKY-001. It is kept **verbatim** for the record and
+> nostalgia — **do not edit it.** The living, authoritative design is
+> [`../system-design.md`](../system-design.md) (the constitution) + [`../design/`](../design/) (the
+> spokes); the build story it left behind is [`build-log.md`](build-log.md).
 
 **VM 9090 · vm-skynet-ops · 10.10.90.90 static · VLAN 90 (Operations & Observability) · server-proxmox-core**
 

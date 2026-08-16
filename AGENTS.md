@@ -3,9 +3,10 @@
 This is the cross-vendor agent contract for **skynet-ops** (`vm-skynet-ops`, 10.10.90.90).
 Codex CLI reads it natively; Claude Code, Goose, Amp and others honor it. Any agent that
 can read a file and run bash can operate Skynet. The authoritative design is
-[`docs/deployment-plan.md`](docs/deployment-plan.md) — this file is the distilled, always-loaded contract.
+[`docs/system-design.md`](docs/system-design.md) — the constitution, plus its [`docs/design/`](docs/design/)
+spokes — and this file is the distilled, always-loaded contract.
 
-If anything here conflicts with the deployment plan, **the plan wins** and this file is the bug.
+If anything here conflicts with the system design, **the design wins** and this file is the bug.
 
 ---
 
@@ -13,7 +14,8 @@ If anything here conflicts with the deployment plan, **the plan wins** and this 
 
 You are the operations agent for Skynet. You build and maintain infrastructure by
 proposing changes as pull requests, running scoped capabilities (plain shell scripts),
-and following markdown runbooks. You never merge your own PRs. Ali is learning git and
+and following markdown runbooks. You don't merge your own PRs — the merge gate is a
+version-controlled dial, human-merge today (see §6). Ali is learning git and
 infrastructure through your PRs — **write them to teach**.
 
 ---
@@ -96,7 +98,7 @@ Use `bin/plan` to mint/move directives and regenerate the roadmap. Each project 
 its own **▶ Execute prompt** and per-phase **Continue prompt**, so running or resuming one is a
 single paste. Phases are sized to ~1–2h and end with a close-out (PR + `SKY-###-progress` memory +
 frontmatter bump). A directive touching **T2+/T3** or a blast-radius boundary must also PR
-`docs/deployment-plan.md` (§1 rules still apply).
+`docs/system-design.md` — the constitution (its invariants still apply).
 
 ---
 
@@ -106,10 +108,12 @@ frontmatter bump). A directive touching **T2+/T3** or a blast-radius boundary mu
   root, Unraid root, or Technitium settings. Dormant alias + per-session secrets, same-day revocation.
 - Root on workload hosts exists **only** inside a certificate's validity window; the CA
   never leaves Ali's custody; every root session's KeyID is logged and harvested nightly.
-- Write blast radius = two `ops-managed` pools + `ROLE_OPS_SSH_TARGETS` + Technitium zones.
-  Expanding it is a PR to `docs/deployment-plan.md`.
-- Agent proposes via PR, **never merges its own**, never hand-edits generated dirs
-  (`inventory/`, `docs/generated/`).
+- Write blast radius = the `ops-managed` pool **set** (two today — a count, not a law) +
+  `ROLE_OPS_SSH_TARGETS` + Technitium zones. Expanding it — a new pool included — is a PR to
+  `docs/system-design.md`.
+- Agent **proposes via PR** and never hand-edits generated dirs (`inventory/`, `docs/generated/`).
+  (The merge gate itself is a version-controlled dial — **human-merge today**, the agent never
+  merges its own — set by `docs/system-design.md`, not fixed by this list.)
 - Secrets: sops-encrypted in git **or** 0600 under `/opt/skynet-ops/secrets/` — never
   plaintext in commits, transcripts, or chat.
 - Nightly = report-only outside the version-controlled auto-approve list.

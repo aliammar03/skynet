@@ -2,8 +2,8 @@
 
 > How Skynet was built, from an empty VM to graduation on **2026-08-16**. This is the distilled,
 > past-tense record — the readable story, PR numbers preserved. The original birth plan verbatim is
-> [`../deployment-plan.md`](../deployment-plan.md) (archived here as `deployment-plan-v5.md` in
-> Phase 3); the living design that replaced it is [`../system-design.md`](../system-design.md).
+> [`deployment-plan-v5.md`](deployment-plan-v5.md); the living design that replaced it is
+> [`../system-design.md`](../system-design.md).
 >
 > The build ran in two acts: a **human foundation** (one evening — the only time Ali pasted command
 > blocks, because the agent didn't exist yet) and an **agent-led build** of six phases, each landing

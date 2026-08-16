@@ -11,5 +11,5 @@ security model. Everything secret is somewhere else, on purpose.
 > ⚠️ **The CA private key never enters this repo, this host, or any transcript.** That's what
 > makes root grants safe: the agent can *request* access, but it physically **cannot mint its
 > own** — a human with the CA key has to sign a short-lived certificate. See
-> [`../docs/deployment-plan.md`](../docs/deployment-plan.md) §8 (the root-grant model) and
+> [`../docs/design/access-and-trust.md`](../docs/design/access-and-trust.md) (the root-grant model) and
 > [`../AGENTS.md`](../AGENTS.md) §1 for how the tiers use these keys.

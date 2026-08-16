@@ -7,8 +7,8 @@ created: 2026-01-01
 updated: 2026-01-01
 phases: 1
 current_phase: 0
-tier_touched: [T1]     # T1 | T2 | T2+ | T3 — if T2+/T3 or a boundary changes, PR docs/deployment-plan.md too
-related: []            # e.g. docs/deployment-plan.md, planning/projects/SKY-0xx-*.md, [[memory-slug]]
+tier_touched: [T1]     # T1 | T2 | T2+ | T3 — if T2+/T3 or a boundary changes, PR docs/system-design.md too
+related: []            # e.g. docs/system-design.md, planning/projects/SKY-0xx-*.md, [[memory-slug]]
 ---
 
 # SKY-000 · <Title>
@@ -26,7 +26,7 @@ What's wrong, missing, or worth improving today. The pain, concretely.
 
 ## 3. The plan
 - **Scope / non-goals:** what's in, what's explicitly out.
-- **Hosts & tiers touched:** … (drives grants + whether `docs/deployment-plan.md` needs a PR).
+- **Hosts & tiers touched:** … (drives grants + whether `docs/system-design.md` needs a PR).
 - **Rollback posture:** how we back out (git revert, disable timer, etc.).
 - **Grants / human actions needed:** the narrowest host + shortest duration per phase.
 
