@@ -426,6 +426,47 @@ Carry-over before A4: once **PR #14** merges, flip the branch-tracked syncs (cal
 - **Engine-agnostic:** `CLAUDE.md` imports `AGENTS.md`. **Obsidian:** `docs/obsidian-setup.md`.
 - **Grant fix (PR #22):** per-host certs + `Match user root` ssh_config so grants coexist.
 
+### A6 results — Graduation (complete: 2026-08-16)
+
+**Goal — stop trusting, start proving.** All three drills passed; each earned its keep by
+surfacing a latent gap. (The "Resuming at A6" notes below are now historical.)
+
+1. **DR tabletop** (`runbooks/dr/DR-network-node.md`, no live changes) — found two defects that
+   would block a real recovery: the runbook named a repo that doesn't exist
+   (`skynet-opnsense-backup` → actual **`skynet-opnsense`**), and the NIC passthrough PCI IDs it
+   points at weren't in the repo. Both fixed; real IDs captured in `runbooks/dr/pci-passthrough.md`
+   (two Intel 82576 dual-port NICs on bus 03/04, `ovmf`/`q35`). Secondary PBS path confirmed to
+   have a live VM 5001 restore point.
+
+2. **Real end-to-end guest restore** — Ali **deleted CT 101**, then restored it from a fresh
+   client-side **encrypted** PBS backup. Agent proved the vault first (decrypt + reconstruct on the
+   PBS host with Ali's survival-kit key → byte-identical to the live datastore; a negative control
+   confirmed it's unrecoverable without the key); Ali then `pct restore`'d it live on the core node
+   (node root = T3). Full loop: guest gone → encrypted vault → restored + healthy.
+
+3. **"Update all guests" fleet run** (`runbooks/update-guests.md`) under one `gr all` grant — both
+   onboarded hosts (`vm-docker-dmz`, `lxc-proxmox-backup-server`) snapshotted/backed-up →
+   `apt full-upgrade` → health-verified. **Caught a T2 gap:** the operate token was privilege-
+   separated but the user held only PVEAuditor, so `user ∩ token` stripped every write privilege —
+   the "operate" token could list but never snapshot/backup. Fixed (user granted OpsOperator on the
+   pool; `bootstrap-proxmox.sh` updated so a rebuild is correct). Also: CT 240 can't be snapshotted
+   (its NFS datastore mountpoint blocks LXC snapshots) and wasn't in any backup job — protected it
+   with a vzdump to `local` before patching.
+
+**Trust-tier note (T2):** backup/snapshot are now explicit **T2** capabilities (non-destructive),
+scoped to `ops-managed` guests + the `local` backup-target storage. `OpsOperator` gains `VM.Backup`;
+an ACL grants the operate token this on the target storage. Blast radius is unchanged (still the two
+`ops-managed` pools) — this only makes the already-intended capability function.
+
+**Follow-ups (open):**
+- CT 240 (PBS host) needs an **ongoing** backup strategy, not just the one-off vzdump — restic-to-
+  gdrive (config paths) or a scheduled vzdump. Tracked as a `SKY-###` directive.
+- PBS is on the subscription-only `enterprise.proxmox.com` apt repo (harmless 401 each run) — switch
+  to `pbs-no-subscription` to silence.
+
+**Graduation.** Steady state begins: nightly report-only maintenance (`bin/ops nightly`), inventory
+as a living document, project work on request — every action still PR-gated / grant-gated per §9.
+
 ### Resuming at A6 — Graduation (next session)
 
 **Prereqs (once):** re-run `scripts/bootstrap-workstation.sh` on the workstation (so `gr` uses
