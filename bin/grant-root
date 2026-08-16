@@ -23,6 +23,12 @@ HOST="${1:?host or 'all'}"; DUR="${2:-2h}"
 CA_KEY="${HOME}/.skynet-ca/ops_ca"
 VM="ali@10.10.90.90"
 
+# HOST becomes an SSH principal (-n ops-root-${HOST}) AND a remote path component
+# (.ssh/certs/${HOST}-cert.pub). Constrain it to a hostname or 'all' so a typo or a stray
+# path segment (.., /) can't mint a misplaced cert or escape the certs dir.
+[[ "${HOST}" =~ ^([a-z0-9]([a-z0-9-]*[a-z0-9])?|all)$ ]] \
+  || { echo "invalid host '${HOST}': lowercase hostname (no dots/slashes) or 'all'" >&2; exit 1; }
+
 [ -f "${CA_KEY}" ] || { echo "CA not found at ${CA_KEY} — run bootstrap-workstation.sh first" >&2; exit 1; }
 
 scp "${VM}:.ssh/id_ed25519.pub" /tmp/ops.pub

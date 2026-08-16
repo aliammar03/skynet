@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Repo pre-commit hook → secret scan (AGENTS.md §6). Active when core.hooksPath=.githooks
+# (bootstrap-workstation.sh sets this; or run it yourself once: git config core.hooksPath .githooks).
+exec "$(git rev-parse --show-toplevel)/scripts/secret-scan.sh"
