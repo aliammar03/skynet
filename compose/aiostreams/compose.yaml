@@ -8,8 +8,7 @@ services:
     image: ghcr.io/viren070/aiostreams:nightly@sha256:c06903e7e17b1e9ae9cf681841fed1fa5a40880420b61781cc8aea5c8fc5b2bd
     container_name: aiostreams
     restart: unless-stopped
-    ports:
-      - 3000:3000
+    # Reached via Caddy on the dmz network at 10.10.100.65:3000 — no host port publish needed.
     env_file:
       - .env
     volumes:

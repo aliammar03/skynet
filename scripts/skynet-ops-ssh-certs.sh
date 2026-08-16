@@ -27,6 +27,14 @@ n=0
   if [ -f "${HOME}/.ssh/id_ed25519-cert.pub" ]; then echo "    CertificateFile ~/.ssh/id_ed25519-cert.pub"; n=$((n+1)); fi
   for c in "${certs}"/*-cert.pub; do
     [ -e "${c}" ] || continue
+    # Prune certs whose validity window has already closed: they'd be refused by sshd anyway,
+    # and left in place they accumulate forever until `ssh root@host` exhausts MaxAuthTries
+    # offering dead certs before reaching a live one. Non-expiring certs ("forever") are kept.
+    valid_to="$(ssh-keygen -L -f "${c}" 2>/dev/null | awk '/^ *Valid:/{print $NF}')"
+    exp="$(date -d "${valid_to}" +%s 2>/dev/null || echo 0)"
+    if [ "${exp}" -ne 0 ] && [ "${exp}" -lt "$(date +%s)" ]; then
+      rm -f "${c}"; echo "pruned expired cert $(basename "${c}")" >&2; continue
+    fi
     echo "    CertificateFile ~/.ssh/certs/$(basename "${c}")"; n=$((n+1))
   done
   echo "${E}"

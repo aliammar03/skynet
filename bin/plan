@@ -127,7 +127,7 @@ cmd_promote() {
   case "$stage" in
     backlog) fm_set "$dest" status approved;;
     projects) fm_set "$dest" status in-progress;;
-    archive) fm_set "$dest" status done;;
+    archive) fm_set "$dest" status "done";;
   esac
   fm_set "$dest" updated "$TODAY"
   echo "$id → $stage : $dest"; cmd_list >/dev/null; echo "roadmap updated."
@@ -137,7 +137,7 @@ cmd_start()   { cmd_promote "${1:-}" projects; }
 cmd_archive() {
   local id="${1:-}" abandon="${2:-}"; [ -n "$id" ] || die "usage: plan archive SKY-### [--abandon]"
   local src dest; src="$(find_file "$id")"; dest="$(move_to "$src" "${P}/archive")"
-  [ "$abandon" = "--abandon" ] && fm_set "$dest" status abandoned || fm_set "$dest" status done
+  if [ "$abandon" = "--abandon" ]; then fm_set "$dest" status "abandoned"; else fm_set "$dest" status "done"; fi
   fm_set "$dest" updated "$TODAY"
   echo "$id archived: $dest"; cmd_list >/dev/null; echo "roadmap updated."
 }

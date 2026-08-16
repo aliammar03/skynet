@@ -26,25 +26,28 @@ git checkout -B "${BRANCH}" "origin/${DEFAULT_BRANCH}" 2>/dev/null || git checko
 # 1. refresh inventory (each collector is idempotent + read-only; no creds = exit 0)
 ./bin/ops collect || true
 
-# 2. envsync — re-encrypt any changed project.env → .env.sops (secrets never in plaintext)
+# 2. envsync — re-encrypt any changed project.env → .env.sops and STAGE it (secrets never in
+#    plaintext). envsync no longer commits; nightly owns the single commit below so an
+#    env-only night can't strand an unpushed .env.sops on a discarded branch.
 ./scripts/envsync.sh || true
 
 # 3. render the Obsidian docs from fresh inventory
 ./scripts/render-docs.sh || true
 
-# 4. commit + PR if anything changed
+# 4. commit + PR if anything changed. Stage inventory/docs here; envsync already staged any
+#    changed compose/*/.env.sops, and the index check below folds all three into one commit.
 git add -A inventory docs/generated 2>/dev/null || true
 if git diff --cached --quiet; then
-  echo "no inventory/doc changes tonight — nothing to report"
+  echo "no inventory/doc/env changes tonight — nothing to report"
   git checkout "${DEFAULT_BRANCH}" --quiet 2>/dev/null || true
   exit 0
 fi
 
-git commit -q -m "nightly ${DATE}: inventory refresh + rendered docs (report-only)"
+git commit -q -m "nightly ${DATE}: inventory + docs + encrypted env refresh (report-only)"
 git push -u origin "${BRANCH}" --quiet
 
-# Summarise the diff for the PR body.
-summary="$(git diff --stat "origin/${DEFAULT_BRANCH}...${BRANCH}" -- inventory docs/generated | tail -25)"
+# Summarise the diff for the PR body (inventory, docs, and any re-encrypted env layer).
+summary="$(git diff --stat "origin/${DEFAULT_BRANCH}...${BRANCH}" -- inventory docs/generated compose | tail -25)"
 gh pr create --base "${DEFAULT_BRANCH}" --head "${BRANCH}" \
   --title "nightly ${DATE}: inventory + docs (report-only)" \
   --body "Automated report-only nightly (deterministic path — no LLM this run).

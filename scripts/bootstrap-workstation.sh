@@ -24,6 +24,9 @@ echo "==> installing grant-root to ~/bin/grant-root"
 mkdir -p "${HOME}/bin"
 install -m 755 "${REPO_DIR}/bin/grant-root" "${HOME}/bin/grant-root"
 
+echo "==> enabling the pre-commit secret scan (core.hooksPath=.githooks)"
+git -C "${REPO_DIR}" config core.hooksPath .githooks
+
 RC="${HOME}/.bashrc"; [ -n "${ZSH_VERSION:-}" ] && RC="${HOME}/.zshrc"
 if ! grep -q "alias gr=" "${RC}" 2>/dev/null; then
   echo "alias gr='~/bin/grant-root'" >> "${RC}"

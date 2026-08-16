@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # envsync.sh — back up each project's secret env layer into git, encrypted (plan §5)
 # TIER: T2 (unprivileged svc-ops SSH read of project.env) + local sops encrypt.
-# USAGE: envsync.sh            # nightly; commits compose/<svc>/.env.sops only on change.
+# USAGE: envsync.sh            # nightly; STAGES compose/<svc>/.env.sops on change (caller commits).
 #   Reads project.env (Arcane's override layer — the only env not reproducible from the repo)
 #   over SSH from the docker host, sops-encrypts it, commits if changed.
 set -euo pipefail
@@ -57,8 +57,9 @@ for svc_dir in compose/*/; do
 done
 
 if [ "${changed}" -eq 1 ]; then
-  git commit -m "envsync: refresh encrypted project env" >/dev/null
-  echo "committed env changes (push handled by caller / nightly)"
+  # Stage only — the caller owns the single commit (nightly folds this into its one
+  # inventory+docs+env commit; a standalone operator commits the staged .env.sops themselves).
+  echo "staged encrypted env changes (commit owned by caller / nightly)"
 else
   echo "no env changes"
 fi

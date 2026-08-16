@@ -9,6 +9,9 @@ services:
     container_name: calibre
     hostname: calibre
 
+    env_file:
+      - .env
+
     environment:
       PUID: "1000"
       PGID: "1000"
