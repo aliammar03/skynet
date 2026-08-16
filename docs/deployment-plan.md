@@ -107,7 +107,7 @@ skynet/
 └── bin/ops                      # agent runner wrapper — the one agent-specific line
 ```
 
-**`skynet-opnsense-backup`** — automatic pushes from the OPNsense **os-git-backup** plugin: every firewall change auto-commits `config.xml`. Complete firewall/DHCP/alias truth with zero standing management-plane access — and, critically for DR, the router config survives the router. Private; config.xml carries hashed secrets.
+**`skynet-opnsense`** — automatic pushes from the OPNsense **os-git-backup** plugin: every firewall change auto-commits `config.xml`. Complete firewall/DHCP/alias truth with zero standing management-plane access — and, critically for DR, the router config survives the router. Private; config.xml carries hashed secrets.
 
 ### The loop, with Arcane driving deployment
 
@@ -358,8 +358,8 @@ Every agent phase ends the same way: a PR + a written summary; your merge is the
 | **A4 — Backups** | ✅ complete | L3 restic + witnessed restore; L5 PBS→gdrive live (see "A4 results") |
 | **A4.5 — Backup tooling** | ✅ complete | PR #20 — `provision-restic.sh` (any host), on-demand tagged backups, backup docs |
 | **A5 — Visibility** | ✅ complete | PRs #21 (render-docs, agent+fallback nightly, engine/model selector, weekly CLI update, CLAUDE.md, Obsidian) + #22 (per-host grant certs) |
-| **A5.5 — L5 off-site reseed** | ◐ in progress | PR #24 — A6's L5 drill found the gdrive copy ~46% incomplete (6h-timeout kill, no completion check); fixed + reseeding. Closes on a green re-drill. See "A4 results" + "Resuming at A6" |
-| **A6 — Graduation** | ✅ complete | All three drills passed (2026-08-16): DR tabletop, real encrypted-guest restore, fleet "update all guests". Caught + fixed a T2 operate-token gap along the way. See "A6 results — Graduation" |
+| **A5.5 — L5 off-site reseed** | ✅ complete | PR #24 — A6's L5 drill found the gdrive copy ~46% incomplete (6h-timeout kill, no completion check); fixed, reseeded, **re-drill green** (2026-08-16: 184/184 chunks on Drive, CT 101 restores byte-identical). See "A4 results" + "Resuming at A6" |
+| **A6 — Graduation** | ◑ in progress | Drills 1–2 done (drill 1 caught the A5.5 gap); A6-proper (§13) not started. See "Resuming at A6" |
 
 **A2 checkpoint results** — every row of the table below was executed and validated: (1) Proxmox svc-ops tokens on core (10.10.50.11) + network (10.10.50.10), collectors return JSON [ACL-before-token bug fixed, PR #2]; (2) workstation CA + `gr`, test grant signed & lapsed; (3) Arcane `X-API-Key` lists projects; (4) Technitium token (10.10.70.50, `ops` group), zones collected; (5) rclone→gdrive OAuth conf on the VM; (6) OPNsense os-git-backup → `skynet-opnsense`, firewall mirrored; (7) Renovate app (scan+alert), bump PRs open; (8) PBS client-side encryption, key in kit; (9) survival kit printed + `gr vm-docker-dmz 10m` watched to expiry.
 
@@ -384,9 +384,15 @@ Landed as the A4 PR. Google Drive layout: `gdrive:Skynet/Backups/{restic/<host>,
   ⚠️ **A6 (2026-08-16) proved this was NOT actually working:** the dry-run only verified *scope*,
   never that the sync *completed*. The nightly service was TERM-killed at `TimeoutStartSec=6h`
   every night, so ~46% of chunks (39,063 local vs ~20,986 on Drive) never uploaded and no guard
-  caught it. Restore of CT 101 from Drive failed (93/184 chunks present). Fixed on
-  `fix/l5-incomplete-offsite-seed` (timeout raised, seed unthrottled, `rclone check` completion
-  guard added). Pending: full re-seed + a green restore drill to close L5 for real.
+  caught it. Restore of CT 101 from Drive failed (93/184 chunks present). Fixed in **PR #24**
+  (timeout 6h→20h, seed unthrottled, `--transfers 16`, and an `rclone check --one-way` completion
+  guard that fails the job if the copy is incomplete). **A5.5 (2026-08-16) — CLOSED GREEN:** the
+  one-time reseed finished under the fixed unit (5.4h, no timeout kill) and the guard passed clean
+  — `rclone check`: **0 differences, 39,513 matching files**. Re-drill: targeted pull of CT 101's
+  **184/184** chunks from Drive into a local scratch datastore (was 93/184), then `proxmox-backup-debug
+  recover` (CRC on) rebuilt `root.pxar` — **byte-identical** (sha256 `148b1271…`) to a rebuild from
+  the live datastore. Off-site restore proven end-to-end; scratch cleaned, live datastore untouched.
+  Note: CT 101's backup is `encryption: none`, so the survival-kit PBS key was not needed here.
 
 **Findings recorded (not worked around):**
 - **Datastore sizing:** `df` on the Unraid NFS user-share reports the *whole array* (~6.5 TB),
@@ -472,22 +478,21 @@ nightly `inventory/<date>` PRs.
    restoring CT 101 needed 184 chunks, only 93 were on Drive. The whole off-site copy was ~46%
    incomplete (39,063 chunks local vs ~20,986 on Drive) — the nightly sync was TERM-killed at a 6h
    timeout every night and nothing verified completion. Fixed in **PR #24** (timeout→20h, unthrottled
-   seed, `rclone check` guard). Spun out as **A5.5**: a one-time reseed is running, then the CT 101
-   restore drill re-runs to close L5 for real. See "A4 results" + `runbooks/dr/DR-core-node.md`.
+   seed, `rclone check` guard). Spun out as **A5.5 — now ✅ CLOSED GREEN (2026-08-16):** reseed
+   finished under the fixed unit + guard passed (0 differences, 39,513 files), and the re-drill pulled
+   CT 101's **184/184** chunks from Drive and rebuilt `root.pxar` byte-identical to the live datastore.
+   See "A4 results" + `runbooks/dr/DR-core-node.md`.
 2. **Per-host grant path — ✅ DONE, PASS.** Drilled two coexisting grants
    (`lxc-proxmox-backup-server` + `vm-docker-dmz`); both root logins worked in one window. The A5
    fix (per-host certs + `Match user root`) is now proven live, not just config-verified. Note:
    `gr <host>` must use the target's real `hostname` (principal `ops-root-$(hostname)`).
-3. **A6 proper (plan §13) — ☐ NOT STARTED.** DR tabletop of `DR-network-node.md`; one real
-   end-to-end guest restore from PBS (live datastore); one "update all guests" run under a fleet
-   grant → final sign-off. **Blocked on A5.5** closing first.
+3. **A6 proper (plan §13) — ☐ NOT STARTED (now unblocked).** DR tabletop of `DR-network-node.md`;
+   one real end-to-end guest restore from PBS (live datastore); one "update all guests" run under a
+   fleet grant → final sign-off. **A5.5 is closed**, so this is the remaining work for graduation.
 
-**Resume A5.5 (reseed):** confirm `ssh root@10.10.20.40 'tail -3 /root/reseed-monitor.log'` shows
-`FINISHED result=success` (needs a fresh `gr lxc-proxmox-backup-server`), then re-run the CT 101
-restore drill (its 184 chunks should all be present now); Ali imports the PBS encryption key from the
-survival kit for the decrypt/restore step. Green → mark L5/A5.5 complete here.
+**A5.5 — ✅ DONE (2026-08-16).** Reseed + re-drill green (see item 1 / "A4 results"). Nothing left here.
 
-**Resume A6 proper:** once A5.5 is green, do §13 (a) DR-network-node tabletop with Ali, (b) a real PBS
+**Resume A6 proper:** do §13 (a) DR-network-node tabletop with Ali, (b) a real PBS
 guest restore under `gr lxc-proxmox-backup-server`, (c) an "update all guests" run under `gr all <dur>`
 → sign-off. Plan each loudly per AGENTS.md; Ali issues grants + merges.
 
