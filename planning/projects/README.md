@@ -11,7 +11,7 @@ The workflow, start to finish:
 1. **Kick off** — paste the directive's ▶ Execute prompt into a new session.
 2. **Each phase closes out** — a PR, a `SKY-###-progress` memory, a frontmatter bump, and the
    Continue prompt for whoever picks it up next (maybe you tomorrow, maybe a different engine).
-3. **Anything touching T2+/T3** or a blast-radius boundary also PRs `docs/deployment-plan.md`.
+3. **Anything touching T2+/T3** or a blast-radius boundary also PRs `docs/system-design.md`.
 
 **→ Out:** shipped or killed, `bin/plan archive SKY-###` retires it to
 [`../archive/`](../archive/) — the ID and its history stay meaningful forever.

@@ -2,9 +2,8 @@
 
 > **Skynet became self-aware at 2026-08-16.** The build is over; operations have begun.
 > This is the constitution of the system that woke up — the slow-changing law that every
-> future change is measured against. It replaces the old [`deployment-plan.md`](deployment-plan.md),
-> which drove the birth and is being archived verbatim to `history/deployment-plan-v5.md`
-> (SKY-001, Phase 3).
+> future change is measured against. It replaces the old birth plan, now archived verbatim as
+> [`history/deployment-plan-v5.md`](history/deployment-plan-v5.md).
 
 **The one VM:** `vm-skynet-ops` · **10.10.90.90** static · VLAN 90 · VMID 9090 · on `server-proxmox-core`.
 
@@ -12,7 +11,7 @@
 
 ## 0. What this document is
 
-`deployment-plan.md` was a *plan to reach a state*. This is a *definition of the state we hold
+The old plan was a *plan to reach a state*. This is a *definition of the state we hold
 and intend to grow* — split in two, on purpose:
 
 - **This file is the constitution.** Invariants, the trust model, the agent-agnostic contract,
@@ -161,6 +160,6 @@ The depth lives here. **This set is open** — spokes are added by PR as the sys
 Skynet was built in six phases (A1–A6) from an empty VM to graduation on 2026-08-16. That story
 — every phase, every drill, every latent gap the drills surfaced — is preserved in
 [`history/build-log.md`](history/build-log.md), and the original birth plan verbatim in
-[`deployment-plan.md`](deployment-plan.md) (being archived to `history/deployment-plan-v5.md` in
-Phase 3). Architectural decisions with lasting consequence are recorded as ADRs in
-[`decisions/`](decisions/). The fast orientation map is [`architecture.md`](architecture.md).
+[`history/deployment-plan-v5.md`](history/deployment-plan-v5.md). Architectural decisions with
+lasting consequence are recorded as ADRs in [`decisions/`](decisions/). The fast orientation map
+is [`architecture.md`](architecture.md).

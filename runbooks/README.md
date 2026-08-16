@@ -46,4 +46,4 @@ These assume the lab is gone and the DR agent starts from a laptop + phone hotsp
 - Keep it **engine-neutral**: markdown prose + plain bash, no vendor-specific invocation.
 - Open with a **Tier** line (and **Trigger** where there's a natural phrase), matching §1 of `AGENTS.md`.
 - Add a row here in the same PR — an uncatalogued runbook is an invisible one.
-- Anything touching **T2+/T3** or a blast-radius boundary must also PR `docs/deployment-plan.md`.
+- Anything touching **T2+/T3** or a blast-radius boundary must also PR `docs/system-design.md`.

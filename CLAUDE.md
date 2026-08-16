@@ -2,7 +2,7 @@
 
 Skynet is **agent-agnostic by contract**: the operating manual is vendor-neutral and lives in
 [`AGENTS.md`](AGENTS.md) (Codex CLI reads that natively; Claude Code, Goose, Amp and others honor
-it). The authoritative design is [`docs/deployment-plan.md`](docs/deployment-plan.md).
+it). The authoritative design is [`docs/system-design.md`](docs/system-design.md).
 
 To keep **one source of truth** — so the two engines can't drift — this file adds nothing of its
 own; it imports the shared contract below. Everything in `AGENTS.md` applies to you exactly as

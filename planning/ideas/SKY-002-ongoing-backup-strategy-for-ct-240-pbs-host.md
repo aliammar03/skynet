@@ -8,7 +8,7 @@ updated: 2026-08-16
 phases: 1
 current_phase: 0
 tier_touched: [T2, T2+]   # T2 vzdump (operate token) + a T2+ grant to set up restic on the host
-related: [docs/deployment-plan.md, runbooks/backup.md, "[[skynet-backups]]"]
+related: [docs/backup-strategy.md, runbooks/backup.md, "[[skynet-backups]]"]
 ---
 
 # SKY-002 · Ongoing backup strategy for CT 240 (PBS host)
@@ -46,7 +46,7 @@ protected (NFS + gdrive L5) and must stay excluded.
   datastore (mp0 — already protected, must stay excluded).
 - **Hosts & tiers touched:** CT 240 (`lxc-proxmox-backup-server`). T2+ grant to run
   `provision-restic.sh` on the host; T2 for any vzdump. No blast-radius change → likely no
-  `deployment-plan.md` PR, but record the new repo in `docs/backup-strategy.md`.
+  `docs/system-design.md` PR, but record the new repo in `docs/backup-strategy.md`.
 - **Rollback posture:** disable the timer / `git revert`; nothing destructive.
 - **Grants / human actions:** one `gr lxc-proxmox-backup-server`. The initial restic seed *initiates
   an external upload* → the safety classifier may block it → Ali runs the one seed command; the

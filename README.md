@@ -66,8 +66,8 @@ the lab is either PR-gated or requires a credential a human hands over for a few
 | **T3 · Privileged** | OPNsense, Authentik, node root, Unraid root, DNS *settings* | ❌ **Never** — dormant alias + per-session secrets |
 
 > The authoritative definitions live in **[`AGENTS.md §1`](AGENTS.md)** and
-> **[`docs/deployment-plan.md`](docs/deployment-plan.md)** — this table is the postcard, those are
-> the map. If they ever disagree, **the plan wins.**
+> **[`docs/system-design.md`](docs/system-design.md)** — this table is the postcard, those are
+> the map. If they ever disagree, **the design wins.**
 
 Some machines the agent can *see* but must **never touch**: OPNsense (VM 5001), CT 635, CT 837,
 and the Unraid VM (2020). They never join a managed pool.
@@ -83,7 +83,7 @@ skynet/
 ├── bin/                 human entrypoints:  ops · grant-root · plan
 ├── ca/                  SSH CA & agent PUBLIC keys (trust anchors; privates never here)
 ├── compose/             one dir per service — the "skynet way" Arcane git-syncs
-├── docs/                design & how-it-works ── deployment-plan.md is the master design
+├── docs/                design & how-it-works ── system-design.md is the master design (+ design/ spokes)
 │   └── generated/       🤖 machine-written by render-docs.sh — never hand-edit
 ├── inventory/           🤖 machine-collected JSON truth (Proxmox, DNS, firewall…)
 ├── planning/            Skynet Directives (SKY-###) — where future work is born
@@ -92,7 +92,7 @@ skynet/
 ```
 
 New here? Read in this order: **this file → [`AGENTS.md`](AGENTS.md) →
-[`docs/deployment-plan.md`](docs/deployment-plan.md)**. Then browse
+[`docs/system-design.md`](docs/system-design.md)**. Then browse
 [`runbooks/`](runbooks/) for what the agent can *do* and
 [`planning/`](planning/README.md) for what's *coming*.
 

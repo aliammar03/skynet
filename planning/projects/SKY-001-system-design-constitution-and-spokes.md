@@ -6,11 +6,11 @@ horizon: long
 created: 2026-08-16
 updated: 2026-08-16
 phases: 4
-current_phase: 2
+current_phase: 3
 tier_touched: [T1, T2, T2+, T3]   # docs-only, NO grants — but it rewrites the governing contract for
                                   # every tier (incl. the T3 wording + the merge dial), so it IS the
                                   # design-doc PR the boundary-change rule requires.
-related: [docs/deployment-plan.md, docs/system-design.md, docs/architecture.md, AGENTS.md, CLAUDE.md, "[[skynet-a6-next]]"]
+related: [docs/history/deployment-plan-v5.md, docs/system-design.md, docs/architecture.md, AGENTS.md, CLAUDE.md, "[[skynet-a6-next]]"]
 ---
 
 # SKY-001 · Skynet defines itself — retire the plan, write the constitution + spokes
@@ -97,7 +97,7 @@ Exit criteria: new constitution + spokes + build-log exist and are self-consiste
 the constitution indexes exists); old plan still present but banner-marked; no design fact dropped.
 → PR.
 
-### Phase 3 — Re-point + archive + retire  (~1h)   `[ ]` not started
+### Phase 3 — Re-point + archive + retire  (~1h)   `[x]` done
 Steps:
 1. `git mv docs/deployment-plan.md docs/history/deployment-plan-v5.md` (frozen verbatim).
 2. Re-point all 7 referencing files to `docs/system-design.md`; reword the tiebreaker
@@ -151,3 +151,11 @@ Follow AGENTS.md as above.
   `docs/system-design.md` (constitution) + 6 spokes under `docs/design/` + `docs/history/build-log.md`;
   bannered the old plan "SUPERSEDED". Additive — old plan still present; all internal links resolve.
   Next: P3 (`git mv` plan → `history/`, re-point the 7 refs, reword the merge/tiebreaker contract).
+- 2026-08-16 — **P3 done** (this PR): `git mv docs/deployment-plan.md → docs/history/deployment-plan-v5.md`
+  (frozen, banner flipped to ARCHIVED). Re-pointed **every** live reference — turned out to be more
+  than 7 files (AGENTS.md ×4, CLAUDE.md, README.md ×3, docs/architecture.md, docs/backup-strategy.md,
+  planning/{README,TEMPLATE,projects/README}, runbooks/README.md, ca/README.md → the access-and-trust
+  spoke, SKY-002). Reworded the tiebreaker ("the plan wins" → "the design wins") and **AGENTS.md §6**'s
+  flat "never merges its own" → the merge-dial framing; de-hardcoded "two pools" → "the set (two today)".
+  Grep-verified: no live pointer to the old path, no "plan wins", zero broken links repo-wide.
+  Next: P4 close-out.

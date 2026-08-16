@@ -1,7 +1,8 @@
 # Skynet-ops architecture
 
-The full, authoritative design is [`deployment-plan.md`](deployment-plan.md). This page is
-the fast orientation map; when the two disagree, the plan wins.
+The full, authoritative design is [`system-design.md`](system-design.md) (the constitution) +
+its [`design/`](design/) spokes. This page is the fast orientation map; when the two disagree,
+the design wins.
 
 ## One-paragraph model
 
