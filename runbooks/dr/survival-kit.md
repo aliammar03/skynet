@@ -12,7 +12,7 @@ Without these, encrypted history is confetti — store them off Skynet entirely.
 - [ ] **GitHub fine-grained PAT(s)** — repo access for a from-scratch clone.
 - [ ] **rclone Google OAuth config** (`rclone.conf`) — off-site restore access.
 - [ ] **Proxmox + OPNsense install ISOs on USB.**
-- [ ] **NIC passthrough PCI IDs + BIOS notes** (also versioned here in `runbooks/dr/`).
+- [ ] **NIC passthrough PCI IDs + BIOS notes** (also versioned in `runbooks/dr/pci-passthrough.md`).
 - [ ] **One printed page:** "Clone both repos, open `runbooks/dr/`, follow it."
 
 ## Verify (quarterly)
