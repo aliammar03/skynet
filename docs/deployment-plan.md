@@ -380,8 +380,12 @@ Landed as the A4 PR. Google Drive layout: `gdrive:Skynet/Backups/{restic/<host>,
   CA (Ali, one-time); rclone installed; `pbs-gdrive.env` → datastore `/mnt/datastore/unraid`.
   Nightly timer `skynet-pbs-gdrive` live (04:00). Dry-run verified scope = **67.97 GiB on-disk**
   (dedup 24.97× of 1.657 TiB logical) — fits Drive with room to spare.
-  ⚠️ Only the **upload** is proven; the gdrive→PBS **restore** round-trip is **UNTESTED** —
-  drill it in A6 (unlike L3, which was witnessed end-to-end).
+  ⚠️ **A6 (2026-08-16) proved this was NOT actually working:** the dry-run only verified *scope*,
+  never that the sync *completed*. The nightly service was TERM-killed at `TimeoutStartSec=6h`
+  every night, so ~46% of chunks (39,063 local vs ~20,986 on Drive) never uploaded and no guard
+  caught it. Restore of CT 101 from Drive failed (93/184 chunks present). Fixed on
+  `fix/l5-incomplete-offsite-seed` (timeout raised, seed unthrottled, `rclone check` completion
+  guard added). Pending: full re-seed + a green restore drill to close L5 for real.
 
 **Findings recorded (not worked around):**
 - **Datastore sizing:** `df` on the Unraid NFS user-share reports the *whole array* (~6.5 TB),

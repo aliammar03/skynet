@@ -2,11 +2,16 @@
 
 Core dies carrying PBS, so the off-site copy on Google Drive (L5) is the way back in.
 
-> ⚠️ **UNTESTED (as of A4, 2026-08-16).** Only the L5 *upload* path is proven — nightly
-> `rclone sync` of the PBS datastore to `gdrive:Skynet/Backups/pbs`. The *restore* below
-> (pull from Drive → re-add datastore → restore a guest) has **not** been drilled end-to-end.
-> Prove it in A6 (graduation): pull a single small guest's chunks + index to a scratch PBS and
-> restore it, before relying on this in a real disaster.
+> ⚠️ **A6 drill (2026-08-16) found the off-site copy INCOMPLETE — do not rely on this path
+> until a full re-seed verifies.** The restore drill (pull CT 101's 184 chunks from Drive →
+> restore) failed: only 93 were present; entire chunk shards past ~`855f` were absent. Root
+> cause: the nightly `skynet-pbs-gdrive.service` was TERM-killed at `TimeoutStartSec=6h` every
+> night before finishing, so ~46% of the ~39k-chunk store (39,063 local vs ~20,986 on Drive)
+> never uploaded — and nothing verified completion, so it looked healthy for weeks. The A4
+> "upload proven" claim was a dry-run *scope* estimate, not a completion check.
+> Fixed by raising the unit timeout, unthrottling the seed, and adding an `rclone check`
+> completion guard (script fails loudly if the copy is incomplete). **Re-seed, confirm the
+> guard passes green, then re-run this restore drill to actually prove the round-trip.**
 
 ## Steps
 
