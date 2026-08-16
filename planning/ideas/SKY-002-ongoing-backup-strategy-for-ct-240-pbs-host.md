@@ -1,5 +1,5 @@
 ---
-id: SKY-001
+id: SKY-002
 title: Ongoing backup strategy for CT 240 (PBS host)
 status: draft
 horizon: short
@@ -11,7 +11,7 @@ tier_touched: [T2, T2+]   # T2 vzdump (operate token) + a T2+ grant to set up re
 related: [docs/deployment-plan.md, runbooks/backup.md, "[[skynet-backups]]"]
 ---
 
-# SKY-001 · Ongoing backup strategy for CT 240 (PBS host)
+# SKY-002 · Ongoing backup strategy for CT 240 (PBS host)
 
 > Give the PBS-hosting container a real, recurring, off-site backup — it currently has none,
 > and it's the one guest that can't be snapshotted.
@@ -70,7 +70,7 @@ Grants / human actions: one `gr lxc-proxmox-backup-server`; Ali runs the seed up
 ## 4. ▶ Execute prompt
 > Paste into a fresh Skynet session to run this directive. Swap `<N>` for the phase to run.
 ```
-Read planning/projects/SKY-001-ongoing-backup-strategy-for-ct-240-pbs-host.md and execute Phase <N>.
+Read planning/projects/SKY-002-ongoing-backup-strategy-for-ct-240-pbs-host.md and execute Phase <N>.
 Follow AGENTS.md: plan loudly then run quietly, never merge your own PRs, request the
 narrowest host / shortest grant the phase needs, and checkpoint at the listed human/grant
 steps. When the phase's exit criteria are met, do the "Phase close-out" at the bottom.
@@ -79,16 +79,19 @@ steps. When the phase's exit criteria are met, do the "Phase close-out" at the b
 ## 5. Phase close-out (resume material)
 Run this every time a phase finishes successfully — it's what makes the next session cold-startable:
 - [ ] Land the work via **PR** (agent never merges its own).
-- [ ] Write/refresh a memory `SKY-001-progress` (what shipped, what's next, gotchas) + a MEMORY.md pointer.
+- [ ] Write/refresh a memory `SKY-002-progress` (what shipped, what's next, gotchas) + a MEMORY.md pointer.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:
 ```
-Continue planning/projects/SKY-001-ongoing-backup-strategy-for-ct-240-pbs-host.md at Phase <N+1>.
-Prereqs carried from the last phase: <…>. Resume context from memory [[SKY-001-progress]].
+Continue planning/projects/SKY-002-ongoing-backup-strategy-for-ct-240-pbs-host.md at Phase <N+1>.
+Prereqs carried from the last phase: <…>. Resume context from memory [[SKY-002-progress]].
 Follow AGENTS.md as above.
 ```
 
 ## 6. Status log
 - 2026-08-16 — created (draft) from the A6 update-guests drill finding: CT 240 has no ongoing backup
   and can't be snapshotted. Proposed restic-to-gdrive (Option B). See [[skynet-backups]], [[skynet-a6-next]].
+- 2026-08-16 — **renumbered SKY-001 → SKY-002.** This directive was minted SKY-001 by mistake right
+  after A6; SKY-001 is reassigned to the system-design rework (`planning/projects/SKY-001-*`). ID moved
+  before any progress memory existed, so nothing external pointed at the old number. See [[SKY-001-progress]].
