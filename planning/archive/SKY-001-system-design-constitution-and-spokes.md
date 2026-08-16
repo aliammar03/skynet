@@ -1,12 +1,12 @@
 ---
 id: SKY-001
 title: Retire the deployment plan; stand up the system-design constitution + spokes
-status: in-progress
+status: done
 horizon: long
 created: 2026-08-16
 updated: 2026-08-16
 phases: 4
-current_phase: 3
+current_phase: 4
 tier_touched: [T1, T2, T2+, T3]   # docs-only, NO grants — but it rewrites the governing contract for
                                   # every tier (incl. the T3 wording + the merge dial), so it IS the
                                   # design-doc PR the boundary-change rule requires.
@@ -111,7 +111,7 @@ Steps:
 Exit criteria: `system-design.md` is the sole authoritative design; all references resolve; the
 always-loaded contract matches the constitution. → PR.
 
-### Phase 4 — Close-out  (~30m)   `[ ]` not started
+### Phase 4 — Close-out  (~30m)   `[x]` done
 Steps:
 1. `bin/plan archive SKY-001` (status → done) + `bin/plan list` (regenerate roadmap).
 2. Memory: rewrite `skynet-a6-next` to point at `system-design.md`; write `SKY-001-progress`;
@@ -159,3 +159,7 @@ Follow AGENTS.md as above.
   flat "never merges its own" → the merge-dial framing; de-hardcoded "two pools" → "the set (two today)".
   Grep-verified: no live pointer to the old path, no "plan wins", zero broken links repo-wide.
   Next: P4 close-out.
+- 2026-08-16 — **P4 done — SKY-001 COMPLETE.** Archived this directive to `planning/archive/`
+  (status → done); regenerated the roadmap; re-pointed the steady-state memory [[skynet-a6-next]]
+  and [[SKY-001-progress]] at `docs/system-design.md`. The deployment plan is retired; Skynet's
+  living design is the constitution + spokes. Skynet has finished defining itself. 🤖
