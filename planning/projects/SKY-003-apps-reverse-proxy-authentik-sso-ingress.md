@@ -6,7 +6,7 @@ horizon: short
 created: 2026-08-16
 updated: 2026-08-17
 phases: 5
-current_phase: 1
+current_phase: 2
 tier_touched: [T1, T2, T2+, T3]   # T2 apps proxy; T2-scoped Authentik provisioning; Authentik server-admin
                                   # + OPNsense stay T3 → this directive PRs docs/system-design.md by rule.
 related:
@@ -172,7 +172,7 @@ Exit criteria: new spoke exists and is self-consistent; the constitution indexes
 Authentik tier split; every internal link resolves; no infra touched. → PR.
 Grants / human actions: none beyond Ali merging the P1 PR.
 
-### Phase 2 — Apps Caddy stack + karakeep pilot (own-auth reverse proxy)  (~1–2h)   `[ ]` not started
+### Phase 2 — Apps Caddy stack + karakeep pilot (own-auth reverse proxy)  (~1–2h)   `[x]` done — 2026-08-17
 
 Steps:
 1. Create `compose/caddy-apps/` on the skynet way: digest-pinned **cloudflare-enabled Caddy image**
@@ -303,3 +303,16 @@ Follow AGENTS.md as above.
   "likely-next"), §3 trust note (Authentik server-admin T3 / app+provider provisioning T2 scoped).
   `network.md` + `access-and-trust.md` "Planned expansion" → realized; `gitops-loop.md` cross-linked.
   All internal links verified; no infra touched. → PR (agent does not merge its own).
+- 2026-08-17 — **Phase 2 done (apps Caddy live).** PR #40 merged: `compose/caddy-apps/` — prebuilt
+  `caddybuilds/caddy-cloudflare:2.11.4-alpine` (digest-pinned, cloudflare plugin baked in, no xcaddy);
+  role tag `proxy`/red; DMZ macvlan `10.10.100.35`; `Caddyfile` ro-mounted from git; ACME certs
+  persisted; healthcheck on Caddy admin `:2019`. First site `karakeep.aliammar.net → reverse_proxy
+  10.10.100.75:3000` (own-auth). **Let's Encrypt cert issued via Cloudflare DNS-01** (token scoped
+  Zone→DNS→Edit, in `.env.sops`; decrypt round-trip verified). `runbooks/publish-service.md` shipped
+  (own-auth reverse-proxy path; forward-auth path stubbed for P3) + catalogued. Deployed via
+  `scripts/gitops-deploy.sh caddy-apps`; container `(healthy)`; verified end-to-end from a peer DMZ
+  container — HTTP 200, valid public cert, redirect to karakeep `/signin`. Two deploy notes for
+  later: `gitops-deploy.sh` writes the project `.env` as `root@vm-docker-dmz` → needs a **T2+ root
+  grant** (`gr vm-docker-dmz 1h`, auto-expiring — used once here); and a **macvlan** container is
+  unreachable from its own host, so HTTPS must be verified from a *peer* DMZ container, not the host
+  or the ops VM.

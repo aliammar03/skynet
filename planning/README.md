@@ -58,5 +58,5 @@ so running or resuming one is a single paste into a fresh session.
 |---|---|---|---|---|---|
 | SKY-001 | Retire the deployment plan; stand up the system-design constitution + spokes | archive | done | — | 🔭 long |
 | SKY-002 | Ongoing backup strategy for CT 240 (PBS host) | ideas | draft | — | 🌱 short |
-| SKY-003 | Apps reverse proxy + Authentik SSO ingress | projects | in-progress | 1/5 | 🌱 short |
+| SKY-003 | Apps reverse proxy + Authentik SSO ingress | projects | in-progress | 2/5 | 🌱 short |
 <!-- ROADMAP:END -->
