@@ -1,12 +1,12 @@
 ---
 id: SKY-003
 title: Apps reverse proxy + Authentik SSO ingress
-status: approved
+status: in-progress
 horizon: short
 created: 2026-08-16
-updated: 2026-08-16
+updated: 2026-08-17
 phases: 5
-current_phase: 0
+current_phase: 1
 tier_touched: [T1, T2, T2+, T3]   # T2 apps proxy; T2-scoped Authentik provisioning; Authentik server-admin
                                   # + OPNsense stay T3 → this directive PRs docs/system-design.md by rule.
 related:
@@ -152,7 +152,7 @@ SSH port in the first place).
 
 ---
 
-### Phase 1 — The trust-boundary decision, in writing  (~1–2h)   `[ ]` not started
+### Phase 1 — The trust-boundary decision, in writing  (~1–2h)   `[x]` done — 2026-08-17
 
 Docs only — write the decision down *before* building it, because it moves a trust boundary.
 
@@ -296,3 +296,10 @@ Follow AGENTS.md as above.
   `*.aliammar.net` certs, no device-trust install, split-horizon-compatible; token scoped
   Zone→DNS→Edit for the one zone, in `.env.sops`. Knock-on: rule 830 (`:53`) isn't needed for this
   proxy (Cloudflare API rides 443 / rule 810) — noted for the Phase-4 hardening pass.
+- 2026-08-17 — **Phase 1 done (docs only).** Authored the `identity-and-proxy` spoke (two-door model,
+  split-horizon DNS, Cloudflare DNS-01, one-Caddy `forward_auth`, Authentik T2/T3 split, the honest
+  docker-group≈root position + three controls). Constitution PR'd: §6 growth directions
+  (reverse-proxy + SSO now "landing via SKY-003"), §7 spoke index (identity-and-proxy promoted out of
+  "likely-next"), §3 trust note (Authentik server-admin T3 / app+provider provisioning T2 scoped).
+  `network.md` + `access-and-trust.md` "Planned expansion" → realized; `gitops-loop.md` cross-linked.
+  All internal links verified; no infra touched. → PR (agent does not merge its own).

@@ -86,6 +86,10 @@ principal — lives in [access-and-trust](design/access-and-trust.md); this is t
 
 - **Technitium is T2 for Zones view/modify only** — no Settings/Administration/DHCP. Server
   settings are T3.
+- **Authentik: server administration is T3; app/provider provisioning is T2 (scoped).** A dedicated
+  `svc-skynet` token may CRUD Applications + Providers and bind an existing outpost — nothing else.
+  Flows, Policies, Users, System settings, outpost tokens, and signing keys stay T3. Same shape as
+  the Technitium split. (Landed by SKY-003 — see [identity-and-proxy](design/identity-and-proxy.md).)
 - **Pool membership is the blast-radius dial.** Joining a guest to an `ops-managed` pool hands the
   agent T2 over it; leaving it out keeps it look-but-don't-touch. **VM 5001 (OPNsense) never joins
   any pool** — same for CT 635, CT 837, Unraid VM 2020. Seen at T1, touched never (T3).
@@ -125,13 +129,17 @@ expansion has an admission procedure and a home spoke:
 Where Skynet expands next. **Vision lives here; the work lives in `planning/` as `SKY-###`
 directives** — this section names the horizon and hands off.
 
-- **Reverse proxy / ingress** — a managed edge for internal services (likely folds into a new
-  `identity-and-proxy` spoke). Today the Management Caddy is T3; a Skynet-managed proxy would be its
-  own tier decision.
+- **Reverse proxy / ingress** — **landing via [SKY-003](../planning/projects/SKY-003-apps-reverse-proxy-authentik-sso-ingress.md)**:
+  a T2 apps Caddy at `10.10.100.35` (the everyday-services twin of the T3 Management Caddy), detailed
+  in the new [identity-and-proxy](design/identity-and-proxy.md) spoke. The tier decision is made — the
+  apps door is T2, the Management door stays T3.
 - **A secrets vault beyond sops+age** — an external backend (Vault / Infisical-class) if the
   service count outgrows file-level sops. Migration path sketched in [secrets](design/secrets.md).
 - **SSO / authentication** — Authentik graduating out of T3 into something the agent can operate
-  under a scoped boundary. See [access-and-trust](design/access-and-trust.md).
+  under a scoped boundary. **Landing via SKY-003:** server administration stays T3;
+  app/provider provisioning becomes T2 via a scoped `svc-skynet` token (flows/users/settings/keys
+  stay T3). See [identity-and-proxy](design/identity-and-proxy.md) and
+  [access-and-trust](design/access-and-trust.md).
 - **More hosts under T2** — the operate model already generalizes; each new host is an onboarding,
   not a redesign.
 - **A monitoring / alerting stack** — beyond nightly report-only into live signal. See
@@ -146,6 +154,7 @@ The depth lives here. **This set is open** — spokes are added by PR as the sys
 | Spoke | Covers | Sourced from (plan) |
 |---|---|---|
 | [network](design/network.md) | Placement, VM spec, VLAN 90, firewall aliases/rules | §1, §3 |
+| [identity-and-proxy](design/identity-and-proxy.md) | Two-door model, split-DNS, Cloudflare DNS-01, one-Caddy `forward_auth`, Authentik T2/T3 split | SKY-003 |
 | [access-and-trust](design/access-and-trust.md) | Trust tiers in depth, Proxmox operate tokens, SSH user-CA + grants, T3 dormant aliases | §2, §7, §8 |
 | [secrets](design/secrets.md) | sops+age, `.env.git`/`project.env` layering, envsync | §5, §4 |
 | [gitops-loop](design/gitops-loop.md) | Arcane deploy loop, rollback, image pinning + Renovate | §4, §12 |
@@ -153,7 +162,6 @@ The depth lives here. **This set is open** — spokes are added by PR as the sys
 | [observability](design/observability.md) | render-docs, nightly, inventory, generated docs | §11 |
 | [backup-strategy](backup-strategy.md) | The L0–L5 layered backup model | §6 |
 | _[conventions](conventions.md)_ | Naming, git, compose, TLS pinning (reference) | — |
-| _likely-next: `identity-and-proxy.md`_ | proxy + vault + auth, when that work lands | — |
 
 ## 8. Lineage
 

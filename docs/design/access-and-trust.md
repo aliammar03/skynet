@@ -101,12 +101,25 @@ itself and the nightly run greps it into `inventory/`. **The signature never hap
 What this enables: `provision-vm`, `update-guests` (snapshot → `apt full-upgrade` → verify →
 next, rollback on failure), and real-root diagnosis — each under one grant Ali types.
 
+## The Authentik scoped-token boundary (realized — SKY-003)
+
+Authentik's graduation out of T3 is no longer hypothetical — directive
+[SKY-003](../../planning/projects/SKY-003-apps-reverse-proxy-authentik-sso-ingress.md) implements it
+on exactly the Technitium pattern (view/modify a slice, never settings):
+
+- **T2 (scoped `svc-skynet` token):** CRUD **Applications** + **Providers**, and **bind an existing
+  outpost**. That is the whole surface — enough to publish a forward-auth app routinely, nothing more.
+- **T3 (never in scope):** **Flows** and **Policies** (the authentication spine), **Users** and
+  **Groups**, **System settings**, outpost tokens, and **signing keys**.
+- **How the token is born:** a one-time T3 ceremony Ali performs in the Authentik UI — Skynet cannot
+  mint it. Stored `0600` at `/opt/skynet-ops/secrets/authentik.env` (or sops), and its scope is
+  *verified real* (it must demonstrably fail to touch Flows/Users/settings/keys).
+
+The full two-door + forward-auth model, and the honest docker-group≈root caveat that the merge gate
+guards, live in the [identity-and-proxy](identity-and-proxy.md) spoke.
+
 ## Planned expansion
 
-- **SSO / authentication (Authentik out of T3).** Today Authentik is privileged-only. A future
-  scoped boundary — an operate-level API token for app/provider config, with server administration
-  staying T3 — would follow the Technitium pattern (view/modify a slice, never settings). This is a
-  candidate for the `identity-and-proxy` spoke.
 - **More hosts / more pools under T2.** The operate model generalizes without redesign: onboard to
   the CA, decide pool membership, add to `ROLE_OPS_SSH_TARGETS`, land in inventory. A *new pool* is
   the only move that touches the constitution (it widens the dial).
