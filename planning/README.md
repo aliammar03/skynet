@@ -59,4 +59,9 @@ so running or resuming one is a single paste into a fresh session.
 | SKY-001 | Retire the deployment plan; stand up the system-design constitution + spokes | archive | done | — | 🔭 long |
 | SKY-002 | Ongoing backup strategy for CT 240 (PBS host) | ideas | draft | — | 🌱 short |
 | SKY-003 | Apps reverse proxy + Authentik SSO ingress | projects | in-progress | 2/5 | 🌱 short |
+| SKY-004 | Reactive operations: event-driven layer + drift-as-signal | ideas | draft | — | 🔭 long |
+| SKY-005 | Imperative ops discipline: recon toolkit, diagnosis library, lab bench | ideas | draft | — | 🌱 short |
+| SKY-006 | Agent episodic memory: journal + retrieval | ideas | draft | — | 🌱 short |
+| SKY-007 | NixOS host definition, piloted on the ops VM | ideas | draft | — | 🔭 long |
+| SKY-008 | OpenTofu provisioning layer: VM and CT lifecycle plus DNS | ideas | draft | — | 🔭 long |
 <!-- ROADMAP:END -->
