@@ -14,7 +14,7 @@ stays scannable and depth lives one click away. Three instances, all the same sh
 |---|---|
 | `docs/system-design.md` (constitution) | `docs/design/*.md` |
 | `docs/conventions.md` | `docs/conventions/*.md` (this set) |
-| `compose/README.md` / `runbooks/README.md` / `planning/README.md` | the dirs they index |
+| `compose/README.md` / `runbooks/README.md` / `planning/README.md` / `journal/README.md` | the dirs they index |
 
 Rules `[manual]`:
 - **The hub shrinks; the spoke carries depth.** When a topic outgrows a paragraph in the hub,
@@ -44,6 +44,16 @@ Rules `[manual]`:
   runbook has a natural spoken trigger `[testable]`.
 - **Every runbook is listed in `runbooks/README.md`** `[testable]` — the catalog is the menu;
   an uncatalogued runbook is invisible.
+
+## Journal — episodic memory (`journal/`)
+
+- **Raw episodes, append-only** `[manual]` — session / incident / decision records under
+  `journal/<YYYY>/<YYYY-MM-DD>-<kind>-<slug>.md`, written concrete and **never summarized at write
+  time** (that destroys the episodic signal). Distillation happens at read time. The full format
+  convention — kinds, the Graveyard section, the two invariants — lives in its one authoritative
+  home, [`../../journal/README.md`](../../journal/README.md); stamp entries with `bin/new journal`.
+- **Not a generated dir** `[manual]` — `journal/` is authored/appended, never re-rendered, so the
+  "never hand-edit generated dirs" rule does **not** apply to it (unlike `docs/generated/`).
 
 ## README-as-catalog `[manual]`
 

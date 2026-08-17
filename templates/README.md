@@ -12,8 +12,9 @@ fresh skeleton is doctrine-conforming before you edit it — you just fill the `
 | [`script.sh`](script.sh) | `bin/new script <name>` | `scripts/<name>.sh` | [scripts](../docs/conventions/scripts.md) |
 | [`runbook.md`](runbook.md) | `bin/new runbook <title>` | `runbooks/<slug>.md` | [docs](../docs/conventions/docs.md) |
 | [`adr.md`](adr.md) | `bin/new adr <title>` | `docs/decisions/NNNN-<slug>.md` | [docs](../docs/conventions/docs.md) |
+| [`journal.md`](journal.md) | `bin/new journal <kind> <title>` | `journal/<YYYY>/<date>-<kind>-<slug>.md` | [journal](../journal/README.md) |
 
-Placeholders the generator fills: `__SVC__`, `__NAME__`, `__TITLE__`, `__NUM__`, `__DATE__`.
+Placeholders the generator fills: `__SVC__`, `__NAME__`, `__TITLE__`, `__NUM__`, `__DATE__`, `__KIND__`.
 Everything a human must decide is a literal `TODO` in the stamped file.
 
 **Directives (`SKY-###`) are not here** — `bin/plan` scaffolds them from `planning/TEMPLATE.md`,

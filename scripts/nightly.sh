@@ -34,8 +34,8 @@ git checkout -B "${BRANCH}" "origin/${DEFAULT_BRANCH}" 2>/dev/null || git checko
 # 3. render the Obsidian docs from fresh inventory
 ./scripts/render-docs.sh || true
 
-# 4. commit + PR if anything changed. Stage inventory/docs here; envsync already staged any
-#    changed compose/*/.env.sops, and the index check below folds all three into one commit.
+# 4. decide if there's anything to report. Stage inventory/docs; envsync already staged any
+#    changed compose/*/.env.sops, and this check folds all of it into one commit.
 git add -A inventory docs/generated 2>/dev/null || true
 if git diff --cached --quiet; then
   echo "no inventory/doc/env changes tonight — nothing to report"
@@ -43,7 +43,26 @@ if git diff --cached --quiet; then
   exit 0
 fi
 
-git commit -q -m "nightly ${DATE}: inventory + docs + encrypted env refresh (report-only)"
+# 5. episodic memory: append a RAW journal session entry for tonight (journal/README.md). The
+#    deterministic path writes only concrete facts — the diff stat, no LLM narrative — which is
+#    exactly right: raw episodes, summarized at read time, never at write time. Uniquify the
+#    filename if a second run lands the same day (episodes are append-only, never overwritten).
+JDIR="journal/${DATE%%-*}"; mkdir -p "${JDIR}"
+JENTRY="${JDIR}/${DATE}-session-nightly.md"; n=2
+while [ -e "${JENTRY}" ]; do JENTRY="${JDIR}/${DATE}-session-nightly-${n}.md"; n=$((n+1)); done
+DIFFSTAT="$(git diff --cached --stat | tail -30)"
+{
+  printf -- '---\ndate: %s\nkind: session\ntitle: nightly %s (deterministic)\ntier_touched: [T1]\ngrants: []\nrefs: [runbooks/nightly.md, "%s"]\n---\n\n' \
+    "${DATE}" "${DATE}" "${BRANCH}"
+  printf '# %s · session · nightly (deterministic path)\n\n' "${DATE}"
+  printf 'Report-only nightly ran the deterministic fallback (no LLM this run): `bin/ops collect`\n(T1 read-only), `envsync`, `render-docs`. Raw — no narrative, no `05-state-of-the-lab.md`,\nno grant audit (those need the agent path).\n\n'
+  printf '## What changed (staged this run)\n\n```\n%s\n```\n\n' "${DIFFSTAT}"
+  printf '## Graveyard — tried & abandoned\n\n— nothing abandoned (a clean deterministic pass) —\n\n'
+  printf '## Follow-ups / open threads\n\n- Agent-path nightly would add the narrative + grant audit this raw entry omits.\n'
+} > "${JENTRY}"
+git add "${JENTRY}"
+
+git commit -q -m "nightly ${DATE}: inventory + docs + encrypted env refresh + journal (report-only)"
 git push -u origin "${BRANCH}" --quiet
 
 # Summarise the diff for the PR body (inventory, docs, and any re-encrypted env layer).

@@ -90,6 +90,10 @@ edit compose/<svc>/ → branch → PR → Ali merges
   metadata rules live in the convention **hub** [`docs/conventions.md`](docs/conventions.md) +
   its [`docs/conventions/`](docs/conventions/) spokes — one authoritative home per rule, each
   tagged testable/manual. New artifacts inherit it; read the relevant spoke before writing one.
+- **Episodic memory lives in [`journal/`](journal/README.md).** Append a **raw** dated episode
+  (session / incident / decision) when a run happens, something breaks, or a non-trivial choice is
+  made — `bin/new journal <kind> "<title>"`. **Write raw, summarize only at read time**; entries
+  are append-only. A cold agent greps it to learn what was already tried (and abandoned).
 
 ---
 

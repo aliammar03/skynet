@@ -8,6 +8,7 @@
 #   new script  <name>    → scripts/<name>.sh       from templates/script.sh      (scripts.md)
 #   new runbook <title>   → runbooks/<slug>.md       from templates/runbook.md     (docs.md)
 #   new adr     <title>   → docs/decisions/NNNN-<slug>.md from templates/adr.md         (docs.md)
+#   new journal <kind> <title> → journal/<YYYY>/<date>-<kind>-<slug>.md  from templates/journal.md
 #
 # Directives (SKY-###) are scaffolded by `bin/plan`, not here.
 set -euo pipefail
@@ -78,6 +79,22 @@ cmd_adr() {
   echo "created ${dest}"
 }
 
+# journal episode: journal/<YYYY>/<date>-<kind>-<slug>.md. Kind ∈ session|incident|decision.
+# The dir self-indexes by date; multiple episodes may share a date (slug keeps them distinct).
+cmd_journal() {
+  local kind="${1:?usage: new journal <session|incident|decision> <title>}"
+  local title="${2:?usage: new journal <session|incident|decision> <title>}" slug date dir dest
+  case "$kind" in session|incident|decision) ;; *) die "kind must be session|incident|decision";; esac
+  slug="$(slugify "$title")"; [ -n "$slug" ] || die "empty slug from '$title'"
+  date="$(date +%F)"; dir="journal/${date%%-*}"; dest="${dir}/${date}-${kind}-${slug}.md"
+  [ -e "$dest" ] && die "$dest already exists (episodes are append-only — pick a distinct title)"
+  need templates/journal.md
+  mkdir -p "$dir"
+  sed -e "s/__DATE__/${date}/g" -e "s/__KIND__/${kind}/g" -e "s/__TITLE__/$(sed_rep "$title")/g" \
+      templates/journal.md > "$dest"
+  echo "created ${dest} — write it RAW (journal/README.md); do not summarize at write time"
+}
+
 cmd_help() { sed -n '2,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 case "${1:-help}" in
@@ -85,6 +102,7 @@ case "${1:-help}" in
   script)  shift; cmd_script  "$@";;
   runbook) shift; cmd_runbook "$@";;
   adr)     shift; cmd_adr     "$@";;
+  journal) shift; cmd_journal "$@";;
   help|-h|--help) cmd_help;;
-  *) die "unknown kind '$1' (service|script|runbook|adr; directives → bin/plan)";;
+  *) die "unknown kind '$1' (service|script|runbook|adr|journal; directives → bin/plan)";;
 esac

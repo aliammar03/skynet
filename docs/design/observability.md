@@ -40,6 +40,20 @@ each provider's current `--model` ids into `ops.env` as commented suggestions.
 Report-only is a constitution dial: the nightly run *observes and proposes*, it does not act
 outside the version-controlled auto-approve list.
 
+## Episodic memory — the journal
+
+Rendered docs answer *what is true now*; they can't answer *how the lab got here, what was tried,
+what failed*. That is **episodic** memory, and git history only implies it. [`journal/`](../../journal/README.md)
+supplies it: append-only dated **session / incident / decision** episodes, fed by the nightly (a
+raw entry per run) and by SKY-005 diagnoses (incidents). The discipline that keeps it useful —
+**write raw, summarize only at read time** — is stated once in [`journal/README.md`](../../journal/README.md).
+
+The journal is the *source*; retrieval is a **cache, never a truth**. Two retrieval layers build on
+it, both regenerable from these files (statelessness holds): a rolling cold-boot **digest** folded
+into `05-state-of-the-lab.md` (SKY-006 P2), and a git-rebuildable local **semantic index** for
+retrieval-by-similarity once markdown + grep visibly strain (P3). Born of
+[SKY-006](../../planning/projects/SKY-006-agent-episodic-memory-journal-retrieval.md).
+
 ## What "observability" covers today vs. next
 
 Today this spoke is **descriptive**: state, rendered, nightly. It answers *what is the lab right

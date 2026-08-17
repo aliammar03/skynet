@@ -16,6 +16,7 @@ Tags: **[testable]** = a lint gate could assert it; **[manual]** = holds by revi
 | `docs/decisions/*.md` | ADRs — decisions with lasting consequence | history |
 | `docs/generated/**`, `inventory/**` | **Machine-written** — never hand-edit | generated |
 | `docs/history/*.md` | Build log + original plan (lineage) | history |
+| `journal/<YYYY>/*.md` | **Episodic memory** — raw append-only session/incident/decision episodes | memory |
 | `compose/<svc>/` | One dir per service (the GitOps loop) | ops |
 | `scripts/*.sh` | Procedures runbooks/entry-points call | ops |
 | `bin/*` | Operator-facing entry points (`plan`, `new`, `ops`, `grant-root`) | ops |
@@ -48,6 +49,7 @@ the doctrine automatically:
 | `bin/new script <name>` | `scripts/<name>.sh` (chmod +x) | `templates/script.sh` |
 | `bin/new runbook <title>` | `runbooks/<slug>.md` | `templates/runbook.md` |
 | `bin/new adr <title>` | `docs/decisions/NNNN-<slug>.md` (next number) | `templates/adr.md` |
+| `bin/new journal <kind> <title>` | `journal/<YYYY>/<date>-<kind>-<slug>.md` | `templates/journal.md` |
 | `bin/plan idea\|service\|start …` | a `SKY-###` directive | `planning/TEMPLATE.md` |
 
 **All golden templates live in one folder, [`templates/`](../../templates/)** `[manual]` — not

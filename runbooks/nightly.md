@@ -19,9 +19,10 @@ the engine can't run (missing/unauthed/errors) — so the nightly always produce
   - `OPS_ENGINE_CMD` — full override of the primary command; `OPS_NIGHTLY_MODE=script` forces
     the deterministic path.
 - **Agent path:** the engine runs the pass below and additionally (re)writes the human-readable
-  narrative `docs/generated/05-state-of-the-lab.md`.
+  narrative `docs/generated/05-state-of-the-lab.md` and appends a raw journal session entry.
 - **Fallback path** (`scripts/nightly.sh`): reached when *every* configured engine fails/absent —
-  the same inventory refresh + render + PR, minus the LLM-authored narrative and grant audit.
+  the same inventory refresh + render + PR + a raw (LLM-free) journal entry, minus the LLM-authored
+  narrative and grant audit.
 
 ## Steps (both paths)
 
@@ -34,7 +35,12 @@ the engine can't run (missing/unauthed/errors) — so the nightly always produce
    (diff vs `main`). Have some personality; keep it accurate; never overclaim.
 5. **(agent only) Root-grant audit** — if a grant is active, grep each host's sshd log for cert
    KeyIDs (`grant+<host>+<ts>+by-ali`) → `inventory/grant-audit.json`. Skip if no root.
-6. **Open a PR** on branch `inventory/<date>` with the diff + summary. **Never merge it.**
+6. **Journal the run** — append a **raw** episodic session entry to `journal/` (episodic memory;
+   [`journal/README.md`](../journal/README.md)). Agent path: `bin/new journal session "nightly
+   <date>"`, filled with concrete facts (what ran, what changed vs `main`, anomalies, and any
+   dead-ends under Graveyard). Fallback path: a minimal factual entry from the diff stat. **Raw,
+   append-only, summarized only at read time — never pre-digested.**
+7. **Open a PR** on branch `inventory/<date>` with the diff + summary. **Never merge it.**
 
 ## Guardrails
 

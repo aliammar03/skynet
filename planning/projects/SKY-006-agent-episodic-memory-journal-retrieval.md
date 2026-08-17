@@ -1,12 +1,12 @@
 ---
 id: SKY-006
 title: Agent episodic memory: journal + retrieval
-status: draft
+status: in-progress
 horizon: short
 created: 2026-08-17
 updated: 2026-08-17
 phases: 3
-current_phase: 0
+current_phase: 1
 tier_touched: [T1]   # repo files + a local, git-rebuildable index on the ops VM. No blast radius.
 related:
   - docs/design/observability.md
@@ -73,9 +73,15 @@ isn't storage, it's **retrieval**. (Scratchpad thesis §4.)
 - **Rollback posture:** additive; `git revert`. The index is disposable (rebuildable from git).
 - **Grants / human actions:** none.
 
-### Phase 1 — the journal  (~1–2h)   `[ ]` not started
+### Phase 1 — the journal  (~1–2h)   `[x]` done 2026-08-17
 Create `journal/` + a convention (session / incident / decision records, incl. a graveyard section);
 have the nightly append to it. Exit: nightly runs and SKY-005 diagnoses land dated journal entries.
+
+**Shipped:** `journal/README.md` (format convention, authoritative home) · `templates/journal.md` +
+`bin/new journal <kind> <title>` · nightly wired on both paths (raw session entry: `scripts/nightly.sh`
+deterministic + `bin/ops`/`runbooks/nightly.md` agent) · doctrine pointers (`docs/conventions/{docs,layout}.md`,
+`docs/design/observability.md`, `AGENTS.md §4`) · ADR 0002 · seed entry. SKY-005 (incident feeder)
+isn't built yet, so the nightly is the only live writer today; the convention is ready for it. See [[SKY-006-progress]].
 
 ### Phase 2 — rolling digest  (~1–2h)   `[ ]` not started
 Extend the generated `05-state-of-the-lab.md` into a cold-boot "state + recent decisions + open
