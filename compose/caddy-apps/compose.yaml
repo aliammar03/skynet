@@ -1,0 +1,44 @@
+name: caddy-apps
+
+x-arcane:
+  tags:
+    - name: proxy
+      color: red
+
+services:
+  caddy:
+    # Prebuilt community image = official Caddy + the caddy-dns/cloudflare plugin
+    # baked in (no bespoke xcaddy build to maintain). Alpine base ships busybox
+    # wget, used by the healthcheck below. Pinned to an exact digest (Renovate bumps).
+    image: ghcr.io/caddybuilds/caddy-cloudflare:2.11.4-alpine@sha256:6497a315a0177e8515d1c4a33c075e8d5a2a35a3f4f9701c3a0cf9ddf3db8821
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      # Routes live in git: Arcane GitOps syncs the whole dir, so this ro-mount
+      # carries the Caddyfile to the container. Change a route = edit + PR + deploy.
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # ACME account keys + issued certs. MUST persist — otherwise Caddy re-issues
+      # on every restart and burns Let's Encrypt rate limits.
+      - /opt/docker/appdata/caddy-apps/data:/data
+      # Caddy's autosave (last-loaded JSON config).
+      - /opt/docker/appdata/caddy-apps/config:/config
+    networks:
+      # Attached to the DMZ macvlan with its own address — this IS the apps front
+      # door (10.10.100.35), where split-DNS already points *.aliammar.net. Caddy
+      # binds :80/:443 on this IP directly, so no host port mapping is needed.
+      dmz:
+        ipv4_address: 10.10.100.35
+    healthcheck:
+      # Caddy's admin API (localhost:2019) answers only when the process is up and
+      # a config is loaded — a truer liveness probe than hitting a TLS site.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/config/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  dmz:
+    external: true
+    name: dmz

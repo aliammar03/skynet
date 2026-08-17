@@ -15,6 +15,7 @@ with its own **Tier** and (where relevant) **Trigger** line; the summaries below
 | Runbook | Tier | What it does |
 |---|---|---|
 | [`deploy-service.md`](deploy-service.md) | T2 (PR-gated) | Add or update a service the skynet way — Arcane GitOps, pinned digests, `.env.sops` secrets, healthcheck + role tag. Includes the one-time legacy→GitOps cutover. |
+| [`publish-service.md`](publish-service.md) | T2 (PR-gated) | Give a service a real URL (`https://<svc>.aliammar.net`) through the apps Caddy — edit one Caddyfile → PR → deploy. Own-auth reverse-proxy path (P3 adds the Authentik forward-auth path). |
 | [`nightly.md`](nightly.md) | T1 read + PR | The `skynet-nightly.timer` maintenance pass: refresh inventory → envsync → render docs → (agent) narrative + grant audit → open a PR. Report-only until actions are promoted. Documents the engine order + deterministic fallback. |
 | [`update-guests.md`](update-guests.md) | T2 snapshot + T2+ fleet root grant | Update all guests. Trigger: *"Update all guests."* |
 
