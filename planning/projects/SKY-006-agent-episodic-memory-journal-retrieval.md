@@ -9,6 +9,7 @@ phases: 3
 current_phase: 2
 tier_touched: [T1]   # repo files + a local, git-rebuildable index on the ops VM. No blast radius.
 related:
+  - docs/design/memory.md
   - docs/design/observability.md
   - docs/decisions
   - planning/scratchpad/2026-08-17-declarative-future-and-agent-cognition.md

@@ -38,11 +38,14 @@ follow a link for the full story; distill episodes at read time, never in this f
 - Phase 3: git-rebuildable local semantic index (sqlite-vec class) — deferred until markdown+grep visibly strains (research brief's "overkill line"). — _2026-08-17 session_
 - SKY-005 isn't built yet, so "incident" entries have no automated writer today — the nightly (session) is the only live feeder until then. The convention is ready for SKY-005 to adopt. — _2026-08-17 session_
 - The raw-write rule is `[manual]` until the parked convention lint gate can assert it. — _2026-08-17 session_
+- P3 (semantic index) is the only SKY-006 phase left, still parked behind the "overkill line". — _2026-08-17 session_
+- If a future engine keeps its own private memory, keep the repo/engine boundary (spoke's last section) crisp so the in-repo layer stays the authoritative, portable one. — _2026-08-17 session_
 
 ## 📓 Recent episodes
 
 - **2026-08-17** · session · [[2026-08-17-session-sky-006-p2-rolling-cold-boot-digest|SKY-006 P2 — rolling cold-boot digest]]
 - **2026-08-17** · session · [[2026-08-17-session-sky-006-p1-stand-up-the-journal|SKY-006 P1 — stand up the journal]]
+- **2026-08-17** · session · [[2026-08-17-session-formalize-the-memory-design-spoke|formalize the memory design spoke]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._

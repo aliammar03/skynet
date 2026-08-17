@@ -41,29 +41,15 @@ each provider's current `--model` ids into `ops.env` as commented suggestions.
 Report-only is a constitution dial: the nightly run *observes and proposes*, it does not act
 outside the version-controlled auto-approve list.
 
-## Episodic memory — the journal
+## Episodic memory — see the memory spoke
 
 Rendered docs answer *what is true now*; they can't answer *how the lab got here, what was tried,
-what failed*. That is **episodic** memory, and git history only implies it. [`journal/`](../../journal/README.md)
-supplies it: append-only dated **session / incident / decision** episodes, fed by the nightly (a
-raw entry per run) and by SKY-005 diagnoses (incidents). The discipline that keeps it useful —
-**write raw, summarize only at read time** — is stated once in [`journal/README.md`](../../journal/README.md).
-
-The journal is the *source*; retrieval is a **cache, never a truth**. Two retrieval layers build on
-it, both regenerable from these files (statelessness holds):
-
-- **The agent cold-boot digest** (SKY-006 P2, **live**) — `scripts/render-digest.sh` generates
-  [`../generated/06-agent-digest.md`](../generated/06-agent-digest.md), a standalone machine-facing
-  page carrying *recent decisions* (ADRs), *open threads* (open `SKY-###` directives + the journal's
-  own follow-up bullets), and *recent episodes*. It **points, never re-summarizes** (the raw-episode
-  rule), runs on both nightly paths (so the pointers stay fresh even LLM-free), and is content-stable
-  (diffs only on real change). It's the agent's cold-boot front door — deliberately kept **separate**
-  from the human narrative [`05-state-of-the-lab.md`](../generated/05-state-of-the-lab.md), which
-  stays a prose read on the lab (and is surfaced in the top-level `README`).
-- **A git-rebuildable local semantic index** (SKY-006 P3, later) for retrieval-by-similarity once
-  markdown + grep visibly strain.
-
-Born of [SKY-006](../../planning/projects/SKY-006-agent-episodic-memory-journal-retrieval.md).
+what failed*. That **episodic** memory — the [`journal/`](../../journal/README.md) and the read-time
+digest that reconstructs it — is its own domain, designed in the [memory](memory.md) spoke. The
+only part that lives here is the *rendering*: `scripts/render-digest.sh` produces the agent digest
+[`../generated/06-agent-digest.md`](../generated/06-agent-digest.md) alongside the other nightly
+pages (deterministic, content-stable), and the human narrative
+[`05-state-of-the-lab.md`](../generated/05-state-of-the-lab.md) is the agent-authored counterpart.
 
 ## What "observability" covers today vs. next
 
