@@ -123,6 +123,7 @@ expansion has an admission procedure and a home spoke:
 | **A new capability / trust boundary** | PR here (tier assignment) + a step on the autonomy ratchet in `AGENTS.md` | this file |
 | **A new agent engine** | Point `bin/ops` at it — the agent-agnostic contract already fits | this file, §4 |
 | **A new spoke** | When a domain outgrows a paragraph, split it into `docs/design/` | this file, §7 |
+| **A new convention** | Add the rule to the right [`docs/conventions/`](conventions/) spoke (or add a spoke), tag it testable/manual, surface load-bearing ones in the conventions hub | [conventions](conventions.md) |
 
 ## 6. Growth directions
 
@@ -161,7 +162,7 @@ The depth lives here. **This set is open** — spokes are added by PR as the sys
 | [disaster-recovery](design/disaster-recovery.md) | Survival kit + DR design (procedures in `runbooks/dr/`) | §10 |
 | [observability](design/observability.md) | render-docs, nightly, inventory, generated docs | §11 |
 | [backup-strategy](backup-strategy.md) | The L0–L5 layered backup model | §6 |
-| _[conventions](conventions.md)_ | Naming, git, compose, TLS pinning (reference) | — |
+| _[conventions](conventions.md)_ | House style **hub** — invariants + an index into `conventions/*.md` spokes (naming, layout, scripts, compose, git, docs, metadata) | — |
 
 ## 8. Lineage
 
