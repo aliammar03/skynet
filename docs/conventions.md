@@ -1,55 +1,47 @@
 # Conventions
 
-Rules every agent and every PR must follow. Short, enforceable, testable.
+The house style every agent and every PR follows. **This file is the hub** — the invariant rules
+that never move, plus an index into the spokes that carry the depth. It mirrors the constitution ↔
+[`docs/design/`](design/) pattern: shrink the hub, push detail to spokes, keep one authoritative
+home per rule. Governed by (and an extension point of) [`system-design.md`](system-design.md).
 
-## Naming & addressing
+Every rule in the spokes is tagged **[testable]** (a lint gate could assert it mechanically) or
+**[manual]** (holds by review). The tags exist so the parked convention lint gate
+(`planning/scratchpad/2026-08-17-lint-gate-convention-enforcement.md`) can lift them verbatim when
+it's revived.
 
-- **VMID = 4 digits = VLAN + last octet.** VM 9090 = VLAN 90 + .90. Keep the convention.
-- Static IPs are the exception, justified in an ADR (see `decisions/`). skynet-ops
-  (10.10.90.90) is one such documented exception.
-- Hostnames are lowercase, role-first: `vm-skynet-ops`, `docker-dmz`.
+## Invariants — the rules that never move
 
-## Git
+These hold everywhere and don't get a "unless"; the spokes elaborate, never loosen them.
 
-- **Never commit to `main` directly.** One branch per unit of work: `phase/<name>`,
-  `deploy/<svc>`, `fix/<thing>`, `inventory/<date>`.
-- One PR per phase / per change. PR descriptions **teach**: what changed, why, what merging causes.
-- The agent **never merges its own PRs.** Ali merges. `git revert` is the rollback.
-- Conventional-ish commit subjects: `scaffold:`, `deploy:`, `fix:`, `inventory:`, `docs:`.
+- **Never commit to `main` directly; the agent never merges its own PRs.** One branch per unit of
+  work, one PR per change, `git revert` is the rollback. → [`conventions/git.md`](conventions/git.md)
+- **No plaintext secrets in git — ever.** Only sops-encrypted `*.env.sops`, or `0600` under
+  `/opt/skynet-ops/secrets/`. The pre-commit scan enforces it.
+  → [`conventions/compose.md`](conventions/compose.md), [`design/secrets.md`](design/secrets.md)
+- **Never hand-edit generated dirs** (`inventory/**`, `docs/generated/**`) — edit the collector or
+  renderer. → [`conventions/layout.md`](conventions/layout.md)
+- **Collectors are read-only and never `curl -k`** against an internal API — pin the cert instead.
+  → [`conventions/scripts.md`](conventions/scripts.md)
+- **Every service conforms to the skynet way** — digest-pinned image, `env_file: .env`, secrets
+  only in `.env.sops`, a healthcheck, one role tag. → [`conventions/compose.md`](conventions/compose.md)
+- **VMID = VLAN + last octet; static addressing is the standard for every guest.**
+  → [`conventions/naming.md`](conventions/naming.md)
+- **One authoritative home per rule** — state it once, link everywhere else.
+  → [`conventions/docs.md`](conventions/docs.md)
 
-## Secrets
+## The spokes
 
-- Only encrypted secrets in git: `compose/<svc>/.env.sops` (sops+age). Plaintext `.env`,
-  `.env.git`, `project.env` are **gitignored**.
-- Runtime private material lives 0600 under `/opt/skynet-ops/secrets/` — never in the repo.
-- Never print a secret to logs, transcripts, or chat. Scripts must `set -euo pipefail`
-  and avoid echoing secret values.
+| Spoke | Covers |
+|---|---|
+| [naming](conventions/naming.md) | VMID/IP scheme, static addressing, hostnames, slugs, branch names |
+| [layout](conventions/layout.md) | Repo map; required files per artifact type; generated dirs |
+| [scripts](conventions/scripts.md) | Bash header/flags, `REPO_DIR` idiom, TLS pinning, `bin/` vs `scripts/` |
+| [compose](conventions/compose.md) | The skynet way: pinned digests, env layering, healthchecks, volumes, tags |
+| [git](conventions/git.md) | Branch grammar, PR discipline, commit subjects, what never commits |
+| [docs](conventions/docs.md) | Hub-and-spoke pattern, ADR & runbook format, README-as-catalog |
+| [metadata](conventions/metadata.md) | Directive/service frontmatter schemas, compose label/tag namespaces |
 
-## Compose / Arcane
-
-- Every `compose.yaml` **pins an exact version tag** — never `latest`. Renovate bumps them by PR.
-- **Every service includes `env_file: .env`** so Arcane's merged env (`.env.git` + `project.env`) reaches it.
-- Non-secret defaults *may* ship as a committed plaintext `.env` (Arcane ingests it as `.env.git`).
-  **Secrets never** — they live only in `project.env` (→ `.env.sops`).
-- One Arcane Git Sync per project dir; auto-sync on; Arcane auto-update off for git-synced projects.
-
-## TLS to internal APIs — pin, never `-k`
-
-Proxmox, PBS, and Technitium serve self-signed / private-CA certs. Collectors **never**
-disable verification (`curl -k`) — the ops brain holds write tokens, so a MITM downgrade is
-unacceptable. Instead each endpoint's cert is **pinned**:
-
-- Pin once with `scripts/pin-cert.sh <host> <port> /opt/skynet-ops/certs/<name>.crt`.
-- Collectors verify with `curl --cacert <pin>`; the pin path is `*_CACERT` in the secret env.
-- **Pins are public** (a server cert is not a secret): they live in `/opt/skynet-ops/certs/`
-  (dir 0755, files 0644, readable by the collector user) — *not* in `secrets/`.
-- Re-pin if an endpoint rotates its cert (the collector will fail closed until you do).
-
-## Generated / auto content — do not hand-edit
-
-- `inventory/**` and `docs/generated/**` are machine-written. Edit the collector or renderer, never the output.
-
-## Scripts
-
-- Bash, `#!/usr/bin/env bash`, `set -euo pipefail`, a header comment (purpose, tier, usage).
-- Idempotent where possible; read-only collectors must never mutate remote state.
+**Adding a convention:** put the rule in the right spoke (or add a spoke), tag it
+[testable]/[manual], and — if it's load-bearing — surface a one-liner in the invariants above. A
+new spoke is a PR here, the same way a new design spoke is a PR to the constitution.

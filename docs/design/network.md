@@ -16,10 +16,11 @@
 | Resources | 4 vCPU · 6 GB RAM · 60 GB disk |
 | Base tools | `git curl jq tmux qemu-guest-agent unattended-upgrades age sops restic rclone`, Docker, Node 22 |
 
-**Why the static IP** (ADR [0001](../decisions/0001-static-ip-for-ops-brain.md)): the ops brain
-must keep its address when DHCP — i.e. OPNsense — is the very thing that died. It is
-reserved/excluded in OPNsense so nothing collides, and it lives in `ROLE_ADMIN_TARGETS`. This is
-the one exception to "addressing comes from DHCP," and it exists so Skynet can drive
+**Why the static IP** (ADR [0001](../decisions/0001-static-ip-addressing.md)): static addressing
+is the standard for every guest (last octet = VMID convention), so the ops brain is static like
+the rest. It is special only in that its reservation is load-bearing — the ops brain must keep its
+address when DHCP, i.e. OPNsense, is the very thing that died. It is reserved/excluded in OPNsense
+so nothing collides, lives in `ROLE_ADMIN_TARGETS`, and exists so Skynet can drive
 `DR-network-node.md` during a routing outage.
 
 ## Firewall

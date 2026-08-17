@@ -86,6 +86,10 @@ edit compose/<svc>/ → branch → PR → Ali merges
   disaster recovery — live as engine-neutral markdown runbooks, catalogued (with tier + trigger)
   in [`runbooks/README.md`](runbooks/README.md). Read one when a task or a `SKY-###` execute
   prompt calls for it; they stay out of the always-loaded context by design.
+- **The house style is doctrine, not habit.** Naming, layout, scripts, compose, git, docs and
+  metadata rules live in the convention **hub** [`docs/conventions.md`](docs/conventions.md) +
+  its [`docs/conventions/`](docs/conventions/) spokes — one authoritative home per rule, each
+  tagged testable/manual. New artifacts inherit it; read the relevant spoke before writing one.
 
 ---
 
