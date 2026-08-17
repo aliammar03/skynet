@@ -58,11 +58,27 @@ half — see [access-and-trust](access-and-trust.md)). A host is reachable for o
 **only** once it's in this alias. Adding a host here is part of the "new managed host" extension
 point in the constitution.
 
+## The apps-ingress rails (realized — SKY-003)
+
+The reverse-proxy edge is no longer hypothetical: the firewall was already staged for it, and
+directive [SKY-003](../../planning/projects/SKY-003-apps-reverse-proxy-authentik-sso-ingress.md)
+lands the proxy onto these rails. The tier decision (apps door T2, Management door T3) and the
+routing map live in the [identity-and-proxy](identity-and-proxy.md) spoke; the network layer is:
+
+| Item | Value | Role |
+|---|---|---|
+| `HOST_PROXY_APPS` | `10.10.100.35` · VLAN 100 DMZ | the apps Caddy front door |
+| `HOST_AUTHENTIK` | `10.10.80.37` · VLAN 80 Identity | forward-auth outpost target |
+| Rule **200** | `NET_APP_CLIENTS` → `HOST_PROXY_APPS:PORT_WEB` | app clients reach *only* the proxy |
+| Rule **240** | `HOST_PROXY_APPS` → `HOST_AUTHENTIK:PORT_AUTHENTIK` | proxy → Authentik (forward-auth) |
+| Rule **250** | `HOST_PROXY_APPS` → `ROLE_APP_ORIGINS:PORT_APP_BACKENDS` | proxy → app origins (currently `:8080`) |
+| Rule **830** | `Caddy → :53` (authoritative DNS) | **not widened for the apps proxy** — it validates ACME over the Cloudflare API on 443 (rule 810), not `:53` |
+
+SKY-003 Phase 4 reconciles `ROLE_APP_ORIGINS` / `PORT_APP_BACKENDS` to the origins actually proxied
+(karakeep-web listens on **3000**, not 8080 — a least-privilege fix), and audits SSH exposure of
+`10.10.100.15:22`.
+
 ## Planned expansion
 
-- **Reverse proxy / ingress.** A Skynet-managed edge for internal services would add a rule set
-  (and likely a `PORT_OPS_PROXY` alias) and a tier decision — today the Management Caddy is T3.
-  This is the seed of a future `identity-and-proxy` spoke; when it lands, the proxy's targets and
-  ports are defined here (or split out) rather than bolted onto the operate rules.
 - **New VLAN / segment.** Admitted via new aliases + rules here, then DNS zones, then hosts — never
   by widening an existing role alias to mean two things.

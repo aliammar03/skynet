@@ -52,7 +52,8 @@ Anything unhealthy: `git revert`, Arcane rolls it back.
 - **Docs-only auto-merge** (the merge-gate dial's first foreseeable loosening) would let the agent
   close the loop on documentation PRs without a human merge — a change to the constitution's merge
   dial and the `AGENTS.md` auto-approve list, not to this mechanism.
-- **A managed reverse proxy** would give services a consistent front door and hook into the loop
-  (a proxy config generated from `inventory/`, the way `docs/generated/` already is). Candidate for
-  the `identity-and-proxy` spoke.
+- **A managed reverse proxy** gives services a consistent front door and hooks into this loop — the
+  apps Caddy publishes routes as a Caddyfile in git, deployed by the same PR → Arcane-reconcile path
+  (SKY-003). Its design lives in the [identity-and-proxy](identity-and-proxy.md) spoke; a future step
+  is generating that Caddyfile from `inventory/` the way `docs/generated/` already is.
 - **Service intake** — `planning/services/` maturing into a steady pipeline feeding this loop.
