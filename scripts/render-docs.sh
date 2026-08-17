@@ -185,6 +185,7 @@ done
   echo "collectors or \`scripts/render-docs.sh\`."
   echo
   echo "- [[05-state-of-the-lab]] — 🖊️ the agent's nightly narrative (human-readable)"
+  echo "- [[06-agent-digest]] — 🤖 the agent's cold-boot digest (decisions / open threads / episodes)"
   echo "- [[00-network-map]] — the map"
   echo "- [[10-vlans]] — subnets & hosts"
   echo "- [[20-firewall]] — rules & aliases"

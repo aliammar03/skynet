@@ -6,7 +6,7 @@ horizon: short
 created: 2026-08-17
 updated: 2026-08-17
 phases: 3
-current_phase: 1
+current_phase: 2
 tier_touched: [T1]   # repo files + a local, git-rebuildable index on the ops VM. No blast radius.
 related:
   - docs/design/observability.md
@@ -83,9 +83,17 @@ deterministic + `bin/ops`/`runbooks/nightly.md` agent) · doctrine pointers (`do
 `docs/design/observability.md`, `AGENTS.md §4`) · ADR 0002 · seed entry. SKY-005 (incident feeder)
 isn't built yet, so the nightly is the only live writer today; the convention is ready for it. See [[SKY-006-progress]].
 
-### Phase 2 — rolling digest  (~1–2h)   `[ ]` not started
+### Phase 2 — rolling digest  (~1–2h)   `[x]` done 2026-08-17
 Extend the generated `05-state-of-the-lab.md` into a cold-boot "state + recent decisions + open
 threads" digest. Exit: a fresh session can orient from one page.
+
+**Shipped:** `scripts/render-digest.sh` — deterministic, read-only, content-stable + idempotent —
+generates the standalone agent page `docs/generated/06-agent-digest.md` (recent decisions from ADRs ·
+open threads from open `SKY-###` + journal follow-ups · recent episodes). Runs on **both** nightly
+paths (`scripts/nightly.sh` + `bin/ops` prompt), so the cold-boot pointers stay fresh even LLM-free.
+The human `05-state-of-the-lab.md` stays a prose narrative and is now **featured in the top-level
+`README.md`**; the machine digest is kept separate (Ali's call). Pointers: `AGENTS.md` (cold boot →
+read 06), `docs/design/observability.md` (05/06 split, live), `runbooks/nightly.md`. See [[SKY-006-progress]].
 
 ### Phase 3 — git-rebuildable semantic index  (~1–2h)   `[ ]` not started
 Evaluate + stand up a local embedding index (per research brief) that rebuilds from git. Exit: the

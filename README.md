@@ -30,6 +30,20 @@ repo** — OPNsense included.
 
 ---
 
+## 📊 State of the Lab
+
+Every night the agent writes a fresh, human-readable
+**[State of the Lab](docs/generated/05-state-of-the-lab.md)** — a one-glance dashboard of what's
+healthy, where the build stands, and what it's keeping an eye on, rendered from live inventory.
+It's the friendliest way to see where Skynet is right now.
+
+For the machine's own orientation there's a companion
+**[agent digest](docs/generated/06-agent-digest.md)** — recent decisions, open threads, and recent
+episodes, assembled from the [`journal/`](journal/README.md) and the roadmap — which a fresh agent
+session reads first on a cold boot.
+
+---
+
 ## How a change actually happens
 
 ```mermaid

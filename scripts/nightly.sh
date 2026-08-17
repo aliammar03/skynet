@@ -6,9 +6,10 @@
 # It is pure scripts: refresh inventory (T1), envsync, render docs, then open a PR with the
 # diff. It NEVER makes a T2 write or granted-root change, and it never merges.
 #
-# What it deliberately can't do (needs an LLM or a root grant): the narrative
+# What it deliberately can't do (needs an LLM or a root grant): the narrative PROSE of
 # docs/generated/05-state-of-the-lab.md (LLM) and the root-grant audit harvest (root). Both
-# are left to the agent-driven nightly; this pass leaves any existing narrative in place.
+# are left to the agent-driven nightly; this pass leaves the existing 05 narrative prose in place
+# but DOES regenerate the deterministic agent digest 06-agent-digest.md (scripts/render-digest.sh).
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${REPO_DIR}"
@@ -33,6 +34,11 @@ git checkout -B "${BRANCH}" "origin/${DEFAULT_BRANCH}" 2>/dev/null || git checko
 
 # 3. render the Obsidian docs from fresh inventory
 ./scripts/render-docs.sh || true
+
+# 3b. regenerate the agent cold-boot digest 06-agent-digest.md (recent decisions / open threads /
+#     recent episodes). Deterministic + read-only sources, so it runs even on this LLM-free path —
+#     the digest POINTERS stay current even when the human 05 narrative goes stale.
+./scripts/render-digest.sh || true
 
 # 4. decide if there's anything to report. Stage inventory/docs; envsync already staged any
 #    changed compose/*/.env.sops, and this check folds all of it into one commit.

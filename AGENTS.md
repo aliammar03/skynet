@@ -94,6 +94,11 @@ edit compose/<svc>/ → branch → PR → Ali merges
   (session / incident / decision) when a run happens, something breaks, or a non-trivial choice is
   made — `bin/new journal <kind> "<title>"`. **Write raw, summarize only at read time**; entries
   are append-only. A cold agent greps it to learn what was already tried (and abandoned).
+- **Cold boot? Read [`docs/generated/06-agent-digest.md`](docs/generated/06-agent-digest.md)
+  first.** This machine-generated digest is the read-time view — recent **decisions** (don't
+  relitigate settled ADRs), **open threads** (directives + journal follow-ups still live), and
+  recent **episodes** — so a fresh session orients from one page before diving into the tables.
+  (The human-facing narrative is the separate `05-state-of-the-lab.md`.)
 
 ---
 
