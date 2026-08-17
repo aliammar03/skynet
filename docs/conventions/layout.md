@@ -18,8 +18,9 @@ Tags: **[testable]** = a lint gate could assert it; **[manual]** = holds by revi
 | `docs/history/*.md` | Build log + original plan (lineage) | history |
 | `compose/<svc>/` | One dir per service (the GitOps loop) | ops |
 | `scripts/*.sh` | Procedures runbooks/entry-points call | ops |
-| `bin/*` | Operator-facing entry points (`plan`, `ops`, `grant-root`) | ops |
+| `bin/*` | Operator-facing entry points (`plan`, `new`, `ops`, `grant-root`) | ops |
 | `runbooks/*.md`, `runbooks/dr/*.md` | Engine-neutral procedures, catalogued in `runbooks/README.md` | ops |
+| `templates/` | The golden templates `bin/new` stamps from — one folder, all kinds | doctrine |
 | `planning/{scratchpad,ideas,backlog,projects,archive,services}/` | The `SKY-###` directive pipeline | planning |
 | `ca/`, `.sops.yaml`, `.githooks/` | Trust + secret + commit-gate machinery | infra |
 
@@ -35,6 +36,26 @@ Tags: **[testable]** = a lint gate could assert it; **[manual]** = holds by revi
   Consequences. Rules in [`docs.md`](docs.md).
 - **A directive** (`planning/**/SKY-###-*.md`) `[testable]`: frontmatter schema in
   [`metadata.md`](metadata.md); minted by `bin/plan`.
+
+## Scaffolding — new artifacts are born conforming
+
+Don't hand-write a new artifact from scratch — **stamp it from its golden template** so it inherits
+the doctrine automatically:
+
+| Command | Creates | From template |
+|---|---|---|
+| `bin/new service <name>` | `compose/<name>/` | `templates/compose/` |
+| `bin/new script <name>` | `scripts/<name>.sh` (chmod +x) | `templates/script.sh` |
+| `bin/new runbook <title>` | `runbooks/<slug>.md` | `templates/runbook.md` |
+| `bin/new adr <title>` | `docs/decisions/NNNN-<slug>.md` (next number) | `templates/adr.md` |
+| `bin/plan idea\|service\|start …` | a `SKY-###` directive | `planning/TEMPLATE.md` |
+
+**All golden templates live in one folder, [`templates/`](../../templates/)** `[manual]` — not
+scattered beside the artifacts they stamp. Each is the **single source** its generator reads:
+change a convention once in the template and every future artifact is born with it. The templates
+embed the P1 rules verbatim, so a fresh skeleton is doctrine-conforming before you touch it (fill
+the `TODO`s). (`bin/plan`'s directive template stays `planning/TEMPLATE.md` — it predates `bin/new`
+and `bin/plan` owns its own lifecycle.)
 
 ## Generated — never hand-edit `[testable]`
 

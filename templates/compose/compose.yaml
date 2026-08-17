@@ -1,0 +1,46 @@
+# __SVC__ — the skynet way. Canonical rules: docs/conventions/compose.md.
+# Worked reference (healthcheck probes, volume/label semantics): compose/README.md.
+# Stamped by `bin/new service __SVC__`; fill every TODO before the first deploy.
+x-arcane:
+  tags:
+    - name: TODO-role        # exactly ONE role tag (media|ai|books|bookmarks|…) — compose.md
+      color: TODO-colour     #   stable colour per role: purple=media, blue=ai, green=books, orange=bookmarks
+
+services:
+  __SVC__:
+    image: TODO/image:vX.Y@sha256:TODO   # digest-pinned — never a floating :latest; Renovate bumps by PR
+    hostname: __SVC__
+    env_file:
+      - .env                 # REQUIRED — the materialised .env (.env.git + decrypt(.env.sops)) reaches here
+    # No inline `environment:` — config lives in .env.git. The only exception is a structural key
+    # that interpolates a secret (e.g. a computed REDIS_URL). — compose.md
+    healthcheck:             # REQUIRED on every service (so Arcane shows (healthy) & dependents can wait)
+      test: ["CMD", "TODO"]  #   match the probe to the image's tools — see the table in compose/README.md
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+    restart: unless-stopped
+    volumes:
+      # Bind mount (app data/config/uploads/embedded SQLite) → /opt/docker/appdata/<svc>/<role>, no labels.
+      # Every bind mount gets a <role> subdir even if there's only one (…/config, never bare …/__SVC__).
+      - /opt/docker/appdata/__SVC__/TODO-role:/TODO/container/path
+    networks:
+      dmz:
+        ipv4_address: 10.10.100.TODO   # static; last octet by IP allocation
+    dns:
+      - 10.10.20.30
+
+# A standalone DB engine's storage (mongo/postgres/redis/meilisearch/…) is the ONE case for a
+# NAMED volume, and it carries all three skynet.* labels. Uncomment and adapt if this service has one:
+# volumes:
+#   TODO-role:
+#     labels:
+#       skynet.service: __SVC__
+#       skynet.backup: protect      # protect = source of truth (backed up); ephemeral = cache/regenerable (skipped)
+#       skynet.managed: gitops
+
+networks:
+  dmz:
+    external: true
+    name: dmz

@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# new — stamp a doctrine-conforming skeleton for a new artifact from its golden template.
+# Vendor-neutral plain bash; the files under templates/ are the SINGLE SOURCE this reads, so a
+# convention change lands in one place (the template) and every future artifact inherits it.
+# The rules each skeleton embeds live in docs/conventions/ (compose, scripts, docs, layout).
+#
+#   new service <name>    → compose/<name>/        from templates/compose/       (compose.md)
+#   new script  <name>    → scripts/<name>.sh       from templates/script.sh      (scripts.md)
+#   new runbook <title>   → runbooks/<slug>.md       from templates/runbook.md     (docs.md)
+#   new adr     <title>   → docs/decisions/NNNN-<slug>.md from templates/adr.md         (docs.md)
+#
+# Directives (SKY-###) are scaffolded by `bin/plan`, not here.
+set -euo pipefail
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "${REPO_DIR}"
+
+die() { echo "new: $*" >&2; exit 1; }
+slugify() { echo "$1" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g'; }
+
+# Escape a string for safe use as a sed replacement: backslash first, then & and the "/" delimiter
+# (mirrors the fix in bin/plan — a title like "VM/CT lifecycle" must not break the s///).
+sed_rep() { local s="$1"; s="${s//\\/\\\\}"; s="${s//&/\\&}"; printf '%s' "${s//\//\\/}"; }
+
+need() { [ -e "$1" ] || die "missing template $1 — is SKY-009 Phase 2 installed?"; }
+
+cmd_service() {
+  local name="${1:?usage: new service <name>}" slug dest
+  slug="$(slugify "$name")"; [ -n "$slug" ] || die "empty slug from '$name'"
+  dest="compose/${slug}"
+  [ -e "$dest" ] && die "$dest already exists"
+  need templates/compose
+  cp -r templates/compose "$dest"
+  find "$dest" -type f -exec sed -i "s/__SVC__/$(sed_rep "$slug")/g" {} +
+  echo "created ${dest}/ — fill every TODO, then deploy: scripts/gitops-deploy.sh ${slug}"
+}
+
+cmd_script() {
+  local name="${1:?usage: new script <name>}" slug dest
+  slug="$(slugify "$name")"; [ -n "$slug" ] || die "empty slug from '$name'"
+  dest="scripts/${slug}.sh"
+  [ -e "$dest" ] && die "$dest already exists"
+  need templates/script.sh
+  sed "s/__NAME__/$(sed_rep "$slug")/g" templates/script.sh > "$dest"
+  chmod +x "$dest"
+  echo "created ${dest} — fill the header (purpose/tier/usage) and the body"
+}
+
+cmd_runbook() {
+  local title="${1:?usage: new runbook <title>}" slug dest
+  slug="$(slugify "$title")"; [ -n "$slug" ] || die "empty slug from '$title'"
+  dest="runbooks/${slug}.md"
+  [ -e "$dest" ] && die "$dest already exists"
+  need templates/runbook.md
+  sed "s/__TITLE__/$(sed_rep "$title")/g" templates/runbook.md > "$dest"
+  echo "created ${dest} — remember to list it in runbooks/README.md"
+}
+
+# next ADR number: max 4-digit prefix under docs/decisions/ + 1. Never reuses a number.
+next_adr_num() {
+  local max=0 n
+  while IFS= read -r n; do [ "$n" -gt "$max" ] 2>/dev/null && max="$n"; done < <(
+    find docs/decisions -maxdepth 1 -name '[0-9]*-*.md' -printf '%f\n' 2>/dev/null \
+      | grep -oE '^[0-9]+' | sed 's/^0*//')
+  printf '%04d' "$((max + 1))"
+}
+
+cmd_adr() {
+  local title="${1:?usage: new adr <title>}" slug num dest t_esc
+  slug="$(slugify "$title")"; [ -n "$slug" ] || die "empty slug from '$title'"
+  num="$(next_adr_num)"
+  dest="docs/decisions/${num}-${slug}.md"
+  [ -e "$dest" ] && die "$dest already exists"
+  need templates/adr.md
+  t_esc="$(sed_rep "$title")"
+  sed -e "s/__NUM__/${num}/g" -e "s/__TITLE__/${t_esc}/g" -e "s/__DATE__/$(date +%F)/g" \
+      templates/adr.md > "$dest"
+  echo "created ${dest}"
+}
+
+cmd_help() { sed -n '2,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+
+case "${1:-help}" in
+  service) shift; cmd_service "$@";;
+  script)  shift; cmd_script  "$@";;
+  runbook) shift; cmd_runbook "$@";;
+  adr)     shift; cmd_adr     "$@";;
+  help|-h|--help) cmd_help;;
+  *) die "unknown kind '$1' (service|script|runbook|adr; directives → bin/plan)";;
+esac

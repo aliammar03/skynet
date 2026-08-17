@@ -1,12 +1,12 @@
 ---
 id: SKY-009
 title: Convention bedrock: doctrine spine and golden templates
-status: in-progress
+status: done
 horizon: short
 created: 2026-08-17
 updated: 2026-08-17
 phases: 2
-current_phase: 1
+current_phase: 2
 tier_touched: [T1]
 related:
   - docs/system-design.md
@@ -77,7 +77,7 @@ Exit criteria: every current convention is written down in exactly one authorita
 ambiguities have a CHOSEN answer; hub links all spokes; `system-design.md` + `AGENTS.md` point in.
 Grants / human actions: none beyond PR merge.
 
-### Phase 2 — Golden templates + scaffolding (B)  (~1–2h)   `[ ]` not started
+### Phase 2 — Golden templates + scaffolding (B)  (~1–2h)   `[x]` done
 Steps:
 1. Create `compose/_template/`, `scripts/_template.sh`, `runbooks/_template.md`,
    `docs/decisions/_template.md` — each embedding the P1 rules verbatim (directives already
@@ -122,4 +122,13 @@ Follow AGENTS.md as above.
   `AGENTS.md` point in. Ambiguities resolved: **static addressing is now the standard for all
   guests** (ADR 0001 amended in place — file renamed `0001-static-ip-addressing.md`,
   `network.md` reconciled); doctrine set that **ADRs are always amended in place, never
-  superseded**. Hub+spokes confirmed as the structure. → PR (base: this ideas branch).
+  superseded**. Hub+spokes confirmed as the structure. Merged to main (rode a `bin/plan` title
+  sed-escape fix along with it).
+- 2026-08-17 — **Phase 2 done** (golden templates + scaffolding) — **directive complete**. All
+  templates consolidated in **one folder `templates/`** (`compose/`, `script.sh`, `runbook.md`,
+  `adr.md` + a README-as-catalog), each embedding the P1 spoke rules verbatim. `bin/new
+  service|script|runbook|adr <name>` stamps a doctrine-conforming skeleton, reading `templates/`
+  as the single source (reuses `bin/plan` idioms + the sed-escape helper; auto-numbers ADRs).
+  **Decision:** `bin/new` is **standalone** (sibling of `bin/plan`), not a `bin/ops` subcommand —
+  `bin/ops` is the engine runner, a different concern. Usage documented in the `layout` spoke.
+  Style C (lint gate) remains parked.

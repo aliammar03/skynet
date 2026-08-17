@@ -64,5 +64,5 @@ so running or resuming one is a single paste into a fresh session.
 | SKY-006 | Agent episodic memory: journal + retrieval | ideas | draft | — | 🌱 short |
 | SKY-007 | NixOS host definition, piloted on the ops VM | ideas | draft | — | 🔭 long |
 | SKY-008 | OpenTofu provisioning layer: VM and CT lifecycle plus DNS | ideas | draft | — | 🔭 long |
-| SKY-009 | Convention bedrock: doctrine spine and golden templates | projects | in-progress | 1/2 | 🌱 short |
+| SKY-009 | Convention bedrock: doctrine spine and golden templates | projects | done | 2/2 | 🌱 short |
 <!-- ROADMAP:END -->
