@@ -1,0 +1,20 @@
+# Caddyfile — the apps front door (T2). The ENTIRE apps ingress, in one reviewable
+# file. Add/change a route = edit here → PR → Ali merges → Arcane reconciles.
+# See runbooks/publish-service.md and docs/design/identity-and-proxy.md.
+{
+	# ACME account contact (non-secret; lives in .env.git).
+	email {env.ACME_EMAIL}
+
+	# TLS via ACME DNS-01 using Cloudflare — proves domain control by writing a TXT
+	# record on aliammar.net's PUBLIC authoritative DNS (Cloudflare). Needs no inbound
+	# reachability, so it issues publicly-trusted certs for internal-only services with
+	# zero device-trust install. The token (scoped Zone→DNS→Edit, aliammar.net only) is
+	# the sole secret, injected from .env.sops via the environment. Validation rides the
+	# Cloudflare API on :443 — NOT :53 — so firewall rule 830 is not needed here.
+	acme_dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+}
+
+# --- karakeep — OWN-AUTH (has its own login; no forward_auth in the path) ----------
+karakeep.aliammar.net {
+	reverse_proxy 10.10.100.75:3000
+}
