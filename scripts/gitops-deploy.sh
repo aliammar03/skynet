@@ -14,6 +14,12 @@
 #
 # Idempotent: creates the GitOps sync if absent, refreshes .env, redeploys, health-checks.
 #
+# TIER: T2 (standing) — runs entirely as unprivileged svc-ops over SSH. Arcane owns its
+# project dirs as its own uid (PUID/PGID), mode 0700, so svc-ops can't write .env there
+# *directly*; but svc-ops is in the docker group (the T2 mechanism for docker hosts,
+# AGENTS.md §1), so the .env write goes through a throwaway container that bind-mounts the
+# project dir, and the docker ps health checks run as svc-ops too. No T2+ root grant needed.
+#
 # USAGE: scripts/gitops-deploy.sh <service> [--no-deploy]
 #   <service>  a directory name under compose/ (e.g. aiostreams)
 set -euo pipefail
@@ -34,7 +40,12 @@ set -a; source <(sudo cat "${ARC_ENV}"); set +a
 : "${ARCANE_TOKEN:?ARCANE_TOKEN missing from ${ARC_ENV}}"
 ENVID="${ARCANE_ENV_ID:-0}"
 BRANCH="${GITOPS_BRANCH:-main}"   # override during migration to verify off a feature branch
-SSH_HOST="root@$(printf '%s' "${ARCANE_URL}" | sed -E 's#^https?://([^:/]+).*#\1#')"
+# Deploy identity = standing T2 svc-ops (NOT root). The docker host is the Arcane host in ARCANE_URL.
+DOCKER_HOST_NAME="$(printf '%s' "${ARCANE_URL}" | sed -E 's#^https?://([^:/]+).*#\1#')"
+SSH_HOST="svc-ops@${DOCKER_HOST_NAME}"
+# Tiny throwaway image used only to drop the effective .env into Arcane's (0700, PUID-owned)
+# project dir via the docker group. Pinned by digest — Renovate bumps it like any other image.
+ENVWRITER_IMG="busybox@sha256:dc2d74b28e4cf8984fa52af1f39bc7c3d9c73760b41a74d629f5d11b1ab28616"
 
 arc() { # arc METHOD PATH [curl-args...]
   local m="$1" p="$2"; shift 2
@@ -75,7 +86,8 @@ PPATH="$(arc GET "/environments/${ENVID}/projects/${PROJ}" | jq -r '.data.path')
 [ -n "${PPATH}" ] && [ "${PPATH}" != "null" ] || { echo "could not resolve project path" >&2; exit 1; }
 
 # --- materialise effective .env = .env.git + decrypt(.env.sops) -------------
-# Built entirely off-host; plaintext transits only the ssh channel, lands 0600 root.
+# Decrypted entirely off-host (age key never leaves vm-skynet-ops); the plaintext transits
+# only the ssh channel and the throwaway container's stdin — never an argv or extra on-disk file.
 TMP="$(mktemp)"; trap 'rm -f "${TMP}"' EXIT
 : > "${TMP}"
 [ -f "${SVC_DIR}/.env.git" ]  && { cat "${SVC_DIR}/.env.git" >> "${TMP}"; echo >> "${TMP}"; }
@@ -84,8 +96,15 @@ if [ -f "${SVC_DIR}/.env.sops" ]; then
     "${SVC_DIR}/.env.sops" >> "${TMP}"
 fi
 KEYS="$(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "${TMP}" || true)"
-ssh "${SSH_HOST}" "umask 077; cat > '${PPATH}/.env'" < "${TMP}"
-echo "==> wrote ${PPATH}/.env (${KEYS} keys)"
+# Arcane owns the project dir as its PUID (0700) — svc-ops can't write .env directly, so the
+# docker group does it via a container bind-mount. Match the file's owner to the dir's owner so
+# Arcane can read it, and force 0600 with chmod (a truncating `cat >` keeps a pre-existing
+# file's mode, so umask alone would leave a stale 0644 on a secret file).
+# (svc-ops can stat the dir through the 0755 parent.)
+OWNER="$(ssh "${SSH_HOST}" "stat -c '%u:%g' '${PPATH}'")"
+ssh "${SSH_HOST}" "docker run --rm -i -v '${PPATH}':/mnt ${ENVWRITER_IMG} \
+  sh -c 'cat > /mnt/.env; chown ${OWNER} /mnt/.env; chmod 600 /mnt/.env'" < "${TMP}"
+echo "==> wrote ${PPATH}/.env (${KEYS} keys, owner ${OWNER}, mode 600) via svc-ops docker group"
 
 [ "${NO_DEPLOY}" = "--no-deploy" ] && { echo "sync ready, skipping deploy (--no-deploy)"; exit 0; }
 
