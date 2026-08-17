@@ -14,7 +14,56 @@
 	acme_dns cloudflare {env.CLOUDFLARE_API_TOKEN}
 }
 
-# --- karakeep — OWN-AUTH (has its own login; no forward_auth in the path) ----------
+# ===================================================================================
+# OWN-AUTH services — they gate at their own login, so a plain reverse_proxy is enough.
+# ===================================================================================
+
+# karakeep — has its own login.
 karakeep.aliammar.net {
 	reverse_proxy 10.10.100.75:3000
+}
+
+# aiostreams — local login + OIDC (AUTH_REQUIRED=true).
+aiostreams.aliammar.net {
+	reverse_proxy 10.10.100.65:3000
+}
+
+# aiometadata — sign-in required + OIDC.
+aiometadata.aliammar.net {
+	reverse_proxy 10.10.100.66:3232
+}
+
+# marinara — HTTP basic auth (challenges 401 from the proxy).
+marinara.aliammar.net {
+	reverse_proxy 10.10.100.85:7860
+}
+
+# ===================================================================================
+# NO-AUTH services — NO gate of their own. Proxied plain by explicit request: reachable
+# only from app-client VLANs (rule 200), never the internet. These are the intended
+# forward_auth targets — SKY-003 Phase 3 converts them to Authentik forward_auth.
+# ===================================================================================
+
+# calibre — no login of its own (Phase 3 forward_auth pilot).
+calibre.aliammar.net {
+	reverse_proxy 10.10.100.53:8080
+}
+
+# sillytavern — no login of its own; its IP-whitelist is disabled
+# (SILLYTAVERN_WHITELISTMODE=false in compose/silly/.env.git) so the proxy can reach it.
+sillytavern.aliammar.net {
+	reverse_proxy 10.10.100.69:8000
+}
+
+# ===================================================================================
+# IDENTITY — Authentik's user-facing login/OIDC endpoint. auth.aliammar.net had no
+# specific DNS record, so the *.aliammar.net wildcard sends it here; without this route
+# it 404s and the OIDC logins above (issuer https://auth.aliammar.net/...) break.
+# T2 apps-Caddy -> T3 Authentik web (10.10.80.37:9000) is the pre-authorized network
+# path (firewall rule 240, PORT_AUTHENTIK). TLS terminates here; Caddy sets the
+# X-Forwarded-* headers Authentik expects. This routes the login UI only — it grants no
+# Authentik admin (that stays T3).
+# ===================================================================================
+auth.aliammar.net {
+	reverse_proxy 10.10.80.37:9000
 }
