@@ -2,6 +2,12 @@ Ali's personal Idea board.
 Nothing here needs to read by the agent.
 Could contain pr0n for all I care. 
 
+
+
+# Agent handover
+A way to make projects for other agents on different project repos, or distill working architecture 
+
+
 repo being the best possible memory for a mind that boots cold every time.
 
 Legibility — can a cold-booting agent reconstruct full state cheaply? Markdown runbooks + JSON inventory + rendered docs = extremely high. This is your biggest strength and it's not an accident.
