@@ -63,14 +63,22 @@ move_to() {
 # stamp a fresh directive from TEMPLATE.md
 scaffold() {
   local id="$1" title="$2" stage="$3" horizon="${4:-short}" body="${5:-}"
-  local slug dest
+  local slug dest title_esc
   slug="$(slugify "$title")"
   dest="${P}/${stage}/${id}-${slug}.md"
   [ -e "$dest" ] && die "$dest already exists"
+  # Escape the raw title for use as a sed replacement string — backslash first,
+  # then & and the "/" delimiter — so a title like "OpenTofu: VM/CT lifecycle"
+  # doesn't break the s/// below. (The slug is already safe; slugify strips to
+  # [a-z0-9-]. fm_set does the same "/" escape at its own substitution.)
+  title_esc="$title"
+  title_esc="${title_esc//\\/\\\\}"
+  title_esc="${title_esc//&/\\&}"
+  title_esc="${title_esc//\//\\/}"
   sed -e "s/SKY-000-slug/${id}-${slug}/g" \
       -e "s/SKY-000/${id}/g" \
-      -e "s/<short imperative title>/${title}/" \
-      -e "s/# ${id} · <Title>/# ${id} · ${title}/" \
+      -e "s/<short imperative title>/${title_esc}/" \
+      -e "s/# ${id} · <Title>/# ${id} · ${title_esc}/" \
       "${P}/TEMPLATE.md" > "$dest"
   fm_set "$dest" created "$TODAY"
   fm_set "$dest" updated "$TODAY"
