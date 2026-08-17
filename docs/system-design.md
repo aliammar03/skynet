@@ -145,6 +145,9 @@ directives** — this section names the horizon and hands off.
   not a redesign.
 - **A monitoring / alerting stack** — beyond nightly report-only into live signal. See
   [observability](design/observability.md).
+- **Agent memory & retrieval** — the episodic journal + cold-boot digest landed via SKY-006; the
+  next swing is a git-rebuildable local semantic index, held until markdown + grep visibly strain.
+  See [memory](design/memory.md).
 - **The self-hosted service catalog** — `planning/services/` becoming a steady intake pipeline.
 - **Multi-agent operations** — more than one engine, or specialized agents, under one contract.
 
@@ -161,6 +164,7 @@ The depth lives here. **This set is open** — spokes are added by PR as the sys
 | [gitops-loop](design/gitops-loop.md) | Arcane deploy loop, rollback, image pinning + Renovate | §4, §12 |
 | [disaster-recovery](design/disaster-recovery.md) | Survival kit + DR design (procedures in `runbooks/dr/`) | §10 |
 | [observability](design/observability.md) | render-docs, nightly, inventory, generated docs | §11 |
+| [memory](design/memory.md) | The four memory kinds; episodic journal + read-time digest + decision ADRs; write-raw/read-summarize; cache-not-truth | SKY-006 |
 | [backup-strategy](backup-strategy.md) | The L0–L5 layered backup model | §6 |
 | _[conventions](conventions.md)_ | House style **hub** — invariants + an index into `conventions/*.md` spokes (naming, layout, scripts, compose, git, docs, metadata) | — |
 

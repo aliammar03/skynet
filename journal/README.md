@@ -1,9 +1,9 @@
 # journal — Skynet's episodic memory
 
 > The append-only log of **what happened**: session runs, incidents, and decisions, as raw dated
-> episodes. This is the memory git history only *implies*. Governed by the constitution via
-> [`../docs/design/observability.md`](../docs/design/observability.md); the record format is
-> doctrine and this README is its one authoritative home. Born of
+> episodes. This is the memory git history only *implies*. The memory *architecture* is designed in
+> the [`../docs/design/memory.md`](../docs/design/memory.md) spoke; the record *format* is doctrine
+> and this README is its one authoritative home. Born of
 > [SKY-006](../planning/projects/SKY-006-agent-episodic-memory-journal-retrieval.md).
 
 Skynet is stateless by design — every session is a fresh mind that rebuilds the world from git.
