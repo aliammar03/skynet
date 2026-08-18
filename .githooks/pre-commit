@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # Repo pre-commit hook → the deterministic gates. Active when core.hooksPath=.githooks
 # (bootstrap-workstation.sh sets this; or run once: git config core.hooksPath .githooks).
-#   1. secret-scan    — no plaintext secrets enter a commit (AGENTS.md §6, staged tree).
-#   2. budget --check — every loadable doc keeps a summary: and a fresh tokens: (SKY-010).
-# Bypass a false positive with:  git commit --no-verify  (CI re-runs the budget gate regardless).
+#   1. secret-scan       — no plaintext secrets enter a commit (AGENTS.md §6, staged tree).
+#   2. budget --check    — every loadable doc keeps a summary: and a fresh tokens: (SKY-010).
+#   3. check-invariants  — the machine-checkable hard laws hold: excluded guests unpooled, the
+#                          ops-managed pool set matches the declared dial, no plaintext secrets (SKY-011).
+# Bypass a false positive with:  git commit --no-verify  (CI re-runs every gate regardless).
 set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 "${ROOT}/scripts/secret-scan.sh"
 "${ROOT}/scripts/budget-frontmatter.sh" --check
+"${ROOT}/scripts/check-invariants.sh"

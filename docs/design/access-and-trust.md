@@ -1,6 +1,6 @@
 ---
 summary: "The trust tiers in full — every token, ACL, principal, and the auto-expiring SSH root grant Skynet can request but never mint."
-tokens: 1836
+tokens: 1776
 ---
 
 # Spoke · Access & trust
@@ -41,15 +41,13 @@ pveum role add OpsOperator -privs "VM.Audit,VM.PowerMgmt,VM.Config.Disk,VM.Confi
 pveum user token add svc-ops@pve operate --privsep 1
 pveum acl modify /pool/ops-managed --tokens 'svc-ops@pve!operate' --roles OpsOperator
 pveum acl modify /pool/ops-managed --users  svc-ops@pve            --roles OpsOperator
+pveum acl modify /pool/ops-managed --users  svc-ops@pve            --roles PVEAuditor  # pool membership audit
 pveum acl modify /storage/local    --tokens 'svc-ops@pve!operate' --roles OpsOperator
 ```
 
-> ⚠️ **The privsep trap (learned at A6).** A privilege-separated token's effective rights are
-> **user ∩ token**. Granting `OpsOperator` to the *token* while the *user* held only `PVEAuditor`
-> stripped every write — the operate token could list but never snapshot or back up (403s). The
-> fix: grant `OpsOperator` to the **user** on the pool too (the two `pveum acl … --users` /
-> `--tokens` lines above), and add `VM.Backup` + a `/storage/local` ACL so **backup/snapshot are
-> standing T2**. `scripts/bootstrap-proxmox.sh` encodes this so a rebuild is correct.
+The operate token is privilege-separated, so its effective rights are **user ∩ token** — grant
+`OpsOperator` to the **user** on the pool as well as the token, else every write is stripped.
+`bootstrap-proxmox.sh` encodes both.
 
 `VM.Snapshot` + `VM.Snapshot.Rollback` power the snapshot-before-upgrade safety net;
 `VM.Backup` powers on-demand and update-run backups.
@@ -94,7 +92,7 @@ born onboarded.
 
 `bin/grant-root <host|all> [duration=2h]` on the workstation fetches the agent's pubkey, signs a
 cert with principal `ops-root-<host>` valid for the window, and pushes it back. Per-host certs
-(A5 fix) land in `~/.ssh/certs/<host>-cert.pub` with a `Match user root` ssh_config block, so
+land in `~/.ssh/certs/<host>-cert.pub` with a `Match user root` ssh_config block, so
 **multiple host grants coexist**. Alias `gr='~/skynet/bin/grant-root'` makes it `gr docker-dmz 1h`.
 
 **How it plays out:** the agent tries T2 first; if root is genuinely needed it stops and prints

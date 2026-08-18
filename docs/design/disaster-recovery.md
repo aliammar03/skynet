@@ -1,6 +1,6 @@
 ---
 summary: "The survival kit and how each node-loss scenario is recovered; the step-by-step procedures live in runbooks/dr/."
-tokens: 947
+tokens: 926
 ---
 
 # Spoke · Disaster recovery
@@ -57,10 +57,10 @@ guarded (see the A6 story in [build-log](../history/build-log.md)).
 
 - **PCI passthrough IDs** must stay current in `runbooks/dr/pci-passthrough.md` (two Intel 82576
   dual-port NICs, bus 03/04, `ovmf`/`q35`) — a wrong ID blocks OPNsense rebuild.
-- **The `skynet-opnsense` repo** must actually exist and receive os-git-backup pushes — an A6
-  tabletop found the runbook naming a repo that didn't exist. Drilled in graduation; keep it true.
-- **L5 completeness** must be guarded, not assumed — the A6 drill found the off-site PBS copy ~46%
-  incomplete with nothing checking. Fixed with an `rclone check` completion guard.
+- **The `skynet-opnsense` repo** must exist and receive os-git-backup pushes — a missing or
+  misnamed repo blocks the OPNsense rebuild.
+- **L5 completeness** must be guarded, not assumed — an `rclone check` completion guard verifies the
+  off-site PBS copy is whole rather than trusting it.
 
 ## Planned expansion
 

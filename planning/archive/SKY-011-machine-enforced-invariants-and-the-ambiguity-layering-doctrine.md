@@ -1,12 +1,12 @@
 ---
 id: SKY-011
 title: Machine-enforced invariants and the ambiguity-layering doctrine
-status: in-progress
+status: done
 horizon: short
 created: 2026-08-18
 updated: 2026-08-18
 phases: 3
-current_phase: 2
+current_phase: 3
 tier_touched: [T1]     # repo files, read-only greps, a CI/pre-commit check. No blast radius moves.
                        # BUT it amends the constitution (adds a doctrine + wires enforcement onto the
                        # hard laws) ⇒ Phase 1 PRs docs/system-design.md — not to widen a dial, to
@@ -171,7 +171,7 @@ per-entry `why`, and matches current inventory; the convention note explains it 
 PR ceremony.
 Grants / human actions: none.
 
-### Phase 3 — the enforcement gate: `check-invariants.sh` + hook/CI  (~1–2h)   `[ ]` not started
+### Phase 3 — the enforcement gate: `check-invariants.sh` + hook/CI  (~1–2h)   `[x]` done
 Make the constraints fail a bad PR deterministically — no LLM in the loop.
 Steps:
 > **⚠ Carried from Phase 2:** today's `inventory/*.json` records each `ops-managed` pool as a
@@ -253,3 +253,16 @@ at Phase <N+1>. Prereqs carried from the last phase: <…>. Resume context from 
   the collector (`scripts/collect-*`) must first be extended to capture pool membership, OR P3 asserts
   the checkable subset and flags the gap. Do **not** silently edit inventory (observed truth). Next:
   Phase 3 — `check-invariants.sh` + hook/CI.
+- 2026-08-18 — **Phase 3 done → directive DONE** (PR pending). Wrote `scripts/check-invariants.sh`
+  (T1, read-only): asserts (1) no excluded VMID is a pool member, (2) observed ops-managed pool set
+  == declared, (3) no plaintext secret patterns in tracked files (allow-list honored). Proven by
+  planting all three violations (VM 5001 as member; pool→ops-rogue drift; fake `AGE-SECRET-KEY-`);
+  each fails exit 1, clean tree exits 0. Wired into `.githooks/pre-commit` + CI `checks.yml` (new
+  `invariants` job). **Prereq discovered + resolved:** the readonly token couldn't read pool
+  membership (`Pool.Audit` missing on `/pool/ops-managed`, shadowed by the OpsOperator grant) — Ali
+  applied `pveum acl modify /pool/ops-managed --users svc-ops@pve --roles PVEAuditor` on both nodes
+  (T3); collector extended to read `/pools/{id}`; inventory regenerated with membership; grant folded
+  into `bootstrap-proxmox.sh` + `access-and-trust.md`. **Doc-hygiene (folded in):** new convention
+  "state the rule, not the incident that taught it" + swept war-stories out of the design spokes into
+  build-log/journal. Episode: `journal/2026/2026-08-18-session-sky-011-p3-*`. The hard laws are now
+  enforced by a script, not by memory.
