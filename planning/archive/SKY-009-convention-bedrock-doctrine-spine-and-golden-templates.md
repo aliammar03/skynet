@@ -4,7 +4,7 @@ title: Convention bedrock: doctrine spine and golden templates
 status: done
 horizon: short
 created: 2026-08-17
-updated: 2026-08-17
+updated: 2026-08-18
 phases: 2
 current_phase: 2
 tier_touched: [T1]
