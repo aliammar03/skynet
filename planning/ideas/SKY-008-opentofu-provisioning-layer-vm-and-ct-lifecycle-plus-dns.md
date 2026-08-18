@@ -11,6 +11,7 @@ tier_touched: [T2, T2+]   # a new scoped provisioning token + creating/destroyin
                           # blast-radius dial ⇒ MUST PR docs/system-design.md.
 related:
   - docs/system-design.md
+  - docs/decisions/0003-ambiguity-layering-and-format-follows-enforcement.md  # the gate a pool-touching plan needs behind it
   - docs/design/access-and-trust.md
   - docs/design/network.md
   - docs/design/secrets.md
