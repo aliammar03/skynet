@@ -1,7 +1,7 @@
 ---
 summary: "The report-only nightly maintenance run on both engine paths, and what it refreshes."
 trigger: "Run the nightly / nightly timer"
-tokens: 960
+tokens: 990
 ---
 
 # Runbook — nightly maintenance (report-only)
@@ -37,8 +37,9 @@ the engine can't run (missing/unauthed/errors) — so the nightly always produce
 2. **envsync** — `scripts/envsync.sh` re-encrypts any changed `project.env` → `.env.sops`.
 3. **Render docs** — `scripts/render-docs.sh` rewrites the factual `docs/generated/` pages, then
    `scripts/render-digest.sh` regenerates the **agent cold-boot digest** `06-agent-digest.md`
-   (recent decisions / open threads / recent episodes, from ADRs + the journal + the roadmap).
-   Both paths run this; it is the deterministic, machine-facing orientation page.
+   (recent decisions / open threads / recent episodes, from ADRs + the journal + the roadmap), and
+   `scripts/render-context-map.sh` regenerates the **context map** `07-context-map.md` (what's
+   loadable + its token cost). Both paths run all three; they are deterministic, machine-facing pages.
 4. **(agent only) Narrative** — rewrite `docs/generated/05-state-of-the-lab.md`: the *human*
    state-of-the-lab — a beautifully formatted, honest read with agent commentary and *what changed
    since last night* (diff vs `main`). Have personality; keep it accurate; never overclaim. (The

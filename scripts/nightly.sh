@@ -40,6 +40,10 @@ git checkout -B "${BRANCH}" "origin/${DEFAULT_BRANCH}" 2>/dev/null || git checko
 #     the digest POINTERS stay current even when the human 05 narrative goes stale.
 ./scripts/render-digest.sh || true
 
+# 3c. regenerate the context map 07-context-map.md (what's loadable + what it costs). Deterministic
+#     and read-only, so it stays fresh on this LLM-free path too — the default-lean routing index.
+./scripts/render-context-map.sh || true
+
 # 4. decide if there's anything to report. Stage inventory/docs; envsync already staged any
 #    changed compose/*/.env.sops, and this check folds all of it into one commit.
 git add -A inventory docs/generated 2>/dev/null || true

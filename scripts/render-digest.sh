@@ -106,7 +106,7 @@ mkdir -p "$(dirname "${PAGE}")"
     found=1
   done < <(find "${JDIR}" -name '*.md' -not -name 'README.md' 2>/dev/null | sort -r | head -7)
   [ "$found" = 1 ] || printf -- '- _journal is empty — the nightly will seed it._\n'
-  printf '\n---\n_Human narrative: [[05-state-of-the-lab]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._\n'
+  printf '\n---\n_Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._\n'
 } > "${PAGE}"
 
 echo "render-digest: wrote ${PAGE}"

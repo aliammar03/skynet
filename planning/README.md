@@ -1,3 +1,7 @@
+---
+summary: "Where future work lives as SKY-### directives: the scratchpad→ideas→backlog→projects→archive lifecycle, bin/plan, and the roadmap."
+---
+
 # planning/ — Skynet Directives
 
 Where future work is born, argued, planned, and resumed. Every meaningful change to this agent
@@ -65,6 +69,6 @@ so running or resuming one is a single paste into a fresh session.
 | SKY-007 | NixOS host definition, piloted on the ops VM | ideas | draft | — | 🔭 long |
 | SKY-008 | OpenTofu provisioning layer: VM and CT lifecycle plus DNS | ideas | draft | — | 🔭 long |
 | SKY-009 | Convention bedrock: doctrine spine and golden templates | projects | done | 2/2 | 🌱 short |
-| SKY-010 | Default-lean context — strip the baseline, load on demand | projects | in-progress | 2/4 | 🌱 short |
+| SKY-010 | Default-lean context — strip the baseline, load on demand | projects | in-progress | 3/4 | 🌱 short |
 | SKY-011 | Machine-enforced invariants and the ambiguity-layering doctrine | projects | in-progress | 0/3 | 🌱 short |
 <!-- ROADMAP:END -->

@@ -77,11 +77,11 @@ edit compose/<svc>/ → branch → PR → Ali merges
    → agent verifies health via Arcane API / docker context, commits refreshed inventory
 ```
 
-- One Arcane Git Sync per project dir, auto-sync on; Arcane's own auto-update **off** for git-synced projects.
 - Rollback = `git revert`; Arcane converges back. SSH + `docker context` is the break-glass path.
-- Env layering: repo-sourced `.env.git` + UI-edited `project.env` → merged effective `.env`.
-  Your overrides (`project.env`) always win. **`project.env` is the secret-bearing layer** —
-  it is what `envsync.sh` encrypts. Every service needs `env_file: .env` in its compose (see `docs/conventions.md`).
+- **Loop mechanics** — one Git Sync per project, env layering (`.env.git` + the secret-bearing
+  `project.env` → effective `.env`), image pinning — live in
+  [gitops-loop](docs/design/gitops-loop.md) + [secrets](docs/design/secrets.md). Load them when you
+  touch a deploy, not before.
 - **Procedures beyond this loop** — deploy, nightly, provision, backup/restore, guest updates,
   disaster recovery — live as engine-neutral markdown runbooks, catalogued (with tier + trigger)
   in [`runbooks/README.md`](runbooks/README.md). Read one when a task or a `SKY-###` execute
@@ -94,24 +94,22 @@ edit compose/<svc>/ → branch → PR → Ali merges
   (session / incident / decision) when a run happens, something breaks, or a non-trivial choice is
   made — `bin/new journal <kind> "<title>"`. **Write raw, summarize only at read time**; entries
   are append-only. A cold agent greps it to learn what was already tried (and abandoned).
-- **Cold boot? Read [`docs/generated/06-agent-digest.md`](docs/generated/06-agent-digest.md)
-  first.** This machine-generated digest is the read-time view — recent **decisions** (don't
-  relitigate settled ADRs), **open threads** (directives + journal follow-ups still live), and
-  recent **episodes** — so a fresh session orients from one page before diving into the tables.
-  (The human-facing narrative is the separate `05-state-of-the-lab.md`.)
+- **Cold boot?** Read [`06-agent-digest.md`](docs/generated/06-agent-digest.md) first — the
+  read-time view (recent **decisions** you shouldn't relitigate, **open threads**, recent
+  **episodes**) — then [`07-context-map.md`](docs/generated/07-context-map.md) for *what else is
+  loadable and what it costs*: read a row, open one file. **Nothing else auto-loads** — default-lean
+  ([memory](docs/design/memory.md)). Human narrative: the separate `05-state-of-the-lab.md`.
 
 ---
 
 ## 5. Planning future work (`planning/`)
 
 Non-trivial additions and overhauls are captured as **Skynet Directives** (`SKY-###`) in
-[`planning/`](planning/README.md) — raw thoughts in `scratchpad/`, shaped in `ideas/`, queued in
-`backlog/`, executed from `projects/`, retired to `archive/`; `services/` catalogs services to add.
-Use `bin/plan` to mint/move directives and regenerate the roadmap. Each project directive carries
-its own **▶ Execute prompt** and per-phase **Continue prompt**, so running or resuming one is a
-single paste. Phases are sized to ~1–2h and end with a close-out (PR + `SKY-###-progress` memory +
-frontmatter bump). A directive touching **T2+/T3** or a blast-radius boundary must also PR
-`docs/system-design.md` — the constitution (its invariants still apply).
+[`planning/`](planning/README.md) — its README owns the mechanics: the
+`scratchpad→ideas→backlog→projects→archive` lifecycle, `bin/plan`, each directive's **▶ Execute** /
+**Continue** prompts, and ~1–2h phases that end in a close-out. Load it when you mint, run, or resume
+one. A directive touching **T2+/T3** or a blast-radius boundary must also PR `docs/system-design.md`
+— the constitution (its invariants still apply).
 
 ---
 
