@@ -38,6 +38,11 @@ marinara.aliammar.net {
 	reverse_proxy 10.10.100.85:7860
 }
 
+# obsidian-livesync — CouchDB sync backend; gated by its own admin login (own-auth).
+obsidian.aliammar.net {
+	reverse_proxy 10.10.100.95:5984
+}
+
 # ===================================================================================
 # NO-AUTH services — NO gate of their own. Proxied plain by explicit request: reachable
 # only from app-client VLANs (rule 200), never the internet. These are the intended
