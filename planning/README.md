@@ -71,4 +71,5 @@ so running or resuming one is a single paste into a fresh session.
 | SKY-009 | Convention bedrock: doctrine spine and golden templates | projects | done | 2/2 | 🌱 short |
 | SKY-010 | Default-lean context — strip the baseline, load on demand | projects | in-progress | 3/4 | 🌱 short |
 | SKY-011 | Machine-enforced invariants and the ambiguity-layering doctrine | projects | in-progress | 0/3 | 🌱 short |
+| SKY-012 | Runbooks as executable capabilities | ideas | draft | — | 🌱 short |
 <!-- ROADMAP:END -->
