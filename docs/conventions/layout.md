@@ -1,6 +1,6 @@
 ---
 summary: "Where each kind of artifact lives, and the minimum files each must have to be well-formed."
-tokens: 1383
+tokens: 1422
 ---
 
 # Spoke · Repo layout & required files
@@ -86,4 +86,6 @@ things at once and none of the others:
   else the dial moves. The other classes tighten enforcement, not the boundary.
 - **Rationale rides with each constraint.** Every entry carries a one-line `why` so an agent that
   knows *what* is excluded also knows *why* — the guard against a future session "helpfully"
-  relaxing it. `[testable]` once P3's gate consumes the file.
+  relaxing it. **`[testable]` — enforced:** `scripts/check-invariants.sh` reads this file and fails
+  a PR that violates it (excluded guest pooled, pool-set drift, plaintext secret), in the pre-commit
+  hook and CI.
