@@ -72,4 +72,5 @@ so running or resuming one is a single paste into a fresh session.
 | SKY-010 | Default-lean context — strip the baseline, load on demand | archive | done | — | 🌱 short |
 | SKY-011 | Machine-enforced invariants and the ambiguity-layering doctrine | archive | done | — | 🌱 short |
 | SKY-012 | Runbooks as executable capabilities | ideas | draft | — | 🌱 short |
+| SKY-013 | Deploy Obsidian Self-hosted LiveSync (CouchDB backend) | projects | in-progress | 0/2 | 🌱 short |
 <!-- ROADMAP:END -->

@@ -1,0 +1,49 @@
+name: obsidian-livesync
+
+# Obsidian Self-hosted LiveSync backend — a single CouchDB node the vault syncs to.
+# Published at obsidian.aliammar.net (own-auth: CouchDB's own admin login).
+# See runbooks/deploy-service.md and planning/projects/SKY-013-*.md.
+
+x-arcane:
+  tags:
+    - name: notes
+      color: teal
+
+services:
+  couchdb:
+    image: couchdb:3.5.0@sha256:1c0a30a54535377bc9ae23f42efb1ca4e92abe796f78ec98b768ac1d5874cc1b
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      # DB-engine storage → named volume; this holds the notes → skynet.backup: protect.
+      - data:/opt/couchdb/data
+      # Repo-tracked CORS + LiveSync tuning. Mounted RW (not the usual :ro) ON PURPOSE:
+      # the couchdb entrypoint chowns everything under /opt/couchdb and dies under
+      # `set -e` when this file is read-only + foreign-owned (empty :ro file reproduces
+      # it: exit 1, no logs). CouchDB does NOT rewrite local.ini on a normal boot
+      # (verified — md5 unchanged), so it stays byte-identical to git.
+      - ./local.ini:/opt/couchdb/etc/local.d/local.ini
+    networks:
+      dmz:
+        ipv4_address: 10.10.100.95
+    healthcheck:
+      # /_up stays reachable without auth because local.ini sets
+      # require_valid_user_except_for_up = true (everything else 401s).
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:5984/_up"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+networks:
+  dmz:
+    external: true
+    name: dmz
+
+volumes:
+  data:
+    labels:
+      skynet.service: obsidian-livesync
+      skynet.backup: protect
+      skynet.managed: gitops
