@@ -1,6 +1,6 @@
 ---
 summary: "Where each kind of artifact lives, and the minimum files each must have to be well-formed."
-tokens: 1042
+tokens: 1383
 ---
 
 # Spoke · Repo layout & required files
@@ -20,6 +20,7 @@ Tags: **[testable]** = a lint gate could assert it; **[manual]** = holds by revi
 | `docs/conventions.md` + `docs/conventions/*.md` | The convention hub + spokes (this set) | doctrine |
 | `docs/decisions/*.md` | ADRs — decisions with lasting consequence | history |
 | `docs/generated/**`, `inventory/**` | **Machine-written** — never hand-edit | generated |
+| `invariants.json` | **Authored** machine-checkable hard laws (the constraint layer) — read by the enforcement gate | design |
 | `docs/history/*.md` | Build log + original plan (lineage) | history |
 | `journal/<YYYY>/*.md` | **Episodic memory** — raw append-only session/incident/decision episodes | memory |
 | `compose/<svc>/` | One dir per service (the GitOps loop) | ops |
@@ -69,3 +70,20 @@ and `bin/plan` owns its own lifecycle.)
 `inventory/**` and `docs/generated/**` are written by collectors/renderers. Change the
 collector or `scripts/render-docs.sh`, never the output. Enforced socially today, mechanically by
 the parked lint gate.
+
+## `invariants.json` — authored constraint, not generated `[testable]`
+
+`invariants.json` at the repo root is the **constraint layer** of ADR 0003's ambiguity ladder:
+authored *desired* truth — the machine-checkable hard laws (excluded guests, the `ops-managed` pool
+set, the T3 targets, plaintext-secret patterns) — that a **deterministic gate**
+(`scripts/check-invariants.sh`, SKY-011 P3) reads to fail a violating PR. It is deliberately three
+things at once and none of the others:
+
+- **Authored, not generated** — unlike `inventory/**` and `docs/generated/**`, you *do* hand-edit it.
+  It records what the world *should* be, so the gate can compare observed (`inventory/`) against it.
+- **The blast-radius dial lives here.** Changing `ops_managed_pools` widens/narrows the write blast
+  radius, so it is a **`docs/system-design.md` PR** (constitution §2b) — same ceremony as anywhere
+  else the dial moves. The other classes tighten enforcement, not the boundary.
+- **Rationale rides with each constraint.** Every entry carries a one-line `why` so an agent that
+  knows *what* is excluded also knows *why* — the guard against a future session "helpfully"
+  relaxing it. `[testable]` once P3's gate consumes the file.

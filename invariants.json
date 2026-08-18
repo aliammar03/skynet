@@ -1,0 +1,47 @@
+{
+  "_comment": "AUTHORED desired-truth registry of the machine-checkable hard laws (SKY-011). This is the constraint layer of ADR 0003's ambiguity ladder: authored data a DETERMINISTIC gate reads (scripts/check-invariants.sh, Phase 3) — NOT generated, and distinct from inventory/ (observed truth) and docs/generated/ (machine-owned). Rigor comes from the gate consuming this file, not from the JSON itself: an LLM reads it with the same latitude as prose. Each entry carries a one-line 'why' so the load-bearing rationale rides WITH the constraint. Editing ops_managed_pools moves the blast-radius dial and is a docs/system-design.md PR (§2b). Doctrine: docs/decisions/0003-ambiguity-layering-and-format-follows-enforcement.md.",
+
+  "excluded_guests": {
+    "why": "These guests are T3 — seen at T1, touched never. Joining any to an ops-managed pool would hand the agent T2 write over infrastructure it must never operate (the firewall, the two front doors, the storage box). The gate fails any PR where one of these VMIDs appears as a pool member.",
+    "guests": [
+      { "vmid": 5001, "name": "vm-opnsense",         "node": "server-proxmox-network", "tier": "T3", "why": "the firewall/router itself; DHCP + all inter-VLAN routing depend on it. Never poolable." },
+      { "vmid": 635,  "name": "lxc-caddy-management", "node": "server-proxmox-network", "tier": "T3", "why": "the Management Caddy (the privileged front door). T3 by constitution §3." },
+      { "vmid": 837,  "name": "lxc-authentik",        "node": "server-proxmox-network", "tier": "T3", "why": "Authentik server administration is T3 (app/provider provisioning is a separate scoped T2 token, not pool membership)." },
+      { "vmid": 2020, "name": "vm-unraid",            "node": "server-proxmox-core",    "tier": "T3", "why": "Unraid storage host; root over it is T3. Never poolable." }
+    ]
+  },
+
+  "ops_managed_pools": {
+    "why": "THE blast-radius dial. Write blast radius = this pool set (+ ROLE_OPS_SSH_TARGETS + Technitium zones). The gate asserts the ops-managed pools observed in inventory match this declared set — drift either way is a violation (an undeclared pool is as dangerous as a missing one). Changing this set is a docs/system-design.md PR (constitution §2b); it is NOT collected/generated.",
+    "pools": [
+      { "pool": "ops-managed", "node": "server-proxmox-core",    "why": "the ops-managed pool on the core node; current position of the dial." },
+      { "pool": "ops-managed", "node": "server-proxmox-network", "why": "the ops-managed pool on the network node; current position of the dial." }
+    ]
+  },
+
+  "t3_targets": {
+    "why": "The never-standing-credential list (constitution §2a / §3, AGENTS.md §6). No standing route or credential to any of these — reached only via a dormant alias + per-session credentials, revoked same day. Documented here now as desired truth; future checks (e.g. asserting no standing token references these) build on it.",
+    "targets": [
+      { "name": "OPNsense",              "why": "the firewall/router; T3 admin plane." },
+      { "name": "Management Caddy",      "why": "the privileged front door (VMID 635)." },
+      { "name": "Authentik server admin","why": "flows, policies, users, system settings, outpost tokens, signing keys stay T3 (VMID 837)." },
+      { "name": "Proxmox node root",     "why": "root on either hypervisor node is T3." },
+      { "name": "Unraid root",           "why": "root on the storage host (VMID 2020) is T3." },
+      { "name": "Technitium server settings", "why": "Settings/Administration/DHCP are T3; only Zones view/modify is T2." }
+    ]
+  },
+
+  "secret_patterns": {
+    "why": "Plaintext-secret signatures the gate greps for in tracked, non-encrypted files. Hard law: secrets are sops-encrypted in git (compose/*/.env.sops) or 0600 under /opt/skynet-ops/secrets/ — never plaintext in commits, logs, transcripts, or chat (constitution §2a). A hit fails the PR.",
+    "allow": [
+      { "glob": "*.sops.*",        "why": "sops-encrypted payloads are ciphertext by definition — the intended home for secrets in git." },
+      { "glob": ".sops.yaml",      "why": "holds only the age PUBLIC recipient key (age1...), which is not secret." },
+      { "glob": "invariants.json", "why": "this file lists the patterns themselves as data; it contains no live secret." }
+    ],
+    "patterns": [
+      { "pattern": "AGE-SECRET-KEY-",                        "why": "an age PRIVATE key; the master secret of the whole vault. Must only ever exist at /opt/skynet-ops/secrets/age.key + the survival kit." },
+      { "pattern": "-----BEGIN [A-Z ]*PRIVATE KEY-----",     "why": "any PEM private key block (OpenSSH/RSA/EC/PKCS8) — SSH or TLS private material must never be committed in plaintext." },
+      { "pattern": "PVEAPIToken=[^\\s\"']+=[0-9a-fA-F-]{16,}","why": "a Proxmox API token secret (user@realm!tokenid=UUID) — a live write/read credential to the cluster." }
+    ]
+  }
+}

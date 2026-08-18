@@ -6,7 +6,7 @@ horizon: short
 created: 2026-08-18
 updated: 2026-08-18
 phases: 3
-current_phase: 1
+current_phase: 2
 tier_touched: [T1]     # repo files, read-only greps, a CI/pre-commit check. No blast radius moves.
                        # BUT it amends the constitution (adds a doctrine + wires enforcement onto the
                        # hard laws) ⇒ Phase 1 PRs docs/system-design.md — not to widen a dial, to
@@ -147,7 +147,7 @@ paragraph without being rewritten; the doctrine names the directives it frames.
 Grants / human actions: **⚠ constitution PR** — Phase 1 edits `docs/system-design.md`; land via PR,
 Ali merges (agent never merges its own).
 
-### Phase 2 — the invariant registry: `invariants.json`  (~1–2h)   `[ ]` not started
+### Phase 2 — the invariant registry: `invariants.json`  (~1–2h)   `[x]` done
 Extract the machine-checkable constraints into one authored source of truth.
 Steps:
 1. Write **`invariants.json`** (repo root; authored *desired* truth — distinct from observed
@@ -174,6 +174,13 @@ Grants / human actions: none.
 ### Phase 3 — the enforcement gate: `check-invariants.sh` + hook/CI  (~1–2h)   `[ ]` not started
 Make the constraints fail a bad PR deterministically — no LLM in the loop.
 Steps:
+> **⚠ Carried from Phase 2:** today's `inventory/*.json` records each `ops-managed` pool as a
+> *resource* but **not its membership** — no guest carries a `pool:` field and `pools[]` has no
+> member list. Before the membership assertion can work, the Proxmox collector must be extended to
+> emit pool membership (a `/pools/{poolid}` read); until then P3 asserts the checkable subset
+> (pool-set drift, secret patterns) and flags the membership check as pending. Do **not** hand-edit
+> `inventory/` (observed truth) to make the check pass.
+
 1. Write **`scripts/check-invariants.sh`** — read-only, engine-neutral (matches the `render-*.sh`
    house style), exits non-zero with a precise message on any violation. Assertions:
    - no `excluded_guests[].vmid` appears as a member of any pool in `inventory/*.json`;
@@ -232,4 +239,17 @@ at Phase <N+1>. Prereqs carried from the last phase: <…>. Resume context from 
   above, and the named anti-pattern of rewriting the constitution into a schema. Added a
   one-paragraph pointer as new `system-design.md §2c` (references the doctrine, does *not* rewrite
   §2a/§2b). Cross-linked ADR 0003 into `related:` of SKY-007/008/010. Next: Phase 2 —
-  `invariants.json`.
+  `invariants.json`. Landed as PR #58.
+- 2026-08-18 — **Phase 2 done** (PR pending). Authored `invariants.json` at repo root (valid JSON):
+  `excluded_guests` (5001/635/837/2020, each with node + `why`), `ops_managed_pools` (the two-pool
+  dial: ops-managed @ core + @ network), `t3_targets` (6), `secret_patterns` (age private key, PEM
+  private-key blocks, Proxmox API token) with an `allow` list for `*.sops.*` / `.sops.yaml` /
+  `invariants.json` itself. Documented it in `docs/conventions/layout.md` (map row + "authored, not
+  generated" section; pool-set = system-design PR). Sanity-checked vs inventory: all four excluded
+  VMIDs present (5001/635/837 on network, 2020 on core); both nodes carry an `ops-managed` pool.
+  **⚠ Phase-3 finding:** the inventory snapshot records the pool as a *resource* but **not per-guest
+  pool membership** — no guest carries a `pool:` field and `pools[]` has no members. So P3's "no
+  excluded VMID is a pool member" assertion cannot read membership from today's `inventory/*.json`;
+  the collector (`scripts/collect-*`) must first be extended to capture pool membership, OR P3 asserts
+  the checkable subset and flags the gap. Do **not** silently edit inventory (observed truth). Next:
+  Phase 3 — `check-invariants.sh` + hook/CI.
