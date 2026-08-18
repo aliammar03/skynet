@@ -1,6 +1,6 @@
 ---
 summary: "How a stateless agent remembers: the four memory kinds, the episodic journal→digest, and the default-lean working-memory discipline."
-tokens: 2884
+tokens: 2933
 ---
 
 # Spoke · Agent memory
@@ -71,17 +71,19 @@ never hand-maintained here — they drift.
 trigger + a way back. Mark first, move later, so nothing goes dark. The Judgement Day invariants stay
 always-loaded, always: lean ≠ unsafe.
 
-**The mechanism is progressive disclosure**, and it has two coming halves, both under SKY-010:
+**The mechanism is progressive disclosure**, in two halves, both landed under SKY-010:
 
 - **The context map** (P2–P3) — one generated manifest listing every loadable artifact with its
   one-line abstract, tier, trigger, and ~token cost. The agent reads *that* (~2–3K for the whole lab)
   and opens only the exact file it needs, instead of loading a whole prose catalog to route. It's the
   digest doctrine extended from "what happened" to "what can I load and what does it cost."
-- **The read-time scout** (P4) — for a *wide* question, a throwaway window (a subagent where
-  available, else `bin/recall` + targeted reads) greps and distills, and returns only the
-  ~500-token conclusion; the raw stays on disk. This is read-time summarization relocated *off* the
-  critical window — and it honors the same guardrail as everything else here: **the scout's summary
-  is never persisted** (ADR 0002). The corpus stays the source; the summary lives for one query.
+- **The read-time scout** — for a *wide* question ("what did we try with X?"), don't pull the corpus
+  into the main window. Dispatch a throwaway scout: a subagent where available, else
+  **`bin/recall <topic>`** (T1, read-only) — it greps `journal/` + docs and returns the matching
+  files *ranked, each with its ~token cost and `summary:`*, so you open only the few that matter,
+  distill them, and keep just the conclusion. This is read-time summarization relocated *off* the
+  critical window, and it honors the same guardrail as everything else here: **the scout's summary is
+  never persisted** (ADR 0002) — the corpus stays the source, the distillation lives for one query.
 
 Read this section beside [§3 Retrieval](#3-retrieval--read-time-a-cache-never-a-truth): they are the
 same idea from two directions — retrieval decides *what to pull in*, default-lean decides *what to

@@ -1,12 +1,12 @@
 ---
 id: SKY-010
 title: Default-lean context — strip the baseline, load on demand
-status: in-progress
+status: done
 horizon: short
 created: 2026-08-17
 updated: 2026-08-18
 phases: 4
-current_phase: 3
+current_phase: 4
 tier_touched: [T1]     # repo files + read-only greps on the ops VM. No blast radius; no PR to system-design.
 related:
   - docs/design/memory.md
@@ -144,7 +144,7 @@ cost, refreshes on the nightly, is referenced from cold-boot pointers; the Phase
 off the baseline and reachable via the map.
 Grants / human actions: none. (`docs/generated/` is machine-owned — edit the renderer, never output.)
 
-### Phase 4 — the read-time scout  (~1–2h)   `[ ]` not started
+### Phase 4 — the read-time scout  (~1–2h)   `[x]` done
 Move wide reads off the main window.
 Steps:
 1. Write `bin/recall <topic>` — read-only: greps `journal/` + docs, prints ranked file hits with
@@ -215,4 +215,15 @@ Follow AGENTS.md as above.
   cold-boot flow at it (`AGENTS.md` cold-boot bullet + the digest footer). **Relocated** the P1 movable
   blocks off the baseline: `AGENTS.md` §4 loop-mechanics → gitops-loop/secrets, §5 planning-lifecycle
   → planning/README.md (detail already lived there — pure de-dup + a pointer). **Baseline 2303 → 2223
-  tok (−80)** with the detail now trigger-loaded. Progress: memory `[[SKY-010-progress]]`. PR: _pending_.
+  tok (−80)** with the detail now trigger-loaded. Progress: memory `[[SKY-010-progress]]`. PR #54 (merged).
+- 2026-08-18 — follow-up de-dup pass (in PR #54): the context map made `AGENTS.md` §4's inline
+  runbook/convention enumerations redundant → collapsed to pointers. **Baseline 2223 → 2178 tok**
+  (2303 → 2178 total across P3, ~5.4%). Audit confirmed the rest of the repetition is deliberate
+  (distillation + Judgement Day safety redundancy + contextual pointers), so it stays.
+- 2026-08-18 — **Phase 4 done — SKY-010 COMPLETE (4/4).** Added `bin/recall <topic>` (T1, read-only,
+  vendor-neutral): greps `journal/` + docs, ranks matching files by hits with their ~token cost +
+  `summary:`, so a scout opens only the few that matter. Documented the **read-time-scout** pattern in
+  `docs/design/memory.md` (live, not a forward-ref) with the ADR-0002 "never persist the summary"
+  guardrail. Seeded a journal `session` episode demonstrating recall answering "what did we try with
+  the semantic index?" (→ SKY-006 P3, parked behind the overkill line). Archived to `planning/archive/`.
+  Progress: memory `[[SKY-010-progress]]`. PR: _pending_.
