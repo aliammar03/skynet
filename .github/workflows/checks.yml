@@ -1,0 +1,20 @@
+name: checks
+
+# Deterministic, non-LLM gates that must hold on every PR — the CI half of the pre-commit hook
+# (.githooks/pre-commit). CI re-runs them even if a commit used --no-verify or never set
+# core.hooksPath. Read-only: no secrets, no network, no writes to the repo.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  budget:
+    name: budget frontmatter (summary + fresh tokens)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # SKY-010: every loadable doc must carry an authored summary: and a fresh (non-stale)
+      # generated tokens:. Fails the PR otherwise — the assertion the pre-commit hook also runs.
+      - name: budget-frontmatter --check
+        run: ./scripts/budget-frontmatter.sh --check

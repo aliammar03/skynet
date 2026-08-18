@@ -1,6 +1,6 @@
 ---
 summary: "How Skynet's prose is structured: hub-and-spoke, ADRs, runbooks, README-as-catalog, and loadable summary/trigger/tokens frontmatter."
-tokens: 1422
+tokens: 1477
 ---
 
 # Spoke · Documentation, ADRs & runbooks
@@ -79,8 +79,11 @@ the [default-lean discipline](../design/memory.md).
 - **`tokens` is machine-owned metadata**, refreshed by the budget script (and, later, the nightly) —
   don't edit it by hand. For files under `docs/generated/`, the field is the **renderer's** job, not
   the budget script's (that dir is never hand- or tool-edited).
-- The lint gate (parked, `[testable]`) will assert *every loadable has a `summary:` and a fresh
-  `tokens:`*; `budget-frontmatter.sh --check` already implements that assertion for CI.
+- **The lint gate is live** `[testable]`: `scripts/budget-frontmatter.sh --check` asserts *every
+  loadable has a `summary:` and a fresh `tokens:`*, and runs in **both** the pre-commit hook
+  ([`.githooks/pre-commit`](../../.githooks/pre-commit)) and CI
+  ([`.github/workflows/checks.yml`](../../.github/workflows/checks.yml)) — a stale `tokens:` or a
+  missing `summary:` fails the commit and the PR.
 
 ## README-as-catalog `[manual]`
 
