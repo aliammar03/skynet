@@ -11,6 +11,7 @@ tier_touched: [T2+, T3]   # rebuilding a host = root (T2+); the host is the agen
                           # changes the host-management model ⇒ MUST PR docs/system-design.md.
 related:
   - docs/system-design.md
+  - docs/decisions/0003-ambiguity-layering-and-format-follows-enforcement.md  # what to schematize vs. keep prose
   - docs/design/access-and-trust.md
   - docs/design/disaster-recovery.md
   - docs/design/secrets.md

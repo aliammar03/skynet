@@ -72,6 +72,18 @@ can be moved openly rather than eroded quietly. **Widening any of them is a PR t
 - **Survival & kill switch** — survival kit verified quarterly; kill switch (`disable tokens +
   qm stop 9090`) drilled before autonomy day one, re-drilled on demand.
 
+### 2c. How invariants are enforced — machine-enforced wherever a deterministic check exists
+
+A rule's rigor comes from **who enforces it, not what format it's in**: an LLM reads a schema with
+the same latitude it reads prose, so a constraint is binding only once a *deterministic, non-LLM
+process* consumes it. The hard laws above should therefore be **machine-enforced wherever such a
+check exists** — the machine-checkable ones (excluded guests never pooled, blast radius = the
+declared pool set, no plaintext secrets) are extracted into an authored `invariants.json` and
+asserted by a gate that fails a violating PR ([SKY-011](../planning/projects/SKY-011-machine-enforced-invariants-and-the-ambiguity-layering-doctrine.md)),
+not left to the agent remembering. This is *not* a licence to rewrite this section into a schema:
+the constitution's job is to constrain judgment, a natural-language act. The full principle —
+ambiguity-tolerance layering; **format follows enforcement** — is [ADR 0003](decisions/0003-ambiguity-layering-and-format-follows-enforcement.md).
+
 ## 3. Trust model
 
 Trust is tiered, and the tier decides the mechanism. The deep version — every token, ACL, and

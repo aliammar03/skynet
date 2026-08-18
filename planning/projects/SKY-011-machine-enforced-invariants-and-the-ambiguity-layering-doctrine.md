@@ -6,7 +6,7 @@ horizon: short
 created: 2026-08-18
 updated: 2026-08-18
 phases: 3
-current_phase: 0
+current_phase: 1
 tier_touched: [T1]     # repo files, read-only greps, a CI/pre-commit check. No blast radius moves.
                        # BUT it amends the constitution (adds a doctrine + wires enforcement onto the
                        # hard laws) ⇒ Phase 1 PRs docs/system-design.md — not to widen a dial, to
@@ -127,7 +127,7 @@ constitution and calling it safety.
   proves too strict is loosened by editing the registry, in a PR, in the open.
 - **Grants / human actions:** none. Lands via PR like everything else (agent never merges its own).
 
-### Phase 1 — the doctrine: ADR 0003 + constitution pointer  (~1–2h)   `[ ]` not started
+### Phase 1 — the doctrine: ADR 0003 + constitution pointer  (~1–2h)   `[x]` done
 Write the organizing principle down before building anything, so the build has a spine to cite.
 Steps:
 1. Author **`docs/decisions/0003-ambiguity-layering-and-format-follows-enforcement.md`** (follow the
@@ -225,3 +225,11 @@ at Phase <N+1>. Prereqs carried from the last phase: <…>. Resume context from 
   `invariants.json` registry; a `check-invariants.sh` gate wired into the hook/CI path that fails a
   PR violating a hard law. Sequenced **before** SKY-008 (Tofu), whose pool-touching plans need the
   gate behind them. Sibling context: the `declarative-future-and-agent-cognition` scratch note.
+- 2026-08-18 — **Phase 1 done** (PR pending). Authored ADR 0003
+  (`0003-ambiguity-layering-and-format-follows-enforcement`, `accepted`): the ambiguity-tolerance
+  ladder (state → constraints → provisioning → procedures → directives → judgment), **format follows
+  enforcement** (schematize only what a non-LLM consumer reads), machine-enforced below / prose
+  above, and the named anti-pattern of rewriting the constitution into a schema. Added a
+  one-paragraph pointer as new `system-design.md §2c` (references the doctrine, does *not* rewrite
+  §2a/§2b). Cross-linked ADR 0003 into `related:` of SKY-007/008/010. Next: Phase 2 —
+  `invariants.json`.

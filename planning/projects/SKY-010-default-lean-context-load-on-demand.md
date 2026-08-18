@@ -10,6 +10,7 @@ current_phase: 3
 tier_touched: [T1]     # repo files + read-only greps on the ops VM. No blast radius; no PR to system-design.
 related:
   - docs/design/memory.md
+  - docs/decisions/0003-ambiguity-layering-and-format-follows-enforcement.md  # the retrieval pipe between machine-enforced and prose layers
   - docs/conventions/docs.md
   - docs/generated/06-agent-digest.md
   - AGENTS.md
