@@ -82,14 +82,12 @@ edit compose/<svc>/ → branch → PR → Ali merges
   `project.env` → effective `.env`), image pinning — live in
   [gitops-loop](docs/design/gitops-loop.md) + [secrets](docs/design/secrets.md). Load them when you
   touch a deploy, not before.
-- **Procedures beyond this loop** — deploy, nightly, provision, backup/restore, guest updates,
-  disaster recovery — live as engine-neutral markdown runbooks, catalogued (with tier + trigger)
-  in [`runbooks/README.md`](runbooks/README.md). Read one when a task or a `SKY-###` execute
-  prompt calls for it; they stay out of the always-loaded context by design.
-- **The house style is doctrine, not habit.** Naming, layout, scripts, compose, git, docs and
-  metadata rules live in the convention **hub** [`docs/conventions.md`](docs/conventions.md) +
-  its [`docs/conventions/`](docs/conventions/) spokes — one authoritative home per rule, each
-  tagged testable/manual. New artifacts inherit it; read the relevant spoke before writing one.
+- **Procedures beyond this loop** live as engine-neutral runbooks, catalogued with tier + trigger in
+  [`runbooks/README.md`](runbooks/README.md) (and the context map). Read one when a task or a
+  `SKY-###` execute prompt calls for it; they stay out of the always-loaded context by design.
+- **The house style is doctrine, not habit.** It lives in the convention **hub**
+  [`docs/conventions.md`](docs/conventions.md) + its [spokes](docs/conventions/) — one authoritative
+  home per rule, tagged testable/manual. Read the relevant spoke before writing an artifact.
 - **Episodic memory lives in [`journal/`](journal/README.md).** Append a **raw** dated episode
   (session / incident / decision) when a run happens, something breaks, or a non-trivial choice is
   made — `bin/new journal <kind> "<title>"`. **Write raw, summarize only at read time**; entries

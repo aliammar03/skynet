@@ -10,7 +10,7 @@ tags: [skynet, generated, agent, context-map]
 
 # Skynet — Context Map
 
-**Always-loaded baseline:** `AGENTS.md` + `CLAUDE.md` ≈ **2222** tok — the contract; never in this list.
+**Always-loaded baseline:** `AGENTS.md` + `CLAUDE.md` ≈ **2177** tok — the contract; never in this list.
 **Cold-boot read:** `docs/generated/06-agent-digest.md` ≈ 1014 tok.
 
 Everything below is **on-demand**: nothing enters context until a trigger fires. Open a *file*, not a section.
