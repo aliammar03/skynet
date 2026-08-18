@@ -11,19 +11,76 @@ Skynet is **stateless by design** — every session is a fresh mind that rebuild
 reconstruct what it needs from the repo, it can't operate. This spoke is the map of what the agent
 remembers and how.
 
+Two disciplines keep that infrastructure honest, and they are **peers**. One guards the **write**
+path — *don't lose what happened* (the episodic layer SKY-006 added: write raw, append-only). The
+other guards the **read** path — *don't drown the mind that reads* (the default-lean working-memory
+discipline SKY-010 added: load the smallest high-signal set, pull the rest just-in-time). This spoke
+was authored episodic-first; the working-memory section below makes the second discipline
+first-class beside it.
+
 ## The four kinds of memory
 
 The 2025–26 consensus splits agent memory four ways. Skynet was strong in three and blind in one:
 
 | Kind | Holds | Where it lives | State |
 |---|---|---|---|
-| **Working** | the current task | the context window | fine — but scarce; retrieve *sparingly* |
+| **Working** | the current task | the context window | scarce — the one kind you *can't* grow by writing to git; governed by the default-lean discipline below |
 | **Semantic** | facts / current state | `docs/`, `inventory/`, `docs/generated/` | strong |
 | **Procedural** | how to do things | `runbooks/`, `scripts/`, `bin/` | strong |
 | **Episodic** | *what actually happened* | `journal/` + the digest (this spoke) | **added by SKY-006** |
 
 The context window is the real bottleneck — everything competes for it — which is *why* retrieval
 matters: pull the few relevant episodes, not the whole history.
+
+## Working memory — the default-lean discipline  `[manual]`
+
+Working memory is the context window, and it is the memory that discipline has to *protect* rather
+than fill: the other three kinds grow safely by writing more to git, but every token that enters the
+window competes with every other for a finite attention budget. So the governing rule runs the
+opposite direction from "store more."
+
+> **Default-lean.** Nothing enters context until a task actually needs it. The always-loaded baseline
+> is audited down to the smallest high-signal set — the safety-and-execution contract, nothing more —
+> and everything else is reachable *only* on demand, behind a **trigger + a reliable retrieval path**.
+
+This is not only economy. The context-rot research (SKY-010's motivation) is blunt: irrelevant tokens
+**actively degrade accuracy** — every one draws down the attention budget and buries the
+decision-critical evidence, and all 18 top models tested got *worse* as input grew. **Unnecessary
+context is a correctness bug, not just a cost.** That is why "retrieve *sparingly*" is an invariant,
+not a nicety, and why moving something off the baseline is safe *only once it has a retrieval path* —
+a block with no way back is not lean, it's lost.
+
+**The audited baseline.** What auto-loads today, and where each block belongs (SKY-010 P1). The
+classification is stable; the live token weights come from the budget script + context map (P2–P3),
+never hand-maintained here — they drift.
+
+| Auto-loads by default | Kind | Verdict |
+|---|---|---|
+| `CLAUDE.md` → imports `AGENTS.md` | the engine-neutral contract | **always** |
+| `AGENTS.md` §0–3, §6, §7 — identity, trust tiers, execution policy, auto-approve state, Judgement Day invariants, when-in-doubt | contract | **always** — the minimal safety+execution spine |
+| `AGENTS.md` §4 deploy-loop *mechanism detail* (Arcane specifics, env layering, `project.env`) | reference | **movable** → [gitops-loop](gitops-loop.md) + [conventions](../conventions.md); keep a one-line pointer |
+| `AGENTS.md` §5 planning *lifecycle detail* (stages, `bin/plan`, phase sizing) | reference | **movable** → [`planning/README.md`](../../planning/README.md); keep a one-line pointer |
+| `06-agent-digest.md` — the mandated cold-boot read | generated orientation | **always** on cold boot; already lean & regenerable |
+
+*Movable* means marked now, **relocated only in SKY-010 P3** — once the context map gives the block a
+trigger + a way back. Mark first, move later, so nothing goes dark. The Judgement Day invariants stay
+always-loaded, always: lean ≠ unsafe.
+
+**The mechanism is progressive disclosure**, and it has two coming halves, both under SKY-010:
+
+- **The context map** (P2–P3) — one generated manifest listing every loadable artifact with its
+  one-line abstract, tier, trigger, and ~token cost. The agent reads *that* (~2–3K for the whole lab)
+  and opens only the exact file it needs, instead of loading a whole prose catalog to route. It's the
+  digest doctrine extended from "what happened" to "what can I load and what does it cost."
+- **The read-time scout** (P4) — for a *wide* question, a throwaway window (a subagent where
+  available, else `bin/recall` + targeted reads) greps and distills, and returns only the
+  ~500-token conclusion; the raw stays on disk. This is read-time summarization relocated *off* the
+  critical window — and it honors the same guardrail as everything else here: **the scout's summary
+  is never persisted** (ADR 0002). The corpus stays the source; the summary lives for one query.
+
+Read this section beside [§3 Retrieval](#3-retrieval--read-time-a-cache-never-a-truth): they are the
+same idea from two directions — retrieval decides *what to pull in*, default-lean decides *what to
+keep out by default*. Together they hold the window to conclusions, not the corpus.
 
 ## The gap was episodic
 
