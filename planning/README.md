@@ -70,6 +70,6 @@ so running or resuming one is a single paste into a fresh session.
 | SKY-008 | OpenTofu provisioning layer: VM and CT lifecycle plus DNS | ideas | draft | — | 🔭 long |
 | SKY-009 | Convention bedrock: doctrine spine and golden templates | projects | done | 2/2 | 🌱 short |
 | SKY-010 | Default-lean context — strip the baseline, load on demand | archive | done | — | 🌱 short |
-| SKY-011 | Machine-enforced invariants and the ambiguity-layering doctrine | projects | in-progress | 2/3 | 🌱 short |
+| SKY-011 | Machine-enforced invariants and the ambiguity-layering doctrine | projects | done | 3/3 | 🌱 short |
 | SKY-012 | Runbooks as executable capabilities | ideas | draft | — | 🌱 short |
 <!-- ROADMAP:END -->

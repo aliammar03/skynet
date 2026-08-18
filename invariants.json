@@ -39,9 +39,9 @@
       { "glob": "invariants.json", "why": "this file lists the patterns themselves as data; it contains no live secret." }
     ],
     "patterns": [
-      { "pattern": "AGE-SECRET-KEY-",                        "why": "an age PRIVATE key; the master secret of the whole vault. Must only ever exist at /opt/skynet-ops/secrets/age.key + the survival kit." },
+      { "pattern": "AGE-SECRET-KEY-1[0-9A-Z]{20,}",          "why": "an age PRIVATE key (prefix + bech32 body); the master secret of the whole vault. Must only ever exist at /opt/skynet-ops/secrets/age.key + the survival kit. Requiring the key body means prose that merely mentions the prefix does not trip." },
       { "pattern": "-----BEGIN [A-Z ]*PRIVATE KEY-----",     "why": "any PEM private key block (OpenSSH/RSA/EC/PKCS8) — SSH or TLS private material must never be committed in plaintext." },
-      { "pattern": "PVEAPIToken=[^\\s\"']+=[0-9a-fA-F-]{16,}","why": "a Proxmox API token secret (user@realm!tokenid=UUID) — a live write/read credential to the cluster." }
+      { "pattern": "PVEAPIToken=[A-Za-z0-9@!._-]+=[0-9a-fA-F-]{16,}","why": "a Proxmox API token secret (user@realm!tokenid=UUID) — a live write/read credential to the cluster." }
     ]
   }
 }

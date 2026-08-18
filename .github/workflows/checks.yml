@@ -18,3 +18,15 @@ jobs:
       # generated tokens:. Fails the PR otherwise — the assertion the pre-commit hook also runs.
       - name: budget-frontmatter --check
         run: ./scripts/budget-frontmatter.sh --check
+
+  invariants:
+    name: invariants (hard laws)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # SKY-011: the machine-checkable hard laws in invariants.json hold against observed inventory
+      # + the tracked tree — excluded guests never pooled, the ops-managed pool set matches the
+      # declared dial, no plaintext secret patterns. A non-LLM gate (ADR 0003); fails the PR on any
+      # violation. Also runs in the pre-commit hook.
+      - name: check-invariants
+        run: ./scripts/check-invariants.sh
