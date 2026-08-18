@@ -24,6 +24,8 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 - **SKY-003** (projects · in-progress · 2/5) — Apps reverse proxy + Authentik SSO ingress
 - **SKY-006** (projects · in-progress · 2/3) — Agent episodic memory: journal + retrieval
+- **SKY-010** (projects · in-progress · 3/4) — Default-lean context — strip the baseline, load on demand
+- **SKY-011** (projects · in-progress · 0/3) — Machine-enforced invariants and the ambiguity-layering doctrine
 - **SKY-002** (ideas · draft) — Ongoing backup strategy for CT 240 (PBS host)
 - **SKY-004** (ideas · draft) — Reactive operations: event-driven layer + drift-as-signal
 - **SKY-005** (ideas · draft) — Imperative ops discipline: recon toolkit, diagnosis library, lab bench
@@ -48,4 +50,4 @@ follow a link for the full story; distill episodes at read time, never in this f
 - **2026-08-17** · session · [[2026-08-17-session-formalize-the-memory-design-spoke|formalize the memory design spoke]]
 
 ---
-_Human narrative: [[05-state-of-the-lab]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._
+_Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._

@@ -1,3 +1,7 @@
+---
+summary: "The compose/ service catalog and the Arcane GitOps deployment loop every project follows."
+---
+
 # compose — one dir per service, Arcane git-syncs each
 
 ```

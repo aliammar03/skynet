@@ -6,7 +6,7 @@ horizon: short
 created: 2026-08-17
 updated: 2026-08-18
 phases: 4
-current_phase: 2
+current_phase: 3
 tier_touched: [T1]     # repo files + read-only greps on the ops VM. No blast radius; no PR to system-design.
 related:
   - docs/design/memory.md
@@ -125,7 +125,7 @@ Exit criteria: the script writes a per-file token weight; the convention documen
 `summary`/`trigger`/generated-`tokens`; high-traffic files carry a `summary:`.
 Grants / human actions: none.
 
-### Phase 3 — the context-map manifest  (~1–2h)   `[ ]` not started
+### Phase 3 — the context-map manifest  (~1–2h)   `[x]` done
 Build the on-demand index — the retrieval path that makes moving things off the baseline safe.
 Steps:
 1. Write `scripts/render-context-map.sh` (twin of `render-digest.sh`): walk the loadable dirs
@@ -204,4 +204,14 @@ Follow AGENTS.md as above.
   `docs/conventions/docs.md` (the authoritative home) `[testable]`. Backfilled authored `summary:`
   (+ `trigger:` on runbooks) across the 27-file on-demand corpus (design + conventions spokes,
   runbooks + dr). Corpus ≈ 27.1K tok; always-loaded baseline reconfirmed at 2303. Also regenerated the
-  roadmap (the #51/#52 merge had dropped SKY-011's row). Progress: memory `[[SKY-010-progress]]`. PR: _pending_.
+  roadmap (the #51/#52 merge had dropped SKY-011's row). Progress: memory `[[SKY-010-progress]]`. PR #53 (merged).
+- 2026-08-18 — **Phase 3 done.** Added `scripts/render-context-map.sh` (twin of `render-digest.sh`):
+  deterministic, content-stable, ~tokens computed at render time (self-fresh; never edits an authored
+  file). Emits `docs/generated/07-context-map.md` — one row per on-demand artifact (path · tier ·
+  trigger · ~tokens · summary) across runbooks, design + conventions spokes, catalogs, generated
+  views, plus an episodic pointer (journal is retrieved by topic, not browsed). Wired into **both**
+  nightly paths (`scripts/nightly.sh` + `bin/ops` engine prompt + `runbooks/nightly.md`). Pointed the
+  cold-boot flow at it (`AGENTS.md` cold-boot bullet + the digest footer). **Relocated** the P1 movable
+  blocks off the baseline: `AGENTS.md` §4 loop-mechanics → gitops-loop/secrets, §5 planning-lifecycle
+  → planning/README.md (detail already lived there — pure de-dup + a pointer). **Baseline 2303 → 2223
+  tok (−80)** with the detail now trigger-loaded. Progress: memory `[[SKY-010-progress]]`. PR: _pending_.

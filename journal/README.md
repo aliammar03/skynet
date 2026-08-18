@@ -1,3 +1,7 @@
+---
+summary: "The episodic journal format — session/incident/decision records, the Graveyard, and the write-raw/read-summarize rule."
+---
+
 # journal — Skynet's episodic memory
 
 > The append-only log of **what happened**: session runs, incidents, and decisions, as raw dated

@@ -1,3 +1,7 @@
+---
+summary: "The golden templates (compose, script, runbook, ADR, journal) that bin/new stamps so new artifacts inherit the house style."
+---
+
 # templates — the golden skeletons `bin/new` stamps from
 
 One folder holding every artifact template, so the house style has a **single source** per kind:
