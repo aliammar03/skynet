@@ -13,17 +13,26 @@ services:
   couchdb:
     image: couchdb:3.5.0@sha256:1c0a30a54535377bc9ae23f42efb1ca4e92abe796f78ec98b768ac1d5874cc1b
     restart: unless-stopped
+    # Deliver the repo-tracked CORS/tuning config WITHOUT letting couchdb's root
+    # entrypoint chown the host git file. The entrypoint runs `find /opt/couchdb
+    # \! -user couchdb -exec chown couchdb` — so a live bind mount UNDER /opt/couchdb
+    # flips the HOST file's owner to uid 5984, which then breaks Arcane's GitOps sync
+    # ("promote staged project directory: openat local.ini: permission denied", since
+    # Arcane runs as uid 1000). So we mount local.ini read-only at a NEUTRAL path
+    # (outside /opt/couchdb, never chowned) and copy it into local.d/ at startup —
+    # couchdb only ever chowns the container-internal copy. Verified: host file stays
+    # 1000:1000 and the config (single_node, CORS, require_valid_user) loads.
+    entrypoint:
+      - /bin/bash
+      - -c
+      - cp /etc/skynet/couchdb/local.ini /opt/couchdb/etc/local.d/local.ini && exec tini -- /docker-entrypoint.sh /opt/couchdb/bin/couchdb
     env_file:
       - .env
     volumes:
       # DB-engine storage → named volume; this holds the notes → skynet.backup: protect.
       - data:/opt/couchdb/data
-      # Repo-tracked CORS + LiveSync tuning. Mounted RW (not the usual :ro) ON PURPOSE:
-      # the couchdb entrypoint chowns everything under /opt/couchdb and dies under
-      # `set -e` when this file is read-only + foreign-owned (empty :ro file reproduces
-      # it: exit 1, no logs). CouchDB does NOT rewrite local.ini on a normal boot
-      # (verified — md5 unchanged), so it stays byte-identical to git.
-      - ./local.ini:/opt/couchdb/etc/local.d/local.ini
+      # Repo-tracked CORS + LiveSync tuning, read-only at a neutral path (see above).
+      - ./local.ini:/etc/skynet/couchdb/local.ini:ro
     networks:
       dmz:
         ipv4_address: 10.10.100.95
