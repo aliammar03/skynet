@@ -1,3 +1,8 @@
+---
+summary: "How a service change becomes a running container via Arcane, with git-revert rollback and image pinning + Renovate."
+tokens: 900
+---
+
 # Spoke · The GitOps loop
 
 > How a change to a service becomes a running container, and how versions stay pinned and current.

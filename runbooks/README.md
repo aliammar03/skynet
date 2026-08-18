@@ -1,3 +1,8 @@
+---
+summary: "Catalog of engine-neutral procedures any agent can execute, each tagged by tier and trigger — the routing menu."
+tokens: 918
+---
+
 # runbooks — procedures any agent can execute
 
 A **runbook** is a plain-markdown procedure. Nothing auto-loads them; an agent reads one

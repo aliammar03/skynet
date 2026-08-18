@@ -1,3 +1,8 @@
+---
+summary: "How machine state becomes human-readable docs, and how the nightly run keeps the picture current."
+tokens: 972
+---
+
 # Spoke · Observability
 
 > How Skynet turns machine state into things a human can read, and how the nightly run keeps the

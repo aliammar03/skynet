@@ -1,3 +1,8 @@
+---
+summary: "The one naming grammar — VMIDs, IPs, hostnames, slugs, branches — so a name is predictable and machine-validatable."
+tokens: 717
+---
+
 # Spoke · Naming & addressing
 
 > How things in Skynet are named and addressed — VMIDs, IPs, hostnames, slugs, branches. One

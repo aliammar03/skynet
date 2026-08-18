@@ -1,3 +1,8 @@
+---
+summary: "The structured fields machines read: directive frontmatter, service-catalog entries, and the compose label/tag namespaces."
+tokens: 641
+---
+
 # Spoke · Metadata & frontmatter schemas
 
 > The structured fields machines read: directive frontmatter, service-catalog entries, and the

@@ -1,3 +1,9 @@
+---
+summary: "Snapshot then update every guest under a fleet root grant."
+trigger: "Update all guests"
+tokens: 228
+---
+
 # Runbook — update all guests
 
 **Tier:** T2 snapshot + T2+ fleet root grant. **Trigger:** *"Update all guests."*

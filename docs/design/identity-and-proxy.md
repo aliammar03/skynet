@@ -1,3 +1,8 @@
+---
+summary: "The two front doors, split-horizon DNS, and the forward_auth boundary that publishes apps without holding auth's keys (SKY-003)."
+tokens: 2222
+---
+
 # Spoke · Identity & proxy
 
 > The two front doors, the split-horizon DNS behind them, and the trust boundary that lets Skynet

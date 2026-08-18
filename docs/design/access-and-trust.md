@@ -1,3 +1,8 @@
+---
+summary: "The trust tiers in full — every token, ACL, principal, and the auto-expiring SSH root grant Skynet can request but never mint."
+tokens: 1836
+---
+
 # Spoke · Access & trust
 
 > The trust tiers in full — every token, ACL, principal, and the auto-expiring root grant that is

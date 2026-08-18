@@ -1,3 +1,8 @@
+---
+summary: "How a stateless agent remembers: the four memory kinds, the episodic journal→digest, and the default-lean working-memory discipline."
+tokens: 2884
+---
+
 # Spoke · Agent memory
 
 > How a stateless agent remembers: the four kinds of memory, where Skynet keeps each, and the
