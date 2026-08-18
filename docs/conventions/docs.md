@@ -1,6 +1,6 @@
 ---
 summary: "How Skynet's prose is structured: hub-and-spoke, ADRs, runbooks, README-as-catalog, and loadable summary/trigger/tokens frontmatter."
-tokens: 1477
+tokens: 1603
 ---
 
 # Spoke · Documentation, ADRs & runbooks
@@ -96,3 +96,8 @@ contents must meet. The README is the hub for that directory.
 - Write to **teach** — Ali is learning git/infra through this repo. Say *why*, not just *what*.
 - **Convert relative dates to absolute** (`2026-08-17`, not "today") in anything that persists.
 - Prefer tables and short rules over long paragraphs; keep the hub scannable.
+- **State the rule, not the incident that taught it.** Design docs, spokes, and conventions carry
+  the durable rule plus small actionable notes — *what to do now and why*. The story of what was
+  tried, what broke, and how it was fixed is **episodic → [`journal/`](../../journal/README.md)**
+  (build-phase incidents live in [`../history/build-log.md`](../history/build-log.md)). No "learned
+  at X" / "we tried Y, it fell apart" narratives in design prose — same principle as write-raw-to-journal.

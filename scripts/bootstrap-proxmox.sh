@@ -42,6 +42,9 @@ echo "==> operate ACL: OpsOperator on /pool/ops-managed (token created above)"
 # privilege — the token can list but never snapshot/backup/operate. Grant BOTH. (A6 finding.)
 pveum acl modify /pool/ops-managed --users svc-ops@pve --roles OpsOperator
 pveum acl modify /pool/ops-managed --tokens 'svc-ops@pve!operate' --roles OpsOperator
+# Pool.Audit on the pool path — /pools/<id> membership isn't visible from PVEAuditor at / alone.
+# Lets collect-proxmox.sh capture pool membership for the SKY-011 invariants gate. Read-only.
+pveum acl modify /pool/ops-managed --users svc-ops@pve --roles PVEAuditor
 # Backup target: vzdump needs Datastore.AllocateSpace on the storage it writes to. 'local' is
 # the on-node backup target for ops-managed guests that can't be snapshotted (e.g. the PBS CT,
 # whose NFS-backed datastore mountpoint blocks LXC snapshots). Grant the role there too.
