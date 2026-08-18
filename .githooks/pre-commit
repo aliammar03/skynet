@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
-# Repo pre-commit hook → secret scan (AGENTS.md §6). Active when core.hooksPath=.githooks
-# (bootstrap-workstation.sh sets this; or run it yourself once: git config core.hooksPath .githooks).
-exec "$(git rev-parse --show-toplevel)/scripts/secret-scan.sh"
+# Repo pre-commit hook → the deterministic gates. Active when core.hooksPath=.githooks
+# (bootstrap-workstation.sh sets this; or run once: git config core.hooksPath .githooks).
+#   1. secret-scan    — no plaintext secrets enter a commit (AGENTS.md §6, staged tree).
+#   2. budget --check — every loadable doc keeps a summary: and a fresh tokens: (SKY-010).
+# Bypass a false positive with:  git commit --no-verify  (CI re-runs the budget gate regardless).
+set -euo pipefail
+ROOT="$(git rev-parse --show-toplevel)"
+"${ROOT}/scripts/secret-scan.sh"
+"${ROOT}/scripts/budget-frontmatter.sh" --check

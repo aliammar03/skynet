@@ -63,17 +63,21 @@ for f in "${CORPUS_GLOBS[@]}"; do
   rows+="$(printf '%6s  %-3s %-3s  %s' "$t" "$hs" "$ht" "$f")"$'\n'
 done
 
-printf '\n== on-demand corpus (ranked by ~tokens) ==\n'
-printf '%6s  %-3s %-3s  %s\n' "~TOK" "SUM" "TRG" "FILE"
-printf '%s' "$rows" | sort -rn
-total=$(printf '%s' "$rows" | awk '{s+=$1} END{print s+0}')
-printf '%6s  %s\n' "$total" "TOTAL on-demand corpus"
+# The ranked report is for humans (default mode). In --check mode (hook/CI) stay quiet: emit only
+# the `check:` violation lines already printed above and the OK/FAILED verdict below.
+if [ "$CHECK" = 0 ]; then
+  printf '\n== on-demand corpus (ranked by ~tokens) ==\n'
+  printf '%6s  %-3s %-3s  %s\n' "~TOK" "SUM" "TRG" "FILE"
+  printf '%s' "$rows" | sort -rn
+  total=$(printf '%s' "$rows" | awk '{s+=$1} END{print s+0}')
+  printf '%6s  %s\n' "$total" "TOTAL on-demand corpus"
 
-# reference weights (reported, never written)
-base=0; for f in "${BASELINE_FILES[@]}"; do [ -e "$f" ] && base=$(( base + $(count_tokens "$f") )); done
-printf '\n== always-loaded baseline (contract; reported, not written) ==\n'
-printf '%6s  %s\n' "$base" "AGENTS.md + CLAUDE.md"
-[ -e "$COLDBOOT_FILE" ] && printf '%6s  %s\n' "$(count_tokens "$COLDBOOT_FILE")" "$COLDBOOT_FILE (cold-boot read)"
+  # reference weights (reported, never written)
+  base=0; for f in "${BASELINE_FILES[@]}"; do [ -e "$f" ] && base=$(( base + $(count_tokens "$f") )); done
+  printf '\n== always-loaded baseline (contract; reported, not written) ==\n'
+  printf '%6s  %s\n' "$base" "AGENTS.md + CLAUDE.md"
+  [ -e "$COLDBOOT_FILE" ] && printf '%6s  %s\n' "$(count_tokens "$COLDBOOT_FILE")" "$COLDBOOT_FILE (cold-boot read)"
+fi
 
 if [ "$CHECK" = 1 ]; then
   if [ "$stale" = 0 ] && [ "$missing_summary" = 0 ]; then
