@@ -1,3 +1,8 @@
+---
+summary: "How Skynet's prose is structured: hub-and-spoke, ADRs, runbooks, README-as-catalog, and loadable summary/trigger/tokens frontmatter."
+tokens: 1422
+---
+
 # Spoke · Documentation, ADRs & runbooks
 
 > How Skynet's prose is structured: the hub-and-spoke pattern, how ADRs and runbooks are written,
@@ -20,7 +25,7 @@ Rules `[manual]`:
 - **The hub shrinks; the spoke carries depth.** When a topic outgrows a paragraph in the hub,
   split it into a spoke and leave a one-line pointer.
 - **Each spoke opens with a `> ` blockquote** stating what it covers and **which hub governs it**,
-  and links back to that hub.
+  and links back to that hub (preceded only by its loadable frontmatter — see *Loadable frontmatter* below).
 - **One authoritative home per rule.** State a rule in exactly one place; everywhere else links to
   it. If two docs state the same rule, one is the source and the other points.
 
@@ -41,7 +46,8 @@ Rules `[manual]`:
 - **Engine-neutral markdown + bash** `[manual]` — no vendor skill/command format. Any agent that
   reads a file and runs bash executes them.
 - **Open with a `Tier` line** (T1/T2/T2+/T3, PR-gated or grant), and a **Trigger** line where the
-  runbook has a natural spoken trigger `[testable]`.
+  runbook has a natural spoken trigger `[testable]`. The machine-readable `trigger:` lives in the
+  loadable frontmatter (below); this prose line is its human twin.
 - **Every runbook is listed in `runbooks/README.md`** `[testable]` — the catalog is the menu;
   an uncatalogued runbook is invisible.
 
@@ -54,6 +60,27 @@ Rules `[manual]`:
   home, [`../../journal/README.md`](../../journal/README.md); stamp entries with `bin/new journal`.
 - **Not a generated dir** `[manual]` — `journal/` is authored/appended, never re-rendered, so the
   "never hand-edit generated dirs" rule does **not** apply to it (unlike `docs/generated/`).
+
+## Loadable frontmatter — `summary` / `trigger` / `tokens`  `[testable]`
+
+Every **loadable** doc — a design or conventions spoke, a runbook, a generated page — carries a small
+frontmatter block so a routing agent can *cost and choose it without opening it*. This is the metadata
+the context map (SKY-010 P3) reads to build one row per artifact; it's the machine-readable half of
+the [default-lean discipline](../design/memory.md).
+
+| Field | Who writes it | Rule |
+|---|---|---|
+| `summary:` | **authored**, one line | what the file is, in ≤ ~120 chars, so the map row is legible `[manual]` |
+| `trigger:` | **authored**, optional | the spoken cue that should pull this file in (mainly runbooks) `[manual]` |
+| `tokens:` | **generated** by `scripts/budget-frontmatter.sh` | approx load cost (bytes / 4); **never hand-set** — it drifts `[testable]` |
+
+- **`summary` is the source; the map shows it.** A loadable *without* a `summary:` falls back to its
+  first `# heading` in the map — so nothing is invisible, but an authored line is better.
+- **`tokens` is machine-owned metadata**, refreshed by the budget script (and, later, the nightly) —
+  don't edit it by hand. For files under `docs/generated/`, the field is the **renderer's** job, not
+  the budget script's (that dir is never hand- or tool-edited).
+- The lint gate (parked, `[testable]`) will assert *every loadable has a `summary:` and a fresh
+  `tokens:`*; `budget-frontmatter.sh --check` already implements that assertion for CI.
 
 ## README-as-catalog `[manual]`
 

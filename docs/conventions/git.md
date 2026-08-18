@@ -1,3 +1,8 @@
+---
+summary: "How change enters the repo: one branch per unit of work, one PR per phase, and the agent never merging its own PRs."
+tokens: 591
+---
+
 # Spoke · Git & pull requests
 
 > How change enters the repo: one branch per unit of work, one PR per phase, and a merge gate the

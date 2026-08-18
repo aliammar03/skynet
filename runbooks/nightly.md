@@ -1,3 +1,9 @@
+---
+summary: "The report-only nightly maintenance run on both engine paths, and what it refreshes."
+trigger: "Run the nightly / nightly timer"
+tokens: 960
+---
+
 # Runbook — nightly maintenance (report-only)
 
 **Trigger:** systemd timer (`skynet-nightly.timer` on vm-skynet-ops) → `bin/ops nightly`.

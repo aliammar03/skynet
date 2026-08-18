@@ -1,3 +1,9 @@
+---
+summary: "Re-establish NIC passthrough for VM 5001 (OPNsense) after a rebuild."
+trigger: "NIC passthrough for OPNsense"
+tokens: 626
+---
+
 # NIC passthrough — VM 5001 (OPNsense)
 
 Captured 2026-08-16 from `server-proxmox-network` (A6 DR tabletop). This is the hardware

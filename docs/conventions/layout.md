@@ -1,3 +1,8 @@
+---
+summary: "Where each kind of artifact lives, and the minimum files each must have to be well-formed."
+tokens: 1042
+---
+
 # Spoke · Repo layout & required files
 
 > Where each kind of artifact lives, and the minimum files each must have to be well-formed.

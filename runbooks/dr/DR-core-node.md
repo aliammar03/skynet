@@ -1,3 +1,9 @@
+---
+summary: "Recover when server-proxmox-core (with PBS aboard) is dead."
+trigger: "Core node is dead"
+tokens: 446
+---
+
 # DR — server-proxmox-core is dead (with PBS aboard)
 
 Core dies carrying PBS, so the off-site copy on Google Drive (L5) is the way back in.

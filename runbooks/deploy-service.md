@@ -1,3 +1,9 @@
+---
+summary: "Deploy or update a service through the Arcane GitOps loop: edit compose then PR then Arcane reconciles."
+trigger: "Deploy or update a service"
+tokens: 926
+---
+
 # Runbook — deploy / update a service (Arcane GitOps, the skynet way)
 
 **Tier:** T2 (PR-gated). **Executor:** `scripts/gitops-deploy.sh` + Arcane Git Sync. **Rollback:** `git revert`.

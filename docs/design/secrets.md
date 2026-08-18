@@ -1,3 +1,8 @@
+---
+summary: "How Skynet holds secrets with sops+age so plaintext never leaves the repo, plus the .env.git/project.env layering."
+tokens: 778
+---
+
 # Spoke · Secrets
 
 > How Skynet holds secrets so Google never sees plaintext and the repo can hold encrypted history

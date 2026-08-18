@@ -1,3 +1,9 @@
+---
+summary: "Clone the golden template into a hardened VM with restic, under a scoped auto-expiring root grant."
+trigger: "Set up a VM for X, hardened, with restic"
+tokens: 525
+---
+
 # Runbook — provision a hardened VM
 
 **Tier:** T2 clone + T2+ root grant for hardening. **Trigger:** *"Set up a VM for X, hardened, with restic."*

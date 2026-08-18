@@ -1,3 +1,9 @@
+---
+summary: "Publish a service through the apps Caddy front door: edit the Caddyfile then PR then deploy."
+trigger: "Publish or expose a service"
+tokens: 1636
+---
+
 # Runbook — publish a service through the apps Caddy (the front door)
 
 **Tier:** T2 (PR-gated). **Executor:** edit the Caddyfile → PR → Ali merges → `scripts/gitops-deploy.sh caddy-apps`.

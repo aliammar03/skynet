@@ -1,3 +1,9 @@
+---
+summary: "Restore a service or VM from restic/PBS — conversational and deterministic, executable verbatim."
+trigger: "Restore a service / recover from backup"
+tokens: 1105
+---
+
 # Runbook — restore a service (conversational, deterministic)
 
 **Tier:** T2 + (if VM restore) T2 PBS token. **Goal:** any agent can execute this verbatim.

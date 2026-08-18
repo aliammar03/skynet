@@ -1,3 +1,8 @@
+---
+summary: "Where Skynet sits, how it's addressed on VLAN 90, and the firewall rules bounding its reach to exactly what it needs."
+tokens: 1227
+---
+
 # Spoke · Network & placement
 
 > Where Skynet sits, how it's addressed, and the firewall rules that let it reach exactly what it

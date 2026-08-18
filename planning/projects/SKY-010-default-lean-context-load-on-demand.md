@@ -6,7 +6,7 @@ horizon: short
 created: 2026-08-17
 updated: 2026-08-18
 phases: 4
-current_phase: 1
+current_phase: 2
 tier_touched: [T1]     # repo files + read-only greps on the ops VM. No blast radius; no PR to system-design.
 related:
   - docs/design/memory.md
@@ -109,7 +109,7 @@ Exit criteria: a measured inventory of the default-loaded set exists; each block
 always/on-demand; the default-lean principle is documented; safe prunes landed.
 Grants / human actions: none.
 
-### Phase 2 — budget frontmatter + cost script  (~1–2h)   `[ ]` not started
+### Phase 2 — budget frontmatter + cost script  (~1–2h)   `[x]` done
 Give every loadable a declared abstract and a computed token weight (so the audit + map have numbers).
 Steps:
 1. Add to the docs convention (`docs/conventions/docs.md`, the authoritative home): loadable `.md`
@@ -196,4 +196,12 @@ Follow AGENTS.md as above.
   *movable*, relocation deferred to P3; Judgement Day invariants stay always-loaded). Documented the
   **default-lean discipline** as a first-class `[manual]` section in `docs/design/memory.md` (peer to
   the episodic layer) with the audited-baseline table; rebalanced the intro + four-kinds "Working"
-  row. No forced prunes — baseline is link-clean. Progress: memory `[[SKY-010-progress]]`. PR: _pending_.
+  row. No forced prunes — baseline is link-clean. Progress: memory `[[SKY-010-progress]]`. PR #52 (merged).
+- 2026-08-18 — **Phase 2 done.** Added `scripts/budget-frontmatter.sh` — read-only, idempotent,
+  content-stable; ~tokens = content-bytes/4 (the file's own `tokens:` line excluded ⇒ the value
+  converges), refreshes a **generated** `tokens:` field, and `--check` fails CI on stale tokens or a
+  missing summary. Documented the `summary`/`trigger`/generated-`tokens` schema in
+  `docs/conventions/docs.md` (the authoritative home) `[testable]`. Backfilled authored `summary:`
+  (+ `trigger:` on runbooks) across the 27-file on-demand corpus (design + conventions spokes,
+  runbooks + dr). Corpus ≈ 27.1K tok; always-loaded baseline reconfirmed at 2303. Also regenerated the
+  roadmap (the #51/#52 merge had dropped SKY-011's row). Progress: memory `[[SKY-010-progress]]`. PR: _pending_.
