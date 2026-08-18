@@ -4,9 +4,9 @@ title: Default-lean context — strip the baseline, load on demand
 status: in-progress
 horizon: short
 created: 2026-08-17
-updated: 2026-08-17
+updated: 2026-08-18
 phases: 4
-current_phase: 0
+current_phase: 1
 tier_touched: [T1]     # repo files + read-only greps on the ops VM. No blast radius; no PR to system-design.
 related:
   - docs/design/memory.md
@@ -87,7 +87,7 @@ any engine runs and a Claude scout can call internally. Same capability, degrade
   (disposable, rebuildable); `bin/recall` is read-only; baseline prunes are content moves, not deletes.
 - **Grants / human actions:** none. Lands via PR like everything else (agent never merges its own).
 
-### Phase 1 — baseline audit + default-lean doctrine  (~1–2h)   `[ ]` not started
+### Phase 1 — baseline audit + default-lean doctrine  (~1–2h)   `[x]` done
 Find and remove everything that auto-loads without earning it.
 Steps:
 1. **Inventory** what enters context by default: `CLAUDE.md` → `AGENTS.md` import, the mandated
@@ -190,3 +190,10 @@ Follow AGENTS.md as above.
   may obviate) SKY-006 P3's semantic index. Sibling idea: promoting deterministic runbooks to
   executable capabilities (kills procedural read cost) — worth its own SKY-###.
 - 2026-08-17 — promoted to **projects/** (active, fully phased). Ready to execute from Phase 1.
+- 2026-08-18 — **Phase 1 done.** Measured the default-loaded baseline (bytes/4): always-loaded ≈ 2.3K
+  (`CLAUDE.md` 213 + `AGENTS.md` 2090), cold-boot `06-agent-digest.md` 946, whole repo ≈ 115.6K.
+  Classified each block always/movable (`AGENTS.md` §4 deploy-detail + §5 planning-detail marked
+  *movable*, relocation deferred to P3; Judgement Day invariants stay always-loaded). Documented the
+  **default-lean discipline** as a first-class `[manual]` section in `docs/design/memory.md` (peer to
+  the episodic layer) with the audited-baseline table; rebalanced the intro + four-kinds "Working"
+  row. No forced prunes — baseline is link-clean. Progress: memory `[[SKY-010-progress]]`. PR: _pending_.
