@@ -24,7 +24,6 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 - **SKY-003** (projects · in-progress · 2/5) — Apps reverse proxy + Authentik SSO ingress
 - **SKY-006** (projects · in-progress · 2/3) — Agent episodic memory: journal + retrieval
-- **SKY-010** (projects · in-progress · 3/4) — Default-lean context — strip the baseline, load on demand
 - **SKY-011** (projects · in-progress · 0/3) — Machine-enforced invariants and the ambiguity-layering doctrine
 - **SKY-002** (ideas · draft) — Ongoing backup strategy for CT 240 (PBS host)
 - **SKY-004** (ideas · draft) — Reactive operations: event-driven layer + drift-as-signal
@@ -34,17 +33,18 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 **Loose ends from recent episodes** (the journal's own open-thread bullets, verbatim):
 
+- SKY-010 is done (4/4). A Claude subagent scout should call `bin/recall` internally, then read only the top hits — same capability, engine-specific wrapper. — _2026-08-18 session_
+- Sibling idea still unclaimed: promoting deterministic runbooks to executable capabilities (its own SKY-###) — would cut procedural read cost the way this cut retrieval cost. — _2026-08-18 session_
+- Once a lint/pre-commit gate runs `budget-frontmatter.sh --check`, editing a doc without refreshing `tokens:` fails CI (bit me on `nightly.md` in P3) — wire the refresh into the gate or a pre-commit. — _2026-08-18 session_
 - Phase 3: git-rebuildable local semantic index (sqlite-vec class) — still deferred until markdown + grep visibly strains (research "overkill line"). — _2026-08-17 session_
 - Open-threads harvest scans the most recent journal entries until it has 8 bullets; a thread can appear twice if two entries mention it. If the journal grows noisy this may want an "resolved" prune convention or a dedup pass. — _2026-08-17 session_
 - Phase 2: fold a rolling cold-boot digest ("state + recent decisions + open threads") into `docs/generated/05-state-of-the-lab.md` so a fresh session orients from one page. — _2026-08-17 session_
 - Phase 3: git-rebuildable local semantic index (sqlite-vec class) — deferred until markdown+grep visibly strains (research brief's "overkill line"). — _2026-08-17 session_
 - SKY-005 isn't built yet, so "incident" entries have no automated writer today — the nightly (session) is the only live feeder until then. The convention is ready for SKY-005 to adopt. — _2026-08-17 session_
-- The raw-write rule is `[manual]` until the parked convention lint gate can assert it. — _2026-08-17 session_
-- P3 (semantic index) is the only SKY-006 phase left, still parked behind the "overkill line". — _2026-08-17 session_
-- If a future engine keeps its own private memory, keep the repo/engine boundary (spoke's last section) crisp so the in-repo layer stays the authoritative, portable one. — _2026-08-17 session_
 
 ## 📓 Recent episodes
 
+- **2026-08-18** · session · [[2026-08-18-session-sky-010-p4-read-time-scout-bin-recall|SKY-010 P4 — read-time scout (bin/recall)]]
 - **2026-08-17** · session · [[2026-08-17-session-sky-006-p2-rolling-cold-boot-digest|SKY-006 P2 — rolling cold-boot digest]]
 - **2026-08-17** · session · [[2026-08-17-session-sky-006-p1-stand-up-the-journal|SKY-006 P1 — stand up the journal]]
 - **2026-08-17** · session · [[2026-08-17-session-formalize-the-memory-design-spoke|formalize the memory design spoke]]
