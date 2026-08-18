@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# recall — read-time scout: grep the repo's memory for a topic and rank what's worth opening.
+#   TIER: T1 (read-only — greps journal/ + docs/ + runbooks/ + planning/; never writes).
+#   USAGE: bin/recall <topic> [more terms...]
+#     Prints the files that mention the topic, ranked by relevance, each with its ~token cost and
+#     one-line summary — so a cold session (or a subagent scout) opens only the few that matter,
+#     distills them in a THROWAWAY window, and returns just the conclusion to the main context.
+#     It never persists a summary (ADR 0002): the raw journal/docs stay the source of truth; the
+#     distillation lives for one query. The machine-neutral twin of a Claude subagent scout — any
+#     engine runs this; a Claude scout can call it internally. Leans on the SKY-010 P2 `tokens:` +
+#     `summary:` frontmatter for the cost/label columns.
+set -euo pipefail
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "${REPO_DIR}"
+
+[ "${1:-}" ] || { echo "usage: bin/recall <topic> [more terms...]" >&2; exit 2; }
+# OR-join the terms into one case-insensitive regex (broad recall).
+re="$1"; shift || true; for t in "$@"; do re="${re}|${t}"; done
+
+SEARCH="journal docs runbooks planning AGENTS.md README.md"
+
+fm()   { awk -v k="$2" 'NR==1&&$0=="---"{f=1;next} f&&$0=="---"{exit} f{if($0 ~ ("^" k ":")){sub("^" k ":[[:space:]]*","");gsub(/^"|"$/,"");print;exit}}' "$1"; }
+toks() { local t b; t=$(fm "$1" tokens); if [ -n "$t" ]; then echo "$t"; else b=$( { grep -v '^tokens:' "$1" || true; } | wc -c); echo $(( b / 4 )); fi; }
+summ() { local s; s=$(fm "$1" summary); [ -n "$s" ] || s=$(fm "$1" title); [ -n "$s" ] || s=$(grep -m1 '^# ' "$1" 2>/dev/null | sed -E 's/^#+[[:space:]]*//'); printf '%s' "${s:-—}"; }
+
+# matching files (skip the machine-owned generated/ derivatives and .git)
+mapfile -t hits < <(grep -rilIE --include='*.md' --exclude-dir=generated --exclude-dir=.git -- "$re" $SEARCH 2>/dev/null | sort -u)
+
+if [ "${#hits[@]}" -eq 0 ]; then
+  printf 'recall "%s" — no matches. Try broader/other terms, or grep -ri manually.\n' "$re"
+  exit 0
+fi
+
+# rank: most hits first, then cheapest to open among equals
+rows=""
+for f in "${hits[@]}"; do
+  [ -e "$f" ] || continue
+  n=$(grep -icE -- "$re" "$f" || true)
+  rows+="${n}	$(toks "$f")	${f}"$'\n'
+done
+
+printf 'recall "%s" — %s file(s) mention it (ranked; open the top few, distill, do NOT load all):\n\n' "$re" "${#hits[@]}"
+printf '%s' "$rows" | sort -t$'\t' -k1,1nr -k2,2n | head -n 20 | while IFS=$'\t' read -r n t f; do
+  [ -n "$f" ] || continue
+  printf '  %2s hit(s) · ~%5s tok · %s\n' "$n" "$t" "$f"
+  printf '              %s\n' "$(summ "$f")"
+  line=$(grep -im1 -E -- "$re" "$f" 2>/dev/null | sed -E 's/^[[:space:]]+//; s/[[:space:]]+/ /g' | cut -c1-96)
+  [ -n "$line" ] && printf '              ↳ %s\n' "$line"
+  printf '\n'
+done
+
+printf 'Scout rule: open only what you need, summarize in a throwaway window, return the conclusion.\n'
+printf 'Never persist that summary — the raw source stays truth (ADR 0002); it lives for one query.\n'
