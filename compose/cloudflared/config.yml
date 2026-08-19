@@ -1,7 +1,7 @@
 # cloudflared ingress — the tunnel's routing table, in reviewed git; mounted ro (locally-managed).
 # A hostname is public only with BOTH a rule here AND a public DNS CNAME → <id>.cfargotunnel.com.
 # See docs/design/identity-and-proxy.md.
-tunnel: 7f4c50f9-cee6-40bb-ad5a-ef6c7f30ca56
+tunnel: b5171e13-f6c4-409c-8b60-760f769c706b
 credentials-file: /etc/cloudflared/credentials.json
 
 # First match wins; list MUST end with the catch-all.
@@ -11,4 +11,9 @@ ingress:
     service: https://10.10.100.35
     originRequest:
       originServerName: obsidian.aliammar.net   # SNI → Caddy serves the right LE cert, not the IP
+  # karakeep — own-auth (its own login); reuses the internal Caddy vhost (→ 10.10.100.75:3000).
+  - hostname: karakeep.aliammar.net
+    service: https://10.10.100.35
+    originRequest:
+      originServerName: karakeep.aliammar.net
   - service: http_status:404
