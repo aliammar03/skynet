@@ -57,6 +57,13 @@ time, each an explicit git change.
   Let's Encrypt cert and routes to the backend, so TLS stays end-to-end (edge → cloudflared → Caddy →
   service) and **publishing a new app publicly = add one `ingress` line + one public DNS record**,
   reusing the internal Caddy route verbatim. **(CHOSEN)**
+- **The connector reuses CT 1033's IP, `10.10.100.33`.** The docker service takes the DMZ static IP
+  the LXC holds today. Two payoffs: it **inherits the existing `HOST_CLOUDFLARED` egress** (firewall
+  rule 800 already permits `.33 → 443, 7844`), so **no OPNsense change is needed**; and it makes the
+  cutover clean. The catch — one IP can't be in two places — sets the sequencing: the container can
+  only bind `.33` **after** CT 1033 is stopped, so **bring-up *is* the cutover** (no parallel run). We
+  trade the parallel-fallback for a symmetric, seconds-fast rollback: CT 1033 is **stopped, not
+  destroyed**, during a soak, so backing out is `docker compose down` + `pct start 1033`. **(CHOSEN)**
 - **Pilot = one app, own-auth.** First public hostname is **`obsidian.aliammar.net`** (SKY-013):
   it self-gates (CouchDB → `401` without creds), its contents are **E2E-encrypted** on the client, and
   remote sync is the motivating use case. Edge guard = **the service's own login** (no Cloudflare
@@ -87,78 +94,88 @@ time, each an explicit git change.
   - **T2** — `vm-docker-dmz` (the cloudflared compose service, via Arcane GitOps + `svc-ops`);
     `compose/caddy-apps` unchanged but is the origin.
   - **T3 / human** — **Cloudflare account** (create/attach the tunnel, mint its token, add the public
-    DNS record); **OPNsense** (egress for the connector's new source IP + Cloudflare transport port
-    `7844`, if not already covered — rule 800 today keys on the CT 1033 alias); **Proxmox** (stop /
-    retire CT 1033). Each is a **⚠ checkpoint** — Ali acts.
+    DNS record); **Proxmox** (stop, then later destroy, CT 1033). Each is a **⚠ checkpoint** — Ali
+    acts. **No OPNsense change** — reusing `.33` keeps the connector inside the existing rule-800
+    egress (confirm `7844` is in that alias before cutover; cloudflared falls back to `443` if not).
   - **Blast-radius boundary moves** (internal-only → a sanctioned public path) ⇒ **this plan PRs
     `docs/system-design.md`** + the `identity-and-proxy` spoke. Done in Phase 1.
-- **Rollback posture:** `git revert` the compose / `config.yml` PR → `gitops-deploy` reconciles the
-  connector away; the public hostname stops resolving to the tunnel the moment the DNS record is
-  pulled. **CT 1033 is left running until Phase 2's cutover succeeds**, so the break-glass path is
-  "delete the new DNS record, re-point to the old tunnel" until we deliberately retire it.
+- **Rollback posture:** because the container and CT 1033 **share `.33`**, the two never run at once —
+  so the break-glass path is the LXC, kept **stopped-not-destroyed** through a soak: `docker compose
+  down` the connector + `pct start 1033` restores the old tunnel in seconds. `git revert` the
+  compose / `config.yml` PR reconciles the connector away; pulling the public DNS record stops the
+  hostname resolving to the tunnel immediately. CT 1033 is destroyed only **after** the soak proves
+  the new path.
 - **Grants / human actions:** no standing-tier expansion. The T3 touches are all **Ali-applied,
   one-shot** (Cloudflare dashboard, one OPNsense rule, one `pct stop`), not new standing routes.
 
-### Phase 1 — Sanction the path + stand up the managed connector (no public app yet)  (~1–2h)   `[ ]` not started
+### Phase 1 — Sanction the path + build the connector (validated, not yet deployed)  (~1–2h)   `[ ]` not started
+
+*(No deploy here: `.33` is still CT 1033's, so standing the container up = the cutover, which is
+Phase 2. Phase 1 lands everything that can land without touching the live tunnel.)*
 
 Steps:
 1. **Amend the constitution (PR).** `docs/system-design.md` + `docs/design/identity-and-proxy.md`:
    define **the public path** — cloudflared is now a **T2 Skynet-managed** service; its origin is the
    apps-Caddy; **only hostnames with an explicit `ingress` entry are public**, each added by PR;
    own-auth (or stronger) is required at the edge; the tunnel credential is sops. State the invariant:
-   *the internal path is unchanged and never transits Cloudflare.* Update the network spoke's
-   `HOST_CLOUDFLARED` note (source moves from CT 1033 to the docker-dmz service).
+   *the internal path is unchanged and never transits Cloudflare.* Note that `HOST_CLOUDFLARED` /
+   `.33` is **retained** — its runtime moves from the LXC to the docker-dmz service, so rule 800
+   carries over unchanged.
 2. **Cloudflare side (⚠ checkpoint — Ali).** Create/attach the tunnel, mint its **token/credential**,
    hand it to Skynet to store in `.env.sops` (never in a commit/transcript). Confirm the
-   credential-delivery mechanism per §2's open detail.
+   credential-delivery mechanism per §2's open detail. Confirm `7844` is inside the rule-800 alias
+   (else the connector will fall back to `443`, which is fine).
 3. **Build `compose/cloudflared/` the skynet way:** `cloudflare/cloudflared` **digest-pinned**,
    `restart: unless-stopped`, `env_file: [.env]`, `x-arcane` tag (reuse a fitting role or add one),
-   on the `dmz` network. Command runs the tunnel against a **git-tracked `config.yml`** whose single
-   `ingress` origin is `https://10.10.100.35` with `originServerName` set so Caddy's cert verifies —
-   plus the mandatory catch-all `http_status:404`. **No public hostname yet** (or a harmless
-   placeholder). Stateless service → **no named volume**. **Healthcheck** against cloudflared's
-   `/ready` metrics endpoint (expose `--metrics 0.0.0.0:<port>`; confirm the in-container probe tool —
-   the image is distroless-ish, so a bash `/dev/tcp` open on the metrics port may be the move, don't
-   assume curl exists).
+   on the `dmz` network at the **static IP `10.10.100.33`** (inherits rule-800 egress). Command runs
+   the tunnel against a **git-tracked `config.yml`** whose single `ingress` origin is
+   `https://10.10.100.35` with `originServerName` set so Caddy's cert verifies — plus the mandatory
+   catch-all `http_status:404`. **No public hostname yet.** Stateless service → **no named volume**.
+   **Healthcheck** against cloudflared's `/ready` metrics endpoint (expose `--metrics 0.0.0.0:<port>`;
+   confirm the in-container probe tool — the image is distroless-ish, so a bash `/dev/tcp` open on the
+   metrics port may be the move, don't assume curl exists).
 4. **Validate + PR** (teaching description: what a tunnel is, outbound-only, why origin=Caddy, why the
-   public path is now a reviewed boundary). **⚠ Ali merges.**
-5. **Deploy** `scripts/gitops-deploy.sh cloudflared`; verify the connector **registers with
-   Cloudflare** (4 edge connections / `Registered tunnel connection` in logs; `/ready` healthy) — the
-   tunnel is live but routes nothing public yet. CT 1033 still running untouched.
+   public path is now a reviewed boundary). Validation is offline (`docker compose config -q`) — the
+   service is **not deployed** while CT 1033 still holds `.33`. **⚠ Ali merges.**
 
-Exit criteria: `docs/system-design.md` + spoke sanction the public path (merged); the Skynet-managed
-`cloudflared` service is **(healthy)** and connected to the Cloudflare edge; **no** hostname is public
-yet; CT 1033 still up as the fallback. Refreshed inventory committed.
+Exit criteria: `docs/system-design.md` + spoke sanction the public path (merged); `compose/cloudflared/`
+is built, validated, and merged, pinned to `.33` with a git-tracked ingress that routes nothing public
+yet; the Cloudflare tunnel + token exist (token in `.env.sops`). CT 1033 still serving untouched —
+nothing has cut over.
 Grants / human actions: **⚠ Ali creates the CF tunnel + supplies the token** (credential handling);
-**⚠ Ali merges the PRs**. Possible **⚠ OPNsense egress** for port `7844` from the new source (T3) —
-confirm whether existing `443` egress suffices first (cloudflared falls back to `443` if `7844` is
-blocked).
+**⚠ Ali merges the PRs**. No OPNsense, no Proxmox action yet.
 
-### Phase 2 — Publish the pilot, verify from outside, retire CT 1033  (~1–2h)   `[ ]` not started
+### Phase 2 — Cut over to `.33`, publish the pilot, verify from outside, retire CT 1033  (~1–2h)   `[ ]` not started
 
 Steps:
-1. **Route the pilot (PR).** Add `obsidian.aliammar.net` to `config.yml`'s `ingress` (→ the Caddy
+1. **Free the IP (⚠ checkpoint — Ali).** `pct stop 1033` — releases `10.10.100.33`. CT 1033 is
+   **stopped, not destroyed**: it's the rollback.
+2. **Cut over.** `scripts/gitops-deploy.sh cloudflared` → the container binds `.33` and **registers
+   with Cloudflare** (4 edge connections / `Registered tunnel connection` in logs; `/ready` healthy).
+   Still nothing public — this just proves the managed connector runs on the inherited IP + egress.
+   *Rollback if it doesn't: `docker compose down` + `pct start 1033`.*
+3. **Route the pilot (PR).** Add `obsidian.aliammar.net` to `config.yml`'s `ingress` (→ the Caddy
    origin). **⚠ Ali adds the public DNS record** on Cloudflare (`obsidian.aliammar.net` CNAME →
    `<tunnel-id>.cfargotunnel.com`, proxied) — a specific record that overrides the public wildcard for
    this host only. **⚠ Ali merges**, then `gitops-deploy.sh cloudflared`.
-2. **Verify from the public internet** (not just a DMZ peer — the whole point is off-network):
+4. **Verify from the public internet** (not just a DMZ peer — the whole point is off-network):
    from a device **off** the LAN (Ali's phone on cellular, or an external checker),
    `https://obsidian.aliammar.net/_up` → `200` with a valid cert, and root without creds → `401`.
    Confirm the **internal** path is unchanged (internal client still resolves via Technitium straight
    to apps-Caddy, not through Cloudflare).
-3. **Prove the use case:** LiveSync round-trips from the off-network device through the tunnel
+5. **Prove the use case:** LiveSync round-trips from the off-network device through the tunnel
    (an edit made on cellular lands on a LAN device and back).
-4. **Cutover + retire CT 1033 (⚠ checkpoint — Ali).** Once the Skynet tunnel is proven, **Ali stops
-   CT 1033** (`pct stop 1033`, then destroy after a soak). Skynet updates `inventory/` + the firewall
-   docs (retire/repoint the `HOST_CLOUDFLARED` alias to the docker-dmz service; remove the stale
-   CT 1033 egress if orphaned — an OPNsense change, Ali-applied).
+6. **Soak, then retire (⚠ checkpoint — Ali).** After the new path soaks, **Ali destroys CT 1033**.
+   Skynet updates `inventory/` + the firewall docs to record that `HOST_CLOUDFLARED` / `.33` now =
+   the docker-dmz service (rule 800 unchanged, the LXC row retired).
 
 Exit criteria: `obsidian.aliammar.net` is reachable and syncing **from the public internet** through
-the Skynet-managed tunnel; own-auth gates it (`401` without creds); the internal path is unchanged;
-CT 1033 is stopped/retired and inventory + firewall docs reflect the new source. Adding the *next*
-public app is now a one-line `ingress` + one DNS-record PR.
-Grants / human actions: **⚠ Ali adds the public DNS record**; **⚠ Ali merges the PR**; **⚠ Ali stops/
-retires CT 1033** and applies any OPNsense alias change (T3). No standing grant.
+the Skynet-managed tunnel on `.33`; own-auth gates it (`401` without creds); the internal path is
+unchanged; CT 1033 is stopped (destroyed after soak) and inventory + firewall docs reflect the new
+runtime behind `.33`. Adding the *next* public app is now a one-line `ingress` + one DNS-record PR.
+Grants / human actions: **⚠ Ali `pct stop 1033`** (frees the IP; the rollback); **⚠ Ali adds the
+public DNS record**; **⚠ Ali merges the PR**; **⚠ Ali destroys CT 1033** after the soak. No standing
+grant, no OPNsense change.
 
 ## 4. ▶ Execute prompt
 > Paste into a fresh Skynet session to run this directive. Swap `<N>` for the phase to run.
@@ -188,3 +205,7 @@ Follow AGENTS.md as above.
   with a Skynet-managed cloudflared; tunnel origin = apps-Caddy (SNI forward, TLS end-to-end); pilot =
   `obsidian.aliammar.net` own-auth; ingress config in git. Moves the internal-only→public boundary, so
   Phase 1 PRs `docs/system-design.md` + the identity-and-proxy spoke.
+- 2026-08-19 — revised: the container **reuses CT 1033's IP `10.10.100.33`** (inherits rule-800 egress
+  → no OPNsense change). Shared IP ⇒ bring-up IS the cutover: Phase 1 now builds+validates only (no
+  deploy), Phase 2 does `pct stop 1033` → deploy on `.33` → publish → verify → destroy after soak.
+  Rollback = `compose down` + `pct start 1033` (LXC kept stopped-not-destroyed through the soak).
