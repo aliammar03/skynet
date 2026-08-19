@@ -19,20 +19,25 @@ The credential is a secret, so it never lives plaintext in git. Source of truth 
 `credentials.json.sops` (sops+age, this dir); the runtime copy is `0600` on the docker host,
 bind-mounted read-only. Steps, done once when the tunnel is created:
 
-1. **Create/attach the tunnel** in Cloudflare (or `cloudflared tunnel create skynet`). This yields a
-   `credentials.json` and a **Tunnel ID** (a UUID).
-2. **Put the TunnelID** into [`config.yml`](config.yml) (`tunnel:` — replaces `TODO-TUNNEL-ID`). The
-   UUID is not secret (it's also the public CNAME target `<id>.cfargotunnel.com`).
-3. **Encrypt for git/DR** (the `.sops.yaml` rule already covers this path):
+1. **Create/attach the tunnel.** SKY-014 reuses CT 1033's existing tunnel (id
+   `7f4c50f9-cee6-40bb-ad5a-ef6c7f30ca56`); its credential came from CT 1033's `--token-file`,
+   reconstructed into a `credentials.json`. (A fresh tunnel via `cloudflared tunnel create` works
+   identically.) The **Tunnel ID** is not secret — it's also the public CNAME target
+   `<id>.cfargotunnel.com`.
+2. **Put the TunnelID** into [`config.yml`](config.yml) (`tunnel:`).
+3. **Encrypt for git/DR.** The `.sops` extension makes sops guess *binary*, and encrypting from a
+   path that doesn't match the creation rule fails with "no matching creation rules" — so pass the
+   json types **and** `--filename-override` (so it matches the `.sops.yaml` rule):
    ```bash
-   sops -e --input-type json --output-type json credentials.json \
+   sops --encrypt --filename-override compose/cloudflared/credentials.json.sops \
+     --input-type json --output-type json credentials.json \
      > compose/cloudflared/credentials.json.sops
    ```
-4. **Place the runtime copy** on `vm-docker-dmz`, `0600`, at the bind-mount source:
+4. **Place the runtime copy** on `vm-docker-dmz`, `0600`, at the bind-mount source (repo→host restore,
+   per docs/design/secrets.md — note the explicit json types on decrypt too):
    ```bash
-   # from the sops copy (the repo→host restore direction, per docs/design/secrets.md):
    install -d -m700 /opt/docker/appdata/cloudflared/creds
-   sops -d compose/cloudflared/credentials.json.sops \
+   sops -d --input-type json --output-type json compose/cloudflared/credentials.json.sops \
      | install -m600 /dev/stdin /opt/docker/appdata/cloudflared/creds/credentials.json
    ```
 5. **Confirm egress** (already true): OPNsense rule 800 permits `.33 → 443,7844`, so no firewall

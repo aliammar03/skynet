@@ -5,7 +5,7 @@
 # tunnel + credentials-file identify WHICH tunnel this connector serves. The TunnelID (a public
 # UUID, also the CNAME target <id>.cfargotunnel.com) is filled at the Cloudflare checkpoint; the
 # secret half lives only in credentials.json (sops, never here).
-tunnel: TODO-TUNNEL-ID
+tunnel: 7f4c50f9-cee6-40bb-ad5a-ef6c7f30ca56
 credentials-file: /etc/cloudflared/credentials.json
 
 # ingress: FIRST MATCH WINS, and the list MUST end with a catch-all.

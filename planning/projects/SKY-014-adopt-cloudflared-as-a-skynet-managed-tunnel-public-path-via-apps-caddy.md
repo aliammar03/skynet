@@ -209,6 +209,12 @@ Follow AGENTS.md as above.
   → no OPNsense change). Shared IP ⇒ bring-up IS the cutover: Phase 1 now builds+validates only (no
   deploy), Phase 2 does `pct stop 1033` → deploy on `.33` → publish → verify → destroy after soak.
   Rollback = `compose down` + `pct start 1033` (LXC kept stopped-not-destroyed through the soak).
+- 2026-08-19 — **PR #67 MERGED** + **Cloudflare checkpoint done → PR #68** (`phase/sky-014-p1-credential`).
+  Reused CT 1033's existing tunnel (id `7f4c50f9-cee6-40bb-ad5a-ef6c7f30ca56`; it ran a `--token-file`
+  with **no Published application routes**, so git-managed ingress breaks nothing). Reconstructed a
+  `credentials.json` from the token, sealed it `sops+age` at `compose/cloudflared/credentials.json.sops`
+  (round-trip verified), and wired the real id into `config.yml`. CT 1033 **stopped, not destroyed**;
+  `.33` free. **Phase 1 complete on #68 merge.** Then Phase 2 (deploy on `.33`).
 - 2026-08-19 — **Phase 1 agent-work done → PR #67** (branch `phase/sky-014-p1`). Constitution +
   `identity-and-proxy` spoke sanction the public path; `compose/cloudflared/` built + validated offline
   (`docker compose config -q` ✓), pinned to `.33`, ingress routes nothing public (404 catch-all only).
