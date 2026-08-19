@@ -35,10 +35,10 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 
 | Path | ~tok | Summary |
 |---|--:|---|
-| `docs/design/access-and-trust.md` | 1836 | The trust tiers in full — every token, ACL, principal, and the auto-expiring SSH root grant Skynet can request but never mint. |
-| `docs/design/disaster-recovery.md` | 947 | The survival kit and how each node-loss scenario is recovered; the step-by-step procedures live in runbooks/dr/. |
+| `docs/design/access-and-trust.md` | 1776 | The trust tiers in full — every token, ACL, principal, and the auto-expiring SSH root grant Skynet can request but never mint. |
+| `docs/design/disaster-recovery.md` | 926 | The survival kit and how each node-loss scenario is recovered; the step-by-step procedures live in runbooks/dr/. |
 | `docs/design/gitops-loop.md` | 900 | How a service change becomes a running container via Arcane, with git-revert rollback and image pinning + Renovate. |
-| `docs/design/identity-and-proxy.md` | 2222 | The two front doors, split-horizon DNS, and the forward_auth boundary that publishes apps without holding auth's keys (SKY-003). |
+| `docs/design/identity-and-proxy.md` | 3007 | The two front doors, split-horizon DNS, the forward_auth boundary that publishes apps without holding auth's keys (SKY-003), and the sanctioned public path via a Skynet-managed Cloudflare Tunnel (SKY-014). |
 | `docs/design/memory.md` | 2933 | How a stateless agent remembers: the four memory kinds, the episodic journal→digest, and the default-lean working-memory discipline. |
 | `docs/design/network.md` | 1227 | Where Skynet sits, how it's addressed on VLAN 90, and the firewall rules bounding its reach to exactly what it needs. |
 | `docs/design/observability.md` | 972 | How machine state becomes human-readable docs, and how the nightly run keeps the picture current. |
@@ -49,9 +49,9 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 | Path | ~tok | Summary |
 |---|--:|---|
 | `docs/conventions/compose.md` | 1085 | The single 'skynet way' every service's compose conforms to, so the fleet is uniform and Arcane's GitOps loop can own it. |
-| `docs/conventions/docs.md` | 1422 | How Skynet's prose is structured: hub-and-spoke, ADRs, runbooks, README-as-catalog, and loadable summary/trigger/tokens frontmatter. |
+| `docs/conventions/docs.md` | 1603 | How Skynet's prose is structured: hub-and-spoke, ADRs, runbooks, README-as-catalog, and loadable summary/trigger/tokens frontmatter. |
 | `docs/conventions/git.md` | 591 | How change enters the repo: one branch per unit of work, one PR per phase, and the agent never merging its own PRs. |
-| `docs/conventions/layout.md` | 1042 | Where each kind of artifact lives, and the minimum files each must have to be well-formed. |
+| `docs/conventions/layout.md` | 1422 | Where each kind of artifact lives, and the minimum files each must have to be well-formed. |
 | `docs/conventions/metadata.md` | 641 | The structured fields machines read: directive frontmatter, service-catalog entries, and the compose label/tag namespaces. |
 | `docs/conventions/naming.md` | 717 | The one naming grammar — VMIDs, IPs, hostnames, slugs, branches — so a name is predictable and machine-validatable. |
 | `docs/conventions/scripts.md` | 663 | The house style for every executable in scripts/ and bin/: same shape, fails safe, and declares the tier it runs at. |
@@ -62,7 +62,7 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 |---|--:|---|
 | `compose/README.md` | 1508 | The compose/ service catalog and the Arcane GitOps deployment loop every project follows. |
 | `journal/README.md` | 1029 | The episodic journal format — session/incident/decision records, the Graveyard, and the write-raw/read-summarize rule. |
-| `planning/README.md` | 1122 | Where future work lives as SKY-### directives: the scratchpad→ideas→backlog→projects→archive lifecycle, bin/plan, and the roadmap. |
+| `planning/README.md` | 1167 | Where future work lives as SKY-### directives: the scratchpad→ideas→backlog→projects→archive lifecycle, bin/plan, and the roadmap. |
 | `runbooks/README.md` | 918 | Catalog of engine-neutral procedures any agent can execute, each tagged by tier and trigger — the routing menu. |
 | `templates/README.md` | 423 | The golden templates (compose, script, runbook, ADR, journal) that bin/new stamps so new artifacts inherit the house style. |
 
@@ -80,8 +80,8 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 
 ## Episodic memory — retrieve by topic, don't browse
 
-- `journal/` — 4 raw episodes, ≈ 3379 tok total. Retrieve by topic: `bin/recall <topic>` (SKY-010 P4) or `grep -ri "<topic>" journal/`; recent episodes are already in `06-agent-digest.md`. **Do not load the whole store.**
+- `journal/` — 5 raw episodes, ≈ 4737 tok total. Retrieve by topic: `bin/recall <topic>` (SKY-010 P4) or `grep -ri "<topic>" journal/`; recent episodes are already in `06-agent-digest.md`. **Do not load the whole store.**
 
 ---
-**On-demand corpus:** ≈ **36809** tok across 38 files — but you load a *row* (≈ tens of tok) to choose, then one file.
+**On-demand corpus:** ≈ **38119** tok across 38 files — but you load a *row* (≈ tens of tok) to choose, then one file.
 _A cache — regenerable from git via `render-context-map.sh`; never a source of truth._

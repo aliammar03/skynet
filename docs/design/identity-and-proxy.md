@@ -1,6 +1,6 @@
 ---
-summary: "The two front doors, split-horizon DNS, and the forward_auth boundary that publishes apps without holding auth's keys (SKY-003)."
-tokens: 2222
+summary: "The two front doors, split-horizon DNS, the forward_auth boundary that publishes apps without holding auth's keys (SKY-003), and the sanctioned public path via a Skynet-managed Cloudflare Tunnel (SKY-014)."
+tokens: 3007
 ---
 
 # Spoke · Identity & proxy
@@ -39,11 +39,12 @@ depends on that being deliberate:
 | Where | Resolver | `*.aliammar.net` → | Role |
 |---|---|---|---|
 | **Inside** | Technitium (split-horizon) | `10.10.100.35` (apps Caddy) | steers clients to the internal proxy |
-| **Outside** | Cloudflare (public authoritative) | not published internally | holds the ACME challenge + public cert trust |
+| **Outside** | Cloudflare (public authoritative) | wildcard not published; a **per-host CNAME → the tunnel** for each published hostname | holds the ACME challenge + public cert trust + the public path |
 
 So `karakeep.aliammar.net` **already resolves** internally to the apps proxy — the wildcard landed
-before the proxy existed. Nothing is published to the public internet by this design: internal-only
-ingress, Cloudflared is a separate path.
+before the proxy existed. By default a host is **internal-only**: it has no public DNS record, so it
+is unreachable from outside. Publishing one to the internet is a **deliberate, per-hostname act** —
+the sanctioned public path below (SKY-014) — never a blanket exposure.
 
 ## TLS — publicly-trusted certs with zero device-trust install
 
@@ -78,6 +79,42 @@ staged for (rule 240 → Authentik, rule 250 → origins):
 
 Publishing either kind is a PR against the Caddyfile → Ali merges → Arcane reconciles. The
 step-by-step for both paths lives in the `publish-service` runbook.
+
+## The public path — Cloudflare Tunnel (SKY-014)
+
+Everything above is the **internal** door. SKY-014 adds a second, deliberate boundary: a sanctioned
+way to publish **one hostname at a time** to the public internet, without ever opening an inbound
+hole in OPNsense.
+
+**cloudflared is now a T2 Skynet-managed GitOps service** (`compose/cloudflared/` on `vm-docker-dmz`),
+replacing the hand-run LXC (CT 1033). It reuses that box's DMZ address `10.10.100.33`, so it inherits
+OPNsense **rule 800** (`HOST_CLOUDFLARED .33 → 443, 7844`) — **no firewall change**.
+
+- **Outbound-only — the whole security property.** The connector *dials out* to Cloudflare's edge and
+  holds the link open; requests for our public hostnames ride back down it. **Nothing listens for
+  inbound connections, and no OPNsense inbound rule exists or ever will.** A tunnel is not a
+  port-forward.
+- **One origin: the apps Caddy.** The tunnel forwards every public request to the single origin
+  `https://10.10.100.35`, which already terminates the real Let's Encrypt cert and routes by hostname.
+  TLS stays **end-to-end** (edge → cloudflared → Caddy → service; `originServerName` set so Caddy
+  serves — and cloudflared verifies — the right cert). A public host therefore **reuses its internal
+  Caddy route verbatim** — no second copy of the routing.
+- **Ingress in git (locally-managed).** The routing table is a git-tracked `config.yml` (`ingress:`),
+  mounted read-only. A `--token` run is *remotely*-managed and would pull its ingress from the
+  Cloudflare dashboard instead ([cloudflared #1029](https://github.com/cloudflare/cloudflared/issues/1029)) —
+  a snowflake we reject; the price is that the credential is a `credentials.json` **file**, held
+  **sops**-encrypted, not a token.
+- **Per-hostname PR gate.** The default catch-all is `http_status:404`: a host is public **only** if
+  it has an explicit `ingress` entry **and** a public DNS record, each landed by PR. Publishing = one
+  `ingress` line + one CNAME. Blast radius is exactly the listed hostnames.
+- **Own-auth (or stronger) at the edge.** The pilot is `obsidian.aliammar.net` — CouchDB's own admin
+  login, contents E2E-encrypted on the client. An app **without** its own strong login must sit behind
+  Cloudflare Access / Authentik before it goes public (revisited then, not now).
+
+**The invariant this turns on:** the **internal path is unchanged and never transits Cloudflare**.
+Internal clients keep resolving `*.aliammar.net` via Technitium straight to the apps Caddy; only an
+external client hitting a *published* hostname traverses the tunnel. Public exposure is additive and
+per-host — it routes nothing internal through, and takes nothing away from, the internal door.
 
 ## The Authentik trust split — the boundary this directive moves
 
@@ -127,6 +164,7 @@ reach that SSH port in the first place.
 | Part | Home |
 |---|---|
 | Apps Caddy stack + `Caddyfile` (routes in git) | `compose/caddy-apps/` |
+| cloudflared connector + tunnel `ingress` (the public path, in git) | `compose/cloudflared/` |
 | Firewall aliases/rules (`HOST_PROXY_APPS`, `HOST_AUTHENTIK`, rules 200/240/250/830) | [network](network.md) |
 | The tier tiers themselves (T2/T3, scoped-token pattern) | [access-and-trust](access-and-trust.md) |
 | How a route change deploys (PR → Arcane reconcile) | [gitops-loop](gitops-loop.md) |

@@ -146,6 +146,16 @@ directives** — this section names the horizon and hands off.
   a T2 apps Caddy at `10.10.100.35` (the everyday-services twin of the T3 Management Caddy), detailed
   in the new [identity-and-proxy](design/identity-and-proxy.md) spoke. The tier decision is made — the
   apps door is T2, the Management door stays T3.
+- **A sanctioned public path (Cloudflare Tunnel)** — **landing via [SKY-014](../planning/projects/SKY-014-adopt-cloudflared-as-a-skynet-managed-tunnel-public-path-via-apps-caddy.md)**:
+  the hand-run cloudflared LXC (CT 1033) becomes a **T2 Skynet-managed** GitOps service on
+  `vm-docker-dmz`, reusing `.33` so it inherits firewall rule 800 (**no OPNsense change**). The
+  tunnel is **outbound-only** — it opens no inbound rule, ever — and fronts a **single origin, the
+  apps Caddy** (`10.10.100.35`), so publishing a service to the internet is **one reviewed `ingress`
+  line + one public DNS record, per hostname**, never a new door. The governing rules: **only
+  hostnames with an explicit `ingress` entry are public** (each added by PR), the edge requires the
+  service's **own-auth or stronger**, the tunnel credential is **sops**, and — the invariant this
+  turns on — the **internal path is unchanged and never transits Cloudflare** (Technitium keeps
+  steering internal clients straight to the apps Caddy). See [identity-and-proxy](design/identity-and-proxy.md).
 - **A secrets vault beyond sops+age** — an external backend (Vault / Infisical-class) if the
   service count outgrows file-level sops. Migration path sketched in [secrets](design/secrets.md).
 - **SSO / authentication** — Authentik graduating out of T3 into something the agent can operate
@@ -170,7 +180,7 @@ The depth lives here. **This set is open** — spokes are added by PR as the sys
 | Spoke | Covers | Sourced from (plan) |
 |---|---|---|
 | [network](design/network.md) | Placement, VM spec, VLAN 90, firewall aliases/rules | §1, §3 |
-| [identity-and-proxy](design/identity-and-proxy.md) | Two-door model, split-DNS, Cloudflare DNS-01, one-Caddy `forward_auth`, Authentik T2/T3 split | SKY-003 |
+| [identity-and-proxy](design/identity-and-proxy.md) | Two-door model, split-DNS, Cloudflare DNS-01, one-Caddy `forward_auth`, Authentik T2/T3 split, the public path (Cloudflare Tunnel) | SKY-003, SKY-014 |
 | [access-and-trust](design/access-and-trust.md) | Trust tiers in depth, Proxmox operate tokens, SSH user-CA + grants, T3 dormant aliases | §2, §7, §8 |
 | [secrets](design/secrets.md) | sops+age, `.env.git`/`project.env` layering, envsync | §5, §4 |
 | [gitops-loop](design/gitops-loop.md) | Arcane deploy loop, rollback, image pinning + Renovate | §4, §12 |
