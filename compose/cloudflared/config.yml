@@ -11,4 +11,9 @@ ingress:
     service: https://10.10.100.35
     originRequest:
       originServerName: obsidian.aliammar.net   # SNI → Caddy serves the right LE cert, not the IP
+  # karakeep — own-auth (its own login); reuses the internal Caddy vhost (→ 10.10.100.75:3000).
+  - hostname: karakeep.aliammar.net
+    service: https://10.10.100.35
+    originRequest:
+      originServerName: karakeep.aliammar.net
   - service: http_status:404
