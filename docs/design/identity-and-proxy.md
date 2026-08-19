@@ -1,6 +1,6 @@
 ---
 summary: "The two front doors, split-horizon DNS, the forward_auth boundary that publishes apps without holding auth's keys (SKY-003), and the sanctioned public path via a Skynet-managed Cloudflare Tunnel (SKY-014)."
-tokens: 3007
+tokens: 3229
 ---
 
 # Spoke · Identity & proxy
@@ -105,8 +105,17 @@ OPNsense **rule 800** (`HOST_CLOUDFLARED .33 → 443, 7844`) — **no firewall c
   a snowflake we reject; the price is that the credential is a `credentials.json` **file**, held
   **sops**-encrypted, not a token.
 - **Per-hostname PR gate.** The default catch-all is `http_status:404`: a host is public **only** if
-  it has an explicit `ingress` entry **and** a public DNS record, each landed by PR. Publishing = one
-  `ingress` line + one CNAME. Blast radius is exactly the listed hostnames.
+  it has an explicit `ingress` entry **and** a public DNS CNAME. Publishing = one `ingress` line + one
+  CNAME. Blast radius is exactly the listed hostnames. The **`ingress` PR is the gate** — a human
+  merges it, and the agent never merges its own. The CNAME half is a **T2 Cloudflare `DNS:Edit`**
+  action (below), written by `scripts/cf-dns-route.sh`, not a manual dashboard step.
+- **Cloudflare tier split — records T2, account T3.** Writing DNS records in `aliammar.net` (the
+  per-host tunnel CNAMEs, ACME challenges) is **T2**: a scoped `Zone:DNS:Edit` token — the same scope
+  Caddy's ACME already holds — kept `0600` at `/opt/skynet-ops/secrets/cloudflare-dns.env`, never in
+  git. The Cloudflare **account, Zero-Trust/Access policies, tunnel configuration, and zone settings**
+  are **T3** (Ali only). This mirrors the Technitium *zones vs server settings* split: records are not
+  privileged access. Rollback of a publish is symmetric — `cf-dns-route.sh --delete <host>` pulls the
+  CNAME and the hostname stops resolving to the tunnel at once.
 - **Own-auth (or stronger) at the edge.** The pilot is `obsidian.aliammar.net` — CouchDB's own admin
   login, contents E2E-encrypted on the client. An app **without** its own strong login must sit behind
   Cloudflare Access / Authentik before it goes public (revisited then, not now).
