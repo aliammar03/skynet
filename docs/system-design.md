@@ -43,8 +43,10 @@ that can grow without becoming dangerous.
 ### 2a. Hard laws — never negotiable, no PR loosens them
 
 - **No standing route or credential to T3.** OPNsense, Management Caddy, Authentik, Proxmox node
-  root, Unraid root, Technitium *server settings* — reached only through a dormant alias +
-  per-session credentials, revoked the same day. Never a standing path.
+  root, Unraid root, Technitium *server settings*, Cloudflare *account / Access / tunnel config* —
+  reached only through a dormant alias + per-session credentials, revoked the same day. Never a
+  standing path. (Cloudflare **DNS records** are the T2 exception — a scoped `DNS:Edit` token, as
+  Technitium *zones* are T2; see §2.)
 - **Root on workload hosts exists only inside a certificate's validity window.** The signing CA
   private key lives on Ali's workstation and **never** enters Skynet. This is the one access
   Skynet cannot mint for itself — temporary is guaranteed by physics, not by policy. Every root
@@ -92,9 +94,9 @@ principal — lives in [access-and-trust](design/access-and-trust.md); this is t
 | Tier | Scope | Mechanism | Standing? |
 |---|---|---|---|
 | **T1 Read** | Both Proxmox nodes, PBS, Docker hosts, DNS, firewall state (git mirror) | Read-only API tokens; mirrored `config.xml` | Always |
-| **T2 Operate** | `ops-managed` pools (both nodes), Docker hosts via Arcane + unprivileged SSH, Technitium zones; **backup/snapshot** of ops-managed guests | Scoped write tokens, `svc-ops` SSH, Technitium scoped token, Arcane API key | Yes — changes PR-gated |
+| **T2 Operate** | `ops-managed` pools (both nodes), Docker hosts via Arcane + unprivileged SSH, Technitium zones, Cloudflare **DNS records** (`aliammar.net` zone); **backup/snapshot** of ops-managed guests | Scoped write tokens, `svc-ops` SSH, Technitium scoped token, Arcane API key, Cloudflare scoped `DNS:Edit` token | Yes — changes PR-gated |
 | **T2+ Root grant** | Root shell on workload hosts (diagnose, harden, provision, OS updates) | SSH user-CA certificate, per-host principal, **auto-expiring** | Grant only; expires itself |
-| **T3 Privileged** | OPNsense, Management Caddy, Authentik, Proxmox node root, Unraid root, Technitium *server settings* | Dormant alias `ROLE_OPS_PRIV_TARGETS` + per-session credentials | **Never standing** |
+| **T3 Privileged** | OPNsense, Management Caddy, Authentik, Proxmox node root, Unraid root, Technitium *server settings*, Cloudflare *account / Access / tunnel config / zone settings* | Dormant alias `ROLE_OPS_PRIV_TARGETS` + per-session credentials | **Never standing** |
 
 - **Technitium is T2 for Zones view/modify only** — no Settings/Administration/DHCP. Server
   settings are T3.
@@ -102,6 +104,13 @@ principal — lives in [access-and-trust](design/access-and-trust.md); this is t
   `svc-skynet` token may CRUD Applications + Providers and bind an existing outpost — nothing else.
   Flows, Policies, Users, System settings, outpost tokens, and signing keys stay T3. Same shape as
   the Technitium split. (Landed by SKY-003 — see [identity-and-proxy](design/identity-and-proxy.md).)
+- **Cloudflare: DNS records are T2 (standing); the account is T3.** A scoped `Zone:DNS:Edit` token
+  for `aliammar.net` **only** lets the agent write records (the tunnel's per-host CNAMEs, ACME
+  challenges) — records aren't privileged access, exactly as Technitium *zones* are T2. The Cloudflare
+  **account, Zero-Trust/Access policies, tunnel configuration, and zone-level settings** stay T3
+  (Ali only). Same shape as the Technitium split. Publishing a hostname still needs its `ingress`
+  rule **human-merged** (the agent never merges its own PR) — that merge is the publish gate, not the
+  CNAME. (SKY-014 — see [identity-and-proxy](design/identity-and-proxy.md).)
 - **Pool membership is the blast-radius dial.** Joining a guest to an `ops-managed` pool hands the
   agent T2 over it; leaving it out keeps it look-but-don't-touch. **VM 5001 (OPNsense) never joins
   any pool** — same for CT 635, CT 837, Unraid VM 2020. Seen at T1, touched never (T3).
@@ -152,10 +161,12 @@ directives** — this section names the horizon and hands off.
   tunnel is **outbound-only** — it opens no inbound rule, ever — and fronts a **single origin, the
   apps Caddy** (`10.10.100.35`), so publishing a service to the internet is **one reviewed `ingress`
   line + one public DNS record, per hostname**, never a new door. The governing rules: **only
-  hostnames with an explicit `ingress` entry are public** (each added by PR), the edge requires the
-  service's **own-auth or stronger**, the tunnel credential is **sops**, and — the invariant this
-  turns on — the **internal path is unchanged and never transits Cloudflare** (Technitium keeps
-  steering internal clients straight to the apps Caddy). See [identity-and-proxy](design/identity-and-proxy.md).
+  hostnames with an explicit `ingress` entry are public** (each added by PR — the **human merge is
+  the publish gate**), the edge requires the service's **own-auth or stronger**, the tunnel credential
+  is **sops**, and — the invariant this turns on — the **internal path is unchanged and never transits
+  Cloudflare** (Technitium keeps steering internal clients straight to the apps Caddy). The per-host
+  CNAME is written by the agent under the **T2 Cloudflare `DNS:Edit`** grant (§2), not by hand. See
+  [identity-and-proxy](design/identity-and-proxy.md).
 - **A secrets vault beyond sops+age** — an external backend (Vault / Infisical-class) if the
   service count outgrows file-level sops. Migration path sketched in [secrets](design/secrets.md).
 - **SSO / authentication** — Authentik graduating out of T3 into something the agent can operate

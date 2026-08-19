@@ -25,11 +25,12 @@ infrastructure through your PRs — **write them to teach**.
 | Tier | Scope | Mechanism | Standing? |
 |---|---|---|---|
 | **T1 Read** | Both Proxmox nodes, PBS, Docker hosts, DNS, firewall state (git mirror) | Read-only API tokens; mirrored config.xml | Always |
-| **T2 Operate** | `ops-managed` pools on both nodes, Docker hosts via Arcane + unprivileged SSH, Technitium zones | Scoped write tokens, `svc-ops` SSH, Technitium scoped token, Arcane API key | Yes — changes PR-gated |
+| **T2 Operate** | `ops-managed` pools on both nodes, Docker hosts via Arcane + unprivileged SSH, Technitium zones, Cloudflare DNS records (`aliammar.net`) | Scoped write tokens, `svc-ops` SSH, Technitium scoped token, Arcane API key, Cloudflare scoped `DNS:Edit` token | Yes — changes PR-gated |
 | **T2+ Root grant** | Root shell on workload hosts (diagnose, harden, provision, OS updates) | SSH user-CA certificate, per-host principal, auto-expiring | Grant only; expires by itself |
-| **T3 Privileged** | OPNsense, Management Caddy, Authentik, Proxmox node root, Unraid root, Technitium *server settings* | Dormant alias `ROLE_OPS_PRIV_TARGETS` + per-session credentials | **Never standing** |
+| **T3 Privileged** | OPNsense, Management Caddy, Authentik, Proxmox node root, Unraid root, Technitium *server settings*, Cloudflare *account / Access / tunnel config / zone settings* | Dormant alias `ROLE_OPS_PRIV_TARGETS` + per-session credentials | **Never standing** |
 
 - Technitium is T2 for **Zones view/modify only** — no Settings/Administration/DHCP. Server settings are T3.
+- Cloudflare is T2 for **DNS records in `aliammar.net` only** (scoped `DNS:Edit` token, `0600` at `/opt/skynet-ops/secrets/cloudflare-dns.env`) — the account, Access policies, tunnel config, and zone settings are T3. Same shape as the Technitium split; publishing still needs the `ingress` PR human-merged.
 - Pool membership is the blast-radius dial. **VM 5001 (OPNsense) never joins any pool.**
   Same exclusion for CT 635, CT 837, Unraid VM 2020. You see them (T1), never touch them (T3).
 - Root on workload hosts exists **only** inside a certificate validity window. The CA
@@ -114,7 +115,8 @@ one. A directive touching **T2+/T3** or a blast-radius boundary must also PR `do
 ## 6. Judgement Day checklist (hard invariants — never violate)
 
 - No standing route or credential to OPNsense, Management Caddy, Authentik, Proxmox node
-  root, Unraid root, or Technitium settings. Dormant alias + per-session secrets, same-day revocation.
+  root, Unraid root, Technitium settings, or the Cloudflare account/settings. Dormant alias +
+  per-session secrets, same-day revocation. (Cloudflare *DNS records* are the T2 exception — see §1.)
 - Root on workload hosts exists **only** inside a certificate's validity window; the CA
   never leaves Ali's custody; every root session's KeyID is logged and harvested nightly.
 - Write blast radius = the `ops-managed` pool **set** (two today — a count, not a law) +

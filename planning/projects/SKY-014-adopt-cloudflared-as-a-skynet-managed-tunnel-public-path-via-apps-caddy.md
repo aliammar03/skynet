@@ -92,10 +92,13 @@ time, each an explicit git change.
     **outbound-only** by design — that's the whole point).
 - **Hosts & tiers touched:**
   - **T2** — `vm-docker-dmz` (the cloudflared compose service, via Arcane GitOps + `svc-ops`);
-    `compose/caddy-apps` unchanged but is the origin.
-  - **T3 / human** — **Cloudflare account** (create/attach the tunnel, mint its token, add the public
-    DNS record); **Proxmox** (stop, then later destroy, CT 1033). Each is a **⚠ checkpoint** — Ali
-    acts. **No OPNsense change** — reusing `.33` keeps the connector inside the existing rule-800
+    `compose/caddy-apps` unchanged but is the origin; **Cloudflare DNS records** (`aliammar.net`) —
+    the per-host tunnel CNAMEs, written by `scripts/cf-dns-route.sh` under a scoped `DNS:Edit` token
+    (standing, PR-gated by the ingress merge). Records-vs-account split mirrors Technitium zones-vs-settings.
+  - **T3 / human** — **Cloudflare account** (create/attach the tunnel, mint the tunnel credential
+    **and** the scoped `DNS:Edit` token — the account acts, not the records); **Proxmox** (stop, then
+    later destroy, CT 1033). Each is a **⚠ checkpoint** — Ali acts. **No OPNsense change** — reusing
+    `.33` keeps the connector inside the existing rule-800
     egress (confirm `7844` is in that alias before cutover; cloudflared falls back to `443` if not).
   - **Blast-radius boundary moves** (internal-only → a sanctioned public path) ⇒ **this plan PRs
     `docs/system-design.md`** + the `identity-and-proxy` spoke. Done in Phase 1.
@@ -155,9 +158,13 @@ Steps:
    Still nothing public — this just proves the managed connector runs on the inherited IP + egress.
    *Rollback if it doesn't: `docker compose down` + `pct start 1033`.*
 3. **Route the pilot (PR).** Add `obsidian.aliammar.net` to `config.yml`'s `ingress` (→ the Caddy
-   origin). **⚠ Ali adds the public DNS record** on Cloudflare (`obsidian.aliammar.net` CNAME →
-   `<tunnel-id>.cfargotunnel.com`, proxied) — a specific record that overrides the public wildcard for
-   this host only. **⚠ Ali merges**, then `gitops-deploy.sh cloudflared`.
+   origin). **⚠ Ali merges** (the ingress-PR merge is the publish gate — the agent never merges its
+   own). Then the agent writes the CNAME itself under the **T2 Cloudflare `DNS:Edit`** grant:
+   `scripts/cf-dns-route.sh obsidian.aliammar.net` (CNAME → `<tunnel-id>.cfargotunnel.com`, proxied —
+   overriding the public wildcard for this host only), then `gitops-deploy.sh cloudflared`.
+   *One-time setup:* a **dedicated** scoped `Zone:DNS:Edit` token for `aliammar.net` at
+   `/opt/skynet-ops/secrets/cloudflare-dns.env` (0600). Minting it is the account-level T3 act (⚠ Ali);
+   the record-writing it enables is standing T2. Rollback = `cf-dns-route.sh --delete <host>`.
 4. **Verify from the public internet** (not just a DMZ peer — the whole point is off-network):
    from a device **off** the LAN (Ali's phone on cellular, or an external checker),
    `https://obsidian.aliammar.net/_up` → `200` with a valid cert, and root without creds → `401`.
