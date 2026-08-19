@@ -1,6 +1,6 @@
 ---
 summary: "Where Skynet sits, how it's addressed on VLAN 90, and the firewall rules bounding its reach to exactly what it needs."
-tokens: 1227
+tokens: 1615
 ---
 
 # Spoke · Network & placement
@@ -56,6 +56,26 @@ friendlier for a git beginner anyway).
 SSH layer, not the network layer (see [access-and-trust](access-and-trust.md)). Ali's own access
 rides existing rules 220/230 via `ROLE_ADMIN_TARGETS`. Guest firewall on VM 9090: default-deny in,
 TCP 22 from the two workstation/admin hosts only.
+
+## DNS resolvers — who may resolve, through whom
+
+Every segment resolves through an **approved resolver only**; the firewall drops DNS (`:53`/`853`)
+to anything else (`CORE — Clients → block other DNS`). A service pointed at the wrong resolver fails
+to resolve at runtime — and *silently*, because a dropped query looks like a dead server, not a
+policy block.
+
+| Alias / host | Members | Role |
+|---|---|---|
+| `ROLE_DNS_RESOLVERS` | **Technitium** `10.10.70.50` + `.51` (VLAN 70 — split-horizon: resolves the public world **and** the internal `*.aliammar.net` zone), plus `10.10.70.30`/`.31` | the approved **internal** resolvers |
+| `ROLE_DNS_UPSTREAMS` | `1.1.1.1`, `8.8.8.8`, `9.9.9.9` | approved **public** resolvers (reachable from any segment) |
+| AdGuard | `10.10.20.30` (`adguard-network`), `10.10.20.31` (`adguard-core`) — VLAN 20 | **not** an approved cross-segment resolver — do **not** point services here (they'll be firewall-dropped) |
+
+- **Default:** internal services use **Technitium** (`10.10.70.50/.51`) — it answers both the public
+  world and the internal split-horizon zone. This is the compose template's default `dns:`.
+- **Exception — the Cloudflare Tunnel:** `compose/cloudflared` uses the approved **public** upstreams
+  (`1.1.1.1`/`8.8.8.8`), not Technitium. It only ever resolves Cloudflare's public edge, and
+  Technitium returns an *empty* answer for that edge's `_v2-origintunneld._tcp.argotunnel.com` SRV
+  (it serves other SRVs and the legacy `_origintunneld` fine — the newer record is the gap).
 
 ## The blast-radius boundary, at the network layer
 

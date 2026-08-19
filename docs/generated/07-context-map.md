@@ -40,7 +40,7 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 | `docs/design/gitops-loop.md` | 900 | How a service change becomes a running container via Arcane, with git-revert rollback and image pinning + Renovate. |
 | `docs/design/identity-and-proxy.md` | 3007 | The two front doors, split-horizon DNS, the forward_auth boundary that publishes apps without holding auth's keys (SKY-003), and the sanctioned public path via a Skynet-managed Cloudflare Tunnel (SKY-014). |
 | `docs/design/memory.md` | 2933 | How a stateless agent remembers: the four memory kinds, the episodic journal→digest, and the default-lean working-memory discipline. |
-| `docs/design/network.md` | 1227 | Where Skynet sits, how it's addressed on VLAN 90, and the firewall rules bounding its reach to exactly what it needs. |
+| `docs/design/network.md` | 1615 | Where Skynet sits, how it's addressed on VLAN 90, and the firewall rules bounding its reach to exactly what it needs. |
 | `docs/design/observability.md` | 972 | How machine state becomes human-readable docs, and how the nightly run keeps the picture current. |
 | `docs/design/secrets.md` | 778 | How Skynet holds secrets with sops+age so plaintext never leaves the repo, plus the .env.git/project.env layering. |
 
@@ -62,7 +62,7 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 |---|--:|---|
 | `compose/README.md` | 1508 | The compose/ service catalog and the Arcane GitOps deployment loop every project follows. |
 | `journal/README.md` | 1029 | The episodic journal format — session/incident/decision records, the Graveyard, and the write-raw/read-summarize rule. |
-| `planning/README.md` | 1167 | Where future work lives as SKY-### directives: the scratchpad→ideas→backlog→projects→archive lifecycle, bin/plan, and the roadmap. |
+| `planning/README.md` | 1200 | Where future work lives as SKY-### directives: the scratchpad→ideas→backlog→projects→archive lifecycle, bin/plan, and the roadmap. |
 | `runbooks/README.md` | 918 | Catalog of engine-neutral procedures any agent can execute, each tagged by tier and trigger — the routing menu. |
 | `templates/README.md` | 423 | The golden templates (compose, script, runbook, ADR, journal) that bin/new stamps so new artifacts inherit the house style. |
 
@@ -83,5 +83,5 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 - `journal/` — 5 raw episodes, ≈ 4737 tok total. Retrieve by topic: `bin/recall <topic>` (SKY-010 P4) or `grep -ri "<topic>" journal/`; recent episodes are already in `06-agent-digest.md`. **Do not load the whole store.**
 
 ---
-**On-demand corpus:** ≈ **38119** tok across 38 files — but you load a *row* (≈ tens of tok) to choose, then one file.
+**On-demand corpus:** ≈ **38540** tok across 38 files — but you load a *row* (≈ tens of tok) to choose, then one file.
 _A cache — regenerable from git via `render-context-map.sh`; never a source of truth._
