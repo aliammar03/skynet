@@ -1,12 +1,12 @@
 ---
 id: SKY-013
 title: Deploy Obsidian Self-hosted LiveSync (CouchDB backend)
-status: in-progress
+status: done
 horizon: short
 created: 2026-08-18
-updated: 2026-08-18
+updated: 2026-08-19
 phases: 2
-current_phase: 0
+current_phase: 2
 tier_touched: [T2]    # new service on the existing DMZ docker host, inside the current
                       # blast radius. No trust boundary moves → no system-design.md PR.
 related:
@@ -79,7 +79,7 @@ internet exposure (internal ingress only, same as every other app); no multi-nod
 - **Grants / human actions:** none beyond the standing T2 path. Every phase's only human step is
   **Ali merges the PR** (the agent never merges its own).
 
-### Phase 1 — CouchDB backend, the skynet way  (~1–2h)   `[ ]` not started
+### Phase 1 — CouchDB backend, the skynet way  (~1–2h)   `[x]` done
 
 Steps:
 1. **Branch** `deploy/obsidian-livesync`. Create `compose/obsidian-livesync/`:
@@ -132,7 +132,7 @@ Exit criteria: `obsidian-livesync` shows **(healthy)** in Arcane, the tuned conf
 the vault DB exists, and refreshed inventory is committed.
 Grants / human actions: **⚠ Ali merges the PR** — no grant needed.
 
-### Phase 2 — Publish through the front door + client bring-up  (~1–2h)   `[ ]` not started
+### Phase 2 — Publish through the front door + client bring-up  (~1–2h)   `[x]` done
 
 Steps:
 1. **Branch** `deploy/caddy-apps`. Add to `compose/caddy-apps/Caddyfile` under OWN-AUTH:
@@ -189,3 +189,16 @@ Follow AGENTS.md as above.
 - 2026-08-18 — created; started into projects/. Backend = CouchDB (recommended); S3/object-storage
   remote considered and set aside (would require a MinIO stand-up; less-proven live sync). Backend is
   the one still-open decision — flipping it rewrites Phase 1 only.
+- 2026-08-18 — Phase 1: CouchDB backend built + deployed (PR #62). First deploy went healthy but the
+  Arcane GitOps sync FAILED — the `:rw` `local.ini` mount let couchdb's root entrypoint chown the HOST
+  git file to uid 5984, blocking Arcane (uid 1000) from promoting it. Fixed (PR #63): mount `local.ini`
+  `:ro` at a neutral path outside `/opt/couchdb` + entrypoint copies it into `local.d/`. Host file stays
+  1000:1000, sync green. (Two-layer couchdb-chown gotcha logged in [[SKY-013-progress]].)
+- 2026-08-19 — Phase 2: published at `obsidian.aliammar.net` (PR #64). Verified from a DMZ peer:
+  `/_up` → 200 with a valid **Let's Encrypt** cert (chains to ISRG Root), root without creds → 401
+  (CouchDB self-gates through Caddy). Obsidian Self-hosted LiveSync client configured (E2EE on,
+  enhanced chunks, no storage-cap warning — self-hosted); first-device overwrite seeded the empty
+  remote, second device fetched, and a live edit round-trips **both ways**. `data` volume carries
+  `skynet.backup=protect` and is matched by `backup-restic.sh` — swept on the next restic run.
+  **Directive complete.** The years-old wall (self-signed TLS + hand-applied CORS/tuning) is gone —
+  every knob is now reviewed git.
