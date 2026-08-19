@@ -1,25 +1,14 @@
-# cloudflared ingress — the tunnel's ENTIRE routing table, in reviewed git (locally-managed).
-# Mounted read-only into the container. Change a route = edit here → PR → Ali merges → deploy.
-# See docs/design/identity-and-proxy.md (the public path) and the co-located README.
-#
-# tunnel + credentials-file identify WHICH tunnel this connector serves. The TunnelID (a public
-# UUID, also the CNAME target <id>.cfargotunnel.com) is filled at the Cloudflare checkpoint; the
-# secret half lives only in credentials.json (sops, never here).
+# cloudflared ingress — the tunnel's routing table, in reviewed git; mounted ro (locally-managed).
+# A hostname is public only with BOTH a rule here AND a public DNS CNAME → <id>.cfargotunnel.com.
+# See docs/design/identity-and-proxy.md.
 tunnel: 7f4c50f9-cee6-40bb-ad5a-ef6c7f30ca56
 credentials-file: /etc/cloudflared/credentials.json
 
-# ingress: FIRST MATCH WINS, and the list MUST end with a catch-all.
-#
-# Phase 1 (now): nothing is public. There is no hostname rule, so every request falls straight
-# through to the 404 catch-all — the connector registers with Cloudflare but routes nothing.
-#
-# Phase 2 adds the pilot ABOVE the catch-all. Publishing an app is exactly this shape — one
-# block per hostname, all pointing at the single Caddy origin:
-#
-#   - hostname: obsidian.aliammar.net
-#     service: https://10.10.100.35          # the apps Caddy — the one origin for every public host
-#     originRequest:
-#       originServerName: obsidian.aliammar.net   # SNI, so Caddy serves + we verify the right LE cert
-#
+# First match wins; list MUST end with the catch-all.
 ingress:
+  # Pilot (SKY-014 P2): obsidian self-gates (CouchDB 401) + client-side E2E, so own-auth is enough.
+  - hostname: obsidian.aliammar.net
+    service: https://10.10.100.35
+    originRequest:
+      originServerName: obsidian.aliammar.net   # SNI → Caddy serves the right LE cert, not the IP
   - service: http_status:404
