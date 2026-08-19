@@ -56,7 +56,14 @@ services:
       dmz:
         ipv4_address: 10.10.100.33
     dns:
-      - 10.10.20.30          # Technitium (forwards public names so the edge endpoints resolve)
+      # Public upstreams (firewall-approved ROLE_DNS_UPSTREAMS). This connector ONLY resolves
+      # Cloudflare's PUBLIC edge (_v2-origintunneld._tcp.argotunnel.com) — never an internal name
+      # (the origin is reached by IP, 10.10.100.35) — so public DNS is the right fit by design.
+      # It deliberately does NOT use the internal Technitium (10.10.70.50/.51): Technitium returns
+      # an EMPTY answer for that edge SRV, so the tunnel would never discover the edge. (The compose
+      # template's old default 10.10.20.30 was wrong too — not an approved resolver from the DMZ.)
+      - 1.1.1.1
+      - 8.8.8.8
     healthcheck:
       # Distroless image → no shell, no curl, no bash /dev/tcp. cloudflared's OWN `tunnel ready`
       # subcommand runs in exec form (no shell needed) and queries the metrics /ready endpoint

@@ -29,7 +29,13 @@ services:
       dmz:
         ipv4_address: 10.10.100.TODO   # static; last octet by IP allocation
     dns:
-      - 10.10.20.30
+      # Approved DNS resolvers ONLY (the network's "block other DNS" rule drops anything else, so a
+      # service pointed elsewhere fails to resolve at runtime). These are Technitium (VLAN 70,
+      # split-horizon — resolves public names AND internal *.aliammar.net). Keep them unless the
+      # service needs records Technitium won't serve, in which case use the approved public
+      # upstreams 1.1.1.1 / 8.8.8.8 (e.g. compose/cloudflared, which needs Cloudflare's edge SRV).
+      - 10.10.70.50
+      - 10.10.70.51
 
 # A standalone DB engine's storage (mongo/postgres/redis/meilisearch/…) is the ONE case for a
 # NAMED volume, and it carries all three skynet.* labels. Uncomment and adapt if this service has one:
