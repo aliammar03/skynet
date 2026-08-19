@@ -19,8 +19,8 @@ has() { [ -s "$1" ]; }                     # file exists + non-empty
 # VLAN name map (best-effort; unknown VLANs render as "VLAN N").
 vlan_name() { case "$1" in
   10) echo "Admin";; 20) echo "Storage";; 50) echo "Infrastructure";;
-  60) echo "Trusted LAN";; 70) echo "DNS & Services";; 90) echo "Operations";;
-  100) echo "DMZ";; *) echo "VLAN $1";; esac; }
+  60) echo "Trusted LAN";; 70) echo "DNS & Services";; 80) echo "Identity";;
+  90) echo "Operations";; 100) echo "DMZ";; *) echo "VLAN $1";; esac; }
 
 fm() { # frontmatter title tag...
   local title="$1"; shift
@@ -34,11 +34,47 @@ if [ "${have_data}" -eq 0 ]; then
   echo "no inventory JSON yet — collectors have not run. Nothing to render." >&2; exit 0
 fi
 
-# ── gather host facts (reservations = the DHCP truth: host/ip/mac) ─────────────
-# tmp table: "ip\thost\tdescr"
-hosts_tsv="$(mktemp)"; trap 'rm -f "${hosts_tsv}"' EXIT
+# ── gather host facts — unified host table, deduped by IP ──────────────────────
+# DHCP reservations are only the DHCP half of the lab: VLANs 10–50. The static hosts
+# (VLAN 70 Technitium, 80 Authentik, 90 skynet-ops, 100 DMZ services) have NO reservation,
+# so they'd be invisible on a reservation-only map. We merge three sources, best name wins:
+#   prio 1  DHCP reservations        — authoritative hostname (+ MAC)                [dhcp]
+#   prio 2  single-IP host aliases    — the static service hosts (HOST_PROXY_APPS…)  [alias]
+#   prio 3  unique-target DNS A recs  — real names for a few statics (tdns-*);        [dns]
+#           shared targets (reverse-proxy vhosts → one IP) are dropped as non-hosts.
+#   prio 3+n  multi-IP host/role aliases — surfaces the rest, labelled by the role set [alias]
+# All candidates are constrained to 10.10.0.0/16 (drops public upstreams like 1.1.1.1).
+# Output columns: ip \t name \t source \t note
+hosts_tsv="$(mktemp)"; cand="$(mktemp)"; trap 'rm -f "${hosts_tsv}" "${cand}"' EXIT
 if has "${fw}"; then
-  j '.reservations[]? | [.ip, .host, (.descr // "")] | @tsv' "${fw}" | sort -t. -k3,3n -k4,4n > "${hosts_tsv}"
+  {
+    # prio 1 — DHCP reservations
+    j '.reservations[]? | select((.ip//"")|startswith("10.10."))
+        | [.ip, .host, "1", "dhcp", (.descr // "")] | @tsv' "${fw}"
+    # prio 2 & 3+n — host-type aliases, split into member IPs (single vs role-set)
+    j '.aliases[]? | select(.type=="host") | . as $a
+        | ($a.content // "" | split("\n")
+            | map(select(test("^10\\.10\\.[0-9]+\\.[0-9]+$")))) as $ips
+        | ($ips | length) as $n | select($n > 0)
+        | $ips[]
+        | [ ., $a.name,
+            (if $n==1 then "2" else (3+$n|tostring) end),
+            "alias", ($a.description // "") ] | @tsv' "${fw}"
+  } >> "${cand}"
+fi
+if has "${inv}/dns-zones.json"; then
+  # prio 3 — DNS A records whose target IP is UNIQUE (a shared target = a reverse-proxy
+  #          vhost, not a host — those group with length>1 and are filtered out).
+  j '[.records[]?.records[]? | select(.type=="A")
+        | select((.rData.ipAddress // "")|startswith("10.10."))]
+      | group_by(.rData.ipAddress) | map(select(length==1)) | .[][]
+      | [ .rData.ipAddress, .name, "3", "dns", "" ] | @tsv' "${inv}/dns-zones.json" >> "${cand}"
+fi
+# reduce: for each IP keep the lowest-priority (col3) candidate, then order by octet for display.
+if [ -s "${cand}" ]; then
+  sort -t"$(printf '\t')" -k1,1 -k3,3n "${cand}" \
+    | awk -F'\t' '!seen[$1]++ { printf "%s\t%s\t%s\t%s\n", $1,$2,$4,$5 }' \
+    | sort -t. -k3,3n -k4,4n > "${hosts_tsv}"
 fi
 
 # ── 00 — network map (mermaid, from VLANs present in reservations) ─────────────
@@ -52,11 +88,13 @@ fi
     [ -n "${v}" ] || continue
     vn="$(vlan_name "${v}")"
     echo "  OPN --> V${v}[VLAN ${v} · ${vn}]"
-    awk -F'\t' -v v="${v}" 'BEGIN{n=0} {split($1,a,"."); if(a[3]==v && n<8){gsub(/[^a-zA-Z0-9]/,"_",$2); printf "  V%s --> h_%s_%s[%s]\n", v, v, $2, $2; n++}}' "${hosts_tsv}"
+    # node id keys on the last octet (unique per host, so same-alias hosts don't collapse).
+    awk -F'\t' -v v="${v}" 'BEGIN{n=0} {split($1,a,"."); if(a[3]==v && n<8){printf "  V%s --> n%s_%s[\"%s\"]\n", v, v, a[4], $2; n++}}' "${hosts_tsv}"
   done
   echo '```'
   echo
-  echo "_VLAN names are best-effort; subnets/hosts are live from OPNsense DHCP reservations._"
+  echo "_VLAN names are best-effort; hosts are merged from OPNsense DHCP reservations, firewall"
+  echo "host aliases (the static services), and unique-target DNS records. Up to 8 hosts shown per VLAN._"
 } > "${gen}/00-network-map.md"
 
 # ── 10 — VLANs (hosts grouped by /24) ─────────────────────────────────────────
@@ -67,9 +105,9 @@ fi
       [ -n "${v}" ] || continue
       echo "## VLAN ${v} — $(vlan_name "${v}")  (10.10.${v}.0/24)"
       echo
-      echo "| IP | Host | Notes |"
-      echo "|----|------|-------|"
-      awk -F'\t' -v v="${v}" '{split($1,a,"."); if(a[3]==v) printf "| %s | %s | %s |\n", $1, $2, $3}' "${hosts_tsv}"
+      echo "| IP | Host / alias | Source | Notes |"
+      echo "|----|--------------|--------|-------|"
+      awk -F'\t' -v v="${v}" '{split($1,a,"."); if(a[3]==v) printf "| %s | %s | %s | %s |\n", $1, $2, $3, $4}' "${hosts_tsv}"
       echo
     done
   else
