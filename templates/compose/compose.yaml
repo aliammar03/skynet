@@ -29,11 +29,9 @@ services:
       dmz:
         ipv4_address: 10.10.100.TODO   # static; last octet by IP allocation
     dns:
-      # Approved DNS resolvers ONLY (the network's "block other DNS" rule drops anything else, so a
-      # service pointed elsewhere fails to resolve at runtime). These are Technitium (VLAN 70,
-      # split-horizon — resolves public names AND internal *.aliammar.net). Keep them unless the
-      # service needs records Technitium won't serve, in which case use the approved public
-      # upstreams 1.1.1.1 / 8.8.8.8 (e.g. compose/cloudflared, which needs Cloudflare's edge SRV).
+      # Approved resolvers only — anything else is firewall-dropped (silent resolve failure).
+      # Technitium (VLAN 70, split-horizon). Public 1.1.1.1/8.8.8.8 only if a record Technitium
+      # won't serve is needed (e.g. cloudflared). — docs/design/network.md
       - 10.10.70.50
       - 10.10.70.51
 

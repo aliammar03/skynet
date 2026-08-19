@@ -23,9 +23,7 @@ services:
       retries: 3
     restart: unless-stopped
     dns:
-      # Approved Technitium resolvers (VLAN 70, split-horizon). Was 10.10.20.30 (AdGuard) — not an
-      # approved resolver from the DMZ, so the firewall dropped its DNS. See docs/design/network.md.
-      - 10.10.70.50
+      - 10.10.70.50   # Technitium (VLAN 70). NOT AdGuard 10.10.20.30 — firewall-dropped from the DMZ.
       - 10.10.70.51
     networks:
       dmz:
