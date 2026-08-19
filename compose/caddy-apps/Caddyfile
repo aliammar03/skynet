@@ -12,6 +12,14 @@
 	# the sole secret, injected from .env.sops via the environment. Validation rides the
 	# Cloudflare API on :443 — NOT :53 — so firewall rule 830 is not needed here.
 	acme_dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+
+	# HTTP/1.1 + HTTP/2 only — no HTTP/3. Chromium/Electron clients (Obsidian LiveSync)
+	# upgrade to h3 on the alt-svc hint, but QUIC/UDP-443 across the DMZ macvlan is
+	# unreliable → the browser reports ERR_SSL_PROTOCOL_ERROR (and noisy LiveSync CORS/2xx
+	# false-alarms). TCP h2 is plenty for these apps. (SKY-014 follow-up.)
+	servers {
+		protocols h1 h2
+	}
 }
 
 # ===================================================================================
