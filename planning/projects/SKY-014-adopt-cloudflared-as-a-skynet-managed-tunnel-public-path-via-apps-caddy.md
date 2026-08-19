@@ -6,7 +6,7 @@ horizon: short
 created: 2026-08-19
 updated: 2026-08-19
 phases: 2
-current_phase: 0
+current_phase: 1
 tier_touched: [T2, T3]
 related:
   - compose/cloudflared/
@@ -108,7 +108,7 @@ time, each an explicit git change.
 - **Grants / human actions:** no standing-tier expansion. The T3 touches are all **Ali-applied,
   one-shot** (Cloudflare dashboard, one OPNsense rule, one `pct stop`), not new standing routes.
 
-### Phase 1 — Sanction the path + build the connector (validated, not yet deployed)  (~1–2h)   `[ ]` not started
+### Phase 1 — Sanction the path + build the connector (validated, not yet deployed)  (~1–2h)   `[~]` agent-work done; awaiting Ali (CF checkpoint + merge)
 
 *(No deploy here: `.33` is still CT 1033's, so standing the container up = the cutover, which is
 Phase 2. Phase 1 lands everything that can land without touching the live tunnel.)*
@@ -209,3 +209,12 @@ Follow AGENTS.md as above.
   → no OPNsense change). Shared IP ⇒ bring-up IS the cutover: Phase 1 now builds+validates only (no
   deploy), Phase 2 does `pct stop 1033` → deploy on `.33` → publish → verify → destroy after soak.
   Rollback = `compose down` + `pct start 1033` (LXC kept stopped-not-destroyed through the soak).
+- 2026-08-19 — **Phase 1 agent-work done → PR #67** (branch `phase/sky-014-p1`). Constitution +
+  `identity-and-proxy` spoke sanction the public path; `compose/cloudflared/` built + validated offline
+  (`docker compose config -q` ✓), pinned to `.33`, ingress routes nothing public (404 catch-all only).
+  The §2 open detail is **resolved**: ingress-in-git forces a **locally-managed** tunnel — a `--token`
+  run is remotely-managed and ignores local `config.yml` (cloudflared #1029) — so the credential is a
+  **sops `credentials.json` file**, not `TUNNEL_TOKEN`. Healthcheck = distroless-safe
+  `cloudflared tunnel ready`. Rule 800 already carries 443+7844 (no OPNsense change). **Not fully
+  closed:** awaiting **⚠ Ali** to create the CF tunnel + supply the credential (→ `credentials.json.sops`
+  + fill `config.yml` id) and to **merge PR #67**.
