@@ -52,13 +52,27 @@ obsidian.aliammar.net {
 }
 
 # ===================================================================================
-# NO-AUTH services — NO gate of their own. Proxied plain by explicit request: reachable
-# only from app-client VLANs (rule 200), never the internet. These are the intended
-# forward_auth targets — SKY-003 Phase 3 converts them to Authentik forward_auth.
+# NO-AUTH services — NO gate of their own; reachable only from app-client VLANs (rule
+# 200), never the internet. SKY-003 P3 gated calibre with Authentik forward_auth (below);
+# sillytavern is still proxied plain (network-segmentation-only) until it's converted too.
 # ===================================================================================
 
-# calibre — no login of its own (Phase 3 forward_auth pilot).
+# calibre — no native login. Gated by Authentik forward-auth (SKY-003 P3). Per-app
+# proxy provider "calibre" (forward_single, external_host=https://calibre.aliammar.net)
+# is bound to the embedded outpost, served by the Authentik server itself at
+# 10.10.80.37:9000 (firewall rule 240). Authentik maps this vhost to that provider by
+# the forwarded Host header. Unauthenticated → Authentik login; authenticated → calibre.
 calibre.aliammar.net {
+	# The outpost's own endpoints (/auth/caddy, /start, callbacks) come from Authentik.
+	reverse_proxy /outpost.goauthentik.io/* 10.10.80.37:9000
+
+	# Gate everything else: ask the outpost; bounce to Authentik if unauthenticated.
+	forward_auth 10.10.80.37:9000 {
+		uri /outpost.goauthentik.io/auth/caddy
+		copy_headers X-Authentik-Username X-Authentik-Groups X-Authentik-Email X-Authentik-Name X-Authentik-Uid
+		trusted_proxies private_ranges
+	}
+
 	reverse_proxy 10.10.100.53:8080
 }
 

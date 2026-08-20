@@ -1,7 +1,7 @@
 ---
-summary: "Publish a service through the apps Caddy front door: edit the Caddyfile then PR then deploy."
+summary: "Publish a service through the apps Caddy front door: edit the Caddyfile then PR then deploy — own-auth (plain reverse_proxy) or forward-auth via Authentik (scoped-token provider+application)."
 trigger: "Publish or expose a service"
-tokens: 1636
+tokens: 2659
 ---
 
 # Runbook — publish a service through the apps Caddy (the front door)
@@ -73,12 +73,79 @@ Pick the own-auth path unless the service genuinely has no authentication of its
 
 ## Path B — forward-auth (no-login services, via Authentik)
 
-> Added in SKY-003 Phase 3. Requires the scoped Authentik `svc-skynet` token (a T3 one-time
-> ceremony Ali performs — Skynet cannot mint it). Provisioning the Authentik provider/application
-> through that token, plus the `forward_auth` Caddyfile block, is documented here once P3 lands.
+For a service with **no gate of its own**, Authentik sits in front: an unauthenticated request is
+bounced to the Authentik login, an authenticated one passes through. This is the **per-app** model
+(SKY-003 P3) — each no-auth service gets its **own** proxy provider + application, so authorization
+(who may reach it) and audit are per-service.
 
-<!-- P3 fills this in: create Provider+Application via the scoped token → bind the outpost →
-     add the forward_auth directive to the Caddyfile site → verify unauth→Authentik→service. -->
+**Prerequisites (one-time, done in P3):**
+- The scoped Authentik **`svc-skynet`** token lives `0600` at `/opt/skynet-ops/secrets/authentik.env`
+  (`AUTHENTIK_TOKEN` + `AUTHENTIK_URL`). It can CRUD Applications/Providers and view/bind outposts —
+  **nothing else** (Flows, Users, settings, keys are T3 and the token 403s on them). Creating it is a
+  **T3 ceremony only Ali can do** — Skynet cannot mint it.
+- The **embedded proxy outpost** exists (Applications → Outposts, `authentik Embedded Outpost`,
+  type *proxy*). It is served by the Authentik server itself at **`10.10.80.37:9000`**.
+
+**Network fact that shapes how you call the API:** only the **apps-Caddy** (`10.10.100.35`) may reach
+Authentik (firewall **rule 240**) — the ops VM cannot. So Authentik API calls are driven from inside
+the `caddy-apps-caddy-1` container (which has `curl`), and the token is fed on **stdin** (a curl
+`-K -` config, or `read`) so it never lands in any argv. `POST /api/v3/...` bodies below are that
+same call shape.
+
+1. **Create the proxy provider** (`forward_single`). It needs an `authorization_flow` +
+   `invalidation_flow`, but the scoped token **cannot list Flows** (they're T3) — so **copy the flow
+   UUIDs from an existing proxy provider** you *can* read:
+   ```
+   GET  /api/v3/providers/proxy/          # note authorization_flow + invalidation_flow of any entry
+   POST /api/v3/providers/proxy/
+        {"name":"<svc>","mode":"forward_single",
+         "external_host":"https://<svc>.aliammar.net",
+         "authorization_flow":"<uuid>","invalidation_flow":"<uuid>"}
+   ```
+2. **Create the application**, bound to the new provider (`pk` from step 1):
+   ```
+   POST /api/v3/core/applications/
+        {"name":"<Svc>","slug":"<svc>","provider":<pk>,
+         "meta_launch_url":"https://<svc>.aliammar.net"}
+   ```
+   (Add authorization **policy bindings** to this application if the service should be limited to
+   specific users/groups — that's the per-app win. Bindings are a separate T2 call.)
+3. **Bind the provider to the embedded outpost** — `PATCH` its `providers` list, **keeping the
+   existing entries** and appending the new `pk` (clobbering the list unbinds everything else):
+   ```
+   GET   /api/v3/outposts/instances/                       # find the embedded outpost pk + current providers
+   PATCH /api/v3/outposts/instances/<outpost-pk>/  {"providers":[<existing…>, <pk>]}
+   ```
+   The outpost picks the provider up in seconds. Sanity-check before touching Caddy — from the
+   `caddy-apps` container, the outpost auth endpoint should 302 to Authentik for your host:
+   ```
+   docker exec caddy-apps-caddy-1 curl -sI -H "Host: <svc>.aliammar.net" \
+     http://10.10.80.37:9000/outpost.goauthentik.io/auth/caddy   # expect 302 -> auth.aliammar.net
+   ```
+4. **Add the Caddyfile site** — the standard Authentik forward-auth snippet, pointing at the embedded
+   outpost. Two `reverse_proxy`: the outpost's own `/outpost.goauthentik.io/*` endpoints, then the app.
+   ```
+   <svc>.aliammar.net {
+       reverse_proxy /outpost.goauthentik.io/* 10.10.80.37:9000
+       forward_auth 10.10.80.37:9000 {
+           uri /outpost.goauthentik.io/auth/caddy
+           copy_headers X-Authentik-Username X-Authentik-Groups X-Authentik-Email X-Authentik-Name X-Authentik-Uid
+           trusted_proxies private_ranges
+       }
+       reverse_proxy <origin-ip>:<origin-port>
+   }
+   ```
+   Validate (Path A, step 2), **PR**, Ali merges, Caddy reloads on sync.
+5. **Verify** from a peer DMZ container: an unauthenticated hit is **302'd to Authentik**, not served:
+   ```
+   ssh svc-ops@10.10.100.15 "docker exec <some-dmz-container> \
+     curl -sI --resolve <svc>.aliammar.net:443:10.10.100.35 https://<svc>.aliammar.net"
+   # expect 302 with Location: https://auth.aliammar.net/... — never the app's own page
+   ```
+   Then in a browser: unauthenticated → Authentik login → after login → the service.
+
+**Rollback:** `git revert` the Caddyfile block (Arcane reconciles). The Authentik provider/application
+delete via the scoped token (`DELETE /api/v3/core/applications/<slug>/`, then the provider) or the UI.
 
 ---
 
