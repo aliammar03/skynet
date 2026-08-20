@@ -195,7 +195,7 @@ config in git; publish-service runbook covers the own-auth path. → PR.
 Grants / human actions: none expected (GitOps + svc-ops T2). Checkpoint & request `gr vm-docker-dmz 1h`
 **only if** host-level macvlan/network setup turns out to be needed.
 
-### Phase 3 — Authentik scoped token + calibre pilot (forward_auth)  (~1–2h)   `[~]` agent-work done; awaiting Ali (merge PR, then live verify)
+### Phase 3 — Authentik scoped token + calibre pilot (forward_auth)  (~1–2h)   `[x]` done — 2026-08-20
 
 Steps:
 1. **T3 ceremony (Ali, one-time, in the Authentik UI):** create service account `svc-skynet` + a role
@@ -335,3 +335,15 @@ Follow AGENTS.md as above.
   is driven from inside `caddy-apps-caddy-1` (the only container rule 240 lets reach Authentik), token
   fed on stdin so it never hits argv. → PR (agent does not merge its own). **Next:** Ali merges → agent
   live-verifies unauth→302→login→calibre from a peer DMZ container → flips P3 `[x]` + close-out.
+- 2026-08-20 — **Phase 3 DONE (verified live).** PR #77 merged (forward-auth + runbook Path B; a
+  follow-on commit also added runbook **Path C** — optional public exposure via the Cloudflare Tunnel).
+  Triggered the Arcane sync (`gitops-deploy.sh caddy-apps`); Caddy hot-reloaded the merged Caddyfile.
+  **Live check from a peer DMZ container:** `calibre.aliammar.net` → **HTTP 302 → auth.aliammar.net**
+  with provider-14's client_id + a calibre callback — unauthenticated requests are bounced to Authentik,
+  not served. All P3 exit criteria met: gate live, scoped token proven (CRUDs apps/providers, 403s on
+  flows/users/keys/settings), both publish paths documented. **Next: P4** (firewall least-privilege +
+  DMZ-docker SSH-exposure audit). Note for P4: Ali amended rule 240 to add `HOST_SKYNET_OPS` as a source
+  (ops VM → Authentik) — it's saved in config.xml but was not passing live at close-out (needs OPNsense
+  Apply); the agent drove the Authentik API via the caddy-apps container instead. Also: a **public
+  calibre** exposure is under discussion (goal: publicly reachable; low-friction/no-dashboard gating) —
+  that's SKY-014-adjacent, tracked separately, not part of SKY-003.
