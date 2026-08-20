@@ -1,7 +1,7 @@
 ---
-summary: "Publish a service through the apps Caddy front door: edit the Caddyfile then PR then deploy — own-auth (plain reverse_proxy) or forward-auth via Authentik (scoped-token provider+application)."
+summary: "Publish a service through the apps Caddy front door: edit the Caddyfile then PR then deploy — own-auth (plain reverse_proxy) or forward-auth via Authentik (scoped-token provider+application); optionally also expose it to the internet via the Cloudflare Tunnel (Path C)."
 trigger: "Publish or expose a service"
-tokens: 2659
+tokens: 3851
 ---
 
 # Runbook — publish a service through the apps Caddy (the front door)
@@ -21,6 +21,12 @@ reviewable PR, not a bespoke task. Background + the trust model: [`../docs/desig
 | **has no gate of its own** (calibre) | **forward-auth** | the same site **plus** `forward_auth` to an Authentik outpost, **plus** a scoped-token-created Authentik provider/application |
 
 Pick the own-auth path unless the service genuinely has no authentication of its own.
+
+**Internal vs public.** Paths A/B give a service a `https://<svc>.aliammar.net` URL reachable **only
+inside the lab** (split-DNS → apps Caddy; nothing is exposed to the internet). If you *also* want the
+service reachable **from the public internet**, that's an **additive** step — **Path C** — layered on
+top of an existing internal route (A or B). Most services want internal-only; choose Path C
+deliberately, per host, and only for a service that already self-gates (see its edge-auth rule).
 
 ## Prerequisites (true for every publish)
 
@@ -146,6 +152,71 @@ same call shape.
 
 **Rollback:** `git revert` the Caddyfile block (Arcane reconciles). The Authentik provider/application
 delete via the scoped token (`DELETE /api/v3/core/applications/<slug>/`, then the provider) or the UI.
+
+---
+
+## Path C — also expose to the internet (Cloudflare Tunnel) — *optional, additive*
+
+Publishing a hostname to the **public internet** through the Skynet-managed Cloudflare Tunnel
+(`compose/cloudflared/`, SKY-014). This is **layered on top of Path A or B** — the tunnel forwards
+every public request to the **same apps Caddy** (`https://10.10.100.35`), so a public host **reuses its
+internal Caddy route verbatim**; there is no second copy of the routing and TLS stays end-to-end.
+Background + the trust model: [`../docs/design/identity-and-proxy.md`](../docs/design/identity-and-proxy.md) (“The public path”).
+
+**Prerequisites**
+- The service already has a working **internal route** (Path A or B) — Path C does not create routes,
+  it only makes an existing hostname reachable from outside.
+- The scoped Cloudflare **`DNS:Edit`** token is `0600` at `/opt/skynet-ops/secrets/cloudflare-dns.env`
+  (`CF_DNS_TOKEN`, `CF_ZONE=aliammar.net`, `TUNNEL_ID`). The Cloudflare account / Access / tunnel
+  config are **T3** — out of reach here.
+
+**⚠ The edge-auth gate — decide *should* this be public, not just *can* it.** The public internet is
+hostile. Only expose a service that **self-gates at the edge**: it has its own strong login (own-auth,
+Path A — e.g. obsidian's CouchDB admin login, ideally with client-side E2E) **or** it sits behind
+**forward-auth** (Path B). A service with **no gate of its own must NOT go public plain** — put
+Authentik forward-auth (Path B) or Cloudflare Access in front first. Network segmentation protects an
+internal-only no-auth service; it protects nothing once the hostname is on the internet.
+
+Publishing is **two halves — both required** (the tunnel's catch-all is `http_status:404`, so a host
+is public *only* with an `ingress` rule **and** a public CNAME):
+
+1. **Add the `ingress` rule** to `compose/cloudflared/config.yml`, **above** the closing
+   `- service: http_status:404` catch-all (first match wins):
+   ```yaml
+   - hostname: <svc>.aliammar.net
+     service: https://10.10.100.35            # the apps Caddy — the tunnel's only origin
+     originRequest:
+       originServerName: <svc>.aliammar.net   # SNI → Caddy serves this host's LE cert (not the IP's)
+   ```
+   **PR** it — *this is the public-exposure gate*; Ali merges, the agent never merges its own. Then
+   **restart the connector**: unlike Caddy (`--watch` hot-reload), cloudflared reads `config.yml` only
+   at startup, and a bind-mounted file change doesn't alter the compose spec, so Arcane's sync alone
+   won't reload it. Run `scripts/gitops-deploy.sh cloudflared`; if the connector wasn't recreated,
+   `ssh svc-ops@10.10.100.15 "docker restart cloudflared-cloudflared-1"`. Confirm it comes back
+   healthy (`tunnel ready`).
+2. **Create the public DNS CNAME** (T2 Cloudflare `DNS:Edit`) — a proxied `<svc>.aliammar.net` →
+   `<tunnel-id>.cfargotunnel.com`:
+   ```
+   scripts/cf-dns-route.sh <svc>.aliammar.net
+   ```
+   Idempotent; refuses hosts outside `aliammar.net`. (This is the *public* record on Cloudflare's
+   authoritative DNS — separate from Technitium's internal split-DNS, which keeps steering internal
+   clients straight to the Caddy.)
+
+**Verify from OUTSIDE.** The internal path won't exercise the tunnel (internal clients resolve via
+Technitium straight to Caddy, never through Cloudflare). Test from a genuinely external vantage — a
+phone on mobile data, or by resolving the public CNAME via a public resolver:
+```
+curl -sSI --resolve <svc>.aliammar.net:443:1.1.1.1 https://<svc>.aliammar.net   # rough external check
+```
+Expect a real status + valid public cert. In a browser from off-network: the app loads (and, for a
+Path-B host, is bounced to Authentik first). **Confirm the internal path is unchanged** — an on-network
+hit still resolves to `10.10.100.35` and never transits Cloudflare.
+
+**Rollback (symmetric, immediate):** `scripts/cf-dns-route.sh --delete <svc>.aliammar.net` pulls the
+CNAME and the hostname stops resolving publicly at once; then `git revert` the `ingress` line and
+restart the connector. Public exposure is additive and per-host — removing it takes nothing away from
+the internal door.
 
 ---
 
