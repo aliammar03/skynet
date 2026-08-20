@@ -76,4 +76,5 @@ so running or resuming one is a single paste into a fresh session.
 | SKY-012 | Runbooks as executable capabilities | ideas | draft | — | 🌱 short |
 | SKY-013 | Deploy Obsidian Self-hosted LiveSync (CouchDB backend) | archive | done | — | 🌱 short |
 | SKY-014 | Adopt cloudflared as a Skynet-managed tunnel (public path via apps-Caddy) | projects | complete | 2/2 | 🌱 short |
+| SKY-015 | Inventory renderer overhaul: proxy-aware service annotation, canonical host map, reverse-proxy route inventory | ideas | draft | — | 🔭 long |
 <!-- ROADMAP:END -->
