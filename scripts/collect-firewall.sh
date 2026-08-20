@@ -11,9 +11,14 @@ outdir="${REPO_DIR}/inventory/firewall"
 mkdir -p "${outdir}"
 
 # Refresh the mirror if it is a git checkout (best-effort; never fail the collector on it).
+# The pull needs the mirror owner's GitHub creds (the repo is private) — that's the user the
+# nightly runs as (ali), NOT root: a `sudo`/root pull has no creds and silently no-ops. So always
+# print the mirror HEAD date afterward, making stale sources visible instead of silently parsed.
 mirror_dir="$(dirname "${cfg}")"
 if [ -d "${mirror_dir}/.git" ]; then
-  git -C "${mirror_dir}" pull --quiet --ff-only 2>/dev/null || echo "warn: mirror pull skipped" >&2
+  git -C "${mirror_dir}" pull --quiet --ff-only 2>/dev/null \
+    || echo "warn: mirror pull skipped (run as the mirror owner with GitHub creds — e.g. ali, not root/sudo)" >&2
+  echo "mirror HEAD: $(git -C "${mirror_dir}" log -1 --format='%h %ci' 2>/dev/null || echo unknown)" >&2
 fi
 
 if [ ! -f "${cfg}" ]; then
