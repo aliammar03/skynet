@@ -1,7 +1,7 @@
 ---
 summary: "Start-here triage: take one T1 read-only host snapshot with scripts/recon.sh, reason over it, then branch to a diagnosis runbook."
 trigger: "Figure out why X is broken / what's going on with <host>"
-tokens: 771
+tokens: 828
 ---
 
 # Runbook — recon (start here)
@@ -22,13 +22,16 @@ tells you what to look at — via a diagnosis runbook, under a narrowest-host/sh
 scripts/recon.sh <host>        # remote host as svc-ops over SSH
 scripts/recon.sh               # this host (the ops VM) — no arg
 scripts/recon.sh <host> > /tmp/recon-<host>.md   # keep it to attach to a journal record
+scripts/recon.sh <host> --json # machine-readable object (drift checks, tooling)
 ```
 
 `<host>` is a bare label (mapped to `svc-ops@<label>`) or an explicit `user@host`. One
-Markdown snapshot comes back: host/kernel/uptime, load+memory, disk **and inode** pressure,
-failed systemd units, listening sockets, container health (unprivileged docker), recent
-journal warnings, and recent `/etc` + package changes. Sections that would need root say so
-rather than failing — recon never blocks on a grant.
+Markdown snapshot comes back (or a JSON object with `--json`): host/kernel/uptime,
+load+memory, disk **and inode** pressure, failed systemd units, listening sockets, container
+health (unprivileged docker), recent journal warnings, and recent `/etc` + package changes.
+Sections that would need root say so rather than failing — recon never blocks on a grant.
+Every probe is bounded by `RECON_TIMEOUT` (default 6s), so a hung mount or wedged daemon
+can't stall the snapshot.
 
 ## 2. Reason over it — what each section is telling you
 
