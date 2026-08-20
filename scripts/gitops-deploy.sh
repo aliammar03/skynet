@@ -111,6 +111,18 @@ echo "==> wrote ${PPATH}/.env (${KEYS} keys, owner ${OWNER}, mode 600) via svc-o
 # --- deploy + health --------------------------------------------------------
 echo "==> redeploying ${SVC}"
 arc POST "/environments/${ENVID}/projects/${PROJ}/redeploy" >/dev/null || true
+
+# Config-file services read a bind-mounted config only at STARTUP, and a file-only change doesn't
+# alter the compose spec — so Arcane's redeploy leaves the running container untouched and the new
+# config is never loaded. Force a restart for those. (cloudflared has no --watch; Caddy hot-reloads
+# via --watch, so it's deliberately NOT here.) Otherwise every tunnel-config change is a silent
+# two-step where the second step is easy to forget. See runbooks/publish-service.md Path C.
+case "${SVC}" in
+  cloudflared)
+    echo "==> ${SVC}: restarting container(s) to reload bind-mounted config"
+    ssh "${SSH_HOST}" "docker restart \$(docker ps -q --filter label=com.docker.compose.project=${SVC})" >/dev/null || true ;;
+esac
+
 for i in $(seq 1 20); do
   sleep 3
   ST="$(arc GET "/environments/${ENVID}/projects/${PROJ}" | jq -r '.data.status')"

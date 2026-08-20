@@ -6,16 +6,18 @@
 #
 # T2 capability: writes ONLY DNS records in the aliammar.net zone via a scoped Zone:DNS:Edit token.
 # The Cloudflare account / Access / tunnel config are T3 (out of reach here). Idempotent.
-# Sources /opt/skynet-ops/secrets/cloudflare-dns.env (0600), which sets three shell vars:
+# Reads /opt/skynet-ops/secrets/cloudflare-dns.env (root-owned 0600) via sudo — same pattern as
+# scripts/gitops-deploy.sh, so this runs bare (no sudo wrapper on the script). It sets three vars:
 #   CF_DNS_TOKEN   scoped Zone:DNS:Edit token for aliammar.net (the only secret)
 #   CF_ZONE        the zone, i.e. aliammar.net
 #   TUNNEL_ID      the tunnel UUID (public), e.g. 7f4c50f9-cee6-40bb-ad5a-ef6c7f30ca56
 set -euo pipefail
 
 envfile="/opt/skynet-ops/secrets/cloudflare-dns.env"
-[ -r "${envfile}" ] || { echo "missing ${envfile} (0600) — mint the scoped token first" >&2; exit 1; }
-# shellcheck disable=SC1090
-. "${envfile}"
+sudo test -r "${envfile}" || { echo "missing ${envfile} (0600) — mint the scoped token first" >&2; exit 1; }
+# The whole secrets/ dir is root:root 0700, so source the env via sudo (process substitution keeps
+# the token off any argv and off disk). Matches gitops-deploy.sh's `source <(sudo cat ...)`.
+set -a; source <(sudo cat "${envfile}"); set +a
 : "${CF_DNS_TOKEN:?}" "${CF_ZONE:?}" "${TUNNEL_ID:?}"
 
 del=0
