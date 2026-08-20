@@ -6,7 +6,7 @@ horizon: short
 created: 2026-08-16
 updated: 2026-08-20
 phases: 5
-current_phase: 3
+current_phase: 4
 tier_touched: [T1, T2, T2+, T3]   # T2 apps proxy; T2-scoped Authentik provisioning; Authentik server-admin
                                   # + OPNsense stay T3 → this directive PRs docs/system-design.md by rule.
 related:
@@ -214,7 +214,7 @@ apps/providers but nothing privileged; the runbook documents both publish paths.
 Grants / human actions: the Phase-3 step 1 Authentik account/role/token creation is a **T3 human
 action** — hard checkpoint, Ali does it in the UI. Everything after uses the scoped T2 token.
 
-### Phase 4 — Firewall hardening + DMZ-docker SSH-exposure audit  (~1–2h)   `[ ]` not started
+### Phase 4 — Firewall hardening + DMZ-docker SSH-exposure audit  (~1–2h)   `[x]` done — 2026-08-20
 
 The "prove the controls actually hold" phase Ali asked for. Firewall changes are **T3** — the agent
 proposes the delta; Ali applies it on OPNsense.
@@ -347,3 +347,18 @@ Follow AGENTS.md as above.
   Apply); the agent drove the Authentik API via the caddy-apps container instead. Also: a **public
   calibre** exposure is under discussion (goal: publicly reachable; low-friction/no-dashboard gating) —
   that's SKY-014-adjacent, tracked separately, not part of SKY-003.
+- 2026-08-20 — **Phase 4 DONE (audit + least-privilege delta applied).** Read-only audit (T1) →
+  findings journaled. **Ingress:** core segmentation confirmed (no client→origin rule; clients reach
+  only the proxy). Discovered app origins are all **intra-DMZ** (same VLAN 100 as Caddy) → L2, never
+  firewalled, so rule 250/`PORT_APP_BACKENDS` governed nothing real (corrects the P3 "karakeep :3000"
+  note — no fix needed). Ali **deleted rule 250 + `ROLE_APP_ORIGINS` + `PORT_APP_BACKENDS`** entirely
+  (dead config; a stale cross-VLAN `10.10.20.63` was its only enforced member). **Rule 830** trimmed —
+  `HOST_PROXY_APPS` removed (apps Caddy validates ACME on the CF API 443, needs no `:53`). **SSH
+  exposure of `vm-docker-dmz`:** rules 270 & 370 both granted ops→`.15:22`, with 270 over-broad
+  (superseded 260/270 family); Ali **deleted rule 270 + orphaned `ROLE_SKYNET_OPS_TARGETS`**, leaving
+  the narrow rule 370 as the sole ops-SSH rule. **Host sshd** (agent, under a `gr vm-docker-dmz`
+  grant): `PasswordAuthentication no` + removed the stray `PermitRootLogin yes`/`PasswordAuthentication
+  yes` footguns; `sshd -T` confirms `passwordauthentication no` / `permitrootlogin without-password`;
+  no lockout. `ROLE_OPS_PRIV_TARGETS` **confirmed empty**. Re-collected the mirror (via a fresh `gh`
+  clone — the root mirror lags, no https creds in-context), regenerated firewall docs, `check-invariants`
+  green. **Next: P5** close-out. → PR (agent does not merge its own).
