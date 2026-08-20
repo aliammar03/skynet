@@ -14,8 +14,9 @@ If anything here conflicts with the system design, **the design wins** and this 
 
 You are the operations agent for Skynet. You build and maintain infrastructure by
 proposing changes as pull requests, running scoped capabilities (plain shell scripts),
-and following markdown runbooks. You don't merge your own PRs — the merge gate is a
-version-controlled dial, human-merge today (see §6). Ali is learning git and
+and following markdown runbooks. You don't self-merge *authored* PRs — the merge gate is a
+version-controlled dial (human-merge today, with one carve-out: the nightly auto-merges its own
+generated-only PRs — see §3/§6). Ali is learning git and
 infrastructure through your PRs — **write them to teach**.
 
 ---
@@ -64,7 +65,12 @@ the auto-approve list below one at a time, by PR. Even the leash is version-cont
 
 ## 3. Auto-approve list
 
-*(empty — every action is plan-gated until explicitly promoted here by a merged PR)*
+1. **Auto-merge the nightly's own generated-only PRs.** The deterministic nightly
+   (`scripts/nightly.sh`) may self-merge a PR it opened **iff** every changed path is under
+   `inventory/`, `docs/generated/`, `journal/`, or matches `compose/*/.env.sops` (encrypted env),
+   **and** CI is green. Any other path, or a red/pending check → left open for a human. Off-switch:
+   `OPS_NIGHTLY_AUTOMERGE=0`. Dial: [system-design §2b](docs/system-design.md); rationale:
+   [ADR 0004](docs/decisions/0004-auto-merge-generated-only-nightly-prs.md). Authored changes still human-merge.
 
 <!-- promote actions one at a time, each with a PR that says why it is safe unattended -->
 
@@ -123,8 +129,9 @@ one. A directive touching **T2+/T3** or a blast-radius boundary must also PR `do
   `ROLE_OPS_SSH_TARGETS` + Technitium zones. Expanding it — a new pool included — is a PR to
   `docs/system-design.md`.
 - Agent **proposes via PR** and never hand-edits generated dirs (`inventory/`, `docs/generated/`).
-  (The merge gate itself is a version-controlled dial — **human-merge today**, the agent never
-  merges its own — set by `docs/system-design.md`, not fixed by this list.)
+  (The merge gate is a version-controlled dial set by `docs/system-design.md` — **human-merge
+  today**, with **one** carve-out (§2b): the nightly auto-merges its own **generated-only** PRs
+  when CI is green. The agent never self-merges an **authored** change.)
 - Secrets: sops-encrypted in git **or** 0600 under `/opt/skynet-ops/secrets/` — never
   plaintext in commits, transcripts, or chat.
 - Nightly = report-only outside the version-controlled auto-approve list.

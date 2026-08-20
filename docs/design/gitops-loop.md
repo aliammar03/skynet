@@ -1,6 +1,6 @@
 ---
 summary: "How a service change becomes a running container via Arcane, with git-revert rollback and image pinning + Renovate."
-tokens: 900
+tokens: 935
 ---
 
 # Spoke · The GitOps loop
@@ -54,9 +54,10 @@ Anything unhealthy: `git revert`, Arcane rolls it back.
 
 ## Planned expansion
 
-- **Docs-only auto-merge** (the merge-gate dial's first foreseeable loosening) would let the agent
-  close the loop on documentation PRs without a human merge — a change to the constitution's merge
-  dial and the `AGENTS.md` auto-approve list, not to this mechanism.
+- **Generated-only auto-merge — shipped.** The nightly now self-merges its own PR when the diff is
+  confined to `inventory/`, `docs/generated/`, `journal/`, and `compose/*/.env.sops` and CI is green
+  — the merge-gate dial's foreseeable first loosening ([system-design §2b](../system-design.md),
+  [ADR 0004](../decisions/0004-auto-merge-generated-only-nightly-prs.md)). Authored PRs still human-merge.
 - **A managed reverse proxy** gives services a consistent front door and hooks into this loop — the
   apps Caddy publishes routes as a Caddyfile in git, deployed by the same PR → Arcane-reconcile path
   (SKY-003). Its design lives in the [identity-and-proxy](identity-and-proxy.md) spoke; a future step
