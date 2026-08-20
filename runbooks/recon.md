@@ -1,7 +1,7 @@
 ---
 summary: "Start-here triage: take one T1 read-only host snapshot with scripts/recon.sh, reason over it, then branch to a diagnosis runbook."
 trigger: "Figure out why X is broken / what's going on with <host>"
-tokens: 930
+tokens: 970
 ---
 
 # Runbook — recon (start here)
@@ -47,8 +47,10 @@ can't stall the snapshot.
 
 ## 3. Branch to a diagnosis runbook
 
-Once the snapshot points at a failure class, follow the matching triage runbook (each embeds
-the deeper diagnostic commands + decision branches, and ends in a **journal incident record**):
+`recon.sh` prints a **Next — likely diagnosis runbooks** block whenever the snapshot itself shows a
+matching signal (a crash-looping container, a filesystem ≥90%, a failed unit, a backup unit) — so it
+routes you to the next step, not just describes it. The full map (including symptom-driven classes a
+host snapshot can't see, like cert/DNS):
 
 | Snapshot symptom | Triage runbook |
 |---|---|

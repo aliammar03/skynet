@@ -20,8 +20,13 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${REPO_DIR}"
 
-# The loadable reference corpus this script governs (authored docs that carry frontmatter).
-CORPUS_GLOBS=(docs/design/*.md docs/conventions/*.md runbooks/*.md runbooks/dr/*.md runbooks/diagnose/*.md)
+# The loadable reference corpus this script governs (authored docs that carry frontmatter): EVERY
+# `.md` under these roots, discovered RECURSIVELY. Recursion is deliberate — a new subdir (e.g.
+# runbooks/diagnose/) is picked up automatically, so the gate fails CLOSED. A hand-listed glob failed
+# OPEN: a whole subdir once stamped `tokens: 0` and slipped past --check unseen (SKY-005 P2 retro).
+# docs/ top-level (system-design.md, the conventions.md hub) is intentionally OUTSIDE these roots.
+CORPUS_ROOTS=(docs/design docs/conventions runbooks)
+mapfile -t CORPUS_GLOBS < <(find "${CORPUS_ROOTS[@]}" -type f -name '*.md' 2>/dev/null | sort)
 # Baseline references shown in the report but never written (the contract + machine-owned pages).
 BASELINE_FILES=(AGENTS.md CLAUDE.md)
 COLDBOOT_FILE="docs/generated/06-agent-digest.md"

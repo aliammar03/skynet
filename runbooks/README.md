@@ -1,6 +1,6 @@
 ---
 summary: "Catalog of engine-neutral procedures any agent can execute, each tagged by tier and trigger — the routing menu."
-tokens: 1408
+tokens: 1475
 ---
 
 # runbooks — procedures any agent can execute
@@ -64,6 +64,9 @@ These assume the lab is gone and the DR agent starts from a laptop + phone hotsp
 - Keep it **engine-neutral**: markdown prose + plain bash, no vendor-specific invocation.
 - Open with a **Tier** line (and **Trigger** where there's a natural phrase), matching §1 of `AGENTS.md`.
 - Add a row here in the same PR — an uncatalogued runbook is an invisible one.
+- **Don't hardcode unverified specifics.** A host IP, hostname, or container name goes in as a clear
+  `<placeholder>`, or cites the generated host map (`docs/generated/`) — never a value typed from
+  memory. (A guessed resolver IP shipped wrong once; SKY-005 P2.)
 - **Before committing, run `scripts/budget-frontmatter.sh`** to stamp the generated `tokens:` line
   (never hand-set it — the pre-commit hook rejects a stale/missing value). Author `summary:`/`trigger:`.
 - Anything touching **T2+/T3** or a blast-radius boundary must also PR `docs/system-design.md`.
