@@ -1,12 +1,12 @@
 ---
 id: SKY-005
 title: Imperative ops discipline: recon toolkit, diagnosis library, lab bench
-status: draft
+status: in-progress
 horizon: short
 created: 2026-08-17
-updated: 2026-08-17
+updated: 2026-08-20
 phases: 3
-current_phase: 0
+current_phase: 1
 tier_touched: [T1, T2, T2+]   # recon is T1; diagnosis uses existing root grants (T2+); bench is
                               # the docker-dmz throwaway host (T2). No new blast radius.
 related:
@@ -71,9 +71,11 @@ runbooks + an ad-hoc root grant + improvised commands. Three concrete gaps:
 - **Rollback posture:** all additive (scripts/runbooks); `git revert`. The bench is throwaway by design.
 - **Grants / human actions:** normal narrowest-host/shortest-duration grants when a diagnosis needs root.
 
-### Phase 1 — recon toolkit  (~1–2h)   `[ ]` not started
+### Phase 1 — recon toolkit  (~1–2h)   `[x]` done (2026-08-20)
 `scripts/recon.sh <host>` → one structured (JSON/markdown) snapshot; wire it into a "start here"
 runbook. Exit: a single command yields a full host picture at T1, no grant to observe.
+**Shipped:** `scripts/recon.sh` (Markdown snapshot, local or `svc-ops@` SSH, degrades where root
+would reveal more — never requires a grant) + `runbooks/recon.md` (start-here triage, catalogued).
 
 ### Phase 2 — diagnosis library  (~1–2h)   `[ ]` not started
 Triage runbooks for the top failure classes, each embedding diagnostic commands + decision branches

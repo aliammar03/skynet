@@ -1,6 +1,6 @@
 ---
 summary: "Catalog of engine-neutral procedures any agent can execute, each tagged by tier and trigger — the routing menu."
-tokens: 918
+tokens: 1070
 ---
 
 # runbooks — procedures any agent can execute
@@ -14,6 +14,12 @@ one vendor's skill/command format.
 
 **This file is that catalog** — the menu so a runbook is never invisible. Each runbook opens
 with its own **Tier** and (where relevant) **Trigger** line; the summaries below mirror them.
+
+## Diagnosis (imperative — "diagnose imperatively, fix declaratively")
+
+| Runbook | Tier | What it does |
+|---|---|---|
+| [`recon.md`](recon.md) | T1 read-only | **Start here.** One `scripts/recon.sh <host>` snapshot — units, disk/inodes, ports, containers, recent warnings + changes — with **no grant to observe**, then branch to a diagnosis runbook. Trigger: *"figure out why X is broken."* |
 
 ## Routine operations
 
@@ -52,4 +58,6 @@ These assume the lab is gone and the DR agent starts from a laptop + phone hotsp
 - Keep it **engine-neutral**: markdown prose + plain bash, no vendor-specific invocation.
 - Open with a **Tier** line (and **Trigger** where there's a natural phrase), matching §1 of `AGENTS.md`.
 - Add a row here in the same PR — an uncatalogued runbook is an invisible one.
+- **Before committing, run `scripts/budget-frontmatter.sh`** to stamp the generated `tokens:` line
+  (never hand-set it — the pre-commit hook rejects a stale/missing value). Author `summary:`/`trigger:`.
 - Anything touching **T2+/T3** or a blast-radius boundary must also PR `docs/system-design.md`.
