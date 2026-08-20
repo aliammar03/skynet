@@ -1,7 +1,7 @@
 ---
 summary: "Start-here triage: take one T1 read-only host snapshot with scripts/recon.sh, reason over it, then branch to a diagnosis runbook."
 trigger: "Figure out why X is broken / what's going on with <host>"
-tokens: 828
+tokens: 970
 ---
 
 # Runbook — recon (start here)
@@ -47,13 +47,19 @@ can't stall the snapshot.
 
 ## 3. Branch to a diagnosis runbook
 
-Once the snapshot points at a failure class, follow the matching triage runbook (each embeds
-the deeper diagnostic commands + decision branches, and ends in a **journal incident record**):
+`recon.sh` prints a **Next — likely diagnosis runbooks** block whenever the snapshot itself shows a
+matching signal (a crash-looping container, a filesystem ≥90%, a failed unit, a backup unit) — so it
+routes you to the next step, not just describes it. The full map (including symptom-driven classes a
+host snapshot can't see, like cert/DNS):
 
-- container crash-loop · disk full · cert expired · DNS failure · backup missed · Arcane stuck
-
-*(The diagnosis library is SKY-005 Phase 2 — `runbooks/diagnose/`. Until it lands, reason from
-the snapshot and record what you found in the [journal](../journal/README.md).)*
+| Snapshot symptom | Triage runbook |
+|---|---|
+| a container `Restarting` / `unhealthy` / exited | [`diagnose/container-crashloop.md`](diagnose/container-crashloop.md) |
+| a filesystem full, or inodes exhausted | [`diagnose/disk-full.md`](diagnose/disk-full.md) |
+| a name won't resolve / unreachable by hostname | [`diagnose/dns-failure.md`](diagnose/dns-failure.md) |
+| TLS warning / expired cert / ACME failing | [`diagnose/cert-expired.md`](diagnose/cert-expired.md) |
+| a missing snapshot / a failed backup timer | [`diagnose/backup-missed.md`](diagnose/backup-missed.md) |
+| a merged compose PR that didn't deploy / drift | [`diagnose/arcane-stuck.md`](diagnose/arcane-stuck.md) |
 
 ## 4. Fix declaratively
 

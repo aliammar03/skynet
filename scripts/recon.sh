@@ -118,6 +118,26 @@ render() {
     printf '# recon: %s\ncollected: %s   as: %s\n' "$host" "$collected" "$as"
     # shellcheck disable=SC2016  # %s are printf specifiers, not shell expansions — single quotes are correct
     for s in "${order[@]}"; do printf '\n## %s\n\n```\n%s```\n' "$s" "${sect[$s]}"; done
+    # Routing: map observed signals to the matching diagnosis runbook, so recon points at the
+    # next step instead of leaving the reader to match the table (SKY-005 P2). Signals only fire
+    # on what a host snapshot can actually see (crash-loop, disk/inode pressure, failed units,
+    # backup units) — cert/DNS are symptom-driven, reached from their own triggers.
+    local all='' s2; for s2 in "${order[@]}"; do all+="${sect[$s2]}"$'\n'; done
+    local -a nextr=()
+    printf '%s' "$all" | grep -qiE 'restarting|unhealthy|Exited \([1-9]' \
+      && nextr+=('a container is crash-looping / unhealthy → runbooks/diagnose/container-crashloop.md')
+    printf '%s' "$all" | awk '{for(i=1;i<=NF;i++) if($i ~ /^[0-9]+%$/ && $i+0>=90) f=1} END{exit !f}' \
+      && nextr+=('a filesystem or inode table is ≥90% full → runbooks/diagnose/disk-full.md')
+    printf '%s' "$all" | grep -qiE 'restic|pbs|backup' \
+      && nextr+=('a backup/restic/pbs unit is present → runbooks/diagnose/backup-missed.md')
+    case "${sect['systemd — failed units']:-}" in
+      *'(none failed)'*|'') : ;;
+      *) nextr+=('a systemd unit is failed → read the unit, then the matching runbook above') ;;
+    esac
+    if [ "${#nextr[@]}" -gt 0 ]; then
+      printf '\n## Next — likely diagnosis runbooks\n\n'
+      local r; for r in "${nextr[@]}"; do printf -- '- %s\n' "$r"; done
+    fi
     printf '\n_recon complete — T1 read-only. Reason over this, then pick a diagnosis runbook._\n'
   fi
 }
