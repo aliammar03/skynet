@@ -21,7 +21,7 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${REPO_DIR}"
 
 # The loadable reference corpus this script governs (authored docs that carry frontmatter).
-CORPUS_GLOBS=(docs/design/*.md docs/conventions/*.md runbooks/*.md runbooks/dr/*.md)
+CORPUS_GLOBS=(docs/design/*.md docs/conventions/*.md runbooks/*.md runbooks/dr/*.md runbooks/diagnose/*.md)
 # Baseline references shown in the report but never written (the contract + machine-owned pages).
 BASELINE_FILES=(AGENTS.md CLAUDE.md)
 COLDBOOT_FILE="docs/generated/06-agent-digest.md"

@@ -1,6 +1,6 @@
 ---
 summary: "Catalog of engine-neutral procedures any agent can execute, each tagged by tier and trigger — the routing menu."
-tokens: 1070
+tokens: 1408
 ---
 
 # runbooks — procedures any agent can execute
@@ -20,6 +20,12 @@ with its own **Tier** and (where relevant) **Trigger** line; the summaries below
 | Runbook | Tier | What it does |
 |---|---|---|
 | [`recon.md`](recon.md) | T1 read-only | **Start here.** One `scripts/recon.sh <host>` snapshot — units, disk/inodes, ports, containers, recent warnings + changes — with **no grant to observe**, then branch to a diagnosis runbook. Trigger: *"figure out why X is broken."* |
+| [`diagnose/container-crashloop.md`](diagnose/container-crashloop.md) | T1 diagnose · fix = compose PR | A container `Restarting`/`unhealthy`/exiting — exit code + logs + healthcheck + env layering → the cause → a `compose/` fix. |
+| [`diagnose/disk-full.md`](diagnose/disk-full.md) | T1 diagnose · fix = config/grant | Full FS **or** exhausted inodes — find what ate it (data vs logs vs docker cruft) → rotation/log-limit/resize, declaratively. |
+| [`diagnose/dns-failure.md`](diagnose/dns-failure.md) | T1 read · fix = T2 record | A name won't resolve — split internal (Technitium) vs public (Cloudflare), read NXDOMAIN/SERVFAIL → fix the record via the scoped token. |
+| [`diagnose/cert-expired.md`](diagnose/cert-expired.md) | T1 inspect · fix = Caddy PR | Expired/failing TLS — read the served cert, find why ACME isn't renewing (HTTP-01/DNS-01/rate-limit/clock) → Caddy-config fix. |
+| [`diagnose/backup-missed.md`](diagnose/backup-missed.md) | T1 read (grant for repo) | A missing snapshot / failed timer — timer + last-snapshot age + repo reachability (restic→gdrive, PBS) → timer/creds fix. |
+| [`diagnose/arcane-stuck.md`](diagnose/arcane-stuck.md) | T1/T2 · fix = compose PR | A merged compose PR that didn't deploy — Git Sync status + git-vs-running → sync-fail / apply-fail / drift → reconcile in git. |
 
 ## Routine operations
 

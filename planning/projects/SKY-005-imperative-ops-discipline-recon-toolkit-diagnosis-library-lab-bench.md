@@ -6,7 +6,7 @@ horizon: short
 created: 2026-08-17
 updated: 2026-08-20
 phases: 3
-current_phase: 1
+current_phase: 2
 tier_touched: [T1, T2, T2+]   # recon is T1; diagnosis uses existing root grants (T2+); bench is
                               # the docker-dmz throwaway host (T2). No new blast radius.
 related:
@@ -77,10 +77,14 @@ runbook. Exit: a single command yields a full host picture at T1, no grant to ob
 **Shipped:** `scripts/recon.sh` (Markdown snapshot, local or `svc-ops@` SSH, degrades where root
 would reveal more — never requires a grant) + `runbooks/recon.md` (start-here triage, catalogued).
 
-### Phase 2 — diagnosis library  (~1–2h)   `[ ]` not started
+### Phase 2 — diagnosis library  (~1–2h)   `[x]` done (2026-08-20)
 Triage runbooks for the top failure classes, each embedding diagnostic commands + decision branches
 and ending in an incident record for the journal ([[SKY-006-progress]]). Exit: ≥4 failure classes
 have a triage runbook.
+**Shipped:** `runbooks/diagnose/` — **6** triage runbooks (container-crashloop, disk-full, dns-failure,
+cert-expired, backup-missed, arcane-stuck), each with confirm → diagnose (commands + decision-branch
+table) → **fix declaratively** → `bin/new journal incident`. Catalogued in `runbooks/README.md`;
+`recon.md`'s branch-to-diagnosis list is now live links (no dangling forward-ref). Exit cleared (6 ≥ 4).
 
 ### Phase 3 — lab bench + fix principle  (~1–2h)   `[ ]` not started
 Formalize `vm-docker-dmz` as the bench + per-layer dry-run reflex; propose the "fix declaratively /
