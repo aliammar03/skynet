@@ -1,7 +1,7 @@
 ---
 summary: "Triage DNS failures — split internal (Technitium) vs public (Cloudflare), read NXDOMAIN/SERVFAIL, fix the record through the sanctioned T2 path."
 trigger: "A name won't resolve / service unreachable by hostname / ACME DNS-01 failing"
-tokens: 789
+tokens: 867
 ---
 
 # Diagnose — DNS failure
@@ -20,11 +20,16 @@ on `aliammar.net`). Technitium **server settings** and the Cloudflare **account*
 The lab is split-horizon: **Technitium** answers internal names, **Cloudflare** answers public ones.
 Ask both, so you know which half is broken:
 
+Use the **real** Technitium server IP from the generated host map
+([`docs/generated/30-services/README.md`](../../docs/generated/30-services/README.md) —
+`technitium-core.aliammar.net`, `10.10.60.35` today; confirm there, don't hardcode from memory):
+
 ```bash
-dig +short <name> @10.10.90.53          # internal resolver (Technitium — use the real server IP)
-dig +short <name> @1.1.1.1              # public (Cloudflare-published)
-dig <name> @10.10.90.53                 # full answer — read the status line (NOERROR/NXDOMAIN/SERVFAIL)
-resolvectl status                       # what resolver is THIS client actually using?
+TDNS=10.10.60.35                        # technitium-core — verify in the host map above
+dig +short <name> @"$TDNS"             # internal resolver (Technitium)
+dig +short <name> @1.1.1.1             # public (Cloudflare-published)
+dig <name> @"$TDNS"                    # full answer — read the status line (NOERROR/NXDOMAIN/SERVFAIL)
+resolvectl status                      # what resolver is THIS client actually using?
 ```
 
 ## 2. Branch on the answer

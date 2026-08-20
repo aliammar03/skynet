@@ -1,7 +1,7 @@
 ---
 summary: "Triage an expired/failing TLS cert — read the served cert's dates, find why ACME isn't renewing (HTTP-01 vs DNS-01, rate limit, clock), fix in Caddy config."
 trigger: "Cert warning / TLS handshake fails / 'certificate expired' / ACME renewal failing"
-tokens: 749
+tokens: 780
 ---
 
 # Diagnose — cert expired
@@ -26,7 +26,8 @@ Read `notAfter` (expired?), `issuer` (Let's Encrypt vs Caddy's internal CA vs st
 `subject` (right name?). Then the issuer's own words:
 
 ```bash
-ssh svc-ops@<docker-host> docker logs --tail 150 caddy-apps 2>&1 | grep -iE 'acme|cert|tls|error'
+CADDY=$(ssh svc-ops@<docker-host> docker ps --filter name=caddy --format '{{.Names}}' | head -1)  # e.g. caddy-apps-caddy-1
+ssh svc-ops@<docker-host> docker logs --tail 150 "$CADDY" 2>&1 | grep -iE 'acme|cert|tls|error'
 date -u                                  # and on the host — clock skew breaks TLS + ACME
 ssh svc-ops@<docker-host> timedatectl    # NTP synced?
 ```
