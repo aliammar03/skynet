@@ -1,7 +1,7 @@
 ---
 summary: "Publish a service through the apps Caddy front door: edit the Caddyfile then PR then deploy — own-auth (plain reverse_proxy) or forward-auth via Authentik (scoped-token provider+application); optionally also expose it to the internet via the Cloudflare Tunnel (Path C)."
 trigger: "Publish or expose a service"
-tokens: 3851
+tokens: 4199
 ---
 
 # Runbook — publish a service through the apps Caddy (the front door)
@@ -212,6 +212,32 @@ curl -sSI --resolve <svc>.aliammar.net:443:1.1.1.1 https://<svc>.aliammar.net   
 Expect a real status + valid public cert. In a browser from off-network: the app loads (and, for a
 Path-B host, is bounced to Authentik first). **Confirm the internal path is unchanged** — an on-network
 hit still resolves to `10.10.100.35` and never transits Cloudflare.
+
+### Publishing a *forward-auth* (Path B) app — the extra half
+
+A forward-auth app **can't go public alone**: an unauthenticated request is 302'd to
+`auth.aliammar.net` to log in, so the **Authentik login host must be public too** or the redirect
+dead-ends off-network. So publish **both** hostnames (each = one ingress line + one CNAME): the app
+*and* `auth.aliammar.net`. This is a **one-time** step — once `auth.aliammar.net` is public, every
+future forward-auth app is just its own ingress line + CNAME.
+
+Exposing the IdP means **locking its admin surface to internal-only**. In the `auth.aliammar.net`
+Caddy vhost, refuse the admin UI when the request arrives over the tunnel — cloudflared connects to
+Caddy from `10.10.100.33`, so `remote_ip 10.10.100.33` means "came in publicly":
+```
+auth.aliammar.net {
+    @tunnel_admin {
+        remote_ip 10.10.100.33      # arrived via the public tunnel
+        path /if/admin/*
+    }
+    respond @tunnel_admin 404
+    reverse_proxy 10.10.80.37:9000
+}
+```
+**Do not** block `/api/v3/*` or `/if/flow/*` — the login **flow executor** lives under them, so
+blocking them breaks logins. Verify the split: `/if/admin/` is `404` over the tunnel but `200` from an
+internal client; the public login page + `/if/flow/…` serve `200`. And ensure the Authentik account
+that page now exposes uses **MFA / a passkey** (the login is internet-reachable).
 
 **Rollback (symmetric, immediate):** `scripts/cf-dns-route.sh --delete <svc>.aliammar.net` pulls the
 CNAME and the hostname stops resolving publicly at once; then `git revert` the `ingress` line and
