@@ -16,4 +16,18 @@ ingress:
     service: https://10.10.100.35
     originRequest:
       originServerName: karakeep.aliammar.net
+  # calibre — NO native login; gated by Authentik forward-auth (SKY-003 P3). Public exposure only
+  # works alongside auth.aliammar.net below: an unauthenticated request is 302'd to Authentik, so
+  # the login host must resolve publicly too, or the redirect dead-ends.
+  - hostname: calibre.aliammar.net
+    service: https://10.10.100.35
+    originRequest:
+      originServerName: calibre.aliammar.net
+  # auth — Authentik's login/OIDC/flow endpoints, published so the forward-auth redirect above
+  # resolves for EXTERNAL users. The apps-Caddy vhost refuses Authentik's admin UI (/if/admin/*)
+  # when the request arrives via this tunnel (source .33), so the admin surface stays internal-only.
+  - hostname: auth.aliammar.net
+    service: https://10.10.100.35
+    originRequest:
+      originServerName: auth.aliammar.net
   - service: http_status:404

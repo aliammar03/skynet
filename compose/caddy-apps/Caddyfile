@@ -92,5 +92,16 @@ sillytavern.aliammar.net {
 # Authentik admin (that stays T3).
 # ===================================================================================
 auth.aliammar.net {
+	# Published to the internet (SKY-014) so the calibre forward-auth redirect resolves for EXTERNAL
+	# users. Keep the admin surface internal-only: refuse Authentik's admin UI when the request comes
+	# in over the Cloudflare Tunnel — cloudflared connects to this proxy from 10.10.100.33, so a
+	# remote_ip of .33 means "arrived via the public tunnel". Login/OIDC/flow endpoints stay public
+	# (logins need them); /api/v3 is deliberately NOT blocked — the login flow executor lives under it.
+	@tunnel_admin {
+		remote_ip 10.10.100.33
+		path /if/admin/*
+	}
+	respond @tunnel_admin 404
+
 	reverse_proxy 10.10.80.37:9000
 }
