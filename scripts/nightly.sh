@@ -4,7 +4,9 @@
 #   1. the FALLBACK when the LLM engine can't run (see bin/ops nightly), and
 #   2. a standalone report-only pass for anyone who prefers no-LLM.
 # It is pure scripts: refresh inventory (T1), envsync, render docs, then open a PR with the
-# diff. It NEVER makes a T2 write or granted-root change, and it never merges.
+# diff. It NEVER makes a T2 write or granted-root change. It self-merges ONLY its own
+# generated-only PR, and only when CI is green — the merge-gate carve-out (system-design §2b);
+# it never self-merges an authored change. Off-switch: OPS_NIGHTLY_AUTOMERGE=0.
 #
 # What it deliberately can't do (needs an LLM or a root grant): the narrative PROSE of
 # docs/generated/05-state-of-the-lab.md (LLM) and the root-grant audit harvest (root). Both
@@ -75,9 +77,37 @@ git add "${JENTRY}"
 git commit -q -m "nightly ${DATE}: inventory + docs + encrypted env refresh + journal (report-only)"
 git push -u origin "${BRANCH}" --quiet
 
+# 6. Auto-merge — the merge-gate carve-out (docs/system-design.md §2b, ADR 0004). The nightly may
+#    self-merge its OWN PR, but ONLY when every changed path is generated/encrypted AND CI is green.
+#    No branch protection backstops this (private repo on the free plan), so the green-gate below IS
+#    the safety and is deliberately strict: one stray authored path, or a red/pending check, and the
+#    PR is left open for a human — exactly the old behaviour. Off-switch: OPS_NIGHTLY_AUTOMERGE=0.
+automerge() {
+  [ "${OPS_NIGHTLY_AUTOMERGE:-1}" = 1 ] || { echo "automerge: disabled (OPS_NIGHTLY_AUTOMERGE=0) — PR left open"; return; }
+  local pr="$1"
+  # (a) path allowlist — generated inventory/docs, a journal episode, or a sops-encrypted env blob.
+  #     Anything else means a human reasoned about it; hand it back to a human.
+  local stray
+  stray="$(git diff --name-only "origin/${DEFAULT_BRANCH}...${BRANCH}" \
+    | grep -vE '(^inventory/|^docs/generated/|^journal/|^compose/[^/]+/\.env\.sops$)' || true)"
+  if [ -n "${stray}" ]; then
+    echo "automerge: PR touches non-generated paths — left open for human review:"; echo "${stray}"; return
+  fi
+  # (b) green-gate — `gh pr checks --watch` blocks until every check completes, then exits nonzero
+  #     if any failed. Merge only on a clean pass; otherwise leave the PR open.
+  echo "automerge: generated-only — waiting for CI on ${pr}…"
+  if gh pr checks "${pr}" --watch --interval 20 >/dev/null 2>&1; then
+    gh pr merge "${pr}" --squash --delete-branch \
+      && echo "automerge: merged ${pr} (generated-only, CI green)" \
+      || echo "automerge: merge call failed — ${pr} left open"
+  else
+    echo "automerge: CI not green — ${pr} left open for review"
+  fi
+}
+
 # Summarise the diff for the PR body (inventory, docs, and any re-encrypted env layer).
 summary="$(git diff --stat "origin/${DEFAULT_BRANCH}...${BRANCH}" -- inventory docs/generated compose | tail -25)"
-gh pr create --base "${DEFAULT_BRANCH}" --head "${BRANCH}" \
+PR_URL="$(gh pr create --base "${DEFAULT_BRANCH}" --head "${BRANCH}" \
   --title "nightly ${DATE}: inventory + docs (report-only)" \
   --body "Automated report-only nightly (deterministic path — no LLM this run).
 
@@ -87,9 +117,17 @@ Refreshed inventory (T1 collectors), envsync, and re-rendered \`docs/generated/\
 ${summary}
 \`\`\`
 
-Not done by this path: the narrative \`05-state-of-the-lab.md\` (agent-authored) and the
-root-grant audit (needs a grant). Review the diff; merge if it looks right. 🤖 nightly" \
-  2>&1 | tail -1 || echo "PR create skipped/failed (check gh auth)"
+Generated-only, so this **auto-merges once CI is green** (merge-gate dial §2b; off-switch
+\`OPS_NIGHTLY_AUTOMERGE=0\`). Not done by this path: the narrative \`05-state-of-the-lab.md\`
+(agent-authored) and the root-grant audit (needs a grant). 🤖 nightly" \
+  2>&1 | tail -1)" || PR_URL=""
 
+# Back to the default branch before merge/cleanup so --delete-branch can drop the local branch too.
 git checkout "${DEFAULT_BRANCH}" --quiet 2>/dev/null || true
+
+case "${PR_URL}" in
+  https://*) echo "opened ${PR_URL}"; automerge "${PR_URL}" ;;
+  *)         echo "PR create skipped/failed (check gh auth): ${PR_URL}" ;;
+esac
+
 echo "nightly (deterministic) complete"

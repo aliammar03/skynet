@@ -66,9 +66,14 @@ can be moved openly rather than eroded quietly. **Widening any of them is a PR t
   Technitium zones. The pool set holds **two** pools today — *a current count, never a fixed law*;
   new pools join by PR here. (Details: [access-and-trust](design/access-and-trust.md),
   [network](design/network.md).)
-- **The merge gate** = human merge, today. Merge authority is a *ratcheted grant*, not an eternal
-  "never" — the foreseeable first loosening is the agent auto-merging **docs-only** PRs. Any
-  widening is a PR here that also updates the [auto-approve list](../AGENTS.md).
+- **The merge gate** = human merge, today — with **one** carve-out now taken: the agent
+  auto-merges its **own nightly generated-only PRs** (every changed path under `inventory/`,
+  `docs/generated/`, `journal/`, or matching `compose/*/.env.sops`) and **only** when CI is green.
+  Everything **authored** — design, code, compose, runbooks — stays human-merged. This was the
+  dial's foreseeable first loosening ([ADR 0004](decisions/0004-auto-merge-generated-only-nightly-prs.md));
+  any further widening is a PR here that also updates the [auto-approve list](../AGENTS.md).
+  Off-switch: `OPS_NIGHTLY_AUTOMERGE=0`. No branch protection backstops it (private repo, free
+  plan) — the green-gate in `scripts/nightly.sh` is the enforcement.
 - **Autonomy** = nightly runs are **report-only** outside the version-controlled auto-approve
   list. Individual actions graduate to auto-approve one at a time, by PR. Even the leash is in git.
 - **Survival & kill switch** — survival kit verified quarterly; kill switch (`disable tokens +
@@ -109,7 +114,8 @@ principal — lives in [access-and-trust](design/access-and-trust.md); this is t
   challenges) — records aren't privileged access, exactly as Technitium *zones* are T2. The Cloudflare
   **account, Zero-Trust/Access policies, tunnel configuration, and zone-level settings** stay T3
   (Ali only). Same shape as the Technitium split. Publishing a hostname still needs its `ingress`
-  rule **human-merged** (the agent never merges its own PR) — that merge is the publish gate, not the
+  rule **human-merged** (the agent never self-merges an *authored* PR — the merge-gate carve-out in
+§2b is generated-only) — that merge is the publish gate, not the
   CNAME. (SKY-014 — see [identity-and-proxy](design/identity-and-proxy.md).)
 - **Pool membership is the blast-radius dial.** Joining a guest to an `ops-managed` pool hands the
   agent T2 over it; leaving it out keeps it look-but-don't-touch. **VM 5001 (OPNsense) never joins
