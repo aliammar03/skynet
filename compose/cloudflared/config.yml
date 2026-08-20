@@ -30,4 +30,17 @@ ingress:
     service: https://10.10.100.35
     originRequest:
       originServerName: auth.aliammar.net
+  # aiostreams — own-auth (local login + OIDC, AIOSTREAMS_AUTH_REQUIRED=true); reuses the internal
+  # Caddy vhost (→ 10.10.100.65:3000). OIDC issuer is auth.aliammar.net (public above), so the
+  # external login redirect resolves.
+  - hostname: aiostreams.aliammar.net
+    service: https://10.10.100.35
+    originRequest:
+      originServerName: aiostreams.aliammar.net
+  # aiometadata — own-auth (sign-in required + OIDC, AUTH_REQUIRE_SIGNIN=true); reuses the internal
+  # Caddy vhost (→ 10.10.100.66:3232). Same public OIDC issuer as aiostreams.
+  - hostname: aiometadata.aliammar.net
+    service: https://10.10.100.35
+    originRequest:
+      originServerName: aiometadata.aliammar.net
   - service: http_status:404
