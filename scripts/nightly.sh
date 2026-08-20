@@ -6,7 +6,7 @@
 # It is pure scripts: refresh inventory (T1), envsync, render docs, then open a PR with the
 # diff. It NEVER makes a T2 write or granted-root change. It self-merges ONLY its own
 # generated-only PR, and only when CI is green — the merge-gate carve-out (system-design §2b);
-# it never self-merges an authored change. Off-switch: OPS_NIGHTLY_AUTOMERGE=0.
+# it never self-merges an authored change. Off-switch: OPS_NIGHTLY_AUTOMERGE=0 (=dry to rehearse).
 #
 # What it deliberately can't do (needs an LLM or a root grant): the narrative PROSE of
 # docs/generated/05-state-of-the-lab.md (LLM) and the root-grant audit harvest (root). Both
@@ -81,9 +81,13 @@ git push -u origin "${BRANCH}" --quiet
 #    self-merge its OWN PR, but ONLY when every changed path is generated/encrypted AND CI is green.
 #    No branch protection backstops this (private repo on the free plan), so the green-gate below IS
 #    the safety and is deliberately strict: one stray authored path, or a red/pending check, and the
-#    PR is left open for a human — exactly the old behaviour. Off-switch: OPS_NIGHTLY_AUTOMERGE=0.
+#    PR is left open for a human — exactly the old behaviour. Off-switch: OPS_NIGHTLY_AUTOMERGE=0;
+#    OPS_NIGHTLY_AUTOMERGE=dry rehearses the allowlist decision without CI or merging.
 automerge() {
-  [ "${OPS_NIGHTLY_AUTOMERGE:-1}" = 1 ] || { echo "automerge: disabled (OPS_NIGHTLY_AUTOMERGE=0) — PR left open"; return; }
+  # OPS_NIGHTLY_AUTOMERGE: 0 = off (PR left open), dry = rehearse the decision without merging,
+  # anything else (incl. unset) = on.
+  local mode="${OPS_NIGHTLY_AUTOMERGE:-1}"
+  [ "${mode}" = 0 ] && { echo "automerge: disabled (OPS_NIGHTLY_AUTOMERGE=0) — PR left open"; return; }
   local pr="$1"
   # (a) path allowlist — generated inventory/docs, a journal episode, or a sops-encrypted env blob.
   #     Anything else means a human reasoned about it; hand it back to a human.
@@ -93,8 +97,13 @@ automerge() {
   if [ -n "${stray}" ]; then
     echo "automerge: PR touches non-generated paths — left open for human review:"; echo "${stray}"; return
   fi
+  # Dry-run — prove the decision (allowlist passed ⇒ generated-only) without touching CI or merging.
+  # `OPS_NIGHTLY_AUTOMERGE=dry` exercises the gate on a real PR without waiting for the 03:36 timer.
+  if [ "${mode}" = dry ]; then
+    echo "automerge: DRY-RUN (OPS_NIGHTLY_AUTOMERGE=dry) — generated-only; would wait for CI then squash-merge ${pr}"; return
+  fi
   # (b) green-gate — `gh pr checks --watch` blocks until every check completes, then exits nonzero
-  #     if any failed. Merge only on a clean pass; otherwise leave the PR open.
+  #     if any failed (verified: all-pass → exit 0). Merge only on a clean pass; else leave the PR open.
   echo "automerge: generated-only — waiting for CI on ${pr}…"
   if gh pr checks "${pr}" --watch --interval 20 >/dev/null 2>&1; then
     gh pr merge "${pr}" --squash --delete-branch \
