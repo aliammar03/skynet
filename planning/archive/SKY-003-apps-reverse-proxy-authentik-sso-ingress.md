@@ -1,12 +1,12 @@
 ---
 id: SKY-003
 title: Apps reverse proxy + Authentik SSO ingress
-status: in-progress
+status: done
 horizon: short
 created: 2026-08-16
 updated: 2026-08-20
 phases: 5
-current_phase: 4
+current_phase: 5
 tier_touched: [T1, T2, T2+, T3]   # T2 apps proxy; T2-scoped Authentik provisioning; Authentik server-admin
                                   # + OPNsense stay T3 → this directive PRs docs/system-design.md by rule.
 related:
@@ -245,7 +245,7 @@ SSH-auth surface of `vm-docker-dmz` is documented and minimal; any change is app
 re-mirrored. → PR.
 Grants / human actions: **T3 OPNsense** changes are human-applied (hard checkpoint). Reads use T1.
 
-### Phase 5 — Close-out  (~30m)   `[ ]` not started
+### Phase 5 — Close-out  (~30m)   `[x]` done — 2026-08-20
 
 Steps:
 1. `bin/plan archive SKY-003` (status → done) + `bin/plan list` (regenerate roadmap).
@@ -362,3 +362,11 @@ Follow AGENTS.md as above.
   no lockout. `ROLE_OPS_PRIV_TARGETS` **confirmed empty**. Re-collected the mirror (via a fresh `gh`
   clone — the root mirror lags, no https creds in-context), regenerated firewall docs, `check-invariants`
   green. **Next: P5** close-out. → PR (agent does not merge its own).
+- 2026-08-20 — **Phase 5 DONE — SKY-003 complete.** PRs #77/#78/#79/#80/#81 merged. The apps front
+  door is live: T2 apps Caddy (`compose/caddy-apps/`, Cloudflare DNS-01 certs), own-auth services
+  (karakeep, aiostreams, aiometadata, marinara, obsidian) and forward-auth (calibre) via the scoped
+  `svc-skynet` Authentik token (per-app providers; CRUD apps/providers, 403 on flows/users/keys). The
+  publish-service runbook covers all three paths (A own-auth, B forward-auth, C public via the
+  Cloudflare Tunnel). calibre is live **internally and publicly** (`calibre.aliammar.net`, behind
+  Authentik passkey login; `auth.aliammar.net` published with its admin UI locked to the LAN). P4
+  firewall least-privilege pass + `vm-docker-dmz` sshd hardening applied. Directive archived. → PR.
