@@ -62,7 +62,7 @@ so running or resuming one is a single paste into a fresh session.
 |---|---|---|---|---|---|
 | SKY-001 | Retire the deployment plan; stand up the system-design constitution + spokes | archive | done | — | 🔭 long |
 | SKY-002 | Ongoing backup strategy for CT 240 (PBS host) | ideas | draft | — | 🌱 short |
-| SKY-003 | Apps reverse proxy + Authentik SSO ingress | projects | in-progress | 2/5 | 🌱 short |
+| SKY-003 | Apps reverse proxy + Authentik SSO ingress | projects | in-progress | 3/5 | 🌱 short |
 | SKY-004 | Reactive operations: event-driven layer + drift-as-signal | ideas | draft | — | 🔭 long |
 | SKY-005 | Imperative ops discipline: recon toolkit, diagnosis library, lab bench | ideas | draft | — | 🌱 short |
 | SKY-006 | Agent episodic memory: journal + retrieval | projects | in-progress | 2/3 | 🌱 short |
@@ -73,5 +73,5 @@ so running or resuming one is a single paste into a fresh session.
 | SKY-011 | Machine-enforced invariants and the ambiguity-layering doctrine | archive | done | — | 🌱 short |
 | SKY-012 | Runbooks as executable capabilities | ideas | draft | — | 🌱 short |
 | SKY-013 | Deploy Obsidian Self-hosted LiveSync (CouchDB backend) | archive | done | — | 🌱 short |
-| SKY-014 | Adopt cloudflared as a Skynet-managed tunnel (public path via apps-Caddy) | projects | in-progress | 1/2 | 🌱 short |
+| SKY-014 | Adopt cloudflared as a Skynet-managed tunnel (public path via apps-Caddy) | projects | complete | 2/2 | 🌱 short |
 <!-- ROADMAP:END -->
