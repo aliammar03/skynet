@@ -1,7 +1,7 @@
 ---
 summary: "Publish a service through the apps Caddy front door: edit the Caddyfile then PR then deploy — own-auth (plain reverse_proxy) or forward-auth via Authentik (scoped-token provider+application); optionally also expose it to the internet via the Cloudflare Tunnel (Path C)."
 trigger: "Publish or expose a service"
-tokens: 4199
+tokens: 4349
 ---
 
 # Runbook — publish a service through the apps Caddy (the front door)
@@ -189,11 +189,11 @@ is public *only* with an `ingress` rule **and** a public CNAME):
        originServerName: <svc>.aliammar.net   # SNI → Caddy serves this host's LE cert (not the IP's)
    ```
    **PR** it — *this is the public-exposure gate*; Ali merges, the agent never merges its own. Then
-   **restart the connector**: unlike Caddy (`--watch` hot-reload), cloudflared reads `config.yml` only
-   at startup, and a bind-mounted file change doesn't alter the compose spec, so Arcane's sync alone
-   won't reload it. Run `scripts/gitops-deploy.sh cloudflared`; if the connector wasn't recreated,
-   `ssh svc-ops@10.10.100.15 "docker restart cloudflared-cloudflared-1"`. Confirm it comes back
-   healthy (`tunnel ready`).
+   **reload the connector**: cloudflared reads `config.yml` only at startup, and a bind-mounted file
+   change doesn't alter the compose spec, so Arcane's sync alone won't reload it (unlike Caddy's
+   `--watch` hot-reload). `scripts/gitops-deploy.sh cloudflared` now force-restarts the connector for
+   exactly this reason — run it and confirm it comes back healthy (`tunnel ready`, 4 connections). The
+   manual fallback if ever needed: `ssh svc-ops@10.10.100.15 "docker restart cloudflared-cloudflared-1"`.
 2. **Create the public DNS CNAME** (T2 Cloudflare `DNS:Edit`) — a proxied `<svc>.aliammar.net` →
    `<tunnel-id>.cfargotunnel.com`:
    ```
@@ -205,13 +205,21 @@ is public *only* with an `ingress` rule **and** a public CNAME):
 
 **Verify from OUTSIDE.** The internal path won't exercise the tunnel (internal clients resolve via
 Technitium straight to Caddy, never through Cloudflare). Test from a genuinely external vantage — a
-phone on mobile data, or by resolving the public CNAME via a public resolver:
+phone on mobile data, or by resolving the public CNAME through a public resolver and then hitting the
+**Cloudflare edge IP it returns**. This is two steps on purpose: `--resolve …:1.1.1.1` would connect
+to the *resolver* service on `1.1.1.1:443`, not the CDN edge that fronts the tunnel, so it doesn't
+actually test the public path:
 ```
-curl -sSI --resolve <svc>.aliammar.net:443:1.1.1.1 https://<svc>.aliammar.net   # rough external check
+edge=$(dig +short <svc>.aliammar.net @1.1.1.1 | grep -E '^[0-9]' | head -1)   # a Cloudflare edge IP (104.x / 172.67.x)
+curl -sSI --resolve <svc>.aliammar.net:443:"$edge" https://<svc>.aliammar.net
 ```
-Expect a real status + valid public cert. In a browser from off-network: the app loads (and, for a
-Path-B host, is bounced to Authentik first). **Confirm the internal path is unchanged** — an on-network
-hit still resolves to `10.10.100.35` and never transits Cloudflare.
+Expect a real status + valid public cert (`ssl_verify_result=0`), served from that edge IP. In a
+browser from off-network: the app loads (and, for a Path-B host, is bounced to Authentik first).
+**Confirm the internal path is unchanged** — on-network, Technitium (`10.10.70.50`) still resolves
+`<svc>.aliammar.net` to `10.10.100.35`, never a Cloudflare edge:
+```
+dig +short <svc>.aliammar.net @10.10.70.50    # expect 10.10.100.35
+```
 
 ### Publishing a *forward-auth* (Path B) app — the extra half
 
