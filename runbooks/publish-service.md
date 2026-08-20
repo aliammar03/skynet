@@ -1,7 +1,7 @@
 ---
-summary: "Publish a service through the apps Caddy front door: edit the Caddyfile then PR then deploy."
+summary: "Publish a service through the apps Caddy front door: edit the Caddyfile then PR then deploy — own-auth (plain reverse_proxy) or forward-auth via Authentik (scoped-token provider+application); optionally also expose it to the internet via the Cloudflare Tunnel (Path C)."
 trigger: "Publish or expose a service"
-tokens: 1636
+tokens: 3851
 ---
 
 # Runbook — publish a service through the apps Caddy (the front door)
@@ -21,6 +21,12 @@ reviewable PR, not a bespoke task. Background + the trust model: [`../docs/desig
 | **has no gate of its own** (calibre) | **forward-auth** | the same site **plus** `forward_auth` to an Authentik outpost, **plus** a scoped-token-created Authentik provider/application |
 
 Pick the own-auth path unless the service genuinely has no authentication of its own.
+
+**Internal vs public.** Paths A/B give a service a `https://<svc>.aliammar.net` URL reachable **only
+inside the lab** (split-DNS → apps Caddy; nothing is exposed to the internet). If you *also* want the
+service reachable **from the public internet**, that's an **additive** step — **Path C** — layered on
+top of an existing internal route (A or B). Most services want internal-only; choose Path C
+deliberately, per host, and only for a service that already self-gates (see its edge-auth rule).
 
 ## Prerequisites (true for every publish)
 
@@ -73,12 +79,144 @@ Pick the own-auth path unless the service genuinely has no authentication of its
 
 ## Path B — forward-auth (no-login services, via Authentik)
 
-> Added in SKY-003 Phase 3. Requires the scoped Authentik `svc-skynet` token (a T3 one-time
-> ceremony Ali performs — Skynet cannot mint it). Provisioning the Authentik provider/application
-> through that token, plus the `forward_auth` Caddyfile block, is documented here once P3 lands.
+For a service with **no gate of its own**, Authentik sits in front: an unauthenticated request is
+bounced to the Authentik login, an authenticated one passes through. This is the **per-app** model
+(SKY-003 P3) — each no-auth service gets its **own** proxy provider + application, so authorization
+(who may reach it) and audit are per-service.
 
-<!-- P3 fills this in: create Provider+Application via the scoped token → bind the outpost →
-     add the forward_auth directive to the Caddyfile site → verify unauth→Authentik→service. -->
+**Prerequisites (one-time, done in P3):**
+- The scoped Authentik **`svc-skynet`** token lives `0600` at `/opt/skynet-ops/secrets/authentik.env`
+  (`AUTHENTIK_TOKEN` + `AUTHENTIK_URL`). It can CRUD Applications/Providers and view/bind outposts —
+  **nothing else** (Flows, Users, settings, keys are T3 and the token 403s on them). Creating it is a
+  **T3 ceremony only Ali can do** — Skynet cannot mint it.
+- The **embedded proxy outpost** exists (Applications → Outposts, `authentik Embedded Outpost`,
+  type *proxy*). It is served by the Authentik server itself at **`10.10.80.37:9000`**.
+
+**Network fact that shapes how you call the API:** only the **apps-Caddy** (`10.10.100.35`) may reach
+Authentik (firewall **rule 240**) — the ops VM cannot. So Authentik API calls are driven from inside
+the `caddy-apps-caddy-1` container (which has `curl`), and the token is fed on **stdin** (a curl
+`-K -` config, or `read`) so it never lands in any argv. `POST /api/v3/...` bodies below are that
+same call shape.
+
+1. **Create the proxy provider** (`forward_single`). It needs an `authorization_flow` +
+   `invalidation_flow`, but the scoped token **cannot list Flows** (they're T3) — so **copy the flow
+   UUIDs from an existing proxy provider** you *can* read:
+   ```
+   GET  /api/v3/providers/proxy/          # note authorization_flow + invalidation_flow of any entry
+   POST /api/v3/providers/proxy/
+        {"name":"<svc>","mode":"forward_single",
+         "external_host":"https://<svc>.aliammar.net",
+         "authorization_flow":"<uuid>","invalidation_flow":"<uuid>"}
+   ```
+2. **Create the application**, bound to the new provider (`pk` from step 1):
+   ```
+   POST /api/v3/core/applications/
+        {"name":"<Svc>","slug":"<svc>","provider":<pk>,
+         "meta_launch_url":"https://<svc>.aliammar.net"}
+   ```
+   (Add authorization **policy bindings** to this application if the service should be limited to
+   specific users/groups — that's the per-app win. Bindings are a separate T2 call.)
+3. **Bind the provider to the embedded outpost** — `PATCH` its `providers` list, **keeping the
+   existing entries** and appending the new `pk` (clobbering the list unbinds everything else):
+   ```
+   GET   /api/v3/outposts/instances/                       # find the embedded outpost pk + current providers
+   PATCH /api/v3/outposts/instances/<outpost-pk>/  {"providers":[<existing…>, <pk>]}
+   ```
+   The outpost picks the provider up in seconds. Sanity-check before touching Caddy — from the
+   `caddy-apps` container, the outpost auth endpoint should 302 to Authentik for your host:
+   ```
+   docker exec caddy-apps-caddy-1 curl -sI -H "Host: <svc>.aliammar.net" \
+     http://10.10.80.37:9000/outpost.goauthentik.io/auth/caddy   # expect 302 -> auth.aliammar.net
+   ```
+4. **Add the Caddyfile site** — the standard Authentik forward-auth snippet, pointing at the embedded
+   outpost. Two `reverse_proxy`: the outpost's own `/outpost.goauthentik.io/*` endpoints, then the app.
+   ```
+   <svc>.aliammar.net {
+       reverse_proxy /outpost.goauthentik.io/* 10.10.80.37:9000
+       forward_auth 10.10.80.37:9000 {
+           uri /outpost.goauthentik.io/auth/caddy
+           copy_headers X-Authentik-Username X-Authentik-Groups X-Authentik-Email X-Authentik-Name X-Authentik-Uid
+           trusted_proxies private_ranges
+       }
+       reverse_proxy <origin-ip>:<origin-port>
+   }
+   ```
+   Validate (Path A, step 2), **PR**, Ali merges, Caddy reloads on sync.
+5. **Verify** from a peer DMZ container: an unauthenticated hit is **302'd to Authentik**, not served:
+   ```
+   ssh svc-ops@10.10.100.15 "docker exec <some-dmz-container> \
+     curl -sI --resolve <svc>.aliammar.net:443:10.10.100.35 https://<svc>.aliammar.net"
+   # expect 302 with Location: https://auth.aliammar.net/... — never the app's own page
+   ```
+   Then in a browser: unauthenticated → Authentik login → after login → the service.
+
+**Rollback:** `git revert` the Caddyfile block (Arcane reconciles). The Authentik provider/application
+delete via the scoped token (`DELETE /api/v3/core/applications/<slug>/`, then the provider) or the UI.
+
+---
+
+## Path C — also expose to the internet (Cloudflare Tunnel) — *optional, additive*
+
+Publishing a hostname to the **public internet** through the Skynet-managed Cloudflare Tunnel
+(`compose/cloudflared/`, SKY-014). This is **layered on top of Path A or B** — the tunnel forwards
+every public request to the **same apps Caddy** (`https://10.10.100.35`), so a public host **reuses its
+internal Caddy route verbatim**; there is no second copy of the routing and TLS stays end-to-end.
+Background + the trust model: [`../docs/design/identity-and-proxy.md`](../docs/design/identity-and-proxy.md) (“The public path”).
+
+**Prerequisites**
+- The service already has a working **internal route** (Path A or B) — Path C does not create routes,
+  it only makes an existing hostname reachable from outside.
+- The scoped Cloudflare **`DNS:Edit`** token is `0600` at `/opt/skynet-ops/secrets/cloudflare-dns.env`
+  (`CF_DNS_TOKEN`, `CF_ZONE=aliammar.net`, `TUNNEL_ID`). The Cloudflare account / Access / tunnel
+  config are **T3** — out of reach here.
+
+**⚠ The edge-auth gate — decide *should* this be public, not just *can* it.** The public internet is
+hostile. Only expose a service that **self-gates at the edge**: it has its own strong login (own-auth,
+Path A — e.g. obsidian's CouchDB admin login, ideally with client-side E2E) **or** it sits behind
+**forward-auth** (Path B). A service with **no gate of its own must NOT go public plain** — put
+Authentik forward-auth (Path B) or Cloudflare Access in front first. Network segmentation protects an
+internal-only no-auth service; it protects nothing once the hostname is on the internet.
+
+Publishing is **two halves — both required** (the tunnel's catch-all is `http_status:404`, so a host
+is public *only* with an `ingress` rule **and** a public CNAME):
+
+1. **Add the `ingress` rule** to `compose/cloudflared/config.yml`, **above** the closing
+   `- service: http_status:404` catch-all (first match wins):
+   ```yaml
+   - hostname: <svc>.aliammar.net
+     service: https://10.10.100.35            # the apps Caddy — the tunnel's only origin
+     originRequest:
+       originServerName: <svc>.aliammar.net   # SNI → Caddy serves this host's LE cert (not the IP's)
+   ```
+   **PR** it — *this is the public-exposure gate*; Ali merges, the agent never merges its own. Then
+   **restart the connector**: unlike Caddy (`--watch` hot-reload), cloudflared reads `config.yml` only
+   at startup, and a bind-mounted file change doesn't alter the compose spec, so Arcane's sync alone
+   won't reload it. Run `scripts/gitops-deploy.sh cloudflared`; if the connector wasn't recreated,
+   `ssh svc-ops@10.10.100.15 "docker restart cloudflared-cloudflared-1"`. Confirm it comes back
+   healthy (`tunnel ready`).
+2. **Create the public DNS CNAME** (T2 Cloudflare `DNS:Edit`) — a proxied `<svc>.aliammar.net` →
+   `<tunnel-id>.cfargotunnel.com`:
+   ```
+   scripts/cf-dns-route.sh <svc>.aliammar.net
+   ```
+   Idempotent; refuses hosts outside `aliammar.net`. (This is the *public* record on Cloudflare's
+   authoritative DNS — separate from Technitium's internal split-DNS, which keeps steering internal
+   clients straight to the Caddy.)
+
+**Verify from OUTSIDE.** The internal path won't exercise the tunnel (internal clients resolve via
+Technitium straight to Caddy, never through Cloudflare). Test from a genuinely external vantage — a
+phone on mobile data, or by resolving the public CNAME via a public resolver:
+```
+curl -sSI --resolve <svc>.aliammar.net:443:1.1.1.1 https://<svc>.aliammar.net   # rough external check
+```
+Expect a real status + valid public cert. In a browser from off-network: the app loads (and, for a
+Path-B host, is bounced to Authentik first). **Confirm the internal path is unchanged** — an on-network
+hit still resolves to `10.10.100.35` and never transits Cloudflare.
+
+**Rollback (symmetric, immediate):** `scripts/cf-dns-route.sh --delete <svc>.aliammar.net` pulls the
+CNAME and the hostname stops resolving publicly at once; then `git revert` the `ingress` line and
+restart the connector. Public exposure is additive and per-host — removing it takes nothing away from
+the internal door.
 
 ---
 

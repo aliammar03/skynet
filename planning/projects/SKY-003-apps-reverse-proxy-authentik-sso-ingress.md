@@ -4,9 +4,9 @@ title: Apps reverse proxy + Authentik SSO ingress
 status: in-progress
 horizon: short
 created: 2026-08-16
-updated: 2026-08-17
+updated: 2026-08-20
 phases: 5
-current_phase: 2
+current_phase: 3
 tier_touched: [T1, T2, T2+, T3]   # T2 apps proxy; T2-scoped Authentik provisioning; Authentik server-admin
                                   # + OPNsense stay T3 → this directive PRs docs/system-design.md by rule.
 related:
@@ -195,7 +195,7 @@ config in git; publish-service runbook covers the own-auth path. → PR.
 Grants / human actions: none expected (GitOps + svc-ops T2). Checkpoint & request `gr vm-docker-dmz 1h`
 **only if** host-level macvlan/network setup turns out to be needed.
 
-### Phase 3 — Authentik scoped token + calibre pilot (forward_auth)  (~1–2h)   `[ ]` not started
+### Phase 3 — Authentik scoped token + calibre pilot (forward_auth)  (~1–2h)   `[~]` agent-work done; awaiting Ali (merge PR, then live verify)
 
 Steps:
 1. **T3 ceremony (Ali, one-time, in the Authentik UI):** create service account `svc-skynet` + a role
@@ -316,3 +316,22 @@ Follow AGENTS.md as above.
   grant** (`gr vm-docker-dmz 1h`, auto-expiring — used once here); and a **macvlan** container is
   unreachable from its own host, so HTTPS must be verified from a *peer* DMZ container, not the host
   or the ops VM.
+- 2026-08-20 — **Phase 3 agent-work done (PR open; awaiting merge + live verify).** Ali ran the **T3
+  ceremony**: `svc-skynet` service account + scoped role + API token (`0600` at
+  `/opt/skynet-ops/secrets/authentik.env`). **Scope verified real** — the token views
+  Applications/Providers/Outposts (200) and **403s** on Flows, Users, Groups, signing keys, and system
+  settings, exactly as designed. **Auth-model decision: Option A — per-app forward-auth** (chosen over
+  reusing the pre-existing domain-level provider pk 2), for per-service authorization + audit +
+  contained blast radius, matching the directive/spoke. Via the scoped token: created proxy provider
+  **pk 14** `calibre` (`forward_single`, `external_host=https://calibre.aliammar.net`, flows reused
+  from the un-listable-by-token domain provider), Application **`calibre`** → provider 14, and bound 14
+  to the **embedded proxy outpost** (`providers:[2,14]`). Pre-merge sanity from the `caddy-apps`
+  container: the outpost auth endpoint **302s to Authentik with provider 14's own client_id + a calibre
+  callback** for `Host: calibre.aliammar.net` (an unmatched host falls through to domain provider 2).
+  Caddyfile: `calibre.aliammar.net` converted to the standard Authentik forward-auth snippet (outpost
+  endpoints + `forward_auth` → `10.10.80.37:9000` rule 240, then `reverse_proxy 10.10.100.53:8080`);
+  `caddy validate` clean. `runbooks/publish-service.md` **Path B** filled in (per-app provider+app via
+  scoped token, the flow-reuse gotcha, outpost-bind-don't-clobber, verify). **Token hygiene:** the API
+  is driven from inside `caddy-apps-caddy-1` (the only container rule 240 lets reach Authentik), token
+  fed on stdin so it never hits argv. → PR (agent does not merge its own). **Next:** Ali merges → agent
+  live-verifies unauth→302→login→calibre from a peer DMZ container → flips P3 `[x]` + close-out.
