@@ -15,6 +15,7 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 ## 🧷 Recent decisions
 
+- **[[0003-ambiguity-layering-and-format-follows-enforcement|ADR 0003]]** — Ambiguity-tolerance layering; format follows enforcement · accepted · 2026-08-18
 - **[[0002-append-only-episodic-journal|ADR 0002]]** — Append-only episodic journal · accepted · 2026-08-17
 - **[[0001-static-ip-addressing|ADR 0001]]** — Static IP addressing for Skynet guests · accepted · 2026-08-15 (revised 2026-08-17 — see *History*)
 
@@ -22,32 +23,35 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 **Directives in flight** (not done/abandoned):
 
-- **SKY-003** (projects · in-progress · 2/5) — Apps reverse proxy + Authentik SSO ingress
+- **SKY-005** (projects · in-progress · 1/3) — Imperative ops discipline: recon toolkit, diagnosis library, lab bench
 - **SKY-006** (projects · in-progress · 2/3) — Agent episodic memory: journal + retrieval
-- **SKY-011** (projects · in-progress · 0/3) — Machine-enforced invariants and the ambiguity-layering doctrine
+- **SKY-014** (projects · complete · 2/2) — Adopt cloudflared as a Skynet-managed tunnel (public path via apps-Caddy)
 - **SKY-002** (ideas · draft) — Ongoing backup strategy for CT 240 (PBS host)
 - **SKY-004** (ideas · draft) — Reactive operations: event-driven layer + drift-as-signal
-- **SKY-005** (ideas · draft) — Imperative ops discipline: recon toolkit, diagnosis library, lab bench
 - **SKY-007** (ideas · draft) — NixOS host definition, piloted on the ops VM
 - **SKY-008** (ideas · draft) — OpenTofu provisioning layer: VM and CT lifecycle plus DNS
+- **SKY-012** (ideas · draft) — Runbooks as executable capabilities
 
 **Loose ends from recent episodes** (the journal's own open-thread bullets, verbatim):
 
-- SKY-010 is done (4/4). A Claude subagent scout should call `bin/recall` internally, then read only the top hits — same capability, engine-specific wrapper. — _2026-08-18 session_
-- Sibling idea still unclaimed: promoting deterministic runbooks to executable capabilities (its own SKY-###) — would cut procedural read cost the way this cut retrieval cost. — _2026-08-18 session_
-- Once a lint/pre-commit gate runs `budget-frontmatter.sh --check`, editing a doc without refreshing `tokens:` fails CI (bit me on `nightly.md` in P3) — wire the refresh into the gate or a pre-commit. — _2026-08-18 session_
-- Phase 3: git-rebuildable local semantic index (sqlite-vec class) — still deferred until markdown + grep visibly strains (research "overkill line"). — _2026-08-17 session_
-- Open-threads harvest scans the most recent journal entries until it has 8 bullets; a thread can appear twice if two entries mention it. If the journal grows noisy this may want an "resolved" prune convention or a dedup pass. — _2026-08-17 session_
-- Phase 2: fold a rolling cold-boot digest ("state + recent decisions + open threads") into `docs/generated/05-state-of-the-lab.md` so a fresh session orients from one page. — _2026-08-17 session_
-- Phase 3: git-rebuildable local semantic index (sqlite-vec class) — deferred until markdown+grep visibly strains (research brief's "overkill line"). — _2026-08-17 session_
-- SKY-005 isn't built yet, so "incident" entries have no automated writer today — the nightly (session) is the only live feeder until then. The convention is ready for SKY-005 to adopt. — _2026-08-17 session_
+- LP-1: prune 10.10.20.63 from ROLE_APP_ORIGINS (stale); add 10.10.100.95 (obsidian) for accuracy. — _2026-08-20 session_
+- LP-2 (optional): remove HOST_PROXY_APPS from rule 830 source (apps Caddy needs no :53). — _2026-08-20 session_
+- LP-3: retire rule 270 / narrow ROLE_SKYNET_OPS_TARGETS (redundant with 370, over-broad) — confirm nothing relies on it first. Host sshd (vm-docker-dmz): — _2026-08-20 session_
+- H-1: PasswordAuthentication no (drop-in). — _2026-08-20 session_
+- H-2: remove stray `PermitRootLogin yes` from main sshd_config. Then re-collect the mirror; confirm docs regen clean + drift green. — _2026-08-20 session_
+- **Awaiting Ali:** merge PR #77 → then agent live-verifies unauth→302→login→calibre from a peer DMZ container and does the P3 `[x]` close-out. — _2026-08-20 session          # session | incident | decision_
+- P4 (firewall least-privilege + DMZ-docker SSH-exposure audit) still open; note calibre origin is 10.10.100.53:8080 (matches PORT_APP_BACKENDS=8080, unlike karakeep's 3000). — _2026-08-20 session          # session | incident | decision_
+- The domain-level provider (pk 2) remains bound to the outpost, unused by Caddy — left as-is. — _2026-08-20 session          # session | incident | decision_
 
 ## 📓 Recent episodes
 
+- **2026-08-20** · session · [[2026-08-20-session-sky-003-p4-firewall-least-privilege-vm-docker-dmz-ssh-exposure-audit|SKY-003 P4 — firewall least-privilege + vm-docker-dmz SSH-exposure audit]]
+- **2026-08-20** · session          # session | incident | decision · [[2026-08-20-session-sky-003-p3-calibre-forward-auth-via-scoped-authentik-token|SKY-003 P3 — calibre forward-auth via scoped Authentik token]]
+- **2026-08-20** · session · [[2026-08-20-session-publish-calibre-publicly-behind-authentik-forward-auth-admin-lockdown|Publish calibre publicly behind Authentik forward-auth (+ admin lockdown)]]
+- **2026-08-20** · session          # session | incident | decision · [[2026-08-20-session-publish-aiometadata-aiostreams-publicly-via-cloudflare-tunnel|publish aiometadata + aiostreams publicly via Cloudflare Tunnel]]
+- **2026-08-18** · session          # session | incident | decision · [[2026-08-18-session-sky-011-p3-invariants-gate-proxmox-pool-audit-unblock|SKY-011 P3 — invariants gate + Proxmox pool-audit unblock]]
 - **2026-08-18** · session · [[2026-08-18-session-sky-010-p4-read-time-scout-bin-recall|SKY-010 P4 — read-time scout (bin/recall)]]
 - **2026-08-17** · session · [[2026-08-17-session-sky-006-p2-rolling-cold-boot-digest|SKY-006 P2 — rolling cold-boot digest]]
-- **2026-08-17** · session · [[2026-08-17-session-sky-006-p1-stand-up-the-journal|SKY-006 P1 — stand up the journal]]
-- **2026-08-17** · session · [[2026-08-17-session-formalize-the-memory-design-spoke|formalize the memory design spoke]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._
