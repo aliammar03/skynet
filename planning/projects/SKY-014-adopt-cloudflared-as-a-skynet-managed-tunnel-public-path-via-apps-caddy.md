@@ -1,12 +1,12 @@
 ---
 id: SKY-014
 title: Adopt cloudflared as a Skynet-managed tunnel (public path via apps-Caddy)
-status: in-progress
+status: complete
 horizon: short
 created: 2026-08-19
 updated: 2026-08-19
 phases: 2
-current_phase: 1
+current_phase: 2
 tier_touched: [T2, T3]
 related:
   - compose/cloudflared/
@@ -111,7 +111,7 @@ time, each an explicit git change.
 - **Grants / human actions:** no standing-tier expansion. The T3 touches are all **Ali-applied,
   one-shot** (Cloudflare dashboard, one OPNsense rule, one `pct stop`), not new standing routes.
 
-### Phase 1 — Sanction the path + build the connector (validated, not yet deployed)  (~1–2h)   `[~]` agent-work done; awaiting Ali (CF checkpoint + merge)
+### Phase 1 — Sanction the path + build the connector (validated, not yet deployed)  (~1–2h)   `[x]` DONE (PR #67/#68)
 
 *(No deploy here: `.33` is still CT 1033's, so standing the container up = the cutover, which is
 Phase 2. Phase 1 lands everything that can land without touching the live tunnel.)*
@@ -148,7 +148,7 @@ nothing has cut over.
 Grants / human actions: **⚠ Ali creates the CF tunnel + supplies the token** (credential handling);
 **⚠ Ali merges the PRs**. No OPNsense, no Proxmox action yet.
 
-### Phase 2 — Cut over to `.33`, publish the pilot, verify from outside, retire CT 1033  (~1–2h)   `[ ]` not started
+### Phase 2 — Cut over to `.33`, publish the pilot, verify from outside, retire CT 1033  (~1–2h)   `[x]` DONE — pilot live (obsidian + karakeep); **residual soak: Ali destroys CT 1033, then agent retires its inventory/firewall rows**
 
 Steps:
 1. **Free the IP (⚠ checkpoint — Ali).** `pct stop 1033` — releases `10.10.100.33`. CT 1033 is
