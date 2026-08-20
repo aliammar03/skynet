@@ -86,10 +86,16 @@ cert-expired, backup-missed, arcane-stuck), each with confirm → diagnose (comm
 table) → **fix declaratively** → `bin/new journal incident`. Catalogued in `runbooks/README.md`;
 `recon.md`'s branch-to-diagnosis list is now live links (no dangling forward-ref). Exit cleared (6 ≥ 4).
 
-### Phase 3 — lab bench + fix principle  (~1–2h)   `[ ]` not started
+### Phase 3 — lab bench + fix principle  (~1–2h)   `[ ]` not started · **DEFERRED**
 Formalize `vm-docker-dmz` as the bench + per-layer dry-run reflex; propose the "fix declaratively /
 no orphan fixes" principle (optional `docs/system-design.md` PR). Exit: bench documented; principle
 landed.
+
+> **Deferred (2026-08-20) pending the nix fleet ([[SKY-007-nixos-host-definition]] / [[SKY-008]]).**
+> The `vm-docker-dmz`-as-throwaway-bench premise is likely to break: by the time we pick this up,
+> that host may be **production**, and the nix fleet should give a *proper* test system to use as the
+> bench instead. **Re-decide the bench host at pickup** — do not assume `vm-docker-dmz`. The fix
+> principle half (the optional system-design PR) is independent and could still land earlier if wanted.
 
 ## 4. ▶ Execute prompt
 ```
@@ -114,3 +120,7 @@ Follow AGENTS.md as above.
 ## 6. Status log
 - 2026-08-17 — created (draft) from the declarative-future brainstorm §2. The imperative side becomes
   a discipline; "diagnose imperatively, fix declaratively" is the through-line. Pairs with SKY-006 (incidents → journal).
+- 2026-08-20 — Phase 1 (recon toolkit, PR #87) + Phase 2 (diagnosis library, PR #91) landed. **Phase 3
+  DEFERRED** pending the nix fleet (SKY-007/008): the `vm-docker-dmz` bench premise may break (that host
+  could be production by pickup), and the fleet should provide a proper test system. Re-decide the bench
+  host at pickup. Directive stays in `projects/`, `current_phase: 2`.
