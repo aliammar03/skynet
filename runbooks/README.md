@@ -1,6 +1,6 @@
 ---
 summary: "Catalog of engine-neutral procedures any agent can execute, each tagged by tier and trigger — the routing menu."
-tokens: 918
+tokens: 1018
 ---
 
 # runbooks — procedures any agent can execute
@@ -14,6 +14,12 @@ one vendor's skill/command format.
 
 **This file is that catalog** — the menu so a runbook is never invisible. Each runbook opens
 with its own **Tier** and (where relevant) **Trigger** line; the summaries below mirror them.
+
+## Diagnosis (imperative — "diagnose imperatively, fix declaratively")
+
+| Runbook | Tier | What it does |
+|---|---|---|
+| [`recon.md`](recon.md) | T1 read-only | **Start here.** One `scripts/recon.sh <host>` snapshot — units, disk/inodes, ports, containers, recent warnings + changes — with **no grant to observe**, then branch to a diagnosis runbook. Trigger: *"figure out why X is broken."* |
 
 ## Routine operations
 
