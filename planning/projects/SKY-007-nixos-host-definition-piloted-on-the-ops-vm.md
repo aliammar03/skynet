@@ -5,7 +5,7 @@ status: in-progress
 horizon: long
 created: 2026-08-17
 updated: 2026-08-21
-phases: 2
+phases: 5   # Phase 0 (gate) + Phase 1 split into 1a–1d (scoped 2026-08-21)
 current_phase: 1
 tier_touched: [T2+, T3]   # rebuilding a host = root (T2+); the host is the agent's own box and this
                           # changes the host-management model ⇒ MUST PR docs/system-design.md.
@@ -97,13 +97,62 @@ Blocked until the research brief is read **and** basic agent Nix fluency is demo
   root-hardening into reviewed Nix modules) should account for / narrow this.
 - **Exit: GO.** Fluency shown without stalling; toolchain picks stand. Proceed to Phase 1.
 
-### Phase 1 — parallel NixOS twin of the ops VM  (~1–2h+)   `[ ]` not started
-New VM; flake defining the ops toolchain (docker, `bin/ops`, SSH CA trust, timers) with sops-nix;
-`nixos-anywhere` provision; deploy-rs for day-2; validate the nightly + Arcane paths run on it.
-**⚠ hard checkpoints:** snapshot, parallel-run, human-approved cutover. Exit: twin passes a full
-nightly + a deploy-verify; cutover plan approved. **Also PRs `docs/system-design.md`.**
+### Phase 1 — parallel NixOS twin of the ops VM  *(scoped 2026-08-21; split into 1a–1d)*
+> **VM 9090 is never touched until the twin is proven.** Build in parallel on a temp IP, validate,
+> then a human-approved cutover. Blast radius stays on a throwaway twin the whole way.
 
-<!-- Later phases (post-pilot): workload-host migration; impermanence hardening — each its own directive. -->
+**What the twin must reproduce (ground truth from the live 9090):**
+guest = VMID 9090 on `server-proxmox-core`, VLAN 90, 4 vCPU / 8 GB / ~100 GB, static `10.10.90.90`
+(+`.99`) · docker (Arcane/compose run **unchanged** — Arcane lives on docker-dmz, ops VM only
+calls its API) · the four timers now in `scripts/systemd/` (`skynet-nightly`, `skynet-cli-update`,
+`skynet-restic-backup@`, `skynet-pbs-gdrive`) · SSH `TrustedUserCAKeys = ca/skynet_ops_ca.pub` so
+`bin/grant-root` certs verify · secrets (`/opt/skynet-ops/secrets/*` 0600 + in-git `.env.sops`).
+
+**Design decisions locked at scoping:**
+- **Fresh VM, not a clone** as the `nixos-anywhere` target — the flake is the sole source of truth,
+  no snowflake carryover. Match 9090's virtio disk/NIC profile.
+- **sops-nix via `sops.age.keyFile`** = the existing lab age key (from the survival kit), **not** the
+  host-SSH-key age identity — keeps one age key lab-wide (per [secrets](../../docs/design/secrets.md)).
+  The age key is the bootstrap secret (chicken-and-egg): placed at provision time, stays in the kit.
+- **Agent CLIs (codex/claude) stay npm-global** in `~ali`, not packaged in Nix — "the runtime is a
+  replaceable part; the contract is the machine" (system-design §4). Nix owns nodejs/git/gh/sops/age/
+  rclone/restic/docker; packaging the npm CLIs is the exact friction the research brief warned off.
+- **Sudo becomes a least-privilege module.** Today the ops user holds standing passwordless `sudo`
+  (ALL). The flake narrows it (`security.sudo.extraRules`, NOPASSWD, scoped to the commands ops
+  actually needs — its own `systemctl skynet-*`, the grant-root cert path). Collapsing standing root
+  into a reviewed diff *is* SKY-007's thesis.
+- **Retire the stray VMID 999** ("vm-skynet-ops" duplicate, `community-script` tag) at cutover.
+
+#### Phase 1a — flake + `nix build` green in CI   `[ ]` not started  (~1–2h, no infra)
+Author the in-repo flake (`hosts/vm-skynet-ops/` or `nix/`): nixpkgs pinned `nixos-25.05`,
+qemu-guest + disko + static-IP modules, docker, the four timers as `systemd.services/.timers`, sshd
++ baked CA pubkey, the narrowed-sudo module, sops-nix wired to the lab age key, deploy-rs output.
+Add a CI job that runs `nix build .#…system.build.toplevel` (the Phase-0 fluency check, now gated).
+**Lands the `docs/system-design.md` PR** (host layer = a flake; sudo-as-module; twin/cutover model +
+autonomy-ratchet step; twin joins `ops-managed` → blast-radius count +1). **No infra touched.**
+Exit: flake builds green in CI; system-design PR opened.
+
+#### Phase 1b — provision the twin via `nixos-anywhere`   `[ ]` not started  (~1–2h, ⚠ grant)
+Create the fresh twin VM (temp IP, e.g. `10.10.90.91`); `nixos-anywhere` kexec + disko installs the
+flake over SSH. **⚠ hard checkpoints:** creating the VM shell (confirm the `operate` token's
+OpsOperator ACL — scoped to `/pool/ops-managed` — can allocate a new VMID, else Ali creates the
+shell); placing the survival-kit **age key** at provision time. Exit: twin boots, reachable on the
+temp IP, `nixos-rebuild`/deploy-rs can reach it.
+
+#### Phase 1c — validate on the twin   `[ ]` not started  (~1–2h, twin only)
+Prove the ops role runs on the twin: `bin/ops collect` (collectors hit the read APIs), a full
+report-only nightly dry-run, git/gh auth + PR-open path, timers fire, docker up, sops-nix secrets
+decrypt to tmpfs. Then a **deploy-rs round-trip**: trivial config change deployed, and an
+intentional SSH-breaking change **auto-reverts** (magic rollback proven). Exit: nightly green on the
+twin + magic-rollback demonstrated.
+
+#### Phase 1d — cutover   `[ ]` not started  (~1h, ⚠ Ali hands-on)
+**PBS snapshot 9090 first.** Stop 9090; move `10.10.90.90` (+`.99`) + DNS to the twin; rename twin →
+`vm-skynet-ops`; retire VMID 999. Keep 9090 stopped-but-present as instant rollback for a few days,
+then archive. Exit: the twin *is* the ops VM, a nightly has run on it in place, rollback window
+observed. **Pilot complete → the workload-host go/no-go is now evidence-based.**
+
+<!-- Later phases (post-pilot, each its own directive): workload-host migration; impermanence hardening. -->
 
 ## 4. ▶ Execute prompt
 ```
@@ -133,3 +182,8 @@ Follow AGENTS.md as above.
   NixOS 25.05 system closure from a trivial flake in an ephemeral `nixos/nix` container (exit 0, no
   stalls). Corrected the demo location off the live ops VM. Logged a passwordless-sudo finding for the
   Phase-1 system-design PR. Next: Phase 1 — parallel NixOS twin. See `[[SKY-007-progress]]`.
+- 2026-08-21 — **Phase 1 scoped** against the live 9090 (toolchain, timers, CA trust, secrets,
+  sizing). Split into **1a–1d** (flake+CI / provision / validate / cutover) — was over the ~1–2h
+  budget. Decisions locked: fresh VM (not clone); sops-nix via lab-age keyFile; CLIs stay npm-global;
+  sudo narrowed to a least-privilege module; retire stray VMID 999 at cutover. 1a lands the
+  `docs/system-design.md` PR and touches no infra. Next: execute Phase 1a.
