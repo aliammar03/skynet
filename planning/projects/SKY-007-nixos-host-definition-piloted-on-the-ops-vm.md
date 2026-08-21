@@ -1,12 +1,12 @@
 ---
 id: SKY-007
 title: NixOS host definition, piloted on the ops VM
-status: draft
+status: in-progress
 horizon: long
 created: 2026-08-17
-updated: 2026-08-17
+updated: 2026-08-21
 phases: 2
-current_phase: 0
+current_phase: 1
 tier_touched: [T2+, T3]   # rebuilding a host = root (T2+); the host is the agent's own box and this
                           # changes the host-management model ⇒ MUST PR docs/system-design.md.
 related:
@@ -81,9 +81,21 @@ research brief `research/2026-08-17-nixos-fleet.md`.)
 - **Grants / human actions:** ⚠ hard checkpoints throughout — this is the agent reprovisioning its
   own host; Ali is hands-on for the cutover.
 
-### Phase 0 — research gate  `[ ]` not started
+### Phase 0 — research gate  `[x]` DONE (2026-08-21) → **GO**
 Blocked until the research brief is read **and** basic agent Nix fluency is demonstrated (write +
 `nixos-rebuild build` a trivial module without stalling on cryptic errors). Exit: go/no-go recorded.
+- Research brief `research/2026-08-17-nixos-fleet.md` read.
+- **Fluency demo:** wrote a flake pinned to `nixos-25.05` (module system + option + `pkgs.hello` +
+  a declared `systemd.services` unit) and ran `nix build .#…system.build.toplevel` inside an
+  **ephemeral `nixos/nix` container** (zero footprint on the ops VM — see note). Clean eval (no
+  infinite-recursion / attr-missing), exit 0, closure `nixos-system-sky007-demo-25.05.20260102`.
+- **Location correction:** the fluency demo does **not** run on the live ops VM. Do it in a throwaway
+  container; the real NixOS conversion happens only on the Phase-1 twin — "never gamble the live VM"
+  applies from Phase 0 onward, not just at cutover.
+- **Finding (feeds the Phase-1 system-design PR):** the ops VM currently grants the agent
+  **passwordless `sudo`** — a standing root path on the agent's own host. SKY-007's thesis (collapse
+  root-hardening into reviewed Nix modules) should account for / narrow this.
+- **Exit: GO.** Fluency shown without stalling; toolchain picks stand. Proceed to Phase 1.
 
 ### Phase 1 — parallel NixOS twin of the ops VM  (~1–2h+)   `[ ]` not started
 New VM; flake defining the ops toolchain (docker, `bin/ops`, SSH CA trust, timers) with sops-nix;
@@ -117,3 +129,7 @@ Follow AGENTS.md as above.
 - 2026-08-17 — created (draft) from the declarative-future brainstorm §5. Pilot on the ops VM only;
   toolchain picks (nixos-anywhere + deploy-rs + sops-nix, keep Arcane) taken from the research brief
   `planning/scratchpad/research/2026-08-17-nixos-fleet.md`. Pairs with SKY-008 (Tofu makes the box, Nix defines it).
+- 2026-08-21 — promoted ideas → projects. **Phase 0 research gate: GO.** Fluency demo built a full
+  NixOS 25.05 system closure from a trivial flake in an ephemeral `nixos/nix` container (exit 0, no
+  stalls). Corrected the demo location off the live ops VM. Logged a passwordless-sudo finding for the
+  Phase-1 system-design PR. Next: Phase 1 — parallel NixOS twin. See `[[SKY-007-progress]]`.

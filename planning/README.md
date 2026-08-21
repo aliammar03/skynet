@@ -66,15 +66,15 @@ so running or resuming one is a single paste into a fresh session.
 | SKY-002 | Ongoing backup strategy for CT 240 (PBS host) | ideas | draft | — | 🌱 short |
 | SKY-003 | Apps reverse proxy + Authentik SSO ingress | archive | done | — | 🌱 short |
 | SKY-004 | Reactive operations: event-driven layer + drift-as-signal | ideas | draft | — | 🔭 long |
-| SKY-005 | Imperative ops discipline: recon toolkit, diagnosis library, lab bench | projects | in-progress | 1/3 | 🌱 short |
+| SKY-005 | Imperative ops discipline: recon toolkit, diagnosis library, lab bench | projects | in-progress | 2/3 | 🌱 short |
 | SKY-006 | Agent episodic memory: journal + retrieval | projects | in-progress | 2/3 | 🌱 short |
-| SKY-007 | NixOS host definition, piloted on the ops VM | ideas | draft | — | 🔭 long |
+| SKY-007 | NixOS host definition, piloted on the ops VM | projects | in-progress | 1/2 | 🔭 long |
 | SKY-008 | OpenTofu provisioning layer: VM and CT lifecycle plus DNS | ideas | draft | — | 🔭 long |
 | SKY-009 | Convention bedrock: doctrine spine and golden templates | archive | done | — | 🌱 short |
 | SKY-010 | Default-lean context — strip the baseline, load on demand | archive | done | — | 🌱 short |
 | SKY-011 | Machine-enforced invariants and the ambiguity-layering doctrine | archive | done | — | 🌱 short |
 | SKY-012 | Runbooks as executable capabilities | ideas | draft | — | 🌱 short |
 | SKY-013 | Deploy Obsidian Self-hosted LiveSync (CouchDB backend) | archive | done | — | 🌱 short |
-| SKY-014 | Adopt cloudflared as a Skynet-managed tunnel (public path via apps-Caddy) | projects | complete | 2/2 | 🌱 short |
+| SKY-014 | Adopt cloudflared as a Skynet-managed tunnel (public path via apps-Caddy) | archive | done | — | 🌱 short |
 | SKY-015 | Inventory renderer overhaul: proxy-aware service annotation, canonical host map, reverse-proxy route inventory | ideas | draft | — | 🔭 long |
 <!-- ROADMAP:END -->
