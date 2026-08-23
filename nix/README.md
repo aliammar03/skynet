@@ -8,7 +8,7 @@ Pushes the declarative boundary *below* Docker: a whole host as a reproducible f
 ## Layout
 
 ```
-flake.nix                    inputs (nixpkgs 25.05, disko, sops-nix, deploy-rs), the
+flake.nix                    inputs (nixpkgs 26.05, disko, sops-nix, deploy-rs), the
                              nixosConfiguration, and the deploy-rs node
 hosts/vm-skynet-ops/
   default.nix                the host: imports + hostname + static network identity

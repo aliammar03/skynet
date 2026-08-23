@@ -23,5 +23,5 @@
   networking.nameservers = [ "10.10.70.51" ]; # tdns-core, the real resolver
 
   # First-install baseline; never advance blind (would trigger stateful migrations on rebuild).
-  system.stateVersion = "25.05";
+  system.stateVersion = "26.05";
 }
