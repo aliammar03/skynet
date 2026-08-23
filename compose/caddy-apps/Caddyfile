@@ -82,6 +82,13 @@ sillytavern.aliammar.net {
 	reverse_proxy 10.10.100.69:8000
 }
 
+# librespeed — LAN wifi speed test for clients (no native auth). Deliberately proxied plain
+# and kept off the Cloudflare tunnel: a test must ride the internal path so it measures the
+# wifi link, not the WAN. Stats page (/results/stats.php) is password-gated by the app itself.
+speed.aliammar.net {
+	reverse_proxy 10.10.100.72:8080
+}
+
 # ===================================================================================
 # IDENTITY — Authentik's user-facing login/OIDC endpoint. auth.aliammar.net had no
 # specific DNS record, so the *.aliammar.net wildcard sends it here; without this route

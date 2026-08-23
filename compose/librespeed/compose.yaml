@@ -1,0 +1,41 @@
+name: librespeed
+
+# librespeed — self-hosted LAN speed test for wifi clients (down/up/ping/jitter).
+# NO native auth: reachable only from app-client VLANs via apps-Caddy (speed.aliammar.net),
+# never the internet. Point clients at the LAN server so a test measures the wifi link, not
+# the ISP. Canonical rules: docs/conventions/compose.md · worked reference: compose/README.md.
+
+x-arcane:
+  tags:
+    - name: netdiag        # role: network diagnostics
+      color: teal
+
+services:
+  librespeed:
+    image: ghcr.io/librespeed/speedtest:6.0.2-alpine@sha256:456389839009c7fdfc14f0840b840f1cce0f57ca7e24bf957cc745c9f2d8b28b
+    hostname: librespeed
+    env_file:
+      - .env                 # .env.git (non-secret) + decrypt(.env.sops) (stats password) materialised here
+    healthcheck:             # image ships one too; declared here for reviewability. busybox wget on WEBPORT.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+    restart: unless-stopped
+    volumes:
+      # Telemetry sqlite DB. Entrypoint hard-codes /database/db.sql for Docker; bind-mount it so
+      # result history survives redeploys. Embedded SQLite → bind mount, no labels (restic appdata sweep).
+      - /opt/docker/appdata/librespeed/data:/database
+    networks:
+      dmz:
+        ipv4_address: 10.10.100.72   # static; apps-Caddy reverse_proxy target
+    dns:
+      # Technitium (VLAN 70, split-horizon) — approved resolvers only. — docs/design/network.md
+      - 10.10.70.50
+      - 10.10.70.51
+
+networks:
+  dmz:
+    external: true
+    name: dmz
