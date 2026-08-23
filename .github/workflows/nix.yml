@@ -1,0 +1,27 @@
+name: nix
+
+# SKY-007 Phase 1a: the Phase-0 fluency build, now a gate. Every PR that touches the flake must
+# still build the ops-VM system closure. Unlike checks.yml (read-only, no network), this job
+# fetches nixpkgs and builds a closure — so it lives in its own workflow, keeping the
+# deterministic gates' no-network promise intact.
+on:
+  pull_request:
+    paths: [flake.nix, flake.lock, "hosts/**", "nix/**", .github/workflows/nix.yml]
+  push:
+    branches: [main]
+    paths: [flake.nix, flake.lock, "hosts/**", "nix/**"]
+
+jobs:
+  build:
+    name: nix build (vm-skynet-ops toplevel)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+      # flake.lock is committed at 1b (from the twin, a real Nix host — Nix stays off the live
+      # ops box per the Phase-0 rule). Until then Nix resolves inputs in-flight; still green.
+      - name: build the ops-VM system closure
+        run: nix build .#nixosConfigurations.vm-skynet-ops.config.system.build.toplevel --print-build-logs

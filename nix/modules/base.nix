@@ -1,0 +1,33 @@
+{ pkgs, ... }:
+# Host baseline: the ops toolchain Nix owns, the docker daemon, and lab-wide defaults.
+{
+  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+
+  time.timeZone = "Asia/Karachi"; # PKT — the operator's timezone
+
+  # Nix owns the ops toolchain; the agent CLIs (codex/claude) stay npm-global in ~ali by
+  # decision — "the runtime is a replaceable part; the contract is the machine" (system-design §4).
+  environment.systemPackages = with pkgs; [
+    git
+    gh
+    sops
+    age
+    rclone
+    restic
+    jq
+    curl
+    rsync
+    docker-compose
+    nodejs_22 # runtime for the npm-global agent CLIs + node-based ops scripts
+  ];
+
+  # Arcane (on docker-dmz) owns the services; NixOS owns the daemon. The ops VM runs the
+  # docker CLI/daemon to reach remote contexts. docker-group ≈ root — see ops-user.nix.
+  virtualisation.docker.enable = true;
+
+  networking.firewall.enable = true;
+  networking.firewall.allowedTCPPorts = [ 22 ];
+
+  # Upgrades are a reviewed flake diff pushed via deploy-rs, never unattended.
+  system.autoUpgrade.enable = false;
+}

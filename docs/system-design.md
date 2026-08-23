@@ -145,6 +145,7 @@ expansion has an admission procedure and a home spoke:
 |---|---|---|
 | **A new service** | `compose/<svc>/` → the [GitOps loop](design/gitops-loop.md); catalog it in `planning/services/` | gitops-loop |
 | **A new managed host** | Onboard to the CA (`onboard-host.sh`), decide pool membership (= its tier), land it in `inventory/` + `ROLE_OPS_SSH_TARGETS` | [access-and-trust](design/access-and-trust.md), [network](design/network.md) |
+| **A host's OS + config, declaratively** | Define it as a reviewed **NixOS flake** (`hosts/` + `nix/modules/`), `nix build` gated in CI. **Piloted on the ops VM only**; any other host is a fresh directive gated on that evidence | [`nix/README.md`](../nix/README.md), SKY-007 |
 | **A new `ops-managed` pool** | Widen the blast-radius **dial** by PR here, then create the pool with the operate ACLs | [access-and-trust](design/access-and-trust.md) |
 | **A new VLAN / segment** | Firewall aliases + rules, DNS zones, then hosts | [network](design/network.md) |
 | **A new capability / trust boundary** | PR here (tier assignment) + a step on the autonomy ratchet in `AGENTS.md` | this file |
@@ -173,6 +174,11 @@ directives** — this section names the horizon and hands off.
   Cloudflare** (Technitium keeps steering internal clients straight to the apps Caddy). The per-host
   CNAME is written by the agent under the **T2 Cloudflare `DNS:Edit`** grant (§2), not by hand. See
   [identity-and-proxy](design/identity-and-proxy.md).
+- **Declarative host definitions (NixOS)** — **piloting via [SKY-007](../planning/projects/SKY-007-nixos-host-definition-piloted-on-the-ops-vm.md)**
+  on the ops VM only: a host becomes a reviewed **flake** (`hosts/` + `nix/modules/`). Details in
+  [`nix/README.md`](../nix/README.md). Two things touch this file at cutover, not before: the ops VM's
+  standing passwordless `sudo ALL` narrows to a least-privilege module, and the twin joining
+  `ops-managed` is a **+1** to the blast-radius dial (§2b) — carried by its own PR then.
 - **A secrets vault beyond sops+age** — an external backend (Vault / Infisical-class) if the
   service count outgrows file-level sops. Migration path sketched in [secrets](design/secrets.md).
 - **SSO / authentication** — Authentik graduating out of T3 into something the agent can operate
