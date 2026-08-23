@@ -10,7 +10,7 @@
       type = "gpt";
       partitions = {
         ESP = {
-          size = "512M";
+          size = "1G"; # roomy for many systemd-boot generations (kernel+initrd each) — 512M fills
           type = "EF00"; # EFI System Partition (UEFI/OVMF)
           content = {
             type = "filesystem";
