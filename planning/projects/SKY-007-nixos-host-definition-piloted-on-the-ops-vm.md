@@ -123,7 +123,7 @@ calls its API) · the four timers now in `scripts/systemd/` (`skynet-nightly`, `
   into a reviewed diff *is* SKY-007's thesis.
 - **Retire the stray VMID 999** ("vm-skynet-ops" duplicate, `community-script` tag) at cutover.
 
-#### Phase 1a — flake + `nix build` green in CI   `[~]` in review  (~1–2h, no infra)
+#### Phase 1a — flake + `nix build` green in CI   `[x]` DONE (2026-08-23, PR #100)  (~1–2h, no infra)
 Author the in-repo flake (`hosts/vm-skynet-ops/` or `nix/`): nixpkgs pinned `nixos-25.05`,
 qemu-guest + disko + static-IP modules, docker, the four timers as `systemd.services/.timers`, sshd
 + baked CA pubkey, the narrowed-sudo module, sops-nix wired to the lab age key, deploy-rs output.
