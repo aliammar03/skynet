@@ -4,7 +4,7 @@ title: NixOS host definition, piloted on the ops VM
 status: in-progress
 horizon: long
 created: 2026-08-17
-updated: 2026-08-21
+updated: 2026-08-23
 phases: 5   # Phase 0 (gate) + Phase 1 split into 1a–1d (scoped 2026-08-21)
 current_phase: 1
 tier_touched: [T2+, T3]   # rebuilding a host = root (T2+); the host is the agent's own box and this
@@ -123,7 +123,7 @@ calls its API) · the four timers now in `scripts/systemd/` (`skynet-nightly`, `
   into a reviewed diff *is* SKY-007's thesis.
 - **Retire the stray VMID 999** ("vm-skynet-ops" duplicate, `community-script` tag) at cutover.
 
-#### Phase 1a — flake + `nix build` green in CI   `[ ]` not started  (~1–2h, no infra)
+#### Phase 1a — flake + `nix build` green in CI   `[~]` in review  (~1–2h, no infra)
 Author the in-repo flake (`hosts/vm-skynet-ops/` or `nix/`): nixpkgs pinned `nixos-25.05`,
 qemu-guest + disko + static-IP modules, docker, the four timers as `systemd.services/.timers`, sshd
 + baked CA pubkey, the narrowed-sudo module, sops-nix wired to the lab age key, deploy-rs output.
@@ -187,3 +187,14 @@ Follow AGENTS.md as above.
   budget. Decisions locked: fresh VM (not clone); sops-nix via lab-age keyFile; CLIs stay npm-global;
   sudo narrowed to a least-privilege module; retire stray VMID 999 at cutover. 1a lands the
   `docs/system-design.md` PR and touches no infra. Next: execute Phase 1a.
+- 2026-08-23 — **Phase 1a executed** (in review). Authored the in-repo flake: `flake.nix` (nixpkgs
+  25.05 + disko + sops-nix + deploy-rs), `hosts/vm-skynet-ops/` (host + qemu-guest/grub + disko),
+  `nix/modules/` (base toolchain+docker, ali/svc-ops + **narrowed sudo**, sshd+CA trust, the two
+  ops-VM timers, sops-nix on the lab age key), `nix/README.md`. Added the `.github/workflows/nix.yml`
+  build gate and the `docs/system-design.md` PR (host-as-flake extension point + growth bullet).
+  **Ground-truth corrections:** only **2** of the 4 timers are the ops VM's (`skynet-restic-backup@`
+  = docker hosts, `skynet-pbs-gdrive` = PBS host); live **9090 = 4 vCPU / 6 GB / 64 GB** (the
+  8 GB/100 GB in scoping was the **stray VMID 999**). **flake.lock deferred to 1b** — Nix stays off
+  the live box (Phase-0 rule), so the lock is generated on the twin; CI resolves inputs in-flight
+  until then. Blast-radius dial left at **two** (twin doesn't exist yet; +1 lands at cutover). Next:
+  Phase 1b — provision the twin via `nixos-anywhere`.

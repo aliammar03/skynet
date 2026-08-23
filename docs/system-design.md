@@ -145,6 +145,7 @@ expansion has an admission procedure and a home spoke:
 |---|---|---|
 | **A new service** | `compose/<svc>/` → the [GitOps loop](design/gitops-loop.md); catalog it in `planning/services/` | gitops-loop |
 | **A new managed host** | Onboard to the CA (`onboard-host.sh`), decide pool membership (= its tier), land it in `inventory/` + `ROLE_OPS_SSH_TARGETS` | [access-and-trust](design/access-and-trust.md), [network](design/network.md) |
+| **A host's OS + config, declaratively** | Define the whole host as a reviewed **NixOS flake** (`hosts/<host>/` + `nix/modules/`); provision with `nixos-anywhere`, day-2 with `deploy-rs` (magic-rollback); land the `nix build` CI gate. **Piloted on the ops VM only** — any other host is a fresh directive gated on that evidence | [`nix/README.md`](../nix/README.md), SKY-007 |
 | **A new `ops-managed` pool** | Widen the blast-radius **dial** by PR here, then create the pool with the operate ACLs | [access-and-trust](design/access-and-trust.md) |
 | **A new VLAN / segment** | Firewall aliases + rules, DNS zones, then hosts | [network](design/network.md) |
 | **A new capability / trust boundary** | PR here (tier assignment) + a step on the autonomy ratchet in `AGENTS.md` | this file |
@@ -173,6 +174,19 @@ directives** — this section names the horizon and hands off.
   Cloudflare** (Technitium keeps steering internal clients straight to the apps Caddy). The per-host
   CNAME is written by the agent under the **T2 Cloudflare `DNS:Edit`** grant (§2), not by hand. See
   [identity-and-proxy](design/identity-and-proxy.md).
+- **Declarative host definitions (NixOS)** — **landing via [SKY-007](../planning/projects/SKY-007-nixos-host-definition-piloted-on-the-ops-vm.md)**:
+  push the declarative boundary *below* Docker — a whole host becomes a reproducible **flake** in
+  `hosts/` + `nix/modules/`, so host config is a git diff instead of a snowflake, and the T2+ root
+  grant no longer leaves mutable state nothing reconciles. Toolchain: `nixos-anywhere` to convert (a
+  fresh twin, never the live box), `deploy-rs` for day-2 (**magic-rollback** — a config that kills SSH
+  self-heals instead of bricking), `sops-nix` on the one lab age key, and **Arcane keeps owning the
+  services** (`virtualisation.docker.enable`, not `oci-containers`). **Piloted on the ops VM only**
+  (lowest blast radius, and it upgrades DR *of the agent*); a workload host is a later directive gated
+  on this evidence. Two consequences land through this file: (a) the ops VM's **standing passwordless
+  `sudo ALL`** collapses into a **reviewed least-privilege module** — root-hardening becomes a diff,
+  which is the pilot's whole thesis; (b) at **cutover** the twin joins `ops-managed`, a **+1 to the
+  blast-radius dial** (§2b) carried by its own PR then — the count stays **two** until the twin is real.
+  A step on the autonomy ratchet (`AGENTS.md`). See [`nix/README.md`](../nix/README.md).
 - **A secrets vault beyond sops+age** — an external backend (Vault / Infisical-class) if the
   service count outgrows file-level sops. Migration path sketched in [secrets](design/secrets.md).
 - **SSO / authentication** — Authentik graduating out of T3 into something the agent can operate
