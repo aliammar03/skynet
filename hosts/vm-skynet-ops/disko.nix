@@ -1,7 +1,7 @@
 { ... }:
 # Declarative disk layout — nixos-anywhere reprovisions the twin's disk to this at 1b.
-# Single virtio disk, GPT, legacy-BIOS grub. Matches 9090's virtio profile (device sizes
-# come from the VM shell, not here — the root partition takes 100%).
+# Single VirtIO Block disk (/dev/vda), GPT, UEFI: an ESP for systemd-boot + an ext4 root.
+# Disk size comes from the VM shell (root takes 100%), so the twin's 64 GB is honored.
 {
   disko.devices.disk.main = {
     type = "disk";
@@ -9,9 +9,15 @@
     content = {
       type = "gpt";
       partitions = {
-        boot = {
-          size = "1M";
-          type = "EF02"; # BIOS boot partition for grub on GPT (SeaBIOS)
+        ESP = {
+          size = "512M";
+          type = "EF00"; # EFI System Partition (UEFI/OVMF)
+          content = {
+            type = "filesystem";
+            format = "vfat";
+            mountpoint = "/boot";
+            mountOptions = [ "umask=0077" ];
+          };
         };
         root = {
           size = "100%";
