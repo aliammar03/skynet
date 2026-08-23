@@ -12,11 +12,11 @@ flake.nix                    inputs (nixpkgs 26.05, disko, sops-nix, deploy-rs),
                              nixosConfiguration, and the deploy-rs node
 hosts/vm-skynet-ops/
   default.nix                the host: imports + hostname + static network identity
-  hardware.nix               qemu-guest profile + grub (legacy BIOS)
-  disko.nix                  declarative disk layout (single virtio disk, GPT)
+  hardware.nix               qemu-guest profile + systemd-boot (UEFI/OVMF, q35)
+  disko.nix                  declarative disk layout (VirtIO disk, GPT, ESP + root)
 nix/modules/
   base.nix                   nix settings, the ops toolchain, docker daemon, firewall
-  ops-user.nix               ali + svc-ops, and the narrowed sudo (SKY-007's thesis)
+  ops-user.nix               aliammar + svc-ops, and the narrowed sudo (SKY-007's thesis)
   ssh-ca.nix                 sshd + TrustedUserCAKeys (grant-root cert trust)
   timers.nix                 skynet-nightly + skynet-cli-update as systemd units
   secrets.nix                sops-nix wired to the lab age key
@@ -28,8 +28,8 @@ nix/modules/
   truth, no snowflake carryover.
 - **sops-nix via `sops.age.keyFile`** = the one lab age key (survival kit), not a host-SSH-key
   identity. One age key lab-wide ([secrets](../docs/design/secrets.md)).
-- **Agent CLIs stay npm-global** in `~ali`; Nix owns nodejs/git/gh/sops/age/rclone/restic/docker.
-  The repo is checked out in `~ali` too — Nix defines the machine, the runtime is replaceable.
+- **Agent CLIs stay npm-global** in `~aliammar`; Nix owns nodejs/git/gh/sops/age/rclone/restic/docker.
+  The repo is checked out in `~aliammar` too — Nix defines the machine, the runtime is replaceable.
 - **Sudo is a least-privilege module.** The live box grants standing passwordless `sudo ALL`;
   the flake removes wheel's blanket NOPASSWD and scopes it to the commands ops actually runs.
 - **Only two timers are the ops VM's.** `skynet-restic-backup@` (docker hosts) and

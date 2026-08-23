@@ -5,7 +5,7 @@
 
   time.timeZone = "Asia/Karachi"; # PKT — the operator's timezone
 
-  # Nix owns the ops toolchain; the agent CLIs (codex/claude) stay npm-global in ~ali by
+  # Nix owns the ops toolchain; the agent CLIs (codex/claude) stay npm-global in ~aliammar by
   # decision — "the runtime is a replaceable part; the contract is the machine" (system-design §4).
   environment.systemPackages = with pkgs; [
     git

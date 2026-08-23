@@ -2,7 +2,7 @@
 # The ops operator (ali) + the T2 SSH principal (svc-ops), and the narrowed sudo that is
 # SKY-007's thesis: collapse the ops VM's *standing passwordless root* into a reviewed diff.
 {
-  users.users.ali = {
+  users.users.aliammar = {
     isNormalUser = true;
     description = "Skynet ops agent + operator";
     # docker-group ≈ root (SKY-003 caveat) — a known trade-off kept for now so the ops
@@ -31,8 +31,8 @@
 
   security.sudo.extraRules = [
     {
-      # ali manages only its own skynet-* units without a password.
-      users = [ "ali" ];
+      # aliammar manages only its own skynet-* units without a password.
+      users = [ "aliammar" ];
       commands = [
         { command = "${pkgs.systemd}/bin/systemctl start skynet-*"; options = [ "NOPASSWD" ]; }
         { command = "${pkgs.systemd}/bin/systemctl stop skynet-*"; options = [ "NOPASSWD" ]; }
