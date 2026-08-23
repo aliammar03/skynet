@@ -46,11 +46,25 @@ nix/modules/
 - **1d:** human-approved cutover — PBS-snapshot 9090, move `.90`/`.99`+DNS to the twin, retire the
   stray VMID 999. Keep 9090 as instant rollback for a few days.
 
-## Building locally
+## The twin (Phase 1b)
 
-Nix is deliberately **not** installed on the live ops VM ("never gamble the live VM"). Build in a
-throwaway `nixos/nix` container or on the twin:
+`vm-skynet-ops-nix` is the parallel twin: the same host on a temp identity (`10.10.90.91`), so
+provisioning and validation never touch the live `.90`/`.99`. Only the network identity is
+overridden ([`hosts/vm-skynet-ops-nix/`](../hosts/vm-skynet-ops-nix/default.nix)); it is retired at
+cutover (1d), when the real config takes the live identity.
+
+## Building / provisioning
+
+Nix is deliberately **not** installed on the live ops VM ("never gamble the live VM"). Build/provision
+from a throwaway `nixos/nix` container (the Phase-0 pattern) or on the twin:
 
 ```bash
-nix build .#nixosConfigurations.vm-skynet-ops.config.system.build.toplevel
+# build a system closure
+nix build .#nixosConfigurations.vm-skynet-ops-nix.config.system.build.toplevel
+
+# provision the twin (kexec + disko; age key placed via --extra-files)
+nixos-anywhere --flake .#vm-skynet-ops-nix --target-host root@10.10.90.91
+
+# day-2 deploy with magic-rollback
+nix run github:serokell/deploy-rs -- .#vm-skynet-ops-nix
 ```
