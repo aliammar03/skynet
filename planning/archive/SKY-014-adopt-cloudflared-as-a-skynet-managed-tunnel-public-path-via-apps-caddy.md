@@ -1,10 +1,10 @@
 ---
 id: SKY-014
 title: Adopt cloudflared as a Skynet-managed tunnel (public path via apps-Caddy)
-status: complete
+status: done
 horizon: short
 created: 2026-08-19
-updated: 2026-08-19
+updated: 2026-08-21
 phases: 2
 current_phase: 2
 tier_touched: [T2, T3]
