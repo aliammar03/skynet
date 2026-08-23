@@ -9,9 +9,19 @@
 	# record on aliammar.net's PUBLIC authoritative DNS (Cloudflare). Needs no inbound
 	# reachability, so it issues publicly-trusted certs for internal-only services with
 	# zero device-trust install. The token (scoped Zone→DNS→Edit, aliammar.net only) is
-	# the sole secret, injected from .env.sops via the environment. Validation rides the
-	# Cloudflare API on :443 — NOT :53 — so firewall rule 830 is not needed here.
-	acme_dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+	# the sole secret, injected from .env.sops via the environment.
+	#
+	# propagation_timeout -1 DISABLES certmagic's DNS self-check. That check queries the
+	# authoritative NS directly on :53, which this apps Caddy (10.10.100.35) can't reach
+	# (firewall rule 830 allows :53 egress only from HOST_PROXY_ADMIN + ROLE_DNS_RESOLVERS,
+	# not HOST_PROXY_APPS) — so it timed out and blocked issuance for every NEW cert. The
+	# public CA validates the TXT from the internet regardless, so the self-check is
+	# skippable and the write stays purely on the Cloudflare API (:443). Existing certs are
+	# cached in /data; without this, they'd fail identically on renewal.
+	cert_issuer acme {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+		propagation_timeout -1
+	}
 
 	# HTTP/1.1 + HTTP/2 only — no HTTP/3. Chromium/Electron clients (Obsidian LiveSync)
 	# upgrade to h3 on the alt-svc hint, but QUIC/UDP-443 across the DMZ macvlan is
