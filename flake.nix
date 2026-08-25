@@ -4,6 +4,10 @@
   # Rationale, layout, and the twin/cutover model live in nix/README.md + docs/system-design.md.
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+    # Fast-moving agent CLIs (claude-code/codex/antigravity) come from unstable, not npm — see
+    # nix/modules/agent-clis.nix. Kept as a separate input so the host stays on stable 26.05.
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    impermanence.url = "github:nix-community/impermanence";
     disko = {
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -30,6 +34,7 @@
         modules = [
           disko.nixosModules.disko
           sops-nix.nixosModules.sops
+          inputs.impermanence.nixosModules.impermanence
           ./hosts/vm-skynet-ops
         ];
       };
@@ -42,6 +47,7 @@
         modules = [
           disko.nixosModules.disko
           sops-nix.nixosModules.sops
+          inputs.impermanence.nixosModules.impermanence
           ./hosts/vm-skynet-ops-nix
         ];
       };

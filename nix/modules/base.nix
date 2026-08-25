@@ -7,8 +7,10 @@
 
   time.timeZone = "Asia/Karachi"; # PKT — the operator's timezone
 
-  # Nix owns the ops toolchain; the agent CLIs (codex/claude) stay npm-global in ~aliammar by
-  # decision — "the runtime is a replaceable part; the contract is the machine" (system-design §4).
+  nixpkgs.config.allowUnfree = true; # claude-code / antigravity are unfree (see agent-clis.nix)
+
+  # Nix owns the ops toolchain. The agent CLIs are now Nix packages too (nix/modules/agent-clis.nix,
+  # from nixpkgs-unstable) — no longer npm-global.
   environment.systemPackages = with pkgs; [
     git
     gh
@@ -21,7 +23,7 @@
     rsync
     docker-compose
     htop
-    nodejs_22 # runtime for the npm-global agent CLIs + node-based ops scripts
+    nodejs_22 # runtime for the node-based ops scripts (bin/ops)
     python3 # collect-firewall.sh parses the OPNsense config.xml
     openssl # pin-cert.sh + TLS pinning
     netcat # reachability probes in a few scripts
