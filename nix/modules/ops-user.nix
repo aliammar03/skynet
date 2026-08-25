@@ -48,14 +48,14 @@ in
       ];
     }
     {
-      # deploy-rs activation: it SSHes as svc-ops, then sudo-activates the new system profile.
-      # sudoers '*' does not cross '/', so the store-hash wildcard matches one path component.
-      # The exact command set is proven + tightened during the 1c magic-rollback round-trip.
+      # deploy-rs activation: it SSHes as svc-ops, then runs `sudo -u root <profile>/activate-rs
+      # <cmd> …`. That single Rust binary does the nix-env / switch-to-configuration / systemd-run
+      # itself as root, so it is deploy-rs's *entire* sudo surface (svc-ops can do nothing else).
+      # A bare command (no args) in sudoers permits any arguments; '*' matches the store-hash
+      # component without crossing '/'. Proven in the 1c magic-rollback round-trip.
       users = [ "svc-ops" ];
       commands = [
-        { command = "/nix/store/*/bin/switch-to-configuration"; options = [ "NOPASSWD" ]; }
-        { command = "${pkgs.nix}/bin/nix-env -p /nix/var/nix/profiles/system --set *"; options = [ "NOPASSWD" ]; }
-        { command = "/run/current-system/sw/bin/systemd-run *"; options = [ "NOPASSWD" ]; }
+        { command = "/nix/store/*/activate-rs"; options = [ "NOPASSWD" ]; }
       ];
     }
   ];
