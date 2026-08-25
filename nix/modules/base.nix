@@ -22,6 +22,9 @@
     docker-compose
     htop
     nodejs_22 # runtime for the npm-global agent CLIs + node-based ops scripts
+    python3 # collect-firewall.sh parses the OPNsense config.xml
+    openssl # pin-cert.sh + TLS pinning
+    netcat # reachability probes in a few scripts
   ];
 
   # Arcane (on docker-dmz) owns the services; NixOS owns the daemon. The ops VM runs the
