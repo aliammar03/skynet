@@ -18,6 +18,7 @@
     curl
     rsync
     docker-compose
+    htop
     nodejs_22 # runtime for the npm-global agent CLIs + node-based ops scripts
   ];
 
