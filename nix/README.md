@@ -8,15 +8,15 @@ Pushes the declarative boundary *below* Docker: a whole host as a reproducible f
 ## Layout
 
 ```
-flake.nix                    inputs (nixpkgs 25.05, disko, sops-nix, deploy-rs), the
+flake.nix                    inputs (nixpkgs 26.05, disko, sops-nix, deploy-rs), the
                              nixosConfiguration, and the deploy-rs node
 hosts/vm-skynet-ops/
   default.nix                the host: imports + hostname + static network identity
-  hardware.nix               qemu-guest profile + grub (legacy BIOS)
-  disko.nix                  declarative disk layout (single virtio disk, GPT)
+  hardware.nix               qemu-guest profile + systemd-boot (UEFI/OVMF, q35)
+  disko.nix                  declarative disk layout (VirtIO disk, GPT, ESP + root)
 nix/modules/
   base.nix                   nix settings, the ops toolchain, docker daemon, firewall
-  ops-user.nix               ali + svc-ops, and the narrowed sudo (SKY-007's thesis)
+  ops-user.nix               aliammar + svc-ops, and the narrowed sudo (SKY-007's thesis)
   ssh-ca.nix                 sshd + TrustedUserCAKeys (grant-root cert trust)
   timers.nix                 skynet-nightly + skynet-cli-update as systemd units
   secrets.nix                sops-nix wired to the lab age key
@@ -28,8 +28,8 @@ nix/modules/
   truth, no snowflake carryover.
 - **sops-nix via `sops.age.keyFile`** = the one lab age key (survival kit), not a host-SSH-key
   identity. One age key lab-wide ([secrets](../docs/design/secrets.md)).
-- **Agent CLIs stay npm-global** in `~ali`; Nix owns nodejs/git/gh/sops/age/rclone/restic/docker.
-  The repo is checked out in `~ali` too — Nix defines the machine, the runtime is replaceable.
+- **Agent CLIs stay npm-global** in `~aliammar`; Nix owns nodejs/git/gh/sops/age/rclone/restic/docker.
+  The repo is checked out in `~aliammar` too — Nix defines the machine, the runtime is replaceable.
 - **Sudo is a least-privilege module.** The live box grants standing passwordless `sudo ALL`;
   the flake removes wheel's blanket NOPASSWD and scopes it to the commands ops actually runs.
 - **Only two timers are the ops VM's.** `skynet-restic-backup@` (docker hosts) and
@@ -46,11 +46,25 @@ nix/modules/
 - **1d:** human-approved cutover — PBS-snapshot 9090, move `.90`/`.99`+DNS to the twin, retire the
   stray VMID 999. Keep 9090 as instant rollback for a few days.
 
-## Building locally
+## The twin (Phase 1b)
 
-Nix is deliberately **not** installed on the live ops VM ("never gamble the live VM"). Build in a
-throwaway `nixos/nix` container or on the twin:
+`vm-skynet-ops-nix` is the parallel twin: the same host on a temp identity (`10.10.90.91`), so
+provisioning and validation never touch the live `.90`/`.99`. Only the network identity is
+overridden ([`hosts/vm-skynet-ops-nix/`](../hosts/vm-skynet-ops-nix/default.nix)); it is retired at
+cutover (1d), when the real config takes the live identity.
+
+## Building / provisioning
+
+Nix is deliberately **not** installed on the live ops VM ("never gamble the live VM"). Build/provision
+from a throwaway `nixos/nix` container (the Phase-0 pattern) or on the twin:
 
 ```bash
-nix build .#nixosConfigurations.vm-skynet-ops.config.system.build.toplevel
+# build a system closure
+nix build .#nixosConfigurations.vm-skynet-ops-nix.config.system.build.toplevel
+
+# provision the twin (kexec + disko; age key placed via --extra-files)
+nixos-anywhere --flake .#vm-skynet-ops-nix --target-host root@10.10.90.91
+
+# day-2 deploy with magic-rollback
+nix run github:serokell/deploy-rs -- .#vm-skynet-ops-nix
 ```

@@ -2,10 +2,12 @@
 # Host baseline: the ops toolchain Nix owns, the docker daemon, and lab-wide defaults.
 {
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  # deploy-rs pushes locally-built (unsigned) store paths as svc-ops; the target must trust it.
+  nix.settings.trusted-users = [ "root" "svc-ops" ];
 
   time.timeZone = "Asia/Karachi"; # PKT — the operator's timezone
 
-  # Nix owns the ops toolchain; the agent CLIs (codex/claude) stay npm-global in ~ali by
+  # Nix owns the ops toolchain; the agent CLIs (codex/claude) stay npm-global in ~aliammar by
   # decision — "the runtime is a replaceable part; the contract is the machine" (system-design §4).
   environment.systemPackages = with pkgs; [
     git
@@ -18,12 +20,17 @@
     curl
     rsync
     docker-compose
+    htop
     nodejs_22 # runtime for the npm-global agent CLIs + node-based ops scripts
   ];
 
   # Arcane (on docker-dmz) owns the services; NixOS owns the daemon. The ops VM runs the
   # docker CLI/daemon to reach remote contexts. docker-group ≈ root — see ops-user.nix.
   virtualisation.docker.enable = true;
+
+  # IPv6 is disabled lab-wide (OPNsense has no v6). Turn it off in the kernel too so the box
+  # never advertises/attempts v6 — also avoids IPv6-first DNS stalls with no v6 route.
+  networking.enableIPv6 = false;
 
   networking.firewall.enable = true;
   networking.firewall.allowedTCPPorts = [ 22 ];

@@ -7,15 +7,15 @@
 #   skynet-restic-backup@  -> each docker host (root; reads /var/lib/docker/volumes)
 #   skynet-pbs-gdrive      -> inside the PBS host.
 #
-# The repo + agent CLIs live in ~ali (not the Nix store) by decision — Nix defines the host
+# The repo + agent CLIs live in ~aliammar (not the Nix store) by decision — Nix defines the host
 # and its schedule; the checked-out repo is the replaceable runtime (system-design §4).
 let
-  repo = "/home/ali/skynet";
-  opsEnv = "/home/ali/.config/skynet-ops/ops.env";
-  # Login-like env so the engine + git/gh creds in ~ali resolve; npm-global on PATH first.
+  repo = "/home/aliammar/skynet";
+  opsEnv = "/home/aliammar/.config/skynet-ops/ops.env";
+  # Login-like env so the engine + git/gh creds in ~aliammar resolve; npm-global on PATH first.
   commonEnv = {
-    HOME = "/home/ali";
-    PATH = lib.mkForce "/home/ali/.npm-global/bin:/run/current-system/sw/bin:/usr/bin:/bin";
+    HOME = "/home/aliammar";
+    PATH = lib.mkForce "/home/aliammar/.npm-global/bin:/run/current-system/sw/bin:/usr/bin:/bin";
   };
 in
 {
@@ -26,7 +26,7 @@ in
     environment = commonEnv;
     serviceConfig = {
       Type = "oneshot";
-      User = "ali";
+      User = "aliammar";
       WorkingDirectory = repo;
       EnvironmentFile = [ "-${opsEnv}" ]; # optional overrides; '-' = ok if absent
       ExecStart = "${repo}/bin/ops nightly";
@@ -51,7 +51,7 @@ in
     environment = commonEnv;
     serviceConfig = {
       Type = "oneshot";
-      User = "ali";
+      User = "aliammar";
       WorkingDirectory = repo;
       ExecStart = "${repo}/scripts/update-clis.sh";
       TimeoutStartSec = "20m";
