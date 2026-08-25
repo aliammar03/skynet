@@ -14,10 +14,10 @@
 set -euo pipefail
 
 envfile="/opt/skynet-ops/secrets/cloudflare-dns.env"
-{ test -r "${envfile}" 2>/dev/null || sudo test -r "${envfile}"; } || { echo "missing ${envfile} (0600) — mint the scoped token first" >&2; exit 1; }
+{ test -r "${envfile}" 2>/dev/null || sudo -n test -r "${envfile}" 2>/dev/null; } || { echo "missing ${envfile} (0600) — mint the scoped token first" >&2; exit 1; }
 # The whole secrets/ dir is root:root 0700, so source the env via sudo (process substitution keeps
-# the token off any argv and off disk). Matches gitops-deploy.sh's `source <(sudo cat ...)`.
-set -a; source <(cat "${envfile}" 2>/dev/null || sudo cat "${envfile}"); set +a
+# the token off any argv and off disk). Matches gitops-deploy.sh's `source <(sudo -n cat ...)`.
+set -a; source <(cat "${envfile}" 2>/dev/null || sudo -n cat "${envfile}"); set +a
 : "${CF_DNS_TOKEN:?}" "${CF_ZONE:?}" "${TUNNEL_ID:?}"
 
 del=0

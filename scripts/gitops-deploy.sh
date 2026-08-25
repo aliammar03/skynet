@@ -35,7 +35,7 @@ COMPOSE_REL="compose/${SVC}/compose.yaml"
 # --- secrets / config -------------------------------------------------------
 ARC_ENV="/opt/skynet-ops/secrets/arcane.env"
 AGE_KEY="/opt/skynet-ops/secrets/age.key"
-set -a; source <(cat "${ARC_ENV}" 2>/dev/null || sudo cat "${ARC_ENV}"); set +a
+set -a; source <(cat "${ARC_ENV}" 2>/dev/null || sudo -n cat "${ARC_ENV}"); set +a
 : "${ARCANE_URL:?ARCANE_URL missing from ${ARC_ENV}}"
 : "${ARCANE_TOKEN:?ARCANE_TOKEN missing from ${ARC_ENV}}"
 ENVID="${ARCANE_ENV_ID:-0}"
