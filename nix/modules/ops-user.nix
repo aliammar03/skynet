@@ -56,6 +56,9 @@ in
       users = [ "svc-ops" ];
       commands = [
         { command = "/nix/store/*/activate-rs"; options = [ "NOPASSWD" ]; }
+        # magic-rollback confirms by removing its canary file (`sudo -u root rm
+        # /tmp/deploy-rs-canary-<hash>`); without this the confirm fails and every deploy rolls back.
+        { command = "/run/current-system/sw/bin/rm /tmp/deploy-rs-canary-*"; options = [ "NOPASSWD" ]; }
       ];
     }
   ];
