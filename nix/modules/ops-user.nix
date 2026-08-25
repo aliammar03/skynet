@@ -1,6 +1,11 @@
 { pkgs, ... }:
-# The ops operator (ali) + the T2 SSH principal (svc-ops), and the narrowed sudo that is
+# The ops operator (aliammar) + the T2 SSH principal (svc-ops), and the narrowed sudo that is
 # SKY-007's thesis: collapse the ops VM's *standing passwordless root* into a reviewed diff.
+let
+  # The ops agent's SSH key (lives on the current ops box). Baked so the agent reaches the twin
+  # as aliammar (operate) and svc-ops (deploy-rs). Ali's own workstation key can be added here too.
+  agentKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDaJEkEwSMl7iSgXeokZIKSVj4TgE4p8Bljx26LmrK0d svc-ops@vm-skynet-ops";
+in
 {
   users.users.aliammar = {
     isNormalUser = true;
@@ -9,7 +14,7 @@
     # scripts run unchanged; tightening it belongs to a later hardening phase. "wheel" is
     # retained for password-gated escalation only (blanket NOPASSWD is removed below).
     extraGroups = [ "docker" "wheel" ];
-    openssh.authorizedKeys.keys = [ ]; # operator key added at provision (1b)
+    openssh.authorizedKeys.keys = [ agentKey ];
   };
 
   # svc-ops: the unprivileged T2 operate principal (AGENTS.md §1). deploy-rs connects as this.
@@ -20,7 +25,7 @@
     description = "Skynet T2 operate SSH principal";
     extraGroups = [ "wheel" ];
     hashedPassword = "!"; # locked — deploy activation is its only sudo path
-    openssh.authorizedKeys.keys = [ ]; # deploy key added at provision (1b)
+    openssh.authorizedKeys.keys = [ agentKey ];
   };
 
   # --- Narrowed sudo ---------------------------------------------------------------------
