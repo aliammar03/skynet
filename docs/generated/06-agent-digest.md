@@ -15,6 +15,7 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 ## 🧷 Recent decisions
 
+- **[[0004-auto-merge-generated-only-nightly-prs|ADR 0004]]** — Auto-merge generated-only nightly PRs · accepted · 2026-08-20
 - **[[0003-ambiguity-layering-and-format-follows-enforcement|ADR 0003]]** — Ambiguity-tolerance layering; format follows enforcement · accepted · 2026-08-18
 - **[[0002-append-only-episodic-journal|ADR 0002]]** — Append-only episodic journal · accepted · 2026-08-17
 - **[[0001-static-ip-addressing|ADR 0001]]** — Static IP addressing for Skynet guests · accepted · 2026-08-15 (revised 2026-08-17 — see *History*)
@@ -23,35 +24,36 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 **Directives in flight** (not done/abandoned):
 
-- **SKY-005** (projects · in-progress · 1/3) — Imperative ops discipline: recon toolkit, diagnosis library, lab bench
+- **SKY-005** (projects · in-progress · 2/3) — Imperative ops discipline: recon toolkit, diagnosis library, lab bench
 - **SKY-006** (projects · in-progress · 2/3) — Agent episodic memory: journal + retrieval
-- **SKY-014** (projects · complete · 2/2) — Adopt cloudflared as a Skynet-managed tunnel (public path via apps-Caddy)
+- **SKY-007** (projects · in-progress · 1/5   # Phase 0 (gate) + Phase 1 split into 1a–1d (scoped 2026-08-21)) — NixOS host definition, piloted on the ops VM
 - **SKY-002** (ideas · draft) — Ongoing backup strategy for CT 240 (PBS host)
 - **SKY-004** (ideas · draft) — Reactive operations: event-driven layer + drift-as-signal
-- **SKY-007** (ideas · draft) — NixOS host definition, piloted on the ops VM
 - **SKY-008** (ideas · draft) — OpenTofu provisioning layer: VM and CT lifecycle plus DNS
 - **SKY-012** (ideas · draft) — Runbooks as executable capabilities
+- **SKY-015** (ideas · draft) — Inventory renderer overhaul: proxy-aware service annotation, canonical host map, reverse-proxy route inventory
+- **SKY-016** (ideas · draft) — Harden the service-deployment workflow: verify reachability not just health, plus scaffolding helpers
 
 **Loose ends from recent episodes** (the journal's own open-thread bullets, verbatim):
 
+- `netdiag` tag not applied to the librespeed project in Arcane. Likely applies only at project creation, or needs Ali to add it once in the Arcane UI. Non-blocking. If it's genuinely create-only, compose/README's claim about new tags auto-applying needs a caveat. — _2026-08-23 session          # session | incident | decision_
+- Optional: a runbooks/ entry on using speed.aliammar.net to diagnose wifi (client at the AP vs across the house; compare to iperf3 for lab-grade numbers). — _2026-08-23 session          # session | incident | decision_
+- Stats password lives in compose/librespeed/.env.sops (key PASSWORD); read with `sudo SOPS_AGE_KEY_FILE=/opt/skynet-ops/secrets/age.key sops -d compose/librespeed/.env.sops`. — _2026-08-23 session          # session | incident | decision_
 - LP-1: prune 10.10.20.63 from ROLE_APP_ORIGINS (stale); add 10.10.100.95 (obsidian) for accuracy. — _2026-08-20 session_
 - LP-2 (optional): remove HOST_PROXY_APPS from rule 830 source (apps Caddy needs no :53). — _2026-08-20 session_
 - LP-3: retire rule 270 / narrow ROLE_SKYNET_OPS_TARGETS (redundant with 370, over-broad) — confirm nothing relies on it first. Host sshd (vm-docker-dmz): — _2026-08-20 session_
 - H-1: PasswordAuthentication no (drop-in). — _2026-08-20 session_
 - H-2: remove stray `PermitRootLogin yes` from main sshd_config. Then re-collect the mirror; confirm docs regen clean + drift green. — _2026-08-20 session_
-- **Awaiting Ali:** merge PR #77 → then agent live-verifies unauth→302→login→calibre from a peer DMZ container and does the P3 `[x]` close-out. — _2026-08-20 session          # session | incident | decision_
-- P4 (firewall least-privilege + DMZ-docker SSH-exposure audit) still open; note calibre origin is 10.10.100.53:8080 (matches PORT_APP_BACKENDS=8080, unlike karakeep's 3000). — _2026-08-20 session          # session | incident | decision_
-- The domain-level provider (pk 2) remains bound to the outpost, unused by Caddy — left as-is. — _2026-08-20 session          # session | incident | decision_
 
 ## 📓 Recent episodes
 
+- **2026-08-23** · session          # session | incident | decision · [[2026-08-23-session-librespeed-wifi-speed-test-deploy|librespeed wifi speed-test deploy]]
 - **2026-08-20** · session · [[2026-08-20-session-sky-003-p4-firewall-least-privilege-vm-docker-dmz-ssh-exposure-audit|SKY-003 P4 — firewall least-privilege + vm-docker-dmz SSH-exposure audit]]
 - **2026-08-20** · session          # session | incident | decision · [[2026-08-20-session-sky-003-p3-calibre-forward-auth-via-scoped-authentik-token|SKY-003 P3 — calibre forward-auth via scoped Authentik token]]
 - **2026-08-20** · session · [[2026-08-20-session-publish-calibre-publicly-behind-authentik-forward-auth-admin-lockdown|Publish calibre publicly behind Authentik forward-auth (+ admin lockdown)]]
 - **2026-08-20** · session          # session | incident | decision · [[2026-08-20-session-publish-aiometadata-aiostreams-publicly-via-cloudflare-tunnel|publish aiometadata + aiostreams publicly via Cloudflare Tunnel]]
-- **2026-08-18** · session          # session | incident | decision · [[2026-08-18-session-sky-011-p3-invariants-gate-proxmox-pool-audit-unblock|SKY-011 P3 — invariants gate + Proxmox pool-audit unblock]]
-- **2026-08-18** · session · [[2026-08-18-session-sky-010-p4-read-time-scout-bin-recall|SKY-010 P4 — read-time scout (bin/recall)]]
-- **2026-08-17** · session · [[2026-08-17-session-sky-006-p2-rolling-cold-boot-digest|SKY-006 P2 — rolling cold-boot digest]]
+- **2026-08-20** · session · [[2026-08-20-session-nightly|nightly 2026-08-20 (deterministic)]]
+- **2026-08-20** · incident          # session | incident | decision · [[2026-08-20-incident-nightly-timer-failing-on-systemd-inline-comment-in-ops-env|nightly timer failing on systemd inline-comment in ops.env]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._
