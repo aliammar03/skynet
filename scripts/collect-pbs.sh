@@ -9,12 +9,12 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 secret="/opt/skynet-ops/secrets/pbs.env"
 
-if ! sudo test -f "${secret}"; then
+if ! { test -e "${secret}" 2>/dev/null || sudo test -f "${secret}"; }; then
   echo "no creds yet (${secret}) — collector idle until A2/A4" >&2
   exit 0
 fi
 # shellcheck disable=SC1090
-eval "$(sudo cat "${secret}")"
+eval "$(cat "${secret}" 2>/dev/null || sudo cat "${secret}")"
 : "${PBS_HOST:?}" "${PBS_TOKEN:?}"
 : "${PBS_CACERT:?set PBS_CACERT in ${secret} — run: scripts/pin-cert.sh ${PBS_HOST:-<host>} 8007 /opt/skynet-ops/certs/pbs.crt}"
 [ -r "${PBS_CACERT}" ] || { echo "PBS_CACERT ${PBS_CACERT} not readable" >&2; exit 1; }
