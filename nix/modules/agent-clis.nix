@@ -13,5 +13,8 @@ in
     unstable.claude-code
     unstable.codex
     unstable.antigravity
+    unstable.pi-coding-agent
+    unstable.opencode
+    unstable.aider-chat
   ];
 }
