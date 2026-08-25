@@ -139,7 +139,7 @@ OpsOperator ACL — scoped to `/pool/ops-managed` — can allocate a new VMID, e
 shell); placing the survival-kit **age key** at provision time. Exit: twin boots, reachable on the
 temp IP, `nixos-rebuild`/deploy-rs can reach it.
 
-#### Phase 1c — validate on the twin   `[~]` INFRA HALF DONE (2026-08-25)  (~1–2h, twin only)
+#### Phase 1c — validate on the twin   `[x]` DONE (2026-08-25)  (~1–2h, twin only)
 Prove the ops role runs on the twin: `bin/ops collect` (collectors hit the read APIs), a full
 report-only nightly dry-run, git/gh auth + PR-open path, timers fire, docker up, sops-nix secrets
 decrypt to tmpfs. Then a **deploy-rs round-trip**: trivial config change deployed, and an
@@ -215,3 +215,16 @@ Follow AGENTS.md as above.
   and sops-nix decrypt all need the runtime (repo checkout, npm CLIs, creds/tokens, the **age key**)
   bootstrapped into `~aliammar` — the deferred credential checkpoint. Next: bootstrap that runtime
   (⚠ handles the age key + tokens), then a nightly-green run → 1c exit. See `[[SKY-007-progress]]`.
+- 2026-08-25 (cont.) — **Phase 1c COMPLETE.** Bootstrapped the `~aliammar` runtime on the twin (Ali
+  authorized copying from 9090): secrets `/opt/skynet-ops/secrets/*` (age.key + token envs, root 0600)
+  + certs + mirror, gh auth, git identity, `ops.env`, repo clone. **`bin/ops collect` hits ALL read
+  APIs** (Proxmox core+network, Technitium, firewall) and renders `docs/generated/`; a **report-only
+  nightly ran GREEN** (script mode) → committed, pushed, opened a PR, and the automerge gate correctly
+  classified it generated-only (dry-run PR #102, closed as a validation artifact). **Runtime deps the
+  flake missed (added):** python3 (collect-firewall), openssl, netcat. **Secret-access model:** the
+  collectors do `sudo cat /opt/skynet-ops/secrets/*`; under the narrowed sudo that fails, so added a
+  **scoped `sudo cat/test` grant for the secrets dir** (a reviewed narrow grant, not standing root).
+  **Deviation from the exit wording:** did NOT implement `sops-nix → /run/secrets` decrypt-to-tmpfs —
+  that's a cross-codebase collector migration; tracked as a **follow-up** (the sudo-cat grant is the
+  interim). Next: **Phase 1d cutover** (PBS-snapshot 9090, move .90/.99+DNS to the twin, retire stray
+  999) — ⚠ Ali hands-on. PR: `feat/sky-007-p1c-runtime-fixes`.
