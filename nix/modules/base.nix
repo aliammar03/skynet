@@ -25,6 +25,10 @@
   # docker CLI/daemon to reach remote contexts. docker-group ≈ root — see ops-user.nix.
   virtualisation.docker.enable = true;
 
+  # IPv6 is disabled lab-wide (OPNsense has no v6). Turn it off in the kernel too so the box
+  # never advertises/attempts v6 — also avoids IPv6-first DNS stalls with no v6 route.
+  networking.enableIPv6 = false;
+
   networking.firewall.enable = true;
   networking.firewall.allowedTCPPorts = [ 22 ];
 
