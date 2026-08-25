@@ -8,6 +8,10 @@
     # nix/modules/agent-clis.nix. Kept as a separate input so the host stays on stable 26.05.
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     impermanence.url = "github:nix-community/impermanence";
+    home-manager = {
+      url = "github:nix-community/home-manager/release-26.05";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     disko = {
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -35,6 +39,7 @@
           disko.nixosModules.disko
           sops-nix.nixosModules.sops
           inputs.impermanence.nixosModules.impermanence
+          inputs.home-manager.nixosModules.home-manager
           ./hosts/vm-skynet-ops
         ];
       };
@@ -48,6 +53,7 @@
           disko.nixosModules.disko
           sops-nix.nixosModules.sops
           inputs.impermanence.nixosModules.impermanence
+          inputs.home-manager.nixosModules.home-manager
           ./hosts/vm-skynet-ops-nix
         ];
       };

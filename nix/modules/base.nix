@@ -7,10 +7,10 @@
 
   time.timeZone = "Asia/Karachi"; # PKT — the operator's timezone
 
-  nixpkgs.config.allowUnfree = true; # claude-code / antigravity are unfree (see agent-clis.nix)
+  nixpkgs.config.allowUnfree = true; # claude-code / antigravity are unfree (see nix/home/aliammar.nix)
 
-  # Nix owns the ops toolchain. The agent CLIs are now Nix packages too (nix/modules/agent-clis.nix,
-  # from nixpkgs-unstable) — no longer npm-global.
+  # Nix owns the ops toolchain. The agent CLIs are now Nix packages too, owned by home-manager
+  # (nix/home/aliammar.nix, from nixpkgs-unstable) — no longer npm-global.
   environment.systemPackages = with pkgs; [
     git
     gh

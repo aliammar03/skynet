@@ -6,12 +6,12 @@
     ./hardware.nix
     ./disko.nix
     ../../nix/modules/base.nix
-    ../../nix/modules/agent-clis.nix
     ../../nix/modules/ops-user.nix
     ../../nix/modules/ssh-ca.nix
     ../../nix/modules/timers.nix
     ../../nix/modules/secrets.nix
     ../../nix/modules/impermanence.nix
+    ../../nix/modules/home.nix
   ];
 
   networking.hostName = "vm-skynet-ops";
