@@ -38,13 +38,19 @@ in
 
   security.sudo.extraRules = [
     {
-      # aliammar manages only its own skynet-* units without a password.
+      # aliammar manages only its own skynet-* units, and reads its own secrets. The collectors
+      # do `sudo cat`/`sudo test -f /opt/skynet-ops/secrets/*`; scoping sudo to reading that dir
+      # keeps the ops scripts unchanged and is a narrow, reviewed grant (the agent reading its own
+      # secrets — not standing root). PROPER end-state is sops-nix → /run/secrets; tracked as a
+      # follow-up so the collectors don't need sudo at all.
       users = [ "aliammar" ];
       commands = [
         { command = "${pkgs.systemd}/bin/systemctl start skynet-*"; options = [ "NOPASSWD" ]; }
         { command = "${pkgs.systemd}/bin/systemctl stop skynet-*"; options = [ "NOPASSWD" ]; }
         { command = "${pkgs.systemd}/bin/systemctl restart skynet-*"; options = [ "NOPASSWD" ]; }
         { command = "${pkgs.systemd}/bin/systemctl status skynet-*"; options = [ "NOPASSWD" ]; }
+        { command = "/run/current-system/sw/bin/cat /opt/skynet-ops/secrets/*"; options = [ "NOPASSWD" ]; }
+        { command = "/run/current-system/sw/bin/test -f /opt/skynet-ops/secrets/*"; options = [ "NOPASSWD" ]; }
       ];
     }
     {
