@@ -4,7 +4,7 @@ title: NixOS host definition, piloted on the ops VM
 status: in-progress
 horizon: long
 created: 2026-08-17
-updated: 2026-08-23
+updated: 2026-08-25
 phases: 5   # Phase 0 (gate) + Phase 1 split into 1a–1d (scoped 2026-08-21)
 current_phase: 1
 tier_touched: [T2+, T3]   # rebuilding a host = root (T2+); the host is the agent's own box and this
@@ -132,14 +132,14 @@ Add a CI job that runs `nix build .#…system.build.toplevel` (the Phase-0 fluen
 autonomy-ratchet step; twin joins `ops-managed` → blast-radius count +1). **No infra touched.**
 Exit: flake builds green in CI; system-design PR opened.
 
-#### Phase 1b — provision the twin via `nixos-anywhere`   `[ ]` not started  (~1–2h, ⚠ grant)
+#### Phase 1b — provision the twin via `nixos-anywhere`   `[x]` DONE (2026-08-25, PR #101)  (~1–2h, ⚠ grant)
 Create the fresh twin VM (temp IP, e.g. `10.10.90.91`); `nixos-anywhere` kexec + disko installs the
 flake over SSH. **⚠ hard checkpoints:** creating the VM shell (confirm the `operate` token's
 OpsOperator ACL — scoped to `/pool/ops-managed` — can allocate a new VMID, else Ali creates the
 shell); placing the survival-kit **age key** at provision time. Exit: twin boots, reachable on the
 temp IP, `nixos-rebuild`/deploy-rs can reach it.
 
-#### Phase 1c — validate on the twin   `[ ]` not started  (~1–2h, twin only)
+#### Phase 1c — validate on the twin   `[~]` INFRA HALF DONE (2026-08-25)  (~1–2h, twin only)
 Prove the ops role runs on the twin: `bin/ops collect` (collectors hit the read APIs), a full
 report-only nightly dry-run, git/gh auth + PR-open path, timers fire, docker up, sops-nix secrets
 decrypt to tmpfs. Then a **deploy-rs round-trip**: trivial config change deployed, and an
@@ -198,3 +198,20 @@ Follow AGENTS.md as above.
   the live box (Phase-0 rule), so the lock is generated on the twin; CI resolves inputs in-flight
   until then. Blast-radius dial left at **two** (twin doesn't exist yet; +1 lands at cutover). Next:
   Phase 1b — provision the twin via `nixos-anywhere`.
+- 2026-08-25 — **Phase 1b DONE + Phase 1c infra-half DONE** (PR #101). Twin VM 9091 (`vm-skynet-ops-nix`,
+  `10.10.90.91`, **OVMF/q35/systemd-boot**, Ali created the shell — operate token's VM.Allocate is
+  pool-scoped, can't mint a new VMID). `nixos-anywhere` installed the flake; **twin boots NixOS 26.05**
+  (bumped 25.05→26.05, latest stable), 1 GB ESP, **IPv6 disabled** (`networking.enableIPv6=false`),
+  default user **aliammar**. `flake.lock` committed. **1c validated (infra half):** timers enabled +
+  scheduled (PKT), docker active, full ops toolchain present, and the **deploy-rs magic-rollback
+  round-trip PROVEN** — trivial deploy confirmed, then an SSH-breaking firewall change auto-reverted
+  and port 22 self-healed in ~6s. **Fixes forced by real testing (all committed):** baked agent +
+  Ali's workstation keys (first install baked NO login — a miss); added `AuthorizedPrincipalsFile` +
+  `/etc/ssh/auth_principals/root` (grant-root was inert without it); `nix.settings.trusted-users` for
+  svc-ops (deploy-rs push); svc-ops sudo scoped to `activate-rs` + the canary `rm` (not the guessed
+  switch-to-configuration set). **Network gotcha (not the fiber):** IPv6-first DNS + HTTP/2 to Fastly
+  hung Nix downloads — fixed with a `gai.conf` IPv4-preference + `http2=false` in the build container.
+  **1c remaining (the runtime/secret half):** `bin/ops collect`, a full nightly dry-run, git/gh PR path,
+  and sops-nix decrypt all need the runtime (repo checkout, npm CLIs, creds/tokens, the **age key**)
+  bootstrapped into `~aliammar` — the deferred credential checkpoint. Next: bootstrap that runtime
+  (⚠ handles the age key + tokens), then a nightly-green run → 1c exit. See `[[SKY-007-progress]]`.
