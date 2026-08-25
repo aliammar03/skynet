@@ -146,11 +146,20 @@ decrypt to tmpfs. Then a **deploy-rs round-trip**: trivial config change deploye
 intentional SSH-breaking change **auto-reverts** (magic rollback proven). Exit: nightly green on the
 twin + magic-rollback demonstrated.
 
-#### Phase 1d — cutover   `[ ]` not started  (~1h, ⚠ Ali hands-on)
-**PBS snapshot 9090 first.** Stop 9090; move `10.10.90.90` (+`.99`) + DNS to the twin; rename twin →
-`vm-skynet-ops`; retire VMID 999. Keep 9090 stopped-but-present as instant rollback for a few days,
-then archive. Exit: the twin *is* the ops VM, a nightly has run on it in place, rollback window
-observed. **Pilot complete → the workload-host go/no-go is now evidence-based.**
+#### Phase 1d — sops-nix migration + cutover   `[ ]` not started  (~1–2h, ⚠ Ali hands-on)
+**Step A — sops-nix secret migration (on the twin at `.91`, before the IP move).** Replace the interim
+`sudo cat` secret model with real decrypt-to-tmpfs: encrypt each `/opt/skynet-ops/secrets/*.env` into
+git (`.sops`, existing age recipient), declare `sops.secrets."<name>" = { format = "dotenv"; owner =
+"aliammar"; path = "/opt/skynet-ops/secrets/<name>.env"; }` so the file becomes a RAM-backed symlink
+the collectors read with **no sudo**, then **drop the `sudo cat/test` grant** from `ops-user.nix`.
+Deploy via deploy-rs; re-run a report-only nightly and confirm still green + `/run/secrets` populated.
+(The master `age.key` stays the one on-disk secret, root `0600`, from the survival kit.)
+
+**Step B — cutover.** **PBS snapshot 9090 first.** Stop 9090; move `10.10.90.90` (+`.99`) + DNS to the
+twin (deploy `.#vm-skynet-ops`, the `.90/.99` config); rename twin → `vm-skynet-ops`; retire VMID 999.
+Keep 9090 stopped-but-present as instant rollback for a few days, then archive. Exit: the twin *is* the
+ops VM, secrets via sops-nix (no sudo-cat), a nightly has run on it in place, rollback window observed.
+**Pilot complete → the workload-host go/no-go is now evidence-based.**
 
 <!-- Later phases (post-pilot, each its own directive): workload-host migration; impermanence hardening. -->
 
