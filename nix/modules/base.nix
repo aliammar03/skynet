@@ -2,6 +2,8 @@
 # Host baseline: the ops toolchain Nix owns, the docker daemon, and lab-wide defaults.
 {
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  # deploy-rs pushes locally-built (unsigned) store paths as svc-ops; the target must trust it.
+  nix.settings.trusted-users = [ "root" "svc-ops" ];
 
   time.timeZone = "Asia/Karachi"; # PKT — the operator's timezone
 
