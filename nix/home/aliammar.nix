@@ -25,6 +25,9 @@ in
       name = "Skynet-OPS";
       email = "aliammar.skynet@gmail.com";
     };
+    # Auth to the private GitHub remote via the gh token (seeded at ~/.config/gh) — declaratively,
+    # so `git fetch/pull/push` and the nightly work without a per-repo helper set up by hand.
+    settings.credential."https://github.com".helper = "!${pkgs.gh}/bin/gh auth git-credential";
   };
 
   # Engine selector read by the nightly timer's EnvironmentFile (nix/modules/timers.nix) and bin/ops.
