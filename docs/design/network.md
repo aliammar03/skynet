@@ -1,6 +1,6 @@
 ---
 summary: "Where Skynet sits, how it's addressed on VLAN 90, and the firewall rules bounding its reach to exactly what it needs."
-tokens: 1615
+tokens: 1625
 ---
 
 # Spoke · Network & placement
@@ -17,9 +17,9 @@ tokens: 1615
 | Name / node | `vm-skynet-ops` on `server-proxmox-core` |
 | Network | `vmbr0` tag 90, Proxmox guest firewall enabled |
 | IP | **10.10.90.90 static** — deliberate convention exception (see below) |
-| OS | Ubuntu 24.04 LTS, cloud image + cloud-init |
+| OS | **NixOS 26.05** — declarative flake ([`nix/`](../../nix/)) |
 | Resources | 4 vCPU · 6 GB RAM · 60 GB disk |
-| Base tools | `git curl jq tmux qemu-guest-agent unattended-upgrades age sops restic rclone`, Docker, Node 22 |
+| Base tools | Nix-owned toolchain (`git gh jq curl rsync age sops restic rclone docker node python3`); agent CLIs via home-manager |
 
 **Why the static IP** (ADR [0001](../decisions/0001-static-ip-addressing.md)): static addressing
 is the standard for every guest (last octet = VMID convention), so the ops brain is static like

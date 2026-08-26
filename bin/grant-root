@@ -14,14 +14,14 @@
 # (Match user root), so grants for different hosts NO LONGER clobber each other — issue several
 # and they coexist until each expires on its own.
 #
-# STATUS: config-level verified (ssh -G, svc-ops unaffected, certs coexist). The end-to-end path
-# — a real `gr` producing a per-host cert AND root login succeeding via it — is UNTESTED; drill
-# it in A6. (Also: re-run bootstrap-workstation.sh on the workstation so `gr` uses this version.)
+# STATUS: end-to-end validated on the NixOS box (SKY-007 1d) — a per-host `ops-root-<host>` cert
+# verifies against TrustedUserCAKeys and root login succeeds. The ops box is now `aliammar@` on
+# NixOS (post-cutover); the agent pubkey it signs lives at ~aliammar/.ssh/id_ed25519.pub.
 set -euo pipefail
 
 HOST="${1:?host or 'all'}"; DUR="${2:-2h}"
 CA_KEY="${HOME}/.skynet-ca/ops_ca"
-VM="ali@10.10.90.90"
+VM="aliammar@10.10.90.90" # the ops box (skynet-ops); where the agent lives and certs are staged
 
 # HOST becomes an SSH principal (-n ops-root-${HOST}) AND a remote path component
 # (.ssh/certs/${HOST}-cert.pub). Constrain it to a hostname or 'all' so a typo or a stray

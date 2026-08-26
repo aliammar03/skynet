@@ -18,3 +18,5 @@ age.key
 
 # Collector working files (final JSON is committed by the collectors themselves)
 inventory/**/*.partial.json
+result
+result-*

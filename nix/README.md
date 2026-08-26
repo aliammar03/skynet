@@ -1,70 +1,60 @@
-# nix/ — declarative host definitions (SKY-007)
+# nix/ — declarative host definitions
 
-Pushes the declarative boundary *below* Docker: a whole host as a reproducible flake. Piloted on
-`vm-skynet-ops` only — the agent's own box, lowest blast radius. The design lives in
-[`docs/system-design.md`](../docs/system-design.md); the directive in
-[`planning/projects/SKY-007-…`](../planning/projects/SKY-007-nixos-host-definition-piloted-on-the-ops-vm.md).
+The ops VM (`vm-skynet-ops`) is a reproducible NixOS flake — the whole host, below Docker, defined
+and version-controlled. The design lives in [`docs/system-design.md`](../docs/system-design.md).
 
 ## Layout
 
 ```
-flake.nix                    inputs (nixpkgs 26.05, disko, sops-nix, deploy-rs), the
-                             nixosConfiguration, and the deploy-rs node
+flake.nix                    inputs (nixpkgs 26.05, home-manager, disko, sops-nix,
+                             impermanence, deploy-rs), the nixosConfiguration + deploy-rs node
 hosts/vm-skynet-ops/
   default.nix                the host: imports + hostname + static network identity
   hardware.nix               qemu-guest profile + systemd-boot (UEFI/OVMF, q35)
-  disko.nix                  declarative disk layout (VirtIO disk, GPT, ESP + root)
+  disko.nix                  declarative disk layout (VirtIO disk, GPT, ESP + /nix)
 nix/modules/
-  base.nix                   nix settings, the ops toolchain, docker daemon, firewall
-  ops-user.nix               aliammar + svc-ops, and the narrowed sudo (SKY-007's thesis)
+  base.nix                   nix settings, the ops toolchain, docker daemon, firewall, serial console
+  ops-user.nix               aliammar + svc-ops, and the narrowed least-privilege sudo
   ssh-ca.nix                 sshd + TrustedUserCAKeys (grant-root cert trust)
+  known-hosts.nix            pinned fleet host keys for the agent's outbound SSH
   timers.nix                 skynet-nightly + skynet-cli-update as systemd units
-  secrets.nix                sops-nix wired to the lab age key
+  secrets.nix                sops-nix wired to the lab age key (decrypt-to-tmpfs)
+  impermanence.nix           tmpfs root; only /nix + declared paths persist
+  home.nix                   wires home-manager into the system
+nix/home/
+  aliammar.nix               the operator's home: git identity, agent CLIs (+ mcp-nixos), ops.env
+  shell.nix                  zsh + starship + tooling + the login landing board
+  docker.nix                 the docker-dmz remote context for collect-docker.sh
 ```
 
-## The decisions baked in (locked at Phase-1 scoping)
+## The decisions baked in
 
-- **Fresh VM, not a clone** as the `nixos-anywhere` target — the flake is the sole source of
-  truth, no snowflake carryover.
-- **sops-nix via `sops.age.keyFile`** = the one lab age key (survival kit), not a host-SSH-key
-  identity. One age key lab-wide ([secrets](../docs/design/secrets.md)).
-- **Agent CLIs stay npm-global** in `~aliammar`; Nix owns nodejs/git/gh/sops/age/rclone/restic/docker.
-  The repo is checked out in `~aliammar` too — Nix defines the machine, the runtime is replaceable.
-- **Sudo is a least-privilege module.** The live box grants standing passwordless `sudo ALL`;
-  the flake removes wheel's blanket NOPASSWD and scopes it to the commands ops actually runs.
-- **Only two timers are the ops VM's.** `skynet-restic-backup@` (docker hosts) and
-  `skynet-pbs-gdrive` (PBS host) run elsewhere and are not defined here.
+- **Fresh VM, not a clone** — the flake is the sole source of truth, no snowflake carryover.
+- **sops-nix via `sops.age.keyFile`** = the one lab age key (survival kit), not a host-SSH identity.
+  One age key lab-wide ([secrets](../docs/design/secrets.md)).
+- **Agent CLIs are home-manager packages** (from nixpkgs-unstable) in `~aliammar`. The repo is
+  checked out in `~aliammar` too — Nix defines the machine, the checked-out runtime is replaceable.
+- **Least-privilege sudo, no standing root.** wheel needs a password; only the commands ops actually
+  runs are NOPASSWD (aliammar: `systemctl skynet-*`; svc-ops: deploy-activation). Interactive root is
+  Ali's password or a grant-root cert.
+- **Impermanence** — the root filesystem is tmpfs, wiped every boot; only `/nix` and the declared
+  persist paths survive, so drift is structurally impossible.
+- **Only two timers are the ops VM's.** `skynet-restic-backup@` (docker hosts) and `skynet-pbs-gdrive`
+  (PBS host) run elsewhere and are not defined here.
 
-## What each phase does with this
+## Building / deploying
 
-- **1a (this):** author the flake; CI (`.github/workflows/nix.yml`) builds the system closure on
-  every PR. No infrastructure touched.
-- **1b:** create a fresh twin VM on a temp IP; `nixos-anywhere` kexec+disko installs the flake;
-  place the age key; **commit `flake.lock`** (generated on the twin — Nix stays off the live box).
-- **1c:** validate on the twin — nightly dry-run, git/gh path, timers, docker, sops decrypt, and a
-  **deploy-rs magic-rollback round-trip** (an SSH-breaking change auto-reverts).
-- **1d:** human-approved cutover — PBS-snapshot 9090, move `.90`/`.99`+DNS to the twin, retire the
-  stray VMID 999. Keep 9090 as instant rollback for a few days.
-
-## The twin (Phase 1b)
-
-`vm-skynet-ops-nix` is the parallel twin: the same host on a temp identity (`10.10.90.91`), so
-provisioning and validation never touch the live `.90`/`.99`. Only the network identity is
-overridden ([`hosts/vm-skynet-ops-nix/`](../hosts/vm-skynet-ops-nix/default.nix)); it is retired at
-cutover (1d), when the real config takes the live identity.
-
-## Building / provisioning
-
-Nix is deliberately **not** installed on the live ops VM ("never gamble the live VM"). Build/provision
-from a throwaway `nixos/nix` container (the Phase-0 pattern) or on the twin:
+The box runs NixOS, so it builds and deploys itself. Day-2 changes are a reviewed flake diff,
+merged, then applied:
 
 ```bash
-# build a system closure
-nix build .#nixosConfigurations.vm-skynet-ops-nix.config.system.build.toplevel
+# validate any change (no switch)
+nixos-rebuild build --flake ~/skynet#vm-skynet-ops
 
-# provision the twin (kexec + disko; age key placed via --extra-files)
-nixos-anywhere --flake .#vm-skynet-ops-nix --target-host root@10.10.90.91
-
-# day-2 deploy with magic-rollback
-nix run github:serokell/deploy-rs -- .#vm-skynet-ops-nix
+# apply — either path (the box has password sudo + the agent key):
+sudo nixos-rebuild switch --flake ~/skynet#vm-skynet-ops     # local, host-agnostic
+nix run github:serokell/deploy-rs -- .#vm-skynet-ops         # deploy-rs, magic-rollback
 ```
+
+To reprovision from scratch: `nixos-anywhere --flake .#vm-skynet-ops` (kexec + `disko`), with the age
+key placed via `--extra-files`.

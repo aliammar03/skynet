@@ -1,14 +1,13 @@
 { lib, ... }:
-# The ops VM's OWN scheduled units, declarative twins of scripts/systemd/*.
+# The ops VM's scheduled units — skynet-nightly + skynet-cli-update.
 #
-# Only two of the four scripts/systemd units run on THIS host (both User=ali):
-#   skynet-nightly, skynet-cli-update.
-# The other two run elsewhere and are NOT the ops VM's:
+# The lab's other scheduled backups are NOT the ops VM's; they live in scripts/systemd/ for the
+# hosts that install them:
 #   skynet-restic-backup@  -> each docker host (root; reads /var/lib/docker/volumes)
 #   skynet-pbs-gdrive      -> inside the PBS host.
 #
-# The repo + agent CLIs live in ~aliammar (not the Nix store) by decision — Nix defines the host
-# and its schedule; the checked-out repo is the replaceable runtime (system-design §4).
+# The repo lives in ~aliammar: Nix defines the host and its schedule, the checked-out repo is the
+# replaceable runtime (system-design §4). Agent CLIs are home-manager packages (nix/home/).
 let
   repo = "/home/aliammar/skynet";
   opsEnv = "/home/aliammar/.config/skynet-ops/ops.env";

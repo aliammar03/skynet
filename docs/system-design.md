@@ -5,7 +5,7 @@
 > future change is measured against. It replaces the old birth plan, now archived verbatim as
 > [`history/deployment-plan-v5.md`](history/deployment-plan-v5.md).
 
-**The one VM:** `vm-skynet-ops` · **10.10.90.90** static (+`.99`) · VLAN 90 · VMID 9091 · on `server-proxmox-core` — a **NixOS flake** ([SKY-007](../planning/projects/SKY-007-nixos-host-definition-piloted-on-the-ops-vm.md)). Prior VMID 9090 kept **stopped** as instant rollback.
+**The one VM:** `vm-skynet-ops` · **10.10.90.90** static · VLAN 90 · VMID 9090 · on `server-proxmox-core` — a **NixOS flake** ([SKY-007](../planning/projects/SKY-007-nixos-host-definition-piloted-on-the-ops-vm.md)).
 
 ---
 
