@@ -9,6 +9,12 @@ let
   aliWorkstationKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMY3q277EOHizg5Ji/WUU7WvUi4X/ezbRPebk65lQVBJ aliammar@RK-W";
 in
 {
+  # Declarative users only — no imperative useradd/passwd drift, enforced every activation. This is
+  # also REQUIRED for the sops password below to apply: NixOS writes a declared hash to /etc/shadow
+  # for an *existing* user only when mutableUsers=false (update-users-groups.pl). Fits the box's
+  # flake-is-truth + impermanence model; change a password via the sops secret + redeploy, not passwd.
+  users.mutableUsers = false;
+
   users.users.aliammar = {
     isNormalUser = true;
     description = "Skynet ops agent + operator";
