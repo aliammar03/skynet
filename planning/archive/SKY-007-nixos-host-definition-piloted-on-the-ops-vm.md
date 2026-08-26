@@ -1,10 +1,10 @@
 ---
 id: SKY-007
 title: NixOS host definition, piloted on the ops VM
-status: in-progress
+status: done
 horizon: long
 created: 2026-08-17
-updated: 2026-08-25
+updated: 2026-08-26
 phases: 5   # Phase 0 (gate) + Phase 1 split into 1a–1d (scoped 2026-08-21)
 current_phase: 1
 tier_touched: [T2+, T3]   # rebuilding a host = root (T2+); the host is the agent's own box and this
@@ -146,7 +146,7 @@ decrypt to tmpfs. Then a **deploy-rs round-trip**: trivial config change deploye
 intentional SSH-breaking change **auto-reverts** (magic rollback proven). Exit: nightly green on the
 twin + magic-rollback demonstrated.
 
-#### Phase 1d — sops-nix migration + cutover   `[ ]` not started  (~1–2h, ⚠ Ali hands-on)
+#### Phase 1d — sops-nix migration + cutover   `[x]` DONE (2026-08-26, PRs #104/#105/#106)  (⚠ Ali hands-on)
 **Step A — sops-nix secret migration (on the twin at `.91`, before the IP move).** Replace the interim
 `sudo cat` secret model with real decrypt-to-tmpfs: encrypt each `/opt/skynet-ops/secrets/*.env` into
 git (`.sops`, existing age recipient), declare `sops.secrets."<name>" = { format = "dotenv"; owner =
@@ -172,10 +172,10 @@ steps. When the phase's exit criteria are met, do the "Phase close-out" at the b
 ```
 
 ## 5. Phase close-out (resume material)
-- [ ] Land the work via **PR** (agent never merges its own) — including the `docs/system-design.md` change.
-- [ ] Write/refresh a memory `SKY-007-progress` (what shipped, what's next, gotchas) + a MEMORY.md pointer.
-- [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
-- [ ] `bin/plan list` to refresh the roadmap index.
+- [x] Land the work via **PR** (agent never merges its own) — including the `docs/system-design.md` change.
+- [x] Write/refresh a memory `SKY-007-progress` (what shipped, what's next, gotchas) + a MEMORY.md pointer.
+- [x] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
+- [x] `bin/plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:
 ```
 Continue planning/projects/SKY-007-nixos-host-definition-piloted-on-the-ops-vm.md at Phase <N+1>.
@@ -237,3 +237,19 @@ Follow AGENTS.md as above.
   that's a cross-codebase collector migration; tracked as a **follow-up** (the sudo-cat grant is the
   interim). Next: **Phase 1d cutover** (PBS-snapshot 9090, move .90/.99+DNS to the twin, retire stray
   999) — ⚠ Ali hands-on. PR: `feat/sky-007-p1c-runtime-fixes`.
+- 2026-08-26 — **Phase 1d DONE → PILOT COMPLETE / GRADUATED** (PRs #104/#105/#106). Migrated the twin
+  to **sops-nix decrypt-to-tmpfs** (retired the interim sudo-cat grant) and **cutover**: the ex-twin
+  (VMID 9091, `10.10.90.90`) **is** the ops VM now — NixOS `vm-skynet-ops`; old 9090 kept **stopped**
+  as instant rollback. Shipped alongside: **impermanence** (tmpfs root, `/nix` persists),
+  **password-gated human sudo** via `mutableUsers=false`, the **agent SSH key folded into sops-nix**
+  (the box self-provisions its identity), **home-manager** owning the agent CLIs (from unstable) +
+  `mcp-nixos` + a **zsh/starship** shell that lands in the repo, **xterm.js serial console** + console
+  autologin. **Gotchas caught:** the assistant was running ON 9090 (the box being replaced) — the
+  switch had to run from the twin's console, not that session; `mutableUsers=true` silently ignores a
+  declared password on an *existing* user (only writes it with `mutableUsers=false`); a reprovisioned
+  box has **no accumulated `known_hosts`/`/etc/hosts`**, so outbound SSH failed until pinned
+  declaratively (`known-hosts.nix` + `networking.hosts`). Docs graduated to present-state (system-design
+  + `nix/README`), Ubuntu refs removed (ops box only; workload templates deferred), dead reference units
+  removed. **Every documented script verified** on the live box. **Open thread:** renumber VMID
+  9091→9090 on next boot (Ali). **Post-pilot follow-ups, each its own directive:** workload-host
+  migration, further impermanence hardening. Archived → `[[SKY-007-progress]]`.
