@@ -8,12 +8,12 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 secret="/opt/skynet-ops/secrets/technitium.env"
 
-if ! sudo test -f "${secret}"; then
+if ! { test -e "${secret}" 2>/dev/null || sudo -n test -f "${secret}" 2>/dev/null; }; then
   echo "no creds yet (${secret}) — collector idle until A2" >&2
   exit 0
 fi
 # shellcheck disable=SC1090
-eval "$(sudo cat "${secret}")"
+eval "$(cat "${secret}" 2>/dev/null || sudo -n cat "${secret}")"
 : "${TECH_HOST:?}" "${TECH_TOKEN:?}"
 : "${TECH_CACERT:?set TECH_CACERT in ${secret} — run: scripts/pin-cert.sh ${TECH_HOST:-<host>} 53443 /opt/skynet-ops/certs/technitium.crt}"
 [ -r "${TECH_CACERT}" ] || { echo "TECH_CACERT ${TECH_CACERT} not readable" >&2; exit 1; }

@@ -9,12 +9,12 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 node="${1:?usage: collect-proxmox.sh <core|network>}"
 secret_file="/opt/skynet-ops/secrets/proxmox-${node}.env"
 
-if ! sudo test -f "${secret_file}"; then
+if ! { test -e "${secret_file}" 2>/dev/null || sudo -n test -f "${secret_file}" 2>/dev/null; }; then
   echo "no creds yet (${secret_file}) — collector idle until A2 provisions the readonly token" >&2
   exit 0
 fi
 # shellcheck disable=SC1090
-eval "$(sudo cat "${secret_file}")"
+eval "$(cat "${secret_file}" 2>/dev/null || sudo -n cat "${secret_file}")"
 : "${PVE_HOST:?}" "${PVE_TOKEN:?}"
 : "${PVE_CACERT:?set PVE_CACERT in ${secret_file} to a pinned cert — run: scripts/pin-cert.sh ${PVE_HOST:-<host>} 8006 /opt/skynet-ops/certs/proxmox-${node}.crt}"
 [ -r "${PVE_CACERT}" ] || { echo "PVE_CACERT ${PVE_CACERT} not readable (pins live in /opt/skynet-ops/certs, 0644)" >&2; exit 1; }

@@ -10,6 +10,8 @@
     ../../nix/modules/ssh-ca.nix
     ../../nix/modules/timers.nix
     ../../nix/modules/secrets.nix
+    ../../nix/modules/impermanence.nix
+    ../../nix/modules/home.nix
   ];
 
   networking.hostName = "vm-skynet-ops";

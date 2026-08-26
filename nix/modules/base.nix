@@ -7,8 +7,25 @@
 
   time.timeZone = "Asia/Karachi"; # PKT — the operator's timezone
 
-  # Nix owns the ops toolchain; the agent CLIs (codex/claude) stay npm-global in ~aliammar by
-  # decision — "the runtime is a replaceable part; the contract is the machine" (system-design §4).
+  # zsh as a system shell (adds it to /etc/shells + system-wide completion) so aliammar's login
+  # shell can be zsh; the per-user config lives in nix/home/shell.nix.
+  programs.zsh.enable = true;
+
+  # Serial console (ttyS0) so Proxmox's xterm.js console works — crisper than noVNC, with copy-paste
+  # and resize. Keep tty0 first so the noVNC/VGA console still gets a getty too. One-time on the
+  # Proxmox node: `qm set <vmid> -serial0 socket`.
+  boot.kernelParams = [ "console=tty0" "console=ttyS0,115200" ];
+
+  # Autologin aliammar on BOTH consoles (serial/xterm.js + VGA/noVNC) — Ali's call. The Proxmox
+  # console is already T3 (Ali-only), so this trades the console password for convenience: connect →
+  # straight into the zsh landing board, no press-Enter. `sudo -i` to full root still needs the
+  # password; note the docker≈root caveat means a console shell is already effectively privileged.
+  services.getty.autologinUser = "aliammar";
+
+  nixpkgs.config.allowUnfree = true; # claude-code / antigravity are unfree (see nix/home/aliammar.nix)
+
+  # Nix owns the ops toolchain. The agent CLIs are now Nix packages too, owned by home-manager
+  # (nix/home/aliammar.nix, from nixpkgs-unstable) — no longer npm-global.
   environment.systemPackages = with pkgs; [
     git
     gh
@@ -21,7 +38,7 @@
     rsync
     docker-compose
     htop
-    nodejs_22 # runtime for the npm-global agent CLIs + node-based ops scripts
+    nodejs_22 # runtime for the node-based ops scripts (bin/ops)
     python3 # collect-firewall.sh parses the OPNsense config.xml
     openssl # pin-cert.sh + TLS pinning
     netcat # reachability probes in a few scripts

@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, config, ... }:
 # The ops operator (aliammar) + the T2 SSH principal (svc-ops), and the narrowed sudo that is
 # SKY-007's thesis: collapse the ops VM's *standing passwordless root* into a reviewed diff.
 let
@@ -9,14 +9,24 @@ let
   aliWorkstationKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMY3q277EOHizg5Ji/WUU7WvUi4X/ezbRPebk65lQVBJ aliammar@RK-W";
 in
 {
+  # Declarative users only — no imperative useradd/passwd drift, enforced every activation. This is
+  # also REQUIRED for the sops password below to apply: NixOS writes a declared hash to /etc/shadow
+  # for an *existing* user only when mutableUsers=false (update-users-groups.pl). Fits the box's
+  # flake-is-truth + impermanence model; change a password via the sops secret + redeploy, not passwd.
+  users.mutableUsers = false;
+
   users.users.aliammar = {
     isNormalUser = true;
     description = "Skynet ops agent + operator";
+    shell = pkgs.zsh; # interactive login shell (config in nix/home/shell.nix); svc-ops stays bash
     # docker-group ≈ root (SKY-003 caveat) — a known trade-off kept for now so the ops
     # scripts run unchanged; tightening it belongs to a later hardening phase. "wheel" is
     # retained for password-gated escalation only (blanket NOPASSWD is removed below).
     extraGroups = [ "docker" "wheel" ];
     openssh.authorizedKeys.keys = [ agentKey aliWorkstationKey ];
+    # Ali's login/sudo password (sops, neededForUsers). With wheel + wheelNeedsPassword, this is a
+    # full password-gated root for the human; the agent (key-only, no password) can't use it.
+    hashedPasswordFile = config.sops.secrets."aliammar-password".path;
   };
 
   # svc-ops: the unprivileged T2 operate principal (AGENTS.md §1). deploy-rs connects as this.
@@ -38,19 +48,15 @@ in
 
   security.sudo.extraRules = [
     {
-      # aliammar manages only its own skynet-* units, and reads its own secrets. The collectors
-      # do `sudo cat`/`sudo test -f /opt/skynet-ops/secrets/*`; scoping sudo to reading that dir
-      # keeps the ops scripts unchanged and is a narrow, reviewed grant (the agent reading its own
-      # secrets — not standing root). PROPER end-state is sops-nix → /run/secrets; tracked as a
-      # follow-up so the collectors don't need sudo at all.
+      # aliammar manages only its own skynet-* units. Secrets are now sops-nix decrypt-to-tmpfs,
+      # owned by aliammar under /run/secrets (symlinked into the secrets dir) — so the collectors
+      # read them with NO sudo, and no secret-reading sudo grant is needed here.
       users = [ "aliammar" ];
       commands = [
         { command = "${pkgs.systemd}/bin/systemctl start skynet-*"; options = [ "NOPASSWD" ]; }
         { command = "${pkgs.systemd}/bin/systemctl stop skynet-*"; options = [ "NOPASSWD" ]; }
         { command = "${pkgs.systemd}/bin/systemctl restart skynet-*"; options = [ "NOPASSWD" ]; }
         { command = "${pkgs.systemd}/bin/systemctl status skynet-*"; options = [ "NOPASSWD" ]; }
-        { command = "/run/current-system/sw/bin/cat /opt/skynet-ops/secrets/*"; options = [ "NOPASSWD" ]; }
-        { command = "/run/current-system/sw/bin/test -f /opt/skynet-ops/secrets/*"; options = [ "NOPASSWD" ]; }
       ];
     }
     {

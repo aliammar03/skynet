@@ -12,10 +12,11 @@
 let
   repo = "/home/aliammar/skynet";
   opsEnv = "/home/aliammar/.config/skynet-ops/ops.env";
-  # Login-like env so the engine + git/gh creds in ~aliammar resolve; npm-global on PATH first.
+  # Login-like env so the engine + git/gh creds in ~aliammar resolve. The agent CLIs are now
+  # home-manager user packages → /etc/profiles/per-user/aliammar/bin (first on PATH).
   commonEnv = {
     HOME = "/home/aliammar";
-    PATH = lib.mkForce "/home/aliammar/.npm-global/bin:/run/current-system/sw/bin:/usr/bin:/bin";
+    PATH = lib.mkForce "/etc/profiles/per-user/aliammar/bin:/run/current-system/sw/bin:/usr/bin:/bin";
   };
 in
 {

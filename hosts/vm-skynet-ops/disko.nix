@@ -19,12 +19,14 @@
             mountOptions = [ "umask=0077" ];
           };
         };
-        root = {
+        # Impermanence: / is a tmpfs (see nix/modules/impermanence.nix); this ext4 holds the Nix
+        # store at /nix plus the persisted state under /nix/persist. Named "nix" for clarity.
+        nix = {
           size = "100%";
           content = {
             type = "filesystem";
             format = "ext4";
-            mountpoint = "/";
+            mountpoint = "/nix";
           };
         };
       };
