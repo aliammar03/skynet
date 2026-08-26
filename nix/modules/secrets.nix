@@ -25,6 +25,8 @@ let
     "authentik.env"
     "cloudflare-dns.env"
     "rclone.conf"
+    "tofu-proxmox.env"
+    "tofu-passphrase"
   ];
   # each token file: encrypted whole (binary) in git at secrets/<fname>.sops, decrypted to
   # /run/secrets/<fname> owned by aliammar.

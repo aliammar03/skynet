@@ -1,23 +1,27 @@
 #!/usr/bin/env bash
-# tofu-env.sh — decrypt sops secrets and export env vars for OpenTofu.
+# tofu-env.sh — export env vars for OpenTofu from sops-nix decrypted secrets.
 # TIER: T2 — reads the svc-tofu API token (pool-scoped, privilege-separated).
 # USAGE: eval "$(scripts/tofu-env.sh)"   then:  cd tofu && tofu plan
-#   Reads: secrets/tofu-proxmox.env.sops   (API token)
-#          secrets/tofu-passphrase.sops     (state encryption passphrase)
+#   Reads: /opt/skynet-ops/secrets/tofu-proxmox.env  (TOFU_PVE_HOST, TOFU_PVE_TOKEN, TOFU_PVE_CACERT)
+#          /opt/skynet-ops/secrets/tofu-passphrase    (state encryption passphrase)
 #   Also sets SSL_CERT_FILE for pinned Proxmox TLS.
 set -euo pipefail
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-export SOPS_AGE_KEY_FILE="${SOPS_AGE_KEY_FILE:-/opt/skynet-ops/secrets/age.key}"
+SECRETS_DIR="${SECRETS_DIR:-/opt/skynet-ops/secrets}"
 
-token_file="${REPO_DIR}/secrets/tofu-proxmox.env.sops"
-pass_file="${REPO_DIR}/secrets/tofu-passphrase.sops"
+token_file="${SECRETS_DIR}/tofu-proxmox.env"
+pass_file="${SECRETS_DIR}/tofu-passphrase"
 
-[ -f "${token_file}" ] || { echo "missing ${token_file}" >&2; exit 1; }
-[ -f "${pass_file}" ]  || { echo "missing ${pass_file}" >&2; exit 1; }
+[ -f "${token_file}" ] || { echo "missing ${token_file} — is sops-nix decryption working?" >&2; exit 1; }
+[ -f "${pass_file}" ]  || { echo "missing ${pass_file} — is sops-nix decryption working?" >&2; exit 1; }
 
-eval "$(sops -d --output-type dotenv "${token_file}")"
-passphrase="$(sops -d --extract '["passphrase"]' "${pass_file}")"
+# Source the dotenv to get TOFU_PVE_HOST, TOFU_PVE_TOKEN, TOFU_PVE_CACERT
+set -a
+# shellcheck source=/dev/null
+. "${token_file}"
+set +a
+
+passphrase="$(cat "${pass_file}")"
 
 cat <<EOF
 export TF_VAR_proxmox_endpoint='https://${TOFU_PVE_HOST}:8006'
