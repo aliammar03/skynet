@@ -13,7 +13,10 @@ let
   };
 in
 {
-  imports = [ ./shell.nix ]; # zsh + starship + tooling + the login landing board
+  imports = [
+    ./shell.nix # zsh + starship + tooling + the login landing board
+    ./docker.nix # the docker-dmz remote context for collect-docker.sh
+  ];
 
   home.username = "aliammar";
   home.homeDirectory = "/home/aliammar";

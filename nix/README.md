@@ -43,28 +43,24 @@ nix/modules/
   place the age key; **commit `flake.lock`** (generated on the twin — Nix stays off the live box).
 - **1c:** validate on the twin — nightly dry-run, git/gh path, timers, docker, sops decrypt, and a
   **deploy-rs magic-rollback round-trip** (an SSH-breaking change auto-reverts).
-- **1d:** human-approved cutover — PBS-snapshot 9090, move `.90`/`.99`+DNS to the twin, retire the
-  stray VMID 999. Keep 9090 as instant rollback for a few days.
+- **1d:** human-approved cutover — PBS-snapshot the old box, then the twin took the live `.90`
+  identity (`deploy .#vm-skynet-ops`). **DONE** — the old VMID 9090 is kept **stopped** as instant
+  rollback. The temp twin (`vm-skynet-ops-nix`) is retired and removed from the flake.
 
-## The twin (Phase 1b)
+## Building / deploying (post-cutover)
 
-`vm-skynet-ops-nix` is the parallel twin: the same host on a temp identity (`10.10.90.91`), so
-provisioning and validation never touch the live `.90`/`.99`. Only the network identity is
-overridden ([`hosts/vm-skynet-ops-nix/`](../hosts/vm-skynet-ops-nix/default.nix)); it is retired at
-cutover (1d), when the real config takes the live identity.
-
-## Building / provisioning
-
-Nix is deliberately **not** installed on the live ops VM ("never gamble the live VM"). Build/provision
-from a throwaway `nixos/nix` container (the Phase-0 pattern) or on the twin:
+The box now **runs NixOS**, so it builds and deploys itself — Nix is native here. Day-2 changes are a
+reviewed flake diff, merged, then applied:
 
 ```bash
-# build a system closure
-nix build .#nixosConfigurations.vm-skynet-ops-nix.config.system.build.toplevel
+# validate any change (no switch)
+nixos-rebuild build --flake ~/skynet#vm-skynet-ops
 
-# provision the twin (kexec + disko; age key placed via --extra-files)
-nixos-anywhere --flake .#vm-skynet-ops-nix --target-host root@10.10.90.91
-
-# day-2 deploy with magic-rollback
-nix run github:serokell/deploy-rs -- .#vm-skynet-ops-nix
+# apply — either path works now that the box has password sudo + the agent key:
+sudo nixos-rebuild switch --flake ~/skynet#vm-skynet-ops        # local, host-agnostic
+nix run github:serokell/deploy-rs -- .#vm-skynet-ops            # deploy-rs, magic-rollback
 ```
+
+The original provisioning (kexec + `disko` via `nixos-anywhere`, from a throwaway `nixos/nix`
+container so Nix never touched the old Ubuntu box) is history now — see the git log if you ever
+reprovision from scratch.

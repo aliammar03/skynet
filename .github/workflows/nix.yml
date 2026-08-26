@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        host: [vm-skynet-ops, vm-skynet-ops-nix] # the real host + the temp twin (retired at 1d)
+        host: [vm-skynet-ops]
     steps:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v27
