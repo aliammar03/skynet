@@ -43,9 +43,65 @@ in
 
   # CLIs home-manager has a module for: it owns package (unstable) + config, and folds mcp-nixos
   # in via enableMcpIntegration.
-  programs.claude-code = { enable = true; package = unstable.claude-code; enableMcpIntegration = true; };
-  programs.codex = { enable = true; package = unstable.codex; enableMcpIntegration = true; };
-  programs.opencode = { enable = true; package = unstable.opencode; enableMcpIntegration = true; };
+  #
+  # DEFAULT PERMISSIONS — the box's OS user model is the security wall (aliammar has no general root:
+  # locked password + sudo scoped to `systemctl skynet-*`, can't read the root-owned age.key/secrets).
+  # So these lists are prompt ERGONOMICS, not the security boundary: allow local read/write/run/edit
+  # freely (incl. writing and running scripts) so the agent isn't nagged every few seconds, and pause
+  # only on the few things the OS won't stop that cross a real boundary — push to the remote, open/merge
+  # a PR (the human-merge gate), request root — plus never dump decrypted secrets to stdout.
+  programs.claude-code = {
+    enable = true;
+    package = unstable.claude-code;
+    enableMcpIntegration = true;
+    settings.permissions = {
+      # acceptEdits: Write/Edit land without a prompt (matches the ops loop's --permission-mode flag).
+      defaultMode = "acceptEdits";
+      allow = [ "Bash" "WebFetch" ]; # all Bash + web reads; ask/deny carve out exceptions (deny > ask > allow).
+      ask = [
+        # `git push` alone stays gated: blanket-allow would let a direct push to main bypass the
+        # propose-via-PR gate. Opening/merging goes through gh below; a branch push asks once.
+        "Bash(git push:*)"
+        "Bash(gh pr merge:*)"
+        "Bash(bin/grant-root:*)"
+        "Bash(./bin/grant-root:*)"
+      ];
+      deny = [
+        "Read(/run/secrets/**)"
+        "Read(/opt/skynet-ops/secrets/**)"
+        "Read(/nix/persist/opt/skynet-ops/secrets/**)"
+        "Read(**/age.key)"
+      ];
+    };
+  };
+  programs.codex = {
+    enable = true;
+    package = unstable.codex;
+    enableMcpIntegration = true;
+    # on-failure: run sandboxed silently, only surface when a command needs to escalate. workspace-write
+    # + network_access: the collectors hit the Proxmox/DNS/Docker APIs, so the sandbox must reach the net.
+    # trust_level: skip the per-project trust prompt for the box's repo.
+    settings = {
+      approval_policy = "on-failure";
+      sandbox_mode = "workspace-write";
+      sandbox_workspace_write.network_access = true;
+      projects."/home/aliammar/skynet".trust_level = "trusted";
+    };
+  };
+  programs.opencode = {
+    enable = true;
+    package = unstable.opencode;
+    enableMcpIntegration = true;
+    settings.permission = {
+      edit = "allow";
+      webfetch = "allow";
+      bash = {
+        "*" = "allow";
+        "git push*" = "ask";
+        "gh pr merge*" = "ask";
+      };
+    };
+  };
 
   # The remaining CLIs (no home-manager module / no MCP config to manage) + the mcp-nixos binary.
   home.packages = [
