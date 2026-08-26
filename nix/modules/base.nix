@@ -16,6 +16,12 @@
   # Proxmox node: `qm set <vmid> -serial0 socket`.
   boot.kernelParams = [ "console=tty0" "console=ttyS0,115200" ];
 
+  # Autologin aliammar on BOTH consoles (serial/xterm.js + VGA/noVNC) — Ali's call. The Proxmox
+  # console is already T3 (Ali-only), so this trades the console password for convenience: connect →
+  # straight into the zsh landing board, no press-Enter. `sudo -i` to full root still needs the
+  # password; note the docker≈root caveat means a console shell is already effectively privileged.
+  services.getty.autologinUser = "aliammar";
+
   nixpkgs.config.allowUnfree = true; # claude-code / antigravity are unfree (see nix/home/aliammar.nix)
 
   # Nix owns the ops toolchain. The agent CLIs are now Nix packages too, owned by home-manager
