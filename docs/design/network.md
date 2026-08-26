@@ -13,7 +13,7 @@ tokens: 1615
 
 | Item | Value |
 |---|---|
-| VMID | **9091** (ex-twin, now live; the convention `9090` slot is the stopped rollback) |
+| VMID | **9090** (4-digit convention: VLAN 90 + .90) |
 | Name / node | `vm-skynet-ops` on `server-proxmox-core` |
 | Network | `vmbr0` tag 90, Proxmox guest firewall enabled |
 | IP | **10.10.90.90 static** — deliberate convention exception (see below) |
