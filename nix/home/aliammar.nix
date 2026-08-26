@@ -66,9 +66,10 @@ in
       defaultMode = "acceptEdits";
       allow = [ "Bash" "WebFetch" ]; # all Bash + web reads; ask/deny carve out exceptions (deny > ask > allow).
       ask = [
-        # `git push` alone stays gated: blanket-allow would let a direct push to main bypass the
-        # propose-via-PR gate. Opening/merging goes through gh below; a branch push asks once.
-        "Bash(git push:*)"
+        # The propose-via-PR gate is enforced server-side (GitHub branch protection on main) + the
+        # no-self-merge contract, NOT a client-side push prompt — a prompt on every branch push just
+        # trains a rubber-stamp. So a plain `git push` (branches) runs free; the real gate is `gh pr
+        # merge` below, which still asks. Root grants still ask too.
         "Bash(gh pr merge:*)"
         "Bash(bin/grant-root:*)"
         "Bash(./bin/grant-root:*)"
@@ -104,8 +105,7 @@ in
       webfetch = "allow";
       bash = {
         "*" = "allow";
-        "git push*" = "ask";
-        "gh pr merge*" = "ask";
+        "gh pr merge*" = "ask";  # git push runs free (branch pushes); PR-merge stays the gate, matching Claude above
       };
     };
   };
