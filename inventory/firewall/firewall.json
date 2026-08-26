@@ -1,8 +1,8 @@
 {
-  "collected": "2026-08-20T10:52:37.022487+00:00",
+  "collected": "2026-08-27T03:45:27.737301+05:00",
   "source": "/opt/skynet-ops/mirror/skynet-opnsense/config.xml",
   "counts": {
-    "aliases": 39,
+    "aliases": 41,
     "rules": 29,
     "reservations": 6
   },
@@ -352,7 +352,7 @@
       "interface": "",
       "counters": "0",
       "updatefreq": "",
-      "content": "ROLE_PROXMOX_NODES\nROLE_INFRASTRUCTURE_SWITCHES\nROLE_INFRASTRUCTURE_APS\nROLE_INFRASTRUCTURE_FIREWALL\nROLE_DNS_RESOLVERS\nHOST_PROXY_APPS\nHOST_UNRAID\nHOST_AUTHENTIK\nHOST_PBS\nHOST_DOCKER_DMZ\nHOST_SKYNET_OPS",
+      "content": "ROLE_PROXMOX_NODES\nROLE_INFRASTRUCTURE_SWITCHES\nROLE_INFRASTRUCTURE_APS\nROLE_INFRASTRUCTURE_FIREWALL\nROLE_DNS_RESOLVERS\nHOST_PROXY_APPS\nHOST_UNRAID\nHOST_AUTHENTIK\nHOST_PBS\nHOST_DOCKER_DMZ\nHOST_SKYNET_OPS\nHOST_OMADA",
       "username": "",
       "authtype": "",
       "expire": "",
@@ -437,7 +437,7 @@
       "authtype": "",
       "expire": "",
       "categories": "",
-      "description": "Standard web ports: HTTP 80 and HTTPS 443."
+      "description": "Ports for WEB"
     },
     {
       "enabled": "1",
@@ -560,7 +560,7 @@
       "interface": "",
       "counters": "0",
       "updatefreq": "",
-      "content": "10.10.90.99\n10.10.90.90",
+      "content": "10.10.90.90\n10.10.90.91",
       "username": "",
       "authtype": "",
       "expire": "",
@@ -630,6 +630,38 @@
       "expire": "",
       "categories": "",
       "description": "Proxmox, PBS, Technitium, Arcane APIs"
+    },
+    {
+      "enabled": "1",
+      "name": "PORT_SMB_NFS",
+      "type": "port",
+      "path_expression": "",
+      "proto": "",
+      "interface": "",
+      "counters": "0",
+      "updatefreq": "",
+      "content": "445\n2049",
+      "username": "",
+      "authtype": "",
+      "expire": "",
+      "categories": "",
+      "description": "Ports for NFS and SMB"
+    },
+    {
+      "enabled": "1",
+      "name": "HOST_OMADA",
+      "type": "host",
+      "path_expression": "",
+      "proto": "",
+      "interface": "",
+      "counters": "0",
+      "updatefreq": "",
+      "content": "10.10.50.25",
+      "username": "",
+      "authtype": "",
+      "expire": "",
+      "categories": "",
+      "description": "Omada Control."
     }
   ],
   "rules": [
@@ -996,7 +1028,7 @@
       "protocol": "TCP/UDP",
       "icmptype": "",
       "icmp6type": "",
-      "source_net": "ROLE_ADMIN_CLIENTS",
+      "source_net": "HOST_SKYNET_OPS,ROLE_ADMIN_CLIENTS",
       "source_not": "0",
       "source_port": "",
       "destination_net": "HOST_PROXY_ADMIN",
@@ -1233,7 +1265,7 @@
       "source_port": "",
       "destination_net": "HOST_UNRAID",
       "destination_not": "0",
-      "destination_port": "445",
+      "destination_port": "PORT_SMB_NFS",
       "divert-to": "",
       "gateway": "",
       "replyto": "",
@@ -1270,7 +1302,7 @@
       "tos": "",
       "shaper1": "",
       "shaper2": "",
-      "description": "SERVICE \u2014 Trusted clients \u2192 Unraid SMB"
+      "description": "SERVICE \u2014 Trusted clients \u2192 Unraid SMB/NFS"
     },
     {
       "enabled": "1",
@@ -1924,7 +1956,7 @@
       "protocol": "TCP",
       "icmptype": "",
       "icmp6type": "",
-      "source_net": "HOST_PROXY_ADMIN,ROLE_DNS_RESOLVERS",
+      "source_net": "HOST_PROXY_ADMIN,HOST_PROXY_APPS,ROLE_DNS_RESOLVERS",
       "source_not": "0",
       "source_port": "",
       "destination_net": "any",
