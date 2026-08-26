@@ -9,7 +9,8 @@ host=$(cat /proc/sys/kernel/hostname 2>/dev/null || echo '?')
 ip=$(hostname -I 2>/dev/null | awk '{print $1}')
 osver=$(cut -d. -f1-2 /run/current-system/nixos-version 2>/dev/null)
 gen=$(readlink /nix/var/nix/profiles/system 2>/dev/null | grep -oE '[0-9]+' | head -1)
-up=$(uptime -p 2>/dev/null | sed 's/^up //')
+up=$(awk '{s=int($1);d=int(s/86400);h=int((s%86400)/3600);m=int((s%3600)/60);
+  if(d>0)printf "%dd %dh",d,h; else if(h>0)printf "%dh %dm",h,m; else printf "%dm",m}' /proc/uptime 2>/dev/null)
 repo="$HOME/skynet"
 branch=$(git -C "$repo" branch --show-current 2>/dev/null || echo '-')
 n=$(git -C "$repo" status --porcelain 2>/dev/null | grep -c '' )
