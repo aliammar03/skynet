@@ -18,6 +18,7 @@ in
   users.users.aliammar = {
     isNormalUser = true;
     description = "Skynet ops agent + operator";
+    shell = pkgs.zsh; # interactive login shell (config in nix/home/shell.nix); svc-ops stays bash
     # docker-group ≈ root (SKY-003 caveat) — a known trade-off kept for now so the ops
     # scripts run unchanged; tightening it belongs to a later hardening phase. "wheel" is
     # retained for password-gated escalation only (blanket NOPASSWD is removed below).

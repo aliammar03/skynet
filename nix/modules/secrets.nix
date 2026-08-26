@@ -52,9 +52,28 @@ in
       sopsFile = ../../secrets/aliammar-password.sops;
       neededForUsers = true;
     };
+    # The ops agent's SSH *private* key — the operate identity (reaches svc-ops to deploy, and
+    # aliammar@workload-hosts for T2 SSH). Public half is declarative in nix/home/shell.nix. Decrypts
+    # to /run/secrets/agent-ssh-key (early, tmpfs); symlinked to ~/.ssh/id_ed25519 in stage-2 below
+    # (same reason as the /opt tokens: sops runs before the /home persist mount, so we can't write
+    # straight to ~). Folding it here makes the box self-provisioning — no manual key copy on rebuild.
+    "agent-ssh-key" = {
+      format = "binary";
+      sopsFile = ../../secrets/agent-ssh-key.sops;
+      owner = "aliammar";
+      mode = "0400";
+    };
   };
 
   # The secrets dir must be traversable (o+x) so aliammar can follow the symlinks to /run/secrets;
   # the age.key inside stays root 0600 (its own file perms), unreadable to aliammar.
-  systemd.tmpfiles.rules = [ "d ${secretsDir} 0751 root root -" ] ++ (map mkLink names);
+  systemd.tmpfiles.rules =
+    [ "d ${secretsDir} 0751 root root -" ]
+    ++ (map mkLink names)
+    ++ [
+      # ~/.ssh/id_ed25519 → the decrypted agent key (post-mount, stage-2). Ensure the dir first
+      # (tmpfiles L+ won't create parents; a fresh reprovision may not have it yet).
+      "d /home/aliammar/.ssh 0700 aliammar users -"
+      "L+ /home/aliammar/.ssh/id_ed25519 - - - - /run/secrets/agent-ssh-key"
+    ];
 }

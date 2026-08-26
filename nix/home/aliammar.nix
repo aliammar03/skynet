@@ -13,6 +13,8 @@ let
   };
 in
 {
+  imports = [ ./shell.nix ]; # zsh + starship + tooling + the login landing board
+
   home.username = "aliammar";
   home.homeDirectory = "/home/aliammar";
   # Matches system.stateVersion; never advance blind (triggers stateful migrations).
@@ -29,6 +31,8 @@ in
     # so `git fetch/pull/push` and the nightly work without a per-repo helper set up by hand.
     settings.credential."https://github.com".helper = "!${pkgs.gh}/bin/gh auth git-credential";
   };
+  # delta: syntax-highlighted, side-by-side-capable git diffs.
+  programs.delta = { enable = true; enableGitIntegration = true; };
 
   # Engine selector read by the nightly timer's EnvironmentFile (nix/modules/timers.nix) and bin/ops.
   home.file.".config/skynet-ops/ops.env".text = "OPS_ENGINE=codex\n";

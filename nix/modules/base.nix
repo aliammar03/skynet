@@ -7,6 +7,15 @@
 
   time.timeZone = "Asia/Karachi"; # PKT — the operator's timezone
 
+  # zsh as a system shell (adds it to /etc/shells + system-wide completion) so aliammar's login
+  # shell can be zsh; the per-user config lives in nix/home/shell.nix.
+  programs.zsh.enable = true;
+
+  # Serial console (ttyS0) so Proxmox's xterm.js console works — crisper than noVNC, with copy-paste
+  # and resize. Keep tty0 first so the noVNC/VGA console still gets a getty too. One-time on the
+  # Proxmox node: `qm set <vmid> -serial0 socket`.
+  boot.kernelParams = [ "console=tty0" "console=ttyS0,115200" ];
+
   nixpkgs.config.allowUnfree = true; # claude-code / antigravity are unfree (see nix/home/aliammar.nix)
 
   # Nix owns the ops toolchain. The agent CLIs are now Nix packages too, owned by home-manager
