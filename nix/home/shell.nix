@@ -13,7 +13,10 @@
     enable = true;
     autocd = true; # type a dir name to cd into it
     enableCompletion = true;
-    autosuggestion.enable = true; # fish-style ghost suggestions from history
+    autosuggestion = {
+      enable = true; # fish-style ghost suggestions from history
+      highlight = "fg=#6e738d"; # dim overlay so the ghost text stays subtle
+    };
     syntaxHighlighting.enable = true; # command-line syntax colors
     historySubstringSearch.enable = true; # ↑/↓ search history by the prefix you typed
     history = {
@@ -45,6 +48,14 @@
       zstyle ':completion:*' menu select
       zstyle ':completion:*' list-colors "''${(s.:.)LS_COLORS}"
       setopt AUTO_PUSHD PUSHD_IGNORE_DUPS PUSHD_SILENT
+      # Soften zsh-syntax-highlighting to the muted palette (defaults are quite bright/harsh).
+      typeset -gA ZSH_HIGHLIGHT_STYLES
+      ZSH_HIGHLIGHT_STYLES[command]='fg=#a6da95'
+      ZSH_HIGHLIGHT_STYLES[builtin]='fg=#8bd5ca'
+      ZSH_HIGHLIGHT_STYLES[function]='fg=#8aadf4'
+      ZSH_HIGHLIGHT_STYLES[alias]='fg=#a6da95'
+      ZSH_HIGHLIGHT_STYLES[path]='fg=#cad3f5'
+      ZSH_HIGHLIGHT_STYLES[unknown-token]='fg=#ed8796'
     '';
     # .zprofile — login shells only. Land in the repo and print the board.
     profileExtra = ''
@@ -58,17 +69,20 @@
   programs.starship = {
     enable = true;
     enableZshIntegration = true;
+    # Soft muted palette (Catppuccin Macchiato) — pastel, no bold, gentle on the eyes. Two-line:
+    #   user@host  dir  branch status
+    #   ❯
     settings = {
       add_newline = true;
-      # It's a server — always show who/where, in Skynet red.
-      hostname = { ssh_only = false; style = "bold red"; format = "[$hostname]($style) "; };
-      username = { show_always = true; style_user = "bold yellow"; format = "[$user]($style)@"; };
-      directory = { truncation_length = 4; style = "bold cyan"; };
-      git_branch = { symbol = " "; style = "bold magenta"; };
-      git_status = { style = "bold yellow"; };
-      cmd_duration = { min_time = 1000; style = "dim white"; };
-      nix_shell = { symbol = " "; format = "[$symbol$name]($style) "; };
-      character = { success_symbol = "[▸](bold green)"; error_symbol = "[▸](bold red)"; };
+      format = "$username$hostname$directory$git_branch$git_status$nix_shell$cmd_duration$line_break$character";
+      username = { show_always = true; style_user = "#c6a0f6"; format = "[$user]($style)"; }; # mauve
+      hostname = { ssh_only = false; style = "#8aadf4"; format = "[@$hostname]($style)"; }; # blue
+      directory = { style = "#8bd5ca"; truncation_length = 4; truncation_symbol = "…/"; format = "  [$path]($style) "; }; # teal
+      git_branch = { symbol = " "; style = "#f5a97f"; format = "[$symbol$branch]($style) "; }; # peach
+      git_status = { style = "#eed49f"; format = "[$all_status$ahead_behind]($style)"; }; # yellow
+      nix_shell = { symbol = " "; style = "#a5adcb"; format = "[$symbol$name]($style) "; };
+      cmd_duration = { min_time = 2000; style = "#6e738d"; format = "[ $duration]($style)"; }; # overlay/dim
+      character = { success_symbol = "[❯](#a6da95)"; error_symbol = "[❯](#ed8796)"; }; # soft green / soft red
     };
   };
 
