@@ -1,12 +1,12 @@
 ---
 id: SKY-008
 title: OpenTofu provisioning layer: VM and CT lifecycle plus DNS
-status: draft
+status: active
 horizon: long
 created: 2026-08-17
-updated: 2026-08-17
+updated: 2026-08-26
 phases: 3
-current_phase: 0
+current_phase: 1
 tier_touched: [T2, T2+]   # a new scoped provisioning token + creating/destroying guests moves the
                           # blast-radius dial ⇒ MUST PR docs/system-design.md.
 related:
@@ -81,7 +81,7 @@ human reads the exact diff, apply — and it's the same propose/dispose shape Sk
 - **Grants / human actions:** Ali mints the scoped `svc-tofu` token (T2+/out-of-band); ⚠ checkpoints
   on every `apply` that creates/destroys until a pair is graduated.
 
-### Phase 1 — read-only skeleton + import  (~1–2h)   `[ ]` not started
+### Phase 1 — read-only skeleton + import  (~1–2h)   `[~]` in progress
 Scoped `svc-tofu` token, encrypted-state tofu skeleton, **import one existing ops-managed guest** and
 prove `plan` shows **no drift**. **Also PRs `docs/system-design.md`** (new token + tool). Exit: clean
 `plan` on an imported guest; nothing mutated.
@@ -118,3 +118,9 @@ Follow AGENTS.md as above.
 - 2026-08-17 — created (draft) from the declarative-future brainstorm §5. Provider/token/state/DNS
   decisions taken from the research brief `planning/scratchpad/research/2026-08-17-opentofu-provisioning.md`
   (bpg provider, snippet-upload trap, pool-scoped `svc-tofu` token, sops-keyed encrypted state). Pairs with SKY-007.
+- 2026-08-26 — promoted to active, Phase 1 in progress. Built: `tofu/` skeleton (bpg/proxmox ~0.111,
+  PBKDF2 encrypted state, API-native only), vm-docker-dmz resource from live API config, sops-encrypted
+  passphrase + token placeholder, `scripts/tofu-env.sh` wrapper, NixOS base.nix +opentofu. PRd
+  `docs/system-design.md` (T2 row + extension point + growth direction) and `access-and-trust.md`
+  (`svc-tofu`/`TofuProvisioner` pveum stanza). Human checkpoint: Ali mints the token + applies NixOS
+  rebuild, then import/plan to prove zero drift.

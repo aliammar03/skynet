@@ -52,6 +52,31 @@ The operate token is privilege-separated, so its effective rights are **user ∩
 `VM.Snapshot` + `VM.Snapshot.Rollback` power the snapshot-before-upgrade safety net;
 `VM.Backup` powers on-demand and update-run backups.
 
+## Proxmox provisioning access — `svc-tofu` (SKY-008)
+
+A **separate** user + token for OpenTofu, with a purpose-built role that adds `Pool.Allocate` (to
+create/destroy guests in-pool) but drops `VM.Backup`/`VM.Snapshot`/`VM.Console` (not needed for
+provisioning). Pool-scoped, privilege-separated, same ACL shape as `svc-ops`. No `Sys.Modify`,
+no `root@pam`, no SSH — the provider's SSH transport is deliberately unconfigured.
+
+```bash
+pveum role add TofuProvisioner -privs "VM.Audit,VM.Allocate,VM.Clone,VM.Config.Disk,VM.Config.CPU,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.PowerMgmt,Pool.Allocate,Datastore.AllocateSpace,Datastore.Audit,SDN.Use"
+pveum user add svc-tofu@pve --comment "opentofu provisioning agent (SKY-008)"
+pveum acl modify / --users svc-tofu@pve --roles PVEAuditor
+pveum user token add svc-tofu@pve operate --privsep 1
+pveum acl modify /pool/ops-managed --tokens 'svc-tofu@pve!operate' --roles TofuProvisioner
+pveum acl modify /pool/ops-managed --users  svc-tofu@pve            --roles TofuProvisioner
+pveum acl modify /storage/local    --tokens 'svc-tofu@pve!operate' --roles TofuProvisioner
+pveum acl modify /storage/local-lvm --tokens 'svc-tofu@pve!operate' --roles TofuProvisioner
+```
+
+**Why a separate user, not a second token on `svc-ops`:** least-privilege — the provisioning
+role needs `Pool.Allocate` (guest create/destroy) which `svc-ops` should never carry. A
+separate user means each tool has exactly its privileges, auditable independently.
+
+**Token bootstrap is out-of-band** — Ali runs the `pveum` commands on the Proxmox node. Tofu
+must never manage the token it authenticates with (self-referential grant is a lockout footgun).
+
 ## Pool membership = the blast-radius dial
 
 Joining a guest to an `ops-managed` pool *is* the act of handing the agent T2 over it. The pool
@@ -126,3 +151,7 @@ guards, live in the [identity-and-proxy](identity-and-proxy.md) spoke.
 - **More hosts / more pools under T2.** The operate model generalizes without redesign: onboard to
   the CA, decide pool membership, add to `ROLE_OPS_SSH_TARGETS`, land in inventory. A *new pool* is
   the only move that touches the constitution (it widens the dial).
+- **OpenTofu provisioning** (SKY-008). `svc-tofu` token carries `TofuProvisioner` — same pool-scoped
+  shape as `svc-ops`/`OpsOperator` but trades backup/snapshot privs for `Pool.Allocate`. The
+  autonomy ratchet: `apply` starts human-gated; `destroy` stays a hard checkpoint permanently;
+  create/modify graduates to auto-approve one action at a time, by PR.

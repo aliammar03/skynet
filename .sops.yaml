@@ -9,5 +9,6 @@ creation_rules:
   - path_regex: compose/cloudflared/credentials\.json\.sops$
     age: age1stah9c426pq0xf3k4qc58e92vs263lf6uvze2f6nmx84nvk86cusfgexyw
   # SKY-007: host secrets for the ops VM, consumed by sops-nix (decrypt-to-tmpfs).
+  # Also covers SKY-008 tofu secrets (tofu-passphrase.sops, tofu-proxmox.env.sops).
   - path_regex: secrets/.*\.sops$
     age: age1stah9c426pq0xf3k4qc58e92vs263lf6uvze2f6nmx84nvk86cusfgexyw

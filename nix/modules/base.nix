@@ -42,6 +42,7 @@
     python3 # collect-firewall.sh parses the OPNsense config.xml
     openssl # pin-cert.sh + TLS pinning
     netcat # reachability probes in a few scripts
+    opentofu
   ];
 
   # Arcane (on docker-dmz) owns the services; NixOS owns the daemon. The ops VM runs the
