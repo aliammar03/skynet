@@ -126,7 +126,7 @@ These are the guarantees that make an autonomous agent safe to keep around:
   commit, a transcript, or a chat.
 - 🌙 **Nightly runs are report-only** until an action is explicitly promoted, by PR, to the
   auto-approve list. Even the leash is version-controlled.
-- 🧯 **The kill switch is drilled before autonomy day one:** disable tokens + `qm stop 9090`.
+- 🧯 **The kill switch is drilled before autonomy day one:** disable tokens + `qm stop 9091`.
 
 The full checklist is in [`AGENTS.md §6`](AGENTS.md).
 

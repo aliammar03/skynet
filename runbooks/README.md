@@ -66,7 +66,7 @@ These assume the lab is gone and the DR agent starts from a laptop + phone hotsp
 - Add a row here in the same PR — an uncatalogued runbook is an invisible one.
 - **Don't hardcode unverified specifics.** A host IP, hostname, or container name goes in as a clear
   `<placeholder>`, or cites the generated host map (`docs/generated/`) — never a value typed from
-  memory. (A guessed resolver IP shipped wrong once; SKY-005 P2.)
+  memory.
 - **Before committing, run `scripts/budget-frontmatter.sh`** to stamp the generated `tokens:` line
   (never hand-set it — the pre-commit hook rejects a stale/missing value). Author `summary:`/`trigger:`.
 - Anything touching **T2+/T3** or a blast-radius boundary must also PR `docs/system-design.md`.

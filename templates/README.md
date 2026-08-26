@@ -5,8 +5,7 @@ summary: "The golden templates (compose, script, runbook, ADR, journal) that bin
 # templates — the golden skeletons `bin/new` stamps from
 
 One folder holding every artifact template, so the house style has a **single source** per kind:
-change a convention here and every future artifact is born with it (Style B of
-[SKY-009](../planning/projects/SKY-009-convention-bedrock-doctrine-spine-and-golden-templates.md)).
+change a convention here and every future artifact is born with it.
 Each template embeds the rules from the [convention spokes](../docs/conventions/) verbatim, so a
 fresh skeleton is doctrine-conforming before you edit it — you just fill the `TODO`s.
 

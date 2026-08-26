@@ -3,7 +3,6 @@
 The connector that gives Skynet a **sanctioned public path**: an outbound-only tunnel whose single
 origin is the apps Caddy (`10.10.100.35`). Publishing an app to the internet = one `ingress` line in
 [`config.yml`](config.yml) + one public DNS record. Design: [`docs/design/identity-and-proxy.md`](../../docs/design/identity-and-proxy.md).
-Directive: [`planning/projects/SKY-014-*`](../../planning/projects/).
 
 ## Why locally-managed (credentials file, not a token)
 
@@ -19,9 +18,9 @@ The credential is a secret, so it never lives plaintext in git. Source of truth 
 `credentials.json.sops` (sops+age, this dir); the runtime copy is `0600` on the docker host,
 bind-mounted read-only. Steps, done once when the tunnel is created:
 
-1. **Create/attach the tunnel.** SKY-014 reuses CT 1033's existing tunnel (id
-   `7f4c50f9-cee6-40bb-ad5a-ef6c7f30ca56`); its credential came from CT 1033's `--token-file`,
-   reconstructed into a `credentials.json`. (A fresh tunnel via `cloudflared tunnel create` works
+1. **Create/attach the tunnel.** The tunnel reuses the id
+   `7f4c50f9-cee6-40bb-ad5a-ef6c7f30ca56`; its credential was reconstructed into a `credentials.json`
+   from the original `--token-file`. (A fresh tunnel via `cloudflared tunnel create` works
    identically.) The **Tunnel ID** is not secret — it's also the public CNAME target
    `<id>.cfargotunnel.com`.
 2. **Put the TunnelID** into [`config.yml`](config.yml) (`tunnel:`).
@@ -43,8 +42,9 @@ bind-mounted read-only. Steps, done once when the tunnel is created:
 5. **Confirm egress** (already true): OPNsense rule 800 permits `.33 → 443,7844`, so no firewall
    change. (If `7844` were ever removed, cloudflared falls back to `443`.)
 
-## Deploy (Phase 2 — not yet)
+## Deploy
 
-`.33` still belongs to CT 1033, so this service is **built and validated, not deployed**, in Phase 1.
-Cutover (`pct stop 1033` → `scripts/gitops-deploy.sh cloudflared`), publishing the pilot, and
-retiring CT 1033 are Phase 2. Rollback for the cutover is `docker compose down` + `pct start 1033`.
+**Live** on `vm-docker-dmz` — the old CT 1033 that previously ran the tunnel is retired. Publishing
+an app is one `ingress` line in [`config.yml`](config.yml) + a public DNS record, merged and
+reconciled by Arcane. Rollback is `git revert` (Arcane converges back), or `docker compose down` for
+the break-glass path.
