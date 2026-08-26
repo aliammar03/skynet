@@ -51,8 +51,10 @@ that can grow without becoming dangerous.
   private key lives on Ali's workstation and **never** enters Skynet. This is the one access
   Skynet cannot mint for itself — temporary is guaranteed by physics, not by policy. Every root
   session's KeyID is logged and harvested nightly.
-- **Secrets are sops-encrypted in git, or 0600 under `/opt/skynet-ops/secrets/` — never plaintext.**
-  Not in commits, not in logs, not in transcripts, not in chat.
+- **Secrets are sops-encrypted in git, or 0640 under `/opt/skynet-ops/secrets/` — never plaintext.**
+  Not in commits, not in logs, not in transcripts, not in chat. The age private key is readable by
+  the agent user (`root:users 0640`) so the agent can encrypt and decrypt T2 secrets without
+  escalation.
 - **The agent proposes; a human disposes.** The agent never hand-edits generated dirs
   (`inventory/`, `docs/generated/`). (*How* a proposal is accepted is a dial — see 2b — but that a
   proposal exists, reviewable, is law.)

@@ -14,7 +14,7 @@ tokens: 778
 One age keypair on skynet-ops is the root of the secret world:
 
 ```bash
-age-keygen -o /opt/skynet-ops/secrets/age.key      # root:root 0600
+age-keygen -o /opt/skynet-ops/secrets/age.key      # root:users 0640
 ```
 
 ```yaml
