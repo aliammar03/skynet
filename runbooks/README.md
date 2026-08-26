@@ -1,6 +1,6 @@
 ---
 summary: "Catalog of engine-neutral procedures any agent can execute, each tagged by tier and trigger — the routing menu."
-tokens: 1475
+tokens: 1461
 ---
 
 # runbooks — procedures any agent can execute
