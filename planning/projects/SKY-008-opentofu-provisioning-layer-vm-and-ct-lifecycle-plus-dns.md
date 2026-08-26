@@ -81,7 +81,7 @@ human reads the exact diff, apply — and it's the same propose/dispose shape Sk
 - **Grants / human actions:** Ali mints the scoped `svc-tofu` token (T2+/out-of-band); ⚠ checkpoints
   on every `apply` that creates/destroys until a pair is graduated.
 
-### Phase 1 — read-only skeleton + import  (~1–2h)   `[~]` in progress
+### Phase 1 — read-only skeleton + import  (~1–2h)   `[x]` done
 Scoped `svc-tofu` token, encrypted-state tofu skeleton, **import one existing ops-managed guest** and
 prove `plan` shows **no drift**. **Also PRs `docs/system-design.md`** (new token + tool). Exit: clean
 `plan` on an imported guest; nothing mutated.
@@ -124,3 +124,8 @@ Follow AGENTS.md as above.
   `docs/system-design.md` (T2 row + extension point + growth direction) and `access-and-trust.md`
   (`svc-tofu`/`TofuProvisioner` pveum stanza). Human checkpoint: Ali mints the token + applies NixOS
   rebuild, then import/plan to prove zero drift.
+- 2026-08-26 — Phase 1 DONE. Token minted, `tofu init` + `import server-proxmox-core/10015` +
+  `plan` = **"No changes. Your infrastructure matches the configuration."** on first attempt.
+  One harmless warning: `VM.GuestAgent.Audit` — the TofuProvisioner role correctly omits guest-agent
+  privs. Follow-up: add tofu sops files to sops-nix decryption (binary format) so tofu-env.sh works
+  without sudo.
