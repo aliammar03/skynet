@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, config, ... }:
 # The ops operator (aliammar) + the T2 SSH principal (svc-ops), and the narrowed sudo that is
 # SKY-007's thesis: collapse the ops VM's *standing passwordless root* into a reviewed diff.
 let
@@ -17,6 +17,9 @@ in
     # retained for password-gated escalation only (blanket NOPASSWD is removed below).
     extraGroups = [ "docker" "wheel" ];
     openssh.authorizedKeys.keys = [ agentKey aliWorkstationKey ];
+    # Ali's login/sudo password (sops, neededForUsers). With wheel + wheelNeedsPassword, this is a
+    # full password-gated root for the human; the agent (key-only, no password) can't use it.
+    hashedPasswordFile = config.sops.secrets."aliammar-password".path;
   };
 
   # svc-ops: the unprivileged T2 operate principal (AGENTS.md §1). deploy-rs connects as this.

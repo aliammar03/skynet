@@ -42,7 +42,17 @@ let
 in
 {
   sops.age.keyFile = ageKey;
-  sops.secrets = builtins.listToAttrs (map mkSecret names);
+  sops.secrets = (builtins.listToAttrs (map mkSecret names)) // {
+    # aliammar's login/sudo password hash (SKY-007 1d). neededForUsers → decrypted to
+    # /run/secrets-for-users BEFORE users exist (root-owned there, so no owner=), consumed as
+    # users.users.aliammar.hashedPasswordFile. Lets Ali password-sudo to root; the agent has no
+    # password so its keyless sudo stays blocked (wheelNeedsPassword). Hash set out-of-band by Ali.
+    "aliammar-password" = {
+      format = "binary";
+      sopsFile = ../../secrets/aliammar-password.sops;
+      neededForUsers = true;
+    };
+  };
 
   # The secrets dir must be traversable (o+x) so aliammar can follow the symlinks to /run/secrets;
   # the age.key inside stays root 0600 (its own file perms), unreadable to aliammar.
