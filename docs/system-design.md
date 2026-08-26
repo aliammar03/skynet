@@ -99,7 +99,7 @@ principal — lives in [access-and-trust](design/access-and-trust.md); this is t
 | Tier | Scope | Mechanism | Standing? |
 |---|---|---|---|
 | **T1 Read** | Both Proxmox nodes, PBS, Docker hosts, DNS, firewall state (git mirror) | Read-only API tokens; mirrored `config.xml` | Always |
-| **T2 Operate** | `ops-managed` pools (both nodes), Docker hosts via Arcane + unprivileged SSH, Technitium zones, Cloudflare **DNS records** (`aliammar.net` zone); **backup/snapshot** of ops-managed guests | Scoped write tokens, `svc-ops` SSH, Technitium scoped token, Arcane API key, Cloudflare scoped `DNS:Edit` token | Yes — changes PR-gated |
+| **T2 Operate** | `ops-managed` pools (both nodes), Docker hosts via Arcane + unprivileged SSH, Technitium zones, Cloudflare **DNS records** (`aliammar.net` zone); **backup/snapshot** of ops-managed guests; **provisioning** of in-pool guests via OpenTofu | Scoped write tokens, `svc-ops` SSH, `svc-tofu` pool-scoped API token, Technitium scoped token, Arcane API key, Cloudflare scoped `DNS:Edit` token | Yes — changes PR-gated |
 | **T2+ Root grant** | Root shell on workload hosts (diagnose, harden, provision, OS updates) | SSH user-CA certificate, per-host principal, **auto-expiring** | Grant only; expires itself |
 | **T3 Privileged** | OPNsense, Management Caddy, Authentik, Proxmox node root, Unraid root, Technitium *server settings*, Cloudflare *account / Access / tunnel config / zone settings* | Dormant alias `ROLE_OPS_PRIV_TARGETS` + per-session credentials | **Never standing** |
 
@@ -146,6 +146,7 @@ expansion has an admission procedure and a home spoke:
 | **A new service** | `compose/<svc>/` → the [GitOps loop](design/gitops-loop.md); catalog it in `planning/services/` | gitops-loop |
 | **A new managed host** | Onboard to the CA (`onboard-host.sh`), decide pool membership (= its tier), land it in `inventory/` + `ROLE_OPS_SSH_TARGETS` | [access-and-trust](design/access-and-trust.md), [network](design/network.md) |
 | **A host's OS + config, declaratively** | Define it as a reviewed **NixOS flake** (`hosts/` + `nix/modules/`), `nix build` gated in CI. **In place on the ops VM** (SKY-007); any other host is a fresh directive gated on that evidence | [`nix/README.md`](../nix/README.md), SKY-007 |
+| **A managed guest, declaratively** | Declare it in `tofu/` as an OpenTofu resource; `tofu plan` diff reviewed in PR, `apply` after merge. Pool-scoped `svc-tofu` token — **no node root, no SSH** (SKY-008). `destroy` is a hard checkpoint, never auto-approved | [access-and-trust](design/access-and-trust.md), SKY-008 |
 | **A new `ops-managed` pool** | Widen the blast-radius **dial** by PR here, then create the pool with the operate ACLs | [access-and-trust](design/access-and-trust.md) |
 | **A new VLAN / segment** | Firewall aliases + rules, DNS zones, then hosts | [network](design/network.md) |
 | **A new capability / trust boundary** | PR here (tier assignment) + a step on the autonomy ratchet in `AGENTS.md` | this file |
@@ -180,6 +181,13 @@ directives** — this section names the horizon and hands off.
   the box. The old standing passwordless `sudo ALL` is **gone** — narrowed to least-privilege
   (`aliammar`: `systemctl skynet-*` + password-gated wheel; `svc-ops`: deploy-activation only). Any
   **other** host is still a fresh directive gated on this evidence. Details in [`nix/README.md`](../nix/README.md).
+- **Declarative provisioning (OpenTofu)** — **landing via [SKY-008](../planning/projects/SKY-008-opentofu-provisioning-layer-vm-and-ct-lifecycle-plus-dns.md)**:
+  in-pool VM/CT lifecycle declared as OpenTofu resources (`tofu/`), driven by a **pool-scoped
+  `svc-tofu` API token** (privilege-separated, no node root, no SSH). `tofu plan` is the reviewable
+  diff; `apply` runs after human merge; `destroy` is a hard checkpoint. State is local on the ops VM,
+  encrypted with OpenTofu native PBKDF2 (passphrase in sops). Provider: `bpg/proxmox` (API-native
+  cloud-init only — the SSH-snippet path is deliberately unconfigured). Tofu makes the box exist;
+  NixOS (SKY-007) defines what's on it. See [access-and-trust](design/access-and-trust.md).
 - **A secrets vault beyond sops+age** — an external backend (Vault / Infisical-class) if the
   service count outgrows file-level sops. Migration path sketched in [secrets](design/secrets.md).
 - **SSO / authentication** — Authentik graduating out of T3 into something the agent can operate
