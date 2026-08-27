@@ -60,21 +60,20 @@ A separate user + privilege-separated token, two custom roles, **per-node** ACLs
 node; tofu never manages the token it authenticates with.
 
 ```bash
-# Roles: lifecycle (heavy) vs. create-time config-only
+# Roles: lifecycle (heavy) vs. create-time config + read. TofuVmConfig carries VM.Audit too: the /vms
+# binding shadows the propagated `/` PVEAuditor at /vms/<id>, so without it the token would list only
+# *pooled* guests. VM.Audit is read-only (T1) — it does not widen write.
 pveum role add TofuProvisioner -privs "VM.Audit,VM.Allocate,VM.Clone,VM.Config.Disk,VM.Config.CPU,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.Config.HWType,VM.Config.Cloudinit,VM.PowerMgmt,Pool.Allocate,Pool.Audit,Datastore.AllocateSpace,Datastore.AllocateTemplate,Datastore.Audit,SDN.Use"
-pveum role add TofuVmConfig    -privs "VM.Config.Options,VM.Config.Cloudinit,VM.Config.CDROM"
+pveum role add TofuVmConfig    -privs "VM.Config.Options,VM.Config.Cloudinit,VM.Config.CDROM,VM.Audit"
 
 # User + privsep token
 pveum user add svc-tofu@pve --comment "opentofu provisioning agent (SKY-008)"
 pveum user token add svc-tofu@pve operate --privsep 1
 
-# READ (T1) — user + token. The `/` grant covers most reads; the `/nodes/<node>` grant is what
-# actually populates `cluster/resources` and node-wide guest/storage listings (plan/refresh of
-# non-pool guests). Both are read-only. Replace <node> with the node's name (server-proxmox-core|network).
-pveum acl modify /               --users  svc-tofu@pve           --roles PVEAuditor
-pveum acl modify /               --tokens 'svc-tofu@pve!operate' --roles PVEAuditor
-pveum acl modify /nodes/<node>   --users  svc-tofu@pve           --roles PVEAuditor
-pveum acl modify /nodes/<node>   --tokens 'svc-tofu@pve!operate' --roles PVEAuditor
+# READ (T1) — user + token, full cluster read. (Node-wide GUEST listing also needs VM.Audit reachable
+# at /vms/<id>, which TofuVmConfig above provides; `/` PVEAuditor alone is shadowed by the /vms role.)
+pveum acl modify / --users  svc-tofu@pve           --roles PVEAuditor
+pveum acl modify / --tokens 'svc-tofu@pve!operate' --roles PVEAuditor
 
 # WRITE (lifecycle) — TofuProvisioner on the pool + its storages + the SDN zone. Bind BOTH per path.
 for path in /pool/ops-managed /storage/local /storage/local-lvm /sdn/zones/localnetwork; do
