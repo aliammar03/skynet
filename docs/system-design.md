@@ -122,8 +122,8 @@ principal — lives in [access-and-trust](design/access-and-trust.md); this is t
 - **Pool membership is the blast-radius dial.** Joining a guest to an `ops-managed` pool hands the
   agent T2 over it; leaving it out keeps it look-but-don't-touch. **VM 5001 (OPNsense) never joins
   any pool** — same for CT 635, CT 837, Unraid VM 2020. Never pooled, destroyed, or stopped by the
-  agent (T3); `svc-tofu`'s config-only `/vms` role can config-touch a co-located one (Unraid 2020 on
-  core) but nothing heavier — see [access-and-trust](design/access-and-trust.md).
+  agent (T3); `svc-tofu`'s config-only `/vms` role (both nodes) can config-touch them (name/onboot/
+  cloud-init) but nothing heavier — never destroy/stop/re-disk/re-NIC. See [access-and-trust](design/access-and-trust.md).
 
 ## 4. The agent-agnostic contract
 

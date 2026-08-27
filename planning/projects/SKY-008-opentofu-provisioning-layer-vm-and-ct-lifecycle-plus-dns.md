@@ -136,5 +136,9 @@ Follow AGENTS.md as above.
   (lifecycle, pool-scoped) + new config-only `TofuVmConfig` at `/vms` (no Allocate/PowerMgmt).
   Constitutional change PR'd: excluded-guests line now "never pooled/destroyed/stopped" (tofu keeps
   config-only reach over co-located Unraid 2020). Nodes are **standalone, not clustered** → ACLs
-  per-node. Full run + ACL saga in [[journal 2026-08-27 SKY-008 P2]]. Next: network node (own token),
-  then P3 DNS.
+  per-node. Full run + ACL saga in [[journal 2026-08-27 SKY-008 P2]].
+- 2026-08-27 — **Network node done too** (same PR). Standalone .10 → 2nd provider alias `proxmox.network`,
+  own `svc-tofu` (Ali mirrored core incl blanket `/vms` → config-reach over 5001/635/837, never
+  destroy/stop), sops secret `tofu-proxmox-network.env` + combined CA bundle in `tofu-env.sh`. Proved
+  lifecycle by cloning the disused cloudflared LXC 1033 → 1099, destroyed both. LXC-clone gotcha: stop
+  the source first. [[journal 2026-08-27 SKY-008 network node]]. Next: P3 DNS.

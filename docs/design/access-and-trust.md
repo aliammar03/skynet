@@ -92,10 +92,13 @@ Load-bearing rules:
   live only in `TofuProvisioner`, bound only on `ops-managed`. The `/vms` config role exists because a
   new VMID isn't a pool member yet at `qmcreate`, so its config checks have no pool fallback; it can
   rewrite name/tags/onboot + cloud-init/CDROM drive on any core VM but **never** destroy/stop/re-disk/re-NIC.
-- **Per-node, so 5001/635/837 are untouched.** These ACLs are **core-node only**. The one T3 excluded
-  guest on core is Unraid VM 2020 (config-reach only, per above); OPNsense/Caddy/Authentik are on the
-  network node, outside this token entirely. Extending to the network node mints its **own** `svc-tofu`;
-  keep those three untouchable by **avoiding the `/vms` binding** there (per-VMID grants for new guests).
+- **Per-node — one `svc-tofu` per standalone node.** Both nodes run the same setup (core `.11`,
+  network `.10`), each with its own user/token/roles and a separate provider (`proxmox.network`). Both
+  bind the config-only `/vms` role, so tofu has config-reach — name/tags/onboot + cloud-init/CDROM
+  drive — over **every** guest, the T3 excluded ones included (Unraid 2020 on core; OPNsense 5001,
+  Caddy 635, Authentik 837 on the network node). Held safe by the same split: **no `VM.Allocate`,
+  no `VM.PowerMgmt`** over them, so tofu can **never destroy, stop, re-disk, or re-NIC** an excluded
+  guest — those privs stay pool-scoped, per node, and the excluded guests are never pooled.
 - **A separate user** (not a second `svc-ops` token): `svc-ops` must never carry `Pool.Allocate`.
 - **No URL download.** `download_file`/`query-url-metadata` needs `Sys.Modify` on `/` (T3) — not
   granted. Base images land in `local`'s `import` store out-of-band (rare, human/root); tofu imports
