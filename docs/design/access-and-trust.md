@@ -54,28 +54,52 @@ The operate token is privilege-separated, so its effective rights are **user ∩
 
 ## Proxmox provisioning access — `svc-tofu` (SKY-008)
 
-A **separate** user + token for OpenTofu, with a purpose-built role that adds `Pool.Allocate` (to
-create/destroy guests in-pool) but drops `VM.Backup`/`VM.Snapshot`/`VM.Console` (not needed for
-provisioning). Pool-scoped, privilege-separated, same ACL shape as `svc-ops`. No `Sys.Modify`,
-no `root@pam`, no SSH — the provider's SSH transport is deliberately unconfigured.
+A separate user + privilege-separated token, two custom roles, **per-node** ACLs (the nodes are
+**standalone, not clustered** — each has its own `pveum` DB). No `Sys.Modify`, no `root@pam`, no SSH
+(the provider's SSH transport is unconfigured). Bootstrap is out-of-band — Ali runs `pveum` on the
+node; tofu never manages the token it authenticates with.
 
 ```bash
-pveum role add TofuProvisioner -privs "VM.Audit,VM.Allocate,VM.Clone,VM.Config.Disk,VM.Config.CPU,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.PowerMgmt,Pool.Allocate,Datastore.AllocateSpace,Datastore.Audit,SDN.Use"
+# Roles: lifecycle (heavy) vs. create-time config-only
+pveum role add TofuProvisioner -privs "VM.Audit,VM.Allocate,VM.Clone,VM.Config.Disk,VM.Config.CPU,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.Config.HWType,VM.Config.Cloudinit,VM.PowerMgmt,Pool.Allocate,Pool.Audit,Datastore.AllocateSpace,Datastore.AllocateTemplate,Datastore.Audit,SDN.Use"
+pveum role add TofuVmConfig    -privs "VM.Config.Options,VM.Config.Cloudinit,VM.Config.CDROM"
+
+# User + privsep token
 pveum user add svc-tofu@pve --comment "opentofu provisioning agent (SKY-008)"
-pveum acl modify / --users svc-tofu@pve --roles PVEAuditor
 pveum user token add svc-tofu@pve operate --privsep 1
-pveum acl modify /pool/ops-managed --tokens 'svc-tofu@pve!operate' --roles TofuProvisioner
-pveum acl modify /pool/ops-managed --users  svc-tofu@pve            --roles TofuProvisioner
-pveum acl modify /storage/local    --tokens 'svc-tofu@pve!operate' --roles TofuProvisioner
-pveum acl modify /storage/local-lvm --tokens 'svc-tofu@pve!operate' --roles TofuProvisioner
+
+# READ (T1, full node) — user + token
+pveum acl modify / --users  svc-tofu@pve           --roles PVEAuditor
+pveum acl modify / --tokens 'svc-tofu@pve!operate' --roles PVEAuditor
+
+# WRITE (lifecycle) — TofuProvisioner on the pool + its storages + the SDN zone. Bind BOTH per path.
+for path in /pool/ops-managed /storage/local /storage/local-lvm /sdn/zones/localnetwork; do
+  pveum acl modify "$path" --tokens 'svc-tofu@pve!operate' --roles TofuProvisioner
+  pveum acl modify "$path" --users  svc-tofu@pve            --roles TofuProvisioner
+done
+
+# CREATE-TIME config — config-only role at /vms (no VM.Allocate/VM.PowerMgmt)
+pveum acl modify /vms --tokens 'svc-tofu@pve!operate' --roles TofuVmConfig
+pveum acl modify /vms --users  svc-tofu@pve            --roles TofuVmConfig
 ```
 
-**Why a separate user, not a second token on `svc-ops`:** least-privilege — the provisioning
-role needs `Pool.Allocate` (guest create/destroy) which `svc-ops` should never carry. A
-separate user means each tool has exactly its privileges, auditable independently.
+Load-bearing rules:
 
-**Token bootstrap is out-of-band** — Ali runs the `pveum` commands on the Proxmox node. Tofu
-must never manage the token it authenticates with (self-referential grant is a lockout footgun).
+- **Privsep intersection.** A privsep token's effective privileges are **user ∩ token** on each path
+  — bind the role on **both** user and token, on every write path (and grant `Pool.Audit` in the role,
+  not just at `/`: the `/`-level read doesn't survive the intersection at a path that carries a role).
+- **Heavy privs are pool-scoped.** `VM.Allocate` (create/**destroy**) and `VM.PowerMgmt` (start/**stop**)
+  live only in `TofuProvisioner`, bound only on `ops-managed`. The `/vms` config role exists because a
+  new VMID isn't a pool member yet at `qmcreate`, so its config checks have no pool fallback; it can
+  rewrite name/tags/onboot + cloud-init/CDROM drive on any core VM but **never** destroy/stop/re-disk/re-NIC.
+- **Per-node, so 5001/635/837 are untouched.** These ACLs are **core-node only**. The one T3 excluded
+  guest on core is Unraid VM 2020 (config-reach only, per above); OPNsense/Caddy/Authentik are on the
+  network node, outside this token entirely. Extending to the network node mints its **own** `svc-tofu`;
+  keep those three untouchable by **avoiding the `/vms` binding** there (per-VMID grants for new guests).
+- **A separate user** (not a second `svc-ops` token): `svc-ops` must never carry `Pool.Allocate`.
+- **No URL download.** `download_file`/`query-url-metadata` needs `Sys.Modify` on `/` (T3) — not
+  granted. Base images land in `local`'s `import` store out-of-band (rare, human/root); tofu imports
+  from the present volume (`Datastore.AllocateSpace` only, never calls `query-url-metadata`).
 
 ## Pool membership = the blast-radius dial
 
