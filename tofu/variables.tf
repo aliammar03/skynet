@@ -14,3 +14,15 @@ variable "state_passphrase" {
   type        = string
   sensitive   = true
 }
+
+# --- network node (server-proxmox-network, 10.10.50.10) — standalone, separate token ---
+variable "proxmox_endpoint_network" {
+  description = "Network-node Proxmox VE API URL (https://10.10.50.10:8006)"
+  type        = string
+}
+
+variable "proxmox_api_token_network" {
+  description = "svc-tofu@pve!operate=<secret> on the network node — pool-scoped, privilege-separated"
+  type        = string
+  sensitive   = true
+}

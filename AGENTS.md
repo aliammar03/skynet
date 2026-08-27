@@ -33,7 +33,9 @@ infrastructure through your PRs — **write them to teach**.
 - Technitium is T2 for **Zones view/modify only** — no Settings/Administration/DHCP. Server settings are T3.
 - Cloudflare is T2 for **DNS records in `aliammar.net` only** (scoped `DNS:Edit` token, `0600` at `/opt/skynet-ops/secrets/cloudflare-dns.env`) — the account, Access policies, tunnel config, and zone settings are T3. Same shape as the Technitium split; publishing still needs the `ingress` PR human-merged.
 - Pool membership is the blast-radius dial. **VM 5001 (OPNsense) never joins any pool.**
-  Same exclusion for CT 635, CT 837, Unraid VM 2020. You see them (T1), never touch them (T3).
+  Same exclusion for CT 635, CT 837, Unraid VM 2020. You see them (T1); never pool, destroy, or stop
+  them (T3). (`svc-tofu`'s config-only `/vms` role, both nodes, can config-touch them — name/onboot/
+  cloud-init only, never destroy/stop/re-disk/re-NIC.)
 - Root on workload hosts exists **only** inside a certificate validity window. The CA
   private key lives on Ali's workstation — you **cannot** mint your own access. You request; Ali types.
 
@@ -95,6 +97,10 @@ edit compose/<svc>/ → branch → PR → Ali merges
 - **The house style is doctrine, not habit.** It lives in the convention **hub**
   [`docs/conventions.md`](docs/conventions.md) + its [spokes](docs/conventions/) — one authoritative
   home per rule, tagged testable/manual. Read the relevant spoke before writing an artifact.
+- **Docs state what works now — no stories.** Design docs, config files, and code comments carry the
+  current rule + small load-bearing notes only. No war-stories, no "we tried X / then hit Y / so we
+  changed to Z", no debugging narrative. The path you took — what broke, what you ruled out, the
+  ACL-by-ACL saga — goes to [`journal/`](journal/README.md), not the doc. Trim on sight.
 - **Episodic memory lives in [`journal/`](journal/README.md).** Append a **raw** dated episode
   (session / incident / decision) when a run happens, something breaks, or a non-trivial choice is
   made — `bin/new journal <kind> "<title>"`. **Write raw, summarize only at read time**; entries

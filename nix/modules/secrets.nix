@@ -26,6 +26,7 @@ let
     "cloudflare-dns.env"
     "rclone.conf"
     "tofu-proxmox.env"
+    "tofu-proxmox-network.env"
     "tofu-passphrase"
   ];
   # each token file: encrypted whole (binary) in git at secrets/<fname>.sops, decrypted to

@@ -4,9 +4,9 @@ title: OpenTofu provisioning layer: VM and CT lifecycle plus DNS
 status: active
 horizon: long
 created: 2026-08-17
-updated: 2026-08-26
+updated: 2026-08-27
 phases: 3
-current_phase: 1
+current_phase: 2
 tier_touched: [T2, T2+]   # a new scoped provisioning token + creating/destroying guests moves the
                           # blast-radius dial ⇒ MUST PR docs/system-design.md.
 related:
@@ -86,13 +86,22 @@ Scoped `svc-tofu` token, encrypted-state tofu skeleton, **import one existing op
 prove `plan` shows **no drift**. **Also PRs `docs/system-design.md`** (new token + tool). Exit: clean
 `plan` on an imported guest; nothing mutated.
 
-### Phase 2 — provision a throwaway guest  (~1–2h)   `[ ]` not started
+### Phase 2 — provision a throwaway guest  (~1–2h)   `[x]` done
 Create + destroy a disposable guest (docker-dmz-class) via API-native cloud-init; prove the full
 lifecycle. **⚠ `destroy` checkpoint.** Exit: create/destroy round-trips cleanly from declared state.
+Landed as a **permanent base template** `ubuntu-2404-base` (9000) + a throwaway clone (10099) proving
+clone→boot→destroy. New follow-up: extend tofu to the **network node** (standalone — own `svc-tofu`).
 
-### Phase 3 — DNS records (optional)  (~1–2h)   `[ ]` not started
-Pin/vendor a Technitium provider (or restapi fallback) against a zone-scoped token; declare a test
-record. Exit: a DNS record is tofu-managed within T2 zones only.
+### Phase 3 — DNS records + declarative LXC import  (~1–2h)   `[ ]` not started
+Two remaining declarative surfaces, deferred out of P2:
+- **DNS (Technitium):** pin/vendor a Technitium provider (or restapi fallback) against a zone-scoped
+  token; declare a test record. A DNS record is tofu-managed within T2 zones only.
+- **Declarative LXC import:** prove a clean zero-drift import of an existing `ops-managed` container
+  (P2 proved clone→destroy but not import — bpg's `proxmox_virtual_environment_container` tends to
+  drift on `operating_system.template_file_id`, absent from a live container's config; find the
+  `ignore_changes`/config shape that lands `plan` = No changes).
+
+Exit: a DNS record is tofu-managed within T2 zones, **and** an existing LXC imports with zero drift.
 
 ## 4. ▶ Execute prompt
 ```
@@ -129,3 +138,14 @@ Follow AGENTS.md as above.
   One harmless warning: `VM.GuestAgent.Audit` — the TofuProvisioner role correctly omits guest-agent
   privs. Follow-up: add tofu sops files to sops-nix decryption (binary format) so tofu-env.sh works
   without sudo.
+- 2026-08-27 — Phase 2 DONE (core node). Built permanent template `ubuntu-2404-base` (9000); proved
+  clone→boot→destroy via throwaway 10099; `plan` clean after removal. Roles: `TofuProvisioner`
+  (lifecycle, pool-scoped) + new config-only `TofuVmConfig` at `/vms` (no Allocate/PowerMgmt).
+  Constitutional change PR'd: excluded-guests line now "never pooled/destroyed/stopped" (tofu keeps
+  config-only reach over co-located Unraid 2020). Nodes are **standalone, not clustered** → ACLs
+  per-node. Full run + ACL saga in [[journal 2026-08-27 SKY-008 P2]].
+- 2026-08-27 — **Network node done too** (same PR). Standalone .10 → 2nd provider alias `proxmox.network`,
+  own `svc-tofu` (Ali mirrored core incl blanket `/vms` → config-reach over 5001/635/837, never
+  destroy/stop), sops secret `tofu-proxmox-network.env` + combined CA bundle in `tofu-env.sh`. Proved
+  lifecycle by cloning the disused cloudflared LXC 1033 → 1099, destroyed both. LXC-clone gotcha: stop
+  the source first. [[journal 2026-08-27 SKY-008 network node]]. Next: P3 DNS.
