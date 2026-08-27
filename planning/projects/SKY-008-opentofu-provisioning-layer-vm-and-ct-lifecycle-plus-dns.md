@@ -92,9 +92,16 @@ lifecycle. **⚠ `destroy` checkpoint.** Exit: create/destroy round-trips cleanl
 Landed as a **permanent base template** `ubuntu-2404-base` (9000) + a throwaway clone (10099) proving
 clone→boot→destroy. New follow-up: extend tofu to the **network node** (standalone — own `svc-tofu`).
 
-### Phase 3 — DNS records (optional)  (~1–2h)   `[ ]` not started
-Pin/vendor a Technitium provider (or restapi fallback) against a zone-scoped token; declare a test
-record. Exit: a DNS record is tofu-managed within T2 zones only.
+### Phase 3 — DNS records + declarative LXC import  (~1–2h)   `[ ]` not started
+Two remaining declarative surfaces, deferred out of P2:
+- **DNS (Technitium):** pin/vendor a Technitium provider (or restapi fallback) against a zone-scoped
+  token; declare a test record. A DNS record is tofu-managed within T2 zones only.
+- **Declarative LXC import:** prove a clean zero-drift import of an existing `ops-managed` container
+  (P2 proved clone→destroy but not import — bpg's `proxmox_virtual_environment_container` tends to
+  drift on `operating_system.template_file_id`, absent from a live container's config; find the
+  `ignore_changes`/config shape that lands `plan` = No changes).
+
+Exit: a DNS record is tofu-managed within T2 zones, **and** an existing LXC imports with zero drift.
 
 ## 4. ▶ Execute prompt
 ```
