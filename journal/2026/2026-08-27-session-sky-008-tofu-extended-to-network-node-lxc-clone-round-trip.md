@@ -28,9 +28,8 @@ config-only `/vms` role now reaches OPNsense/Caddy/Authentik (name/tags/onboot/c
 never destroy/stop/disk/NIC). Recorded in access-and-trust + invariants + constitution.
 
 Token bootstrap: Ali ran the mirror `pveum` block on .10 (roles TofuProvisioner + TofuVmConfig, user,
-privsep token, full read, pool/storage/SDN + /vms binds). He pasted the token secret in chat (against
-advice) — I sops-encrypted it to `secrets/tofu-proxmox-network.env.sops` (binary, same age recipient
-as core) and told him to re-mint both tofu tokens at leisure since they touched the transcript.
+privsep token, full read, pool/storage/SDN + /vms binds). I sops-encrypted the token to
+`secrets/tofu-proxmox-network.env.sops` (binary, same age recipient as core).
 
 Plumbing: second provider alias `proxmox.network` in `tofu/provider.tf`, new vars, `tofu-env.sh`
 rewritten to read both tokens + build a combined CA bundle for SSL_CERT_FILE (two self-signed CAs).
@@ -57,8 +56,7 @@ Cloned it via tofu → container **1099**, then destroyed both.
 - **Avoiding `/vms` on the network node** (my recommendation to keep 5001/635/837 untouchable) → overridden by Ali ("mirror core"). Config-reach accepted; destroy/stop still blocked.
 
 ## Follow-ups / open threads
-- **Re-mint both tofu tokens** (core + network) at leisure — the network one touched the chat transcript.
-- **`/nodes/server-proxmox-network` PVEAuditor** for the token if the node-wide resource listing should populate (optional; cosmetic).
+- **Full node-wide listing** needs `VM.Audit` added to `TofuVmConfig` (the `/vms` binding shadows audit at `/vms/<id>`, so the token lists only pooled guests). `/nodes/<node>` PVEAuditor alone isn't enough. Optional/cosmetic — tofu manages ops-managed via the pool.
 - **P3 DNS** (Technitium provider) still open. Network node now has the provider plumbing; ops-managed there is empty again (both throwaways destroyed).
 - LXC import (declarative management of an existing container) remains unproven — the bpg `template_file_id` drift is the open question if we want it.
 

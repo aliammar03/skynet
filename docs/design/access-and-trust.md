@@ -68,9 +68,13 @@ pveum role add TofuVmConfig    -privs "VM.Config.Options,VM.Config.Cloudinit,VM.
 pveum user add svc-tofu@pve --comment "opentofu provisioning agent (SKY-008)"
 pveum user token add svc-tofu@pve operate --privsep 1
 
-# READ (T1, full node) — user + token
-pveum acl modify / --users  svc-tofu@pve           --roles PVEAuditor
-pveum acl modify / --tokens 'svc-tofu@pve!operate' --roles PVEAuditor
+# READ (T1) — user + token. The `/` grant covers most reads; the `/nodes/<node>` grant is what
+# actually populates `cluster/resources` and node-wide guest/storage listings (plan/refresh of
+# non-pool guests). Both are read-only. Replace <node> with the node's name (server-proxmox-core|network).
+pveum acl modify /               --users  svc-tofu@pve           --roles PVEAuditor
+pveum acl modify /               --tokens 'svc-tofu@pve!operate' --roles PVEAuditor
+pveum acl modify /nodes/<node>   --users  svc-tofu@pve           --roles PVEAuditor
+pveum acl modify /nodes/<node>   --tokens 'svc-tofu@pve!operate' --roles PVEAuditor
 
 # WRITE (lifecycle) — TofuProvisioner on the pool + its storages + the SDN zone. Bind BOTH per path.
 for path in /pool/ops-managed /storage/local /storage/local-lvm /sdn/zones/localnetwork; do
