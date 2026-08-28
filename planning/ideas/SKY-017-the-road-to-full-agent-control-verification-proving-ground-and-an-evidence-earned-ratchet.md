@@ -16,6 +16,7 @@ related:
   - planning/ideas/SKY-004-reactive-operations-event-driven-layer-drift-as-signal.md
   - planning/ideas/SKY-016-harden-the-service-deployment-workflow-verify-reachability-not-just-health-plus-scaffolding-helpers.md
   - planning/scratchpad/research/2026-08-28-complete-system-and-ansible.md
+  - planning/scratchpad/research/2026-08-28-full-agent-control-options.md
   - "[[SKY-017-progress]]"
 ---
 
@@ -49,6 +50,11 @@ doesn't exist is anything to spend on it.
 
 The through-line: **the system can act and can observe, but it cannot yet check itself.** That is the
 whole gap between here and full agent control.
+
+Named in the field's own vocabulary (options research §1): Skynet is a **MAPE-K** loop whose
+**Analyze** phase is empty — a brilliant planner wired to no error signal. That makes SKY-004's drift
+work a prerequisite of this directive rather than a parallel track: without Analyze, nothing here is
+measurable.
 
 ## 2. Brainstorm — options considered
 
@@ -114,7 +120,11 @@ Steps:
 1. Enumerate every actuator the agent can drive today (Arcane deploy, `tofu apply`, Technitium
    record write, Cloudflare record write, container restart, guest snapshot, `apt` upgrade,
    deploy-rs activation). For each, record: is rollback **automatic**, **tested**, and **agent-
-   independent**? Land it as an authored table beside `invariants.json`.
+   independent**, and — the column that makes it actionable — **which executor performs it**. Land
+   it as an authored table beside `invariants.json`. First draft from the options research:
+   deploy-rs magic-rollback ✅, OPNsense's own pre-activation validate-and-restore ✅, Arcane ❌
+   (converges from git but never rolls back on health failure), `tofu apply` ❌, DNS writes ❌
+   (reversible, but nothing writes the prior value down).
 2. Classify each as *reversible* / *irreversible-by-nature* / *reversible-but-unproven*. The last
    bucket is the work queue for P2; the middle one is permanently checkpointed.
 3. Implement the **change budget**: a per-run ceiling (guests touched, records written, destroys = 0)
@@ -132,8 +142,10 @@ Steps:
 2. Tofu module that stands up a replica guest from the same template the real fleet uses, and a
    `bin/ops rehearse <capability>` entry point: provision → apply the change for real → run the
    capability's assertions → destroy → emit a **rehearsal record** (pass/fail, diff, timings).
-3. Wire the cheap dry-run tier (`tofu plan`, `dry-activate`, `compose --dry-run`) as the always-on
-   pre-check in front of it.
+3. Wire the cheap tier as the always-on pre-check in front of it: `tofu plan`, `dry-activate`,
+   `compose --dry-run`, plus **`tofu test`** (native `.tofutest.hcl`, no new language). Assertions
+   stay bash + jq against the existing collectors — **explicitly not Terratest**, which would add Go
+   and a toolchain to assert what `collect-*.sh` already reports.
 
 Exit criteria: `bin/ops rehearse deploy-service` provisions, deploys, asserts, destroys, and leaves
 a machine-readable record — with no residue in the real pools.
@@ -143,7 +155,12 @@ Steps:
 1. **Post-change verification** as a first-class step, not a runbook sentence: bounded plan diff
    before apply, canary scope where the actuator supports it, health probe after, and **automatic
    rollback on probe failure** — driven by the dumb executor, not by the agent noticing. Reuses
-   SKY-016's reachability work rather than duplicating it.
+   SKY-016's reachability work rather than duplicating it. First executor built: a **health-gated
+   compose wrapper** (deploy → probe → on failure `git revert` + reconcile), which closes the Arcane
+   gap from P1 without changing platform.
+1b. **A machine gate between plan and apply**: `conftest`/Rego over `tofu plan -json` — today the
+   widest-blast-radius actuator has no deterministic check at all. Keep the policy set small and
+   `conftest verify`-tested; the existing hard laws stay in bash (legibility beats uniformity).
 2. **Adversarial review**: `bin/ops review <ref>` opens a second, cold session (different engine
    where available) with no shared context, handed only the diff, the constitution, and the stated
    intent. It votes and explains; the vote is advisory, recorded on the PR, and never replaces a gate.
@@ -172,6 +189,10 @@ Steps:
 2. Run the full intent→delivery path once for a real service — intent, draft, gates, review,
    rehearsal, apply, verify, publish, back up, document — measuring where a human was actually
    needed. That list is the roadmap's next input.
+2b. Stand up the **firewall-validation** capability at A1 (propose only): Rego over
+   `inventory/firewall/firewall.json` — no any-any, no rule sourcing an ops role into a T3 target,
+   every rule described. Read-only over data already collected, so it needs no new access; OPNsense's
+   own validate-and-restore is the rollback that could let it climb later.
 3. **⚠ Drill the stateless invariant**: rebuild a service's *system* class from git alone into an
    empty running state, then restore payload separately. Prove §2a's rebuild law rather than
    asserting it.
@@ -203,3 +224,6 @@ Follow AGENTS.md as above.
 ## 6. Status log
 - 2026-08-28 — created (draft). Constitutional half landed first: ADR 0005 + system-design §1a
   (terminal goal, A0–A5 ladder, the never-delegated law, the git-alone rebuild law).
+- 2026-08-28 — options research landed (`planning/scratchpad/research/2026-08-28-full-agent-control-options.md`);
+  phases updated with the tool choices it settled (conftest/Rego, `tofu test` not Terratest, a
+  health-gated compose wrapper rather than a platform switch) and the MAPE-K framing.
