@@ -237,13 +237,27 @@ that is neither mapped nor a declared exception.
 
 ### Phase 2 — L0: authored judgment data, and the invariant  (~1–2h)   `[ ]` not started
 Steps:
-0. **⚠ Resolve the VLAN vocabulary first — there are two, and five of eight disagree.**
-   `render-docs.sh`'s `vlan_name()` says 20=Storage, 50=Infrastructure, 60=Trusted LAN,
-   70=DNS & Services; the firewall alias descriptions say 20=**Servers**, 50=**Management**,
-   60=**Admin Access**, 70=**Network Services**. Only 80=Identity and 100=DMZ agree. Since the VLAN
-   slug now appears in every guest ID, one canonical set must be chosen and recorded in `lab.json`,
-   and the losing wording corrected wherever it appears. Watch the collision: VLAN 10 "Admin" and
-   VLAN 60 "Admin Access" cannot both slug to `admin`.
+0. **The VLAN vocabulary — settled 2026-08-28, display names already corrected in the renderer.**
+   The lab had two competing sets and the renderer's was wrong on **10 and 60, which were swapped**:
+   VLAN 10 is the trusted client VLAN (workstation, phone, tablet — and OPNsense's own alias text
+   calls it "Trusted VLAN 10") while VLAN 60 is admin access (only the Management Caddy front door).
+   Collected firewall truth beat the hardcoded map, which is the ADR 0003 argument in miniature —
+   authored knowledge living in code drifted from reality and nothing checked it. This phase moves
+   the table out of `render-docs.sh` into `lab.json` and adds the **slugs** used in entity IDs:
+
+   | VLAN | Display name | Slug |
+   |---|---|---|
+   | 10 | Trusted LAN | `lan` |
+   | 20 | Servers | `servers` |
+   | 50 | Management | `mgmt` |
+   | 60 | Admin Access | `admin` |
+   | 70 | Network Services | `dns` |
+   | 80 | Identity | `identity` |
+   | 90 | Operations | `ops` |
+   | 100 | DMZ | `dmz` |
+
+   VLAN 30 exists in the firewall as a transitional segment with no name of its own; leave it
+   rendering as `VLAN 30` until it is either named or retired.
 1. **`invariants.json`** gains `entity_conventions`: the VMID⇒IP law plus its *declared exceptions*
    (5001 OPNsense, and any guest deliberately off-convention), each with a one-line `why` in the
    file's existing style. Constraint-class data, read by the gate.
@@ -446,3 +460,7 @@ Follow AGENTS.md as above.
 - 2026-08-28 — entity ID convention settled: `<class>/<key>`, guests as `role-vlan-vmid`, no stutter,
   VMID authoritative. Applying it surfaced a prerequisite: the lab has **two conflicting VLAN
   vocabularies** (renderer vs firewall descriptions), which P2 step 0 now resolves.
+- 2026-08-28 — VLAN vocabulary settled (lan/servers/mgmt/admin/dns/identity/ops/dmz). Ali corrected
+  the renderer's map: 10 and 60 were **swapped**, so `docs/generated/` had been publishing the wrong
+  names for both. Fixed in `render-docs.sh` and re-rendered ahead of this directive, since a shipped
+  factual error should not wait twelve phases.
