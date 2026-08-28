@@ -59,6 +59,8 @@ empty layers and a set of implementations that work but cannot be checked:
   a machine. Meanwhile **ADR 0001's VMID convention already is a primary key** and nothing reads it:
   deriving it with no authored mapping matches **14 of 19 guests**, isolates **4 stale stopped
   guests**, and surfaces **one running guest invisible to every view** (CT 526, the UniFi controller).
+  The same hole exists one level up and is currently un-nameable: **services** have no key either, so
+  `arcane-manager` runs on the DMZ host with no `compose/` directory behind it and nothing notices.
 - **L4 Analyze is empty.** In MAPE-K terms the system is a strong Plan phase wired to no error signal:
   observed truth is committed nightly and never *asserted* against intended truth. The nightly PR
   proves something changed, never whether it was supposed to.
@@ -86,7 +88,7 @@ The verdict per layer — improve in place, replace outright, or build from noth
 
 | Layer | Today | Verdict | What changes | Phase |
 |---|---|---|---|---|
-| **L0 Identity** | *nothing* | **BUILD** | VMID⇒VLAN+octet derivation as a shared helper; authored exceptions in `invariants.json`, authored judgment facts in a new `lab.json` | P1–P2 |
+| **L0 Identity** | *nothing* | **BUILD** | A **typed entity model** — five classes, each with its own natural key (guest ⇒ VMID, service ⇒ compose project, vhost ⇒ hostname, node ⇒ node name, netgear ⇒ device id) plus the edges between them; exceptions in `invariants.json`, judgment facts in a new `lab.json` | P1–P2 |
 | **L1 Intended** | tofu (1 guest), nix (1 host), compose (10 svcs), sops | **IMPROVE + WIDEN** | Technitium records + remaining in-pool guests under tofu; **keep Arcane** (see §2 decisions) | P11 |
 | **L2 Observed** | 5 collectors → `inventory/` | **IMPROVE + FILL** | entity-keyed output; new collectors for network gear, Caddy routes, certificates | P4–P5 |
 | **L3 Constraints** | `invariants.json` + bash gate | **IMPROVE + SECOND ENGINE** | keep bash for the hard laws; add **conftest/Rego** for structured artifacts (`tofu plan -json`, `firewall.json`) | P7–P8 |
@@ -133,6 +135,30 @@ The verdict per layer — improve in place, replace outright, or build from noth
 - **Decision: B (CHOSEN).** Temporal's workflow history is system-class state in **its own database** —
   a direct §2a rebuild-law violation, plus a standing service. The pattern costs a convention.
 
+**L0 scope — a guest key, or a typed entity model**
+- **Option A — VMID only.** Simplest, and it fixes the host-map bug. But it identifies *guests*, and
+  half the lab the agent actually operates is **compose services**, which have no VMID. Drift on a
+  service, a route pointing at a service, or "which guest hosts this" would all stay un-keyed.
+- **Option B — a small typed model: one class per kind of thing, each with a natural key already
+  present in collected data.** More surface, but every key already exists — nothing new is invented:
+
+  | Class | Key | Where the key already lives | Address |
+  |---|---|---|---|
+  | **node** | node name | Proxmox API (`server-proxmox-core`) | — |
+  | **guest** | **VMID** | Proxmox API; **derives its IP** (ADR 0001) | `10.10.V.O` |
+  | **service** | **compose project name** | the `compose/<dir>/` in git, confirmed on the host by the `com.docker.compose.project` label | none of its own — inherits its host guest's |
+  | **vhost** | hostname | Caddyfile + DNS | the front door's IP — **and it is not a host** |
+  | **netgear** | controller device id / MAC | UniFi/Omada (P4) | DHCP reservation |
+
+  Edges: `service —hosted_on→ guest`, `guest —on→ node`, `vhost —fronted_by→ guest(proxy) —backend→ service`.
+- **Decision: B (CHOSEN).** Three reasons. (1) The service key is **free and verified** — 10 of 11
+  running compose projects match a `compose/` directory by name exactly. (2) It fixes SKY-015
+  properly: a vhost stops being a *host with a warning annotation* and becomes **a different class of
+  entity**, so "front door, not a host" is a type rather than a heuristic. (3) The audit generalises —
+  the same query that found CT 526 (running guest, in no view) finds **`arcane-manager`: a running
+  compose project with no `compose/` directory in git**, i.e. a service deployed outside the GitOps
+  loop. One model, both holes.
+
 **L0 spine — derived vs authored (Ansible inventory)**
 - **Option A — an authored YAML inventory + `group_vars`.** Real inheritance, familiar shape.
 - **Option B — derive from the VMID convention; author only what is genuinely judgment.**
@@ -166,19 +192,32 @@ The verdict per layer — improve in place, replace outright, or build from noth
 ### Phase 1 — L0: the derivation and the audit  (~1–2h)   `[ ]` not started
 The cheapest thing in the directive, and everything downstream keys on it.
 Steps:
-1. `scripts/entity.sh` — a sourceable helper implementing ADR 0001's convention: `vmid_to_ip`
-   (VLAN = leading digits with the trailing zero restored, octet = trailing two), plus the inverse and
-   an `--audit` mode. VLAN 100 guests carry 4- and 5-digit ids; handle both.
-2. `bin/ops entities` — run the derivation across `inventory/proxmox-*.json`, join against the
-   firewall/DNS host facts, and classify every guest: **matched**, **unmatched-and-stopped** (stale),
-   **unmatched-and-running** (a real hole), **exception** (declared).
-3. Unit-test the derivation against the known-good set (240→`HOST_PBS`, 635→`HOST_PROXY_ADMIN`,
-   751→`tdns-core`, 1035→`HOST_PROXY_APPS`, 10015→`HOST_DOCKER_DMZ`).
-4. Journal the first audit as an episode — the stale-guest list is a retirement proposal, not an
-   action.
+1. `scripts/entity.sh` — a sourceable helper covering **all five classes**, not just guests:
+   - **guest:** `vmid_to_ip` implementing ADR 0001 (VLAN = leading digits with the trailing zero
+     restored, octet = trailing two), plus the inverse. VLAN 100 guests carry 4- and 5-digit ids;
+     handle both.
+   - **service:** key = the compose project name; read from `compose/*/` in git and from the
+     `com.docker.compose.project` label in `inventory/docker-*.json`. Both sides already carry it.
+   - **vhost / node / netgear:** key passthrough — hostname, node name, device id.
+2. **The `hosted_on` edge.** Each `inventory/docker-<label>.json` carries a `host` label
+   (`docker-dmz`) that maps to a guest (`vm-docker-dmz`, VMID 10015) by a convention nobody reads.
+   Do **not** string-munge the `vm-` prefix: declare the label→VMID map in `lab.json` (P2) and have
+   the helper resolve through it, so a second docker host is a data change, not a code change.
+3. `bin/ops entities` — run every class and classify each row: **matched**, **unmatched-and-stopped**
+   (stale), **unmatched-and-running** (a real hole), **exception** (declared). Guests join against
+   firewall/DNS host facts; services join `compose/` against the running project labels in both
+   directions.
+4. Unit-test the derivation against the known-good set — guests (240→`HOST_PBS`,
+   635→`HOST_PROXY_ADMIN`, 751→`tdns-core`, 1035→`HOST_PROXY_APPS`, 10015→`HOST_DOCKER_DMZ`) and
+   services (10 of 11 running projects match a `compose/` dir by name; **`arcane-manager` does not** —
+   a service running outside the GitOps loop, and the expected first finding).
+5. Journal the first audit as an episode — the stale-guest and undeclared-service lists are
+   proposals, not actions.
 
-Exit criteria: `bin/ops entities` reproduces the audit (14 matched / 4 stale / 1 running-unmapped) and
-exits non-zero only on a *running* unmapped guest that is not a declared exception.
+Exit criteria: `bin/ops entities` reproduces the guest audit (14 matched / 4 stale / 1
+running-unmapped) **and** the service audit (10 declared / 1 undeclared-and-running), resolves
+`service → guest` through `lab.json`, and exits non-zero only on a *running* entity — of any class —
+that is neither mapped nor a declared exception.
 
 ### Phase 2 — L0: authored judgment data, and the invariant  (~1–2h)   `[ ]` not started
 Steps:
@@ -186,10 +225,15 @@ Steps:
    (5001 OPNsense, and any guest deliberately off-convention), each with a one-line `why` in the
    file's existing style. Constraint-class data, read by the gate.
 2. **`lab.json`** (new, repo root, same `_comment` discipline) holds the **judgment** facts that are
-   currently hardcoded in `render-docs.sh`: VLAN display names, the reverse-proxy front-door alias
-   set, and per-entity role labels. Display-class data, read by the renderer.
-3. `check-invariants.sh` gains the fourth law: every running guest either satisfies the convention or
-   is a declared exception. Fails the PR otherwise.
+   currently hardcoded in `render-docs.sh`, plus the model's authored edges: VLAN display names, the
+   reverse-proxy front-door alias set (which is what makes a **vhost** a vhost), per-entity role
+   labels, and the **docker host-label → VMID map** the `hosted_on` edge resolves through. Display-
+   and topology-class data, read by the renderer and the entity helper.
+3. `check-invariants.sh` gains the fourth law, stated per class: every **running** entity is either
+   mapped or a declared exception — for a guest that means satisfying the VMID convention, for a
+   **service** it means having a `compose/<project>/` directory in git. Fails the PR otherwise.
+   (`arcane-manager` will fail it on day one: either declare it as an exception with a `why`, or bring
+   it into the GitOps loop. That choice is Ali's, and the gate is what forces it to be made.)
 4. Delete the `vlan_name()` `case` statement and the inline proxy-alias set from `render-docs.sh`;
    both now read `lab.json`.
 
@@ -371,3 +415,8 @@ Follow AGENTS.md as above.
 - 2026-08-28 — created (draft). Derived from the eight-layer architecture note and the full-agent-control
   options research; sequenced against SKY-017 (ladder) and marked to supersede SKY-015 / absorb
   SKY-004 P1 on close-out.
+- 2026-08-28 — L0 widened from a guest key to a **typed five-class entity model** after the question
+  "is this only Proxmox, or docker services too?". The service key was already there and verified
+  (10 of 11 running compose projects match a `compose/` dir); modelling **vhost as its own class**
+  turns SKY-015's warning annotation into a type; the audit generalised to find `arcane-manager`,
+  a service running outside the GitOps loop.
