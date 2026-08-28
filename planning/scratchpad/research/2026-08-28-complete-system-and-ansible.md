@@ -193,3 +193,8 @@ truth, and not urgent. If it lands, §3.2 supplies its inventory and L0 supplies
 
 Steps 1–4 add no service, no standing credential, and no backup obligation. That is the test any
 addition to this system should have to pass.
+
+**Now owned by directives.** Steps 1–4 became [SKY-018](../../planning/ideas/SKY-018-eight-layer-reconciliation-entity-spine-the-analyze-phase-and-the-verification-toolchain.md)
+(the substrate: all eight layers, twelve phases, with the SQLite cache at P3 and the Ansible question
+settled as "derive, don't author"); the autonomy machinery that spends this substrate is
+[SKY-017](../../planning/ideas/SKY-017-the-road-to-full-agent-control-verification-proving-ground-and-an-evidence-earned-ratchet.md).

@@ -157,7 +157,7 @@ Steps:
    rollback on probe failure** — driven by the dumb executor, not by the agent noticing. Reuses
    SKY-016's reachability work rather than duplicating it. First executor built: a **health-gated
    compose wrapper** (deploy → probe → on failure `git revert` + reconcile), which closes the Arcane
-   gap from P1 without changing platform.
+   gap from P1 without changing platform. **Built by SKY-018 P6** — consume it here, don't rebuild it.
 1b. **A machine gate between plan and apply**: `conftest`/Rego over `tofu plan -json` — today the
    widest-blast-radius actuator has no deterministic check at all. Keep the policy set small and
    `conftest verify`-tested; the existing hard laws stay in bash (legibility beats uniformity).
@@ -227,3 +227,7 @@ Follow AGENTS.md as above.
 - 2026-08-28 — options research landed (`planning/scratchpad/research/2026-08-28-full-agent-control-options.md`);
   phases updated with the tool choices it settled (conftest/Rego, `tofu test` not Terratest, a
   health-gated compose wrapper rather than a platform switch) and the MAPE-K framing.
+- 2026-08-28 — SKY-018 minted to own the substrate (the eight layers, their writers and checkers,
+  the rollback executors). This directive keeps the ladder: proving ground, budget, breaker,
+  adversarial review, track record, graduations. SKY-018 P6 supplies P3's rollback executors and
+  SKY-018 P9 supplies the drift signal P4's record depends on.

@@ -1,0 +1,373 @@
+---
+id: SKY-018
+title: "Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain"
+status: draft
+horizon: long
+created: 2026-08-28
+updated: 2026-08-28
+phases: 12
+current_phase: 0
+tier_touched: [T1, T2]   # Mostly T1 (derive, collect, render, check). P4 EXTENDS the T1 read surface
+                         # to the UniFi/Omada controllers ⇒ docs/system-design.md §3 PR. P6/P11 touch
+                         # existing T2 actuators without widening any dial — no new pool, no new tier.
+related:
+  - docs/system-design.md
+  - docs/decisions/0003-ambiguity-layering-and-format-follows-enforcement.md
+  - docs/decisions/0005-full-agent-control-as-terminal-goal.md
+  - planning/ideas/SKY-017-the-road-to-full-agent-control-verification-proving-ground-and-an-evidence-earned-ratchet.md
+  - planning/ideas/SKY-004-reactive-operations-event-driven-layer-drift-as-signal.md
+  - planning/ideas/SKY-015-inventory-renderer-overhaul-proxy-aware-service-annotation-canonical-host-map-reverse-proxy-route-inventory.md
+  - planning/scratchpad/research/2026-08-28-complete-system-and-ansible.md
+  - planning/scratchpad/research/2026-08-28-full-agent-control-options.md
+  - "[[SKY-018-progress]]"
+---
+
+# SKY-018 · Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain
+
+> Make the substrate fit to be autonomous. Every layer gets a **writer and a checker**, every fact
+> gets **one home**, and the tools the options research settled — conftest/Rego, `tofu test`, a
+> health-gated deploy wrapper, SQLite-as-cache, the journal as a replay log — land where they belong.
+> SKY-017 buys autonomy with evidence; **this directive builds the thing the evidence is about.**
+
+> **Status: idea.** Long horizon, twelve phases. Promote with `bin/plan start SKY-018`.
+
+## 0. What this directive owns (and what it doesn't)
+
+The roadmap now has four adjacent directives. The boundary, stated once so nobody re-derives it:
+
+| Directive | Owns |
+|---|---|
+| **SKY-018 (this)** | The **substrate**: the eight layers, their writers and checkers, and the toolchain that gates and verifies them |
+| **SKY-017** | The **ladder**: proving ground, change budget, circuit breaker, adversarial review, the per-capability track record, the first graduations |
+| **SKY-004** | The **event transport**: the webhook receiver and the batch→reactive shift. *This directive absorbs its Phase 1 (drift-as-signal), which is L4 and cannot be split from the entity spine* — SKY-004 is left owning reactivity |
+| **SKY-015** | Superseded in substance: its Phase 1–2 (proxy annotation, canonical host map) fall out of P2–P3 here, its Phase 3 (route table) becomes P5. **Archive it on this directive's close-out** rather than running both |
+| **SKY-016** | Service-deployment hardening; **P6 here builds the rollback half**, SKY-016 keeps the reachability half |
+
+Two cross-references to keep honest: SKY-017 P3 names a health-gated compose wrapper — **that is P6
+here**, and SKY-017 consumes it rather than building it. SKY-017's proving ground (P2 there) is the
+place P6's rollbacks get tested in the failure case.
+
+## 1. Problem / motivation
+
+The architecture note scored the system as **~70% complete**, where complete means *every layer has a
+writer and a checker, and every fact has one home*. The missing 30% is not spread evenly — it is two
+empty layers and a set of implementations that work but cannot be checked:
+
+- **L0 Identity is empty.** Every generated view is a fuzzy join on **IP address**. `render-docs.sh`
+  merges DHCP reservations, firewall aliases and DNS records with a hardcoded priority ladder, so a
+  host is *an IP several sources happen to agree on*. That is why a reverse-proxy front door reads as
+  a machine. Meanwhile **ADR 0001's VMID convention already is a primary key** and nothing reads it:
+  deriving it with no authored mapping matches **14 of 19 guests**, isolates **4 stale stopped
+  guests**, and surfaces **one running guest invisible to every view** (CT 526, the UniFi controller).
+- **L4 Analyze is empty.** In MAPE-K terms the system is a strong Plan phase wired to no error signal:
+  observed truth is committed nightly and never *asserted* against intended truth. The nightly PR
+  proves something changed, never whether it was supposed to.
+- **L3 has one engine and it can't reach the widest actuator.** `check-invariants.sh` enforces three
+  hard laws in bash. `tofu apply` — the highest-blast-radius actuator in the system — has **no
+  machine gate between plan and apply at all**.
+- **L7 mostly cannot roll back.** deploy-rs magic-rollback ✅ and OPNsense's own validate-and-restore
+  ✅ pass ADR 0005 §3. Arcane ❌ (converges from git, never rolls back on health failure), `tofu
+  apply` ❌, DNS writes ❌. Under §3 that caps all three below A4 no matter how well they work.
+- **L2 has three holes**, one of them live: the **UniFi/Omada switch and AP estate is collected by
+  nothing** (both controllers run as guests, `ROLE_INFRASTRUCTURE_SWITCHES` and `..._APS` exist in the
+  firewall, an EAP683 shows up in DHCP), the **Caddy route table** lives only in Caddyfiles, and
+  there is **no certificate inventory**.
+- **L5 does relational work in `jq`, `awk` and `sort`.** The fuzzy joins *are* a hand-rolled query
+  planner, and authored knowledge (the VLAN-name map, the proxy-alias set) is baked into a bash
+  `case` statement inside the renderer — authored data with a deterministic consumer, living in code.
+  That is precisely the shape ADR 0003 says to extract.
+
+None of this is a missing product. It is a missing **key**, a missing **controller**, and a set of
+implementations that were right when a human was the only verifier and are not right for A4.
+
+## 2. The eight-layer reconciliation
+
+The verdict per layer — improve in place, replace outright, or build from nothing:
+
+| Layer | Today | Verdict | What changes | Phase |
+|---|---|---|---|---|
+| **L0 Identity** | *nothing* | **BUILD** | VMID⇒VLAN+octet derivation as a shared helper; authored exceptions in `invariants.json`, authored judgment facts in a new `lab.json` | P1–P2 |
+| **L1 Intended** | tofu (1 guest), nix (1 host), compose (10 svcs), sops | **IMPROVE + WIDEN** | Technitium records + remaining in-pool guests under tofu; **keep Arcane** (see §2 decisions) | P11 |
+| **L2 Observed** | 5 collectors → `inventory/` | **IMPROVE + FILL** | entity-keyed output; new collectors for network gear, Caddy routes, certificates | P4–P5 |
+| **L3 Constraints** | `invariants.json` + bash gate | **IMPROVE + SECOND ENGINE** | keep bash for the hard laws; add **conftest/Rego** for structured artifacts (`tofu plan -json`, `firewall.json`) | P7–P8 |
+| **L4 Analyze** | *nothing* | **BUILD** | drift = intended − observed, per layer, **entity-attributed**, report-only | P9 |
+| **L5 Views** | `render-docs.sh`, IP-heuristic joins in jq/awk | **REPLACE the join engine** | a **rebuildable SQLite cache** built at render time; renderer queries SQL over entity keys | P3 |
+| **L6 Memory** | journal, ADRs, digest | **IMPROVE** | journal becomes the **replay log** — capability runs write structured steps, so a run resumes instead of re-deriving | P10 |
+| **L7 Actuation** | Arcane, tofu, grant-root, deploy-rs | **IMPROVE per actuator** | a **named rollback executor** for each: health-gated compose wrapper, snapshot-before-apply, DNS revert files | P6 |
+
+### Decisions worth recording (so they stay decided)
+
+**L5 join engine — `jq`+`awk` vs SQLite vs a real database**
+- **Option A — more `jq`.** Zero new tools; but the joins are already the hardest code in the repo
+  and every new dataset (routes, certs, network gear) multiplies the join surface.
+- **Option B — a rebuildable SQLite cache.** Build `inventory.db` from `inventory/*.json` at render
+  time, query it with SQL, never commit it. **Git stays truth; the DB is a cache** — the same rule the
+  memory spoke already applies to a future semantic index. Real joins, and the agent gains ad-hoc
+  querying ("which running guest has no DNS record, no alias and no backup job?").
+- **Option C — a source-of-truth database (NetBox/Nautobot).** Rejected in its own research note: it
+  becomes a fourth home for identity without retiring the other three.
+- **Decision: B (CHOSEN).** SQLite ships with the toolchain, the file is gitignored and regenerated
+  idempotently, and losing it costs one render.
+
+**L7 compose rollback — wrapper vs platform switch**
+- **Option A — switch to Komodo.** Deterministic compose GitOps with richer deploy handling.
+- **Option B — a health-gated wrapper around the existing loop:** deploy → probe → on failure
+  `git revert` + reconcile.
+- **Decision: B (CHOSEN).** The wrapper *is* the dumb executor ADR 0005 §3 asks for, costs no
+  platform churn, and generalises to actuators Komodo would never cover. Komodo stays the fallback
+  only if the wrapper grows into a product.
+
+**L3 second engine — more bash vs Rego**
+- **Option A — extend `check-invariants.sh`.** Legible and already trusted; but plan-JSON policy in
+  bash is a parser nobody wants to own.
+- **Option B — `conftest`/Rego for structured artifacts only.** `tofu plan -json` is identical to
+  Terraform's, so the whole policy ecosystem applies unchanged.
+- **Decision: B for structured artifacts, A retained for the hard laws (CHOSEN).** Deliberately *not*
+  a migration — legibility beats uniformity, and the hard laws are three greps. Cost is honest: Rego
+  is a new language; keep the policy set small and `conftest verify`-tested.
+
+**L6 resumability — journal vs a durable-execution engine**
+- **Option A — Temporal/Restate/DBOS.** Mature, and the pattern is exactly right.
+- **Option B — steal the pattern only:** deterministic outer loop, every step appended to the journal,
+  resume from the record.
+- **Decision: B (CHOSEN).** Temporal's workflow history is system-class state in **its own database** —
+  a direct §2a rebuild-law violation, plus a standing service. The pattern costs a convention.
+
+**L0 spine — derived vs authored (Ansible inventory)**
+- **Option A — an authored YAML inventory + `group_vars`.** Real inheritance, familiar shape.
+- **Option B — derive from the VMID convention; author only what is genuinely judgment.**
+- **Decision: B (CHOSEN).** Almost everything an authored file would hold is already collected or
+  derivable, so authoring it makes a third copy that drifts. Author only the facts that *are*
+  judgment: VLAN display names, which alias is a proxy front door, which guests are intentional
+  convention exceptions. (Ansible's *dynamic* Proxmox inventory stays available later as another
+  rendering of L2 — a view, never a truth.)
+
+## 3. The plan
+
+- **Scope:** the eight layers reconciled — L0 and L4 built, L5's join engine replaced, L2's holes
+  closed, L3 given a second engine, L6 upgraded to a replay log, L7 given rollback executors, L1
+  widened where it is cheap and gated.
+- **Non-goals:** any autonomy promotion (that is SKY-017 — this directive changes **no** dial);
+  adopting a source-of-truth product; converting LXC guests to NixOS; adopting Ansible's runtime; any
+  new T3 path; touching the excluded guests beyond reading them.
+- **Hosts & tiers touched:** ops VM throughout. **P4 extends the T1 read surface** to the UniFi and
+  Omada controllers ⇒ **⚠ `docs/system-design.md` §3 PR + access-and-trust spoke**. P6 and P11 change
+  *how* existing T2 actuators run, not *what* they may reach — no dial moves, so no constitution PR
+  for those.
+- **Rollback posture:** every phase is additive. New scripts are new files; the SQLite cache is
+  gitignored and regenerable; the renderer keeps its old path until P3's exit criteria pass; policies
+  start in report-only before they fail a build. `git revert` restores any phase.
+- **Grants / human actions:** none for P1–P3, P5, P7–P10 (all T1, read + render + check). **P4** needs
+  Ali to create two read-only controller credentials **and** merge the constitution PR (⚠ hard
+  checkpoint — credential handling + tier assignment). **P6/P11** need normal PR merges.
+
+---
+
+### Phase 1 — L0: the derivation and the audit  (~1–2h)   `[ ]` not started
+The cheapest thing in the directive, and everything downstream keys on it.
+Steps:
+1. `scripts/entity.sh` — a sourceable helper implementing ADR 0001's convention: `vmid_to_ip`
+   (VLAN = leading digits with the trailing zero restored, octet = trailing two), plus the inverse and
+   an `--audit` mode. VLAN 100 guests carry 4- and 5-digit ids; handle both.
+2. `bin/ops entities` — run the derivation across `inventory/proxmox-*.json`, join against the
+   firewall/DNS host facts, and classify every guest: **matched**, **unmatched-and-stopped** (stale),
+   **unmatched-and-running** (a real hole), **exception** (declared).
+3. Unit-test the derivation against the known-good set (240→`HOST_PBS`, 635→`HOST_PROXY_ADMIN`,
+   751→`tdns-core`, 1035→`HOST_PROXY_APPS`, 10015→`HOST_DOCKER_DMZ`).
+4. Journal the first audit as an episode — the stale-guest list is a retirement proposal, not an
+   action.
+
+Exit criteria: `bin/ops entities` reproduces the audit (14 matched / 4 stale / 1 running-unmapped) and
+exits non-zero only on a *running* unmapped guest that is not a declared exception.
+
+### Phase 2 — L0: authored judgment data, and the invariant  (~1–2h)   `[ ]` not started
+Steps:
+1. **`invariants.json`** gains `entity_conventions`: the VMID⇒IP law plus its *declared exceptions*
+   (5001 OPNsense, and any guest deliberately off-convention), each with a one-line `why` in the
+   file's existing style. Constraint-class data, read by the gate.
+2. **`lab.json`** (new, repo root, same `_comment` discipline) holds the **judgment** facts that are
+   currently hardcoded in `render-docs.sh`: VLAN display names, the reverse-proxy front-door alias
+   set, and per-entity role labels. Display-class data, read by the renderer.
+3. `check-invariants.sh` gains the fourth law: every running guest either satisfies the convention or
+   is a declared exception. Fails the PR otherwise.
+4. Delete the `vlan_name()` `case` statement and the inline proxy-alias set from `render-docs.sh`;
+   both now read `lab.json`.
+
+Exit criteria: the renderer holds no authored knowledge; a PR that adds an off-convention running
+guest without declaring it fails CI; `check-invariants.sh` still passes on `main`.
+
+### Phase 3 — L5: replace the join engine with a rebuildable SQLite cache  (~1–2h)   `[ ]` not started
+Steps:
+1. Add `sqlite` to the nix toolchain (`nix/modules/base.nix`).
+2. `scripts/build-db.sh` — load every `inventory/*.json` into `.cache/inventory.db` (gitignored):
+   tables for guests, hosts, aliases, dns_records, reservations, pools, containers. Keyed on the
+   **entity id from P1**, not on IP. Idempotent; rebuilt from scratch each run.
+3. Rewrite the `render-docs.sh` host table as SQL over that cache: the canonical host map joins on
+   entity, and a DNS record whose target is a `lab.json` front-door alias renders as
+   `⚠ front door — not the host` (SKY-015 P1's fix, now with a real key behind it).
+4. Add `bin/ops query "<sql>"` so the agent can ask ad-hoc questions instead of grepping.
+
+Exit criteria: `docs/generated/` renders identically-or-better with no IP-priority ladder left in the
+renderer; the DB is absent from git and rebuilt by `render-docs.sh`; `bin/ops query` answers "running
+guests with no DNS record, no alias and no backup job".
+
+### Phase 4 — L2: the network-gear collector  (~1–2h)   `[ ]` not started
+The largest observed-truth hole, and the only phase that moves a trust surface.
+Steps:
+1. **⚠ Hard checkpoint — tier assignment:** PR `docs/system-design.md` §3 to add the **UniFi and
+   Omada controllers to the T1 read surface**, plus the access-and-trust spoke. This is an extension
+   point (§5, "a new capability / trust boundary"), so it is a constitution PR by rule.
+2. **⚠ Hard checkpoint — credentials:** Ali creates a **read-only** local account or API key on each
+   controller; the agent never holds an admin credential to either. Stored `0600` under
+   `/opt/skynet-ops/secrets/`, same shape as `cloudflare-dns.env`.
+3. `scripts/collect-network-gear.sh` → `inventory/network-gear.json`: switches, APs, ports, PoE state,
+   VLAN/profile assignment, firmware, adoption status. Degrades gracefully with no creds (exit 0),
+   like every other collector.
+4. Render a `docs/generated/50-network-gear.md` view and join the estate onto the entity map.
+
+Exit criteria: the switch/AP estate appears in inventory and in a generated view; CT 526 is no longer
+invisible; the collector is read-only and exits 0 without credentials.
+
+### Phase 5 — L2: routes and certificates  (~1–2h)   `[ ]` not started
+Steps:
+1. `scripts/collect-routes.sh` — parse the Caddyfiles under `compose/` (and the Management Caddy
+   mirror) into `inventory/routes.json`: hostname → which Caddy → backend `host:port` → auth mode.
+   Static parse of committed config; no live access needed.
+2. `scripts/collect-certs.sh` — certificate inventory (issuer, SANs, notAfter) for the internal and
+   published names, from the proxies' own stores where readable, otherwise by probing the endpoints.
+3. Render the full resolution chain in `30-services`: vanity name → front door → **real backend
+   entity**. Emit an expiry table sorted by soonest.
+
+Exit criteria: a vanity hostname resolves end-to-end in the generated docs; every certificate has a
+recorded expiry; no manual Caddyfile reading is needed to answer "where does this actually go".
+
+### Phase 6 — L7: rollback executors  (~1–2h)   `[ ]` not started
+The phase that unblocks A4 for three actuators. Each executor must be **automatic, testable in the
+failure case, and independent of the agent** (ADR 0005 §3).
+Steps:
+1. **Compose:** extend `scripts/gitops-deploy.sh` into a health-gated path — deploy → wait for
+   healthy → probe the service's declared endpoint → **on failure `git revert` the deploy commit and
+   let Arcane reconcile back**. The wrapper decides; the agent is not in the loop.
+2. **Tofu:** `scripts/tofu-apply.sh` — snapshot every in-pool guest the saved plan touches, apply the
+   **saved plan** (never a re-planned one), verify, and roll the snapshot back on failure. `destroy`
+   remains a hard checkpoint and is refused by the wrapper outright.
+3. **DNS:** every Technitium/Cloudflare write first appends the prior record value to a revert file;
+   `scripts/dns-revert.sh` replays it. Trivial, and it converts an ❌ into a ✅ on the actuator table.
+4. Record each executor in the actuator table SKY-017 P1 owns — name, trigger, tested-in-failure date.
+
+Exit criteria: a deliberately-unhealthy compose deploy auto-reverts with no human action; a failing
+tofu apply restores the snapshot; a DNS write can be undone from its revert file. All three
+demonstrated in the failure case, not just reasoned about.
+
+### Phase 7 — L3: the second gate (conftest/Rego over `tofu plan`)  (~1–2h)   `[ ]` not started
+Steps:
+1. Add `conftest` to the nix toolchain.
+2. `policy/tofu/*.rego` — deny any plan that: contains a `delete` action; touches a VMID outside the
+   declared pool set; touches any excluded guest with anything heavier than the config-only role;
+   creates a resource with no `lab.json` entity mapping. Mirror the hard laws rather than replacing
+   them.
+3. `policy/*_test.rego` + `conftest verify` in CI — the policies themselves get unit tests, or they
+   are just more prose.
+4. `scripts/check-policy.sh`, wired into `.github/workflows/checks.yml` as a third job **and** into
+   `scripts/tofu-apply.sh` as a pre-apply gate. Ship **report-only for one cycle**, then enforce.
+
+Exit criteria: a PR whose plan would destroy an in-pool guest fails CI; `conftest verify` passes; the
+pre-apply gate refuses a plan the CI job would have failed.
+
+### Phase 8 — L3: firewall validation as a capability  (~1–2h)   `[ ]` not started
+The capability Ali named, built on data already collected.
+Steps:
+1. `policy/firewall/*.rego` over `inventory/firewall/firewall.json`: no any-any rule; no rule
+   sourcing a `ROLE_OPS_*` alias into a T3 target; every rule carries a description; no alias
+   references a host absent from the entity map; `ROLE_OPS_PRIV_TARGETS` is empty (the dormant-alias
+   law, now machine-checked).
+2. Run it in the nightly, **report-only at A1** — findings become a section of the report and a
+   proposal, never an edit. OPNsense is T3; the agent reads and argues, it does not touch.
+3. Render the findings into `20-firewall.md` with severity, so the human reads a ranked list.
+
+Exit criteria: the nightly reports firewall findings with zero false positives on the current
+ruleset; a deliberately-broken test fixture is caught; nothing writes to OPNsense.
+
+### Phase 9 — L4: build the Analyze phase  (~1–2h)   `[ ]` not started
+The empty MAPE-K phase. Absorbs SKY-004 Phase 1.
+Steps:
+1. `scripts/drift.sh` — compute intended − observed per layer: `tofu plan -detailed-exitcode`
+   (exit 2 = drift), `nixos-rebuild dry-activate`, `docker compose config` vs running state, and the
+   firewall mirror vs its last-approved baseline.
+2. **Attribute every drift to an entity** (P1's key), not to an IP or a file path, so the report says
+   *what* regressed.
+3. Emit drift as a first-class artifact: a `docs/generated/60-drift.md` view, a journal episode when
+   non-empty, and a non-zero exit the nightly can act on. **Report-only** — no auto-correction here;
+   that is a SKY-017 graduation.
+4. Baseline the firewall mirror so "someone changed it by hand" is detectable at all.
+
+Exit criteria: a hand-made change to a declared resource shows up in the next drift run, named by
+entity, within one nightly; a clean lab reports zero drift.
+
+### Phase 10 — L6: the journal as a replay log  (~1–2h)   `[ ]` not started
+Steps:
+1. `scripts/run-capability.sh` — the deterministic outer loop: takes a capability name and arguments,
+   appends a **structured step record** (step, intent, command, exit, artifact) to the run's journal
+   entry as it goes, and exits with the run's status.
+2. Resume: a run that died mid-way can be continued from its record instead of re-derived — the
+   durable-execution pattern without the engine.
+3. Surface in-flight and recently-failed runs in `06-agent-digest.md`, so a cold agent sees unfinished
+   business before it starts new work.
+4. Keep episodes **raw** — structured steps are facts, not narrative; summarising still happens at
+   read time (memory spoke).
+
+Exit criteria: a capability killed halfway resumes to completion from its journal record; the digest
+shows in-flight runs; no episode is rewritten after the fact.
+
+### Phase 11 — L1: widen intended state where it is cheap  (~1–2h)   `[ ]` not started
+Gated on P7 — do not widen what tofu may touch until the plan gate exists.
+Steps:
+1. Technitium **zone records** declared in `tofu/` (already T2, already collected, a provider exists).
+   Records only — server settings stay T3.
+2. Declare the remaining **in-pool** guests as tofu resources, importing rather than recreating.
+   Coverage goes from ~2 of 21 to every guest the agent may already write.
+3. Leave everything else observed-only **on purpose**, and say so in the spoke: excluded guests, the
+   node config, template bootstrap, and the `svc-tofu` token itself.
+
+Exit criteria: `tofu plan` is clean against reality for every declared resource; the plan gate passes;
+no excluded guest appears in any tofu resource.
+
+### Phase 12 — the reconciliation review  (~1–2h)   `[ ]` not started
+Steps:
+1. Re-score all eight layers against *"has a writer and a checker; every fact has one home"* and
+   publish the scorecard in the architecture note.
+2. Update `docs/system-design.md` §1a's pointer and the affected spokes (observability, gitops-loop,
+   access-and-trust) to describe what now exists — current rule only, no war stories.
+3. **Archive SKY-015** (superseded by P2–P3, P5) and re-scope **SKY-004** to the event transport
+   alone, noting P9 delivered its Phase 1.
+4. Hand off to SKY-017: the actuator table has rollback executors, drift is attributable, and the
+   proving ground now has a substrate worth rehearsing against.
+
+Exit criteria: no layer lacks a checker; the roadmap has no duplicate directives; SKY-017 P1 can start
+from real data rather than a survey.
+
+## 4. ▶ Execute prompt
+```
+Read planning/projects/SKY-018-eight-layer-reconciliation-entity-spine-the-analyze-phase-and-the-verification-toolchain.md and execute Phase <N>.
+Follow AGENTS.md: plan loudly then run quietly, never merge your own PRs, request the
+narrowest host / shortest grant the phase needs, and checkpoint at the listed human/grant
+steps. Phase 4 needs a constitution PR and Ali-created credentials before any collection —
+stop and wait there. When the phase's exit criteria are met, do the "Phase close-out" below.
+```
+
+## 5. Phase close-out (resume material)
+- [ ] Land the work via **PR** (agent never merges its own).
+- [ ] Write/refresh a memory `SKY-018-progress` (what shipped, what's next, gotchas) + a MEMORY.md pointer.
+- [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
+- [ ] `bin/plan list` to refresh the roadmap index.
+- [ ] Paste the **Continue prompt** below to resume in a fresh session:
+```
+Continue planning/projects/SKY-018-eight-layer-reconciliation-entity-spine-the-analyze-phase-and-the-verification-toolchain.md at Phase <N+1>.
+Prereqs carried from the last phase: <…>. Resume context from memory [[SKY-018-progress]].
+Follow AGENTS.md as above.
+```
+
+## 6. Status log
+- 2026-08-28 — created (draft). Derived from the eight-layer architecture note and the full-agent-control
+  options research; sequenced against SKY-017 (ladder) and marked to supersede SKY-015 / absorb
+  SKY-004 P1 on close-out.
