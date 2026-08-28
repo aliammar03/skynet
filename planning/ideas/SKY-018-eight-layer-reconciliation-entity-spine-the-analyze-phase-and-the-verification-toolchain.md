@@ -151,6 +151,22 @@ The verdict per layer — improve in place, replace outright, or build from noth
   | **netgear** | controller device id / MAC | UniFi/Omada (P4) | DHCP reservation |
 
   Edges: `service —hosted_on→ guest`, `guest —on→ node`, `vhost —fronted_by→ guest(proxy) —backend→ service`.
+
+  **ID convention (settled 2026-08-28).** `<class>/<key>`, with the guest key descriptive:
+  **`guest/<role>-<vlan>-<vmid>`** — e.g. `guest/docker-dmz-10015`, `guest/skynet-ops-9090`,
+  `guest/technitium-core-dns-751`. Rules: *role* is the guest name minus its `vm-`/`lxc-` prefix; the
+  VLAN slug is appended **only if the role does not already end with it** (no `docker-dmz-dmz`); the
+  VMID is last and remains the authoritative key — names collide today (`lxc-adguard-core` is both
+  231 and 731; `vm-skynet-ops` is both 999 and 9090), so the slug is decoration and the number is
+  identity. Note `-core`/`-network` in existing names denotes the **Proxmox node**, not the VLAN
+  (`technitium-core` and `technitium-network` are both VLAN 70), so those stay part of the role.
+  Classes with no numeric key use their natural key alone: `svc/karakeep`, `vhost/pbs.aliammar.net`,
+  `node/server-proxmox-core`, `net/ap-omada-downstairs` — a service inherits its host's address and a
+  vhost's address is the front door's, so neither needs a VLAN token.
+
+  **The ID is self-validating.** The VLAN slug and the VMID's leading digits encode the same fact, so
+  the P2 gate asserts they agree — `...-dmz-751` fails, because 751 is VLAN 70. A cosmetic convention
+  becomes a checkable invariant for free.
 - **Decision: B (CHOSEN).** Three reasons. (1) The service key is **free and verified** — 10 of 11
   running compose projects match a `compose/` directory by name exactly. (2) It fixes SKY-015
   properly: a vhost stops being a *host with a warning annotation* and becomes **a different class of
@@ -221,6 +237,13 @@ that is neither mapped nor a declared exception.
 
 ### Phase 2 — L0: authored judgment data, and the invariant  (~1–2h)   `[ ]` not started
 Steps:
+0. **⚠ Resolve the VLAN vocabulary first — there are two, and five of eight disagree.**
+   `render-docs.sh`'s `vlan_name()` says 20=Storage, 50=Infrastructure, 60=Trusted LAN,
+   70=DNS & Services; the firewall alias descriptions say 20=**Servers**, 50=**Management**,
+   60=**Admin Access**, 70=**Network Services**. Only 80=Identity and 100=DMZ agree. Since the VLAN
+   slug now appears in every guest ID, one canonical set must be chosen and recorded in `lab.json`,
+   and the losing wording corrected wherever it appears. Watch the collision: VLAN 10 "Admin" and
+   VLAN 60 "Admin Access" cannot both slug to `admin`.
 1. **`invariants.json`** gains `entity_conventions`: the VMID⇒IP law plus its *declared exceptions*
    (5001 OPNsense, and any guest deliberately off-convention), each with a one-line `why` in the
    file's existing style. Constraint-class data, read by the gate.
@@ -420,3 +443,6 @@ Follow AGENTS.md as above.
   (10 of 11 running compose projects match a `compose/` dir); modelling **vhost as its own class**
   turns SKY-015's warning annotation into a type; the audit generalised to find `arcane-manager`,
   a service running outside the GitOps loop.
+- 2026-08-28 — entity ID convention settled: `<class>/<key>`, guests as `role-vlan-vmid`, no stutter,
+  VMID authoritative. Applying it surfaced a prerequisite: the lab has **two conflicting VLAN
+  vocabularies** (renderer vs firewall descriptions), which P2 step 0 now resolves.
