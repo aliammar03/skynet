@@ -46,13 +46,18 @@ contains one.** If you want the second thing, Nautobot wins outright and it isn'
 
 - **DCIM value ≈ zero.** Racks, cables, power feeds, device bays: we have two Proxmox nodes, an
   Unraid box, a firewall appliance and some LXC/VMs. Nothing to model. Half of either product is
-  dead weight on day one.
+  dead weight on day one. (There *is* a switch/AP estate — `ROLE_INFRASTRUCTURE_SWITCHES`,
+  `ROLE_INFRASTRUCTURE_APS`, and both controllers run as guests, CT 525 Omada / CT 526 UniFi — but
+  it is controller-managed, and nothing in the repo collects it today. That is a *collector* gap,
+  not a DCIM gap; see the source-of-truth note §3.)
 - **IPAM/VLAN value is real but modest**, and already served: OPNsense is authoritative,
   `inventory/firewall/` mirrors it, `docs/generated/10-vlans.md` renders it.
 - **Nautobot's headline draw is inapplicable.** Golden Config and Device Onboarding exist to
   template and back up configs across a multi-vendor switch/router fleet over Nornir/Netmiko. Our
-  only network device is **OPNsense (VM 5001) — T3, pool-excluded, never touched by the agent**.
-  Pointing an automation platform at it is exactly the thing §6 forbids.
+  switches and APs are **UniFi and Omada — driven by their own controllers**, not by pushed CLI
+  config, so there is nothing for Golden Config to template. The only device with a config worth
+  versioning is **OPNsense (VM 5001) — T3, pool-excluded, never touched by the agent**, and it is
+  already mirrored into git. Pointing an automation platform at it is exactly what §6 forbids.
 - **It inverts our source of truth.** Today: `scripts/collect-*.sh` (T1, read-only) →
   `inventory/*.json` → `docs/generated/`, every change a reviewable diff, PR-gated. NetBox/Nautobot
   move truth into Postgres, and the review surface becomes a web UI changelog. `git diff` stops
@@ -122,3 +127,9 @@ Not as a source of truth — as a **derived, queryable view**:
 - Proxbox (Proxmox → NetBox) — https://github.com/netdevopsbr/netbox-proxbox
 - netbox-docker compose — https://github.com/netbox-community/netbox-docker/blob/release/docker-compose.yml
 - Infrahub — https://opsmill.com/blog/introducing-infrahub-beta/ · https://github.com/opsmill/infrahub-sync
+
+---
+*Amended 2026-08-28 after the source-of-truth audit: the lab does have a controller-managed
+switch/AP estate, corrected in §3. It does not change the verdict — controller-managed gear is
+not Golden Config territory — but the gap it exposes is a missing collector, which the
+[source-of-truth note](2026-08-28-source-of-truth-for-this-lab.md) picks up.*
