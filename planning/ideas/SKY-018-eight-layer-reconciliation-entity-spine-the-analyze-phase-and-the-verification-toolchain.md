@@ -228,7 +228,15 @@ Steps:
    services (10 of 11 running projects match a `compose/` dir by name; **`arcane-manager` does not** —
    a service running outside the GitOps loop, and the expected first finding).
 5. Journal the first audit as an episode — the stale-guest and undeclared-service lists are
-   proposals, not actions.
+   proposals, not actions. Known members of the stale list today: CT 101 `debian`, CT 231 and CT 720
+   (retired AdGuards), VM 999 (the pre-NixOS ops brain), and **CT 1035 `lxc-caddy-dmz`, confirmed by
+   Ali as stale and to be destroyed**.
+   > **⚠ Verify before destroying CT 1035.** Its derived address `10.10.100.35` is `HOST_PROXY_APPS`,
+   > and `*.aliammar.net` A-records to it — the front door for all nine apps vhosts — while the
+   > `caddy-apps` container actually runs on `guest/docker-dmz-10015` (`.15`). Establish where `.35`
+   > lives now before the destroy: if it is a secondary address on the docker VM, the destroy is
+   > safe; if it is still the CT's, destroying it breaks every published app until DNS and the
+   > firewall alias are moved. `destroy` is a hard checkpoint at every autonomy level regardless.
 
 Exit criteria: `bin/ops entities` reproduces the guest audit (14 matched / 4 stale / 1
 running-unmapped) **and** the service audit (10 declared / 1 undeclared-and-running), resolves
@@ -480,3 +488,9 @@ Follow AGENTS.md as above.
   that vhosts cannot be derived from DNS: `karakeep.aliammar.net` has no A record and resolves via
   the `*.aliammar.net` wildcard, so P5's Caddyfile parse is the vhost class's only source, and the
   backend edge must be carried explicitly because the names don't match the projects.
+- 2026-08-28 — naming convention finalised into `docs/conventions/naming.md` (entity IDs, VLAN slugs,
+  edges, the service-address rule). Writing it corrected the spoke's "VMID = 4 digits" claim: the
+  fleet runs **two VMID forms** — VLAN-in-full (2020, 5001, 9090, 10015) and VLAN-trailing-zero-dropped
+  (240, 525, 635, 751, 837, 1035) — so the parse matches against the declared VLAN set rather than by
+  digit count, `10xx` is the one ambiguous prefix, and new guests use the canonical full form.
+  CT 1035 confirmed stale/to-destroy, with the `10.10.100.35` front-door dependency flagged.
