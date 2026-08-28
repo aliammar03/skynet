@@ -26,7 +26,7 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 - **SKY-005** (projects · in-progress · 2/3) — Imperative ops discipline: recon toolkit, diagnosis library, lab bench
 - **SKY-006** (projects · in-progress · 2/3) — Agent episodic memory: journal + retrieval
-- **SKY-008** (projects · active · 1/3) — OpenTofu provisioning layer: VM and CT lifecycle plus DNS
+- **SKY-008** (projects · active · 2/3) — OpenTofu provisioning layer: VM and CT lifecycle plus DNS
 - **SKY-002** (ideas · draft) — Ongoing backup strategy for CT 240 (PBS host)
 - **SKY-004** (ideas · draft) — Reactive operations: event-driven layer + drift-as-signal
 - **SKY-012** (ideas · draft) — Runbooks as executable capabilities
@@ -35,24 +35,24 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 **Loose ends from recent episodes** (the journal's own open-thread bullets, verbatim):
 
-- **Renumber VMID 9091 → 9090** on next boot (Ali) to match the 4-digit convention (VLAN 90 + .90). — _2026-08-26 session          # session | incident | decision_
-- `gitops-deploy.sh:95` still uses `sudo sops -d` for a service `project.env` (root-only age.key) — needs a sudo-less path on NixOS. — _2026-08-26 session          # session | incident | decision_
-- Workload-host NixOS migration + further impermanence hardening — each its own future directive. — _2026-08-26 session          # session | incident | decision_
-- `scripts/systemd/skynet-restic-backup@` / `skynet-pbs-gdrive` stay in-repo — they're the source for the docker/PBS hosts, not the ops VM. — _2026-08-26 session          # session | incident | decision_
-- `netdiag` tag not applied to the librespeed project in Arcane. Likely applies only at project creation, or needs Ali to add it once in the Arcane UI. Non-blocking. If it's genuinely create-only, compose/README's claim about new tags auto-applying needs a caveat. — _2026-08-23 session          # session | incident | decision_
-- Optional: a runbooks/ entry on using speed.aliammar.net to diagnose wifi (client at the AP vs across the house; compare to iperf3 for lab-grade numbers). — _2026-08-23 session          # session | incident | decision_
-- Stats password lives in compose/librespeed/.env.sops (key PASSWORD); read with `sudo SOPS_AGE_KEY_FILE=/opt/skynet-ops/secrets/age.key sops -d compose/librespeed/.env.sops`. — _2026-08-23 session          # session | incident | decision_
-- LP-1: prune 10.10.20.63 from ROLE_APP_ORIGINS (stale); add 10.10.100.95 (obsidian) for accuracy. — _2026-08-20 session_
+- The full `indexer:anime` run is in-container detached; check `docker --context docker-dmz exec aiometadata-jikan_rest-1 cat /tmp/jikan-seed.log` and re-count anime for progress. If the container restarts mid-run the log is lost but `--resume` picks up. — _2026-08-28 session          # session | incident | decision_
+- No persistent scheduler: the DB will go stale again without one. Proper fix is a compose change (a `schedule:work` sidecar or cron running indexer:incremental / seasonal refreshes) — that's an authored compose PR, out of scope for this seed. Worth a SKY directive or a small PR. — _2026-08-28 session          # session | incident | decision_
+- Consider whether manga is wanted (aiometadata is anime-only today; left manga=0 unseeded). — _2026-08-28 session          # session | incident | decision_
+- **Full node-wide listing** needs `VM.Audit` added to `TofuVmConfig` (the `/vms` binding shadows audit at `/vms/<id>`, so the token lists only pooled guests). `/nodes/<node>` PVEAuditor alone isn't enough. Optional/cosmetic — tofu manages ops-managed via the pool. — _2026-08-27 session          # session | incident | decision_
+- **P3 DNS** (Technitium provider) still open. Network node now has the provider plumbing; ops-managed there is empty again (both throwaways destroyed). — _2026-08-27 session          # session | incident | decision_
+- LXC import (declarative management of an existing container) remains unproven — the bpg `template_file_id` drift is the open question if we want it. — _2026-08-27 session          # session | incident | decision_
+- **Extend tofu to the network node** (Ali's ask). Standalone node → its own `svc-tofu` + roles + provider endpoint. Keep 5001/635/837 untouchable: **avoid the `/vms` binding there**, use per-VMID grants for any guest it creates. Its own short plan / phase. — _2026-08-27 session          # session | incident | decision_
+- **Golden template `ubuntu-2404-skynet`** (CA trust, principals, onboard-host sshd) is a later cloud-init layer on clones — 9000 is only the base. — _2026-08-27 session          # session | incident | decision_
 
 ## 📓 Recent episodes
 
+- **2026-08-28** · session          # session | incident | decision · [[2026-08-28-session-seed-jikan-anime-index-for-aiometadata|seed jikan anime index for aiometadata]]
+- **2026-08-27** · session          # session | incident | decision · [[2026-08-27-session-sky-008-tofu-extended-to-network-node-lxc-clone-round-trip|SKY-008 — tofu extended to network node, LXC clone round-trip]]
+- **2026-08-27** · session          # session | incident | decision · [[2026-08-27-session-sky-008-p2-tofu-vm-lifecycle-round-trip-on-core-node|SKY-008 P2 — tofu VM lifecycle round-trip on core node]]
+- **2026-08-27** · session          # session | incident | decision · [[2026-08-27-session-nightly-2026-08-27|nightly 2026-08-27]]
 - **2026-08-26** · session          # session | incident | decision · [[2026-08-26-session-sky-007-cutover-to-nixos-close-out|SKY-007 cutover to NixOS + close-out]]
 - **2026-08-23** · session          # session | incident | decision · [[2026-08-23-session-librespeed-wifi-speed-test-deploy|librespeed wifi speed-test deploy]]
 - **2026-08-20** · session · [[2026-08-20-session-sky-003-p4-firewall-least-privilege-vm-docker-dmz-ssh-exposure-audit|SKY-003 P4 — firewall least-privilege + vm-docker-dmz SSH-exposure audit]]
-- **2026-08-20** · session          # session | incident | decision · [[2026-08-20-session-sky-003-p3-calibre-forward-auth-via-scoped-authentik-token|SKY-003 P3 — calibre forward-auth via scoped Authentik token]]
-- **2026-08-20** · session · [[2026-08-20-session-publish-calibre-publicly-behind-authentik-forward-auth-admin-lockdown|Publish calibre publicly behind Authentik forward-auth (+ admin lockdown)]]
-- **2026-08-20** · session          # session | incident | decision · [[2026-08-20-session-publish-aiometadata-aiostreams-publicly-via-cloudflare-tunnel|publish aiometadata + aiostreams publicly via Cloudflare Tunnel]]
-- **2026-08-20** · session · [[2026-08-20-session-nightly|nightly 2026-08-20 (deterministic)]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._

@@ -1,6 +1,6 @@
 {
   "host": "docker-dmz",
-  "collected": "2026-08-27T03:45:25+05:00",
+  "collected": "2026-08-29T03:30:36+05:00",
   "containers": [
     {
       "Command": "\"docker-php-entrypoi…\"",
@@ -15,10 +15,10 @@
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "3 days ago",
+      "RunningFor": "5 days ago",
       "Size": "44.4MB (virtual 272MB)",
       "State": "running",
-      "Status": "Up 3 days (healthy)"
+      "Status": "Up 11 hours (healthy)"
     },
     {
       "Command": "\"tini -- ./docker-en…\"",
@@ -33,10 +33,10 @@
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "7 days ago",
-      "Size": "3.52kB (virtual 565MB)",
+      "RunningFor": "9 days ago",
+      "Size": "4.22kB (virtual 565MB)",
       "State": "running",
-      "Status": "Up 7 days (healthy)"
+      "Status": "Up 11 hours (healthy)"
     },
     {
       "Command": "\"cloudflared --no-au…\"",
@@ -51,10 +51,10 @@
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "7 days ago",
+      "RunningFor": "9 days ago",
       "Size": "0B (virtual 63.9MB)",
       "State": "running",
-      "Status": "Up 6 days (healthy)"
+      "Status": "Up 11 hours (healthy)"
     },
     {
       "Command": "\"/bin/bash -c 'cp /e…\"",
@@ -69,10 +69,10 @@
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "8 days ago",
+      "RunningFor": "10 days ago",
       "Size": "1.38kB (virtual 272MB)",
       "State": "running",
-      "Status": "Up 8 days (healthy)"
+      "Status": "Up 11 hours (healthy)"
     },
     {
       "Command": "\"caddy run --config …\"",
@@ -87,10 +87,10 @@
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "9 days ago",
+      "RunningFor": "11 days ago",
       "Size": "0B (virtual 111MB)",
       "State": "running",
-      "Status": "Up 3 days (healthy)"
+      "Status": "Up 11 hours (healthy)"
     },
     {
       "Command": "\"tini -- /bin/sh -c …\"",
@@ -105,10 +105,10 @@
       "Networks": "karakeep_backend",
       "Platform": null,
       "Ports": "7700/tcp",
-      "RunningFor": "10 days ago",
+      "RunningFor": "12 days ago",
       "Size": "0B (virtual 158MB)",
       "State": "running",
-      "Status": "Up 10 days (healthy)"
+      "Status": "Up 11 hours (healthy)"
     },
     {
       "Command": "\"chromium-browser --…\"",
@@ -123,10 +123,10 @@
       "Networks": "karakeep_backend",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "10 days ago",
+      "RunningFor": "12 days ago",
       "Size": "194kB (virtual 670MB)",
       "State": "running",
-      "Status": "Up 10 days (healthy)"
+      "Status": "Up 11 hours (healthy)"
     },
     {
       "Command": "\"/nodejs/bin/node /a…\"",
@@ -141,10 +141,10 @@
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "10 days ago",
+      "RunningFor": "12 days ago",
       "Size": "0B (virtual 277MB)",
       "State": "running",
-      "Status": "Up 10 days (healthy)"
+      "Status": "Up 11 hours (healthy)"
     },
     {
       "Command": "\"/app/docker-entrypo…\"",
@@ -159,10 +159,10 @@
       "Networks": "aiometadata_backend,aiometadata_jikan_egress",
       "Platform": null,
       "Ports": "2114/tcp, 8080/tcp",
-      "RunningFor": "11 days ago",
-      "Size": "744kB (virtual 665MB)",
+      "RunningFor": "13 days ago",
+      "Size": "3.11MB (virtual 667MB)",
       "State": "running",
-      "Status": "Up 11 days (healthy)"
+      "Status": "Up 11 hours (healthy)"
     },
     {
       "Command": "\"/usr/local/bin/entr…\"",
@@ -177,10 +177,10 @@
       "Networks": "aiometadata_backend,dmz",
       "Platform": null,
       "Ports": "3232/tcp",
-      "RunningFor": "11 days ago",
+      "RunningFor": "13 days ago",
       "Size": "0B (virtual 437MB)",
       "State": "running",
-      "Status": "Up 11 days (healthy)"
+      "Status": "Up 11 hours (healthy)"
     },
     {
       "Command": "\"docker-entrypoint.s…\"",
@@ -195,10 +195,10 @@
       "Networks": "aiometadata_backend",
       "Platform": null,
       "Ports": "6379/tcp",
-      "RunningFor": "11 days ago",
+      "RunningFor": "13 days ago",
       "Size": "0B (virtual 27.9MB)",
       "State": "running",
-      "Status": "Up 11 days (healthy)"
+      "Status": "Up 11 hours (healthy)"
     },
     {
       "Command": "\"docker-entrypoint.s…\"",
@@ -208,15 +208,15 @@
       "Image": "mongo:focal",
       "Labels": "com.docker.compose.config-hash=e25a8dcf6ef9057aa00e09caf5a3f6fd8e684d0f31d66e5e7dcd08b4a1d193ba,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:edacb1e1210bb539c18015131ecfb2cce4c9ad1cdd99ad7b5391ed70a48f2ac7,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/opt/docker/arcane-projects/aiometadata/compose.yaml,com.docker.compose.project.working_dir=/opt/docker/arcane-projects/aiometadata,com.docker.compose.project=aiometadata,com.docker.compose.service=jikan_mongo,com.docker.compose.version=,org.opencontainers.image.ref.name=ubuntu,org.opencontainers.image.version=20.04",
       "LocalVolumes": "2",
-      "Mounts": "/opt/docker/ar…,118a8201ca6e48…,aiometadata_ji…",
+      "Mounts": "118a8201ca6e48…,aiometadata_ji…,/opt/docker/ar…",
       "Names": "aiometadata-jikan_mongo-1",
       "Networks": "aiometadata_backend",
       "Platform": null,
       "Ports": "27017/tcp",
-      "RunningFor": "11 days ago",
+      "RunningFor": "13 days ago",
       "Size": "0B (virtual 644MB)",
       "State": "running",
-      "Status": "Up 11 days (healthy)"
+      "Status": "Up 11 hours (healthy)"
     },
     {
       "Command": "\"/opt/typesense-serv…\"",
@@ -231,10 +231,10 @@
       "Networks": "aiometadata_backend",
       "Platform": null,
       "Ports": "8108/tcp",
-      "RunningFor": "11 days ago",
+      "RunningFor": "13 days ago",
       "Size": "0B (virtual 799MB)",
       "State": "running",
-      "Status": "Up 11 days (healthy)"
+      "Status": "Up 11 hours (healthy)"
     },
     {
       "Command": "\"docker-entrypoint.s…\"",
@@ -249,10 +249,10 @@
       "Networks": "aiometadata_backend",
       "Platform": null,
       "Ports": "6379/tcp",
-      "RunningFor": "11 days ago",
+      "RunningFor": "13 days ago",
       "Size": "0B (virtual 38.6MB)",
       "State": "running",
-      "Status": "Up 11 days (healthy)"
+      "Status": "Up 11 hours (healthy)"
     },
     {
       "Command": "\"node /usr/local/bin…\"",
@@ -267,10 +267,10 @@
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "11 days ago",
+      "RunningFor": "13 days ago",
       "Size": "0B (virtual 2.27GB)",
       "State": "running",
-      "Status": "Up 11 days (healthy)"
+      "Status": "Up 11 hours (healthy)"
     },
     {
       "Command": "\"/init\"",
@@ -285,10 +285,10 @@
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "11 days ago",
-      "Size": "5.42MB (virtual 3.51GB)",
+      "RunningFor": "13 days ago",
+      "Size": "6.21MB (virtual 3.51GB)",
       "State": "running",
-      "Status": "Up 11 days (healthy)"
+      "Status": "Up 11 hours (healthy)"
     },
     {
       "Command": "\"/init\"",
@@ -303,10 +303,10 @@
       "Networks": "dmz,karakeep_backend",
       "Platform": null,
       "Ports": "3000/tcp",
-      "RunningFor": "11 days ago",
+      "RunningFor": "13 days ago",
       "Size": "8.99MB (virtual 1.48GB)",
       "State": "running",
-      "Status": "Up 11 days (healthy)"
+      "Status": "Up 11 hours (healthy)"
     },
     {
       "Command": "\"./arcane\"",
@@ -316,22 +316,22 @@
       "Image": "ghcr.io/getarcaneapp/manager:latest",
       "Labels": "com.docker.compose.config-hash=311332f1063d7274160c75c8793eb2d9e1bd33a231e13d99ef5e669a6ab5088b,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:c23588695093944e3fb31355dde56f3e057e017315f1df4a53396ac1bde4aeaa,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/opt/docker/arcane-manager/compose.yaml,com.docker.compose.project.working_dir=/opt/docker/arcane-manager,com.docker.compose.project=arcane-manager,com.docker.compose.service=arcane,com.docker.compose.version=5.4.0,com.getarcaneapp.arcane=true,org.opencontainers.image.authors=OFKM Technologies,org.opencontainers.image.description=Modern Docker Management, Made for Everyone,org.opencontainers.image.documentation=https://github.com/getarcaneapp/arcane/blob/main/README.md,org.opencontainers.image.licenses=BSD-3-Clause,org.opencontainers.image.revision=b8bc5b4f8d0c6487b18a6e6d2185c71c4c0d0fe0,org.opencontainers.image.source=https://github.com/getarcaneapp/arcane,org.opencontainers.image.title=Arcane,org.opencontainers.image.url=https://github.com/getarcaneapp/arcane,org.opencontainers.image.version=v2.8.0",
       "LocalVolumes": "0",
-      "Mounts": "/opt/docker/ap…,/opt/docker/ar…,/var/run/docke…",
+      "Mounts": "/var/run/docke…,/opt/docker/ap…,/opt/docker/ar…",
       "Names": "arcane",
       "Networks": "arcane-manager_default",
       "Platform": null,
       "Ports": "10.10.100.15:3552->3552/tcp",
-      "RunningFor": "13 days ago",
+      "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 149MB)",
       "State": "running",
-      "Status": "Up 11 days (healthy)"
+      "Status": "Up 11 hours (healthy)"
     }
   ],
   "images": [
     {
       "Containers": "0",
       "CreatedAt": "2026-08-15 08:04:59 +0500 PKT",
-      "CreatedSince": "11 days ago",
+      "CreatedSince": "13 days ago",
       "Digest": "<none>",
       "ID": "2d520270e97b",
       "Repository": "alpine/openssl",
@@ -343,7 +343,7 @@
     {
       "Containers": "1",
       "CreatedAt": "2026-08-13 10:52:58 +0500 PKT",
-      "CreatedSince": "13 days ago",
+      "CreatedSince": "2 weeks ago",
       "Digest": "<none>",
       "ID": "bada659891d3",
       "Repository": "zenika/alpine-chrome",
@@ -355,7 +355,7 @@
     {
       "Containers": "1",
       "CreatedAt": "2026-08-13 06:11:46 +0500 PKT",
-      "CreatedSince": "13 days ago",
+      "CreatedSince": "2 weeks ago",
       "Digest": "<none>",
       "ID": "c23588695093",
       "Repository": "ghcr.io/getarcaneapp/manager",
@@ -403,7 +403,7 @@
     {
       "Containers": "1",
       "CreatedAt": "2026-08-07 08:28:05 +0500 PKT",
-      "CreatedSince": "2 weeks ago",
+      "CreatedSince": "3 weeks ago",
       "Digest": "<none>",
       "ID": "b7bc0ec4b0ef",
       "Repository": "lscr.io/linuxserver/calibre",
@@ -463,7 +463,7 @@
     {
       "Containers": "0",
       "CreatedAt": "2026-07-24 22:18:48 +0500 PKT",
-      "CreatedSince": "4 weeks ago",
+      "CreatedSince": "5 weeks ago",
       "Digest": "<none>",
       "ID": "c112940ffc18",
       "Repository": "redis",
@@ -475,7 +475,7 @@
     {
       "Containers": "1",
       "CreatedAt": "2026-07-24 22:12:09 +0500 PKT",
-      "CreatedSince": "4 weeks ago",
+      "CreatedSince": "5 weeks ago",
       "Digest": "<none>",
       "ID": "c09cfd71b4b8",
       "Repository": "redis",
@@ -487,7 +487,7 @@
     {
       "Containers": "1",
       "CreatedAt": "2026-07-24 22:12:09 +0500 PKT",
-      "CreatedSince": "4 weeks ago",
+      "CreatedSince": "5 weeks ago",
       "Digest": "<none>",
       "ID": "c09cfd71b4b8",
       "Repository": "redis",
@@ -499,7 +499,7 @@
     {
       "Containers": "1",
       "CreatedAt": "2026-07-24 22:11:46 +0500 PKT",
-      "CreatedSince": "4 weeks ago",
+      "CreatedSince": "5 weeks ago",
       "Digest": "<none>",
       "ID": "305eb88302bd",
       "Repository": "redis",
@@ -571,7 +571,7 @@
     {
       "Containers": "0",
       "CreatedAt": "2026-07-02 07:30:35 +0500 PKT",
-      "CreatedSince": "7 weeks ago",
+      "CreatedSince": "8 weeks ago",
       "Digest": "<none>",
       "ID": "0584f8a9edf6",
       "Repository": "mariadb",
@@ -619,7 +619,7 @@
     {
       "Containers": "1",
       "CreatedAt": "2026-03-30 19:18:49 +0500 PKT",
-      "CreatedSince": "4 months ago",
+      "CreatedSince": "5 months ago",
       "Digest": "<none>",
       "ID": "59b4fb9a8546",
       "Repository": "getmeili/meilisearch",
