@@ -17,14 +17,16 @@ j() { jq -r "$@" 2>/dev/null; }          # quiet jq
 has() { [ -s "$1" ]; }                     # file exists + non-empty
 
 # VLAN name map (unknown VLANs render as "VLAN N"). Wording follows the OPNsense alias
-# descriptions in the firewall mirror — collected truth, not a guess. Moves to lab.json in
-# SKY-018 P2, which also derives the short slugs (lan/servers/mgmt/admin/dns/identity/ops/dmz)
-# used in entity IDs. Do not "correct" 10 and 60 back: 10 is the trusted client VLAN
-# (workstation, phone, tablet) and 60 is admin access (the Management Caddy front door).
+# descriptions in the firewall mirror — collected truth, not a guess. This table moves to
+# lab.json in SKY-018 P2, which also carries the short slugs used in entity IDs
+# (lan/servers/iot/mgmt/admin/netsvc/identity/ops/dmz). Do not "correct" 10 and 60 back:
+# 10 is the trusted client VLAN (workstation, phone, tablet) and 60 is admin access
+# (the Management Caddy front door).
 vlan_name() { case "$1" in
-  10) echo "Trusted LAN";; 20) echo "Servers";; 50) echo "Management";;
-  60) echo "Admin Access";; 70) echo "Network Services";; 80) echo "Identity";;
-  90) echo "Operations";; 100) echo "DMZ";; *) echo "VLAN $1";; esac; }
+  10) echo "Trusted LAN";; 20) echo "Servers";; 30) echo "IoT";;
+  50) echo "Management";; 60) echo "Admin Access";; 70) echo "Network Services";;
+  80) echo "Identity";; 90) echo "Operations";; 100) echo "DMZ";;
+  *) echo "VLAN $1";; esac; }
 
 fm() { # frontmatter title tag...
   local title="$1"; shift

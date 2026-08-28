@@ -249,15 +249,16 @@ Steps:
    |---|---|---|
    | 10 | Trusted LAN | `lan` |
    | 20 | Servers | `servers` |
+   | 30 | IoT | `iot` |
    | 50 | Management | `mgmt` |
    | 60 | Admin Access | `admin` |
-   | 70 | Network Services | `dns` |
+   | 70 | Network Services | `netsvc` |
    | 80 | Identity | `identity` |
    | 90 | Operations | `ops` |
    | 100 | DMZ | `dmz` |
 
-   VLAN 30 exists in the firewall as a transitional segment with no name of its own; leave it
-   rendering as `VLAN 30` until it is either named or retired.
+   VLAN 30 was missing from the map entirely and rendered as the literal `VLAN 30` despite already
+   holding three hosts — it is **IoT**, now named.
 1. **`invariants.json`** gains `entity_conventions`: the VMID⇒IP law plus its *declared exceptions*
    (5001 OPNsense, and any guest deliberately off-convention), each with a one-line `why` in the
    file's existing style. Constraint-class data, read by the gate.
@@ -314,6 +315,16 @@ Steps:
 1. `scripts/collect-routes.sh` — parse the Caddyfiles under `compose/` (and the Management Caddy
    mirror) into `inventory/routes.json`: hostname → which Caddy → backend `host:port` → auth mode.
    Static parse of committed config; no live access needed.
+   **This collector is the vhost class's only real source — DNS cannot supply it.** There is no
+   `karakeep` A record: `karakeep.aliammar.net` resolves through the single `*.aliammar.net`
+   wildcard, so DNS knows **one** name where the apps Caddyfile declares **nine** (karakeep,
+   aiostreams, aiometadata, marinara, obsidian, calibre, sillytavern, speed, auth). Until this parse
+   exists, every wildcard-served vhost is invisible to inventory.
+1b. **The `vhost —backend→` edge is not derivable by name**, so the parse must carry it explicitly:
+   `obsidian.aliammar.net` → `svc/obsidian-livesync`, `sillytavern.aliammar.net` → `svc/silly`,
+   `speed.aliammar.net` → `svc/librespeed`. And a backend need not be a service at all —
+   `auth.aliammar.net` fronts Authentik on **`guest/authentik-identity-837`** — so the edge targets
+   either class.
 2. `scripts/collect-certs.sh` — certificate inventory (issuer, SANs, notAfter) for the internal and
    published names, from the proxies' own stores where readable, otherwise by probing the endpoints.
 3. Render the full resolution chain in `30-services`: vanity name → front door → **real backend
@@ -464,3 +475,8 @@ Follow AGENTS.md as above.
   the renderer's map: 10 and 60 were **swapped**, so `docs/generated/` had been publishing the wrong
   names for both. Fixed in `render-docs.sh` and re-rendered ahead of this directive, since a shipped
   factual error should not wait twelve phases.
+- 2026-08-28 — vocabulary corrected by Ali: VLAN 70's slug is `netsvc` (not `dns`), and **VLAN 30 was
+  missing from the renderer entirely** — it is IoT, and already holds three hosts. Also established
+  that vhosts cannot be derived from DNS: `karakeep.aliammar.net` has no A record and resolves via
+  the `*.aliammar.net` wildcard, so P5's Caddyfile parse is the vhost class's only source, and the
+  backend edge must be carried explicitly because the names don't match the projects.
