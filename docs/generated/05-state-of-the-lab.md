@@ -1,6 +1,6 @@
 ---
 title: State of the Lab
-generated: 2026-08-27
+generated: 2026-08-30
 author: skynet-ops (agent)
 tags: [skynet, generated, narrative, state-of-the-lab]
 ---
@@ -13,87 +13,109 @@ tags: [skynet, generated, narrative, state-of-the-lab]
 
 # Skynet — State of the Lab
 
-**As of 2026-08-27** · foundations long graduated; the ops VM itself is now a NixOS flake
-(SKY-007, done), and the lab is mid-build on making infrastructure declarative end-to-end
-(SKY-008, OpenTofu).
+**As of 2026-08-30** · foundations long graduated; SKY-008 (OpenTofu) has both Proxmox nodes
+provisioning VM/CT lifecycle end-to-end (Phase 1+2 done, both nodes), DNS + declarative LXC
+import (Phase 3) still to start.
 
 ## The one-glance dashboard
 
 | System | State | Note |
 |---|---|---|
 | 🧠 Ops brain (`vm-skynet-ops`, VMID 9090) | 🟢 up | NixOS flake, static 10.10.90.90, running, `ops-managed` |
-| 🖧 Routing / OPNsense | 🟢 up | config mirrored to git every change (L2); 41 aliases, 29 rules |
-| 🐳 DMZ Docker (`vm-docker-dmz`) | 🟢 up | stacks on the "skynet way", GitOps-reconciled |
-| ☁️ cloudflared tunnel (LXC 1033) | 🟢 running | was stopped as of the last render (2026-08-20) — back up now |
+| 🖧 Routing / OPNsense | 🟢 up | config mirrored to git every change (L2); 41 aliases, 29 rules, unchanged since 08-29 |
+| 🐳 DMZ Docker (`vm-docker-dmz`) | 🟢 up | all 18 containers healthy, uptimes aging normally (no new restart since the 08-28 event) |
+| ☁️ Public tunnel (cloudflared, docker container on `vm-docker-dmz`) | 🟢 running | 10+ days up, untouched |
 | 💾 restic → Google Drive (L3) | 🟢 nightly | witnessed restore ✔ |
-| 🗄️ PBS → Google Drive (L5) | 🟡 upload live | off-site guest restore still the standing question |
+| 🗄️ PBS (LXC 240, `ops-managed`) | 🔴 **stopped** | 4th night running/rendered stopped since 08-27 — still unconfirmed, still not acted on |
+| 🗄️ PBS → Google Drive (L5) | 🟡 at risk | nothing to mirror while PBS itself is stopped |
 | 👁️ Visibility (these docs) | 🟢 live | rendered nightly from inventory |
 | 🧠 Episodic memory (`journal/`) | 🟢 steady | raw episodes + read-time digest (SKY-006, 2/3) |
 
 ## Where we are in the build
 
-The foundation arc (A1–A6) and a long tail of directives since are **done**: convention bedrock
-(SKY-009), default-lean context (SKY-010), machine-enforced invariants (SKY-011), Obsidian
-LiveSync (SKY-013), the Cloudflare tunnel (SKY-014) — and, most recently, **SKY-007**: the ops VM
-itself is now defined as a NixOS flake (impermanence, sops-nix, home-manager, least-priv sudo,
-self-provisioning agent key), closed out 2026-08-26. Active work right now is **SKY-008**
-(OpenTofu provisioning — VM/CT lifecycle + DNS, phase 1/3 done, phase 2 "throwaway guest" has
-uncommitted work in flight on a phase branch as of tonight) plus the still-open SKY-005 (recon/
-diagnosis discipline, 2/3) and SKY-006 (episodic memory, 2/3 — this very page is part of that
-arc).
+SKY-008 (OpenTofu provisioning) is holding at **Phase 1+2 done on both Proxmox nodes**: core has
+a permanent clone-source template (`ubuntu-2404-base`, VMID 9000) and a proven clone→destroy
+round-trip; the network node has its own provider, its own privilege-separated token, and its own
+proven round-trip. **Phase 3** (DNS records + declarative LXC import) hasn't started.
+
+Since the last render, `main` picked up a batch of planning/decision work that hadn't made it
+into an inventory narrative yet: **ADR 0005** (full agent control as the terminal goal — autonomy
+is earned, reversible, never self-granted), the naming convention spoke finalized (`docs/
+conventions/naming.md` grew from a draft to the full grammar), and two new ideas-stage directives
+— **SKY-017** (the road to full agent control: verification, proving ground, evidence-earned
+ratchet) and **SKY-018** (eight-layer reconciliation: entity spine, the Analyze phase, the
+verification toolchain).
+
+Everything else that graduated earlier is holding steady: convention bedrock (SKY-009),
+default-lean context (SKY-010), machine-enforced invariants (SKY-011), Obsidian LiveSync
+(SKY-013), the Cloudflare tunnel (SKY-014), and SKY-007 (ops VM as a NixOS flake, closed out
+2026-08-26). SKY-005 (recon/diagnosis discipline) and SKY-006 (episodic memory) are both sitting
+at 2/3.
 
 > [!tip] What's genuinely solid
-> - **Truth lives in git.** Compose, secrets (encrypted), firewall, inventory, and now the ops
->   host definition itself — the lab can be rebuilt from the repo alone.
-> - **Backups are real, not aspirational.** L3 has a *witnessed* restore behind it.
-> - **The ops brain is declarative.** SKY-007 turned `vm-skynet-ops` into a NixOS flake instead of
->   a hand-tuned VM — the next full rebuild is `nixos-rebuild`, not a runbook of manual steps.
+> - **Truth lives in git.** Compose, secrets (encrypted), firewall, inventory, and the ops host
+>   definition itself — the lab can be rebuilt from the repo alone.
+> - **VM/CT lifecycle is declarative on both nodes.** Tofu proved clone→boot→destroy on core
+>   *and* network — the standalone-node split (separate ACLs, separate VMID spaces) is handled,
+>   not assumed away.
+> - **The ops brain is declarative.** SKY-007 turned `vm-skynet-ops` into a NixOS flake — the
+>   next full rebuild is `nixos-rebuild`, not a runbook of manual steps.
 
-## What changed since the last render (2026-08-20 → tonight)
+## What changed since the last render
 
-The deterministic pages hadn't been re-rendered in a week, so this catches seven days of drift,
-not one night's:
+> [!warning] Housekeeping first: two nightly PRs are backlogged
+> `main` was 12 commits behind `origin/main` at the start of this run (last inventory merge was
+> **#111**, 08-27) — **PR #113** (nightly 08-28) and **PR #115** (nightly 08-29) are still open,
+> unmerged. I branched tonight from a freshly fast-forwarded `main`, so this page compares against
+> the *actual* last observed state (PR #115's tip, `f9d63d9`) rather than the stale `main` — but
+> the generated-doc/inventory diff this PR carries spans all three nights at once, since `main`
+> itself hasn't caught up. Nothing broken by this — just flagging that the merge queue is growing;
+> worth clearing #113/#115 (report-only, safe to merge) before it gets harder to review.
 
-- **VMID renumber looks complete.** The 2026-08-26 SKY-007 close-out left an open thread —
-  "renumber VMID 9091 → 9090 on next boot." Tonight's inventory shows VMID **9090** (`vm-skynet-ops`)
-  running and tagged `ops-managed`, VMID **9091** (`vm-skynet-ops-nix`) stopped, and the old
-  pre-NixOS VMID **999** also stopped. Reads as done — worth Ali confirming on the node, not just
-  in the mirror.
-- **cloudflared (LXC 1033) is back running** — was stopped at last observation, healthy now.
-- **The OPNsense firewall mirror moved** — these are edits made directly in OPNsense (T3, outside
-  this agent's write scope; the mirror is read-only T1), not anything this session did:
-  - `HOST_SKYNET_OPS` alias content is now `10.10.90.90, 10.10.90.91` (was `.99, .90`) — the new
-    `.91` address lines up with the new 9091 guest.
-  - Rule 210 (admin clients → management proxy) now explicitly includes `HOST_SKYNET_OPS` as a
-    source — the agent can now reach the mgmt proxy directly. Flagging since it widens reach; not
-    acted on.
-  - A new `PORT_SMB_NFS` alias (445, 2049) replaces a hardcoded `445` on the Unraid SMB rule,
-    which now also covers NFS in its description.
-  - New alias `HOST_OMADA` (10.10.50.25) joined `ROLE_ADMIN_TARGETS`.
-  - `PORT_WEB`'s description regressed from "Standard web ports: HTTP 80 and HTTPS 443." to the
-    generic "Ports for WEB" — looks like an unintentional overwrite, harmless but worth a
-    one-line fix.
-- **DNS**: routine SOA/serial advances on both zones, nothing anomalous.
+Comparing against `f9d63d9` (last night's actual output, 2026-08-29 03:30 +05):
+
+- **PBS (VMID 240) is still stopped.** No change from last night — this is now its 4th
+  consecutive night stopped (last seen running 08-27). Still nothing in the journal or recent PRs
+  that explains it; still not acted on (T2 guest-power action, outside report-only scope). This is
+  the one item that's aging into "needs a human decision," not just a flag.
+- **The old pre-NixOS `vm-skynet-ops` (VMID 999) is still running.** Same as last night, no new
+  information — persisting, not worsening.
+- **`vm-docker-dmz`'s mystery restart resolved itself into "just one event."** Every container's
+  uptime advanced by exactly ~24h since last night (`Up 11 hours` → `Up 35 hours`) — no second
+  restart happened. The ~08-28 16:30 reboot/restart flagged last night stands as a one-time event,
+  not a recurring pattern.
+- **OPNsense firewall mirror: byte-identical to last night** — 41 aliases, 29 rules, no drift
+  (last night's mirror already absorbed the `HOST_SKYNET_OPS`/`PORT_SMB_NFS`/`HOST_OMADA` edits
+  from the 08-27→08-29 window).
+- **DNS**: routine SOA serial advance only (`tdns.home.aliammar.net` 2026082801 → 2026082901),
+  cert `lastUsedOn` timestamps moved, nothing anomalous.
+- Docker container inventory: same 18 containers, no adds/removes, routine layer-size churn only.
 
 ## What I'm keeping an eye on
 
 > [!warning] Honest open items
-> - **PBS→Drive guest restore is still the standing question.** Upload runs nightly; the off-site
->   *guest* recovery round-trip is the thing to keep proving.
-> - **SKY-008 P2 has uncommitted WIP** on `phase/sky-008-p2-throwaway-guest` (a new Ubuntu 24.04
->   template + throwaway-guest Tofu module, plus an access-and-trust doc edit) — stashed clean
->   before this run so the nightly branch stayed uncontaminated; pick it back up next session.
-> - The `PORT_WEB` alias description drift above — cosmetic, but flag it to Ali.
+> - **PBS (VMID 240) — 4 nights stopped, needs a human call.** This is the item most worth Ali's
+>   attention tonight; L5 backup has had nothing to mirror since 08-27.
+> - **Two nightly PRs waiting on merge** (#113, #115) — both report-only/generated-only, should be
+>   safe to fast-track so `main` stops drifting from reality.
+> - **VMID 999 still running, unexplained** — probably benign, still unconfirmed.
+> - From the 2026-08-28 entity-model decision, still open: where does `10.10.100.35` actually live
+>   now that CT 1035 (caddy-dmz) is stopped and slated for destroy — nine published apps depend on
+>   getting this right before that destroy happens. Also open: CT 526 (UniFi controller) is
+>   running and unmapped in DNS/reservations (feeds SKY-018 P4), and whether `arcane-manager`
+>   becomes a declared GitOps exception or joins the loop.
+> - SKY-008 P3 (DNS + declarative LXC import) is the next phase whenever picked back up.
 > - The live, always-current list of what's in flight is in my [[06-agent-digest|agent digest]].
 
 ## Commentary
 
-A quiet week by inventory standards — the last render was seven nights stale, and what it mostly
-caught was one real infrastructure event (the NixOS cutover finishing its VMID renumber) plus
-routine OPNsense housekeeping done by hand. Nothing broke, nothing drifted in a way that needs
-fixing tonight. The interesting thread to pull is SKY-008: once VM/CT lifecycle is Tofu-managed,
-the "clone a golden template, harden, restic" runbook stops being an imperative script and starts
-being a diff. — _skynet-ops_
+A calm night operationally — no new drift, no new surprises. The two open items from last night
+(PBS stopped, VMID 999 running) are exactly where they were: neither better nor worse, just
+older. The only genuinely new thing worth naming is process, not infrastructure: the nightly PR
+queue itself is backing up (two nights unmerged), and `main` is running far enough behind that
+"diff against main" and "diff against last night" are no longer the same question — I answered
+both above rather than picking one. Nothing here needed nightly to act (report-only, all outside
+auto-approve scope regardless), so nothing was touched. — _skynet-ops_
 
 ---
 _Factual detail: [[README|index]] · [[00-network-map]] · [[90-backup-status]]. Agent orientation:
