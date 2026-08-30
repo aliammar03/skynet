@@ -92,7 +92,12 @@ TMP="$(mktemp)"; trap 'rm -f "${TMP}"' EXIT
 : > "${TMP}"
 [ -f "${SVC_DIR}/.env.git" ]  && { cat "${SVC_DIR}/.env.git" >> "${TMP}"; echo >> "${TMP}"; }
 if [ -f "${SVC_DIR}/.env.sops" ]; then
-  sudo SOPS_AGE_KEY_FILE="${AGE_KEY}" sops -d --input-type dotenv --output-type dotenv \
+  # Age key is group-readable by the ops user, so decrypt unprivileged; fall back to sudo -n
+  # (a NOPASSWD host) only if that fails. Same "try direct, then sudo -n" idiom as ARC_ENV above —
+  # a bare `sudo` here breaks non-interactive T2 deploys (no tty for a password prompt).
+  SOPS_AGE_KEY_FILE="${AGE_KEY}" sops -d --input-type dotenv --output-type dotenv \
+    "${SVC_DIR}/.env.sops" >> "${TMP}" 2>/dev/null \
+  || sudo -n SOPS_AGE_KEY_FILE="${AGE_KEY}" sops -d --input-type dotenv --output-type dotenv \
     "${SVC_DIR}/.env.sops" >> "${TMP}"
 fi
 KEYS="$(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "${TMP}" || true)"
