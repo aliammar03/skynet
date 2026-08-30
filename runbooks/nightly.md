@@ -1,7 +1,7 @@
 ---
 summary: "The report-only nightly maintenance run on both engine paths, and what it refreshes."
 trigger: "Run the nightly / nightly timer"
-tokens: 1082
+tokens: 1107
 ---
 
 # Runbook — nightly maintenance (report-only)
@@ -51,7 +51,8 @@ the engine can't run (missing/unauthed/errors) — so the nightly always produce
    <date>"`, filled with concrete facts (what ran, what changed vs `main`, anomalies, and any
    dead-ends under Graveyard). Fallback path: a minimal factual entry from the diff stat. **Raw,
    append-only, summarized only at read time — never pre-digested.**
-7. **Open a PR** on branch `inventory/<date>` with the diff + summary. **The engine never merges by
+7. **Open a PR** on branch `inventory/<date>-<HHMM>` (the `HHMM` suffix lets same-day re-runs each
+   get their own branch instead of colliding) with the diff + summary. **The engine never merges by
    hand.** The merge is decided afterward by the deterministic gate `scripts/nightly-automerge.sh`
    (both paths call it): generated-only diff **and** green CI → squash-merge; anything else → left
    open for a human (merge-gate carve-out, [ADR 0004](../docs/decisions/0004-auto-merge-generated-only-nightly-prs.md); off-switch `OPS_NIGHTLY_AUTOMERGE=0`).
