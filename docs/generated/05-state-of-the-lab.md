@@ -4,121 +4,98 @@ generated: 2026-08-30
 author: skynet-ops (agent)
 tags: [skynet, generated, narrative, state-of-the-lab]
 ---
-> [!quote] Agent's log
-> This page is written by me — the operations agent — during the nightly pass, not by the
-> deterministic renderer. It's the human-readable read on where Skynet stands: what's healthy,
-> what changed, and what I'm keeping an eye on. The tables elsewhere are the truth; this is the
-> story that connects them. Regenerated every night; edit the prompt in `runbooks/nightly.md`,
-> not this file. (My own cold-boot orientation lives separately in [[06-agent-digest]].)
 
 # Skynet — State of the Lab
 
-**As of 2026-08-30 (third pass)** · foundations long graduated; SKY-008 (OpenTofu) has both
-Proxmox nodes provisioning VM/CT lifecycle end-to-end (Phase 1+2 done, both nodes), DNS +
-declarative LXC import (Phase 3) still to start. The nightly-PR backlog that dominated the last
-two nights is **cleared** — `main` tracks reality again.
+**As of 2026-08-30, 13:47 PKT (fourth pass)** · The lab is broadly steady, with one important
+backup-topology change that deserves a human look: the core PBS container is running again, while
+the network node no longer reports its former PBS container. This pass observed only; it changed
+no guest, service, DNS record, firewall rule, or credential.
 
-## The one-glance dashboard
+> [!quote] Agent's log
+> I write this page for humans after the factual render. The tables are the evidence; this is my
+> honest interpretation of them. My machine-oriented cold-boot view remains
+> [[06-agent-digest|the agent digest]].
 
-| System | State | Note |
+## Tonight at a glance
+
+| System | State | What the evidence says |
 |---|---|---|
-| 🧠 Ops brain (`vm-skynet-ops`, VMID 9090) | 🟢 up | NixOS flake, static 10.10.90.90, running, `ops-managed` |
-| 🖧 Routing / OPNsense | 🟢 up | config mirrored to git every change (L2); 41 aliases, 29 rules, mirror HEAD `aba7911` (08-26) — no drift |
-| 🐳 DMZ Docker (`vm-docker-dmz`) | 🟢 up | all 18 containers healthy, no restart since the 08-28 one-time event |
-| ☁️ Public tunnel (cloudflared, container on `vm-docker-dmz`) | 🟢 running | untouched |
-| 💾 restic → Google Drive (L3) | 🟢 nightly | witnessed restore ✔ |
-| 🗄️ PBS — network node (CT 240, no pool) | 🟢 up | running |
-| 🗄️ PBS — core node (CT 240, `ops-managed`) | 🔴 **stopped** | unchanged since PR #116; last seen running 08-27 — still unconfirmed, still not acted on |
-| 🗄️ PBS → Google Drive (L5) | 🟡 at risk | core PBS datastore has had nothing fresh to mirror for days |
-| 👁️ Visibility (these docs) | 🟢 live | rendered nightly from inventory |
-| 🧠 Episodic memory (`journal/`) | 🟢 steady | raw episodes + read-time digest (SKY-006, 2/3) |
+| 🧠 Ops brain (`vm-skynet-ops`, VMID 9090) | 🟢 Running | In `ops-managed`; the separate Nix test VM 9091 remains stopped |
+| 🖧 OPNsense / firewall | 🟢 Steady | 41 aliases, 29 rules, 6 reservations; mirror HEAD `aba7911` from 2026-08-26 |
+| 🐳 DMZ Docker | 🟢 Healthy | 18 of 18 containers running and healthy, all at roughly 45 hours uptime |
+| ☁️ Public tunnel | 🟢 Running | `cloudflared` is healthy; no image or container-set change |
+| 🗄️ Core PBS container (CT 240) | 🟢 Running | Changed from stopped on `main`; about 16 minutes uptime when collected |
+| 🗄️ Network PBS container (CT 240) | 🟡 Not reported | Present and running on `main`, absent from this node's current resource list |
+| 💾 `pbs-unraid` storage | 🟢 Available | Reported available from both Proxmox nodes; live snapshot counts were not read |
+| 👁️ Inventory and generated docs | 🟢 Fresh | Collected and rendered at 13:47 PKT |
+| 🔐 Root access | ⚪ Inactive | No active certificate directory; grant-audit harvest correctly skipped |
 
-## Where we are in the build
+## What changed against `main`
 
-SKY-008 (OpenTofu provisioning) is holding at **Phase 1+2 done on both Proxmox nodes**: core has
-a permanent clone-source template (`ubuntu-2404-base`, VMID 9000) and a proven clone→destroy
-round-trip; the network node has its own provider, its own privilege-separated token, and its own
-proven round-trip. **Phase 3** (DNS records + declarative LXC import) hasn't started.
+The comparison base is `main` at `29923b7`. Its last inventory snapshot was collected around
+13:26 PKT, so this is a short, roughly twenty-minute observation window.
 
-Everything that graduated earlier is holding steady: convention bedrock (SKY-009), default-lean
-context (SKY-010), machine-enforced invariants (SKY-011), Obsidian LiveSync (SKY-013), the
-Cloudflare tunnel (SKY-014), and SKY-007 (ops VM as a NixOS flake, closed out 2026-08-26).
-SKY-005 (recon/diagnosis discipline) and SKY-006 (episodic memory) are both sitting at 2/3. The
-ideas-stage directives from the recent planning batch — **SKY-017** (the road to full agent
-control: verification, proving ground, evidence-earned ratchet) and **SKY-018** (eight-layer
-reconciliation: entity spine, the Analyze phase, the verification toolchain) — are still ideas,
-not started.
+> [!important] PBS changed shape
+> Core-node CT 240 (`lxc-proxmox-backup-server`, `ops-managed`) changed from **stopped** to
+> **running** and had 970 seconds of uptime at collection. On the network node, CT 240 was
+> **running on `main` but is absent now**. At the same time, the `pbs-unraid` storage endpoint
+> changed from `unknown` to `available` on both nodes.
 
-> [!tip] What's genuinely solid
-> - **Truth lives in git.** Compose, secrets (encrypted), firewall, inventory, and the ops host
->   definition itself — the lab can be rebuilt from the repo alone.
-> - **VM/CT lifecycle is declarative on both nodes.** Tofu proved clone→boot→destroy on core
->   *and* network — the standalone-node split (separate ACLs, separate VMID spaces) is handled,
->   not assumed away.
-> - **The ops brain is declarative.** SKY-007 turned `vm-skynet-ops` into a NixOS flake — the
->   next full rebuild is `nixos-rebuild`, not a runbook of manual steps.
+Those facts are consistent with a PBS move or consolidation, but this report cannot establish
+that intent. It also cannot certify backup freshness: `/opt/skynet-ops/secrets/pbs.env` is not
+present, and live restic/PBS snapshot inspection requires credentials or a root grant. So the
+honest status is “promising transition, needs confirmation,” not “backup migration complete.”
 
-## What changed since the last render
+Everything else is quiet:
 
-> [!note] Housekeeping resolved
-> The last two narratives opened with a warning that the nightly-PR queue was backing up (#113,
-> #115 unmerged, `main` up to 12 commits behind reality). That's **done**: PR #113 (nightly
-> 08-28), #115 (nightly 08-29) and #116 (nightly 08-30) all landed on `main`. Local `main` ==
-> `origin/main` == `fe214aa`, and "diff vs `main`" and "diff vs last night" are once again the
-> same question. This is the third pass on 2026-08-30, run against current `main`, so the window
-> it covers is unusually short — about twenty minutes since PR #118's inventory snapshot.
+- The Docker workload set is unchanged: 18 containers, all running and healthy. Only collection
+  timestamps and nondeterministic mount-display ordering moved.
+- The firewall mirror content is unchanged: 41 aliases, 29 rules, and 6 reservations.
+- DNS record content is unchanged. Resolver expiry and `lastUsedOn` timestamps advanced; the
+  record targeting `10.10.100.35` was queried again at 08:45 UTC.
+- Legacy VMID 999 is still running and still unexplained. CT 1035 (`lxc-caddy-dmz`) remains
+  stopped; CT 526 (UniFi OS Server) remains running.
+- Live CPU, memory, disk, network counters, JSON key ordering, collection timestamps, and rendered
+  page timestamps account for the rest of the inventory churn.
 
-Comparing against `fe214aa` (`main`, after PR #118's second pass and PR #119's engine fix):
+## Where the build stands
 
-- **PBS split is worth stating precisely.** There are two containers named
-  `lxc-proxmox-backup-server`, one per Proxmox node. The **network**-node one (CT 240, no pool) is
-  **running**. The **core**-node one (CT 240, pool `ops-managed`) is **stopped** — and that's the
-  one that's been stopped since 2026-08-27. No change tonight. It's not a total backup blackout
-  (the network PBS is up), but the core datastore's L5 Drive mirror has had nothing fresh for
-  days, and nothing in the journal or recent PRs explains the stop. Still a T2 guest-power action,
-  still outside report-only scope — so still just a flag, aging toward "needs a human decision."
-- **The legacy `vm-skynet-ops` (VMID 999, no pool) is still running.** Same as the last several
-  nights — persisting, not worsening, still unexplained.
-- **`vm-docker-dmz`: all 18 containers running, no change.** No adds, no removes, no image
-  changes, no new restart. The ~08-28 16:30 event remains a one-off.
-- **OPNsense firewall mirror: content byte-identical.** 41 aliases, 29 rules, 6 reservations;
-  mirror HEAD still `aba7911` (2026-08-26). Only the collector timestamp moved.
-- **DNS**: routine only — no zone or record content changed; three `lastUsedOn` timestamps moved.
-  One of those is the `10.10.100.35` A-record (last queried 2026-08-30 08:25 UTC) — a client is still asking for that
-  name even though CT 1035 (caddy-dmz) is stopped. That's a query landing, not proof anything
-  answers it; it does underline that the `10.10.100.35`-ownership thread needs closing before CT
-  1035 is destroyed.
-- **Generated docs**: timestamps and live values moved on factual pages. The deterministic
-  [[06-agent-digest|agent digest]] caught up to the already-merged second-pass episode; the
-  [[07-context-map|context map]] refreshed token and journal counts.
+SKY-008 remains at Phase 2 of 3: OpenTofu can exercise VM/CT lifecycle on both Proxmox nodes;
+Phase 3 (DNS records and declarative LXC import) remains open. SKY-005 and SKY-006 also remain at
+2 of 3. The newer autonomy and reconciliation directives, SKY-017 and SKY-018, are still ideas,
+not active implementation.
 
-## What I'm keeping an eye on
+The deeper foundation continues to hold: definitions and encrypted configuration live in git;
+the ops host is declarative; the nightly is report-only; authored changes remain human-merged;
+and tonight's raw facts are appended to `journal/` for later retrieval rather than compressed into
+a retrospective lesson.
 
-> [!warning] Honest open items
-> - **PBS core CT 240 — stopped since 2026-08-27, needs a human call.** Deliberate maintenance or
->   an unplanned stop quietly starving the core instance's L5 mirror. The network PBS being up
->   softens this but doesn't answer it.
-> - **VMID 999 still running, unexplained** — probably benign, still unconfirmed.
-> - **`10.10.100.35` ownership** (from the 2026-08-28 entity-model decision): where does that
->   address live now that CT 1035 (caddy-dmz) is stopped and slated for destroy? Nine published
->   apps depend on getting this right first — and the record is still being queried.
-> - **CT 526 (UniFi controller, network node)** is running and unmapped in DNS/reservations
->   (feeds SKY-018 P4); whether `arcane-manager` becomes a declared GitOps exception or joins the
->   loop is still Ali's call.
-> - **SKY-008 P3** (DNS + declarative LXC import) is the next phase whenever it's picked back up.
-> - The live, always-current list of what's in flight is in my [[06-agent-digest|agent digest]].
+## Human attention
+
+> [!warning] Worth confirming
+> - Was network-node CT 240 deliberately removed or moved, and is core-node CT 240 now the intended
+>   sole PBS service?
+> - After that is confirmed, verify fresh PBS snapshots and the L5 Google Drive mirror through the
+>   credentialed backup procedure; storage availability alone is not backup evidence.
+> - VMID 999 remains a running, out-of-pool legacy `vm-skynet-ops` with no recorded disposition.
+> - Resolve ownership of `10.10.100.35` before destroying stopped CT 1035; clients are still
+>   querying the record and nine published applications depend on the correct proxy target.
+> - CT 526 remains running but unmapped in DNS/reservations; SKY-008 P3 and SKY-018 remain the
+>   natural homes for that reconciliation work.
 
 ## Commentary
 
-A genuinely quiet pass — and quiet in a good way. The merge queue remains cleared; `main` and
-reality agree. With nothing between the last render and this one but live counters, timestamps,
-and a 0.01 MB container-size display tick, the honest report is short: the lab is exactly where
-PR #118 left it about twenty minutes earlier. The one standing item
-that isn't drift is the core-node PBS still being down since the 27th — I want to be careful to
-name *which* PBS, because there are two and only one is stopped. Nothing here needed nightly to
-act; report-only, all of it outside auto-approve scope regardless, so nothing was touched.
+This is the first pass today with a genuinely material state change. Seeing the core PBS back up
+is encouraging, and seeing its storage available from both nodes is better than yesterday's red
+picture. But the simultaneous disappearance of the network PBS means the green light needs an
+asterisk until intent and backup freshness are verified. I made no attempt to “help” by starting,
+stopping, or probing through root: report-only means the evidence lands first and the operator
+decides what the transition means.
+
 — _skynet-ops_
 
 ---
-_Factual detail: [[README|index]] · [[00-network-map]] · [[90-backup-status]]. Agent orientation:
-[[06-agent-digest]]. This narrative is regenerated nightly; the deterministic pages are the truth._
+_Factual detail: [[README|index]] · [[00-network-map]] · [[40-hosts/server-proxmox-core|core host]]
+· [[40-hosts/server-proxmox-network|network host]] · [[90-backup-status|backup status]]. This
+narrative is regenerated by the agent; deterministic pages remain the source views._
