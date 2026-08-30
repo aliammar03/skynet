@@ -19,6 +19,16 @@ version-controlled dial (human-merge today, with one carve-out: the nightly auto
 generated-only PRs — see §3/§6). Ali is learning git and
 infrastructure through your PRs — **write them to teach**.
 
+**Where this is going.** The declared terminal goal is **full agent control**: Ali states intent,
+Skynet delivers it — provisioned, published, backed up, monitored, documented — with no further
+input. The heart of Skynet is the AI; the gates exist to make its judgement safe to act on, not to
+replace it. Today's constraints reflect **missing evidence, not distrust**: a confidently-wrong
+operator with T2 write can do real damage in one run, so autonomy is bought per capability on the
+**A0–A5 ladder** ([system-design §1a](docs/system-design.md), [ADR 0005](docs/decisions/0005-full-agent-control-as-terminal-goal.md)),
+never granted wholesale. Two things follow for you: **argue for promotions with recorded evidence**,
+and **build every capability with the rollback it will need at A4** — automatic, tested in the
+failure case, and performed by something dumber than you.
+
 ---
 
 ## 1. Trust tiers (§2 of the plan)
@@ -140,7 +150,17 @@ one. A directive touching **T2+/T3** or a blast-radius boundary must also PR `do
   when CI is green. The agent never self-merges an **authored** change.)
 - Secrets: sops-encrypted in git **or** 0600 under `/opt/skynet-ops/secrets/` — never
   plaintext in commits, transcripts, or chat.
-- Nightly = report-only outside the version-controlled auto-approve list.
+- Nightly = report-only outside the version-controlled auto-approve list. Each promotion is a
+  step on the A0–A5 ladder, paid for with evidence; from **A4** a capability needs a rollback that is
+  automatic, tested in failure, and run by a dumb executor. Irreversible actions (`destroy`, data
+  deletion, credential rotation, anything T3) stay hard checkpoints **at every level**.
+- **You never widen your own leash.** Changes to `docs/system-design.md` §1a/§2, this file's §3/§6,
+  `invariants.json`, or the gates enforcing them are **human-merged forever**, however autonomous
+  everything else becomes. Propose your own promotion; never merge it.
+- **The system rebuilds from git alone — never from a backup.** System state (definitions, config,
+  policy, encrypted secrets, inventory, docs) must be reconstructable from the repo; only **payload**
+  data (documents, libraries, archives) is restored from backup, and only after the system stands up.
+  A system-class thing recoverable *only* from a backup is a bug to fix.
 - Survival kit verified quarterly; kill switch (`disable tokens + qm stop 9090`) drilled before autonomy day one.
 
 ---

@@ -10,8 +10,8 @@ tags: [skynet, generated, agent, context-map]
 
 # Skynet — Context Map
 
-**Always-loaded baseline:** `AGENTS.md` + `CLAUDE.md` ≈ **2620** tok — the contract; never in this list.
-**Cold-boot read:** `docs/generated/06-agent-digest.md` ≈ 1477 tok.
+**Always-loaded baseline:** `AGENTS.md` + `CLAUDE.md` ≈ **3082** tok — the contract; never in this list.
+**Cold-boot read:** `docs/generated/06-agent-digest.md` ≈ 1731 tok.
 
 Everything below is **on-demand**: nothing enters context until a trigger fires. Open a *file*, not a section.
 
@@ -54,7 +54,7 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 | `docs/conventions/git.md` | 591 | How change enters the repo: one branch per unit of work, one PR per phase, and the agent never merging its own PRs. |
 | `docs/conventions/layout.md` | 1422 | Where each kind of artifact lives, and the minimum files each must have to be well-formed. |
 | `docs/conventions/metadata.md` | 641 | The structured fields machines read: directive frontmatter, service-catalog entries, and the compose label/tag namespaces. |
-| `docs/conventions/naming.md` | 717 | The one naming grammar — VMIDs, IPs, hostnames, slugs, branches — so a name is predictable and machine-validatable. |
+| `docs/conventions/naming.md` | 1760 | The one naming grammar — VMIDs, IPs, hostnames, slugs, branches — so a name is predictable and machine-validatable. |
 | `docs/conventions/scripts.md` | 663 | The house style for every executable in scripts/ and bin/: same shape, fails safe, and declares the tier it runs at. |
 
 ## Catalogs & templates
@@ -63,7 +63,7 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 |---|--:|---|
 | `compose/README.md` | 1508 | The compose/ service catalog and the Arcane GitOps deployment loop every project follows. |
 | `journal/README.md` | 1029 | The episodic journal format — session/incident/decision records, the Graveyard, and the write-raw/read-summarize rule. |
-| `planning/README.md` | 1327 | Where future work lives as SKY-### directives: the scratchpad→ideas→backlog→projects→archive lifecycle, bin/plan, and the roadmap. |
+| `planning/README.md` | 1398 | Where future work lives as SKY-### directives: the scratchpad→ideas→backlog→projects→archive lifecycle, bin/plan, and the roadmap. |
 | `runbooks/README.md` | 1461 | Catalog of engine-neutral procedures any agent can execute, each tagged by tier and trigger — the routing menu. |
 | `templates/README.md` | 395 | The golden templates (compose, script, runbook, ADR, journal) that bin/new stamps so new artifacts inherit the house style. |
 
@@ -71,9 +71,9 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 
 | Path | ~tok | Summary |
 |---|--:|---|
-| `docs/generated/00-network-map.md` | 523 | Network map |
-| `docs/generated/05-state-of-the-lab.md` | 1543 | State of the Lab |
-| `docs/generated/06-agent-digest.md` | 1477 | Agent Digest |
+| `docs/generated/00-network-map.md` | 524 | Network map |
+| `docs/generated/05-state-of-the-lab.md` | 1892 | State of the Lab |
+| `docs/generated/06-agent-digest.md` | 1731 | Agent Digest |
 | `docs/generated/10-vlans.md` | 1139 | VLANs |
 | `docs/generated/20-firewall.md` | 2268 | Firewall |
 | `docs/generated/90-backup-status.md` | 213 | Backup & grant status |
@@ -81,8 +81,8 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 
 ## Episodic memory — retrieve by topic, don't browse
 
-- `journal/` — 18 raw episodes, ≈ 21212 tok total. Retrieve by topic: `bin/recall <topic>` (SKY-010 P4) or `grep -ri "<topic>" journal/`; recent episodes are already in `06-agent-digest.md`. **Do not load the whole store.**
+- `journal/` — 21 raw episodes, ≈ 25867 tok total. Retrieve by topic: `bin/recall <topic>` (SKY-010 P4) or `grep -ri "<topic>" journal/`; recent episodes are already in `06-agent-digest.md`. **Do not load the whole store.**
 
 ---
-**On-demand corpus:** ≈ **46328** tok across 39 files — but you load a *row* (≈ tens of tok) to choose, then one file.
+**On-demand corpus:** ≈ **48046** tok across 39 files — but you load a *row* (≈ tens of tok) to choose, then one file.
 _A cache — regenerable from git via `render-context-map.sh`; never a source of truth._

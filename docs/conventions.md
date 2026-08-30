@@ -34,7 +34,7 @@ These hold everywhere and don't get a "unless"; the spokes elaborate, never loos
 
 | Spoke | Covers |
 |---|---|
-| [naming](conventions/naming.md) | VMID/IP scheme, static addressing, hostnames, slugs, branch names |
+| [naming](conventions/naming.md) | VMID/IP scheme, static addressing, hostnames, **entity IDs + VLAN slugs**, slugs, branch names |
 | [layout](conventions/layout.md) | Repo map; required files per artifact type; generated dirs |
 | [scripts](conventions/scripts.md) | Bash header/flags, `REPO_DIR` idiom, TLS pinning, `bin/` vs `scripts/` |
 | [compose](conventions/compose.md) | The skynet way: pinned digests, env layering, healthchecks, volumes, tags |

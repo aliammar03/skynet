@@ -15,6 +15,7 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 ## 🧷 Recent decisions
 
+- **[[0005-full-agent-control-as-terminal-goal|ADR 0005]]** — Full agent control is the terminal goal; autonomy is earned, reversible, and never self-granted · accepted · 2026-08-28
 - **[[0004-auto-merge-generated-only-nightly-prs|ADR 0004]]** — Auto-merge generated-only nightly PRs · accepted · 2026-08-20
 - **[[0003-ambiguity-layering-and-format-follows-enforcement|ADR 0003]]** — Ambiguity-tolerance layering; format follows enforcement · accepted · 2026-08-18
 - **[[0002-append-only-episodic-journal|ADR 0002]]** — Append-only episodic journal · accepted · 2026-08-17
@@ -32,27 +33,29 @@ follow a link for the full story; distill episodes at read time, never in this f
 - **SKY-012** (ideas · draft) — Runbooks as executable capabilities
 - **SKY-015** (ideas · draft) — Inventory renderer overhaul: proxy-aware service annotation, canonical host map, reverse-proxy route inventory
 - **SKY-016** (ideas · draft) — Harden the service-deployment workflow: verify reachability not just health, plus scaffolding helpers
+- **SKY-017** (ideas · draft) — The road to full agent control: verification, proving ground, and an evidence-earned ratchet
+- **SKY-018** (ideas · draft) — Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain
 
 **Loose ends from recent episodes** (the journal's own open-thread bullets, verbatim):
 
-- The full `indexer:anime` run is in-container detached; check `docker --context docker-dmz exec aiometadata-jikan_rest-1 cat /tmp/jikan-seed.log` and re-count anime for progress. If the container restarts mid-run the log is lost but `--resume` picks up. — _2026-08-28 session          # session | incident | decision_
+- **PBS (VMID 240) is stopped** — confirm with Ali whether this is deliberate maintenance or an unplanned outage. If unplanned, the L5 PBS→Drive nightly upload (04:00) has nothing to mirror until it's back up. Not acted on — starting/stopping guests is outside nightly's report-only scope and 240, while `ops-managed`, wasn't touched by any tofu session this window. — _2026-08-29 session          # session | incident | decision_
+- **VMID 999 (legacy pre-NixOS `vm-skynet-ops`) is running again** — the 2026-08-27 nightly read its "stopped" state as confirmation the SKY-007 VMID renumber (9091→9090) had landed cleanly. It coming back up is unexplained; worth confirming it's intentional (e.g. Ali booting it to compare/verify something) rather than a stray duplicate of the live ops box. — _2026-08-29 session          # session | incident | decision_
+- **`vm-docker-dmz`'s containers all show `Up 11 hours`** as of this collect — points to a host reboot or full `docker compose`/daemon restart roughly 2026-08-28 ~16:30 +05, not individual service redeploys. No corresponding journal entry found; worth asking Ali if this was deliberate (e.g. a host update) or worth investigating. — _2026-08-29 session          # session | incident | decision_
+- SKY-008 P3 (DNS provider + declarative LXC import) is still not started (per `planning/projects/SKY-008-*.md` status log, last entry 2026-08-27). — _2026-08-29 session          # session | incident | decision_
 - No persistent scheduler: the DB will go stale again without one. Proper fix is a compose change (a `schedule:work` sidecar or cron running indexer:incremental / seasonal refreshes) — that's an authored compose PR, out of scope for this seed. Worth a SKY directive or a small PR. — _2026-08-28 session          # session | incident | decision_
 - Consider whether manga is wanted (aiometadata is anime-only today; left manga=0 unseeded). — _2026-08-28 session          # session | incident | decision_
-- **Full node-wide listing** needs `VM.Audit` added to `TofuVmConfig` (the `/vms` binding shadows audit at `/vms/<id>`, so the token lists only pooled guests). `/nodes/<node>` PVEAuditor alone isn't enough. Optional/cosmetic — tofu manages ops-managed via the pool. — _2026-08-27 session          # session | incident | decision_
-- **P3 DNS** (Technitium provider) still open. Network node now has the provider plumbing; ops-managed there is empty again (both throwaways destroyed). — _2026-08-27 session          # session | incident | decision_
-- LXC import (declarative management of an existing container) remains unproven — the bpg `template_file_id` drift is the open question if we want it. — _2026-08-27 session          # session | incident | decision_
-- **Extend tofu to the network node** (Ali's ask). Standalone node → its own `svc-tofu` + roles + provider endpoint. Keep 5001/635/837 untouchable: **avoid the `/vms` binding there**, use per-VMID grants for any guest it creates. Its own short plan / phase. — _2026-08-27 session          # session | incident | decision_
-- **Golden template `ubuntu-2404-skynet`** (CA trust, principals, onboard-host sshd) is a later cloud-init layer on clones — 9000 is only the base. — _2026-08-27 session          # session | incident | decision_
+- **JSON key-order churn is now a recurring nightly diff cost.** Two nights running, `proxmox-core.json`/`proxmox-network.json` show large line-diffs that are pure key reordering from the Proxmox API (not real state change) — makes the PR diff noisy and slower to eyeball for a real anomaly. Worth a follow-up: sort object keys before writing in `collect-proxmox.sh`, so future diffs are signal-only. Not fixed tonight — collectors aren't on the auto-approve list and this is a habitability nit, not an anomaly. — _2026-08-28 session          # session | incident | decision_
+- `PORT_WEB` alias description is still the regressed generic placeholder ("Ports for WEB") as of tonight — carried over from 2026-08-27, unchanged; still flagging for Ali, not acting (T3). — _2026-08-28 session          # session | incident | decision_
 
 ## 📓 Recent episodes
 
+- **2026-08-29** · session          # session | incident | decision · [[2026-08-29-session-nightly-2026-08-29|nightly 2026-08-29]]
 - **2026-08-28** · session          # session | incident | decision · [[2026-08-28-session-seed-jikan-anime-index-for-aiometadata|seed jikan anime index for aiometadata]]
+- **2026-08-28** · session          # session | incident | decision · [[2026-08-28-session-nightly-2026-08-28|nightly 2026-08-28]]
+- **2026-08-28** · decision · [[2026-08-28-decision-entity-model-and-naming-convention|Entity model (five classes) and the final naming convention]]
 - **2026-08-27** · session          # session | incident | decision · [[2026-08-27-session-sky-008-tofu-extended-to-network-node-lxc-clone-round-trip|SKY-008 — tofu extended to network node, LXC clone round-trip]]
 - **2026-08-27** · session          # session | incident | decision · [[2026-08-27-session-sky-008-p2-tofu-vm-lifecycle-round-trip-on-core-node|SKY-008 P2 — tofu VM lifecycle round-trip on core node]]
 - **2026-08-27** · session          # session | incident | decision · [[2026-08-27-session-nightly-2026-08-27|nightly 2026-08-27]]
-- **2026-08-26** · session          # session | incident | decision · [[2026-08-26-session-sky-007-cutover-to-nixos-close-out|SKY-007 cutover to NixOS + close-out]]
-- **2026-08-23** · session          # session | incident | decision · [[2026-08-23-session-librespeed-wifi-speed-test-deploy|librespeed wifi speed-test deploy]]
-- **2026-08-20** · session · [[2026-08-20-session-sky-003-p4-firewall-least-privilege-vm-docker-dmz-ssh-exposure-audit|SKY-003 P4 — firewall least-privilege + vm-docker-dmz SSH-exposure audit]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._

@@ -35,6 +35,44 @@ host work uses **auto-expiring, certificate-based root grants** that the agent c
 from a laptop and a phone hotspot. Nothing the agent knows lives only in its own head: it is
 stateless by design, and everything it is stands in git.
 
+## 1a. The terminal goal — full agent control
+
+Everything below is scaffolding for one end state: **Skynet runs the lab.** A human expresses
+intent — *"deploy this service"* — and the system delivers it provisioned, published, backed up,
+monitored and documented, with no further input. The agent corrects drift, provisions and optimises
+workloads, validates firewall rules, and keeps its own backups honest. **The heart of Skynet is the
+AI**; the scripts, gates and runbooks exist to make its judgement *safe to act on*, not to replace
+it.
+
+The leash today is not a verdict on that goal — it is a statement about **evidence**. The binding
+constraint is that the agent is *unproven*, not that it is untrusted: a confidently-wrong operator
+with T2 write can do real damage in a single run, and right now the only thing between a plausible-
+but-wrong plan and the lab is **a human reading a diff**. So every widening reduces to one question:
+**what replaces the human as the verifier of this loop?** Nothing graduates until something does.
+
+Autonomy is therefore a property of an individual **capability**, not a global setting, and it is
+climbed on recorded evidence:
+
+| Level | The agent may… | Verified by |
+|---|---|---|
+| **A0** Observe | read, render, report | — |
+| **A1** Propose | open a PR; a human merges | a human reading the diff |
+| **A2** Rehearse | execute against the proving ground, not production | the rehearsal's assertions |
+| **A3** Supervised act | act in production, human notified, easy undo | gates + verification, human watching |
+| **A4** Auto act | act unattended within its declared scope | gates + verification + **automatic rollback** |
+| **A5** Self-direct | choose *when* it is needed, not just how | the above + drift attribution + budget |
+
+A capability climbs only with a track record at the level below, and reaches **A4 only if its
+rollback is automatic, tested in the failure case, and performed by a dumb executor that works when
+the agent's judgement is the thing that failed.** Actions irreversible by nature — `destroy`, data
+deletion, credential rotation, anything crossing into T3 — stay **hard checkpoints at every level,
+including the terminal one**. Full agent control means the agent may build, run, repair and revert
+unattended; never that it may destroy unattended.
+
+The reasoning, the three classes of verifier that replace the human, and the reversibility test in
+full: **[ADR 0005](decisions/0005-full-agent-control-as-terminal-goal.md)**. The road there is
+[SKY-017](../planning/ideas/SKY-017-the-road-to-full-agent-control-verification-proving-ground-and-an-evidence-earned-ratchet.md).
+
 ## 2. Invariants
 
 The invariants come in two kinds, and telling them apart is the whole trick of building a system
@@ -58,6 +96,18 @@ that can grow without becoming dangerous.
 - **The agent proposes; a human disposes.** The agent never hand-edits generated dirs
   (`inventory/`, `docs/generated/`). (*How* a proposal is accepted is a dial — see 2b — but that a
   proposal exists, reviewable, is law.)
+- **The agent never widens its own leash.** Any change to this section, §1a's ladder, §2b's dials,
+  [`AGENTS.md`](../AGENTS.md) §3/§6, `invariants.json`, or the gate scripts enforcing them is
+  **human-merged, permanently** — at every autonomy level, including the terminal one. The agent may
+  propose its own promotion; it may never merge it. This is the counterweight that makes §1a safe to
+  state as a goal ([ADR 0005](decisions/0005-full-agent-control-as-terminal-goal.md) §4).
+- **The system is reconstructable from git alone — never restored from a backup.** Two classes, and
+  the line between them is load-bearing: the **system** (definitions, config, policy, identity,
+  encrypted secrets, inventory, docs) rebuilds from git, and a backup of it is a convenience that must
+  never become a dependency; the **payload** (service data — documents, libraries, archives) is not
+  reconstructable, so it is backed up encrypted and off-site, and restored *after* the system stands
+  up. **Rebuilding from git alone must yield a running, correct, empty lab.** If any part of the
+  system class can only be recovered from a backup, that is a bug to fix, not a backup to take.
 
 ### 2b. Version-controlled dials — the settings this document sets, and a PR here can widen
 
@@ -78,6 +128,9 @@ can be moved openly rather than eroded quietly. **Widening any of them is a PR t
   plan) — the green-gate in `scripts/nightly.sh` is the enforcement.
 - **Autonomy** = nightly runs are **report-only** outside the version-controlled auto-approve
   list. Individual actions graduate to auto-approve one at a time, by PR. Even the leash is in git.
+  Each graduation is a move on §1a's **A0–A5 ladder**, bought with recorded evidence and — from A4 —
+  a rollback that satisfies the reversibility test. Most capabilities sit at **A1** today; the
+  nightly's generated-only self-merge is the one at **A4**.
 - **Survival & kill switch** — survival kit verified quarterly; kill switch (`disable tokens +
   qm stop 9090`) drilled before autonomy day one, re-drilled on demand.
 
@@ -208,6 +261,15 @@ directives** — this section names the horizon and hands off.
   See [memory](design/memory.md).
 - **The self-hosted service catalog** — `planning/services/` becoming a steady intake pipeline.
 - **Multi-agent operations** — more than one engine, or specialized agents, under one contract.
+  The first concrete use is **adversarial review**: a second, cold session with no shared context
+  reviewing a diff against this constitution — one of the three verifiers §1a requires.
+- **The road to full agent control** — **[SKY-017](../planning/ideas/SKY-017-the-road-to-full-agent-control-verification-proving-ground-and-an-evidence-earned-ratchet.md)**:
+  build what the ladder in §1a spends — a **proving ground** (an ephemeral replica where A2 rehearsal
+  is real but disposable), the **verification layer** (bounded plan diffs, canary scope, health
+  probes, automatic rollback), **adversarial review**, and a **per-capability track record** so
+  promotion is a measurement rather than a feeling. Plus the containment that unattended action
+  needs: a **change budget** per run and a **circuit breaker** that halts on the first unexplained
+  failure. This is the directive the rest of the roadmap eventually feeds.
 
 ## 7. The spokes — an open set
 
