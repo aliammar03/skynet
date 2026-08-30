@@ -20,9 +20,11 @@ cd "${REPO_DIR}"
 # flag (unset = the engine's own default).
 engine_bin() { case "$1" in codex) echo codex;; claude) echo claude;; *) return 1;; esac; }
 engine_cmd() { case "$1" in
-  # --approve-for-me = auto-approve via the workspace-write sandbox (implies -s workspace-write;
-  # the two can't be combined). Replaces the removed --full-auto (codex ≥0.149).
-  codex)  echo "codex exec --approve-for-me${OPS_CODEX_MODEL:+ --model ${OPS_CODEX_MODEL}}";;
+  # --dangerously-bypass-approvals-and-sandbox = full autonomy, no codex-side sandbox — the VM
+  # itself (least-priv user, no standing T3) is the boundary, and the nightly needs unrestricted
+  # network for the T1 collectors, git push, and gh. codex's documented path for externally-
+  # sandboxed hosts like this one. Replaces the removed --full-auto (codex ≥0.149).
+  codex)  echo "codex exec --dangerously-bypass-approvals-and-sandbox${OPS_CODEX_MODEL:+ --model ${OPS_CODEX_MODEL}}";;
   claude) echo "claude -p --permission-mode acceptEdits${OPS_CLAUDE_MODEL:+ --model ${OPS_CLAUDE_MODEL}}";;
   *) return 1;; esac; }
 
