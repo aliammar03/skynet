@@ -46,9 +46,15 @@ fi
 # (b) green-gate — blocks until every check completes, then exits nonzero if any failed.
 echo "automerge: generated-only — waiting for CI on #${pr}…"
 if gh pr checks "${pr}" --watch --interval 20 >/dev/null 2>&1; then
-  gh pr merge "${pr}" --squash --delete-branch \
-    && echo "automerge: merged #${pr} (generated-only, CI green)" \
-    || echo "automerge: merge call failed — #${pr} left open"
+  # --delete-branch cleans up the remote branch. Its LOCAL delete can fail harmlessly (e.g. the
+  # branch is checked out in a nightly worktree), which makes gh exit nonzero AFTER the remote
+  # merge already landed. So never trust the exit code alone — re-check the PR's actual state.
+  gh pr merge "${pr}" --squash --delete-branch >/dev/null 2>&1 || true
+  if [ "$(gh pr view "${pr}" --json state --jq .state 2>/dev/null)" = MERGED ]; then
+    echo "automerge: merged #${pr} (generated-only, CI green)"
+  else
+    echo "automerge: merge call failed — #${pr} left open"
+  fi
 else
   echo "automerge: CI not green — #${pr} left open for review"
 fi
