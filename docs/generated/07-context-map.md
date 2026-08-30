@@ -10,8 +10,8 @@ tags: [skynet, generated, agent, context-map]
 
 # Skynet — Context Map
 
-**Always-loaded baseline:** `AGENTS.md` + `CLAUDE.md` ≈ **3082** tok — the contract; never in this list.
-**Cold-boot read:** `docs/generated/06-agent-digest.md` ≈ 1720 tok.
+**Always-loaded baseline:** `AGENTS.md` + `CLAUDE.md` ≈ **3090** tok — the contract; never in this list.
+**Cold-boot read:** `docs/generated/06-agent-digest.md` ≈ 1522 tok.
 
 Everything below is **on-demand**: nothing enters context until a trigger fires. Open a *file*, not a section.
 
@@ -72,8 +72,8 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 | Path | ~tok | Summary |
 |---|--:|---|
 | `docs/generated/00-network-map.md` | 524 | Network map |
-| `docs/generated/05-state-of-the-lab.md` | 2017 | State of the Lab |
-| `docs/generated/06-agent-digest.md` | 1720 | Agent Digest |
+| `docs/generated/05-state-of-the-lab.md` | 2085 | State of the Lab |
+| `docs/generated/06-agent-digest.md` | 1522 | Agent Digest |
 | `docs/generated/10-vlans.md` | 1139 | VLANs |
 | `docs/generated/20-firewall.md` | 2268 | Firewall |
 | `docs/generated/90-backup-status.md` | 213 | Backup & grant status |
@@ -81,8 +81,8 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 
 ## Episodic memory — retrieve by topic, don't browse
 
-- `journal/` — 22 raw episodes, ≈ 27569 tok total. Retrieve by topic: `bin/recall <topic>` (SKY-010 P4) or `grep -ri "<topic>" journal/`; recent episodes are already in `06-agent-digest.md`. **Do not load the whole store.**
+- `journal/` — 24 raw episodes, ≈ 30989 tok total. Retrieve by topic: `bin/recall <topic>` (SKY-010 P4) or `grep -ri "<topic>" journal/`; recent episodes are already in `06-agent-digest.md`. **Do not load the whole store.**
 
 ---
-**On-demand corpus:** ≈ **48252** tok across 39 files — but you load a *row* (≈ tens of tok) to choose, then one file.
+**On-demand corpus:** ≈ **48122** tok across 39 files — but you load a *row* (≈ tens of tok) to choose, then one file.
 _A cache — regenerable from git via `render-context-map.sh`; never a source of truth._
