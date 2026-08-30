@@ -1,6 +1,6 @@
 {
   "host": "docker-dmz",
-  "collected": "2026-08-30T13:04:34+05:00",
+  "collected": "2026-08-30T13:26:47+05:00",
   "containers": [
     {
       "Command": "\"docker-php-entrypoi…\"",
@@ -286,7 +286,7 @@
       "Platform": null,
       "Ports": "",
       "RunningFor": "2 weeks ago",
-      "Size": "6.55MB (virtual 3.51GB)",
+      "Size": "6.56MB (virtual 3.51GB)",
       "State": "running",
       "Status": "Up 45 hours (healthy)"
     },
@@ -316,7 +316,7 @@
       "Image": "ghcr.io/getarcaneapp/manager:latest",
       "Labels": "com.docker.compose.config-hash=311332f1063d7274160c75c8793eb2d9e1bd33a231e13d99ef5e669a6ab5088b,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:c23588695093944e3fb31355dde56f3e057e017315f1df4a53396ac1bde4aeaa,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/opt/docker/arcane-manager/compose.yaml,com.docker.compose.project.working_dir=/opt/docker/arcane-manager,com.docker.compose.project=arcane-manager,com.docker.compose.service=arcane,com.docker.compose.version=5.4.0,com.getarcaneapp.arcane=true,org.opencontainers.image.authors=OFKM Technologies,org.opencontainers.image.description=Modern Docker Management, Made for Everyone,org.opencontainers.image.documentation=https://github.com/getarcaneapp/arcane/blob/main/README.md,org.opencontainers.image.licenses=BSD-3-Clause,org.opencontainers.image.revision=b8bc5b4f8d0c6487b18a6e6d2185c71c4c0d0fe0,org.opencontainers.image.source=https://github.com/getarcaneapp/arcane,org.opencontainers.image.title=Arcane,org.opencontainers.image.url=https://github.com/getarcaneapp/arcane,org.opencontainers.image.version=v2.8.0",
       "LocalVolumes": "0",
-      "Mounts": "/var/run/docke…,/opt/docker/ap…,/opt/docker/ar…",
+      "Mounts": "/opt/docker/ap…,/opt/docker/ar…,/var/run/docke…",
       "Names": "arcane",
       "Networks": "arcane-manager_default",
       "Platform": null,

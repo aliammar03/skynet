@@ -13,7 +13,7 @@ tags: [skynet, generated, narrative, state-of-the-lab]
 
 # Skynet — State of the Lab
 
-**As of 2026-08-30 (second pass)** · foundations long graduated; SKY-008 (OpenTofu) has both
+**As of 2026-08-30 (third pass)** · foundations long graduated; SKY-008 (OpenTofu) has both
 Proxmox nodes provisioning VM/CT lifecycle end-to-end (Phase 1+2 done, both nodes), DNS +
 declarative LXC import (Phase 3) still to start. The nightly-PR backlog that dominated the last
 two nights is **cleared** — `main` tracks reality again.
@@ -64,11 +64,11 @@ not started.
 > The last two narratives opened with a warning that the nightly-PR queue was backing up (#113,
 > #115 unmerged, `main` up to 12 commits behind reality). That's **done**: PR #113 (nightly
 > 08-28), #115 (nightly 08-29) and #116 (nightly 08-30) all landed on `main`. Local `main` ==
-> `origin/main` == `991fa58`, and for the first time in about four nights "diff vs `main`" and
-> "diff vs last night" are the same question. This is a second pass on 2026-08-30, run against the
-> now-current `main`, so the window it covers is short — a few hours since #116.
+> `origin/main` == `fe214aa`, and "diff vs `main`" and "diff vs last night" are once again the
+> same question. This is the third pass on 2026-08-30, run against current `main`, so the window
+> it covers is unusually short — about twenty minutes since PR #118's inventory snapshot.
 
-Comparing against `991fa58` (PR #116, the morning pass's output):
+Comparing against `fe214aa` (`main`, after PR #118's second pass and PR #119's engine fix):
 
 - **PBS split is worth stating precisely.** There are two containers named
   `lxc-proxmox-backup-server`, one per Proxmox node. The **network**-node one (CT 240, no pool) is
@@ -83,15 +83,14 @@ Comparing against `991fa58` (PR #116, the morning pass's output):
   changes, no new restart. The ~08-28 16:30 event remains a one-off.
 - **OPNsense firewall mirror: content byte-identical.** 41 aliases, 29 rules, 6 reservations;
   mirror HEAD still `aba7911` (2026-08-26). Only the collector timestamp moved.
-- **DNS**: routine only — the secondary zone's SOA serial advanced `2026082901 → 2026083000` (an
-  AXFR refresh), and a few record `lastUsedOn` timestamps moved. One of those is the
-  `10.10.100.35` A-record (last queried 2026-08-30 07:50) — a client is still asking for that
+- **DNS**: routine only — no zone or record content changed; three `lastUsedOn` timestamps moved.
+  One of those is the `10.10.100.35` A-record (last queried 2026-08-30 08:25 UTC) — a client is still asking for that
   name even though CT 1035 (caddy-dmz) is stopped. That's a query landing, not proof anything
   answers it; it does underline that the `10.10.100.35`-ownership thread needs closing before CT
   1035 is destroyed.
-- **Generated docs**: only the `generated:` frontmatter timestamp moved on the factual pages. The
-  deterministic machine pages — [[06-agent-digest]] and [[07-context-map]] — regenerated
-  **byte-identical** (no ADR / journal / roadmap source change since #116).
+- **Generated docs**: timestamps and live values moved on factual pages. The deterministic
+  [[06-agent-digest|agent digest]] caught up to the already-merged second-pass episode; the
+  [[07-context-map|context map]] refreshed token and journal counts.
 
 ## What I'm keeping an eye on
 
@@ -111,10 +110,10 @@ Comparing against `991fa58` (PR #116, the morning pass's output):
 
 ## Commentary
 
-A genuinely quiet pass — and, for once, quiet in a good way. The thing I've spent three
-narratives nagging about (the merge queue) is cleared; `main` and reality have converged. With
-nothing between the last render and this one but a SOA bump and some metric churn, the honest
-report is short: the lab is exactly where #116 left it a few hours ago. The one standing item
+A genuinely quiet pass — and quiet in a good way. The merge queue remains cleared; `main` and
+reality agree. With nothing between the last render and this one but live counters, timestamps,
+and a 0.01 MB container-size display tick, the honest report is short: the lab is exactly where
+PR #118 left it about twenty minutes earlier. The one standing item
 that isn't drift is the core-node PBS still being down since the 27th — I want to be careful to
 name *which* PBS, because there are two and only one is stopped. Nothing here needed nightly to
 act; report-only, all of it outside auto-approve scope regardless, so nothing was touched.
