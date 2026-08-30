@@ -23,12 +23,19 @@ DATE="$(date +%Y-%m-%d)"
 mode="${OPS_NIGHTLY_AUTOMERGE:-1}"
 [ "${mode}" = 0 ] && { echo "automerge: disabled (OPS_NIGHTLY_AUTOMERGE=0) — PR left open"; exit 0; }
 
-# Resolve the PR. An explicit ref wins; otherwise find the open PR for tonight's branch.
+# Resolve the PR. Precedence: explicit ref ($1) → the exact branch the caller ran
+# (OPS_NIGHTLY_BRANCH) → newest open PR whose head starts with inventory/<date> (branches carry a
+# HHMM suffix, so a day can hold several — take the most recent).
 pr="${1:-}"
-if [ -z "${pr}" ]; then
-  pr="$(gh pr list --head "inventory/${DATE}" --state open --json number --jq '.[0].number' 2>/dev/null || true)"
+if [ -z "${pr}" ] && [ -n "${OPS_NIGHTLY_BRANCH:-}" ]; then
+  pr="$(gh pr list --head "${OPS_NIGHTLY_BRANCH}" --state open --json number --jq '.[0].number' 2>/dev/null || true)"
 fi
-[ -z "${pr}" ] && { echo "automerge: no PR found for inventory/${DATE} — nothing to merge"; exit 0; }
+if [ -z "${pr}" ]; then
+  pr="$(gh pr list --state open --json number,headRefName,createdAt \
+        --jq "[.[] | select(.headRefName | startswith(\"inventory/${DATE}\"))] | sort_by(.createdAt) | last | .number" 2>/dev/null || true)"
+fi
+[ "${pr}" = null ] && pr=""   # jq prints "null" for an empty match; treat as none
+[ -z "${pr}" ] && { echo "automerge: no open PR for inventory/${DATE}* — nothing to merge"; exit 0; }
 
 # (a) path allowlist — generated inventory/docs, a journal episode, or a sops-encrypted env blob.
 #     Ask GitHub for the PR's own file list so this works regardless of local checkout state.
@@ -46,9 +53,15 @@ fi
 # (b) green-gate — blocks until every check completes, then exits nonzero if any failed.
 echo "automerge: generated-only — waiting for CI on #${pr}…"
 if gh pr checks "${pr}" --watch --interval 20 >/dev/null 2>&1; then
-  gh pr merge "${pr}" --squash --delete-branch \
-    && echo "automerge: merged #${pr} (generated-only, CI green)" \
-    || echo "automerge: merge call failed — #${pr} left open"
+  # --delete-branch cleans up the remote branch. Its LOCAL delete can fail harmlessly (e.g. the
+  # branch is checked out in a nightly worktree), which makes gh exit nonzero AFTER the remote
+  # merge already landed. So never trust the exit code alone — re-check the PR's actual state.
+  gh pr merge "${pr}" --squash --delete-branch >/dev/null 2>&1 || true
+  if [ "$(gh pr view "${pr}" --json state --jq .state 2>/dev/null)" = MERGED ]; then
+    echo "automerge: merged #${pr} (generated-only, CI green)"
+  else
+    echo "automerge: merge call failed — #${pr} left open"
+  fi
 else
   echo "automerge: CI not green — #${pr} left open for review"
 fi

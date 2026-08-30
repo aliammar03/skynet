@@ -17,7 +17,9 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${REPO_DIR}"
 
 DATE="$(date +%Y-%m-%d)"
-BRANCH="inventory/${DATE}"
+# Timestamped branch (date + HHMM) so re-runs in one day don't collide on inventory/<date>.
+# Reuse OPS_NIGHTLY_BRANCH if the caller (bin/ops) already picked one, so both agree.
+BRANCH="${OPS_NIGHTLY_BRANCH:-inventory/$(date +%Y-%m-%d-%H%M)}"
 DEFAULT_BRANCH="${OPS_DEFAULT_BRANCH:-main}"
 
 echo "== nightly (deterministic) ${DATE} =="
@@ -87,7 +89,7 @@ git push -u origin "${BRANCH}" --quiet
 # Summarise the diff for the PR body (inventory, docs, and any re-encrypted env layer).
 summary="$(git diff --stat "origin/${DEFAULT_BRANCH}...${BRANCH}" -- inventory docs/generated compose | tail -25)"
 PR_URL="$(gh pr create --base "${DEFAULT_BRANCH}" --head "${BRANCH}" \
-  --title "nightly ${DATE}: inventory + docs (report-only)" \
+  --title "nightly ${BRANCH#inventory/}: inventory + docs (report-only)" \
   --body "Automated report-only nightly (deterministic path — no LLM this run).
 
 Refreshed inventory (T1 collectors), envsync, and re-rendered \`docs/generated/\`.
