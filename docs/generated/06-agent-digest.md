@@ -50,9 +50,9 @@ follow a link for the full story; distill episodes at read time, never in this f
 - **2026-08-30** · session          # session | incident | decision · [[2026-08-30-session-nightly-2026-08-30-third-pass|nightly 2026-08-30 third pass]]
 - **2026-08-30** · session          # session | incident | decision · [[2026-08-30-session-nightly-2026-08-30-second-pass|nightly 2026-08-30 second pass]]
 - **2026-08-30** · session · [[2026-08-30-session-nightly-2026-08-30-fourth-pass|nightly 2026-08-30 fourth pass]]
+- **2026-08-30** · session · [[2026-08-30-session-nightly-2026-08-30-fifth-pass|nightly 2026-08-30 fifth pass]]
 - **2026-08-29** · session          # session | incident | decision · [[2026-08-29-session-nightly-2026-08-29|nightly 2026-08-29]]
 - **2026-08-28** · session          # session | incident | decision · [[2026-08-28-session-seed-jikan-anime-index-for-aiometadata|seed jikan anime index for aiometadata]]
-- **2026-08-28** · session          # session | incident | decision · [[2026-08-28-session-nightly-2026-08-28|nightly 2026-08-28]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._
