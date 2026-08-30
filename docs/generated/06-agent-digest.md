@@ -15,6 +15,7 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 ## 🧷 Recent decisions
 
+- **[[0005-full-agent-control-as-terminal-goal|ADR 0005]]** — Full agent control is the terminal goal; autonomy is earned, reversible, and never self-granted · accepted · 2026-08-28
 - **[[0004-auto-merge-generated-only-nightly-prs|ADR 0004]]** — Auto-merge generated-only nightly PRs · accepted · 2026-08-20
 - **[[0003-ambiguity-layering-and-format-follows-enforcement|ADR 0003]]** — Ambiguity-tolerance layering; format follows enforcement · accepted · 2026-08-18
 - **[[0002-append-only-episodic-journal|ADR 0002]]** — Append-only episodic journal · accepted · 2026-08-17
@@ -32,27 +33,29 @@ follow a link for the full story; distill episodes at read time, never in this f
 - **SKY-012** (ideas · draft) — Runbooks as executable capabilities
 - **SKY-015** (ideas · draft) — Inventory renderer overhaul: proxy-aware service annotation, canonical host map, reverse-proxy route inventory
 - **SKY-016** (ideas · draft) — Harden the service-deployment workflow: verify reachability not just health, plus scaffolding helpers
+- **SKY-017** (ideas · draft) — The road to full agent control: verification, proving ground, and an evidence-earned ratchet
+- **SKY-018** (ideas · draft) — Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain
 
 **Loose ends from recent episodes** (the journal's own open-thread bullets, verbatim):
 
+- No persistent scheduler: the DB will go stale again without one. Proper fix is a compose change (a `schedule:work` sidecar or cron running indexer:incremental / seasonal refreshes) — that's an authored compose PR, out of scope for this seed. Worth a SKY directive or a small PR. — _2026-08-28 session          # session | incident | decision_
+- Consider whether manga is wanted (aiometadata is anime-only today; left manga=0 unseeded). — _2026-08-28 session          # session | incident | decision_
 - **JSON key-order churn is now a recurring nightly diff cost.** Two nights running, `proxmox-core.json`/`proxmox-network.json` show large line-diffs that are pure key reordering from the Proxmox API (not real state change) — makes the PR diff noisy and slower to eyeball for a real anomaly. Worth a follow-up: sort object keys before writing in `collect-proxmox.sh`, so future diffs are signal-only. Not fixed tonight — collectors aren't on the auto-approve list and this is a habitability nit, not an anomaly. — _2026-08-28 session          # session | incident | decision_
 - `PORT_WEB` alias description is still the regressed generic placeholder ("Ports for WEB") as of tonight — carried over from 2026-08-27, unchanged; still flagging for Ali, not acting (T3). — _2026-08-28 session          # session | incident | decision_
 - SKY-008 is now 2/3 phases done (P1 core skeleton, P2 VM/CT lifecycle both nodes); Phase 3 is scoped (DNS via Technitium + a zero-drift LXC import) per `24997c1` but not started. — _2026-08-28 session          # session | incident | decision_
 - The `phase/sky-008-p2-throwaway-guest` stash mentioned in the 2026-08-27 entry is resolved — that branch's work landed via PR #112; no stash to worry about tonight. — _2026-08-28 session          # session | incident | decision_
-- **Full node-wide listing** needs `VM.Audit` added to `TofuVmConfig` (the `/vms` binding shadows audit at `/vms/<id>`, so the token lists only pooled guests). `/nodes/<node>` PVEAuditor alone isn't enough. Optional/cosmetic — tofu manages ops-managed via the pool. — _2026-08-27 session          # session | incident | decision_
-- **P3 DNS** (Technitium provider) still open. Network node now has the provider plumbing; ops-managed there is empty again (both throwaways destroyed). — _2026-08-27 session          # session | incident | decision_
-- LXC import (declarative management of an existing container) remains unproven — the bpg `template_file_id` drift is the open question if we want it. — _2026-08-27 session          # session | incident | decision_
-- **Extend tofu to the network node** (Ali's ask). Standalone node → its own `svc-tofu` + roles + provider endpoint. Keep 5001/635/837 untouchable: **avoid the `/vms` binding there**, use per-VMID grants for any guest it creates. Its own short plan / phase. — _2026-08-27 session          # session | incident | decision_
+- **Where does `10.10.100.35` live now?** `*.aliammar.net` fronts there, `caddy-apps` runs on `.15`, CT 1035 is stopped and slated for destroy. Must be established before the destroy or nine published apps break. — _2026-08-28 decision_
+- CT 526 (UniFi controller): running and unmapped — needs an alias/reservation, and is the reason SKY-018 P4 exists. — _2026-08-28 decision_
 
 ## 📓 Recent episodes
 
+- **2026-08-28** · session          # session | incident | decision · [[2026-08-28-session-seed-jikan-anime-index-for-aiometadata|seed jikan anime index for aiometadata]]
 - **2026-08-28** · session          # session | incident | decision · [[2026-08-28-session-nightly-2026-08-28|nightly 2026-08-28]]
+- **2026-08-28** · decision · [[2026-08-28-decision-entity-model-and-naming-convention|Entity model (five classes) and the final naming convention]]
 - **2026-08-27** · session          # session | incident | decision · [[2026-08-27-session-sky-008-tofu-extended-to-network-node-lxc-clone-round-trip|SKY-008 — tofu extended to network node, LXC clone round-trip]]
 - **2026-08-27** · session          # session | incident | decision · [[2026-08-27-session-sky-008-p2-tofu-vm-lifecycle-round-trip-on-core-node|SKY-008 P2 — tofu VM lifecycle round-trip on core node]]
 - **2026-08-27** · session          # session | incident | decision · [[2026-08-27-session-nightly-2026-08-27|nightly 2026-08-27]]
 - **2026-08-26** · session          # session | incident | decision · [[2026-08-26-session-sky-007-cutover-to-nixos-close-out|SKY-007 cutover to NixOS + close-out]]
-- **2026-08-23** · session          # session | incident | decision · [[2026-08-23-session-librespeed-wifi-speed-test-deploy|librespeed wifi speed-test deploy]]
-- **2026-08-20** · session · [[2026-08-20-session-sky-003-p4-firewall-least-privilege-vm-docker-dmz-ssh-exposure-audit|SKY-003 P4 — firewall least-privilege + vm-docker-dmz SSH-exposure audit]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._
