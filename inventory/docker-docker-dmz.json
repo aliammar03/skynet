@@ -1,6 +1,6 @@
 {
   "host": "docker-dmz",
-  "collected": "2026-08-29T03:30:36+05:00",
+  "collected": "2026-08-30T03:44:11+05:00",
   "containers": [
     {
       "Command": "\"docker-php-entrypoi…\"",
@@ -15,10 +15,10 @@
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "5 days ago",
+      "RunningFor": "6 days ago",
       "Size": "44.4MB (virtual 272MB)",
       "State": "running",
-      "Status": "Up 11 hours (healthy)"
+      "Status": "Up 35 hours (healthy)"
     },
     {
       "Command": "\"tini -- ./docker-en…\"",
@@ -33,10 +33,10 @@
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "9 days ago",
+      "RunningFor": "10 days ago",
       "Size": "4.22kB (virtual 565MB)",
       "State": "running",
-      "Status": "Up 11 hours (healthy)"
+      "Status": "Up 35 hours (healthy)"
     },
     {
       "Command": "\"cloudflared --no-au…\"",
@@ -51,10 +51,10 @@
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "9 days ago",
+      "RunningFor": "10 days ago",
       "Size": "0B (virtual 63.9MB)",
       "State": "running",
-      "Status": "Up 11 hours (healthy)"
+      "Status": "Up 35 hours (healthy)"
     },
     {
       "Command": "\"/bin/bash -c 'cp /e…\"",
@@ -64,15 +64,15 @@
       "Image": "couchdb:3.5.0",
       "Labels": "com.docker.compose.config-hash=80ff4a3341aabc51ec8b377fc7d7a01678933be72700b08f79a3294045ad7b18,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:d79cbaa90bb2c5a628b4b3f44026d0eb3970f6cb2b0ec893df86cdb9c68ed7b1,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/opt/docker/arcane-projects/obsidian-livesync/compose.yaml,com.docker.compose.project.working_dir=/opt/docker/arcane-projects/obsidian-livesync,com.docker.compose.project=obsidian-livesync,com.docker.compose.service=couchdb,com.docker.compose.version=,maintainer=CouchDB Developers dev@couchdb.apache.org",
       "LocalVolumes": "1",
-      "Mounts": "/opt/docker/ar…,obsidian-lives…",
+      "Mounts": "obsidian-lives…,/opt/docker/ar…",
       "Names": "obsidian-livesync-couchdb-1",
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "10 days ago",
+      "RunningFor": "11 days ago",
       "Size": "1.38kB (virtual 272MB)",
       "State": "running",
-      "Status": "Up 11 hours (healthy)"
+      "Status": "Up 35 hours (healthy)"
     },
     {
       "Command": "\"caddy run --config …\"",
@@ -82,15 +82,15 @@
       "Image": "ghcr.io/caddybuilds/caddy-cloudflare:2.11.4-alpine",
       "Labels": "com.docker.compose.config-hash=7ca5b1d418313e5e2f6eb4905b5d713d0fd327fa495084669023fdc859a05cea,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:1fdf385c8e953aa3e31e5f8164fc6222bac3fc426c2d89dc1f9f3177a8ee1364,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/opt/docker/arcane-projects/caddy-apps/compose.yaml,com.docker.compose.project.working_dir=/opt/docker/arcane-projects/caddy-apps,com.docker.compose.project=caddy-apps,com.docker.compose.service=caddy,com.docker.compose.version=,org.opencontainers.image.created=2026-06-04T02:40:04.052Z,org.opencontainers.image.description=Caddy with Cloudflare DNS module (Alpine),org.opencontainers.image.documentation=https://caddyserver.com/docs,org.opencontainers.image.licenses=MIT,org.opencontainers.image.revision=280cd873b440bb8e1ffe8183ae0b53b3cdf1a3e5,org.opencontainers.image.source=https://github.com/CaddyBuilds/caddy-cloudflare,org.opencontainers.image.title=Caddy Cloudflare Alpine,org.opencontainers.image.url=https://github.com/CaddyBuilds/caddy-cloudflare,org.opencontainers.image.vendor=CaddyBuilds,org.opencontainers.image.version=2.11.4-alpine",
       "LocalVolumes": "0",
-      "Mounts": "/opt/docker/ap…,/opt/docker/ap…,/opt/docker/ar…",
+      "Mounts": "/opt/docker/ap…,/opt/docker/ar…,/opt/docker/ap…",
       "Names": "caddy-apps-caddy-1",
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "11 days ago",
+      "RunningFor": "12 days ago",
       "Size": "0B (virtual 111MB)",
       "State": "running",
-      "Status": "Up 11 hours (healthy)"
+      "Status": "Up 35 hours (healthy)"
     },
     {
       "Command": "\"tini -- /bin/sh -c …\"",
@@ -105,10 +105,10 @@
       "Networks": "karakeep_backend",
       "Platform": null,
       "Ports": "7700/tcp",
-      "RunningFor": "12 days ago",
+      "RunningFor": "13 days ago",
       "Size": "0B (virtual 158MB)",
       "State": "running",
-      "Status": "Up 11 hours (healthy)"
+      "Status": "Up 35 hours (healthy)"
     },
     {
       "Command": "\"chromium-browser --…\"",
@@ -123,10 +123,10 @@
       "Networks": "karakeep_backend",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "12 days ago",
+      "RunningFor": "13 days ago",
       "Size": "194kB (virtual 670MB)",
       "State": "running",
-      "Status": "Up 11 hours (healthy)"
+      "Status": "Up 35 hours (healthy)"
     },
     {
       "Command": "\"/nodejs/bin/node /a…\"",
@@ -141,10 +141,10 @@
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "12 days ago",
+      "RunningFor": "13 days ago",
       "Size": "0B (virtual 277MB)",
       "State": "running",
-      "Status": "Up 11 hours (healthy)"
+      "Status": "Up 35 hours (healthy)"
     },
     {
       "Command": "\"/app/docker-entrypo…\"",
@@ -156,13 +156,13 @@
       "LocalVolumes": "0",
       "Mounts": "/opt/docker/ar…",
       "Names": "aiometadata-jikan_rest-1",
-      "Networks": "aiometadata_backend,aiometadata_jikan_egress",
+      "Networks": "aiometadata_jikan_egress,aiometadata_backend",
       "Platform": null,
       "Ports": "2114/tcp, 8080/tcp",
-      "RunningFor": "13 days ago",
-      "Size": "3.11MB (virtual 667MB)",
+      "RunningFor": "2 weeks ago",
+      "Size": "3.52MB (virtual 667MB)",
       "State": "running",
-      "Status": "Up 11 hours (healthy)"
+      "Status": "Up 35 hours (healthy)"
     },
     {
       "Command": "\"/usr/local/bin/entr…\"",
@@ -177,10 +177,10 @@
       "Networks": "aiometadata_backend,dmz",
       "Platform": null,
       "Ports": "3232/tcp",
-      "RunningFor": "13 days ago",
+      "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 437MB)",
       "State": "running",
-      "Status": "Up 11 hours (healthy)"
+      "Status": "Up 35 hours (healthy)"
     },
     {
       "Command": "\"docker-entrypoint.s…\"",
@@ -195,10 +195,10 @@
       "Networks": "aiometadata_backend",
       "Platform": null,
       "Ports": "6379/tcp",
-      "RunningFor": "13 days ago",
+      "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 27.9MB)",
       "State": "running",
-      "Status": "Up 11 hours (healthy)"
+      "Status": "Up 35 hours (healthy)"
     },
     {
       "Command": "\"docker-entrypoint.s…\"",
@@ -213,10 +213,10 @@
       "Networks": "aiometadata_backend",
       "Platform": null,
       "Ports": "27017/tcp",
-      "RunningFor": "13 days ago",
+      "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 644MB)",
       "State": "running",
-      "Status": "Up 11 hours (healthy)"
+      "Status": "Up 35 hours (healthy)"
     },
     {
       "Command": "\"/opt/typesense-serv…\"",
@@ -231,10 +231,10 @@
       "Networks": "aiometadata_backend",
       "Platform": null,
       "Ports": "8108/tcp",
-      "RunningFor": "13 days ago",
+      "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 799MB)",
       "State": "running",
-      "Status": "Up 11 hours (healthy)"
+      "Status": "Up 35 hours (healthy)"
     },
     {
       "Command": "\"docker-entrypoint.s…\"",
@@ -249,10 +249,10 @@
       "Networks": "aiometadata_backend",
       "Platform": null,
       "Ports": "6379/tcp",
-      "RunningFor": "13 days ago",
+      "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 38.6MB)",
       "State": "running",
-      "Status": "Up 11 hours (healthy)"
+      "Status": "Up 35 hours (healthy)"
     },
     {
       "Command": "\"node /usr/local/bin…\"",
@@ -267,10 +267,10 @@
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "13 days ago",
+      "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 2.27GB)",
       "State": "running",
-      "Status": "Up 11 hours (healthy)"
+      "Status": "Up 35 hours (healthy)"
     },
     {
       "Command": "\"/init\"",
@@ -285,10 +285,10 @@
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "13 days ago",
-      "Size": "6.21MB (virtual 3.51GB)",
+      "RunningFor": "2 weeks ago",
+      "Size": "6.46MB (virtual 3.51GB)",
       "State": "running",
-      "Status": "Up 11 hours (healthy)"
+      "Status": "Up 35 hours (healthy)"
     },
     {
       "Command": "\"/init\"",
@@ -303,10 +303,10 @@
       "Networks": "dmz,karakeep_backend",
       "Platform": null,
       "Ports": "3000/tcp",
-      "RunningFor": "13 days ago",
+      "RunningFor": "2 weeks ago",
       "Size": "8.99MB (virtual 1.48GB)",
       "State": "running",
-      "Status": "Up 11 hours (healthy)"
+      "Status": "Up 35 hours (healthy)"
     },
     {
       "Command": "\"./arcane\"",
@@ -316,7 +316,7 @@
       "Image": "ghcr.io/getarcaneapp/manager:latest",
       "Labels": "com.docker.compose.config-hash=311332f1063d7274160c75c8793eb2d9e1bd33a231e13d99ef5e669a6ab5088b,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:c23588695093944e3fb31355dde56f3e057e017315f1df4a53396ac1bde4aeaa,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/opt/docker/arcane-manager/compose.yaml,com.docker.compose.project.working_dir=/opt/docker/arcane-manager,com.docker.compose.project=arcane-manager,com.docker.compose.service=arcane,com.docker.compose.version=5.4.0,com.getarcaneapp.arcane=true,org.opencontainers.image.authors=OFKM Technologies,org.opencontainers.image.description=Modern Docker Management, Made for Everyone,org.opencontainers.image.documentation=https://github.com/getarcaneapp/arcane/blob/main/README.md,org.opencontainers.image.licenses=BSD-3-Clause,org.opencontainers.image.revision=b8bc5b4f8d0c6487b18a6e6d2185c71c4c0d0fe0,org.opencontainers.image.source=https://github.com/getarcaneapp/arcane,org.opencontainers.image.title=Arcane,org.opencontainers.image.url=https://github.com/getarcaneapp/arcane,org.opencontainers.image.version=v2.8.0",
       "LocalVolumes": "0",
-      "Mounts": "/var/run/docke…,/opt/docker/ap…,/opt/docker/ar…",
+      "Mounts": "/opt/docker/ap…,/opt/docker/ar…,/var/run/docke…",
       "Names": "arcane",
       "Networks": "arcane-manager_default",
       "Platform": null,
@@ -324,14 +324,14 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 149MB)",
       "State": "running",
-      "Status": "Up 11 hours (healthy)"
+      "Status": "Up 35 hours (healthy)"
     }
   ],
   "images": [
     {
       "Containers": "0",
       "CreatedAt": "2026-08-15 08:04:59 +0500 PKT",
-      "CreatedSince": "13 days ago",
+      "CreatedSince": "2 weeks ago",
       "Digest": "<none>",
       "ID": "2d520270e97b",
       "Repository": "alpine/openssl",
@@ -523,7 +523,7 @@
     {
       "Containers": "0",
       "CreatedAt": "2026-07-18 05:45:29 +0500 PKT",
-      "CreatedSince": "5 weeks ago",
+      "CreatedSince": "6 weeks ago",
       "Digest": "<none>",
       "ID": "1525c9d2e73a",
       "Repository": "ghcr.io/viren070/aiostreams",
