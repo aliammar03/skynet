@@ -77,42 +77,12 @@ git add "${JENTRY}"
 git commit -q -m "nightly ${DATE}: inventory + docs + encrypted env refresh + journal (report-only)"
 git push -u origin "${BRANCH}" --quiet
 
-# 6. Auto-merge — the merge-gate carve-out (docs/system-design.md §2b, ADR 0004). The nightly may
-#    self-merge its OWN PR, but ONLY when every changed path is generated/encrypted AND CI is green.
-#    No branch protection backstops this (private repo on the free plan), so the green-gate below IS
-#    the safety and is deliberately strict: one stray authored path, or a red/pending check, and the
-#    PR is left open for a human — exactly the old behaviour. Off-switch: OPS_NIGHTLY_AUTOMERGE=0;
-#    OPS_NIGHTLY_AUTOMERGE=dry rehearses the allowlist decision without CI or merging.
-automerge() {
-  # OPS_NIGHTLY_AUTOMERGE: 0 = off (PR left open), dry = rehearse the decision without merging,
-  # anything else (incl. unset) = on.
-  local mode="${OPS_NIGHTLY_AUTOMERGE:-1}"
-  [ "${mode}" = 0 ] && { echo "automerge: disabled (OPS_NIGHTLY_AUTOMERGE=0) — PR left open"; return; }
-  local pr="$1"
-  # (a) path allowlist — generated inventory/docs, a journal episode, or a sops-encrypted env blob.
-  #     Anything else means a human reasoned about it; hand it back to a human.
-  local stray
-  stray="$(git diff --name-only "origin/${DEFAULT_BRANCH}...${BRANCH}" \
-    | grep -vE '(^inventory/|^docs/generated/|^journal/|^compose/[^/]+/\.env\.sops$)' || true)"
-  if [ -n "${stray}" ]; then
-    echo "automerge: PR touches non-generated paths — left open for human review:"; echo "${stray}"; return
-  fi
-  # Dry-run — prove the decision (allowlist passed ⇒ generated-only) without touching CI or merging.
-  # `OPS_NIGHTLY_AUTOMERGE=dry` exercises the gate on a real PR without waiting for the 03:36 timer.
-  if [ "${mode}" = dry ]; then
-    echo "automerge: DRY-RUN (OPS_NIGHTLY_AUTOMERGE=dry) — generated-only; would wait for CI then squash-merge ${pr}"; return
-  fi
-  # (b) green-gate — `gh pr checks --watch` blocks until every check completes, then exits nonzero
-  #     if any failed (verified: all-pass → exit 0). Merge only on a clean pass; else leave the PR open.
-  echo "automerge: generated-only — waiting for CI on ${pr}…"
-  if gh pr checks "${pr}" --watch --interval 20 >/dev/null 2>&1; then
-    gh pr merge "${pr}" --squash --delete-branch \
-      && echo "automerge: merged ${pr} (generated-only, CI green)" \
-      || echo "automerge: merge call failed — ${pr} left open"
-  else
-    echo "automerge: CI not green — ${pr} left open for review"
-  fi
-}
+# 6. Auto-merge — the merge-gate carve-out (docs/system-design.md §2b, ADR 0004), enforced by the
+#    shared dumb gate scripts/nightly-automerge.sh (also called by the agent path in bin/ops nightly).
+#    It merges the nightly's OWN PR ONLY when every changed path is generated/encrypted AND CI is
+#    green — one stray authored path or a red/pending check leaves it open for a human. No branch
+#    protection backstops this (private repo, free plan), so that gate IS the safety. Off-switch:
+#    OPS_NIGHTLY_AUTOMERGE=0; OPS_NIGHTLY_AUTOMERGE=dry rehearses the decision without CI or merging.
 
 # Summarise the diff for the PR body (inventory, docs, and any re-encrypted env layer).
 summary="$(git diff --stat "origin/${DEFAULT_BRANCH}...${BRANCH}" -- inventory docs/generated compose | tail -25)"
@@ -135,7 +105,7 @@ Generated-only, so this **auto-merges once CI is green** (merge-gate dial §2b; 
 git checkout "${DEFAULT_BRANCH}" --quiet 2>/dev/null || true
 
 case "${PR_URL}" in
-  https://*) echo "opened ${PR_URL}"; automerge "${PR_URL}" ;;
+  https://*) echo "opened ${PR_URL}"; ./scripts/nightly-automerge.sh "${PR_URL}" ;;
   *)         echo "PR create skipped/failed (check gh auth): ${PR_URL}" ;;
 esac
 

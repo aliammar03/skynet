@@ -55,7 +55,7 @@ case "${cmd}" in
   nightly)
     # Report-only until actions are promoted to the AGENTS.md auto-approve list.
     # Prefer the LLM engine; fall back to the deterministic script if it can't run.
-    prompt="Run the nightly maintenance pass per runbooks/nightly.md. Report-only: refresh inventory (bin/ops collect), envsync, harvest the root-grant audit if a grant is active, then render docs (scripts/render-docs.sh) AND (re)write the human-readable narrative docs/generated/05-state-of-the-lab.md — a beautifully formatted, honest 'state of the lab' for HUMANS with agent commentary and what changed since last night (diff against main). Also run scripts/render-digest.sh to regenerate your own cold-boot page docs/generated/06-agent-digest.md (recent decisions / open threads / recent episodes, from ADRs + the journal + the roadmap) — that page is deterministic, so don't hand-write it. Likewise run scripts/render-context-map.sh to refresh docs/generated/07-context-map.md (what's loadable and what each artifact costs) — also deterministic. Also append a RAW episodic journal entry for tonight (bin/new journal session \"nightly \$(date +%F)\") per journal/README.md — concrete facts only (what ran, what changed vs main, any anomalies, and dead-ends in the Graveyard section); do NOT summarize at write time. Finally open a PR on branch inventory/\$(date +%F) with the summary. Take no T2 write or granted-root action unless it is on the AGENTS.md auto-approve list. Never merge."
+    prompt="Run the nightly maintenance pass per runbooks/nightly.md. Report-only: refresh inventory (bin/ops collect), envsync, harvest the root-grant audit if a grant is active, then render docs (scripts/render-docs.sh) AND (re)write the human-readable narrative docs/generated/05-state-of-the-lab.md — a beautifully formatted, honest 'state of the lab' for HUMANS with agent commentary and what changed since last night (diff against main). Also run scripts/render-digest.sh to regenerate your own cold-boot page docs/generated/06-agent-digest.md (recent decisions / open threads / recent episodes, from ADRs + the journal + the roadmap) — that page is deterministic, so don't hand-write it. Likewise run scripts/render-context-map.sh to refresh docs/generated/07-context-map.md (what's loadable and what each artifact costs) — also deterministic. Also append a RAW episodic journal entry for tonight (bin/new journal session \"nightly \$(date +%F)\") per journal/README.md — concrete facts only (what ran, what changed vs main, any anomalies, and dead-ends in the Graveyard section); do NOT summarize at write time. Finally open a PR on branch inventory/\$(date +%F) with the summary. Take no T2 write or granted-root action unless it is on the AGENTS.md auto-approve list. Do NOT merge the PR yourself — leave it open; the deterministic gate (scripts/nightly-automerge.sh) decides the merge after you exit."
     if [ "${OPS_NIGHTLY_MODE:-agent}" = agent ]; then
       # ordered attempts: primary engine → fallback engine → deterministic script
       order=("${OPS_ENGINE}")
@@ -65,7 +65,10 @@ case "${cmd}" in
         if ! command -v "${b}" >/dev/null 2>&1; then echo "engine '${e}' not installed — skipping" >&2; continue; fi
         if [ "${e}" = "${OPS_ENGINE}" ]; then c="${OPS_ENGINE_CMD}"; else c="$(engine_cmd "${e}")"; fi
         echo "== nightly via engine: ${e} (${c}) =="
-        if ${c} "${prompt}"; then exit 0; fi
+        # The LLM opens the PR but never merges. Afterward run the SAME dumb merge-gate the
+        # deterministic path uses (ADR 0004): generated-only + CI-green → squash-merge, else left
+        # open. The safety is code, not the engine's judgement. Fails closed on any error.
+        if ${c} "${prompt}"; then ./scripts/nightly-automerge.sh || true; exit 0; fi
         echo "engine '${e}' failed — trying next" >&2
       done
       echo "all engines exhausted — deterministic fallback" >&2
