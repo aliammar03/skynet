@@ -43,19 +43,19 @@ follow a link for the full story; distill episodes at read time, never in this f
 - **VMID 999 still running, unexplained** — third observation in a row, probably benign (Ali comparing something against the old pre-NixOS box?) but still unconfirmed. — _2026-08-30 session          # session | incident | decision_
 - From the 2026-08-28 entity-model decision journal entry (carried via the agent digest, not independently re-verified tonight): `10.10.100.35`'s ownership needs resolving before CT 1035 (caddy-dmz, stopped) gets destroyed — nine published apps depend on it; CT 526 (UniFi controller) is running and unmapped in DNS/reservations; `arcane-manager`'s GitOps-exception status is still Ali's call. — _2026-08-30 session          # session | incident | decision_
 - SKY-008 P3 (DNS provider + declarative LXC import) still not started (per `planning/projects/SKY-008-*.md` status log — Phase 1+2 done both nodes, Phase 3 open). — _2026-08-30 session          # session | incident | decision_
-- The full `indexer:anime` run is in-container detached; check `docker --context docker-dmz exec aiometadata-jikan_rest-1 cat /tmp/jikan-seed.log` and re-count anime for progress. If the container restarts mid-run the log is lost but `--resume` picks up. — _2026-08-28 session          # session | incident | decision_
-- No persistent scheduler: the DB will go stale again without one. Proper fix is a compose change (a `schedule:work` sidecar or cron running indexer:incremental / seasonal refreshes) — that's an authored compose PR, out of scope for this seed. Worth a SKY directive or a small PR. — _2026-08-28 session          # session | incident | decision_
-- Consider whether manga is wanted (aiometadata is anime-only today; left manga=0 unseeded). — _2026-08-28 session          # session | incident | decision_
+- **PBS (VMID 240) is stopped** — confirm with Ali whether this is deliberate maintenance or an unplanned outage. If unplanned, the L5 PBS→Drive nightly upload (04:00) has nothing to mirror until it's back up. Not acted on — starting/stopping guests is outside nightly's report-only scope and 240, while `ops-managed`, wasn't touched by any tofu session this window. — _2026-08-29 session          # session | incident | decision_
+- **VMID 999 (legacy pre-NixOS `vm-skynet-ops`) is running again** — the 2026-08-27 nightly read its "stopped" state as confirmation the SKY-007 VMID renumber (9091→9090) had landed cleanly. It coming back up is unexplained; worth confirming it's intentional (e.g. Ali booting it to compare/verify something) rather than a stray duplicate of the live ops box. — _2026-08-29 session          # session | incident | decision_
+- **`vm-docker-dmz`'s containers all show `Up 11 hours`** as of this collect — points to a host reboot or full `docker compose`/daemon restart roughly 2026-08-28 ~16:30 +05, not individual service redeploys. No corresponding journal entry found; worth asking Ali if this was deliberate (e.g. a host update) or worth investigating. — _2026-08-29 session          # session | incident | decision_
 
 ## 📓 Recent episodes
 
 - **2026-08-30** · session          # session | incident | decision · [[2026-08-30-session-nightly-2026-08-30|nightly 2026-08-30]]
+- **2026-08-29** · session          # session | incident | decision · [[2026-08-29-session-nightly-2026-08-29|nightly 2026-08-29]]
 - **2026-08-28** · session          # session | incident | decision · [[2026-08-28-session-seed-jikan-anime-index-for-aiometadata|seed jikan anime index for aiometadata]]
+- **2026-08-28** · session          # session | incident | decision · [[2026-08-28-session-nightly-2026-08-28|nightly 2026-08-28]]
 - **2026-08-28** · decision · [[2026-08-28-decision-entity-model-and-naming-convention|Entity model (five classes) and the final naming convention]]
 - **2026-08-27** · session          # session | incident | decision · [[2026-08-27-session-sky-008-tofu-extended-to-network-node-lxc-clone-round-trip|SKY-008 — tofu extended to network node, LXC clone round-trip]]
 - **2026-08-27** · session          # session | incident | decision · [[2026-08-27-session-sky-008-p2-tofu-vm-lifecycle-round-trip-on-core-node|SKY-008 P2 — tofu VM lifecycle round-trip on core node]]
-- **2026-08-27** · session          # session | incident | decision · [[2026-08-27-session-nightly-2026-08-27|nightly 2026-08-27]]
-- **2026-08-26** · session          # session | incident | decision · [[2026-08-26-session-sky-007-cutover-to-nixos-close-out|SKY-007 cutover to NixOS + close-out]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._
