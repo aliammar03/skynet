@@ -1,17 +1,17 @@
 {
-  "collected": "2026-08-27T03:45:26+05:00",
+  "collected": "2026-08-28T03:33:48+05:00",
   "zones": [
     {
       "name": "",
       "type": "Secondary",
-      "lastModified": "2026-08-26T17:56:28.6702155Z",
+      "lastModified": "2026-08-27T21:26:35.7644491Z",
       "disabled": false,
-      "soaSerial": 2026082602,
+      "soaSerial": 2026082702,
       "catalog": null,
       "dnssecStatus": "SignedWithNSEC",
       "hasDnssecPrivateKeys": false,
       "validationFailed": false,
-      "expiry": "2026-09-02T22:14:08.0239562Z",
+      "expiry": "2026-09-03T22:13:26.9391775Z",
       "isExpired": false,
       "syncFailed": false,
       "notifyFailed": false,
@@ -97,7 +97,7 @@
             "proxyType": "DefaultProxy"
           },
           "dnssecStatus": "Unknown",
-          "lastUsedOn": "2026-08-26T22:44:13.2419709Z",
+          "lastUsedOn": "2026-08-27T22:33:35.8717289Z",
           "lastModified": "2026-08-12T17:58:15.378Z",
           "expiryTtl": 0,
           "expiryTtlString": "0s"
@@ -112,7 +112,7 @@
             "ipAddress": "10.10.100.35"
           },
           "dnssecStatus": "Unknown",
-          "lastUsedOn": "2026-08-26T15:38:50.1476785Z",
+          "lastUsedOn": "2026-08-27T16:37:20.0139234Z",
           "lastModified": "2026-08-12T17:59:03.595Z",
           "expiryTtl": 0,
           "expiryTtlString": "0s"
@@ -172,7 +172,7 @@
             "ipAddress": "10.10.60.35"
           },
           "dnssecStatus": "Unknown",
-          "lastUsedOn": "2026-08-26T18:29:05.5144736Z",
+          "lastUsedOn": "2026-08-27T12:05:22.0073847Z",
           "lastModified": "2026-08-12T17:59:51.604Z",
           "expiryTtl": 0,
           "expiryTtlString": "0s"
@@ -202,7 +202,7 @@
             "ipAddress": "10.10.60.35"
           },
           "dnssecStatus": "Unknown",
-          "lastUsedOn": "2026-08-26T22:43:57.8681722Z",
+          "lastUsedOn": "2026-08-27T13:03:00.6725492Z",
           "lastModified": "0001-01-01T00:00:00Z",
           "expiryTtl": 0,
           "expiryTtlString": "0s"
@@ -217,7 +217,7 @@
             "ipAddress": "10.10.60.35"
           },
           "dnssecStatus": "Unknown",
-          "lastUsedOn": "2026-08-26T18:47:00.8287358Z",
+          "lastUsedOn": "2026-08-27T12:05:37.9694351Z",
           "lastModified": "0001-01-01T00:00:00Z",
           "expiryTtl": 0,
           "expiryTtlString": "0s"
@@ -262,7 +262,7 @@
             "ipAddress": "10.10.60.35"
           },
           "dnssecStatus": "Unknown",
-          "lastUsedOn": "2026-08-26T22:41:01.869282Z",
+          "lastUsedOn": "2026-08-27T12:05:34.9796745Z",
           "lastModified": "0001-01-01T00:00:00Z",
           "expiryTtl": 0,
           "expiryTtlString": "0s"
@@ -532,7 +532,7 @@
             "useSerialDateScheme": false
           },
           "dnssecStatus": "Unknown",
-          "lastUsedOn": "2026-08-26T22:41:19.2503837Z",
+          "lastUsedOn": "2026-08-27T22:26:19.3816599Z",
           "lastModified": "2026-08-25T05:26:08.8021203Z",
           "expiryTtl": 0,
           "expiryTtlString": "0s"
