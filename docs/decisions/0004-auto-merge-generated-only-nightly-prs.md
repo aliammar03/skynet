@@ -39,9 +39,19 @@ The nightly may **self-merge the PR it just opened**, but only when *both* hold:
 2. **Green CI** — `gh pr checks --watch` blocks until every check completes and passes; a red or
    never-arriving check → left open.
 
-Enforced in `scripts/nightly.sh` (`automerge()`), guarded by `OPS_NIGHTLY_AUTOMERGE` (default on;
-`=0` disables without a code change or revert). The dial position moves in `docs/system-design.md`
-§2b and the change is registered as the first entry on the `AGENTS.md` §3 auto-approve list.
+Enforced in the shared dumb gate `scripts/nightly-automerge.sh`, called by **both** nightly paths —
+the deterministic `scripts/nightly.sh` and the agent path (`bin/ops nightly`, after the LLM opens the
+PR; the LLM never merges by hand). Keeping the decision in one path-filter-plus-`gh pr checks`
+executor is the point: it never depends on the engine's judgement. Guarded by `OPS_NIGHTLY_AUTOMERGE`
+(default on; `=0` disables without a code change or revert). The dial position moves in
+`docs/system-design.md` §2b and the change is registered as the first entry on the `AGENTS.md` §3
+auto-approve list.
+
+> **Amendment (2026-08-30):** originally enforced only in `scripts/nightly.sh`, which runs solely as
+> the fallback when the engines fail. Since the nightly normally succeeds via the agent path, that
+> path opened generated-only PRs and left them all open — the exact backlog this ADR set out to
+> drain (#113/#115/#116). Fixed by extracting the gate to `scripts/nightly-automerge.sh` and calling
+> it from both paths. The policy (generated-only + green CI) is unchanged; only the plumbing is.
 
 Everything **authored** — design, code, compose, runbooks, ingress/publish rules — stays
 human-merged, unchanged.
