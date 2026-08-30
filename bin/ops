@@ -20,7 +20,9 @@ cd "${REPO_DIR}"
 # flag (unset = the engine's own default).
 engine_bin() { case "$1" in codex) echo codex;; claude) echo claude;; *) return 1;; esac; }
 engine_cmd() { case "$1" in
-  codex)  echo "codex exec --full-auto${OPS_CODEX_MODEL:+ --model ${OPS_CODEX_MODEL}}";;
+  # --approve-for-me = auto-approve via the workspace-write sandbox (implies -s workspace-write;
+  # the two can't be combined). Replaces the removed --full-auto (codex ≥0.149).
+  codex)  echo "codex exec --approve-for-me${OPS_CODEX_MODEL:+ --model ${OPS_CODEX_MODEL}}";;
   claude) echo "claude -p --permission-mode acceptEdits${OPS_CLAUDE_MODEL:+ --model ${OPS_CLAUDE_MODEL}}";;
   *) return 1;; esac; }
 

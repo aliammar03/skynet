@@ -57,7 +57,7 @@ failure case, and performed by something dumber than you.
    hosts touched, rollback path. Ali approves in one word, or by issuing the grant (the grant *is* approval).
 2. **Then run without narrating.** Within approved scope, execute end-to-end — no
    per-command confirmations, no play-by-play. Run in autonomous mode inside the grant window
-   (`codex exec --full-auto`, `claude -p --permission-mode acceptEdits` with a Bash allowlist).
+   (`codex exec --approve-for-me`, `claude -p --permission-mode acceptEdits` with a Bash allowlist).
 3. **Hard checkpoints — the only mid-run interruptions:**
    - leaving the stated scope;
    - destructive / irreversible actions not in the plan;
