@@ -1,83 +1,83 @@
 ---
 title: State of the Lab
-generated: 2026-08-31
+generated: 2026-09-01
 author: skynet-ops (agent)
 tags: [skynet, generated, narrative, state-of-the-lab]
 ---
 
 # Skynet — State of the Lab
 
-**As of 2026-08-31, 03:35 PKT** · The services visible to the report-only collectors are up,
-and the intended single-PBS topology is still in place. The notable change is housekeeping on the
-core Proxmox node: four old guests that appeared in last night's inventory are no longer listed.
-Tonight observed and documented that change; it did not make it.
+**As of 2026-09-01, 03:44 PKT** · The visible lab held steady overnight. Both Proxmox nodes
+answered, the same guest set remains present, and all 18 Docker containers are running and
+healthy. This was a report-only pass: it observed, encrypted nothing new, and changed no guest,
+service, DNS, firewall, or credential state.
 
 > [!quote] Agent's log
-> The lab looks calmer and less ambiguous than it did yesterday. Healthy containers and available
-> storage are good signals, but they are not substitutes for a credentialed backup-freshness check.
+> Tonight's evidence is reassuringly quiet. The important qualifier is unchanged: green runtime
+> signals tell us the lab is available, while missing backup credentials keep freshness unproved.
 
 ## Tonight at a glance
 
 | System | State | What the evidence says |
 |---|---|---|
-| 🧠 Ops brain (`vm-skynet-ops`, VMID 9090) | 🟢 Running | In `ops-managed`; roughly 2.5 days uptime |
+| 🧠 Ops brain (`vm-skynet-ops`, VMID 9090) | 🟢 Running | In `ops-managed`; about 3.5 days uptime |
 | 🖧 OPNsense / firewall | 🟢 Steady | 41 aliases, 29 rules, 6 reservations; mirror HEAD `aba7911` |
 | 🐳 DMZ Docker | 🟢 Healthy | 18 of 18 containers running and healthy |
-| ☁️ Public tunnel | 🟢 Healthy | `cloudflared` is running on the same pinned image |
-| 🗄️ PBS (core CT 240) | 🟢 Running | In `ops-managed`; the obsolete network-node instance remains absent |
-| 💾 `pbs-unraid` storage | 🟢 Available | Reported available from both Proxmox nodes; snapshot freshness was not inspected |
-| 👁️ Inventory and generated docs | 🟢 Fresh | Collected and rendered at 03:35 PKT |
-| 🔐 Root access | ⚪ Inactive | No SSH agent/certificate was active; grant-audit harvest was skipped |
+| ☁️ Public tunnel | 🟢 Healthy | `cloudflared` is healthy on `2026.8.2` |
+| 🗄️ PBS (core CT 240) | 🟢 Running | In `ops-managed`; about 38 hours uptime |
+| 💾 `pbs-unraid` storage | 🟢 Available | Reported available from both nodes; snapshot freshness was not inspected |
+| 👁️ Inventory and generated docs | 🟢 Fresh | Collected and rendered at 03:44 PKT |
+| 🔐 Root access | ⚪ Inactive | No local certificate directory exists; grant-audit harvest was skipped |
 
 ## What changed since last night
 
-Compared with `origin/main` at `3e96a76` (whose inventory snapshot was collected on August 30 at
-14:01 PKT), the core node no longer reports CT 101 (`debian`), stopped CT 231
-(`lxc-adguard-core`), legacy VM 999, or stopped Nix test VM 9091. This is a material inventory
-change, not timestamp churn. The report-only pass did not determine whether those guests were
-deleted or merely became invisible to the API, so the wording stays deliberately precise.
+Compared with `origin/main` at `9676826`, whose inventory was collected on August 31 at 03:35
+PKT, **no material topology, guest-state, container-set, firewall, or DNS-record change was
+observed**.
 
-- Core CT 240 remains running, and the journal now records that the removed network-node CT 240
-  was an obsolete remnant. That recurring topology question is resolved.
-- The network-node guest set and guest states are unchanged. CT 720 and CT 1035 remain stopped;
-  OPNsense and the other reported infrastructure containers remain running.
-- Docker still reports the same 18-container set and the same images. The two main aiometadata
-  containers restarted about 13 hours before collection; all 18 are healthy.
-- Firewall structure and DNS record content show no material change. Most remaining inventory
-  churn is collection time, uptime, live counters, expiring DNS fields, and ordering.
-- `scripts/envsync.sh` found no host-side `project.env` for the tracked projects and produced no
-  encrypted-environment change.
+- The core and network Proxmox resource sets match last night's snapshot. Core CT 240 remains
+  running; network CTs 720 and 1035 remain stopped.
+- Docker still reports the same 18 containers and images, all running and healthy. The only
+  non-counter churn found was presentation-level ordering, a small live writable-size change for
+  Calibre, and humanized image-age text advancing with time.
+- Firewall content remains 41 aliases, 29 rules, and 6 reservations at the same mirror commit.
+  DNS record content is unchanged; collection and expiring resolver metadata advanced normally.
+- `scripts/envsync.sh` found no host-side `project.env` for any tracked project, so no encrypted
+  environment backup changed.
+- Most of the remaining inventory diff is collection time, uptime, and live CPU, memory, disk,
+  and network counters. Generated factual-page timestamps advanced to the new snapshot.
 
 ## Backup truth
 
-The topology question is settled: core CT 240 is the real PBS and the network-node copy was a
-discarded remnant. The freshness question is not settled by this pass. The PBS collector remained
-idle because `/opt/skynet-ops/secrets/pbs.env` is absent, and no root grant was active to inspect
-restic or SSH audit logs. `pbs-unraid` being available on both nodes proves connectivity, not that
-recent snapshots or the L5 Drive mirror succeeded.
+Core CT 240 is running and `pbs-unraid` is visible as available from both Proxmox nodes. Those are
+useful availability signals, not proof of a successful backup. The PBS collector remained idle
+because `/opt/skynet-ops/secrets/pbs.env` is absent, and no active root grant existed for a deeper
+snapshot or restic check. Recent PBS snapshots and the L5 Drive mirror therefore remain unverified
+by tonight's evidence.
 
 ## Human attention
 
 > [!warning] Worth checking, not silently fixing
-> - Confirm the disappearance of core VMIDs 101, 231, 999, and 9091 was intentional.
 > - Verify recent PBS snapshots and the L5 Google Drive mirror using the credentialed backup
 >   procedure when convenient.
+> - Confirm that the four core guests absent since August 31 (VMIDs 101, 231, 999, and 9091) were
+>   intentionally removed; tonight confirms the absence persisted but cannot establish intent.
 > - Resolve ownership of `10.10.100.35` before destroying stopped CT 1035; published applications
 >   still depend on the correct proxy target.
 > - CT 526 remains running but unmapped in DNS/reservations.
 
 ## Where the build stands
 
-SKY-005, SKY-006, and SKY-008 remain at Phase 2 of 3. SKY-008 still has DNS provider work and
-declarative LXC import open. The autonomy boundary did not move tonight: collection was T1,
-repository output is proposed by PR, and no guest, DNS, firewall, service, or credential state was
-changed.
+SKY-005, SKY-006, and SKY-008 remain at Phase 2 of 3. SKY-008 still has DNS-provider work and
+declarative LXC import open. The autonomy boundary did not move tonight: collection stayed
+read-only, repository output is proposed by PR, and no operational action was taken.
 
 ## Commentary
 
-This is a useful kind of nightly: mostly green, but not incurious. The removal of four stale-looking
-guests may be welcome cleanup, yet inventory cannot infer intent from absence. So the headline is
-“healthy services, cleaner core node, one confirmation requested”—not “everything verified.”
+There is value in a night that produces no new headline. Stability has now survived another
+independent snapshot, and the earlier guest cleanup did not continue into fresh disappearance.
+The honest dashboard is green for availability and still amber for backup proof—two different
+claims, kept deliberately separate.
 
 — _skynet-ops_
 
