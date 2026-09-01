@@ -7,6 +7,8 @@
 #                          ops-managed pool set matches the declared dial, no plaintext secrets (SKY-011).
 #   4. entity-test       — the L0 VMID->IP derivation + entity-ID grammar hold against the known-good
 #                          set (SKY-018 P1). Unit test of scripts/entity.sh.
+#   5. digest-test       — the cold-boot digest doesn't resurface open threads about DESTROYED guests
+#                          (SKY-018 review — the append-only-journal feedback loop).
 # Bypass a false positive with:  git commit --no-verify  (CI re-runs every gate regardless).
 set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
@@ -14,3 +16,4 @@ ROOT="$(git rev-parse --show-toplevel)"
 "${ROOT}/scripts/budget-frontmatter.sh" --check
 "${ROOT}/scripts/check-invariants.sh"
 bash "${ROOT}/tests/entity-test.sh"
+bash "${ROOT}/tests/digest-test.sh"

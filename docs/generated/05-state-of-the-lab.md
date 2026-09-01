@@ -7,82 +7,79 @@ tags: [skynet, generated, narrative, state-of-the-lab]
 
 # Skynet — State of the Lab
 
-**As of 2026-09-01, 17:36 PKT** · The lab is available and answering across every source the
-report-only pass could inspect. Both Proxmox nodes are online, all 18 Docker containers are
-running and healthy, the three managed network devices are connected, and the firewall mirror
-remains internally consistent. One event deserves daylight: the ops VM restarted this afternoon.
+**As of 2026-09-01, evening PKT** · The lab is available and answering across every source the
+report-only pass could inspect. Both Proxmox nodes are online, all Docker containers are running and
+healthy, the three managed network devices are connected, and the firewall mirror is internally
+consistent. Two things earned daylight tonight: the ops VM crossed a reboot boundary this afternoon,
+and a review of the generated docs caught a **stale-thread feedback loop** that had been reporting
+already-destroyed guests as live.
 
 > [!quote] Agent's log
-> The dashboard is mostly green, but the useful story is not “nothing happened.” Skynet's own
-> VM crossed a reboot boundary between snapshots. It came back and produced this report; the
-> cause was not established by a T1 inventory pass and should not be invented after the fact.
+> The dashboard is green, and this time the useful story is a bug in my own reporting: the cold-boot
+> digest was echoing open threads from a journal entry written *before* today's cleanups, and the
+> nightly kept copying them forward. Fixed the mechanism, not just the symptom.
 
 ## Tonight at a glance
 
 | System | State | What the evidence says |
 |---|---|---|
-| 🧠 Ops brain (`vm-skynet-ops`, VMID 9090) | 🟠 Running after restart | About 3.9 hours uptime at collection; previous snapshot showed about 3.9 days |
+| 🧠 Ops brain (`vm-skynet-ops`, VMID 9090) | 🟢 Running (rebuilt) | Uptime reset ~3.9d → ~3.9h — a `nixos-rebuild switch` after merging the P4 collector, not a crash |
 | 🖥️ Proxmox | 🟢 Online | Both nodes answered; guest identities and running/stopped states match `origin/main` |
-| 🐳 DMZ Docker | 🟢 Healthy | 18 of 18 containers running and healthy |
-| ☁️ Public tunnel | 🟢 Healthy | `cloudflared` remains healthy on `2026.8.2` |
-| 🖧 Firewall | 🟢 Steady | 41 aliases, 29 rules, 6 reservations; mirror HEAD `a610af0` |
-| 📡 Network gear | 🟢 Connected | Main switch and both APs connected; no upgrade flagged |
-| 🗄️ PBS (core CT 240) | 🟢 Running | In `ops-managed`; about 2.2 days uptime |
+| 🐳 DMZ Docker | 🟢 Healthy | All containers running and healthy |
+| ☁️ Public tunnel | 🟢 Healthy | `cloudflared` remains healthy |
+| 🖧 Firewall | 🟢 Steady | 41 aliases, 29 rules, 6 reservations |
+| 📡 Network gear | 🟢 Connected | Main switch + both APs connected on VLAN 50, all static, no upgrade flagged |
+| 🗄️ PBS (core CT 240) | 🟢 Running | In `ops-managed` |
 | 💾 Backup proof | ⚪ Unverified | PBS credential absent and no root grant active |
-| 👁️ Inventory and generated docs | 🟢 Fresh | Collected at 17:36 and rendered at 17:39 PKT |
+| 👁️ Inventory and generated docs | 🟢 Fresh | Collected and rendered this evening |
 
 ## What changed against `origin/main`
 
-The comparison base is `b3cde47`. Its sources were not all collected at the same moment: Proxmox
-at 12:50, Docker and DNS at 03:44, firewall at 17:23, and network gear at 17:28 PKT. Against that
-mixed-age baseline:
-
-- **`vm-skynet-ops` restarted.** VMID 9090's uptime fell from 334,857 seconds to 13,894 seconds
-  while its state remained `running`. No other guest crossed a restart boundary. Network CT 730
-  had already restarted before the baseline and continued accumulating uptime normally.
-- Proxmox guest identities, pool membership, and running/stopped states are unchanged. The four
-  core VMIDs already absent from recent snapshots—101, 231, 999, and 9091—remain absent.
-- Docker reports the same 18 container identities and images, all healthy. Remaining Docker
-  differences are live size, uptime, and age presentation.
-- Firewall structure is unchanged at 41 aliases, 29 rules, and 6 reservations. The mirrored git
-  checkout was at `a610af0`; the collector found no semantic firewall diff from the baseline.
-- The Technitium primary zone serial advanced from 286 to 287 and the secondary-zone serial
-  rolled to `2026090100`; sync, notify, expiry, and validation failure flags remain clear.
-- The network snapshot changed only in live counters: the main switch reported 19 clients instead
-  of 18. All three devices remain connected on the same firmware with no upgrade flagged.
-- `scripts/envsync.sh` found no `project.env` for either tracked project, so no encrypted env file
-  changed.
+- **SKY-018 P4 landed.** The Omada network-gear collector is live: `inventory/network-gear.json` +
+  `docs/generated/50-network-gear.md` now hold the switch/AP estate (1× ES210GMP, 2× EAP APs), the
+  last observed-truth hole in the eight-layer model. Its first run exposed estate drift, which Ali
+  reconciled at the source — devices are now static in Omada (switch `.50.3`, Ali's AP `.6`, Mom's AP
+  `.7`) and the `ROLE_INFRASTRUCTURE_*` aliases are trimmed to match. Reconciliation is all-green.
+- **`vm-skynet-ops` restarted** — expected, from the `nixos-rebuild switch` that materialized the new
+  `omada.env` secret. No other guest crossed a restart boundary.
+- Proxmox guest identities, pool membership, and running/stopped states are otherwise unchanged.
+- Docker reports the same container identities and images, all healthy.
+- Firewall structure is unchanged; the mirror now carries `HOST_OMADA` in `ROLE_OPS_API_TARGETS` and
+  `8043` in `PORT_OPS_API` (the P4 reachability change) — no semantic drift beyond that.
+- `scripts/envsync.sh` found no `project.env` for either tracked project, so no encrypted env changed.
 
 ## Backup truth
 
-Core CT 240 is running and the rendered storage view reports `pbs-unraid` available from both
-nodes. Those are availability signals, not recovery evidence. The PBS collector stayed idle
-because `/opt/skynet-ops/secrets/pbs.env` is absent. No signed root certificate was present, so
-the grant audit and deeper restic inspection were skipped. Recent PBS snapshots and the L5 Google
-Drive mirror remain unverified by this run.
+Core CT 240 is running and the storage view reports `pbs-unraid` available from both nodes — those
+are availability signals, not recovery evidence. The PBS collector stayed idle because
+`/opt/skynet-ops/secrets/pbs.env` is absent, and no signed root certificate was present, so the grant
+audit and deeper restic inspection were skipped. Recent PBS snapshots and the L5 Google Drive mirror
+remain unverified by this run.
 
 ## Human attention
 
 > [!warning] Worth checking, not silently fixing
-> - Establish whether the `vm-skynet-ops` restart was planned; this pass proves recovery, not cause.
-> - Verify recent PBS snapshots and the L5 Google Drive mirror through the credentialed backup
->   procedure when convenient.
-> - Confirm that core VMIDs 101, 231, 999, and 9091 were intentionally removed.
-> - Resolve ownership of `10.10.100.35` before any destruction of stopped CT 1035.
-> - CT 526 remains running and unmapped in DNS/reservations.
+> - **OPNsense cleanup (T3):** trim `HOST_SKYNET_OPS` to `10.10.90.90` — it still carries a stale
+>   `.90.91` from the pre-SKY-007 9091 ops VM. Optionally drop the `ap-omada-downstairs` reservation
+>   now that the AP is static in Omada.
+> - **Backup proof:** verify recent PBS snapshots and the L5 Google Drive mirror through the
+>   credentialed procedure when convenient — availability is green, recovery is unproven.
 
 ## Where the build stands
 
-SKY-005, SKY-006, and SKY-008 remain in flight at Phase 2 of 3. The autonomy boundary did not move:
-this pass collected read-only evidence, wrote repository artifacts, and proposed them for review.
-It made no guest, DNS, firewall, service, or credential change.
+**SKY-018 is at Phase 4 of 12** — the entity spine, the SQLite join cache, and now the network-gear
+collector are all in. P5 (Caddy route + certificate collectors, giving the `vhost` class its source)
+is next. SKY-005, SKY-006, and SKY-008 remain in flight. The autonomy boundary did not move: this
+pass collected read-only evidence, wrote repository artifacts, and proposed them for review. It made
+no guest, DNS, firewall, service, or credential change.
 
 ## Commentary
 
-The lab did the important thing after its operator VM restarted: it returned to service and could
-reconstruct an honest picture from git plus live reads. That is encouraging resilience evidence,
-but not a substitute for knowing why the restart happened. Availability is green; backup proof
-and restart causality are still open questions.
+A quiet night on the infrastructure, and a useful one on the reporting: the lab returned cleanly from
+its operator-VM rebuild, and the review turned up a real defect in how I remember — a resolved thread
+that kept resurrecting because the journal is append-only and nothing taught the digest that a guest
+had been destroyed. That's fixed and now gated by a test. Availability is green; backup proof is the
+one honest open question.
 
 — _skynet-ops_
 

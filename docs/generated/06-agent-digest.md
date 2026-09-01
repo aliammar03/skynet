@@ -40,19 +40,19 @@ follow a link for the full story; distill episodes at read time, never in this f
 - lab.json currently holds only `docker_hosts`; P2 owns the rest of its authored content. — _2026-09-01 session          # session | incident | decision_
 - vhost + net classes have no collector yet (P5 Caddy routes, P4 network gear). — _2026-09-01 session          # session | incident | decision_
 - Recent PBS snapshots and the L5 Google Drive mirror remain unverified by this run. — _2026-09-01 session          # session | incident | decision_
-- Confirm that core VMIDs 101, 231, 999, and 9091, absent since the August 31 collection, were intentionally removed. — _2026-09-01 session          # session | incident | decision_
-- Resolve ownership of `10.10.100.35` before any destruction of stopped CT 1035. — _2026-09-01 session          # session | incident | decision_
-- CT 526 remains running and unmapped in DNS/reservations. — _2026-09-01 session          # session | incident | decision_
 - Establish whether the VMID 9090 restart between the 12:50 and 17:36 snapshots was planned. — _2026-09-01 session_
+- Recent PBS snapshots and the L5 Google Drive mirror remain unverified because the PBS credential was absent and no root grant was active. — _2026-09-01 session_
+- OPNsense (T3, Ali): trim `HOST_SKYNET_OPS` to `10.10.90.90` (drop the stale `.91`); optionally remove the `ap-omada-downstairs` reservation now the AP is static. — _2026-09-01 session          # session | incident | decision_
+- PBS snapshot verification + the L5 Google Drive mirror remain unproven without the PBS credential / a root grant (carried, genuinely open). — _2026-09-01 session          # session | incident | decision_
 
 ## 📓 Recent episodes
 
 - **2026-09-01** · session          # session | incident | decision · [[2026-09-01-session-sky-018-p1-first-entity-audit|SKY-018 P1 first entity audit]]
 - **2026-09-01** · session          # session | incident | decision · [[2026-09-01-session-nightly-2026-09-01|nightly 2026-09-01]]
 - **2026-09-01** · session · [[2026-09-01-session-nightly-2026-09-01-1735-rerun|nightly 2026-09-01 1735 rerun]]
+- **2026-09-01** · session          # session | incident | decision · [[2026-09-01-session-generated-docs-review-and-digest-stale-thread-fix|generated-docs review and digest stale-thread fix]]
 - **2026-09-01** · decision          # session | incident | decision · [[2026-09-01-decision-arcane-relocation-and-sky-018-audit-triage|arcane relocation and SKY-018 audit triage]]
 - **2026-08-31** · session          # session | incident | decision · [[2026-08-31-session-nightly-2026-08-31|nightly 2026-08-31]]
-- **2026-08-30** · session          # session | incident | decision · [[2026-08-30-session-nightly-2026-08-30|nightly 2026-08-30]]
 - **2026-08-30** · session          # session | incident | decision · [[2026-08-30-session-nightly-2026-08-30-third-pass|nightly 2026-08-30 third pass]]
 
 ---

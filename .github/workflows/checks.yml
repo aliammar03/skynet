@@ -43,3 +43,8 @@ jobs:
       # check-invariants.sh once the stale/undeclared holes are triaged.)
       - name: entity-test
         run: bash tests/entity-test.sh
+      # SKY-018 review: the cold-boot digest must not resurface open threads about DESTROYED guests
+      # (the append-only journal + verbatim-copy nightly created a feedback loop). render-digest.sh
+      # suppresses them; this asserts it stays suppressed.
+      - name: digest-test
+        run: bash tests/digest-test.sh
