@@ -1,6 +1,6 @@
 {
   "host": "docker-dmz",
-  "collected": "2026-09-01T23:51:20+05:00",
+  "collected": "2026-09-02T03:39:44+05:00",
   "containers": [
     {
       "Command": "\"/usr/local/bin/entr…\"",
@@ -82,7 +82,7 @@
       "Image": "cloudflare/cloudflared:2026.8.2",
       "Labels": "CI_BUILD_DATE=2026-08-14 12:29:10.174645,CI_DOCKER_FROM=gcr.io/distroless/base-debian13:nonroot-amd64@sha256:ce2a20e0e277b7d913aa8bcfa098fc2a543dc08028f7393434963fa24b39ea81,CI_DOCKER_VERSION={\"Platform\": {\"Name\": \"Docker Engine - Community\"}, \"Version\": \"29.5.3\", \"ApiVersion\": \"1.54\", \"MinAPIVersion\": \"1.40\", \"Os\": \"linux\", \"Arch\": \"amd64\", \"Components\": [{\"Name\": \"Engine\", \"Version\": \"29.5.3\", \"Details\": {\"ApiVersion\": \"1.54\", \"Arch\": \"amd64\", \"BuildTime\": \"2026-06-03T18:00:10.000000000+00:00\", \"Experimental\": \"false\", \"GitCommit\": \"285b471\", \"GoVersion\": \"go1.26.4\", \"KernelVersion\": \"6.18.40-cloudflare-2026.7.14\", \"MinAPIVersion\": \"1.40\", \"Module\": \"github.com/moby/moby/v2\", \"ModuleVersion\": \"v2.0.0+unknown\", \"Os\": \"linux\"}}, {\"Name\": \"containerd\", \"Version\": \"v2.2.6\", \"Details\": {\"GitCommit\": \"11ce9d5f3c68c941867e82890e93e815c1304f1b\"}}, {\"Name\": \"runc\", \"Version\": \"1.3.6\", \"Details\": {\"GitCommit\": \"v1.3.6-0-g491b69ba\"}}, {\"Name\": \"docker-init\", \"Version\": \"0.19.0\", \"Details\": {\"GitCommit\": \"de40ad0\"}}], \"GitCommit\": \"285b471\", \"GoVersion\": \"go1.26.4\", \"KernelVersion\": \"6.18.40-cloudflare-2026.7.14\", \"BuildTime\": \"2026-06-03T18:00:10.000000000+00:00\"},CI_GIT_COMMIT=733bfb939963e150dcf5c4faddb1603f744fbc98,CI_GIT_REMOTE=https://gitlab.cfdata.org/cloudflare/tun/cloudflared.git,CI_TEAMCITY_BUILDCONF=,CI_TEAMCITY_BUILD_NUMBER=,IMAGE_TYPE=distroless,com.docker.compose.config-hash=66a088d2a413df1711d707b70a91966009d761623caa6735ecba4329c7e90899,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:96d2b4cae75ec77eb3590565f530245e63a4822951998f61510a08ecfa64f31e,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/opt/docker/arcane-projects/cloudflared/compose.yaml,com.docker.compose.project.working_dir=/opt/docker/arcane-projects/cloudflared,com.docker.compose.project=cloudflared,com.docker.compose.service=cloudflared,com.docker.compose.version=,org.opencontainers.image.source=https://github.com/cloudflare/cloudflared",
       "LocalVolumes": "0",
-      "Mounts": "/opt/docker/ar…,/opt/docker/ap…",
+      "Mounts": "/opt/docker/ap…,/opt/docker/ar…",
       "Names": "cloudflared-cloudflared-1",
       "Networks": "dmz",
       "Platform": null,
@@ -105,7 +105,7 @@
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "13 days ago",
+      "RunningFor": "2 weeks ago",
       "Size": "1.38kB (virtual 272MB)",
       "State": "running",
       "Status": "Up 4 days (healthy)"
@@ -226,7 +226,7 @@
       "Image": "mongo:focal",
       "Labels": "com.docker.compose.config-hash=e25a8dcf6ef9057aa00e09caf5a3f6fd8e684d0f31d66e5e7dcd08b4a1d193ba,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:edacb1e1210bb539c18015131ecfb2cce4c9ad1cdd99ad7b5391ed70a48f2ac7,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/opt/docker/arcane-projects/aiometadata/compose.yaml,com.docker.compose.project.working_dir=/opt/docker/arcane-projects/aiometadata,com.docker.compose.project=aiometadata,com.docker.compose.service=jikan_mongo,com.docker.compose.version=,org.opencontainers.image.ref.name=ubuntu,org.opencontainers.image.version=20.04",
       "LocalVolumes": "2",
-      "Mounts": "118a8201ca6e48…,aiometadata_ji…,/opt/docker/ar…",
+      "Mounts": "/opt/docker/ar…,118a8201ca6e48…,aiometadata_ji…",
       "Names": "aiometadata-jikan_mongo-1",
       "Networks": "aiometadata_backend",
       "Platform": null,
@@ -286,7 +286,7 @@
       "Platform": null,
       "Ports": "",
       "RunningFor": "2 weeks ago",
-      "Size": "7.16MB (virtual 3.52GB)",
+      "Size": "7.2MB (virtual 3.52GB)",
       "State": "running",
       "Status": "Up 4 days (healthy)"
     },
@@ -316,7 +316,7 @@
       "Image": "ghcr.io/getarcaneapp/manager:latest",
       "Labels": "com.docker.compose.config-hash=311332f1063d7274160c75c8793eb2d9e1bd33a231e13d99ef5e669a6ab5088b,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:c23588695093944e3fb31355dde56f3e057e017315f1df4a53396ac1bde4aeaa,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/opt/docker/arcane-manager/compose.yaml,com.docker.compose.project.working_dir=/opt/docker/arcane-manager,com.docker.compose.project=arcane-manager,com.docker.compose.service=arcane,com.docker.compose.version=5.4.0,com.getarcaneapp.arcane=true,org.opencontainers.image.authors=OFKM Technologies,org.opencontainers.image.description=Modern Docker Management, Made for Everyone,org.opencontainers.image.documentation=https://github.com/getarcaneapp/arcane/blob/main/README.md,org.opencontainers.image.licenses=BSD-3-Clause,org.opencontainers.image.revision=b8bc5b4f8d0c6487b18a6e6d2185c71c4c0d0fe0,org.opencontainers.image.source=https://github.com/getarcaneapp/arcane,org.opencontainers.image.title=Arcane,org.opencontainers.image.url=https://github.com/getarcaneapp/arcane,org.opencontainers.image.version=v2.8.0",
       "LocalVolumes": "0",
-      "Mounts": "/opt/docker/ap…,/opt/docker/ar…,/var/run/docke…",
+      "Mounts": "/var/run/docke…,/opt/docker/ap…,/opt/docker/ar…",
       "Names": "arcane",
       "Networks": "arcane-manager_default",
       "Platform": null,
@@ -439,7 +439,7 @@
     {
       "Containers": "1",
       "CreatedAt": "2026-08-05 02:20:12 +0500 PKT",
-      "CreatedSince": "3 weeks ago",
+      "CreatedSince": "4 weeks ago",
       "Digest": "<none>",
       "ID": "5b7624697e48",
       "Repository": "ghcr.io/pasta-devs/marinara-engine",

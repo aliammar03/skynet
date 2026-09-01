@@ -1,5 +1,5 @@
 {
-  "collected": "2026-09-01T23:51:24+05:00",
+  "collected": "2026-09-02T03:39:48+05:00",
   "source": "tls probe (openssl s_client)",
   "counts": {
     "probed": 7,
@@ -78,7 +78,7 @@
         "lxc-proxmox-backup-server.home.aliammar.net"
       ],
       "not_after": "Nov 22 22:05:10 3025 GMT",
-      "days_left": 364959
+      "days_left": 364958
     },
     {
       "label": "technitium-core",
@@ -91,7 +91,7 @@
         "10.10.70.51"
       ],
       "not_after": "Aug 11 18:56:02 2031 GMT",
-      "days_left": 1805
+      "days_left": 1804
     },
     {
       "label": "technitium-network",
@@ -104,7 +104,7 @@
         "10.10.70.50"
       ],
       "not_after": "Aug 11 18:59:09 2031 GMT",
-      "days_left": 1805
+      "days_left": 1804
     }
   ]
 }
