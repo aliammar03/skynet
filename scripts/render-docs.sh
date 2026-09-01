@@ -129,7 +129,7 @@ fi
     # Live state the config can't give — firmware currency + how many neighbours answered ARP (SKY-020).
     if has "${inv}/opnsense.json"; then
       echo
-      echo "**Live state** (OPNsense API): firmware \`$(j '.firmware.status' "${inv}/opnsense.json")\` · $(j '.counts.arp' "${inv}/opnsense.json") ARP neighbours · $(j '.counts.interfaces' "${inv}/opnsense.json") interfaces — collected $(j '.collected' "${inv}/opnsense.json")."
+      echo "**Live state** (OPNsense API): firmware \`$(j '.firmware.status' "${inv}/opnsense.json")\` · $(j '.counts.arp' "${inv}/opnsense.json") ARP neighbours · $(j '.counts.interfaces' "${inv}/opnsense.json") interfaces · declared-host presence $(j '.counts.live' "${inv}/opnsense.json") live / $(j '.counts.silent' "${inv}/opnsense.json") no-response (ARP+ICMP) — collected $(j '.collected' "${inv}/opnsense.json")."
     fi
   else
     echo "> [!warning] No firewall inventory — run \`collect-opnsense.sh\` (live) or \`collect-firewall.sh\` (mirror/DR)."

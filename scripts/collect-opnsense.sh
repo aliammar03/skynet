@@ -83,15 +83,39 @@ jq -n --arg ts "$(date -Iseconds)" \
     aliases:$aliases, rules:$rules, reservations:$reservations}' > "${out_fw}"
 
 # ── LIVE STATE (→ opnsense.json) — what the mirror cannot give ─────────────────────────────────────
-arp="$(get diagnostics/interface/getArp | jq -c 'if type=="array" then [.[]|{ip,mac,hostname,intf,intf_description,manufacturer,permanent}] else [] end' 2>/dev/null || echo '[]')"
+# ARP via searchArp (richer than getArp: carries per-entry expiry, so freshness is visible).
+arp="$(srch diagnostics/interface/searchArp | jq -c '[.rows[]? | {ip,mac,hostname,intf,intf_description,manufacturer,permanent,expired,expires}]' 2>/dev/null || echo '[]')"
+
+# ── PRESENCE probe — distinguish "idle (up, ARP aged out)" from "down" for ARP-silent hosts ────────
+# ARP present ⇒ live, no probe. For ARP-silent declared hosts, ICMP-ping from the ops VM (fast: 1s
+# timeout, parallel). This is DEFINITIVE once the "ops → NET_SKYNET ICMP" floating rule is in (the
+# sees-all liveness grant); before it, ICMP is firewall-dropped so a silent host reads live:false in
+# 1s (not the 12s the old TCP-port-guess burned). OPNsense's own ping API has no runnable verb in 26.7
+# (get/set stub; start/run/results 404), so an OPNsense-side ping isn't an option.
+arp_ips="$(printf '%s' "${arp}" | jq -r '.[].ip' 2>/dev/null | sort -u)"
+host_ips="$(printf '%s' "${aliases}" | jq -r '.[] | select(.type=="host") | .content' 2>/dev/null | tr ' \n' '\n\n' | grep -E '^10\.10\.[0-9]+\.[0-9]+$' | sort -u)"
+silent_ips="$(comm -23 <(printf '%s\n' "${host_ips}") <(printf '%s\n' "${arp_ips}"))"
+# ping the silent set in parallel; collect the ones that answer.
+pinged_up=""
+[ -n "${silent_ips}" ] && pinged_up="$(printf '%s\n' "${silent_ips}" | grep -E '^10\.' \
+  | xargs -r -P16 -I{} sh -c 'ping -c1 -W1 "{}" >/dev/null 2>&1 && echo "{}"' 2>/dev/null | sort -u)"
+presence="$(jq -n --argjson host "$(printf '%s\n' "${host_ips}" | grep -E '^10\.' | jq -R . | jq -s .)" \
+  --argjson arp "$(printf '%s\n' "${arp_ips}" | grep -E '^10\.' | jq -R . | jq -s .)" \
+  --argjson up "$(printf '%s\n' "${pinged_up}" | grep -E '^10\.' | jq -R . | jq -s . 2>/dev/null || echo '[]')" '
+  [ $host[] | . as $ip
+    | if ($arp|index($ip)) then {ip:$ip, live:true, via:"arp"}
+      elif ($up|index($ip)) then {ip:$ip, live:true, via:"icmp"}
+      else {ip:$ip, live:false, via:"no-arp,no-icmp"} end ]' 2>/dev/null || echo '[]')"
+
 ifaces="$(get interfaces/overview/interfacesInfo | jq -c '(.rows // .) | if type=="array" then [.[]|{device,description,status,enabled,identifier}] else [] end' 2>/dev/null || echo '[]')"
 out_live="${REPO_DIR}/inventory/opnsense.json"
 jq -n --arg ts "$(date -Iseconds)" --arg host "${OPN_HOST}" \
   --argjson fw "$(printf '%s' "${fw}" | jq -c '{status, product:(.product_version // .product_id // null), needs_upgrade:((.status//"")=="update")}')" \
-  --argjson arp "${arp:-[]}" --argjson interfaces "${ifaces:-[]}" \
+  --argjson arp "${arp:-[]}" --argjson interfaces "${ifaces:-[]}" --argjson presence "${presence:-[]}" \
   '{collected:$ts, source:"opnsense-api (live read-only)", host:$host, firmware:$fw,
-    counts:{arp:($arp|length), interfaces:($interfaces|length)},
-    arp:$arp, interfaces:$interfaces}' > "${out_live}"
+    counts:{arp:($arp|length), interfaces:($interfaces|length),
+            live:([$presence[]|select(.live)]|length), silent:([$presence[]|select(.live|not)]|length)},
+    arp:$arp, interfaces:$interfaces, presence:$presence}' > "${out_live}"
 
 echo "wrote ${out_fw} (aliases=$(printf '%s' "${aliases}" | jq 'length'), rules=$(printf '%s' "${rules}" | jq 'length'), reservations=$(printf '%s' "${reservations}" | jq 'length'))"
 echo "wrote ${out_live} (arp=$(printf '%s' "${arp}" | jq 'length'), interfaces=$(printf '%s' "${ifaces}" | jq 'length'))"
