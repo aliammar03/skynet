@@ -13,13 +13,31 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${REPO_DIR}"
 
-PAGE="docs/generated/06-agent-digest.md"
+PAGE="${PAGE:-docs/generated/06-agent-digest.md}"   # overridable so a test can render to a temp file
 PLAN="planning"
 DEC="docs/decisions"
-JDIR="journal"
+JDIR="${JDIR:-journal}"
 
 # read one frontmatter/labelled field: fm <file> <key>
 fm() { grep -m1 "^$2:" "$1" 2>/dev/null | sed -E "s/^$2:[[:space:]]*//; s/^[\"']//; s/[\"']$//"; }
+
+# Open-thread bullets are pulled verbatim from journal entries, and journal entries are append-only —
+# so a thread RESOLVED later still sits in its original (now stale) entry, and the nightly re-copies
+# it forward. Suppress a bullet that names guests (CT/VM/VMID <n>) when EVERY guest it names is absent
+# from current inventory: that guest is destroyed, so the thread is closed. A bullet naming no guest,
+# or any guest still present, is kept. This breaks the destroyed-guest feedback loop (SKY-018 review).
+INV_VMIDS="$(jq -r '.resources[]?|select(.type=="qemu" or .type=="lxc")|.vmid' inventory/proxmox-*.json 2>/dev/null | sort -un)"
+thread_resolved() {
+  local line="$1" ids id named=0 live=0
+  ids="$(printf '%s' "$line" | grep -oiE '(vmids?|cts?|vms?)[[:space:]]+[0-9][0-9,[:space:]and]*' 2>/dev/null | grep -oE '[0-9]{2,5}' || true)"
+  [ -n "${ids}" ] || return 1                       # names no guest → not a guest-thread, keep it
+  while IFS= read -r id; do
+    [ -n "${id}" ] || continue
+    named=1
+    if grep -qxF "${id}" <<<"${INV_VMIDS}"; then live=1; fi
+  done <<< "${ids}"
+  [ "${named}" = 1 ] && [ "${live}" = 0 ]           # named ≥1 guest, none live → resolved (drop it)
+}
 
 mkdir -p "$(dirname "${PAGE}")"
 {
@@ -74,6 +92,7 @@ mkdir -p "$(dirname "${PAGE}")"
     # into one bullet; skip template placeholders (- <…>).
     while IFS= read -r line; do
       case "$line" in "- <"*) continue;; esac
+      if thread_resolved "$line"; then continue; fi   # drop threads about destroyed guests
       printf -- '%s — _%s %s_\n' "$line" "${d:-?}" "${k:-?}"
       found=1; count=$((count+1))
       [ "$count" -ge 8 ] && break
