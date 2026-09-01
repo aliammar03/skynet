@@ -1,7 +1,43 @@
 {
   "host": "docker-dmz",
-  "collected": "2026-08-30T14:01:26+05:00",
+  "collected": "2026-09-01T03:44:26+05:00",
   "containers": [
+    {
+      "Command": "\"/usr/local/bin/entr…\"",
+      "CreatedAt": "2026-08-30 14:22:13 +0500 PKT",
+      "HealthStatus": "healthy",
+      "ID": "710ed2dba402",
+      "Image": "ghcr.io/cedya77/aiometadata:latest",
+      "Labels": "com.docker.compose.config-hash=74ff29bb1cf299d2a98ba1c5dc9fa0697be8f3ec22a9bad35019ab2280c22518,com.docker.compose.container-number=1,com.docker.compose.depends_on=redis:service_healthy:false,com.docker.compose.image=sha256:cb5503cd4d7e29b028ec3b46bfe84941c369dc84273d0d628512feda94c8044a,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/opt/docker/arcane-projects/aiometadata/compose.yaml,com.docker.compose.project.working_dir=/opt/docker/arcane-projects/aiometadata,com.docker.compose.project=aiometadata,com.docker.compose.service=aiometadata,com.docker.compose.version=,org.opencontainers.image.created=2026-08-09T17:34:17.136Z,org.opencontainers.image.description=my space for aiometadata,org.opencontainers.image.licenses=GPL-3.0,org.opencontainers.image.revision=f4285dbdda434374a94f3582902d7d94f1b61782,org.opencontainers.image.source=https://github.com/cedya77/aiometadata,org.opencontainers.image.title=aiometadata,org.opencontainers.image.url=https://github.com/cedya77/aiometadata,org.opencontainers.image.version=latest",
+      "LocalVolumes": "0",
+      "Mounts": "/opt/docker/ap…,/opt/docker/ap…,/opt/docker/ap…",
+      "Names": "aiometadata-aiometadata-1",
+      "Networks": "aiometadata_backend,dmz",
+      "Platform": null,
+      "Ports": "3232/tcp",
+      "RunningFor": "37 hours ago",
+      "Size": "0B (virtual 437MB)",
+      "State": "running",
+      "Status": "Up 37 hours (healthy)"
+    },
+    {
+      "Command": "\"docker-entrypoint.s…\"",
+      "CreatedAt": "2026-08-30 14:22:11 +0500 PKT",
+      "HealthStatus": "healthy",
+      "ID": "b6a4d67eadb5",
+      "Image": "redis:7.2.15-alpine",
+      "Labels": "com.docker.compose.config-hash=42633bf8b3545a6f895b02ef20638f2e5c78079301284514e1cea7473368a810,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:305eb88302bd3271bb2cb79f16c334da746511fb308bf5cdc36bced178d215d8,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/opt/docker/arcane-projects/aiometadata/compose.yaml,com.docker.compose.project.working_dir=/opt/docker/arcane-projects/aiometadata,com.docker.compose.project=aiometadata,com.docker.compose.service=redis,com.docker.compose.version=",
+      "LocalVolumes": "1",
+      "Mounts": "aiometadata_re…",
+      "Names": "aiometadata-redis-1",
+      "Networks": "aiometadata_backend",
+      "Platform": null,
+      "Ports": "6379/tcp",
+      "RunningFor": "37 hours ago",
+      "Size": "0B (virtual 38.6MB)",
+      "State": "running",
+      "Status": "Up 37 hours (healthy)"
+    },
     {
       "Command": "\"docker-php-entrypoi…\"",
       "CreatedAt": "2026-08-23 09:13:53 +0500 PKT",
@@ -15,10 +51,10 @@
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "7 days ago",
+      "RunningFor": "8 days ago",
       "Size": "44.4MB (virtual 272MB)",
       "State": "running",
-      "Status": "Up 46 hours (healthy)"
+      "Status": "Up 3 days (healthy)"
     },
     {
       "Command": "\"tini -- ./docker-en…\"",
@@ -33,10 +69,10 @@
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "10 days ago",
+      "RunningFor": "12 days ago",
       "Size": "4.22kB (virtual 565MB)",
       "State": "running",
-      "Status": "Up 46 hours (healthy)"
+      "Status": "Up 3 days (healthy)"
     },
     {
       "Command": "\"cloudflared --no-au…\"",
@@ -51,10 +87,10 @@
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "10 days ago",
+      "RunningFor": "12 days ago",
       "Size": "0B (virtual 63.9MB)",
       "State": "running",
-      "Status": "Up 46 hours (healthy)"
+      "Status": "Up 3 days (healthy)"
     },
     {
       "Command": "\"/bin/bash -c 'cp /e…\"",
@@ -69,10 +105,10 @@
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "11 days ago",
+      "RunningFor": "13 days ago",
       "Size": "1.38kB (virtual 272MB)",
       "State": "running",
-      "Status": "Up 46 hours (healthy)"
+      "Status": "Up 3 days (healthy)"
     },
     {
       "Command": "\"caddy run --config …\"",
@@ -82,15 +118,15 @@
       "Image": "ghcr.io/caddybuilds/caddy-cloudflare:2.11.4-alpine",
       "Labels": "com.docker.compose.config-hash=7ca5b1d418313e5e2f6eb4905b5d713d0fd327fa495084669023fdc859a05cea,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:1fdf385c8e953aa3e31e5f8164fc6222bac3fc426c2d89dc1f9f3177a8ee1364,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/opt/docker/arcane-projects/caddy-apps/compose.yaml,com.docker.compose.project.working_dir=/opt/docker/arcane-projects/caddy-apps,com.docker.compose.project=caddy-apps,com.docker.compose.service=caddy,com.docker.compose.version=,org.opencontainers.image.created=2026-06-04T02:40:04.052Z,org.opencontainers.image.description=Caddy with Cloudflare DNS module (Alpine),org.opencontainers.image.documentation=https://caddyserver.com/docs,org.opencontainers.image.licenses=MIT,org.opencontainers.image.revision=280cd873b440bb8e1ffe8183ae0b53b3cdf1a3e5,org.opencontainers.image.source=https://github.com/CaddyBuilds/caddy-cloudflare,org.opencontainers.image.title=Caddy Cloudflare Alpine,org.opencontainers.image.url=https://github.com/CaddyBuilds/caddy-cloudflare,org.opencontainers.image.vendor=CaddyBuilds,org.opencontainers.image.version=2.11.4-alpine",
       "LocalVolumes": "0",
-      "Mounts": "/opt/docker/ap…,/opt/docker/ap…,/opt/docker/ar…",
+      "Mounts": "/opt/docker/ap…,/opt/docker/ar…,/opt/docker/ap…",
       "Names": "caddy-apps-caddy-1",
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "12 days ago",
+      "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 111MB)",
       "State": "running",
-      "Status": "Up 46 hours (healthy)"
+      "Status": "Up 3 days (healthy)"
     },
     {
       "Command": "\"tini -- /bin/sh -c …\"",
@@ -105,10 +141,10 @@
       "Networks": "karakeep_backend",
       "Platform": null,
       "Ports": "7700/tcp",
-      "RunningFor": "13 days ago",
+      "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 158MB)",
       "State": "running",
-      "Status": "Up 46 hours (healthy)"
+      "Status": "Up 3 days (healthy)"
     },
     {
       "Command": "\"chromium-browser --…\"",
@@ -123,10 +159,10 @@
       "Networks": "karakeep_backend",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "13 days ago",
+      "RunningFor": "2 weeks ago",
       "Size": "194kB (virtual 670MB)",
       "State": "running",
-      "Status": "Up 46 hours (healthy)"
+      "Status": "Up 3 days (healthy)"
     },
     {
       "Command": "\"/nodejs/bin/node /a…\"",
@@ -141,10 +177,10 @@
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "13 days ago",
+      "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 277MB)",
       "State": "running",
-      "Status": "Up 46 hours (healthy)"
+      "Status": "Up 3 days (healthy)"
     },
     {
       "Command": "\"/app/docker-entrypo…\"",
@@ -162,25 +198,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "3.52MB (virtual 667MB)",
       "State": "running",
-      "Status": "Up 46 hours (healthy)"
-    },
-    {
-      "Command": "\"/usr/local/bin/entr…\"",
-      "CreatedAt": "2026-08-16 01:51:41 +0500 PKT",
-      "HealthStatus": "healthy",
-      "ID": "82968735b0f4",
-      "Image": "ghcr.io/cedya77/aiometadata:latest",
-      "Labels": "com.docker.compose.config-hash=6f0faf05d1cbf3dee4aa127ecacbabefcb4cffe59dd5f630677a0d07eed85380,com.docker.compose.container-number=1,com.docker.compose.depends_on=redis:service_healthy:false,com.docker.compose.image=sha256:cb5503cd4d7e29b028ec3b46bfe84941c369dc84273d0d628512feda94c8044a,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/opt/docker/arcane-projects/aiometadata/compose.yaml,com.docker.compose.project.working_dir=/opt/docker/arcane-projects/aiometadata,com.docker.compose.project=aiometadata,com.docker.compose.service=aiometadata,com.docker.compose.version=,org.opencontainers.image.created=2026-08-09T17:34:17.136Z,org.opencontainers.image.description=my space for aiometadata,org.opencontainers.image.licenses=GPL-3.0,org.opencontainers.image.revision=f4285dbdda434374a94f3582902d7d94f1b61782,org.opencontainers.image.source=https://github.com/cedya77/aiometadata,org.opencontainers.image.title=aiometadata,org.opencontainers.image.url=https://github.com/cedya77/aiometadata,org.opencontainers.image.version=latest",
-      "LocalVolumes": "0",
-      "Mounts": "/opt/docker/ap…,/opt/docker/ap…,/opt/docker/ap…",
-      "Names": "aiometadata-aiometadata-1",
-      "Networks": "aiometadata_backend,dmz",
-      "Platform": null,
-      "Ports": "3232/tcp",
-      "RunningFor": "2 weeks ago",
-      "Size": "0B (virtual 437MB)",
-      "State": "running",
-      "Status": "Up 46 hours (healthy)"
+      "Status": "Up 3 days (healthy)"
     },
     {
       "Command": "\"docker-entrypoint.s…\"",
@@ -198,7 +216,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 27.9MB)",
       "State": "running",
-      "Status": "Up 46 hours (healthy)"
+      "Status": "Up 3 days (healthy)"
     },
     {
       "Command": "\"docker-entrypoint.s…\"",
@@ -216,7 +234,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 644MB)",
       "State": "running",
-      "Status": "Up 46 hours (healthy)"
+      "Status": "Up 3 days (healthy)"
     },
     {
       "Command": "\"/opt/typesense-serv…\"",
@@ -234,25 +252,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 799MB)",
       "State": "running",
-      "Status": "Up 46 hours (healthy)"
-    },
-    {
-      "Command": "\"docker-entrypoint.s…\"",
-      "CreatedAt": "2026-08-16 01:51:40 +0500 PKT",
-      "HealthStatus": "healthy",
-      "ID": "4da7043989a4",
-      "Image": "redis:7.2.15-alpine",
-      "Labels": "com.docker.compose.config-hash=6ed1c8d165a29d59849bd98519b009da6e0a7276e8c228e19fe20d63a6618246,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:305eb88302bd3271bb2cb79f16c334da746511fb308bf5cdc36bced178d215d8,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/opt/docker/arcane-projects/aiometadata/compose.yaml,com.docker.compose.project.working_dir=/opt/docker/arcane-projects/aiometadata,com.docker.compose.project=aiometadata,com.docker.compose.service=redis,com.docker.compose.version=",
-      "LocalVolumes": "1",
-      "Mounts": "aiometadata_re…",
-      "Names": "aiometadata-redis-1",
-      "Networks": "aiometadata_backend",
-      "Platform": null,
-      "Ports": "6379/tcp",
-      "RunningFor": "2 weeks ago",
-      "Size": "0B (virtual 38.6MB)",
-      "State": "running",
-      "Status": "Up 46 hours (healthy)"
+      "Status": "Up 3 days (healthy)"
     },
     {
       "Command": "\"node /usr/local/bin…\"",
@@ -270,7 +270,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 2.27GB)",
       "State": "running",
-      "Status": "Up 46 hours (healthy)"
+      "Status": "Up 3 days (healthy)"
     },
     {
       "Command": "\"/init\"",
@@ -286,9 +286,9 @@
       "Platform": null,
       "Ports": "",
       "RunningFor": "2 weeks ago",
-      "Size": "6.56MB (virtual 3.51GB)",
+      "Size": "6.95MB (virtual 3.51GB)",
       "State": "running",
-      "Status": "Up 46 hours (healthy)"
+      "Status": "Up 3 days (healthy)"
     },
     {
       "Command": "\"/init\"",
@@ -306,7 +306,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "8.99MB (virtual 1.48GB)",
       "State": "running",
-      "Status": "Up 46 hours (healthy)"
+      "Status": "Up 3 days (healthy)"
     },
     {
       "Command": "\"./arcane\"",
@@ -324,7 +324,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 149MB)",
       "State": "running",
-      "Status": "Up 46 hours (healthy)"
+      "Status": "Up 3 days (healthy)"
     }
   ],
   "images": [
@@ -391,7 +391,7 @@
     {
       "Containers": "1",
       "CreatedAt": "2026-08-09 22:35:02 +0500 PKT",
-      "CreatedSince": "2 weeks ago",
+      "CreatedSince": "3 weeks ago",
       "Digest": "<none>",
       "ID": "cb5503cd4d7e",
       "Repository": "ghcr.io/cedya77/aiometadata",
@@ -571,7 +571,7 @@
     {
       "Containers": "0",
       "CreatedAt": "2026-07-02 07:30:35 +0500 PKT",
-      "CreatedSince": "8 weeks ago",
+      "CreatedSince": "2 months ago",
       "Digest": "<none>",
       "ID": "0584f8a9edf6",
       "Repository": "mariadb",
@@ -655,7 +655,7 @@
     {
       "Containers": "1",
       "CreatedAt": "2024-11-10 02:07:16 +0500 PKT",
-      "CreatedSince": "21 months ago",
+      "CreatedSince": "22 months ago",
       "Digest": "<none>",
       "ID": "e2dd14248b9f",
       "Repository": "jikanme/jikan-rest",
