@@ -23,7 +23,7 @@ included — from a laptop and a phone hotspot.
 | Proxmox core / network | Hypervisors; `ops-managed` pools are the write blast radius | T1 read / T2 pool |
 | PBS (10.10.20.40) | Guest backups, client-side encrypted | T1 / T2 |
 | Technitium (10.10.70.50/.51) | Split-horizon DNS; zones editable at T2 | T2 zones |
-| OPNsense | Router/firewall/DHCP — **T3, never standing access** | T3 |
+| OPNsense | Router/firewall/DHCP — **read T1** (scoped read-only API + git mirror), **config/admin T3, never standing** | T1 read / T3 write |
 | age key | Master secret at `/opt/skynet-ops/secrets/age.key` | — |
 | SSH user-CA | On Ali's workstation only; signs auto-expiring root certs | — |
 

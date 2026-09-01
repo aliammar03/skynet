@@ -1,6 +1,6 @@
 ---
 summary: "The trust tiers in full — every token, ACL, principal, and the auto-expiring SSH root grant Skynet can request but never mint."
-tokens: 3305
+tokens: 3740
 ---
 
 # Spoke · Access & trust
@@ -14,7 +14,8 @@ tokens: 3305
 The constitution holds the tier table; this is what implements each one.
 
 **T1 Read — always standing.** Read-only API tokens on both Proxmox nodes, PBS, Technitium, the
-**Omada network controller**, plus the OPNsense `config.xml` git mirror. Never writes.
+**Omada network controller**, and **OPNsense (a scoped read-only API credential)** — plus the
+OPNsense `config.xml` git mirror as the rebuild-from-git backstop. Never writes.
 
 **T2 Operate — standing, PR-gated changes.** Scoped write tokens on the `ops-managed` pools,
 unprivileged `svc-ops` SSH on workload hosts, a Technitium scoped token (Zones only), the Arcane
@@ -23,9 +24,10 @@ API key. Backup/snapshot of ops-managed guests is T2 (non-destructive).
 **T2+ Root grant — grant-only, self-expiring.** A signed SSH certificate opens a root window on
 one host; when it lapses, sshd refuses it. No standing root anywhere.
 
-**T3 Privileged — never standing.** OPNsense, Management Caddy, Authentik, Proxmox node root,
-Unraid root, Technitium *server settings*. Reached only via the dormant `ROLE_OPS_PRIV_TARGETS`
-alias + per-session credentials, revoked same day.
+**T3 Privileged — never standing.** OPNsense *config/admin*, Management Caddy, Authentik, Proxmox
+node root, Unraid root, Technitium *server settings*. Reached only via the dormant
+`ROLE_OPS_PRIV_TARGETS` alias + per-session credentials, revoked same day. (OPNsense *read* is the
+one T1 carve-out — see below.)
 
 ## Proxmox operate access — both nodes
 
@@ -197,6 +199,27 @@ reads it and never touches it — the same view/modify-a-slice split as Techniti
   carries it with no new rule. This is a **T3 OPNsense change** — Ali makes it. The collector
   (`scripts/collect-network-gear.sh`) degrades to `exit 0` until both the credential and reachability
   exist, like every other collector.
+
+## The OPNsense read boundary (ADR 0006)
+
+OPNsense is the firewall — the enforcement boundary for the whole lab — so it is split read/write one
+notch lower than the other devices: **read is T1, anything that changes it is T3 and never standing.**
+
+- **T1 (scoped read-only API credential):** the agent reads firewall aliases, rules, interfaces,
+  DHCP leases, and neighbour state **live**. Stored `0600` sops-nix at
+  `/opt/skynet-ops/secrets/opnsense.env` (`OPN_HOST`, `OPN_KEY`, `OPN_SECRET`, `OPN_CACERT`), same
+  shape as the Proxmox/Omada creds. The API key is created against a **read-only** OPNsense user (GUI
+  read privileges only); the collector reads scoped endpoints and **strips secrets** — never writes a
+  key or password hash from `config.xml` into `inventory/`.
+- **T3 (never standing):** every write — rules, aliases, DHCP, settings — and root shell. Reached
+  only via the dormant alias + per-session credentials, revoked same day. **No standing write
+  credential to the firewall, ever.**
+- **Why not just the git mirror:** `os-git-backup` pushes to the mirror *nightly by default*, so the
+  firewall map was routinely stale; the live read removes that lag. **The mirror stays** as the
+  rebuild-from-git source of truth (§2a) and DR path — live API for freshness, mirror for truth.
+- **How the credential is born:** Ali creates the read-only user + API key in OPNsense (a T3 act —
+  the agent cannot mint access to the firewall). The collector degrades to the mirror parse, and to
+  `exit 0` with no credential, so nothing hard-depends on it.
 
 ## Planned expansion
 

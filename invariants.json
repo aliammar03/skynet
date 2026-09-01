@@ -26,9 +26,9 @@
   },
 
   "t3_targets": {
-    "why": "The never-standing-credential list (constitution §2a / §3, AGENTS.md §6). No standing route or credential to any of these — reached only via a dormant alias + per-session credentials, revoked same day. Documented here now as desired truth; future checks (e.g. asserting no standing token references these) build on it.",
+    "why": "The never-standing-credential list (constitution §2a / §3, AGENTS.md §6). No standing route or credential that can CHANGE any of these — reached only via a dormant alias + per-session credentials, revoked same day. One scoped READ carve-out: OPNsense read is T1 (ADR 0006); the write/admin plane of every entry here stays never-standing. Documented here now as desired truth; future checks (e.g. asserting no standing WRITE token references these) build on it.",
     "targets": [
-      { "name": "OPNsense",              "why": "the firewall/router; T3 admin plane." },
+      { "name": "OPNsense config/admin", "why": "the firewall/router admin plane — rules, aliases, DHCP, settings, root shell: T3, never a standing WRITE credential. OPNsense READ is T1 (a scoped read-only API credential; the collector strips secrets). See ADR 0006 / docs/design/access-and-trust.md." },
       { "name": "Management Caddy",      "why": "the privileged front door (VMID 635)." },
       { "name": "Authentik server admin","why": "flows, policies, users, system settings, outpost tokens, signing keys stay T3 (VMID 837)." },
       { "name": "Proxmox node root",     "why": "root on either hypervisor node is T3." },
