@@ -36,9 +36,9 @@ failure case, and performed by something dumber than you.
 | Tier | Scope | Mechanism | Standing? |
 |---|---|---|---|
 | **T1 Read** | Both Proxmox nodes, PBS, Docker hosts, DNS, firewall state (**OPNsense read-only API + git mirror**), Omada controller | Read-only API tokens; scoped OPNsense read + mirrored config.xml | Always |
-| **T2 Operate** | `ops-managed` pools on both nodes, Docker hosts via Arcane + unprivileged SSH, Technitium zones, Cloudflare DNS records (`aliammar.net`) | Scoped write tokens, `svc-ops` SSH, Technitium scoped token, Arcane API key, Cloudflare scoped `DNS:Edit` token | Yes — changes PR-gated |
+| **T2 Operate** | `ops-managed` pools on both nodes, Docker hosts via Arcane + unprivileged SSH, Technitium zones, Cloudflare DNS records (`aliammar.net`), **OPNsense firewall config** (aliases/rules) via OpenTofu — minus the self-leash set | Scoped write tokens, `svc-ops` SSH, Technitium scoped token, Arcane API key, Cloudflare scoped `DNS:Edit` token, OPNsense tofu-write API key | Yes — changes PR-gated |
 | **T2+ Root grant** | Root shell on workload hosts (diagnose, harden, provision, OS updates) | SSH user-CA certificate, per-host principal, auto-expiring | Grant only; expires by itself |
-| **T3 Privileged** | OPNsense *config/admin*, Management Caddy, Authentik, Proxmox node root, Unraid root, Technitium *server settings*, Cloudflare *account / Access / tunnel config / zone settings* | Dormant alias `ROLE_OPS_PRIV_TARGETS` + per-session credentials | **Never standing** |
+| **T3 Privileged** | OPNsense *node root / account / cert admin / reboot / self-leash rules*, Management Caddy, Authentik, Proxmox node root, Unraid root, Technitium *server settings*, Cloudflare *account / Access / tunnel config / zone settings* | Dormant alias `ROLE_OPS_PRIV_TARGETS` + per-session credentials | **Never standing** |
 
 - Technitium is T2 for **Zones view/modify only** — no Settings/Administration/DHCP. Server settings are T3.
 - Cloudflare is T2 for **DNS records in `aliammar.net` only** (scoped `DNS:Edit` token, `0600` at `/opt/skynet-ops/secrets/cloudflare-dns.env`) — the account, Access policies, tunnel config, and zone settings are T3. Same shape as the Technitium split; publishing still needs the `ingress` PR human-merged.
@@ -136,11 +136,16 @@ one. A directive touching **T2+/T3** or a blast-radius boundary must also PR `do
 
 ## 6. Judgement Day checklist (hard invariants — never violate)
 
-- No standing route or credential that can **change** OPNsense (config/admin), Management Caddy,
-  Authentik, Proxmox node root, Unraid root, Technitium settings, or the Cloudflare account/settings.
-  Dormant alias + per-session secrets, same-day revocation. (Standing **read** exceptions, scoped:
-  **OPNsense *read* is T1** — a read-only API credential, ADR 0006; Cloudflare *DNS records* and
-  Technitium *zones* are T2 write — see §1. The write/admin plane of each stays never-standing.)
+- No standing route or credential to **change** Management Caddy, Authentik, Proxmox node root,
+  Unraid root, Technitium settings, or the Cloudflare account/settings — dormant alias + per-session
+  secrets, same-day revocation. **OPNsense is tiered** (ADR 0006): read+diagnostics **T1**, firewall
+  **config T2** (PR-gated via OpenTofu), but **node root / account / cert admin / reboot / the agent's
+  own leash rules** stay **T3, never-standing**. (Cloudflare *DNS records* and Technitium *zones* are
+  T2 write — see §1.)
+- **You never widen your own leash — firewall included.** Even with OPNsense config at T2, the agent
+  may **never** change the rules/aliases bounding its own reach (`ROLE_OPS_*`, `ROLE_OPS_PRIV_TARGETS`,
+  the block-other-DNS rules, its own OPNsense accounts): human-merged forever, off the ratchet, and
+  machine-gated on the `tofu plan` (SKY-018 P7).
 - Root on workload hosts exists **only** inside a certificate's validity window; the CA
   never leaves Ali's custody; every root session's KeyID is logged and harvested nightly.
 - Write blast radius = the `ops-managed` pool **set** (two today — a count, not a law) +

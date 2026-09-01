@@ -1,6 +1,6 @@
 ---
 summary: "The trust tiers in full — every token, ACL, principal, and the auto-expiring SSH root grant Skynet can request but never mint."
-tokens: 4148
+tokens: 4320
 ---
 
 # Spoke · Access & trust
@@ -24,10 +24,10 @@ API key. Backup/snapshot of ops-managed guests is T2 (non-destructive).
 **T2+ Root grant — grant-only, self-expiring.** A signed SSH certificate opens a root window on
 one host; when it lapses, sshd refuses it. No standing root anywhere.
 
-**T3 Privileged — never standing.** OPNsense *config/admin*, Management Caddy, Authentik, Proxmox
-node root, Unraid root, Technitium *server settings*. Reached only via the dormant
-`ROLE_OPS_PRIV_TARGETS` alias + per-session credentials, revoked same day. (OPNsense *read* is the
-one T1 carve-out — see below.)
+**T3 Privileged — never standing.** OPNsense *node root / account / reboot / self-leash rules*,
+Management Caddy, Authentik, Proxmox node root, Unraid root, Technitium *server settings*. Reached
+only via the dormant `ROLE_OPS_PRIV_TARGETS` alias + per-session credentials, revoked same day.
+(OPNsense read+diagnostics is T1, firewall config is T2 via OpenTofu — see below.)
 
 ## Proxmox operate access — both nodes
 
@@ -200,24 +200,30 @@ reads it and never touches it — the same view/modify-a-slice split as Techniti
   (`scripts/collect-network-gear.sh`) degrades to `exit 0` until both the credential and reachability
   exist, like every other collector.
 
-## The OPNsense read boundary (ADR 0006)
+## The OPNsense tiers (ADR 0006)
 
-OPNsense is the firewall — the enforcement boundary for the whole lab — so it is split one notch
-lower than the other devices: **read + non-mutating diagnostics is T1; anything that *changes or
-bounces* the box is T3 and never standing.** The standing credential is `svc-skynet-recon` (group
-`skynet-recon`) — it observes and probes, never mutates.
+OPNsense is the firewall — the enforcement boundary for the whole lab — so it is tiered across three
+planes: **read+diagnostics T1, firewall config T2 (PR-gated via OpenTofu), and node-root / reboot /
+the agent's own leash T3, never-standing.**
 
-- **T1 (the `skynet-recon` credential):** the agent reads firewall aliases, rules, interfaces, DHCP
-  leases, and neighbour state **live**, and runs **non-mutating diagnostics** (ping, traceroute, DNS
-  lookup, ARP/NDP + route + state tables, logs). All observe-or-probe, nothing changes state. Stored
-  `0600` sops-nix at `/opt/skynet-ops/secrets/opnsense.env` (`OPN_HOST`, `OPN_USER=svc-skynet-recon`,
-  `OPN_KEY`, `OPN_SECRET`, `OPN_CACERT`), same shape as the Proxmox/Omada creds. The collector reads
-  scoped endpoints and **strips secrets** — never writes a key or password hash from `config.xml`
-  into `inventory/`.
-- **T3 (never standing):** every write — rules, aliases, DHCP, settings — **and every state-changing
-  action** (reboot/halt, service stop/restart, flush states/ARP/leases, firmware, config apply,
-  backup restore) and root shell. Reached only via the dormant alias + per-session credentials,
-  revoked same day. **No standing credential that can change or bounce the firewall, ever.**
+- **T1 (the `svc-skynet-recon` credential, group `skynet-recon`):** the agent reads firewall aliases,
+  rules, interfaces, DHCP leases, and neighbour state **live**, and runs **non-mutating diagnostics**
+  (ping, traceroute, DNS lookup, ARP/NDP + route + state tables, logs). All observe-or-probe, nothing
+  changes state. Stored `0600` sops-nix at `/opt/skynet-ops/secrets/opnsense.env` (`OPN_HOST`,
+  `OPN_USER=svc-skynet-recon`, `OPN_KEY`, `OPN_SECRET`, `OPN_CACERT`), same shape as the Proxmox/Omada
+  creds. The collector reads scoped endpoints and **strips secrets** out of `inventory/` — hygiene, not
+  a boundary (the box already holds the raw `config.xml` via the mirror).
+- **T2 (firewall config, PR-gated via OpenTofu):** aliases and rules become `tofu/` resources managed
+  through the **OPNsense tofu provider**. A change is a `tofu plan` diff **in a PR** → human-merged →
+  `apply` via the API — the exact `svc-tofu`-for-guests model (SKY-008). A separate T2 **write** API
+  key (Ali-minted, sops-nix) is used **only** by `apply` on a merged plan; non-destructive maintenance
+  (service restart, apply-config, flush) is T2 too. **This is a directive-sized build (firewall-as-code)
+  — the T1 read slice ships first.**
+- **T3 (never standing):** OPNsense **node root**, **account/API-key/cert admin**, **reboot/halt** (a
+  lab-wide outage — a hard checkpoint at every tier), and the **self-leash set** — the rules/aliases
+  bounding the agent's own reach (`ROLE_OPS_*`, `ROLE_OPS_PRIV_TARGETS`, the block-other-DNS rules, the
+  `svc-skynet-recon`/tofu accounts). The self-leash stays **human-merged forever** even as firewall
+  config graduates on the ratchet, and is machine-gated on the `tofu plan` (SKY-018 P7 conftest/Rego).
 - **Why not just the git mirror:** `os-git-backup` pushes to the mirror *nightly by default*, so the
   firewall map was routinely stale; the live read removes that lag. **The mirror stays** as the
   rebuild-from-git source of truth (§2a) and DR path — live API for freshness, mirror for truth.
