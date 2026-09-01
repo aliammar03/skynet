@@ -1,6 +1,6 @@
 ---
 summary: "The trust tiers in full — every token, ACL, principal, and the auto-expiring SSH root grant Skynet can request but never mint."
-tokens: 3973
+tokens: 4023
 ---
 
 # Spoke · Access & trust
@@ -225,8 +225,10 @@ notch lower than the other devices: **read is T1, anything that changes it is T3
   comma-separated privs aren't split correctly) — so it **must** be assigned **via a group**. The
   recipe (a T3 act — the agent cannot mint firewall access):
   1. OPNsense **≥ 26.1.11 / 26.4.1p1** (the advisory fix). Verify first.
-  2. Create a **group** `skynet-readonly` with **GUI - read only** + the read page privileges the
-     collector needs (Firewall: Aliases/Rules, Interfaces, Diagnostics, DHCP).
+  2. Create a **group** `skynet-readonly` with **`System: Deny config write`** (the display name of
+     `user-config-readonly` on current OPNsense — *not* labelled "read only"; it blocks every API
+     write via `ApiControllerBase::throwReadOnly()`) + the read page privileges the collector needs
+     (Firewall: Aliases/Rules, Interfaces, Diagnostics, Services: DHCPv4/Kea).
   3. Create user `skynet-ro`, add it to that group. **Assign every privilege through the group,
      never directly on the user.**
   4. Generate an **API key** for the user → `OPN_KEY` / `OPN_SECRET`.
