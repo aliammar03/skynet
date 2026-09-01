@@ -75,7 +75,8 @@ while IFS= read -r site; do
 
   page="$(printf '%s' "${raw}" | jq --arg site "${sname}" '[.result[]? | {
       entity_id: ("net/" + ((.name // .mac)
-                  | ascii_downcase | gsub("[^a-z0-9]+";"-") | gsub("(^-+|-+$)";""))),
+                  | ascii_downcase | gsub("[\u0027\u2019]";"")   # drop straight/curly apostrophes (Ali[..]s -> alis, not ali-s)
+                  | gsub("[^a-z0-9]+";"-") | gsub("(^-+|-+$)";""))),
       class: "net",
       site: $site,
       type, name, model, mac, ip,

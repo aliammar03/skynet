@@ -1,6 +1,6 @@
 ---
 summary: "The one naming grammar — VMIDs, IPs, hostnames, slugs, branches — so a name is predictable and machine-validatable."
-tokens: 1760
+tokens: 1865
 ---
 
 # Spoke · Naming & addressing
@@ -72,6 +72,12 @@ Rules for the guest key `[testable]`:
   a rename changes them and never changes identity.
 - **The ID validates itself** `[testable]`: the VLAN slug and the VMID's prefix encode the same
   fact, so a gate asserts they agree. `guest/anything-dmz-751` fails — 751 is VLAN 70.
+
+Rule for the `net` key `[testable]`: slug the controller's **device name** — lowercase, **drop
+apostrophes** (`Ali's AP` → `alis-ap`, not `ali-s-ap`), every other run of non-alphanumerics → a
+single `-`, trimmed. The name is the key, so a rename in the controller re-slugs the id (e.g.
+`Downstairs AP` → `Mom's AP` moved `net/downstairs-ap` → `net/moms-ap`); the device's IP is a join
+key, not the identity.
 
 ### VLAN slugs
 
