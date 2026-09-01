@@ -105,6 +105,33 @@ fi
 # gate failure is exercised by check-invariants against inventory, not re-driven from this unit test).
 rc "classifier rejects 4242 (VLAN 42 undeclared) as off-convention" 1 vmid_to_ip 4242
 
+echo "== P3: the SQLite join cache (skipped where sqlite3 isn't installed yet — pre nixos-rebuild) =="
+if command -v sqlite3 >/dev/null 2>&1; then
+  if ./scripts/build-db.sh >/dev/null 2>&1; then
+    db=".cache/inventory.db"
+    q() { sqlite3 "${db}" "$1"; }
+    eq "guests table row count == proxmox guest count" \
+       "$(q 'SELECT COUNT(*) FROM guests;')" \
+       "$(jq -s '[.[].resources[]?|select(.type=="qemu" or .type=="lxc")]|length' inventory/proxmox-*.json)"
+    eq "every running guest has a derived IP in the DB" "$(q "SELECT COUNT(*) FROM guests WHERE status='running' AND ip='';")" "0"
+    # the host-map join produces rows and keys guests to their entity id
+    rows="$(sqlite3 "${db}" -cmd '.mode tabs' ".read scripts/sql/host-map.sql" | wc -l)"
+    [ "${rows}" -gt 0 ] && ok "host-map.sql returns ${rows} rows" || bad "host-map.sql returned no rows"
+    eq "docker-dmz guest is entity-keyed in the host map" \
+       "$(sqlite3 "${db}" -cmd '.mode tabs' ".read scripts/sql/host-map.sql" | awk -F'\t' '$1=="10.10.100.15"{print $4}')" \
+       "guest/docker-dmz-10015"
+    # vhosts resolve to a front door (SKY-015 fix); the wildcard must be one of them
+    eq "vhosts.sql flags *.aliammar.net as a front-door vhost" \
+       "$(sqlite3 "${db}" -cmd '.mode tabs' ".read scripts/sql/vhosts.sql" | awk -F'\t' '$1=="*.aliammar.net"{print $3}')" \
+       "caddy-apps"
+    rm -f "${db}"
+  else
+    bad "build-db.sh failed with sqlite3 present"
+  fi
+else
+  ok "sqlite3 not installed — P3 DB tests skipped (they run in CI + post nixos-rebuild)"
+fi
+
 echo
 echo "entity-test: ${pass} passed, ${fail} failed"
 [ "${fail}" -eq 0 ]

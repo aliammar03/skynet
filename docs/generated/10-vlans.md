@@ -1,89 +1,89 @@
 ---
 title: VLANs
-generated: 2026-09-01T12:50:18+05:00
+generated: 2026-09-01T13:03:54+05:00
 tags: [skynet, generated, network, vlans]
 ---
 
 ## VLAN 10 — Trusted LAN  (10.10.10.0/24)
 
-| IP | Host / alias | Source | Notes |
-|----|--------------|--------|-------|
-| 10.10.10.50 | RK-W | dhcp | Workstation |
-| 10.10.10.55 | ROLE_ADMIN_CLIENTS | alias | Approved administrative endpoints; VLAN 30 members are transitional and should move to Trusted VLAN 10. |
-| 10.10.10.60 | Alis-iPhone | dhcp |  |
-| 10.10.10.65 | Alis-iPad | dhcp | Ali's iPad |
+| IP | Host / alias | Entity | Source | Notes |
+|----|--------------|--------|--------|-------|
+| 10.10.10.50 | RK-W | — | dhcp |  |
+| 10.10.10.55 | ROLE_ADMIN_CLIENTS | — | alias |  |
+| 10.10.10.60 | Alis-iPhone | — | dhcp |  |
+| 10.10.10.65 | Alis-iPad | — | dhcp |  |
 
 ## VLAN 20 — Servers  (10.10.20.0/24)
 
-| IP | Host / alias | Source | Notes |
-|----|--------------|--------|-------|
-| 10.10.20.15 | ROLE_NFS_CLIENTS | alias | Hosts permitted to mount approved NFS exports from Unraid. |
-| 10.10.20.20 | HOST_UNRAID | alias | Unraid storage server in VLAN 20 Servers. |
-| 10.10.20.40 | HOST_PBS | alias | Proxmox Backup Server at its current VLAN 20 address. |
+| IP | Host / alias | Entity | Source | Notes |
+|----|--------------|--------|--------|-------|
+| 10.10.20.15 | ROLE_NFS_CLIENTS | — | alias |  |
+| 10.10.20.20 | vm-unraid | `guest/unraid-servers-2020` | guest |  |
+| 10.10.20.40 | lxc-proxmox-backup-server | `guest/proxmox-backup-server-servers-240` | guest |  |
 
 ## VLAN 30 — IoT  (10.10.30.0/24)
 
-| IP | Host / alias | Source | Notes |
-|----|--------------|--------|-------|
-| 10.10.30.55 | ROLE_ADMIN_CLIENTS | alias | Approved administrative endpoints; VLAN 30 members are transitional and should move to Trusted VLAN 10. |
-| 10.10.30.60 | Alis-iPhone-IoT | dhcp |  |
-| 10.10.30.65 | Alis-iPad-IoT | dhcp |  |
+| IP | Host / alias | Entity | Source | Notes |
+|----|--------------|--------|--------|-------|
+| 10.10.30.55 | ROLE_ADMIN_CLIENTS | — | alias |  |
+| 10.10.30.60 | Alis-iPhone-IoT | — | dhcp |  |
+| 10.10.30.65 | Alis-iPad-IoT | — | dhcp |  |
 
 ## VLAN 50 — Management  (10.10.50.0/24)
 
-| IP | Host / alias | Source | Notes |
-|----|--------------|--------|-------|
-| 10.10.50.1 | ROLE_INFRASTRUCTURE_FIREWALL | alias | OPNsense management address in VLAN 50 Management. |
-| 10.10.50.2 | ROLE_INFRASTRUCTURE_SWITCHES | alias | Managed network switches in VLAN 50 Management. |
-| 10.10.50.3 | ROLE_INFRASTRUCTURE_SWITCHES | alias | Managed network switches in VLAN 50 Management. |
-| 10.10.50.4 | ROLE_INFRASTRUCTURE_SWITCHES | alias | Managed network switches in VLAN 50 Management. |
-| 10.10.50.6 | ROLE_INFRASTRUCTURE_APS | alias | Managed wireless access points in VLAN 50 Management. |
-| 10.10.50.7 | ap-omada-downstairs | dhcp | Downstairs EAP683 UR |
-| 10.10.50.8 | ROLE_INFRASTRUCTURE_APS | alias | Managed wireless access points in VLAN 50 Management. |
-| 10.10.50.9 | ROLE_INFRASTRUCTURE_APS | alias | Managed wireless access points in VLAN 50 Management. |
-| 10.10.50.10 | ROLE_PROXMOX_NODES | alias | Proxmox VE nodes in VLAN 50 Management. |
-| 10.10.50.11 | ROLE_PROXMOX_NODES | alias | Proxmox VE nodes in VLAN 50 Management. |
-| 10.10.50.25 | HOST_OMADA | alias | Omada Control. |
+| IP | Host / alias | Entity | Source | Notes |
+|----|--------------|--------|--------|-------|
+| 10.10.50.1 | vm-opnsense | `guest/opnsense-mgmt-5001` | guest |  |
+| 10.10.50.2 | ROLE_INFRASTRUCTURE_SWITCHES | — | alias |  |
+| 10.10.50.3 | ROLE_INFRASTRUCTURE_SWITCHES | — | alias |  |
+| 10.10.50.4 | ROLE_INFRASTRUCTURE_SWITCHES | — | alias |  |
+| 10.10.50.6 | ROLE_INFRASTRUCTURE_APS | — | alias |  |
+| 10.10.50.7 | ap-omada-downstairs | — | dhcp |  |
+| 10.10.50.8 | ROLE_INFRASTRUCTURE_APS | — | alias |  |
+| 10.10.50.9 | ROLE_INFRASTRUCTURE_APS | — | alias |  |
+| 10.10.50.10 | ROLE_PROXMOX_NODES | — | alias |  |
+| 10.10.50.11 | ROLE_PROXMOX_NODES | — | alias |  |
+| 10.10.50.25 | lxc-omada | `guest/omada-mgmt-525` | guest |  |
 
 ## VLAN 60 — Admin Access  (10.10.60.0/24)
 
-| IP | Host / alias | Source | Notes |
-|----|--------------|--------|-------|
-| 10.10.60.35 | HOST_PROXY_ADMIN | alias | Management Caddy front door in VLAN 60 Admin Access. |
+| IP | Host / alias | Entity | Source | Notes |
+|----|--------------|--------|--------|-------|
+| 10.10.60.35 | lxc-caddy-management | `guest/caddy-management-admin-635` | guest | front door → caddy-management |
 
 ## VLAN 70 — Network Services  (10.10.70.0/24)
 
-| IP | Host / alias | Source | Notes |
-|----|--------------|--------|-------|
-| 10.10.70.30 | ROLE_DNS_RESOLVERS | alias | Approved DNS resolvers in VLAN 70 Network Services. |
-| 10.10.70.31 | ROLE_DNS_RESOLVERS | alias | Approved DNS resolvers in VLAN 70 Network Services. |
-| 10.10.70.50 | tdns-network.tdns.home.aliammar.net | dns |  |
-| 10.10.70.51 | tdns-core.tdns.home.aliammar.net | dns |  |
+| IP | Host / alias | Entity | Source | Notes |
+|----|--------------|--------|--------|-------|
+| 10.10.70.30 | lxc-adguard-network | `guest/adguard-network-netsvc-730` | guest |  |
+| 10.10.70.31 | lxc-adguard-core | `guest/adguard-core-netsvc-731` | guest |  |
+| 10.10.70.50 | lxc-technitium-network | `guest/technitium-network-netsvc-750` | guest |  |
+| 10.10.70.51 | lxc-technitium-core | `guest/technitium-core-netsvc-751` | guest |  |
 
 ## VLAN 80 — Identity  (10.10.80.0/24)
 
-| IP | Host / alias | Source | Notes |
-|----|--------------|--------|-------|
-| 10.10.80.37 | HOST_AUTHENTIK | alias | Authentik identity provider in VLAN 80 Identity. |
+| IP | Host / alias | Entity | Source | Notes |
+|----|--------------|--------|--------|-------|
+| 10.10.80.37 | lxc-authentik | `guest/authentik-identity-837` | guest |  |
 
 ## VLAN 90 — Operations  (10.10.90.0/24)
 
-| IP | Host / alias | Source | Notes |
-|----|--------------|--------|-------|
-| 10.10.90.15 | ROLE_NFS_CLIENTS | alias | Hosts permitted to mount approved NFS exports from Unraid. |
-| 10.10.90.90 | HOST_SKYNET_OPS | alias | skynet-ops agent VM 9090 |
-| 10.10.90.91 | HOST_SKYNET_OPS | alias | skynet-ops agent VM 9090 |
+| IP | Host / alias | Entity | Source | Notes |
+|----|--------------|--------|--------|-------|
+| 10.10.90.15 | ROLE_NFS_CLIENTS | — | alias |  |
+| 10.10.90.90 | vm-skynet-ops | `guest/skynet-ops-9090` | guest |  |
+| 10.10.90.91 | HOST_SKYNET_OPS | — | alias |  |
 
 ## VLAN 100 — DMZ  (10.10.100.0/24)
 
-| IP | Host / alias | Source | Notes |
-|----|--------------|--------|-------|
-| 10.10.100.15 | HOST_DOCKER_DMZ | alias | DMZ Docker VM |
-| 10.10.100.33 | HOST_CLOUDFLARED | alias | Cloudflare Tunnel connector; includes legacy VLAN 40 and final VLAN 100 addresses during migration. |
-| 10.10.100.35 | HOST_PROXY_APPS | alias | Caddy Proxy Manager application front door in VLAN 100 DMZ. |
-| 10.10.100.65 | ROLE_USENET_CLIENTS | alias | Hosts permitted outbound NNTP and NNTPS access through PORT_USENET_OUT. |
-| 10.10.100.69 | ROLE_DMZ_AI_CLIENTS | alias | DMZ AI clients permitted to reach approved AI and ComfyUI services. |
-| 10.10.100.85 | ROLE_DMZ_AI_CLIENTS | alias | DMZ AI clients permitted to reach approved AI and ComfyUI services. |
+| IP | Host / alias | Entity | Source | Notes |
+|----|--------------|--------|--------|-------|
+| 10.10.100.15 | vm-docker-dmz | `guest/docker-dmz-10015` | guest |  |
+| 10.10.100.33 | HOST_CLOUDFLARED | — | alias |  |
+| 10.10.100.35 | HOST_PROXY_APPS | — | alias | front door → caddy-apps |
+| 10.10.100.65 | ROLE_USENET_CLIENTS | — | alias |  |
+| 10.10.100.69 | ROLE_DMZ_AI_CLIENTS | — | alias |  |
+| 10.10.100.85 | ROLE_DMZ_AI_CLIENTS | — | alias |  |
 
 
-> [!note] Auto-generated by `scripts/render-docs.sh` — do not edit by hand. Last run 2026-09-01T12:50:18+05:00.
+> [!note] Auto-generated by `scripts/render-docs.sh` — do not edit by hand. Last run 2026-09-01T13:03:54+05:00.

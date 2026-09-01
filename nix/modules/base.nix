@@ -34,6 +34,7 @@
     rclone
     restic
     jq
+    sqlite # SKY-018 P3: the rebuildable inventory.db join cache (scripts/build-db.sh)
     curl
     rsync
     docker-compose

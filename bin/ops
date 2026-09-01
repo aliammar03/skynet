@@ -5,6 +5,7 @@
 #   bin/ops run "<prompt>"     # hand an ad-hoc task to the configured engine
 #   bin/ops collect            # refresh inventory (all collectors), no agent
 #   bin/ops entities           # L0 identity audit: derive every entity, flag running-unmapped holes
+#   bin/ops query "<sql>"      # ad-hoc SQL over the rebuildable inventory.db join cache (SKY-018 P3)
 # The engine is agent-agnostic by contract (AGENTS.md). Codex CLI is the default daily driver.
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -54,6 +55,13 @@ cmd="${1:-nightly}"; shift || true
 case "${cmd}" in
   collect) collect_all ;;
   entities) exec ./scripts/audit-entities.sh ;;
+  query)
+    sql="${1:?usage: bin/ops query \"<sql>\"}"
+    SQLITE3="${SQLITE3:-sqlite3}"
+    ${SQLITE3} --version >/dev/null 2>&1 || { echo "sqlite3 not installed — run nixos-rebuild (SKY-018 P3)" >&2; exit 3; }
+    ./scripts/build-db.sh >/dev/null || exit $?    # rebuild the cache from inventory/ so answers are current
+    exec ${SQLITE3} -header -column "${REPO_DIR}/.cache/inventory.db" "${sql}"
+    ;;
   run)
     prompt="${1:?usage: bin/ops run \"<prompt>\"}"
     exec ${OPS_ENGINE_CMD} "${prompt}"
