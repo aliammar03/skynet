@@ -1,5 +1,5 @@
 {
-  "collected": "2026-09-01T16:39:34.602781+05:00",
+  "collected": "2026-09-01T17:23:29.219224+05:00",
   "source": "/opt/skynet-ops/mirror/skynet-opnsense/config.xml",
   "counts": {
     "aliases": 41,
@@ -320,7 +320,7 @@
       "interface": "",
       "counters": "0",
       "updatefreq": "",
-      "content": "10.10.50.2\n10.10.50.3\n10.10.50.4",
+      "content": "10.10.50.3",
       "username": "",
       "authtype": "",
       "expire": "",
@@ -336,7 +336,7 @@
       "interface": "",
       "counters": "0",
       "updatefreq": "",
-      "content": "10.10.50.6\n10.10.50.7\n10.10.50.8\n10.10.50.9",
+      "content": "10.10.50.6\n10.10.50.7",
       "username": "",
       "authtype": "",
       "expire": "",
