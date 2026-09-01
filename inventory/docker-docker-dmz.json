@@ -1,6 +1,6 @@
 {
   "host": "docker-dmz",
-  "collected": "2026-09-01T17:36:05+05:00",
+  "collected": "2026-09-01T18:06:23+05:00",
   "containers": [
     {
       "Command": "\"/usr/local/bin/entr…\"",
@@ -12,7 +12,7 @@
       "LocalVolumes": "0",
       "Mounts": "/opt/docker/ap…,/opt/docker/ap…,/opt/docker/ap…",
       "Names": "aiometadata-aiometadata-1",
-      "Networks": "dmz,aiometadata_backend",
+      "Networks": "aiometadata_backend,dmz",
       "Platform": null,
       "Ports": "3232/tcp",
       "RunningFor": "2 days ago",
@@ -192,7 +192,7 @@
       "LocalVolumes": "0",
       "Mounts": "/opt/docker/ar…",
       "Names": "aiometadata-jikan_rest-1",
-      "Networks": "aiometadata_jikan_egress,aiometadata_backend",
+      "Networks": "aiometadata_backend,aiometadata_jikan_egress",
       "Platform": null,
       "Ports": "2114/tcp, 8080/tcp",
       "RunningFor": "2 weeks ago",
@@ -379,7 +379,7 @@
     {
       "Containers": "1",
       "CreatedAt": "2026-08-11 18:34:04 +0500 PKT",
-      "CreatedSince": "2 weeks ago",
+      "CreatedSince": "3 weeks ago",
       "Digest": "<none>",
       "ID": "aea39760d086",
       "Repository": "ghcr.io/karakeep-app/karakeep",
