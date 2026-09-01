@@ -219,6 +219,69 @@ done
   foot
 } > "${gen}/90-backup-status.md"
 
+# ── 50 — network gear (Omada estate, SKY-018 P4) ──────────────────────────────
+ng="${inv}/network-gear.json"
+{
+  fm "Network gear (Omada estate)" netgear
+  if has "${ng}"; then
+    echo "Controller \`$(j '.controller.host' "${ng}")\` · Omada \`$(j '.controller.version' "${ng}")\` · site(s): $(j '[.sites[].name]|join(", ")' "${ng}")."
+    echo
+    echo "## Switches & access points"
+    echo
+    echo "| Entity | Type | Model | IP | Firmware | Status | Clients | PoE |"
+    echo "|--------|------|-------|----|----------|--------|---------|-----|"
+    j '.devices[]? | [.entity_id, .type, .model, .ip, .firmware,
+          (if .connected then "🟢 up" else "🔴 down" end),
+          (.clients|tostring),
+          (if .poe.support then ((.poe.remain_w//"?"|tostring) + " W free") else "—" end)] | @tsv' "${ng}" \
+      | awk -F'\t' '{printf "| `%s` | %s | %s | `%s` | %s | %s | %s | %s |\n", $1,$2,$3,$4,$5,$6,$7,$8}'
+
+    # per-switch port tables
+    while IFS=$'\t' read -r sw name; do
+      [ -n "${sw}" ] || continue
+      echo
+      echo "### \`${sw}\` — ${name} ports"
+      echo
+      echo "| Port | Name | Profile | Link | PoE |"
+      echo "|------|------|---------|------|-----|"
+      j --arg e "${sw}" '.devices[]? | select(.entity_id==$e) | .ports[]?
+            | [.port, (.name//"—"), (.profile//"—"),
+               (if .link==1 then "up" else "down" end),
+               (if (.poe//0)!=0 then "✓" else "—" end)] | @tsv' "${ng}" \
+        | awk -F'\t' '{printf "| %s | %s | %s | %s | %s |\n", $1,$2,$3,$4,$5}'
+    done < <(j '.devices[]? | select(.ports!=null) | "\(.entity_id)\t\(.name)"' "${ng}")
+
+    # firewall reconciliation — the estate the firewall RESERVES vs what the controller SEES.
+    # This is the drift SKY-018 exists to surface: reserved-but-absent slots, and seen-but-unreserved
+    # devices (an AP the INFRASTRUCTURE aliases don't list).
+    if has "${fw}"; then
+      fw_ips="$(j '.aliases[]? | select(.name=="ROLE_INFRASTRUCTURE_SWITCHES" or .name=="ROLE_INFRASTRUCTURE_APS")
+                   | .content | split("\n")[] | select(test("^10\\.10\\."))' "${fw}" | sort -u)"
+      seen_ips="$(j '.devices[]?.ip' "${ng}" | sort -u)"
+      echo
+      echo "## Firewall reconciliation — reserved vs adopted"
+      echo
+      echo "| IP | In firewall INFRASTRUCTURE alias | Adopted in controller |"
+      echo "|----|----------------------------------|-----------------------|"
+      printf '%s\n%s\n' "${fw_ips}" "${seen_ips}" | grep -E '^10\.10\.' | sort -u \
+        | while IFS= read -r ip; do
+            [ -n "${ip}" ] || continue
+            in_fw="—"; grep -qxF "${ip}" <<<"${fw_ips}" && in_fw="✅"
+            in_ct="—"; grep -qxF "${ip}" <<<"${seen_ips}" && in_ct="✅"
+            dev="$(j --arg ip "${ip}" '.devices[]? | select(.ip==$ip) | .entity_id' "${ng}")"
+            printf '| `%s` | %s | %s%s |\n' "${ip}" "${in_fw}" "${in_ct}" "${dev:+ (\`${dev}\`)}"
+          done
+      echo
+      echo "> [!note] ✅/— under both columns: a reserved-but-not-adopted IP is a firewall slot with no"
+      echo "> live device; an adopted-but-unreserved IP is gear the \`ROLE_INFRASTRUCTURE_*\` aliases don't"
+      echo "> cover. Run \`bin/ops entities\` for the entity-level classification."
+    fi
+  else
+    echo "_Pending — \`scripts/collect-network-gear.sh\` has not run (needs the Omada read credential and reachability; see [[../design/access-and-trust]])._"
+  fi
+  foot
+} > "${gen}/50-network-gear.md"
+
 # ── index / MOC ───────────────────────────────────────────────────────────────
 {
   fm "Skynet — generated docs" index
@@ -232,6 +295,7 @@ done
   echo "- [[20-firewall]] — rules & aliases"
   echo "- [[30-services/README|Services]]"
   echo "- Hosts:${node_list:- _pending_}"
+  echo "- [[50-network-gear]] — switches & APs (Omada estate)"
   echo "- [[90-backup-status]] — backups & grant audit"
   foot
 } > "${gen}/README.md"

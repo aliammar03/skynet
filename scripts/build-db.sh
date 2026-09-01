@@ -35,6 +35,8 @@ CREATE TABLE containers(project TEXT, host_label TEXT, hosted_on TEXT, state TEX
 CREATE TABLE front_doors(alias TEXT, ip TEXT, proxy TEXT);
 CREATE TABLE vlans(vlan INTEGER, name TEXT, slug TEXT);
 CREATE TABLE backup_jobs(entity_id TEXT, kind TEXT);
+CREATE TABLE netgear(entity_id TEXT, type TEXT, name TEXT, model TEXT, mac TEXT, ip TEXT, firmware TEXT, needs_upgrade INTEGER, connected INTEGER, clients INTEGER, poe_support INTEGER, site TEXT);
+CREATE TABLE netports(switch TEXT, port INTEGER, name TEXT, profile TEXT, link INTEGER, poe INTEGER);
 SQL
 
 # helper: stream TSV on stdin into a table (\t-separated, matches the column order)
@@ -94,6 +96,16 @@ done
 if has "${lab}"; then
   jq -r '.front_doors.aliases[]? | [.alias, .ip, (.proxy//"")] | @tsv' "${lab}" | load front_doors
   jq -r '.vlans.list[]? | [.vlan, .name, .slug] | @tsv' "${lab}" | load vlans
+fi
+
+# ── network gear (Omada estate, SKY-018 P4) → one row per device + one per switch port ───────────
+ng="${inv}/network-gear.json"
+if has "${ng}"; then
+  jq -r '.devices[]? | [.entity_id, .type, .name, .model, .mac, .ip, .firmware,
+           (if .needs_upgrade then 1 else 0 end), (if .connected then 1 else 0 end),
+           (.clients//0), (if .poe.support then 1 else 0 end), (.site//"")] | @tsv' "${ng}" | load netgear
+  jq -r '.devices[]? | select(.ports!=null) | .entity_id as $e | .ports[]?
+           | [$e, .port, (.name//""), (.profile//""), (.link//0), (.poe//0)] | @tsv' "${ng}" | load netports
 fi
 
 # ── backup jobs (restic/PBS) if a collector recorded them — keyed to guest where resolvable ──────

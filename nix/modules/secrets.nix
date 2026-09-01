@@ -24,6 +24,7 @@ let
     "arcane.env"
     "authentik.env"
     "cloudflare-dns.env"
+    "omada.env"
     "rclone.conf"
     "tofu-proxmox.env"
     "tofu-proxmox-network.env"

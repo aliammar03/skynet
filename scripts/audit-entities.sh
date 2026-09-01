@@ -150,7 +150,28 @@ echo
 echo "== entity audit :: node =="
 while IFS= read -r n; do [ -n "${n}" ] && row "$(node_id "${n}")" "—" "—" "matched" "Proxmox node"; done \
   < <(jq -r '.nodes[]? | select(.type=="node") | .node' inventory/proxmox-*.json 2>/dev/null | sort -u)
-echo "  (vhost: awaits the Caddy route collector, SKY-018 P5 · net: awaits the network-gear collector, SKY-018 P4)"
+echo "  (vhost: awaits the Caddy route collector, SKY-018 P5)"
+echo
+
+# ── net class: the Omada switch/AP estate (SKY-018 P4). INFORMATIONAL — a device the firewall's
+#    INFRASTRUCTURE aliases don't list is drift worth surfacing, but not a CI-failing hole: net
+#    devices aren't guests, and the 4th law (check-invariants) governs guests + services only.
+echo "== entity audit :: net (Omada estate) =="
+if [ -r inventory/network-gear.json ] && [ "$(jq '.devices|length' inventory/network-gear.json 2>/dev/null || echo 0)" -gt 0 ]; then
+  declare -i n_match=0 n_unlisted=0
+  while IFS=$'\t' read -r nid ip typ conn; do
+    [ -n "${nid}" ] || continue
+    st="$([ "${conn}" = "true" ] && echo connected || echo offline)"
+    if is_mapped "${ip}"; then
+      row "${nid}" "${ip}" "${st}" "matched" "${typ} in firewall estate alias"; n_match+=1
+    else
+      row "${sym_warn} ${nid}" "${ip}" "${st}" "unlisted" "${typ} not in a firewall INFRASTRUCTURE alias — drift"; n_unlisted+=1
+    fi
+  done < <(jq -r '.devices[]? | [.entity_id, .ip, .type, .connected] | @tsv' inventory/network-gear.json)
+  echo "  ── net: ${n_match} matched · ${n_unlisted} unlisted-in-firewall (informational, not a hole)"
+else
+  echo "  (no inventory/network-gear.json yet — run scripts/collect-network-gear.sh with Omada read creds)"
+fi
 echo
 
 if [ "${hole}" -ne 0 ]; then
