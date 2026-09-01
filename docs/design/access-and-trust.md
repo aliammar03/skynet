@@ -1,6 +1,6 @@
 ---
 summary: "The trust tiers in full — every token, ACL, principal, and the auto-expiring SSH root grant Skynet can request but never mint."
-tokens: 4023
+tokens: 4148
 ---
 
 # Spoke · Access & trust
@@ -202,34 +202,39 @@ reads it and never touches it — the same view/modify-a-slice split as Techniti
 
 ## The OPNsense read boundary (ADR 0006)
 
-OPNsense is the firewall — the enforcement boundary for the whole lab — so it is split read/write one
-notch lower than the other devices: **read is T1, anything that changes it is T3 and never standing.**
+OPNsense is the firewall — the enforcement boundary for the whole lab — so it is split one notch
+lower than the other devices: **read + non-mutating diagnostics is T1; anything that *changes or
+bounces* the box is T3 and never standing.** The standing credential is `svc-skynet-recon` (group
+`skynet-recon`) — it observes and probes, never mutates.
 
-- **T1 (scoped read-only API credential):** the agent reads firewall aliases, rules, interfaces,
-  DHCP leases, and neighbour state **live**. Stored `0600` sops-nix at
-  `/opt/skynet-ops/secrets/opnsense.env` (`OPN_HOST`, `OPN_KEY`, `OPN_SECRET`, `OPN_CACERT`), same
-  shape as the Proxmox/Omada creds. The API key is created against a **read-only** OPNsense user (GUI
-  read privileges only); the collector reads scoped endpoints and **strips secrets** — never writes a
-  key or password hash from `config.xml` into `inventory/`.
-- **T3 (never standing):** every write — rules, aliases, DHCP, settings — and root shell. Reached
-  only via the dormant alias + per-session credentials, revoked same day. **No standing write
-  credential to the firewall, ever.**
+- **T1 (the `skynet-recon` credential):** the agent reads firewall aliases, rules, interfaces, DHCP
+  leases, and neighbour state **live**, and runs **non-mutating diagnostics** (ping, traceroute, DNS
+  lookup, ARP/NDP + route + state tables, logs). All observe-or-probe, nothing changes state. Stored
+  `0600` sops-nix at `/opt/skynet-ops/secrets/opnsense.env` (`OPN_HOST`, `OPN_USER=svc-skynet-recon`,
+  `OPN_KEY`, `OPN_SECRET`, `OPN_CACERT`), same shape as the Proxmox/Omada creds. The collector reads
+  scoped endpoints and **strips secrets** — never writes a key or password hash from `config.xml`
+  into `inventory/`.
+- **T3 (never standing):** every write — rules, aliases, DHCP, settings — **and every state-changing
+  action** (reboot/halt, service stop/restart, flush states/ARP/leases, firmware, config apply,
+  backup restore) and root shell. Reached only via the dormant alias + per-session credentials,
+  revoked same day. **No standing credential that can change or bounce the firewall, ever.**
 - **Why not just the git mirror:** `os-git-backup` pushes to the mirror *nightly by default*, so the
   firewall map was routinely stale; the live read removes that lag. **The mirror stays** as the
   rebuild-from-git source of truth (§2a) and DR path — live API for freshness, mirror for truth.
-- **How the credential is born (the *safe* read-only setup):** OPNsense enforces read-only with the
-  **"GUI - read only"** privilege (`user-config-readonly`) — its `throwReadOnly()` guard blocks
-  **every** MVC write regardless of page privileges. But per advisory
-  [GHSA-p9pr-782r-w2xw](https://github.com/opnsense/core/security/advisories/GHSA-p9pr-782r-w2xw),
-  that guard is **bypassable when the privilege is assigned *directly* on the user** (direct
-  comma-separated privs aren't split correctly) — so it **must** be assigned **via a group**. The
-  recipe (a T3 act — the agent cannot mint firewall access):
-  1. OPNsense **≥ 26.1.11 / 26.4.1p1** (the advisory fix). Verify first.
-  2. Create a **group** `skynet-readonly` with **`System: Deny config write`** (the display name of
-     `user-config-readonly` on current OPNsense — *not* labelled "read only"; it blocks every API
-     write via `ApiControllerBase::throwReadOnly()`) + the read page privileges the collector needs
-     (Firewall: Aliases/Rules, Interfaces, Diagnostics, Services: DHCPv4/Kea).
-  3. Create user `skynet-ro`, add it to that group. **Assign every privilege through the group,
+- **How the credential is born (the *safe* setup):** OPNsense's `user-config-readonly` privilege —
+  shown in the group's Assigned Privileges list as **"System: Deny config write"** (not "read only",
+  which finds nothing) — makes `ApiControllerBase::throwReadOnly()` block **every** MVC/API *config
+  write* regardless of page privileges. It does **not** block non-config *actions* (reboot, restart),
+  so those pages are simply never granted. Per advisory
+  [GHSA-p9pr-782r-w2xw](https://github.com/opnsense/core/security/advisories/GHSA-p9pr-782r-w2xw) the
+  guard is **bypassable if assigned directly on the user**, so it **must** go on a group. The recipe
+  (a T3 act — the agent cannot mint firewall access):
+  1. OPNsense **≥ 26.1.11 / 26.4.1p1** (the advisory fix). 26.7+ is safe.
+  2. Group **`skynet-recon`** = **`System: Deny config write`** + the read/diagnostic pages: Firewall
+     Aliases/Rules, Interfaces, Services DHCPv4/Kea, and Diagnostics **Ping / Traceroute / DNS Lookup
+     / ARP-NDP / Routes / States (view) / Logs**. **Do not** grant Reboot/Halt, service control,
+     Firmware, config Apply, or Backups: restore — those are the T3 actions.
+  3. User **`svc-skynet-recon`**, member of that group. **Assign every privilege through the group,
      never directly on the user.**
   4. Generate an **API key** for the user → `OPN_KEY` / `OPN_SECRET`.
 
