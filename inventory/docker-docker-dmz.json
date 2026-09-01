@@ -1,6 +1,6 @@
 {
   "host": "docker-dmz",
-  "collected": "2026-09-01T03:44:26+05:00",
+  "collected": "2026-09-01T17:36:05+05:00",
   "containers": [
     {
       "Command": "\"/usr/local/bin/entr…\"",
@@ -12,13 +12,13 @@
       "LocalVolumes": "0",
       "Mounts": "/opt/docker/ap…,/opt/docker/ap…,/opt/docker/ap…",
       "Names": "aiometadata-aiometadata-1",
-      "Networks": "aiometadata_backend,dmz",
+      "Networks": "dmz,aiometadata_backend",
       "Platform": null,
       "Ports": "3232/tcp",
-      "RunningFor": "37 hours ago",
+      "RunningFor": "2 days ago",
       "Size": "0B (virtual 437MB)",
       "State": "running",
-      "Status": "Up 37 hours (healthy)"
+      "Status": "Up 2 days (healthy)"
     },
     {
       "Command": "\"docker-entrypoint.s…\"",
@@ -33,10 +33,10 @@
       "Networks": "aiometadata_backend",
       "Platform": null,
       "Ports": "6379/tcp",
-      "RunningFor": "37 hours ago",
+      "RunningFor": "2 days ago",
       "Size": "0B (virtual 38.6MB)",
       "State": "running",
-      "Status": "Up 37 hours (healthy)"
+      "Status": "Up 2 days (healthy)"
     },
     {
       "Command": "\"docker-php-entrypoi…\"",
@@ -51,10 +51,10 @@
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "8 days ago",
+      "RunningFor": "9 days ago",
       "Size": "44.4MB (virtual 272MB)",
       "State": "running",
-      "Status": "Up 3 days (healthy)"
+      "Status": "Up 4 days (healthy)"
     },
     {
       "Command": "\"tini -- ./docker-en…\"",
@@ -72,7 +72,7 @@
       "RunningFor": "12 days ago",
       "Size": "4.22kB (virtual 565MB)",
       "State": "running",
-      "Status": "Up 3 days (healthy)"
+      "Status": "Up 4 days (healthy)"
     },
     {
       "Command": "\"cloudflared --no-au…\"",
@@ -87,10 +87,10 @@
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "12 days ago",
+      "RunningFor": "13 days ago",
       "Size": "0B (virtual 63.9MB)",
       "State": "running",
-      "Status": "Up 3 days (healthy)"
+      "Status": "Up 4 days (healthy)"
     },
     {
       "Command": "\"/bin/bash -c 'cp /e…\"",
@@ -108,7 +108,7 @@
       "RunningFor": "13 days ago",
       "Size": "1.38kB (virtual 272MB)",
       "State": "running",
-      "Status": "Up 3 days (healthy)"
+      "Status": "Up 4 days (healthy)"
     },
     {
       "Command": "\"caddy run --config …\"",
@@ -118,7 +118,7 @@
       "Image": "ghcr.io/caddybuilds/caddy-cloudflare:2.11.4-alpine",
       "Labels": "com.docker.compose.config-hash=7ca5b1d418313e5e2f6eb4905b5d713d0fd327fa495084669023fdc859a05cea,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:1fdf385c8e953aa3e31e5f8164fc6222bac3fc426c2d89dc1f9f3177a8ee1364,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/opt/docker/arcane-projects/caddy-apps/compose.yaml,com.docker.compose.project.working_dir=/opt/docker/arcane-projects/caddy-apps,com.docker.compose.project=caddy-apps,com.docker.compose.service=caddy,com.docker.compose.version=,org.opencontainers.image.created=2026-06-04T02:40:04.052Z,org.opencontainers.image.description=Caddy with Cloudflare DNS module (Alpine),org.opencontainers.image.documentation=https://caddyserver.com/docs,org.opencontainers.image.licenses=MIT,org.opencontainers.image.revision=280cd873b440bb8e1ffe8183ae0b53b3cdf1a3e5,org.opencontainers.image.source=https://github.com/CaddyBuilds/caddy-cloudflare,org.opencontainers.image.title=Caddy Cloudflare Alpine,org.opencontainers.image.url=https://github.com/CaddyBuilds/caddy-cloudflare,org.opencontainers.image.vendor=CaddyBuilds,org.opencontainers.image.version=2.11.4-alpine",
       "LocalVolumes": "0",
-      "Mounts": "/opt/docker/ap…,/opt/docker/ar…,/opt/docker/ap…",
+      "Mounts": "/opt/docker/ap…,/opt/docker/ap…,/opt/docker/ar…",
       "Names": "caddy-apps-caddy-1",
       "Networks": "dmz",
       "Platform": null,
@@ -126,7 +126,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 111MB)",
       "State": "running",
-      "Status": "Up 3 days (healthy)"
+      "Status": "Up 4 days (healthy)"
     },
     {
       "Command": "\"tini -- /bin/sh -c …\"",
@@ -144,7 +144,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 158MB)",
       "State": "running",
-      "Status": "Up 3 days (healthy)"
+      "Status": "Up 4 days (healthy)"
     },
     {
       "Command": "\"chromium-browser --…\"",
@@ -162,7 +162,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "194kB (virtual 670MB)",
       "State": "running",
-      "Status": "Up 3 days (healthy)"
+      "Status": "Up 4 days (healthy)"
     },
     {
       "Command": "\"/nodejs/bin/node /a…\"",
@@ -180,7 +180,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 277MB)",
       "State": "running",
-      "Status": "Up 3 days (healthy)"
+      "Status": "Up 4 days (healthy)"
     },
     {
       "Command": "\"/app/docker-entrypo…\"",
@@ -198,7 +198,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "3.52MB (virtual 667MB)",
       "State": "running",
-      "Status": "Up 3 days (healthy)"
+      "Status": "Up 4 days (healthy)"
     },
     {
       "Command": "\"docker-entrypoint.s…\"",
@@ -216,7 +216,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 27.9MB)",
       "State": "running",
-      "Status": "Up 3 days (healthy)"
+      "Status": "Up 4 days (healthy)"
     },
     {
       "Command": "\"docker-entrypoint.s…\"",
@@ -234,7 +234,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 644MB)",
       "State": "running",
-      "Status": "Up 3 days (healthy)"
+      "Status": "Up 4 days (healthy)"
     },
     {
       "Command": "\"/opt/typesense-serv…\"",
@@ -252,7 +252,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 799MB)",
       "State": "running",
-      "Status": "Up 3 days (healthy)"
+      "Status": "Up 4 days (healthy)"
     },
     {
       "Command": "\"node /usr/local/bin…\"",
@@ -270,7 +270,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 2.27GB)",
       "State": "running",
-      "Status": "Up 3 days (healthy)"
+      "Status": "Up 4 days (healthy)"
     },
     {
       "Command": "\"/init\"",
@@ -286,9 +286,9 @@
       "Platform": null,
       "Ports": "",
       "RunningFor": "2 weeks ago",
-      "Size": "6.95MB (virtual 3.51GB)",
+      "Size": "7.1MB (virtual 3.52GB)",
       "State": "running",
-      "Status": "Up 3 days (healthy)"
+      "Status": "Up 4 days (healthy)"
     },
     {
       "Command": "\"/init\"",
@@ -306,7 +306,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "8.99MB (virtual 1.48GB)",
       "State": "running",
-      "Status": "Up 3 days (healthy)"
+      "Status": "Up 4 days (healthy)"
     },
     {
       "Command": "\"./arcane\"",
@@ -324,7 +324,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 149MB)",
       "State": "running",
-      "Status": "Up 3 days (healthy)"
+      "Status": "Up 4 days (healthy)"
     }
   ],
   "images": [
@@ -511,7 +511,7 @@
     {
       "Containers": "0",
       "CreatedAt": "2026-07-21 06:30:45 +0500 PKT",
-      "CreatedSince": "5 weeks ago",
+      "CreatedSince": "6 weeks ago",
       "Digest": "<none>",
       "ID": "199fc9a59fdf",
       "Repository": "docker.getoutline.com/outlinewiki/outline",
