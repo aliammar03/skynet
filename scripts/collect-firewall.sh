@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 # collect-firewall.sh — parse the mirrored OPNsense config.xml → inventory/firewall/*.json
+# RETIRED FROM THE NIGHTLY LOOP (ADR 0006): the LIVE collector `scripts/collect-opnsense.sh` (OPNsense
+# read is T1) is the canonical firewall inventory now — no push lag. This script stays as the
+# **DR / offline** parser: rebuild firewall.json from the git-mirrored config.xml when the API is
+# unreachable, or during a from-git recovery when OPNsense isn't up yet.
 # USAGE: collect-firewall.sh [path-to-config.xml]
-#   Truth source is the skynet-opnsense repo (os-git-backup auto-pushes config.xml, branch
-#   master). NO management-plane access — we read the git mirror, never OPNsense itself (T3).
-#   Default mirror: /opt/skynet-ops/mirror/skynet-opnsense/config.xml
+#   Source is the skynet-opnsense repo (os-git-backup pushes config.xml, branch master) — which is
+#   retained as the rebuild-from-git DR source (§2a). Default mirror:
+#   /opt/skynet-ops/mirror/skynet-opnsense/config.xml
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cfg="${1:-/opt/skynet-ops/mirror/skynet-opnsense/config.xml}"

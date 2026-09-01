@@ -47,9 +47,10 @@ collect_all() {
   ./scripts/collect-pbs.sh             || true
   ./scripts/collect-docker.sh docker-dmz || true
   ./scripts/collect-dns.sh             || true
-  ./scripts/collect-firewall.sh        || true
-  ./scripts/collect-opnsense.sh        || true
+  ./scripts/collect-opnsense.sh        || true   # live firewall inventory (canonical; writes firewall.json + opnsense.json)
   ./scripts/collect-network-gear.sh    || true
+  # collect-firewall.sh (mirror parse) is retired from the loop → DR/offline only; the live API is
+  # the collector now (ADR 0006). The skynet-opnsense config.xml mirror stays as the git-truth DR source.
   ./scripts/render-docs.sh             || true
 }
 

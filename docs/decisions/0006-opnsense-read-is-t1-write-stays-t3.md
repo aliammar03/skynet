@@ -77,7 +77,12 @@ Reboot stays a hard checkpoint because it drops the whole network; it is never a
   `svc-skynet-recon` (read + diagnostics, "System: Deny config write" via a group), and a T2 write
   credential used **only** by `tofu apply` after a merged PR. Both sops-nix (`opnsense.env`), same
   shape as the Proxmox/Omada creds.
-- **The git mirror stays** — rebuild-from-git source of truth (§2a) + DR — alongside the live read.
+- **The live API is the collector; the git mirror is retired to DR-only.** `collect-opnsense.sh`
+  writes the canonical firewall inventory (`firewall.json` + `opnsense.json`) live — no push lag; the
+  mirror parser `collect-firewall.sh` leaves the nightly loop and stays as the offline/DR parser. The
+  `config.xml` mirror is retained as the **rebuild-from-git DR source** (§2a: OPNsense reconstructable
+  from git), not the observed-truth reader. (Refined 2026-09-01 after P1 proved the live read; Ali's
+  call — the mirror already holds every secret the box does, so live-as-primary loses nothing.)
 - This changes a §2a hard law + `invariants.json`, so it is **human-merged forever** (never
   agent-self-merged), like every leash change.
 

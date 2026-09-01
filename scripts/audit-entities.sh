@@ -40,6 +40,25 @@ mapfile -t FW_IPS < <(
 )
 is_mapped() { local ip="$1"; [ -n "${ip}" ] || return 1; printf '%s\n' "${FW_IPS[@]}" | grep -qxF "${ip}"; }
 
+# ── live PRESENCE: the OPNsense live read (SKY-020) gives who is actually up right now — ARP, plus an
+# ICMP ping of ARP-silent declared hosts. Observed presence the mirror's config can't. Used as a
+# LIVENESS ANNOTATION only (never a mapping source), so the 4th-law pass/fail is unchanged. Silent
+# when there's no presence data (opnsense.json absent).
+mapfile -t LIVE_IPS < <(jq -r '.presence[]? | select(.live) | .ip'      inventory/opnsense.json 2>/dev/null | grep -E '^10\.10\.' | sort -u)
+mapfile -t DOWN_IPS < <(jq -r '.presence[]? | select(.live|not) | .ip'  inventory/opnsense.json 2>/dev/null | grep -E '^10\.10\.' | sort -u)
+HAVE_ARP=0; { [ "${#LIVE_IPS[@]}" -gt 0 ] || [ "${#DOWN_IPS[@]}" -gt 0 ]; } && HAVE_ARP=1
+is_present() { local ip="$1"; [ -n "${ip}" ] || return 1; printf '%s\n' "${LIVE_IPS[@]}" | grep -qxF "${ip}"; }
+is_down()    { local ip="$1"; [ -n "${ip}" ] || return 1; printf '%s\n' "${DOWN_IPS[@]}" | grep -qxF "${ip}"; }
+# raw ARP table (all IPs OPNsense saw, incl. non-declared) — for the running-unmapped case, where a
+# guest isn't a declared host so it's not in the (declared-only) presence set.
+mapfile -t RAW_ARP_IPS < <(jq -r '.arp[]? | .ip' inventory/opnsense.json 2>/dev/null | grep -E '^10\.10\.' | sort -u)
+in_raw_arp() { local ip="$1"; [ -n "${ip}" ] || return 1; printf '%s\n' "${RAW_ARP_IPS[@]}" | grep -qxF "${ip}"; }
+# liveness marker for a mapped guest: live ✓ (ARP or ping) / ⚠ no response (probed, none) / silent if
+# not a declared host (never probed → no claim).
+live_mark() { [ "${HAVE_ARP}" = 1 ] || return 0
+  if   is_present "$1"; then printf '%s live' "${sym_ok}"
+  elif is_down    "$1"; then printf '%s no ARP/ping response' "${sym_warn}"; fi; }
+
 # declared exceptions: excluded_guests today; entity_conventions.exceptions once P2 adds it
 mapfile -t EXCEPTIONS < <(
   { jq -r '.excluded_guests.guests[]?.vmid' "${INV}" 2>/dev/null
@@ -87,7 +106,8 @@ while IFS=$'\t' read -r vmid name status tmpl; do
     row "${id}" "${addr:-—}" "${status}" "${bucket}" "declared T3 (invariants.json)"
   elif [ -n "${addr}" ] && is_mapped "${addr}" && [ "${status}" = running ]; then
     bucket="matched"; g_match+=1
-    row "${sym_ok} ${id}" "${addr}" "${status}" "${bucket}" "${note}"
+    lv="$(live_mark "${addr}")"
+    row "${sym_ok} ${id}" "${addr}" "${status}" "${bucket}" "${note:+${note}; }${lv}"
   elif [ "${status}" != running ]; then
     bucket="stale"; g_stale+=1
     # a stopped guest still holding a live firewall alias is a louder cleanup target
@@ -95,7 +115,8 @@ while IFS=$'\t' read -r vmid name status tmpl; do
     row "${id}" "${addr:-—}" "${status}" "${bucket}" "${note:-cleanup proposal}"
   else
     bucket="running-unmapped"; g_hole+=1; hole=1
-    row "${sym_x} ${id}" "${addr:-—}" "${status}" "${bucket}" "${note:+${note}; }no firewall/DNS host fact"
+    pn=""; [ "${HAVE_ARP}" = 1 ] && in_raw_arp "${addr}" && pn="${sym_warn} present in ARP (live, unaliased); "
+    row "${sym_x} ${id}" "${addr:-—}" "${status}" "${bucket}" "${note:+${note}; }${pn}no firewall/DNS host fact"
   fi
 done < <(jq -r '.resources[]? | select(.type=="qemu" or .type=="lxc") | "\(.vmid)\t\(.name)\t\(.status)\t\(.template // 0)"' inventory/proxmox-*.json 2>/dev/null | sort -n)
 echo "  ── guests: ${g_match} matched · ${g_stale} stale · ${g_hole} running-unmapped · ${g_exc} exception · ${g_tmpl} template"
