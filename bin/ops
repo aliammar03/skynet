@@ -48,6 +48,7 @@ collect_all() {
   ./scripts/collect-docker.sh docker-dmz || true
   ./scripts/collect-dns.sh             || true
   ./scripts/collect-firewall.sh        || true
+  ./scripts/collect-opnsense.sh        || true
   ./scripts/collect-network-gear.sh    || true
   ./scripts/render-docs.sh             || true
 }
