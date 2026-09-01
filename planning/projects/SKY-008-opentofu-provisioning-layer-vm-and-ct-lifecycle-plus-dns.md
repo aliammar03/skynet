@@ -92,14 +92,19 @@ lifecycle. **⚠ `destroy` checkpoint.** Exit: create/destroy round-trips cleanl
 Landed as a **permanent base template** `ubuntu-2404-base` (9000) + a throwaway clone (10099) proving
 clone→boot→destroy. New follow-up: extend tofu to the **network node** (standalone — own `svc-tofu`).
 
-### Phase 3 — DNS records + declarative LXC import  (~1–2h)   `[~]` split: LXC done, DNS blocked
+### Phase 3 — DNS records + declarative LXC import  (~1–2h)   `[~]` LXC done, DNS staged
 **LXC import — DONE (2026-09-02):** CT 240 imports zero-drift (see status log + [[SKY-008-progress]]).
-**DNS — deferred (blocked on a provider release):** the chosen `kevynb/technitium` provider's only
-release (v0.4.0) cannot *read back* a DNSSEC-signed zone (crashes on the numeric `DNSKEY.protocol`);
-the fix is merged to `main` (commit `b2f6b89c`, 2026-08-20) but unreleased, and our only writable
-primary zone is signed. `add` works (path proven end-to-end), so DNS finishes by re-pinning kevynb
-once a release ships. Second blocker found: the scoped token can *add/modify* records but **not
-delete** them — the future DNS phase needs record-delete added for `tofu destroy` to work.
+**DNS — STAGED (Ali's call):** the DNSSEC read bug in `kevynb/technitium` v0.4.0 only affects the
+*signed* zone, so we split by zone:
+- **`aliammar.net` (unsigned Forwarder + A overrides) — DONE:** all 11 vanity A records imported +
+  tofu-managed, zero-drift (`tofu/dns-aliammar-net.tf`, `technitium_record` for_each). v0.4.0 reads
+  the unsigned zone fine.
+- **`tdns.home.aliammar.net` (DNSSEC-signed resolver zone) — deferred until a kevynb release** carries
+  the fix (commit `b2f6b89c`, 2026-08-20; v0.4.0 is still latest). We chose NOT to un-sign it — its
+  TLSA/DANE records depend on the signing.
+Open blocker for full lifecycle: the scoped token can *add/modify* but **not delete** records
+(`tofu destroy` on a record fails) — Ali to add record-delete. A leftover `tofu-test` record in the
+signed zone also awaits that grant (or a manual delete).
 
 Two remaining declarative surfaces, deferred out of P2:
 - **DNS (Technitium):** pin/vendor a Technitium provider (or restapi fallback) against a zone-scoped
@@ -165,3 +170,9 @@ Follow AGENTS.md as above.
   (numeric `DNSKEY.protocol`; fix on `main` @ `b2f6b89c`, unreleased). `add` proven (record created +
   verified live, then removed); token also lacks record-delete. Full DNS recipe + gotchas in
   [[SKY-008-progress]] for a clean resume when kevynb releases. LXC landed via PR (agent never self-merges).
+- 2026-09-02 (same session, cont.) — **DNS staged by zone (Ali's call).** Since the v0.4.0 read bug
+  only hits *signed* zones, we tofu-manage the **unsigned `aliammar.net`** zone now and defer the
+  signed resolver zone. Imported all 11 vanity A records (`tofu/dns-aliammar-net.tf`, `technitium_record`
+  for_each; `zone` omitted → inferred, else phantom `+ zone` diff). `plan` = No changes across VMs +
+  LXC + DNS. Provider url must OMIT `/api` (client prepends it). Deferred `tdns.home.aliammar.net`
+  stays signed (TLSA/DANE depends on it) until kevynb releases. Same branch/PR #143.

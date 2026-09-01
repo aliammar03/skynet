@@ -16,3 +16,12 @@ provider "proxmox" {
   api_token = var.proxmox_api_token_network
   insecure  = false
 }
+
+# Technitium DNS (SKY-008 P3) — T2, zones-only scoped token. `url` must OMIT the /api suffix: the
+# client prepends /api itself (a `.../api` url yields `.../api/api/...` → 404 → EOF). Self-signed
+# cert is PINNED, not skipped: tofu-env.sh appends technitium.crt to the SSL_CERT_FILE bundle, so
+# the provider's Go client verifies chain + SAN (the same cert collect-dns.sh trusts on this IP).
+provider "technitium" {
+  url   = var.technitium_url
+  token = var.technitium_api_token
+}
