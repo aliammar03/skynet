@@ -16,6 +16,7 @@
 #   CF_ZONE        the zone, i.e. aliammar.net
 #   TUNNEL_ID      the tunnel UUID (public), e.g. 7f4c50f9-cee6-40bb-ad5a-ef6c7f30ca56
 set -euo pipefail
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # for the dns-revert executor (SKY-018 P6)
 
 envfile="/opt/skynet-ops/secrets/cloudflare-dns.env"
 { test -r "${envfile}" 2>/dev/null || sudo -n test -r "${envfile}" 2>/dev/null; } || { echo "missing ${envfile} (0600) — mint the scoped token first" >&2; exit 1; }
@@ -41,16 +42,25 @@ rid="$(api "zones/${zid}/dns_records?type=CNAME&name=${host}" | jq -r '.result[0
 
 if [ "${del}" = 1 ]; then
   [ -n "${rid}" ] || { echo "no CNAME ${host} — nothing to delete"; exit 0; }
+  prior="$(api "zones/${zid}/dns_records/${rid}" | jq -r '.result.content // "?"')"
   api "zones/${zid}/dns_records/${rid}" -X DELETE >/dev/null
-  echo "deleted CNAME ${host}"; exit 0
+  echo "deleted CNAME ${host}"
+  # record the inverse: re-publish restores this tunnel CNAME (SKY-018 P6 rollback executor).
+  DNS_REVERT_PRIOR="CNAME → ${prior}" "${SELF_DIR}/dns-revert.sh" record cloudflare "${host}" -- "${SELF_DIR}/cf-dns-route.sh" "${host}" || true
+  exit 0
 fi
 
 target="${TUNNEL_ID}.cfargotunnel.com"
 body="$(jq -nc --arg n "${host}" --arg c "${target}" '{type:"CNAME",name:$n,content:$c,proxied:true,ttl:1}')"
 if [ -n "${rid}" ]; then
+  prior="$(api "zones/${zid}/dns_records/${rid}" | jq -r '.result.content // "?"')"
   api "zones/${zid}/dns_records/${rid}" -X PUT --data "${body}" >/dev/null
   echo "updated CNAME ${host} → ${target} (proxied)"
+  # the record existed; the inverse is a re-publish (idempotent restore of the tunnel CNAME).
+  DNS_REVERT_PRIOR="CNAME → ${prior}" "${SELF_DIR}/dns-revert.sh" record cloudflare "${host}" -- "${SELF_DIR}/cf-dns-route.sh" "${host}" || true
 else
   api "zones/${zid}/dns_records" -X POST --data "${body}" >/dev/null
   echo "created CNAME ${host} → ${target} (proxied)"
+  # the record was new; the inverse is a delete (SKY-018 P6 rollback executor).
+  DNS_REVERT_PRIOR="absent (new record)" "${SELF_DIR}/dns-revert.sh" record cloudflare "${host}" -- "${SELF_DIR}/cf-dns-route.sh" --delete "${host}" || true
 fi

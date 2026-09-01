@@ -48,3 +48,5 @@ jobs:
       # suppresses them; this asserts it stays suppressed.
       - name: digest-test
         run: bash tests/digest-test.sh
+      - name: dns-revert-test
+        run: bash tests/dns-revert-test.sh
