@@ -25,6 +25,7 @@ let
     "authentik.env"
     "cloudflare-dns.env"
     "omada.env"
+    "opnsense.env"
     "rclone.conf"
     "tofu-proxmox.env"
     "tofu-proxmox-network.env"
