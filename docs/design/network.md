@@ -1,6 +1,6 @@
 ---
 summary: "Where Skynet sits, how it's addressed on VLAN 90, and the firewall rules bounding its reach to exactly what it needs."
-tokens: 1625
+tokens: 1729
 ---
 
 # Spoke · Network & placement
@@ -108,3 +108,8 @@ SKY-003 Phase 4 reconciles `ROLE_APP_ORIGINS` / `PORT_APP_BACKENDS` to the origi
 
 - **New VLAN / segment.** Admitted via new aliases + rules here, then DNS zones, then hosts — never
   by widening an existing role alias to mean two things.
+- **Omada controller read reachability (SKY-018 P4).** The T1 network-gear collector needs to reach
+  the Omada controller (`HOST_OMADA`, `10.10.50.25`, VLAN 50). Admitted by adding it to
+  `ROLE_OPS_API_TARGETS` and its HTTPS management port to `PORT_OPS_API`, so existing rule 360 carries
+  it — no new rule. Read-only reach; the credential and the T1/T3 split live in
+  [access-and-trust](access-and-trust.md).

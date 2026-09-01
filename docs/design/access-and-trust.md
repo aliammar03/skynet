@@ -1,6 +1,6 @@
 ---
 summary: "The trust tiers in full — every token, ACL, principal, and the auto-expiring SSH root grant Skynet can request but never mint."
-tokens: 2881
+tokens: 3305
 ---
 
 # Spoke · Access & trust
@@ -13,8 +13,8 @@ tokens: 2881
 
 The constitution holds the tier table; this is what implements each one.
 
-**T1 Read — always standing.** Read-only API tokens on both Proxmox nodes, PBS, Technitium, plus
-the OPNsense `config.xml` git mirror. Never writes.
+**T1 Read — always standing.** Read-only API tokens on both Proxmox nodes, PBS, Technitium, the
+**Omada network controller**, plus the OPNsense `config.xml` git mirror. Never writes.
 
 **T2 Operate — standing, PR-gated changes.** Scoped write tokens on the `ops-managed` pools,
 unprivileged `svc-ops` SSH on workload hosts, a Technitium scoped token (Zones only), the Arcane
@@ -175,6 +175,28 @@ on exactly the Technitium pattern (view/modify a slice, never settings):
 
 The full two-door + forward-auth model, and the honest docker-group≈root caveat that the merge gate
 guards, live in the [identity-and-proxy](identity-and-proxy.md) spoke.
+
+## The Omada controller read boundary (realized — SKY-018 P4)
+
+The Omada software controller (`10.10.50.25`, VLAN 50 Management) owns the switch/AP estate. Skynet
+reads it and never touches it — the same view/modify-a-slice split as Technitium and Authentik:
+
+- **T1 (read-only account):** device inventory, ports, PoE state, VLAN/profile assignment, firmware,
+  adoption status — everything a collector needs to make the estate visible. That is the whole
+  surface.
+- **T3 (never in scope):** adopting/forgetting devices, pushing port profiles or WLAN config, and all
+  controller/site **server settings**. The agent reads and argues; a human acts.
+- **How the credential is born:** Ali creates a **read-only** local account (Omada role *Viewer*) — or
+  a read-scoped API key — in the controller UI; Skynet cannot mint it. Stored `0600` at
+  `/opt/skynet-ops/secrets/omada.env` (`OMADA_HOST`, `OMADA_USER`, `OMADA_PASS`, and `OMADA_CACERT`
+  pointing at a pinned cert), same shape as `cloudflare-dns.env` and the Proxmox collector secrets.
+  The account holds no admin rights, so a leak reads the estate and nothing more.
+- **Reachability:** the controller is not in the agent's API-target alias by default. Add
+  `HOST_OMADA` (`10.10.50.25`) to `ROLE_OPS_API_TARGETS` and the controller's HTTPS management port
+  (Omada software-controller default **8043** — confirm on the box) to `PORT_OPS_API`; rule 360 then
+  carries it with no new rule. This is a **T3 OPNsense change** — Ali makes it. The collector
+  (`scripts/collect-network-gear.sh`) degrades to `exit 0` until both the credential and reachability
+  exist, like every other collector.
 
 ## Planned expansion
 
