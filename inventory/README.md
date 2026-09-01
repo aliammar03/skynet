@@ -14,6 +14,8 @@ dns-zones.json         # Technitium zones/records (view/modify scope)
 firewall/              # parsed config.xml mirror → rules, aliases, reservations (git-truth backstop)
 opnsense.json          # LIVE OPNsense read (aliases, rules, ARP, interfaces, firmware) — T1 read-only API
 network-gear.json      # Omada switch/AP estate (devices, ports, PoE, firmware) — T1 read-only
+routes.json            # Caddy vhost routes: vhost → front door → backend entity → auth (Caddyfile parse)
+certs.json             # TLS cert expiry (issuer, SANs, notAfter, days-left) — reachable infra endpoints
 ```
 
 To change what is collected, **edit the collector**, never the JSON.

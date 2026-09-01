@@ -1,6 +1,6 @@
 ---
 title: Firewall
-generated: 2026-09-01T23:29:20+05:00
+generated: 2026-09-01T23:47:39+05:00
 tags: [skynet, generated, firewall]
 ---
 
@@ -23,9 +23,7 @@ tags: [skynet, generated, firewall]
 | 300 | pass | TCP | `HOST_DOCKER_DMZ,opt1` | `HOST_UNRAID:PORT_SMB_NFS` | SERVICE — Trusted clients → Unraid SMB/NFS |
 | 310 | pass | TCP | `ROLE_NFS_CLIENTS` | `HOST_UNRAID:2049` | SERVICE — Approved NFS clients → Unraid |
 | 320 | pass | TCP | `ROLE_PROXMOX_NODES` | `HOST_PBS:8007` | SERVICE — Proxmox nodes → PBS |
-| 330 | pass | TCP | `HOST_ADMIN_WORKSTATION` | `ROLE_IOT_ADMIN_TARGETS:PORT_WEB` | SERVICE — Workstation → IoT administration |
 | 340 | pass | TCP | `ROLE_DMZ_AI_CLIENTS` | `HOST_ADMIN_WORKSTATION:8188` | SERVICE — DMZ AI clients → ComfyUI |
-| 350 | pass | TCP | `HOST_AUTHENTIK` | `HOST_SMTP_RELAY:PORT_SMTP` | SERVICE — Authentik mail |
 | 360 | pass | TCP | `HOST_SKYNET_OPS` | `ROLE_OPS_API_TARGETS,(self):PORT_OPS_API` | ops: infrastructure API reads |
 | 370 | pass | TCP | `HOST_SKYNET_OPS` | `ROLE_OPS_SSH_TARGETS:ssh` | ops: workload SSH (svc-ops + granted root) |
 | 380 | pass | TCP | `HOST_SKYNET_OPS` | `ROLE_OPS_PRIV_TARGETS:PORT_ADMIN_PROXY` | ops: DORMANT temporary T3 grant — alias must stay empty |
@@ -55,8 +53,7 @@ tags: [skynet, generated, firewall]
 | `HOST_AUTHENTIK` | host | 10.10.80.37 | Authentik identity provider in VLAN 80 Identity. |
 | `HOST_UNRAID` | host | 10.10.20.20 | Unraid storage server in VLAN 20 Servers. |
 | `HOST_PBS` | host | 10.10.20.40 | Proxmox Backup Server at its current VLAN 20 address. |
-| `HOST_SMTP_RELAY` | host |  | Reserved SMTP relay placeholder; populate before enabling the optional Authentik SMTP rule. |
-| `ROLE_ADMIN_CLIENTS` | host | 10.10.10.50, 10.10.10.55, 10.10.10.60, 10.10.10.65, 10.10.30.60, 10.10.30.65, 10.10.30.55 | Approved administrative endpoints; VLAN 30 members are transitional and should move to Trusted VLAN 10. |
+| `ROLE_ADMIN_CLIENTS` | host | 10.10.10.50, 10.10.10.55, 10.10.10.60, 10.10.10.65 | Approved administrative endpoints; VLAN 30 members are transitional and should move to Trusted VLAN 10. |
 | `ROLE_DNS_RESOLVERS` | host | 10.10.70.30, 10.10.70.31, 10.10.70.50, 10.10.70.51 | Approved DNS resolvers in VLAN 70 Network Services. |
 | `ROLE_DNS_UPSTREAMS` | host | 1.1.1.1, 8.8.8.8, 9.9.9.9 | Public recursive DNS servers approved as resolver upstreams. |
 | `NET_WEB_EGRESS` | network | 10.10.20.0/24, 10.10.50.0/24, 10.10.60.0/24, 10.10.70.0/24, 10.10.80.0/24, 10.10.90.0/24, 10.10.100.0/24 | Infrastructure zones allowed outbound TCP 80 and 443 after private-network isolation. |
@@ -65,7 +62,7 @@ tags: [skynet, generated, firewall]
 | `ROLE_INFRASTRUCTURE_APS` | host | 10.10.50.6, 10.10.50.7 | Managed wireless access points in VLAN 50 Management. |
 | `ROLE_ADMIN_TARGETS` | host | ROLE_PROXMOX_NODES, ROLE_INFRASTRUCTURE_SWITCHES, ROLE_INFRASTRUCTURE_APS, ROLE_INFRASTRUCTURE_FIREWALL, ROLE_DNS_RESOLVERS, HOST_PROXY_APPS, HOST_UNRAID, HOST_AUTHENTIK, HOST_PBS, HOST_DOCKER_DMZ, HOST_SKYNET_OPS, HOST_OMADA | Nested set of approved infrastructure and service administration targets. |
 | `ROLE_INFRASTRUCTURE_FIREWALL` | host | 10.10.50.1 | OPNsense management address in VLAN 50 Management. |
-| `ROLE_NFS_CLIENTS` | host | 10.10.100.15, 10.10.20.15, 10.10.90.15, ROLE_PROXMOX_NODES | Hosts permitted to mount approved NFS exports from Unraid. |
+| `ROLE_NFS_CLIENTS` | host | 10.10.100.15, ROLE_PROXMOX_NODES | Hosts permitted to mount approved NFS exports from Unraid. |
 | `ROLE_DMZ_AI_CLIENTS` | host | 10.10.100.85, 10.10.100.69 | DMZ AI clients permitted to reach approved AI and ComfyUI services. |
 | `ROLE_USENET_CLIENTS` | host | 10.10.100.65 | Hosts permitted outbound NNTP and NNTPS access through PORT_USENET_OUT. |
 | `PORT_WEB` | port | 80, 443 | Ports for WEB |
@@ -73,7 +70,6 @@ tags: [skynet, generated, firewall]
 | `PORT_ADMIN_PROXY` | port | 80, 443, 3000, 3552, 5380, 8006, 8007, 8043, 8081, 8181, 53443 | Approved backend management ports reachable from Management Caddy. |
 | `PORT_ADMIN_BREAKGLASS` | port | 22, 80, 443, 3000, 3552, 5380, 8006, 8007, 8043, 8081, 8181, 9443, 53443 | Direct emergency administration ports allowed only from the primary admin workstation. |
 | `PORT_AUTHENTIK` | port | 9443, 9000 | Authentik TLS listener reachable from the DMZ reverse proxy |
-| `ROLE_IOT_ADMIN_TARGETS` | host |  | Reserved IoT administration target placeholder; populate before using a host-specific IoT rule. |
 | `PORT_SMTP` | port | 465, 587 | Authenticated SMTP submission ports: 465 and 587. |
 | `HOST_DOCKER_DMZ` | host | 10.10.100.15 | DMZ Docker VM |
 | `HOST_SKYNET_OPS` | host | 10.10.90.90 | skynet-ops agent VM 9090 |
@@ -84,8 +80,8 @@ tags: [skynet, generated, firewall]
 | `PORT_SMB_NFS` | port | 445, 2049 | Ports for NFS and SMB |
 | `HOST_OMADA` | host | 10.10.50.25 | Omada Control. |
 
-_Source: opnsense-api (live, T1 read-only; user view) (L2). aliases=41, rules=29, reservations=5._
+_Source: opnsense-api (live, T1 read-only; user view) (L2). aliases=39, rules=27, reservations=1._
 
-**Live state** (OPNsense API): firmware `none` · 48 ARP neighbours · 17 interfaces · declared-host presence 23 live / 8 no-response (ARP+ICMP) — collected 2026-09-01T23:28:25+05:00.
+**Live state** (OPNsense API): firmware `none` · 49 ARP neighbours · 17 interfaces · declared-host presence 25 live / 1 no-response (ARP+ICMP) — collected 2026-09-01T23:41:19+05:00.
 
-> [!note] Auto-generated by `scripts/render-docs.sh` — do not edit by hand. Last run 2026-09-01T23:29:20+05:00.
+> [!note] Auto-generated by `scripts/render-docs.sh` — do not edit by hand. Last run 2026-09-01T23:47:39+05:00.

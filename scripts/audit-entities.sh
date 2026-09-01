@@ -167,11 +167,29 @@ done
 echo "  ── services: ${s_match} matched · ${s_hole} running-unmapped · ${s_stopped} declared-idle"
 echo
 
-# ── other classes: nodes are collected; vhost/net await their collectors (P5/P4) ─────────────────
+# ── node class ────────────────────────────────────────────────────────────────────────────────
 echo "== entity audit :: node =="
 while IFS= read -r n; do [ -n "${n}" ] && row "$(node_id "${n}")" "—" "—" "matched" "Proxmox node"; done \
   < <(jq -r '.nodes[]? | select(.type=="node") | .node' inventory/proxmox-*.json 2>/dev/null | sort -u)
-echo "  (vhost: awaits the Caddy route collector, SKY-018 P5)"
+echo
+
+# ── vhost class: the Caddy routes (SKY-018 P5). Each vhost resolves front door → backend entity; a
+#    backend that didn't resolve to an entity (host:<ip>) is drift worth seeing (informational).
+echo "== entity audit :: vhost (Caddy routes) =="
+if [ -r inventory/routes.json ] && [ "$(jq '.routes|length' inventory/routes.json 2>/dev/null || echo 0)" -gt 0 ]; then
+  declare -i v_match=0 v_unres=0
+  while IFS=$'\t' read -r vh be auth; do
+    [ -n "${vh}" ] || continue
+    if [[ "${be}" == host:* ]]; then
+      row "${sym_warn} $(vhost_id "${vh}")" "${be}" "route" "unresolved" "backend not an entity — ${auth}"; v_unres+=1
+    else
+      row "$(vhost_id "${vh}")" "→ ${be}" "route" "matched" "${auth}"; v_match+=1
+    fi
+  done < <(jq -r '.routes[]? | [.vhost, .backend_entity, .auth] | @tsv' inventory/routes.json)
+  echo "  ── vhost: ${v_match} resolved · ${v_unres} unresolved-backend (informational)"
+else
+  echo "  (no inventory/routes.json yet — run scripts/collect-routes.sh)"
+fi
 echo
 
 # ── net class: the Omada switch/AP estate (SKY-018 P4). INFORMATIONAL — a device the firewall's

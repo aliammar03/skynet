@@ -38,6 +38,8 @@ CREATE TABLE backup_jobs(entity_id TEXT, kind TEXT);
 CREATE TABLE netgear(entity_id TEXT, type TEXT, name TEXT, model TEXT, mac TEXT, ip TEXT, firmware TEXT, needs_upgrade INTEGER, connected INTEGER, clients INTEGER, poe_support INTEGER, site TEXT);
 CREATE TABLE netports(switch TEXT, port INTEGER, name TEXT, profile TEXT, link INTEGER, poe INTEGER);
 CREATE TABLE arp(ip TEXT, mac TEXT, hostname TEXT, intf TEXT, manufacturer TEXT, permanent INTEGER);
+CREATE TABLE routes(vhost TEXT, front_door TEXT, backend TEXT, backend_entity TEXT, auth TEXT);
+CREATE TABLE certs(label TEXT, endpoint TEXT, reachable INTEGER, issuer TEXT, not_after TEXT, days_left INTEGER);
 SQL
 
 # helper: stream TSV on stdin into a table (\t-separated, matches the column order)
@@ -115,6 +117,16 @@ fi
 opn="${inv}/opnsense.json"
 if has "${opn}"; then
   jq -r '.arp[]? | [.ip, .mac, (.hostname//""), (.intf//""), (.manufacturer//""), (if .permanent then 1 else 0 end)] | @tsv' "${opn}" | load arp
+fi
+
+# ── vhost routes + TLS certs (SKY-018 P5) ────────────────────────────────────────────────────────
+rts="${inv}/routes.json"
+if has "${rts}"; then
+  jq -r '.routes[]? | [.vhost, (.front_door//""), (.backend//""), (.backend_entity//""), (.auth//"")] | @tsv' "${rts}" | load routes
+fi
+crt="${inv}/certs.json"
+if has "${crt}"; then
+  jq -r '.certs[]? | [.label, .endpoint, (if .reachable then 1 else 0 end), (.issuer//""), (.not_after//""), (.days_left//-1)] | @tsv' "${crt}" | load certs
 fi
 
 # ── backup jobs (restic/PBS) if a collector recorded them — keyed to guest where resolvable ──────

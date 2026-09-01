@@ -6,7 +6,7 @@ horizon: long
 created: 2026-08-28
 updated: 2026-09-01
 phases: 12
-current_phase: 4
+current_phase: 5
 tier_touched: [T1, T2]   # Mostly T1 (derive, collect, render, check). P4 EXTENDS the T1 read surface
                          # to the UniFi/Omada controllers ⇒ docs/system-design.md §3 PR. P6/P11 touch
                          # existing T2 actuators without widening any dial — no new pool, no new tier.
@@ -318,7 +318,7 @@ Steps:
 Exit criteria: the switch/AP estate appears in inventory and in a generated view; CT 526 is no longer
 invisible; the collector is read-only and exits 0 without credentials.
 
-### Phase 5 — L2: routes and certificates  (~1–2h)   `[ ]` not started
+### Phase 5 — L2: routes and certificates  (~1–2h)   `[x]` done 2026-09-01
 Steps:
 1. `scripts/collect-routes.sh` — parse the Caddyfiles under `compose/` (and the Management Caddy
    mirror) into `inventory/routes.json`: hostname → which Caddy → backend `host:port` → auth mode.
