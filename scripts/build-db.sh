@@ -37,6 +37,7 @@ CREATE TABLE vlans(vlan INTEGER, name TEXT, slug TEXT);
 CREATE TABLE backup_jobs(entity_id TEXT, kind TEXT);
 CREATE TABLE netgear(entity_id TEXT, type TEXT, name TEXT, model TEXT, mac TEXT, ip TEXT, firmware TEXT, needs_upgrade INTEGER, connected INTEGER, clients INTEGER, poe_support INTEGER, site TEXT);
 CREATE TABLE netports(switch TEXT, port INTEGER, name TEXT, profile TEXT, link INTEGER, poe INTEGER);
+CREATE TABLE arp(ip TEXT, mac TEXT, hostname TEXT, intf TEXT, manufacturer TEXT, permanent INTEGER);
 SQL
 
 # helper: stream TSV on stdin into a table (\t-separated, matches the column order)
@@ -106,6 +107,14 @@ if has "${ng}"; then
            (.clients//0), (if .poe.support then 1 else 0 end), (.site//"")] | @tsv' "${ng}" | load netgear
   jq -r '.devices[]? | select(.ports!=null) | .entity_id as $e | .ports[]?
            | [$e, .port, (.name//""), (.profile//""), (.link//0), (.poe//0)] | @tsv' "${ng}" | load netports
+fi
+
+# ── live OPNsense ARP neighbours (SKY-020: the live read gives observed PRESENCE the mirror can't) ─
+# A genuinely new observed-truth source: which IP↔MAC is actually up right now, per interface. Lets
+# the agent join intent (firewall aliases) against reality (who answered ARP). Keyed on IP.
+opn="${inv}/opnsense.json"
+if has "${opn}"; then
+  jq -r '.arp[]? | [.ip, .mac, (.hostname//""), (.intf//""), (.manufacturer//""), (if .permanent then 1 else 0 end)] | @tsv' "${opn}" | load arp
 fi
 
 # ── backup jobs (restic/PBS) if a collector recorded them — keyed to guest where resolvable ──────

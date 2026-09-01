@@ -1,6 +1,6 @@
 ---
 summary: "How machine state becomes human-readable docs, and how the nightly run keeps the picture current."
-tokens: 972
+tokens: 985
 ---
 
 # Spoke · Observability
@@ -21,7 +21,7 @@ hand-maintained:
 05-state-of-the-lab.md # human narrative, LLM-authored nightly (surfaced in README)
 06-agent-digest.md     # agent cold-boot digest, render-digest.sh (decisions/threads/episodes)
 10-vlans.md            # per-VLAN tables linking to host pages
-20-firewall.md         # rules table from config.xml
+20-firewall.md         # rules/aliases from the LIVE OPNsense API (collect-opnsense.sh); mirror = DR only
 30-services/<svc>.md   # IP, ports, front door, backup status, last deploy
 40-hosts/<host>.md     # guests per node, resources, pool membership
 90-backup-status.md    # last restic/PBS runs, snapshot counts, grant audit
