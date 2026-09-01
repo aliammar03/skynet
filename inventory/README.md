@@ -11,7 +11,8 @@ proxmox-network.json   # guests, resources, pool membership (node: network)
 pbs.json               # datastores, snapshots, GC status
 docker-dmz.json        # compose projects, containers, images, health
 dns-zones.json         # Technitium zones/records (view/modify scope)
-firewall/              # parsed config.xml → rules, aliases, reservations
+firewall/              # parsed config.xml mirror → rules, aliases, reservations (git-truth backstop)
+opnsense.json          # LIVE OPNsense read (aliases, rules, ARP, interfaces, firmware) — T1 read-only API
 network-gear.json      # Omada switch/AP estate (devices, ports, PoE, firmware) — T1 read-only
 ```
 
