@@ -1,12 +1,12 @@
 ---
 id: SKY-018
 title: "Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain"
-status: draft
+status: in-progress
 horizon: long
 created: 2026-08-28
-updated: 2026-08-28
+updated: 2026-09-01
 phases: 12
-current_phase: 0
+current_phase: 2
 tier_touched: [T1, T2]   # Mostly T1 (derive, collect, render, check). P4 EXTENDS the T1 read surface
                          # to the UniFi/Omada controllers ⇒ docs/system-design.md §3 PR. P6/P11 touch
                          # existing T2 actuators without widening any dial — no new pool, no new tier.
@@ -205,7 +205,7 @@ The verdict per layer — improve in place, replace outright, or build from noth
 
 ---
 
-### Phase 1 — L0: the derivation and the audit  (~1–2h)   `[ ]` not started
+### Phase 1 — L0: the derivation and the audit  (~1–2h)   `[x]` done 2026-09-01
 The cheapest thing in the directive, and everything downstream keys on it.
 Steps:
 1. `scripts/entity.sh` — a sourceable helper covering **all five classes**, not just guests:
@@ -243,7 +243,7 @@ running-unmapped) **and** the service audit (10 declared / 1 undeclared-and-runn
 `service → guest` through `lab.json`, and exits non-zero only on a *running* entity — of any class —
 that is neither mapped nor a declared exception.
 
-### Phase 2 — L0: authored judgment data, and the invariant  (~1–2h)   `[ ]` not started
+### Phase 2 — L0: authored judgment data, and the invariant  (~1–2h)   `[x]` done 2026-09-01
 Steps:
 0. **The VLAN vocabulary — settled 2026-08-28, display names already corrected in the renderer.**
    The lab had two competing sets and the renderer's was wrong on **10 and 60, which were swapped**:
@@ -494,3 +494,25 @@ Follow AGENTS.md as above.
   (240, 525, 635, 751, 837, 1035) — so the parse matches against the declared VLAN set rather than by
   digit count, `10xx` is the one ambiguous prefix, and new guests use the canonical full form.
   CT 1035 confirmed stale/to-destroy, with the `10.10.100.35` front-door dependency flagged.
+- 2026-09-01 — **P1 done.** `scripts/entity.sh` (five classes, VMID⇄IP both forms, rc 0/1/2),
+  `lab.json` seeded with the docker host-label→VMID map, `bin/ops entities` → `scripts/audit-entities.sh`,
+  `tests/entity-test.sh` (28/28) wired into CI + pre-commit. First audit: guests **7 matched / 5 stale /
+  3 running-unmapped / 4 exception**, services **10 matched / 1 running-unmapped (`arcane-manager`)**.
+  Reconciled vs the §1 hand-count: the machine reports 101 + 999 as running-unmapped (it can't know
+  they're known leftovers); CT 526 is the one surprise hole (closes in P4). Two parser facts: VM 999
+  parses as valid legacy VLAN 90 (not off-convention), and CT 1035 is genuinely ambiguous (`10xx`),
+  resolved via the firewall fact set. Journal: `2026-09-01-session-sky-018-p1-first-entity-audit`.
+- 2026-09-01 — **P1 triage + audit went clean.** VM 9000 was almost destroyed as "stale" but is the
+  OpenTofu clone template → made the audit template-aware. arcane-manager → relocation ([[SKY-019]]);
+  interim `compose/arcane-manager/` captured (bootstrap, not self-synced). Ali destroyed 101/231/999/
+  9091/1035/526 and renumbered the kept AdGuard **720→730** (fixing an off-convention address at the
+  source — no exception needed). `bin/ops entities` now **exits 0**: 13 guests, 8 matched / 0 stale /
+  0 hole / 4 exception / 1 template; services 11/0.
+- 2026-09-01 — **P2 done.** VLAN display names + slugs moved out of `render-docs.sh`'s `vlan_name()`
+  case into `lab.json` (`vlans.list`); front-door alias set declared in `lab.json` (`front_doors`, for
+  P3's explicit "front door — not the host"); `invariants.json` gained `entity_conventions` (the
+  VMID↔IP law + `declared_vlans` + an empty `exceptions` list). `check-invariants.sh` gained the **4th
+  law** — reuses `audit-entities.sh` to assert every running entity is mapped or excepted (proven to
+  fail on a synthetic rogue guest, clean on `main`). Renderer verified behavior-preserving (VLAN
+  headers byte-identical). Tests 36/36. Refreshed inventory + regenerated docs committed alongside so
+  the CI gate runs against current truth.
