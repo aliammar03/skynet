@@ -1,10 +1,10 @@
 {
-  "collected": "2026-09-01T23:28:24+05:00",
+  "collected": "2026-09-01T23:51:21+05:00",
   "source": "opnsense-api (live, T1 read-only; user view)",
   "counts": {
-    "aliases": 41,
-    "rules": 29,
-    "reservations": 5
+    "aliases": 39,
+    "rules": 27,
+    "reservations": 1
   },
   "aliases": [
     {
@@ -99,16 +99,9 @@
       "enabled": "1"
     },
     {
-      "name": "HOST_SMTP_RELAY",
-      "type": "host",
-      "content": "",
-      "description": "Reserved SMTP relay placeholder; populate before enabling the optional Authentik SMTP rule.",
-      "enabled": "1"
-    },
-    {
       "name": "ROLE_ADMIN_CLIENTS",
       "type": "host",
-      "content": "10.10.10.50\n10.10.10.55\n10.10.10.60\n10.10.10.65\n10.10.30.60\n10.10.30.65\n10.10.30.55",
+      "content": "10.10.10.50\n10.10.10.55\n10.10.10.60\n10.10.10.65",
       "description": "Approved administrative endpoints; VLAN 30 members are transitional and should move to Trusted VLAN 10.",
       "enabled": "1"
     },
@@ -171,7 +164,7 @@
     {
       "name": "ROLE_NFS_CLIENTS",
       "type": "host",
-      "content": "10.10.100.15\n10.10.20.15\n10.10.90.15\nROLE_PROXMOX_NODES",
+      "content": "10.10.100.15\nROLE_PROXMOX_NODES",
       "description": "Hosts permitted to mount approved NFS exports from Unraid.",
       "enabled": "1"
     },
@@ -222,13 +215,6 @@
       "type": "port",
       "content": "9443\n9000",
       "description": "Authentik TLS listener reachable from the DMZ reverse proxy",
-      "enabled": "1"
-    },
-    {
-      "name": "ROLE_IOT_ADMIN_TARGETS",
-      "type": "host",
-      "content": "",
-      "description": "Reserved IoT administration target placeholder; populate before using a host-specific IoT rule.",
       "enabled": "1"
     },
     {
@@ -477,18 +463,6 @@
       "enabled": true
     },
     {
-      "sequence": "330",
-      "action": "pass",
-      "protocol": "TCP",
-      "interface": "",
-      "source_net": "HOST_ADMIN_WORKSTATION",
-      "destination_net": "ROLE_IOT_ADMIN_TARGETS",
-      "destination_port": "PORT_WEB",
-      "description": "SERVICE — Workstation → IoT administration",
-      "uuid": "0956471b-f9bf-4bc7-a2fc-3ba9b6aad13a",
-      "enabled": true
-    },
-    {
       "sequence": "340",
       "action": "pass",
       "protocol": "TCP",
@@ -498,18 +472,6 @@
       "destination_port": "8188",
       "description": "SERVICE — DMZ AI clients → ComfyUI",
       "uuid": "58f66453-caac-4bc6-abe2-99a7318cf170",
-      "enabled": true
-    },
-    {
-      "sequence": "350",
-      "action": "pass",
-      "protocol": "TCP",
-      "interface": "",
-      "source_net": "HOST_AUTHENTIK",
-      "destination_net": "HOST_SMTP_RELAY",
-      "destination_port": "PORT_SMTP",
-      "description": "SERVICE — Authentik mail",
-      "uuid": "feafdc2c-839f-43f3-b4f6-1b52db7ef7e0",
       "enabled": true
     },
     {
@@ -653,46 +615,6 @@
       "hwaddr": "9c:6b:00:7d:f3:ea",
       "client_id": "01:9c:6b:00:7d:f3:ea",
       "descr": "Workstation",
-      "aliases": "",
-      "comments": ""
-    },
-    {
-      "host": "Alis-iPad",
-      "domain": "",
-      "ip": "10.10.10.65",
-      "hwaddr": "06:46:3b:1e:42:41",
-      "client_id": "01:06:46:3b:1e:42:41",
-      "descr": "Ali's iPad",
-      "aliases": "",
-      "comments": ""
-    },
-    {
-      "host": "Alis-iPhone",
-      "domain": "",
-      "ip": "10.10.10.60",
-      "hwaddr": "3e:ce:99:e2:76:5e",
-      "client_id": "01:3e:ce:99:e2:76:5e",
-      "descr": "",
-      "aliases": "",
-      "comments": ""
-    },
-    {
-      "host": "Alis-iPhone-IoT",
-      "domain": "",
-      "ip": "10.10.30.60",
-      "hwaddr": "3a:3e:d8:1d:e8:da",
-      "client_id": "01:3a:3e:d8:1d:e8:da",
-      "descr": "",
-      "aliases": "",
-      "comments": ""
-    },
-    {
-      "host": "Alis-iPad-IoT",
-      "domain": "",
-      "ip": "10.10.30.65",
-      "hwaddr": "7e:aa:42:91:87:c2",
-      "client_id": "01:7e:aa:42:91:87:c2",
-      "descr": "",
       "aliases": "",
       "comments": ""
     }

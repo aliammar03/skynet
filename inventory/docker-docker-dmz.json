@@ -1,6 +1,6 @@
 {
   "host": "docker-dmz",
-  "collected": "2026-09-01T18:06:23+05:00",
+  "collected": "2026-09-01T23:51:20+05:00",
   "containers": [
     {
       "Command": "\"/usr/local/bin/entr…\"",
@@ -69,7 +69,7 @@
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "12 days ago",
+      "RunningFor": "13 days ago",
       "Size": "4.22kB (virtual 565MB)",
       "State": "running",
       "Status": "Up 4 days (healthy)"
@@ -286,7 +286,7 @@
       "Platform": null,
       "Ports": "",
       "RunningFor": "2 weeks ago",
-      "Size": "7.1MB (virtual 3.52GB)",
+      "Size": "7.16MB (virtual 3.52GB)",
       "State": "running",
       "Status": "Up 4 days (healthy)"
     },
@@ -547,7 +547,7 @@
     {
       "Containers": "0",
       "CreatedAt": "2026-07-07 22:46:12 +0500 PKT",
-      "CreatedSince": "7 weeks ago",
+      "CreatedSince": "8 weeks ago",
       "Digest": "<none>",
       "ID": "bd1890816ae0",
       "Repository": "postgres",
@@ -559,7 +559,7 @@
     {
       "Containers": "1",
       "CreatedAt": "2026-07-07 22:37:24 +0500 PKT",
-      "CreatedSince": "7 weeks ago",
+      "CreatedSince": "8 weeks ago",
       "Digest": "<none>",
       "ID": "8c9432cc5a39",
       "Repository": "ghcr.io/sillytavern/sillytavern",
