@@ -80,11 +80,18 @@ that can grow without becoming dangerous.
 
 ### 2a. Hard laws — never negotiable, no PR loosens them
 
-- **No standing route or credential to T3.** OPNsense, Management Caddy, Authentik, Proxmox node
+- **No standing route or credential that can *change* T3.** Management Caddy, Authentik, Proxmox node
   root, Unraid root, Technitium *server settings*, Cloudflare *account / Access / tunnel config* —
   reached only through a dormant alias + per-session credentials, revoked the same day. Never a
-  standing path. (Cloudflare **DNS records** are the T2 exception — a scoped `DNS:Edit` token, as
-  Technitium *zones* are T2; see §2.)
+  standing **write** path. Standing scoped exceptions, by device: **OPNsense** is tiered (ADR
+  [0006](decisions/0006-opnsense-read-is-t1-write-stays-t3.md)) — read+diagnostics **T1**, firewall
+  **config T2** (PR-gated via OpenTofu), but **node root, account/cert admin, reboot, and the agent's
+  own leash rules** stay T3/never-standing; Cloudflare **DNS records** and Technitium **zones** are
+  **T2** write (scoped tokens).
+- **The agent never widens its own leash — firewall included.** Even with OPNsense config at T2, the
+  agent may **never** change the rules/aliases bounding its own reach (`ROLE_OPS_*`,
+  `ROLE_OPS_PRIV_TARGETS`, the block-other-DNS rules, its own OPNsense accounts). Human-merged forever,
+  never on the autonomy ratchet, and machine-gated on the `tofu plan` (SKY-018 P7). See ADR 0006.
 - **Root on workload hosts exists only inside a certificate's validity window.** The signing CA
   private key lives on Ali's workstation and **never** enters Skynet. This is the one access
   Skynet cannot mint for itself — temporary is guaranteed by physics, not by policy. Every root
@@ -153,10 +160,10 @@ principal — lives in [access-and-trust](design/access-and-trust.md); this is t
 
 | Tier | Scope | Mechanism | Standing? |
 |---|---|---|---|
-| **T1 Read** | Both Proxmox nodes, PBS, Docker hosts, DNS, firewall state (git mirror), the **Omada network controller** | Read-only API tokens; mirrored `config.xml` | Always |
-| **T2 Operate** | `ops-managed` pools (both nodes), Docker hosts via Arcane + unprivileged SSH, Technitium zones, Cloudflare **DNS records** (`aliammar.net` zone); **backup/snapshot** of ops-managed guests; **provisioning** of in-pool guests via OpenTofu | Scoped write tokens, `svc-ops` SSH, `svc-tofu` pool-scoped API token, Technitium scoped token, Arcane API key, Cloudflare scoped `DNS:Edit` token | Yes — changes PR-gated |
+| **T1 Read** | Both Proxmox nodes, PBS, Docker hosts, DNS, the **Omada network controller**, **OPNsense (read-only)** | Read-only API tokens; scoped OPNsense read-only API + mirrored `config.xml` | Always |
+| **T2 Operate** | `ops-managed` pools (both nodes), Docker hosts via Arcane + unprivileged SSH, Technitium zones, Cloudflare **DNS records** (`aliammar.net` zone); **backup/snapshot** of ops-managed guests; **provisioning** of in-pool guests via OpenTofu; **OPNsense firewall config** (aliases/rules) via OpenTofu + non-destructive maintenance (**minus the self-leash set**) | Scoped write tokens, `svc-ops` SSH, `svc-tofu` pool-scoped API token, Technitium scoped token, Arcane API key, Cloudflare scoped `DNS:Edit` token, OPNsense tofu-write API key | Yes — changes PR-gated |
 | **T2+ Root grant** | Root shell on workload hosts (diagnose, harden, provision, OS updates) | SSH user-CA certificate, per-host principal, **auto-expiring** | Grant only; expires itself |
-| **T3 Privileged** | OPNsense, Management Caddy, Authentik, Proxmox node root, Unraid root, Technitium *server settings*, Cloudflare *account / Access / tunnel config / zone settings* | Dormant alias `ROLE_OPS_PRIV_TARGETS` + per-session credentials | **Never standing** |
+| **T3 Privileged** | OPNsense *node root / account / cert admin / reboot / self-leash rules*, Management Caddy, Authentik, Proxmox node root, Unraid root, Technitium *server settings*, Cloudflare *account / Access / tunnel config / zone settings* | Dormant alias `ROLE_OPS_PRIV_TARGETS` + per-session credentials | **Never standing** |
 
 - **Technitium is T2 for Zones view/modify only** — no Settings/Administration/DHCP. Server
   settings are T3.
@@ -172,6 +179,15 @@ principal — lives in [access-and-trust](design/access-and-trust.md); this is t
   rule **human-merged** (the agent never self-merges an *authored* PR — the merge-gate carve-out in
 §2b is generated-only) — that merge is the publish gate, not the
   CNAME. (SKY-014 — see [identity-and-proxy](design/identity-and-proxy.md).)
+- **OPNsense is tiered** (ADR [0006](decisions/0006-opnsense-read-is-t1-write-stays-t3.md)) — three
+  planes, because the firewall *is* the trust boundary. **T1 read+diagnostics:** a standing scoped
+  credential reads aliases/rules/interfaces/DHCP live and runs non-mutating probes (ping/traceroute/
+  lookup). **T2 firewall config:** aliases and rules are `tofu/` resources — a `tofu plan` diff in a
+  PR, human-merged, applied via API (the same model as `svc-tofu` for guests). **T3, never-standing:**
+  node root, account/cert admin, **reboot** (a lab-wide outage — hard checkpoint always), and **the
+  agent's own leash** (`ROLE_OPS_*`, the block-other-DNS rules, its own accounts) — human-merged
+  forever, machine-gated on the plan (SKY-018 P7). The git mirror stays as rebuild-from-git truth.
+  This is a directive-sized build (firewall-as-code); the T1 read slice ships first.
 - **Omada is T1 for the switch/AP estate only** — read device inventory, ports, PoE, VLAN/profile
   assignment, firmware, and adoption status. A dedicated **read-only** controller account (never an
   admin credential); controller/site *administration* — adopting devices, pushing profiles, server

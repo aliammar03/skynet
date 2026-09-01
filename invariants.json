@@ -26,9 +26,10 @@
   },
 
   "t3_targets": {
-    "why": "The never-standing-credential list (constitution §2a / §3, AGENTS.md §6). No standing route or credential to any of these — reached only via a dormant alias + per-session credentials, revoked same day. Documented here now as desired truth; future checks (e.g. asserting no standing token references these) build on it.",
+    "why": "The never-standing-credential list (constitution §2a / §3, AGENTS.md §6). No standing route or credential that can CHANGE any of these — reached only via a dormant alias + per-session credentials, revoked same day. OPNsense is the tiered exception (ADR 0006): read+diagnostics T1, firewall CONFIG T2 (PR-gated via OpenTofu), but the entries below stay never-standing. Documented here now as desired truth; future checks (e.g. asserting no standing WRITE token references these) build on it.",
     "targets": [
-      { "name": "OPNsense",              "why": "the firewall/router; T3 admin plane." },
+      { "name": "OPNsense node root / account / cert / reboot", "why": "OPNsense is tiered (ADR 0006): read+diagnostics T1, firewall config T2 (aliases/rules via OpenTofu, PR-gated). But node root, API-key/cert admin, and REBOOT/halt (a lab-wide outage — hard checkpoint at every tier) stay T3, never-standing. See ADR 0006 / docs/design/access-and-trust.md." },
+      { "name": "OPNsense self-leash rules", "why": "The §6 'never widen your own leash' invariant on the firewall: the agent may NEVER change the rules/aliases bounding its own reach (ROLE_OPS_*, ROLE_OPS_PRIV_TARGETS, the block-other-DNS rules, its own svc-skynet-recon/tofu accounts). Human-merged FOREVER, never on the autonomy ratchet, and machine-gated on the tofu plan (SKY-018 P7 conftest/Rego). Even at T2, this subset is T3." },
       { "name": "Management Caddy",      "why": "the privileged front door (VMID 635)." },
       { "name": "Authentik server admin","why": "flows, policies, users, system settings, outpost tokens, signing keys stay T3 (VMID 837)." },
       { "name": "Proxmox node root",     "why": "root on either hypervisor node is T3." },
