@@ -88,6 +88,23 @@ else
   bad "audit did not classify VMID 9000 as a template (it must never read as a stale-destroy proposal)"
 fi
 
+echo "== P2: authored judgment data lives in lab.json / invariants.json, not in the renderer =="
+eq "lab.json vlans.list has 9 entries"        "$(jq '.vlans.list | length' lab.json)" "9"
+eq "VLAN 10 name is 'Trusted LAN' (not swapped)" "$(jq -r '.vlans.list[]|select(.vlan==10)|.name' lab.json)" "Trusted LAN"
+eq "VLAN 10 slug is 'lan'"                     "$(jq -r '.vlans.list[]|select(.vlan==10)|.slug' lab.json)" "lan"
+eq "lab.json declares the front-door alias set" "$(jq '.front_doors.aliases | length' lab.json)" "2"
+eq "invariants.json declares the VLAN set (10..100)" "$(jq '.entity_conventions.declared_vlans | length' invariants.json)" "9"
+if grep -q 'vlans.list' scripts/render-docs.sh && ! grep -q 'Trusted LAN' scripts/render-docs.sh; then
+  ok "render-docs.sh reads VLAN names from lab.json, holds no hardcoded name map"
+else
+  bad "render-docs.sh should read lab.json (grep vlans.list) and NOT hardcode VLAN names (grep 'Trusted LAN')"
+fi
+# The 4th invariant law (check-invariants.sh) rejects a running off-convention guest by reusing the
+# classifier below: an undeclared-VLAN VMID gets no valid address and cannot be "mapped", so it lands
+# in running-unmapped and fails the gate. Assert the classifier's rejection here (the full end-to-end
+# gate failure is exercised by check-invariants against inventory, not re-driven from this unit test).
+rc "classifier rejects 4242 (VLAN 42 undeclared) as off-convention" 1 vmid_to_ip 4242
+
 echo
 echo "entity-test: ${pass} passed, ${fail} failed"
 [ "${fail}" -eq 0 ]

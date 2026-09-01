@@ -1,5 +1,29 @@
 {
-  "_comment": "lab.json — AUTHORED judgment facts about the lab that are NOT derivable from collected inventory and must not be baked into code (ADR 0003: authored data with a deterministic consumer lives in data, not in a bash `case`). Read by the entity helper and (from SKY-018 P2) the renderer. SKY-018 P1 seeds only the docker host-label -> guest map the `service --hosted_on--> guest` edge resolves through; P2 adds VLAN display names, the reverse-proxy front-door alias set, and per-entity role labels, and moves them out of render-docs.sh. Everything here is topology/display judgment; hard-law constraints live in invariants.json instead.",
+  "_comment": "lab.json — AUTHORED judgment facts about the lab that are NOT derivable from collected inventory and must not be baked into code (ADR 0003: authored data with a deterministic consumer lives in data, not in a bash `case`). Read by the entity helper (scripts/entity.sh), the audit (scripts/audit-entities.sh), and the renderer (scripts/render-docs.sh). Everything here is topology/display judgment; hard-law constraints live in invariants.json (which also holds the VMID<->IP law + declared entity exceptions in entity_conventions). Grammar: docs/conventions/naming.md.",
+
+  "vlans": {
+    "_comment": "VLAN display names + the short slugs used in entity IDs (guest/<role>-<slug>-<vmid>). Wording follows the OPNsense alias descriptions in the firewall mirror — collected truth, not a guess. Moved out of render-docs.sh's vlan_name() case in SKY-018 P2. Do NOT swap 10 and 60: 10 is the trusted client VLAN, 60 is admin access (the Management Caddy front door). VLAN 40 exists in firewall nets but hosts no guest and has no slug.",
+    "list": [
+      { "vlan": 10,  "name": "Trusted LAN",      "slug": "lan" },
+      { "vlan": 20,  "name": "Servers",          "slug": "servers" },
+      { "vlan": 30,  "name": "IoT",              "slug": "iot" },
+      { "vlan": 50,  "name": "Management",       "slug": "mgmt" },
+      { "vlan": 60,  "name": "Admin Access",     "slug": "admin" },
+      { "vlan": 70,  "name": "Network Services", "slug": "netsvc" },
+      { "vlan": 80,  "name": "Identity",         "slug": "identity" },
+      { "vlan": 90,  "name": "Operations",       "slug": "ops" },
+      { "vlan": 100, "name": "DMZ",              "slug": "dmz" }
+    ]
+  },
+
+  "front_doors": {
+    "_comment": "The reverse-proxy front-door alias set — this is what makes a name a VHOST, not a host. A DNS record whose target is one of these IPs resolves to a proxy that fans out to many backends, so it must render as 'front door - not the host' (SKY-015 / SKY-018 P3), never as a machine. Declared here explicitly instead of inferred from 'IP shared by >1 DNS name', so a single-vhost front door is still recognised.",
+    "aliases": [
+      { "alias": "HOST_PROXY_APPS",  "ip": "10.10.100.35", "proxy": "caddy-apps",       "why": "the apps Caddy on the DMZ macvlan; *.aliammar.net app vhosts (karakeep, obsidian, calibre, ...) resolve here." },
+      { "alias": "HOST_PROXY_ADMIN", "ip": "10.10.60.35",  "proxy": "caddy-management", "why": "the Management Caddy (T3); admin vhosts (arcane, pbs, proxmox-*, unraid, omada, ...) A-record here." }
+    ]
+  },
+
   "docker_hosts": {
     "_comment": "Maps a docker inventory `host` label (inventory/docker-<label>.json) to the guest VMID it runs on, so `service --hosted_on--> guest` is a data lookup, not a `vm-`-prefix string-munge. A second docker host is a new row here, not a code change.",
     "hosts": [

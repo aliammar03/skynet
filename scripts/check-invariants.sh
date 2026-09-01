@@ -75,6 +75,20 @@ while IFS= read -r pat; do
 done < <(jq -r '.secret_patterns.patterns[].pattern' "${INV}")
 [ "${fail}" -eq "${before}" ] && ok "no plaintext secret patterns found in tracked files"
 
+# --- 4. Every running entity is mapped or a declared exception (SKY-018 L0) ---------------------
+# The entity audit IS the checker for this law (one implementation, not two): it derives every
+# guest/service, joins against observed firewall/DNS/compose truth, and exits non-zero on a running
+# entity that is neither mapped nor a declared exception (invariants.json entity_conventions /
+# excluded_guests). Reuse it rather than re-implementing the join here.
+echo "== every running entity is mapped or a declared exception (SKY-018) =="
+before=${fail}
+if audit_out="$(./scripts/audit-entities.sh 2>&1)"; then
+  ok "every running guest & service is mapped or a declared exception"
+else
+  violation "running entities with no home — map each (a firewall/DNS host fact, or a compose/<svc>/ dir) or declare it in invariants.json entity_conventions.exceptions:"
+  printf '%s\n' "${audit_out}" | grep -E 'running-unmapped' | sed 's/^/        /' >&2
+fi
+
 echo
 if [ "${fail}" -ne 0 ]; then
   echo "check-invariants: FAILED — a hard law is violated (see ✗ above). This PR must not land." >&2
