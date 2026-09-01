@@ -51,10 +51,19 @@ is_exception() { local v="$1"; printf '%s\n' "${EXCEPTIONS[@]}" | grep -qxF "${v
 # ── L0 audit: guests ────────────────────────────────────────────────────────────────────────────
 echo "== entity audit :: guest (VMID -> IP, ADR 0001) =="
 row "ENTITY ID" "ADDRESS" "STATUS" "BUCKET" "NOTE"
-declare -i g_match=0 g_stale=0 g_hole=0 g_exc=0
-while IFS=$'\t' read -r vmid name status; do
+declare -i g_match=0 g_stale=0 g_hole=0 g_exc=0 g_tmpl=0
+while IFS=$'\t' read -r vmid name status tmpl; do
   [ -n "${vmid}" ] || continue
   id="$(guest_id "${vmid}" "${name}")"
+
+  # A template is stopped-by-design and has no firewall/DNS identity by design — never a hole,
+  # never a stale-destroy proposal. It is a declared clone source (e.g. tofu/template-*.tf), so
+  # classify it on its own before the mapped/stale/hole logic runs.
+  if [ "${tmpl}" = "1" ]; then
+    g_tmpl+=1
+    row "${id}" "$(vmid_to_ip "${vmid}" 2>/dev/null || echo '—')" "template" "template" "clone source — keep; never destroy as stale"
+    continue
+  fi
   # derive address; resolve the one ambiguous prefix (10xx) via the fact set
   addr=""; note=""
   if ip="$(vmid_to_ip "${vmid}")"; then
@@ -88,8 +97,8 @@ while IFS=$'\t' read -r vmid name status; do
     bucket="running-unmapped"; g_hole+=1; hole=1
     row "${sym_x} ${id}" "${addr:-—}" "${status}" "${bucket}" "${note:+${note}; }no firewall/DNS host fact"
   fi
-done < <(jq -r '.resources[]? | select(.type=="qemu" or .type=="lxc") | "\(.vmid)\t\(.name)\t\(.status)"' inventory/proxmox-*.json 2>/dev/null | sort -n)
-echo "  ── guests: ${g_match} matched · ${g_stale} stale · ${g_hole} running-unmapped · ${g_exc} exception"
+done < <(jq -r '.resources[]? | select(.type=="qemu" or .type=="lxc") | "\(.vmid)\t\(.name)\t\(.status)\t\(.template // 0)"' inventory/proxmox-*.json 2>/dev/null | sort -n)
+echo "  ── guests: ${g_match} matched · ${g_stale} stale · ${g_hole} running-unmapped · ${g_exc} exception · ${g_tmpl} template"
 echo
 
 # ── L0 audit: services (compose project <-> compose/ dir), with the hosted_on edge ───────────────

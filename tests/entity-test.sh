@@ -73,6 +73,18 @@ else
   bad "expected arcane-manager to be the undeclared running project"
 fi
 
+echo "== guest audit: the OpenTofu template (VMID 9000) is flagged template, never stale =="
+tmpl9000="$(jq -r '.resources[]? | select(.vmid==9000) | .template' inventory/proxmox-*.json 2>/dev/null | head -1)"
+eq "VMID 9000 carries template=1 in inventory" "${tmpl9000}" "1"
+# capture first: the audit legitimately exits non-zero while holes exist, and pipefail would
+# otherwise mask grep's result with the audit's exit code.
+audit_out="$(bin/ops entities 2>/dev/null || true)"
+if printf '%s\n' "${audit_out}" | grep -qE 'ubuntu-2404-base.*template'; then
+  ok "audit buckets the 9000 template as 'template', not 'stale'"
+else
+  bad "audit did not classify VMID 9000 as a template (it must never read as a stale-destroy proposal)"
+fi
+
 echo
 echo "entity-test: ${pass} passed, ${fail} failed"
 [ "${fail}" -eq 0 ]
