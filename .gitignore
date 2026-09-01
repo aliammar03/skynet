@@ -20,3 +20,7 @@ age.key
 inventory/**/*.partial.json
 result
 result-*
+
+# SKY-018 P3: the SQLite join cache is REBUILT from inventory/ at render time — git stays truth,
+# the DB is a throwaway cache (same rule as a future semantic index). Never committed.
+.cache/

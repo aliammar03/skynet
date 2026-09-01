@@ -6,7 +6,7 @@ horizon: long
 created: 2026-08-28
 updated: 2026-09-01
 phases: 12
-current_phase: 2
+current_phase: 3
 tier_touched: [T1, T2]   # Mostly T1 (derive, collect, render, check). P4 EXTENDS the T1 read surface
                          # to the UniFi/Omada controllers ⇒ docs/system-design.md §3 PR. P6/P11 touch
                          # existing T2 actuators without widening any dial — no new pool, no new tier.
@@ -286,7 +286,7 @@ Steps:
 Exit criteria: the renderer holds no authored knowledge; a PR that adds an off-convention running
 guest without declaring it fails CI; `check-invariants.sh` still passes on `main`.
 
-### Phase 3 — L5: replace the join engine with a rebuildable SQLite cache  (~1–2h)   `[ ]` not started
+### Phase 3 — L5: replace the join engine with a rebuildable SQLite cache  (~1–2h)   `[x]` done 2026-09-01
 Steps:
 1. Add `sqlite` to the nix toolchain (`nix/modules/base.nix`).
 2. `scripts/build-db.sh` — load every `inventory/*.json` into `.cache/inventory.db` (gitignored):
@@ -516,3 +516,12 @@ Follow AGENTS.md as above.
   fail on a synthetic rogue guest, clean on `main`). Renderer verified behavior-preserving (VLAN
   headers byte-identical). Tests 36/36. Refreshed inventory + regenerated docs committed alongside so
   the CI gate runs against current truth.
+- 2026-09-01 — **P3 done.** Replaced the jq/awk IP-priority ladder with a rebuildable SQLite cache:
+  `sqlite` in `nix/modules/base.nix`, `scripts/build-db.sh` → `.cache/inventory.db` (gitignored, rebuilt
+  each run), entity-keyed tables. `render-docs.sh` host map is now `scripts/sql/host-map.sql` (a running
+  guest wins its IP + carries its entity id) — VLAN tables gained an **Entity** column; `vhosts.sql` +
+  a 30-services section render every front-door DNS name as "⚠ front door — not a host" (SKY-015 fix,
+  real key behind it). `bin/ops query "<sql>"` answers ad-hoc (running guests with no DNS/alias/backup
+  = 0, all covered). Degrades gracefully with no sqlite3. Tests 41/41 (P3 skips when sqlite3 absent, so
+  the pre-rebuild pre-commit hook stays green; CI on ubuntu runs them). **⚠ Post-merge: `nixos-rebuild
+  switch` on the ops VM**, else the nightly render degrades to "Host map pending" until sqlite3 is on PATH.
