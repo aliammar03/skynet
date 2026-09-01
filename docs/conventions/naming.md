@@ -59,7 +59,7 @@ hand-maintained.
 | `guest` | **`guest/<role>-<vlan>-<vmid>`** | `guest/docker-dmz-10015` | derived from the VMID |
 | `svc` | `svc/<compose-project>` | `svc/karakeep` | **none** — inherits its host guest's |
 | `vhost` | `vhost/<hostname>` | `vhost/karakeep.aliammar.net` | the front door's, and it is **not a host** |
-| `net` | `net/<device-name>` | `net/ap-omada-downstairs` | its DHCP reservation |
+| `net` | `net/<device-name>` | `net/moms-ap` | its static VLAN-50 management IP |
 
 Rules for the guest key `[testable]`:
 
