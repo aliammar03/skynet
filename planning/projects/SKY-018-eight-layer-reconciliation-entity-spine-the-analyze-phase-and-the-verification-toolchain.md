@@ -6,7 +6,7 @@ horizon: long
 created: 2026-08-28
 updated: 2026-09-01
 phases: 12
-current_phase: 3
+current_phase: 4
 tier_touched: [T1, T2]   # Mostly T1 (derive, collect, render, check). P4 EXTENDS the T1 read surface
                          # to the UniFi/Omada controllers ⇒ docs/system-design.md §3 PR. P6/P11 touch
                          # existing T2 actuators without widening any dial — no new pool, no new tier.
@@ -301,7 +301,7 @@ Exit criteria: `docs/generated/` renders identically-or-better with no IP-priori
 renderer; the DB is absent from git and rebuilt by `render-docs.sh`; `bin/ops query` answers "running
 guests with no DNS record, no alias and no backup job".
 
-### Phase 4 — L2: the network-gear collector  (~1–2h)   `[ ]` not started
+### Phase 4 — L2: the network-gear collector  (~1–2h)   `[x]` done 2026-09-01 (Omada-only)
 The largest observed-truth hole, and the only phase that moves a trust surface.
 Steps:
 1. **⚠ Hard checkpoint — tier assignment:** PR `docs/system-design.md` §3 to add the **UniFi and
@@ -516,7 +516,19 @@ Follow AGENTS.md as above.
   fail on a synthetic rogue guest, clean on `main`). Renderer verified behavior-preserving (VLAN
   headers byte-identical). Tests 36/36. Refreshed inventory + regenerated docs committed alongside so
   the CI gate runs against current truth.
-- 2026-09-01 — **P3 done.** Replaced the jq/awk IP-priority ladder with a rebuildable SQLite cache:
+- 2026-09-01 — **P4 done (Omada-only).** Two PRs: **#132** (docs) admitted the Omada controller to the
+  T1 read surface (system-design §3 + access-and-trust + network spokes); **#133** the collector.
+  Three checkpoints cleared (Ali): merged #132, firewall reachability (found the *port* was missing —
+  `HOST_OMADA` was in `ROLE_OPS_API_TARGETS` but 8043 wasn't in `PORT_OPS_API`; verified `.50.25`
+  blocked until added), and a read-only **Viewer** account (`svc-ops`). Controller is Omada v6.2.14.11
+  (session-login API, verified read-only: a reboot call → `-1007`). `scripts/collect-network-gear.sh`
+  → `inventory/network-gear.json` (pinned cert, SNI `Omada` via `--resolve`; degrades exit 0). `net`
+  class joined into `audit-entities.sh` (informational, not a hole); `netgear`/`netports` DB tables;
+  `docs/generated/50-network-gear.md` with a **reserved-vs-adopted** reconciliation. First run's drift:
+  firewall reserves 3 sw + 4 AP slots, only `.2`/`.7` adopted; Ali's EAP772 `.161` adopted-unreserved;
+  port 8 `U6-AP` a leftover Ubiquiti trunk. Credential is sops-nix (`secrets/omada.env.sops` +
+  `secrets.nix` names[]) — **needs `nixos-rebuild switch`** to materialize. Tests 45/45. CT 526 (UniFi)
+  gone → estate Omada-only, 526 resolved by removal.
   `sqlite` in `nix/modules/base.nix`, `scripts/build-db.sh` → `.cache/inventory.db` (gitignored, rebuilt
   each run), entity-keyed tables. `render-docs.sh` host map is now `scripts/sql/host-map.sql` (a running
   guest wins its IP + carries its entity id) — VLAN tables gained an **Entity** column; `vhosts.sql` +
