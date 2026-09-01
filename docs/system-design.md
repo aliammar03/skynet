@@ -153,7 +153,7 @@ principal — lives in [access-and-trust](design/access-and-trust.md); this is t
 
 | Tier | Scope | Mechanism | Standing? |
 |---|---|---|---|
-| **T1 Read** | Both Proxmox nodes, PBS, Docker hosts, DNS, firewall state (git mirror) | Read-only API tokens; mirrored `config.xml` | Always |
+| **T1 Read** | Both Proxmox nodes, PBS, Docker hosts, DNS, firewall state (git mirror), the **Omada network controller** | Read-only API tokens; mirrored `config.xml` | Always |
 | **T2 Operate** | `ops-managed` pools (both nodes), Docker hosts via Arcane + unprivileged SSH, Technitium zones, Cloudflare **DNS records** (`aliammar.net` zone); **backup/snapshot** of ops-managed guests; **provisioning** of in-pool guests via OpenTofu | Scoped write tokens, `svc-ops` SSH, `svc-tofu` pool-scoped API token, Technitium scoped token, Arcane API key, Cloudflare scoped `DNS:Edit` token | Yes — changes PR-gated |
 | **T2+ Root grant** | Root shell on workload hosts (diagnose, harden, provision, OS updates) | SSH user-CA certificate, per-host principal, **auto-expiring** | Grant only; expires itself |
 | **T3 Privileged** | OPNsense, Management Caddy, Authentik, Proxmox node root, Unraid root, Technitium *server settings*, Cloudflare *account / Access / tunnel config / zone settings* | Dormant alias `ROLE_OPS_PRIV_TARGETS` + per-session credentials | **Never standing** |
@@ -172,6 +172,13 @@ principal — lives in [access-and-trust](design/access-and-trust.md); this is t
   rule **human-merged** (the agent never self-merges an *authored* PR — the merge-gate carve-out in
 §2b is generated-only) — that merge is the publish gate, not the
   CNAME. (SKY-014 — see [identity-and-proxy](design/identity-and-proxy.md).)
+- **Omada is T1 for the switch/AP estate only** — read device inventory, ports, PoE, VLAN/profile
+  assignment, firmware, and adoption status. A dedicated **read-only** controller account (never an
+  admin credential); controller/site *administration* — adopting devices, pushing profiles, server
+  settings — stays **T3**. Same shape as the Technitium Zones-vs-settings split. Reachability is one
+  firewall alias membership (add the controller to `ROLE_OPS_API_TARGETS` + its port to
+  `PORT_OPS_API`), a T3 OPNsense change. (Landed by SKY-018 P4 — see
+  [access-and-trust](design/access-and-trust.md).)
 - **Pool membership is the blast-radius dial.** Joining a guest to an `ops-managed` pool hands the
   agent T2 over it; leaving it out keeps it look-but-don't-touch. **VM 5001 (OPNsense) never joins
   any pool** — same for CT 635, CT 837, Unraid VM 2020. Never pooled, destroyed, or stopped by the
