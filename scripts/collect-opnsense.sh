@@ -95,17 +95,23 @@ arp="$(srch diagnostics/interface/searchArp | jq -c '[.rows[]? | {ip,mac,hostnam
 arp_ips="$(printf '%s' "${arp}" | jq -r '.[].ip' 2>/dev/null | sort -u)"
 host_ips="$(printf '%s' "${aliases}" | jq -r '.[] | select(.type=="host") | .content' 2>/dev/null | tr ' \n' '\n\n' | grep -E '^10\.10\.[0-9]+\.[0-9]+$' | sort -u)"
 silent_ips="$(comm -23 <(printf '%s\n' "${host_ips}") <(printf '%s\n' "${arp_ips}"))"
-# ping the silent set in parallel; collect the ones that answer.
+# ping the silent set in parallel; collect the ones that answer. (|| true + if/then, not `&& assign`,
+# so xargs exiting 123 on the down hosts doesn't trip set -e/pipefail and swallow the whole result.)
 pinged_up=""
-[ -n "${silent_ips}" ] && pinged_up="$(printf '%s\n' "${silent_ips}" | grep -E '^10\.' \
-  | xargs -r -P16 -I{} sh -c 'ping -c1 -W1 "{}" >/dev/null 2>&1 && echo "{}"' 2>/dev/null | sort -u)"
-presence="$(jq -n --argjson host "$(printf '%s\n' "${host_ips}" | grep -E '^10\.' | jq -R . | jq -s .)" \
-  --argjson arp "$(printf '%s\n' "${arp_ips}" | grep -E '^10\.' | jq -R . | jq -s .)" \
-  --argjson up "$(printf '%s\n' "${pinged_up}" | grep -E '^10\.' | jq -R . | jq -s . 2>/dev/null || echo '[]')" '
-  [ $host[] | . as $ip
-    | if ($arp|index($ip)) then {ip:$ip, live:true, via:"arp"}
-      elif ($up|index($ip)) then {ip:$ip, live:true, via:"icmp"}
-      else {ip:$ip, live:false, via:"no-arp,no-icmp"} end ]' 2>/dev/null || echo '[]')"
+if [ -n "${silent_ips}" ]; then
+  pinged_up="$(printf '%s\n' "${silent_ips}" | grep -E '^10\.' \
+    | xargs -r -P16 -I{} sh -c 'ping -c1 -W1 "$1" >/dev/null 2>&1 && echo "$1"' _ {} 2>/dev/null | sort -u || true)"
+fi
+presence="$(
+  while IFS= read -r ip; do
+    [ -n "${ip}" ] || continue
+    if   grep -qxF "${ip}" <<<"${arp_ips}";   then printf '%s\ttrue\tarp\n'  "${ip}"
+    elif grep -qxF "${ip}" <<<"${pinged_up}"; then printf '%s\ttrue\ticmp\n' "${ip}"
+    else printf '%s\tfalse\tno-arp,no-icmp\n' "${ip}"; fi
+  done <<< "${host_ips}" \
+  | jq -R -s 'split("\n")|map(select(length>0)|split("\t")|{ip:.[0], live:(.[1]=="true"), via:.[2]})'
+)"
+[ -n "${presence}" ] || presence="[]"
 
 ifaces="$(get interfaces/overview/interfacesInfo | jq -c '(.rows // .) | if type=="array" then [.[]|{device,description,status,enabled,identifier}] else [] end' 2>/dev/null || echo '[]')"
 out_live="${REPO_DIR}/inventory/opnsense.json"

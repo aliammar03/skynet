@@ -1,9 +1,9 @@
 {
-  "collected": "2026-09-01T23:21:43+05:00",
+  "collected": "2026-09-01T23:28:24+05:00",
   "source": "opnsense-api (live, T1 read-only; user view)",
   "counts": {
     "aliases": 41,
-    "rules": 28,
+    "rules": 29,
     "reservations": 5
   },
   "aliases": [
@@ -546,6 +546,18 @@
       "destination_port": "PORT_ADMIN_PROXY",
       "description": "ops: DORMANT temporary T3 grant — alias must stay empty",
       "uuid": "80df0d94-b5b7-4d06-b916-471da9a384c2",
+      "enabled": true
+    },
+    {
+      "sequence": "390",
+      "action": "pass",
+      "protocol": "ICMP",
+      "interface": "",
+      "source_net": "HOST_SKYNET_OPS",
+      "destination_net": "NET_SKYNET",
+      "destination_port": "",
+      "description": "ops to ping all",
+      "uuid": "1b895258-aaab-430f-9627-750e9a5f0bf7",
       "enabled": true
     },
     {
