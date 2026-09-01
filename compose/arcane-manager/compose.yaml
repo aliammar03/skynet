@@ -1,0 +1,45 @@
+# arcane-manager — the Arcane GitOps controller ITSELF (the tool that syncs every other project).
+# BOOTSTRAP component: deployed by hand, NOT reconciled by its own Git Sync (a controller must not
+# restart itself mid-reconcile). Captured here for rebuild-from-git (AGENTS.md §6) and to make it a
+# declared entity (SKY-018). RELOCATION PENDING — moving off the DMZ host to a dedicated Management
+# VLAN docker host, managing docker-dmz remotely over unprivileged SSH (SKY-019). See README.md.
+services:
+  arcane:
+    image: ghcr.io/getarcaneapp/manager:latest
+    container_name: arcane
+    restart: unless-stopped
+
+    # Bound to the DMZ host's own IP today; behind arcane.aliammar.net via the Management Caddy.
+    # This binding moves to the Management host on relocation (SKY-019).
+    ports:
+      - "10.10.100.15:3552:3552"
+
+    # Effective .env = .env.git + decrypt(.env.sops), assembled at deploy (see README). Not synced,
+    # so nothing assembles it automatically — the deploy step does. .env is gitignored.
+    env_file:
+      - ./.env
+
+    environment:
+      APP_URL: https://arcane.aliammar.net
+      PROJECTS_DIRECTORY: /opt/docker/arcane-projects
+      TRUSTED_PROXIES: 10.10.20.35
+      AGENT_MODE: "false"
+      PUID: "1000"
+      PGID: "1000"
+      TZ: Asia/Karachi
+
+    # docker.sock = root-equivalent on THIS host (the reason relocation moves to remote management,
+    # SKY-019). arcane-projects is the Git-Synced project tree; /app/data is Arcane's own state.
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/docker/appdata/arcane-manager:/app/data
+      - /opt/docker/arcane-projects:/opt/docker/arcane-projects
+
+    cgroup: host
+
+    healthcheck:
+      test: ["CMD", "./arcane", "health", "--timeout", "2s"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s

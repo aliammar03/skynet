@@ -55,22 +55,25 @@ eq "node"  "$(node_id server-proxmox-core)"    "node/server-proxmox-core"
 eq "vhost" "$(vhost_id pbs.aliammar.net)"      "vhost/pbs.aliammar.net"
 eq "net"   "$(net_id ap-omada-downstairs)"     "net/ap-omada-downstairs"
 
-echo "== service audit: 10 compose dirs match a running project; arcane-manager does not =="
+echo "== service audit: every running compose project has a compose/ dir in git =="
+# arcane-manager was the one undeclared project (running outside the GitOps loop); it is now captured
+# as a bootstrap component (compose/arcane-manager/, relocation pending SKY-019), so the hole is closed.
 mapfile -t dirs < <(find compose -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
-eq "compose/ dir count == 10" "${#dirs[@]}" "10"
 running="$(jq -r '.containers[]?.Labels | capture("com\\.docker\\.compose\\.project=(?<p>[^,]+)") | .p' \
              inventory/docker-*.json 2>/dev/null | sort -u)"
-undeclared=0
+undeclared=0; undeclared_names=""
 while IFS= read -r p; do
   [ -n "${p}" ] || continue
-  printf '%s\n' "${dirs[@]}" | grep -qxF "${p}" || undeclared=$(( undeclared + 1 ))
+  if ! printf '%s\n' "${dirs[@]}" | grep -qxF "${p}"; then
+    undeclared=$(( undeclared + 1 )); undeclared_names="${undeclared_names} ${p}"
+  fi
 done <<< "${running}"
-eq "exactly 1 running project has no compose/ dir" "${undeclared}" "1"
-if printf '%s\n' "${running}" | grep -qxF arcane-manager \
-   && ! printf '%s\n' "${dirs[@]}" | grep -qxF arcane-manager; then
-  ok "the undeclared running project is arcane-manager"
+eq "no running project lacks a compose/ dir" "${undeclared}" "0"
+[ "${undeclared}" -ne 0 ] && echo "     undeclared:${undeclared_names}" >&2
+if printf '%s\n' "${dirs[@]}" | grep -qxF arcane-manager; then
+  ok "arcane-manager is now declared (compose/arcane-manager/ exists)"
 else
-  bad "expected arcane-manager to be the undeclared running project"
+  bad "compose/arcane-manager/ should exist (bootstrap capture, SKY-019)"
 fi
 
 echo "== guest audit: the OpenTofu template (VMID 9000) is flagged template, never stale =="
