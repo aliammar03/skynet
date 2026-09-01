@@ -81,5 +81,5 @@ so running or resuming one is a single paste into a fresh session.
 | SKY-017 | The road to full agent control: verification, proving ground, and an evidence-earned ratchet | ideas | draft | — | 🔭 long |
 | SKY-018 | "Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain" | projects | in-progress | 4/12 | 🔭 long |
 | SKY-019 | Relocate the Arcane controller off the DMZ to a dedicated Management docker VM, managing docker hosts remotely | ideas | draft | — | 🔭 long |
-| SKY-020 | Firewall-as-code — OPNsense config to T2 via OpenTofu | ideas | draft | — | 🔭 long |
+| SKY-020 | Firewall-as-code — OPNsense config to T2 via OpenTofu | projects | in-progress | 1/6 | 🔭 long |
 <!-- ROADMAP:END -->

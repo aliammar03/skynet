@@ -1,12 +1,12 @@
 ---
 id: SKY-020
 title: Firewall-as-code — OPNsense config to T2 via OpenTofu
-status: draft
+status: in-progress
 horizon: long
 created: 2026-09-01
 updated: 2026-09-01
 phases: 6
-current_phase: 0
+current_phase: 1
 tier_touched: [T2, T3]   # moves the OPNsense boundary — the constitution PR is ADR 0006 / PR #137.
 related:
   - docs/system-design.md
@@ -61,12 +61,16 @@ own directive and not a one-session hack.
 - **Grants / human actions:** Ali merges #137; Ali mints two OPNsense API keys (read `svc-skynet-recon`,
   write `svc-skynet-tofu`); normal PR merges thereafter.
 
-### Phase 1 — T1 live-read cutover  (~1–2h)   `[ ]` not started
-The near-term win, independent of the write layer. `collect-firewall.sh` gains a live-API path (reads
-aliases/rules/interfaces/DHCP via `svc-skynet-recon`), **degrades to the mirror parse** and to `exit 0`
-with no creds. Pinned cert like the other collectors.
-Exit: live firewall inventory with no mirror lag; mirror still the git-truth backstop; no creds ⇒ mirror.
-⚠ Credential checkpoint: Ali creates the read-only `svc-skynet-recon` key (group `skynet-recon`).
+### Phase 1 — T1 live-read cutover  (~1–2h)   `[x]` done 2026-09-01 (PR #139)
+The near-term win, independent of the write layer. Shipped as a **new** `scripts/collect-opnsense.sh`
+→ `inventory/opnsense.json` (rather than munging the mirror-parsed `firewall.json`): live aliases,
+rules, ARP neighbours, interfaces, firmware via `svc-skynet-recon`. Verified TLS by **deriving the SNI
+from the pinned cert** (`OPNsense.internal`); degrades to `exit 0` with no creds/unreachable. Read-only
+proven live: a valid `addItem` → `denied for write access (user-config-readonly set)`, nothing created.
+The mirror (`collect-firewall.sh`) stays the git-truth config source; the live read runs alongside it.
+Exit: live firewall inventory with no mirror lag; mirror still the git-truth backstop; no creds ⇒ mirror. ✅
+Done: Ali created the read-only `svc-skynet-recon` key + the reachability rule (rule 360 dest `(self)`,
+`PORT_OPS_API` += 443); PRs #138 (credential) + #139 (collector).
 
 ### Phase 2 — provider spike + one imported alias  (~1–2h)   `[ ]` not started
 Adopt the OPNsense tofu provider (evaluate `browningluke/opnsense` vs alternatives; pin it). With the
@@ -122,3 +126,9 @@ Follow AGENTS.md as above.
 - 2026-09-01 — created (draft). Spun out of the OPNsense tier decision (ADR 0006 / PR #137): firewall
   read+diagnostics T1, config T2 via OpenTofu, node-root/reboot/self-leash T3. Gated on #137 merging;
   the self-leash gate consumes SKY-018 P7; reuses the SKY-008 tofu model.
+- 2026-09-01 — **#137 merged; P1 done.** `svc-skynet-recon` read key (group `skynet-recon`, "System:
+  Deny config write") minted by Ali; reachability opened (rule 360 dest `(self)` + `PORT_OPS_API` += 443,
+  OPNsense GUI on 443/all-ifaces via the `.90.1` VLAN-90 iface). `secrets/opnsense.env.sops` (#138) +
+  `scripts/collect-opnsense.sh` (#139) → `inventory/opnsense.json` (59 aliases, 129 rules, 42 ARP, 17
+  ifaces, firmware). Read-only PROVEN live (write → `user-config-readonly` denial). Cert SAN is
+  `OPNsense.internal` (collector derives SNI from the cert). **Next: P2 — the OPNsense tofu provider spike.**
