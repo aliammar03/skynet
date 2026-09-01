@@ -1,6 +1,6 @@
 ---
 summary: "The trust tiers in full — every token, ACL, principal, and the auto-expiring SSH root grant Skynet can request but never mint."
-tokens: 3740
+tokens: 3973
 ---
 
 # Spoke · Access & trust
@@ -217,9 +217,22 @@ notch lower than the other devices: **read is T1, anything that changes it is T3
 - **Why not just the git mirror:** `os-git-backup` pushes to the mirror *nightly by default*, so the
   firewall map was routinely stale; the live read removes that lag. **The mirror stays** as the
   rebuild-from-git source of truth (§2a) and DR path — live API for freshness, mirror for truth.
-- **How the credential is born:** Ali creates the read-only user + API key in OPNsense (a T3 act —
-  the agent cannot mint access to the firewall). The collector degrades to the mirror parse, and to
-  `exit 0` with no credential, so nothing hard-depends on it.
+- **How the credential is born (the *safe* read-only setup):** OPNsense enforces read-only with the
+  **"GUI - read only"** privilege (`user-config-readonly`) — its `throwReadOnly()` guard blocks
+  **every** MVC write regardless of page privileges. But per advisory
+  [GHSA-p9pr-782r-w2xw](https://github.com/opnsense/core/security/advisories/GHSA-p9pr-782r-w2xw),
+  that guard is **bypassable when the privilege is assigned *directly* on the user** (direct
+  comma-separated privs aren't split correctly) — so it **must** be assigned **via a group**. The
+  recipe (a T3 act — the agent cannot mint firewall access):
+  1. OPNsense **≥ 26.1.11 / 26.4.1p1** (the advisory fix). Verify first.
+  2. Create a **group** `skynet-readonly` with **GUI - read only** + the read page privileges the
+     collector needs (Firewall: Aliases/Rules, Interfaces, Diagnostics, DHCP).
+  3. Create user `skynet-ro`, add it to that group. **Assign every privilege through the group,
+     never directly on the user.**
+  4. Generate an **API key** for the user → `OPN_KEY` / `OPN_SECRET`.
+
+  The collector degrades to the mirror parse, and to `exit 0` with no credential, so nothing
+  hard-depends on it.
 
 ## Planned expansion
 

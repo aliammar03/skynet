@@ -38,6 +38,16 @@ Split OPNsense the same way, one notch lower because the firewall is the trust b
   root shell. Reached only via the dormant alias + per-session credentials, revoked same day. **No
   standing *write* credential to OPNsense, ever.** This half of the old invariant is unchanged.
 
+**The read-only guarantee is real, if configured correctly.** OPNsense's **"GUI - read only"**
+privilege (`user-config-readonly`) makes `throwReadOnly()` block every MVC write regardless of page
+privileges — so a user with it can GET firewall config but cannot POST changes. One caveat, from
+advisory [GHSA-p9pr-782r-w2xw](https://github.com/opnsense/core/security/advisories/GHSA-p9pr-782r-w2xw):
+that guard is **bypassable if the privilege is assigned directly on the user**, so it must be granted
+**via a group**, and OPNsense must be **≥ 26.1.11 / 26.4.1p1**. Exact recipe in
+[access-and-trust](access-and-trust.md). This matters: without it, "read-only" would be enforced only
+by the collector's good behaviour, not by OPNsense — which would quietly make the credential a
+standing *write* path and violate the very invariant this ADR preserves.
+
 Two constraints keep the read half clean:
 
 - **Scoped, secret-stripping reads.** `config.xml` carries secrets (VPN keys, password hashes). The
