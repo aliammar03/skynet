@@ -40,20 +40,20 @@ follow a link for the full story; distill episodes at read time, never in this f
 - lab.json currently holds only `docker_hosts`; P2 owns the rest of its authored content. — _2026-09-01 session          # session | incident | decision_
 - vhost + net classes have no collector yet (P5 Caddy routes, P4 network gear). — _2026-09-01 session          # session | incident | decision_
 - Recent PBS snapshots and the L5 Google Drive mirror remain unverified by this run. — _2026-09-01 session          # session | incident | decision_
+- PBS snapshot freshness, restic payloads, and the L5 Google Drive mirror were not verified because the PBS credential was absent and no root grant was active. — _2026-09-01 session          # session | incident | decision_
+- OPNsense T3 cleanup remains human-owned: remove stale `10.10.90.91` from `HOST_SKYNET_OPS` and optionally remove the old downstairs-AP reservation. — _2026-09-01 session          # session | incident | decision_
 - Establish whether the VMID 9090 restart between the 12:50 and 17:36 snapshots was planned. — _2026-09-01 session_
 - Recent PBS snapshots and the L5 Google Drive mirror remain unverified because the PBS credential was absent and no root grant was active. — _2026-09-01 session_
-- OPNsense (T3, Ali): trim `HOST_SKYNET_OPS` to `10.10.90.90` (drop the stale `.91`); optionally remove the `ap-omada-downstairs` reservation now the AP is static. — _2026-09-01 session          # session | incident | decision_
-- PBS snapshot verification + the L5 Google Drive mirror remain unproven without the PBS credential / a root grant (carried, genuinely open). — _2026-09-01 session          # session | incident | decision_
 
 ## 📓 Recent episodes
 
 - **2026-09-01** · session          # session | incident | decision · [[2026-09-01-session-sky-018-p1-first-entity-audit|SKY-018 P1 first entity audit]]
 - **2026-09-01** · session          # session | incident | decision · [[2026-09-01-session-nightly-2026-09-01|nightly 2026-09-01]]
+- **2026-09-01** · session          # session | incident | decision · [[2026-09-01-session-nightly-2026-09-01-1805|nightly 2026-09-01 1805]]
 - **2026-09-01** · session · [[2026-09-01-session-nightly-2026-09-01-1735-rerun|nightly 2026-09-01 1735 rerun]]
 - **2026-09-01** · session          # session | incident | decision · [[2026-09-01-session-generated-docs-review-and-digest-stale-thread-fix|generated-docs review and digest stale-thread fix]]
 - **2026-09-01** · decision          # session | incident | decision · [[2026-09-01-decision-arcane-relocation-and-sky-018-audit-triage|arcane relocation and SKY-018 audit triage]]
 - **2026-08-31** · session          # session | incident | decision · [[2026-08-31-session-nightly-2026-08-31|nightly 2026-08-31]]
-- **2026-08-30** · session          # session | incident | decision · [[2026-08-30-session-nightly-2026-08-30-third-pass|nightly 2026-08-30 third pass]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._

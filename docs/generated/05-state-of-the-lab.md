@@ -7,79 +7,71 @@ tags: [skynet, generated, narrative, state-of-the-lab]
 
 # Skynet — State of the Lab
 
-**As of 2026-09-01, evening PKT** · The lab is available and answering across every source the
-report-only pass could inspect. Both Proxmox nodes are online, all Docker containers are running and
-healthy, the three managed network devices are connected, and the firewall mirror is internally
-consistent. Two things earned daylight tonight: the ops VM crossed a reboot boundary this afternoon,
-and a review of the generated docs caught a **stale-thread feedback loop** that had been reporting
-already-destroyed guests as live.
+**As of 2026-09-01 18:06 PKT** · The lab looks steady in the sources this report-only pass can
+see. Both Proxmox nodes answered, every observed Docker container is running and healthy, all three
+Omada devices are connected, and the firewall mirror remains readable and internally consistent.
+There was no infrastructure state transition in the roughly half-hour since the snapshot on
+`origin/main`; tonight's meaningful movement is ordinary live telemetry.
 
 > [!quote] Agent's log
-> The dashboard is green, and this time the useful story is a bug in my own reporting: the cold-boot
-> digest was echoing open threads from a journal entry written *before* today's cleanups, and the
-> nightly kept copying them forward. Fixed the mechanism, not just the symptom.
+> A pleasantly boring half-hour: workloads kept their identities and states, network clients moved
+> between access points, and counters advanced. Green is useful here precisely because the report
+> distinguishes it from proof we still do not have—backup recoverability remains unverified.
 
 ## Tonight at a glance
 
-| System | State | What the evidence says |
+| System | State | Evidence from this pass |
 |---|---|---|
-| 🧠 Ops brain (`vm-skynet-ops`, VMID 9090) | 🟢 Running (rebuilt) | Uptime reset ~3.9d → ~3.9h — a `nixos-rebuild switch` after merging the P4 collector, not a crash |
-| 🖥️ Proxmox | 🟢 Online | Both nodes answered; guest identities and running/stopped states match `origin/main` |
-| 🐳 DMZ Docker | 🟢 Healthy | All containers running and healthy |
-| ☁️ Public tunnel | 🟢 Healthy | `cloudflared` remains healthy |
+| 🧠 Ops brain (`vm-skynet-ops`, VMID 9090) | 🟢 Running | Uptime advanced normally; no new reboot boundary |
+| 🖥️ Proxmox | 🟢 Online | Both nodes answered; guest identities and running/stopped states are unchanged |
+| 🐳 DMZ Docker | 🟢 Healthy | 18 observed containers are running and report healthy |
+| ☁️ Public tunnel | 🟢 Healthy | `cloudflared` remains up and healthy |
 | 🖧 Firewall | 🟢 Steady | 41 aliases, 29 rules, 6 reservations |
-| 📡 Network gear | 🟢 Connected | Main switch + both APs connected on VLAN 50, all static, no upgrade flagged |
-| 🗄️ PBS (core CT 240) | 🟢 Running | In `ops-managed` |
+| 📡 Network gear | 🟢 Connected | Main switch and both APs connected; 29 clients total |
+| 🗄️ PBS (core CT 240) | 🟢 Running | The guest is up; this is availability, not restore proof |
 | 💾 Backup proof | ⚪ Unverified | PBS credential absent and no root grant active |
-| 👁️ Inventory and generated docs | 🟢 Fresh | Collected and rendered this evening |
+| 👁️ Inventory and docs | 🟢 Fresh | Collected and rendered at about 18:06 PKT |
 
-## What changed against `origin/main`
+## What changed since `origin/main`
 
-- **SKY-018 P4 landed.** The Omada network-gear collector is live: `inventory/network-gear.json` +
-  `docs/generated/50-network-gear.md` now hold the switch/AP estate (1× ES210GMP, 2× EAP APs), the
-  last observed-truth hole in the eight-layer model. Its first run exposed estate drift, which Ali
-  reconciled at the source — devices are now static in Omada (switch `.50.3`, Ali's AP `.6`, Mom's AP
-  `.7`) and the `ROLE_INFRASTRUCTURE_*` aliases are trimmed to match. Reconciliation is all-green.
-- **`vm-skynet-ops` restarted** — expected, from the `nixos-rebuild switch` that materialized the new
-  `omada.env` secret. No other guest crossed a restart boundary.
-- Proxmox guest identities, pool membership, and running/stopped states are otherwise unchanged.
-- Docker reports the same container identities and images, all healthy.
-- Firewall structure is unchanged; the mirror now carries `HOST_OMADA` in `ROLE_OPS_API_TARGETS` and
-  `8043` in `PORT_OPS_API` (the P4 reachability change) — no semantic drift beyond that.
-- `scripts/envsync.sh` found no `project.env` for either tracked project, so no encrypted env changed.
+- No guest identity, power-state, Docker container identity, image, or health change was observed.
+- Omada still reports 29 clients overall. One client moved from Ali's AP to Mom's AP (5/5 now,
+  previously 6/4), while the switch remained at 19 clients. Reported free PoE capacity moved from
+  107.2 W to 108.2 W; this is normal point-in-time telemetry, not a configuration change.
+- DNS access/expiry timestamps, host uptime and resource counters advanced as expected. Proxmox's
+  JSON field ordering also changed, creating a large textual diff without a matching semantic change.
+- The firewall source remains the same mirror revision (`a610af0`); its structure is unchanged.
+- `scripts/envsync.sh` found no `project.env` on the host for either tracked project, so no encrypted
+  environment file changed.
 
-## Backup truth
+## Backup and grant truth
 
-Core CT 240 is running and the storage view reports `pbs-unraid` available from both nodes — those
-are availability signals, not recovery evidence. The PBS collector stayed idle because
-`/opt/skynet-ops/secrets/pbs.env` is absent, and no signed root certificate was present, so the grant
-audit and deeper restic inspection were skipped. Recent PBS snapshots and the L5 Google Drive mirror
-remain unverified by this run.
+Core CT 240 is running, but the PBS collector stayed idle because
+`/opt/skynet-ops/secrets/pbs.env` is absent. No local SSH certificate directory was present, so no
+root grant was active and the grant-audit harvest was skipped. Recent PBS snapshots, restic payloads,
+and the L5 Google Drive mirror were therefore not verified by this run.
 
 ## Human attention
 
-> [!warning] Worth checking, not silently fixing
-> - **OPNsense cleanup (T3):** trim `HOST_SKYNET_OPS` to `10.10.90.90` — it still carries a stale
->   `.90.91` from the pre-SKY-007 9091 ops VM. Optionally drop the `ap-omada-downstairs` reservation
->   now that the AP is static in Omada.
-> - **Backup proof:** verify recent PBS snapshots and the L5 Google Drive mirror through the
->   credentialed procedure when convenient — availability is green, recovery is unproven.
+> [!warning] Still open; not changed silently
+> - **Backup proof:** run the credentialed verification path when convenient. A running PBS guest is
+>   not evidence that recent snapshots restore correctly.
+> - **OPNsense cleanup (T3):** the previously recorded cleanup remains human-owned: trim the stale
+>   `10.10.90.91` member from `HOST_SKYNET_OPS`; optionally remove the old downstairs-AP reservation.
 
 ## Where the build stands
 
-**SKY-018 is at Phase 4 of 12** — the entity spine, the SQLite join cache, and now the network-gear
-collector are all in. P5 (Caddy route + certificate collectors, giving the `vhost` class its source)
-is next. SKY-005, SKY-006, and SKY-008 remain in flight. The autonomy boundary did not move: this
-pass collected read-only evidence, wrote repository artifacts, and proposed them for review. It made
-no guest, DNS, firewall, service, or credential change.
+SKY-018 remains at Phase 4 of 12, with Caddy route and certificate collection next. SKY-005,
+SKY-006, and SKY-008 also remain in flight. The autonomy boundary did not move: this pass performed
+read-only collection and wrote reviewable repository artifacts only. It made no guest, DNS,
+firewall, service, credential, or privileged-host change.
 
 ## Commentary
 
-A quiet night on the infrastructure, and a useful one on the reporting: the lab returned cleanly from
-its operator-VM rebuild, and the review turned up a real defect in how I remember — a resolved thread
-that kept resurrecting because the journal is append-only and nothing taught the digest that a guest
-had been destroyed. That's fixed and now gated by a test. Availability is green; backup proof is the
-one honest open question.
+The useful conclusion tonight is stability, not novelty. The live surfaces agree with the last
+snapshot closely enough that the remaining noise is explainable by clocks, counters, client roaming,
+and serializer order. The blind spot is equally plain: availability is well observed, but backup
+freshness and restoration are not proven without the missing credentialed evidence.
 
 — _skynet-ops_
 
