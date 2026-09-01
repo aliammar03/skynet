@@ -79,5 +79,5 @@ so running or resuming one is a single paste into a fresh session.
 | SKY-015 | Inventory renderer overhaul: proxy-aware service annotation, canonical host map, reverse-proxy route inventory | ideas | draft | — | 🔭 long |
 | SKY-016 | Harden the service-deployment workflow: verify reachability not just health, plus scaffolding helpers | ideas | draft | — | 🌱 short |
 | SKY-017 | The road to full agent control: verification, proving ground, and an evidence-earned ratchet | ideas | draft | — | 🔭 long |
-| SKY-018 | "Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain" | ideas | draft | — | 🔭 long |
+| SKY-018 | "Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain" | projects | in-progress | 1/12 | 🔭 long |
 <!-- ROADMAP:END -->

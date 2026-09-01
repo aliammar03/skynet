@@ -1,12 +1,12 @@
 ---
 id: SKY-018
 title: "Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain"
-status: draft
+status: in-progress
 horizon: long
 created: 2026-08-28
-updated: 2026-08-28
+updated: 2026-09-01
 phases: 12
-current_phase: 0
+current_phase: 1
 tier_touched: [T1, T2]   # Mostly T1 (derive, collect, render, check). P4 EXTENDS the T1 read surface
                          # to the UniFi/Omada controllers ⇒ docs/system-design.md §3 PR. P6/P11 touch
                          # existing T2 actuators without widening any dial — no new pool, no new tier.
@@ -205,7 +205,7 @@ The verdict per layer — improve in place, replace outright, or build from noth
 
 ---
 
-### Phase 1 — L0: the derivation and the audit  (~1–2h)   `[ ]` not started
+### Phase 1 — L0: the derivation and the audit  (~1–2h)   `[x]` done 2026-09-01
 The cheapest thing in the directive, and everything downstream keys on it.
 Steps:
 1. `scripts/entity.sh` — a sourceable helper covering **all five classes**, not just guests:
@@ -494,3 +494,11 @@ Follow AGENTS.md as above.
   (240, 525, 635, 751, 837, 1035) — so the parse matches against the declared VLAN set rather than by
   digit count, `10xx` is the one ambiguous prefix, and new guests use the canonical full form.
   CT 1035 confirmed stale/to-destroy, with the `10.10.100.35` front-door dependency flagged.
+- 2026-09-01 — **P1 done.** `scripts/entity.sh` (five classes, VMID⇄IP both forms, rc 0/1/2),
+  `lab.json` seeded with the docker host-label→VMID map, `bin/ops entities` → `scripts/audit-entities.sh`,
+  `tests/entity-test.sh` (28/28) wired into CI + pre-commit. First audit: guests **7 matched / 5 stale /
+  3 running-unmapped / 4 exception**, services **10 matched / 1 running-unmapped (`arcane-manager`)**.
+  Reconciled vs the §1 hand-count: the machine reports 101 + 999 as running-unmapped (it can't know
+  they're known leftovers); CT 526 is the one surprise hole (closes in P4). Two parser facts: VM 999
+  parses as valid legacy VLAN 90 (not off-convention), and CT 1035 is genuinely ambiguous (`10xx`),
+  resolved via the firewall fact set. Journal: `2026-09-01-session-sky-018-p1-first-entity-audit`.

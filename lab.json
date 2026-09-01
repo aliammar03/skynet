@@ -1,0 +1,14 @@
+{
+  "_comment": "lab.json — AUTHORED judgment facts about the lab that are NOT derivable from collected inventory and must not be baked into code (ADR 0003: authored data with a deterministic consumer lives in data, not in a bash `case`). Read by the entity helper and (from SKY-018 P2) the renderer. SKY-018 P1 seeds only the docker host-label -> guest map the `service --hosted_on--> guest` edge resolves through; P2 adds VLAN display names, the reverse-proxy front-door alias set, and per-entity role labels, and moves them out of render-docs.sh. Everything here is topology/display judgment; hard-law constraints live in invariants.json instead.",
+  "docker_hosts": {
+    "_comment": "Maps a docker inventory `host` label (inventory/docker-<label>.json) to the guest VMID it runs on, so `service --hosted_on--> guest` is a data lookup, not a `vm-`-prefix string-munge. A second docker host is a new row here, not a code change.",
+    "hosts": [
+      {
+        "label": "docker-dmz",
+        "vmid": 10015,
+        "guest": "vm-docker-dmz",
+        "why": "the DMZ docker host (VLAN 100, 10.10.100.15); every compose project in inventory/docker-docker-dmz.json is hosted_on this guest."
+      }
+    ]
+  }
+}

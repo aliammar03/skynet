@@ -30,3 +30,16 @@ jobs:
       # violation. Also runs in the pre-commit hook.
       - name: check-invariants
         run: ./scripts/check-invariants.sh
+
+  entity-derivation:
+    name: entity derivation (L0 identity)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # SKY-018 P1: the VMID->IP derivation and entity-ID grammar (scripts/entity.sh) have a checker,
+      # not just a writer. Unit-tests the convention against the known-good set. Deterministic, no
+      # network/secrets. (The `bin/ops entities` audit's running-unmapped exit is a report signal, not
+      # a PR gate yet — P2 promotes the "every running entity is mapped or excepted" law into
+      # check-invariants.sh once the stale/undeclared holes are triaged.)
+      - name: entity-test
+        run: bash tests/entity-test.sh

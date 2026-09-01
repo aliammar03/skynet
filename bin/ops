@@ -4,6 +4,7 @@
 #   bin/ops nightly            # run the report-only nightly maintenance pass
 #   bin/ops run "<prompt>"     # hand an ad-hoc task to the configured engine
 #   bin/ops collect            # refresh inventory (all collectors), no agent
+#   bin/ops entities           # L0 identity audit: derive every entity, flag running-unmapped holes
 # The engine is agent-agnostic by contract (AGENTS.md). Codex CLI is the default daily driver.
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -52,6 +53,7 @@ collect_all() {
 cmd="${1:-nightly}"; shift || true
 case "${cmd}" in
   collect) collect_all ;;
+  entities) exec ./scripts/audit-entities.sh ;;
   run)
     prompt="${1:?usage: bin/ops run \"<prompt>\"}"
     exec ${OPS_ENGINE_CMD} "${prompt}"
