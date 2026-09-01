@@ -1,0 +1,169 @@
+{
+  "collected": "2026-09-01T16:51:30+05:00",
+  "controller": {
+    "host": "10.10.50.25",
+    "version": "6.2.14.11",
+    "omadacId": "9e96c6c33a1791317b987eebf7f4a232"
+  },
+  "sites": [
+    {
+      "id": "6a5bb7893a146404bab949f0",
+      "name": "Omada Network Skynet"
+    }
+  ],
+  "devices": [
+    {
+      "entity_id": "net/main-switch",
+      "class": "net",
+      "site": "Omada Network Skynet",
+      "type": "switch",
+      "name": "Main Switch",
+      "model": "ES210GMP",
+      "mac": "98-03-8E-EC-56-DF",
+      "ip": "10.10.50.2",
+      "firmware": "1.0.6 Build 20260329 Rel.14489",
+      "needs_upgrade": false,
+      "status": 1,
+      "connected": true,
+      "uptime_s": 365220,
+      "clients": 17,
+      "poe": {
+        "support": true,
+        "remain_w": 108.1,
+        "total_w": 123.0
+      },
+      "ports": [
+        {
+          "port": 1,
+          "name": "OPNsense-Trunk",
+          "profile": "Infrastructure-Trunk",
+          "link": 1,
+          "speed": null,
+          "poe": 1,
+          "disabled": false
+        },
+        {
+          "port": 2,
+          "name": "Proxmox-Network-Trunk",
+          "profile": "Infrastructure-Trunk",
+          "link": 1,
+          "speed": null,
+          "poe": 1,
+          "disabled": false
+        },
+        {
+          "port": 3,
+          "name": "Proxmox-Core-Trunk",
+          "profile": "Infrastructure-Trunk",
+          "link": 1,
+          "speed": null,
+          "poe": 1,
+          "disabled": false
+        },
+        {
+          "port": 4,
+          "name": "Infrastructure-Spare",
+          "profile": "Infrastructure-Trunk",
+          "link": 0,
+          "speed": null,
+          "poe": 1,
+          "disabled": false
+        },
+        {
+          "port": 5,
+          "name": "Trusted-LAN-1",
+          "profile": "Trusted-Access",
+          "link": 1,
+          "speed": null,
+          "poe": 1,
+          "disabled": false
+        },
+        {
+          "port": 6,
+          "name": "Trusted-LAN-2",
+          "profile": "Default",
+          "link": 1,
+          "speed": null,
+          "poe": 1,
+          "disabled": false
+        },
+        {
+          "port": 7,
+          "name": "Downstairs-AP",
+          "profile": "AP-Trunk",
+          "link": 1,
+          "speed": null,
+          "poe": 1,
+          "disabled": false
+        },
+        {
+          "port": 8,
+          "name": "U6-AP",
+          "profile": "AP-Trunk",
+          "link": 1,
+          "speed": null,
+          "poe": 1,
+          "disabled": false
+        },
+        {
+          "port": 9,
+          "name": "Management-1",
+          "profile": "Management-Access",
+          "link": 0,
+          "speed": null,
+          "poe": 1,
+          "disabled": false
+        },
+        {
+          "port": 10,
+          "name": "Management-2",
+          "profile": "Management-Access",
+          "link": 0,
+          "speed": null,
+          "poe": 1,
+          "disabled": false
+        }
+      ]
+    },
+    {
+      "entity_id": "net/downstairs-ap",
+      "class": "net",
+      "site": "Omada Network Skynet",
+      "type": "ap",
+      "name": "Downstairs AP",
+      "model": "EAP683 UR",
+      "mac": "BC-07-1D-AC-06-3A",
+      "ip": "10.10.50.7",
+      "firmware": "1.4.1 Build 20260312 Rel. 28651",
+      "needs_upgrade": false,
+      "status": 1,
+      "connected": true,
+      "uptime_s": 365230,
+      "clients": 5,
+      "poe": {
+        "support": false
+      },
+      "ports": null
+    },
+    {
+      "entity_id": "net/ali-s-ap",
+      "class": "net",
+      "site": "Omada Network Skynet",
+      "type": "ap",
+      "name": "Ali's AP",
+      "model": "EAP772",
+      "mac": "A8-29-48-FB-27-D0",
+      "ip": "10.10.50.161",
+      "firmware": "1.3.14 Build 20260128 Rel. 21854",
+      "needs_upgrade": false,
+      "status": 1,
+      "connected": true,
+      "uptime_s": 365204,
+      "clients": 5,
+      "poe": {
+        "support": false
+      },
+      "ports": null
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 {
-  "collected": "2026-09-01T12:50:18.941742+05:00",
+  "collected": "2026-09-01T16:39:34.602781+05:00",
   "source": "/opt/skynet-ops/mirror/skynet-opnsense/config.xml",
   "counts": {
     "aliases": 41,
@@ -592,7 +592,7 @@
       "interface": "",
       "counters": "0",
       "updatefreq": "",
-      "content": "10.10.50.10\n10.10.50.11\n10.10.20.40\n10.10.70.50\n10.10.70.51\n10.10.100.15",
+      "content": "HOST_PBS\nROLE_DNS_RESOLVERS\nROLE_PROXMOX_NODES\nHOST_DOCKER_DMZ\nHOST_OMADA",
       "username": "",
       "authtype": "",
       "expire": "",
@@ -624,7 +624,7 @@
       "interface": "",
       "counters": "0",
       "updatefreq": "",
-      "content": "8006\n8007\n53443\n3552",
+      "content": "3552\n8006\n8007\n53443\n8043",
       "username": "",
       "authtype": "",
       "expire": "",
@@ -2133,7 +2133,7 @@
       "source_net": "HOST_SKYNET_OPS",
       "source_not": "0",
       "source_port": "",
-      "destination_net": "HOST_PBS,ROLE_OPS_API_TARGETS",
+      "destination_net": "ROLE_OPS_API_TARGETS",
       "destination_not": "0",
       "destination_port": "PORT_OPS_API",
       "divert-to": "",

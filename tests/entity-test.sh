@@ -105,6 +105,20 @@ fi
 # gate failure is exercised by check-invariants against inventory, not re-driven from this unit test).
 rc "classifier rejects 4242 (VLAN 42 undeclared) as off-convention" 1 vmid_to_ip 4242
 
+echo "== P4: network-gear collector (Omada, SKY-018 P4) =="
+# graceful degradation — a missing credential must exit 0, never error, like every collector
+( unset OMADA_HOST OMADA_USER OMADA_PASS OMADA_CACERT OMADA_PORT OMADA_SNI
+  OMADA_SECRET_FILE=/nonexistent/omada.env ./scripts/collect-network-gear.sh >/dev/null 2>&1 )
+eq "collect-network-gear degrades to exit 0 without creds" "$?" "0"
+if [ -s inventory/network-gear.json ]; then
+  eq "every net device carries a net/ entity id" \
+     "$(jq '[.devices[]?|select((.entity_id//"")|startswith("net/")|not)]|length' inventory/network-gear.json)" "0"
+  eq "controller version is recorded" \
+     "$(jq -r '.controller.version|type' inventory/network-gear.json)" "string"
+else
+  ok "inventory/network-gear.json absent — estate assertions skipped (collector idle)"
+fi
+
 echo "== P3: the SQLite join cache (skipped where sqlite3 isn't installed yet — pre nixos-rebuild) =="
 if command -v sqlite3 >/dev/null 2>&1; then
   if ./scripts/build-db.sh >/dev/null 2>&1; then
@@ -124,6 +138,12 @@ if command -v sqlite3 >/dev/null 2>&1; then
     eq "vhosts.sql flags *.aliammar.net as a front-door vhost" \
        "$(sqlite3 "${db}" -cmd '.mode tabs' ".read scripts/sql/vhosts.sql" | awk -F'\t' '$1=="*.aliammar.net"{print $3}')" \
        "caddy-apps"
+    # P4: the Omada estate loads into the cache, one netgear row per collected device
+    if [ -s inventory/network-gear.json ]; then
+      eq "netgear rows == devices collected" \
+         "$(q 'SELECT COUNT(*) FROM netgear;')" \
+         "$(jq '.devices|length' inventory/network-gear.json)"
+    fi
     rm -f "${db}"
   else
     bad "build-db.sh failed with sqlite3 present"
