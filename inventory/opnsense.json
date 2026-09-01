@@ -1,5 +1,5 @@
 {
-  "collected": "2026-09-01T23:51:23+05:00",
+  "collected": "2026-09-02T03:39:47+05:00",
   "source": "opnsense-api (live read-only)",
   "host": "10.10.90.1",
   "firmware": {
@@ -8,7 +8,7 @@
     "needs_upgrade": false
   },
   "counts": {
-    "arp": 44,
+    "arp": 41,
     "interfaces": 17,
     "live": 25,
     "silent": 1
@@ -23,7 +23,7 @@
       "manufacturer": "Proxmox Server Solutions GmbH",
       "permanent": false,
       "expired": false,
-      "expires": 1193
+      "expires": 1136
     },
     {
       "ip": "10.10.50.1",
@@ -45,7 +45,7 @@
       "manufacturer": "TP-Link Systems Inc.",
       "permanent": false,
       "expired": false,
-      "expires": 802
+      "expires": 902
     },
     {
       "ip": "10.10.50.7",
@@ -56,7 +56,7 @@
       "manufacturer": "TP-Link Systems Inc.",
       "permanent": false,
       "expired": false,
-      "expires": 956
+      "expires": 1054
     },
     {
       "ip": "10.10.50.10",
@@ -67,7 +67,7 @@
       "manufacturer": "GIGA-BYTE TECHNOLOGY CO.,LTD.",
       "permanent": false,
       "expired": false,
-      "expires": 268
+      "expires": 924
     },
     {
       "ip": "10.10.50.11",
@@ -78,7 +78,7 @@
       "manufacturer": "GIGA-BYTE TECHNOLOGY CO.,LTD.",
       "permanent": false,
       "expired": false,
-      "expires": 266
+      "expires": 919
     },
     {
       "ip": "192.168.1.1",
@@ -89,7 +89,7 @@
       "manufacturer": "zte corporation",
       "permanent": false,
       "expired": false,
-      "expires": 1193
+      "expires": 1169
     },
     {
       "ip": "192.168.1.2",
@@ -111,7 +111,7 @@
       "manufacturer": "HUAWEI TECHNOLOGIES CO.,LTD",
       "permanent": false,
       "expired": false,
-      "expires": 1169
+      "expires": 1154
     },
     {
       "ip": "192.168.0.29",
@@ -125,28 +125,6 @@
       "expires": -1
     },
     {
-      "ip": "10.10.10.169",
-      "mac": "7e:68:8b:a2:39:25",
-      "hostname": "",
-      "intf": "vlan01",
-      "intf_description": "10Trusted",
-      "manufacturer": "",
-      "permanent": false,
-      "expired": false,
-      "expires": 354
-    },
-    {
-      "ip": "10.10.10.142",
-      "mac": "e6:95:82:b7:64:22",
-      "hostname": "",
-      "intf": "vlan01",
-      "intf_description": "10Trusted",
-      "manufacturer": "",
-      "permanent": false,
-      "expired": false,
-      "expires": 674
-    },
-    {
       "ip": "10.10.10.108",
       "mac": "10:9f:41:b2:86:fa",
       "hostname": "",
@@ -155,7 +133,7 @@
       "manufacturer": "Apple, Inc.",
       "permanent": false,
       "expired": false,
-      "expires": 1105
+      "expires": 1164
     },
     {
       "ip": "10.10.10.109",
@@ -166,7 +144,7 @@
       "manufacturer": "Apple, Inc.",
       "permanent": false,
       "expired": false,
-      "expires": 1190
+      "expires": 1059
     },
     {
       "ip": "10.10.10.65",
@@ -177,7 +155,7 @@
       "manufacturer": "",
       "permanent": false,
       "expired": false,
-      "expires": 1190
+      "expires": 1193
     },
     {
       "ip": "10.10.10.1",
@@ -199,7 +177,7 @@
       "manufacturer": "Hui Zhou Gaoshengda Technology Co.,LTD",
       "permanent": false,
       "expired": false,
-      "expires": 1154
+      "expires": 984
     },
     {
       "ip": "10.10.10.60",
@@ -210,7 +188,7 @@
       "manufacturer": "",
       "permanent": false,
       "expired": false,
-      "expires": 1179
+      "expires": 1187
     },
     {
       "ip": "10.10.10.178",
@@ -221,7 +199,7 @@
       "manufacturer": "",
       "permanent": false,
       "expired": false,
-      "expires": 1192
+      "expires": 1032
     },
     {
       "ip": "10.10.10.50",
@@ -232,7 +210,7 @@
       "manufacturer": "ASRock Incorporation",
       "permanent": false,
       "expired": false,
-      "expires": 1189
+      "expires": 1075
     },
     {
       "ip": "10.10.20.20",
@@ -243,7 +221,7 @@
       "manufacturer": "Proxmox Server Solutions GmbH",
       "permanent": false,
       "expired": false,
-      "expires": 315
+      "expires": 977
     },
     {
       "ip": "10.10.20.1",
@@ -265,7 +243,7 @@
       "manufacturer": "Proxmox Server Solutions GmbH",
       "permanent": false,
       "expired": false,
-      "expires": 329
+      "expires": 1027
     },
     {
       "ip": "10.10.30.186",
@@ -276,7 +254,7 @@
       "manufacturer": "Shanghai High-Flying Electronics  Technology Co., Ltd",
       "permanent": false,
       "expired": false,
-      "expires": 935
+      "expires": 1060
     },
     {
       "ip": "10.10.30.155",
@@ -287,18 +265,7 @@
       "manufacturer": "Hui Zhou Gaoshengda Technology Co.,LTD",
       "permanent": false,
       "expired": false,
-      "expires": 1147
-    },
-    {
-      "ip": "10.10.30.182",
-      "mac": "7a:54:7f:95:05:bb",
-      "hostname": "",
-      "intf": "vlan03",
-      "intf_description": "30IoT",
-      "manufacturer": "",
-      "permanent": false,
-      "expired": false,
-      "expires": 1073
+      "expires": 1150
     },
     {
       "ip": "10.10.30.112",
@@ -309,7 +276,7 @@
       "manufacturer": "Hui Zhou Gaoshengda Technology Co.,LTD",
       "permanent": false,
       "expired": false,
-      "expires": 1123
+      "expires": 1136
     },
     {
       "ip": "10.10.30.102",
@@ -320,7 +287,18 @@
       "manufacturer": "Raspberry Pi (Trading) Ltd",
       "permanent": false,
       "expired": false,
-      "expires": 1125
+      "expires": 1047
+    },
+    {
+      "ip": "10.10.30.162",
+      "mac": "72:e4:00:ac:7d:15",
+      "hostname": "",
+      "intf": "vlan03",
+      "intf_description": "30IoT",
+      "manufacturer": "",
+      "permanent": false,
+      "expired": false,
+      "expires": 1165
     },
     {
       "ip": "10.10.30.1",
@@ -364,7 +342,7 @@
       "manufacturer": "Proxmox Server Solutions GmbH",
       "permanent": false,
       "expired": false,
-      "expires": 274
+      "expires": 924
     },
     {
       "ip": "10.10.70.1",
@@ -386,7 +364,7 @@
       "manufacturer": "Proxmox Server Solutions GmbH",
       "permanent": false,
       "expired": false,
-      "expires": 1128
+      "expires": 1199
     },
     {
       "ip": "10.10.70.51",
@@ -397,18 +375,7 @@
       "manufacturer": "Proxmox Server Solutions GmbH",
       "permanent": false,
       "expired": false,
-      "expires": 1194
-    },
-    {
-      "ip": "10.10.70.31",
-      "mac": "bc:24:11:22:06:6c",
-      "hostname": "",
-      "intf": "vlan07",
-      "intf_description": "70NetworkSVC",
-      "manufacturer": "Proxmox Server Solutions GmbH",
-      "permanent": false,
-      "expired": false,
-      "expires": 601
+      "expires": 1183
     },
     {
       "ip": "10.10.80.1",
@@ -430,7 +397,7 @@
       "manufacturer": "Proxmox Server Solutions GmbH",
       "permanent": false,
       "expired": false,
-      "expires": 585
+      "expires": 1063
     },
     {
       "ip": "10.10.90.90",
@@ -441,7 +408,7 @@
       "manufacturer": "Proxmox Server Solutions GmbH",
       "permanent": false,
       "expired": false,
-      "expires": 48
+      "expires": 262
     },
     {
       "ip": "10.10.90.1",
@@ -463,7 +430,7 @@
       "manufacturer": "",
       "permanent": false,
       "expired": false,
-      "expires": 1190
+      "expires": 1187
     },
     {
       "ip": "10.10.100.1",
@@ -485,7 +452,7 @@
       "manufacturer": "",
       "permanent": false,
       "expired": false,
-      "expires": 1161
+      "expires": 1094
     },
     {
       "ip": "10.10.100.15",
@@ -496,7 +463,7 @@
       "manufacturer": "Proxmox Server Solutions GmbH",
       "permanent": false,
       "expired": false,
-      "expires": 310
+      "expires": 1003
     }
   ],
   "interfaces": [
@@ -729,7 +696,7 @@
     {
       "ip": "10.10.70.31",
       "live": true,
-      "via": "arp"
+      "via": "icmp"
     },
     {
       "ip": "10.10.70.50",

@@ -38,24 +38,24 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 **Loose ends from recent episodes** (the journal's own open-thread bullets, verbatim):
 
+- Confirm the intended lifetime of `tofu-test.tdns.home.aliammar.net → 192.0.2.1` through the reviewed OpenTofu workflow. — _2026-09-02 session          # session | incident | decision_
+- Confirm whether missing `project.env` files for `aiometadata` and `aiostreams` are intentional. — _2026-09-02 session          # session | incident | decision_
+- PBS snapshot freshness, restic payloads, restore behavior, and the L5 Google Drive mirror remain unverified. — _2026-09-02 session          # session | incident | decision_
 - **P2 next:** move the VLAN display-name map + reverse-proxy front-door alias set out of `render-docs.sh` into `lab.json`; add `entity_conventions` (VMID->IP law + declared exceptions) to `invariants.json`; add the 4th law to `check-invariants.sh` (every running entity mapped or excepted). arcane-manager, 101, 526, 999 must each be triaged (destroy / bring-in / declare) before the law can go enforcing rather than report-only. — _2026-09-01 session          # session | incident | decision_
 - lab.json currently holds only `docker_hosts`; P2 owns the rest of its authored content. — _2026-09-01 session          # session | incident | decision_
 - vhost + net classes have no collector yet (P5 Caddy routes, P4 network gear). — _2026-09-01 session          # session | incident | decision_
 - Recent PBS snapshots and the L5 Google Drive mirror remain unverified by this run. — _2026-09-01 session          # session | incident | decision_
 - Confirm whether the observed firewall removals and role-member reductions were intentional. — _2026-09-01 session_
-- PBS snapshot freshness, restic payloads, restore behavior, and the L5 Google Drive mirror remain unverified because the PBS credential was absent and no root grant was active. — _2026-09-01 session_
-- PBS snapshot freshness, restic payloads, and the L5 Google Drive mirror were not verified because the PBS credential was absent and no root grant was active. — _2026-09-01 session          # session | incident | decision_
-- OPNsense T3 cleanup remains human-owned: remove stale `10.10.90.91` from `HOST_SKYNET_OPS` and optionally remove the old downstairs-AP reservation. — _2026-09-01 session          # session | incident | decision_
 
 ## 📓 Recent episodes
 
+- **2026-09-02** · session          # session | incident | decision · [[2026-09-02-session-nightly-2026-09-02|nightly 2026-09-02]]
 - **2026-09-01** · session          # session | incident | decision · [[2026-09-01-session-sky-018-p1-first-entity-audit|SKY-018 P1 first entity audit]]
 - **2026-09-01** · session          # session | incident | decision · [[2026-09-01-session-nightly-2026-09-01|nightly 2026-09-01]]
 - **2026-09-01** · session · [[2026-09-01-session-nightly-2026-09-01-2350|nightly 2026-09-01 2350]]
 - **2026-09-01** · session          # session | incident | decision · [[2026-09-01-session-nightly-2026-09-01-1805|nightly 2026-09-01 1805]]
 - **2026-09-01** · session · [[2026-09-01-session-nightly-2026-09-01-1735-rerun|nightly 2026-09-01 1735 rerun]]
 - **2026-09-01** · session          # session | incident | decision · [[2026-09-01-session-generated-docs-review-and-digest-stale-thread-fix|generated-docs review and digest stale-thread fix]]
-- **2026-09-01** · decision          # session | incident | decision · [[2026-09-01-decision-arcane-relocation-and-sky-018-audit-triage|arcane relocation and SKY-018 audit triage]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._

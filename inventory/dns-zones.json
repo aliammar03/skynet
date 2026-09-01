@@ -1,17 +1,17 @@
 {
-  "collected": "2026-09-01T23:51:20+05:00",
+  "collected": "2026-09-02T03:39:44+05:00",
   "zones": [
     {
       "name": "",
       "type": "Secondary",
-      "lastModified": "2026-09-01T17:57:28.5516049Z",
+      "lastModified": "2026-09-01T21:27:30.9609968Z",
       "disabled": false,
-      "soaSerial": 2026090101,
+      "soaSerial": 2026090102,
       "catalog": null,
       "dnssecStatus": "SignedWithNSEC",
       "hasDnssecPrivateKeys": false,
       "validationFailed": false,
-      "expiry": "2026-09-08T17:46:36.7059238Z",
+      "expiry": "2026-09-08T21:54:31.2093808Z",
       "isExpired": false,
       "syncFailed": false,
       "notifyFailed": false,
@@ -39,9 +39,9 @@
     {
       "name": "tdns.home.aliammar.net",
       "type": "Primary",
-      "lastModified": "2026-09-01T11:42:53.4235023Z",
+      "lastModified": "2026-09-01T19:25:05.1947064Z",
       "disabled": false,
-      "soaSerial": 287,
+      "soaSerial": 291,
       "catalog": "cluster-catalog.tdns.home.aliammar.net",
       "dnssecStatus": "SignedWithNSEC",
       "hasDnssecPrivateKeys": true,
@@ -97,7 +97,7 @@
             "proxyType": "DefaultProxy"
           },
           "dnssecStatus": "Unknown",
-          "lastUsedOn": "2026-09-01T18:50:38.4756773Z",
+          "lastUsedOn": "2026-09-01T22:38:38.1032773Z",
           "lastModified": "2026-08-12T17:58:15.378Z",
           "expiryTtl": 0,
           "expiryTtlString": "0s"
@@ -112,7 +112,7 @@
             "ipAddress": "10.10.100.35"
           },
           "dnssecStatus": "Unknown",
-          "lastUsedOn": "2026-09-01T12:28:47.8279821Z",
+          "lastUsedOn": "2026-09-01T21:37:37.9692863Z",
           "lastModified": "2026-08-12T17:59:03.595Z",
           "expiryTtl": 0,
           "expiryTtlString": "0s"
@@ -157,7 +157,7 @@
             "ipAddress": "10.10.60.35"
           },
           "dnssecStatus": "Unknown",
-          "lastUsedOn": "2026-09-01T12:53:14.0579814Z",
+          "lastUsedOn": "2026-09-01T21:37:59.9522646Z",
           "lastModified": "0001-01-01T00:00:00Z",
           "expiryTtl": 0,
           "expiryTtlString": "0s"
@@ -202,7 +202,7 @@
             "ipAddress": "10.10.60.35"
           },
           "dnssecStatus": "Unknown",
-          "lastUsedOn": "2026-09-01T18:38:38.4952108Z",
+          "lastUsedOn": "2026-09-01T22:38:38.1036028Z",
           "lastModified": "0001-01-01T00:00:00Z",
           "expiryTtl": 0,
           "expiryTtlString": "0s"
@@ -217,7 +217,7 @@
             "ipAddress": "10.10.60.35"
           },
           "dnssecStatus": "Unknown",
-          "lastUsedOn": "2026-09-01T18:38:37.490517Z",
+          "lastUsedOn": "2026-09-01T22:38:37.1065914Z",
           "lastModified": "0001-01-01T00:00:00Z",
           "expiryTtl": 0,
           "expiryTtlString": "0s"
@@ -247,7 +247,7 @@
             "ipAddress": "10.10.60.35"
           },
           "dnssecStatus": "Unknown",
-          "lastUsedOn": "2026-09-01T16:28:07.8818347Z",
+          "lastUsedOn": "2026-09-01T20:16:58.3843659Z",
           "lastModified": "2026-08-12T19:06:53.757Z",
           "expiryTtl": 0,
           "expiryTtlString": "0s"
@@ -520,7 +520,7 @@
           "rData": {
             "primaryNameServer": "tdns-network.tdns.home.aliammar.net",
             "responsiblePerson": "hostadmin@tdns.home.aliammar.net",
-            "serial": 287,
+            "serial": 291,
             "refresh": 900,
             "retry": 300,
             "expire": 604800,
@@ -532,7 +532,7 @@
             "useSerialDateScheme": false
           },
           "dnssecStatus": "Unknown",
-          "lastUsedOn": "2026-09-01T18:43:03.4722712Z",
+          "lastUsedOn": "2026-09-01T22:25:15.2230368Z",
           "lastModified": "2026-08-28T06:26:36.2004756Z",
           "expiryTtl": 0,
           "expiryTtlString": "0s"
@@ -573,11 +573,11 @@
             "algorithmNumber": 13,
             "labels": 4,
             "originalTtl": 900,
-            "signatureExpiration": "2026-09-15T11:42:53Z",
-            "signatureInception": "2026-09-01T10:42:53Z",
+            "signatureExpiration": "2026-09-15T19:25:05Z",
+            "signatureInception": "2026-09-01T18:25:05Z",
             "keyTag": 62160,
             "signersName": "tdns.home.aliammar.net",
-            "signature": "BmWliapo0ifLa/K0t8H0v2HA9j6QvErt0V6WDDMDmlsF9vOjwwrM7tv7x9SfS3L06JS2xB1pJNSj8htNHAbkwA=="
+            "signature": "re6XXo9DuZ0oRN8vbUFsxqgjmtE2fHPs2MpRkt+Lj6A5AeG/yGYVplsvZ1xlLrHGzXF3okezkpYdSMaVYVQTVw=="
           },
           "dnssecStatus": "Unknown",
           "lastUsedOn": "0001-01-01T00:00:00",
@@ -662,6 +662,27 @@
           "ttlString": "1h",
           "disabled": false,
           "rData": {
+            "flags": "ZoneKey",
+            "protocol": 3,
+            "algorithm": "ECDSAP256SHA256",
+            "algorithmNumber": 13,
+            "publicKey": "UfRLcSq+ANAGuRqhNQ6b5QZwYAJHAeYdGSlU99R5pk/sI5dXxpu0sBHi86FOaRUUbecT2CMlaQ1uNY46qVqbgA==",
+            "computedKeyTag": 62160,
+            "dnsKeyState": "Active"
+          },
+          "dnssecStatus": "Secure",
+          "lastUsedOn": "2026-09-01T16:28:12.6629227Z",
+          "lastModified": "0001-01-01T00:00:00Z",
+          "expiryTtl": 0,
+          "expiryTtlString": "0s"
+        },
+        {
+          "name": "tdns.home.aliammar.net",
+          "type": "DNSKEY",
+          "ttl": 3600,
+          "ttlString": "1h",
+          "disabled": false,
+          "rData": {
             "flags": "SecureEntryPoint, ZoneKey",
             "protocol": 3,
             "algorithm": "ECDSAP256SHA256",
@@ -687,27 +708,6 @@
           "expiryTtlString": "0s"
         },
         {
-          "name": "tdns.home.aliammar.net",
-          "type": "DNSKEY",
-          "ttl": 3600,
-          "ttlString": "1h",
-          "disabled": false,
-          "rData": {
-            "flags": "ZoneKey",
-            "protocol": 3,
-            "algorithm": "ECDSAP256SHA256",
-            "algorithmNumber": 13,
-            "publicKey": "UfRLcSq+ANAGuRqhNQ6b5QZwYAJHAeYdGSlU99R5pk/sI5dXxpu0sBHi86FOaRUUbecT2CMlaQ1uNY46qVqbgA==",
-            "computedKeyTag": 62160,
-            "dnsKeyState": "Active"
-          },
-          "dnssecStatus": "Secure",
-          "lastUsedOn": "2026-09-01T16:28:12.6629227Z",
-          "lastModified": "0001-01-01T00:00:00Z",
-          "expiryTtl": 0,
-          "expiryTtlString": "0s"
-        },
-        {
           "name": "tdns-core.tdns.home.aliammar.net",
           "type": "A",
           "ttl": 3600,
@@ -718,7 +718,7 @@
             "ipAddress": "10.10.70.51"
           },
           "dnssecStatus": "Unknown",
-          "lastUsedOn": "2026-09-01T11:43:03.4267212Z",
+          "lastUsedOn": "2026-09-01T19:25:15.1982423Z",
           "lastModified": "2026-08-12T19:21:21.335Z",
           "expiryTtl": 0,
           "expiryTtlString": "0s"
@@ -974,11 +974,11 @@
             "algorithmNumber": 13,
             "labels": 7,
             "originalTtl": 900,
-            "signatureExpiration": "2026-09-11T06:26:36Z",
-            "signatureInception": "2026-08-28T05:26:36Z",
+            "signatureExpiration": "2026-09-15T19:25:05Z",
+            "signatureInception": "2026-09-01T18:25:05Z",
             "keyTag": 62160,
             "signersName": "tdns.home.aliammar.net",
-            "signature": "VHtstPvRWzh2uOKkMEjqjT9x1DKy+kmn8f/svRu8uRC1wiHmL09HM+FVIr1UreFoUH4bqGk7l/0PZ/6W0JK04A=="
+            "signature": "QTG0qGx7J9qJXjY+9U6+QrI5N1oUL4y4YV24To1INBcKIaAONidx0oPLPYke7cLAF2vf7LMAL8bKhg2IotDrWA=="
           },
           "dnssecStatus": "Unknown",
           "lastUsedOn": "0001-01-01T00:00:00",
@@ -1017,7 +1017,7 @@
           "ttlString": "15m",
           "disabled": false,
           "rData": {
-            "nextDomainName": "tdns.home.aliammar.net",
+            "nextDomainName": "tofu-test.tdns.home.aliammar.net",
             "types": [
               "RRSIG",
               "NSEC",
@@ -1046,6 +1046,90 @@
           "dnssecStatus": "Unknown",
           "lastUsedOn": "0001-01-01T00:00:00",
           "lastModified": "2026-08-28T06:26:36.2062955Z",
+          "expiryTtl": 0,
+          "expiryTtlString": "0s"
+        },
+        {
+          "name": "tofu-test.tdns.home.aliammar.net",
+          "type": "A",
+          "ttl": 3600,
+          "ttlString": "1h",
+          "disabled": false,
+          "comments": "Managed by terraform",
+          "rData": {
+            "ipAddress": "192.0.2.1"
+          },
+          "dnssecStatus": "Unknown",
+          "lastUsedOn": "0001-01-01T00:00:00",
+          "lastModified": "2026-09-01T19:25:05.1933393Z",
+          "expiryTtl": 0,
+          "expiryTtlString": "0s"
+        },
+        {
+          "name": "tofu-test.tdns.home.aliammar.net",
+          "type": "RRSIG",
+          "ttl": 900,
+          "ttlString": "15m",
+          "disabled": false,
+          "rData": {
+            "typeCovered": "NSEC",
+            "algorithm": "ECDSAP256SHA256",
+            "algorithmNumber": 13,
+            "labels": 5,
+            "originalTtl": 900,
+            "signatureExpiration": "2026-09-15T19:25:05Z",
+            "signatureInception": "2026-09-01T18:25:05Z",
+            "keyTag": 62160,
+            "signersName": "tdns.home.aliammar.net",
+            "signature": "/g8+dTHDccd00fleihRqiyXpkLQFmMa0FzP84OKay1vbyFer1h6PePMDgWBa985eBaK+lrkEP9sBVEFNq+lxJA=="
+          },
+          "dnssecStatus": "Unknown",
+          "lastUsedOn": "0001-01-01T00:00:00",
+          "lastModified": "0001-01-01T00:00:00",
+          "expiryTtl": 0,
+          "expiryTtlString": "0s"
+        },
+        {
+          "name": "tofu-test.tdns.home.aliammar.net",
+          "type": "RRSIG",
+          "ttl": 3600,
+          "ttlString": "1h",
+          "disabled": false,
+          "rData": {
+            "typeCovered": "A",
+            "algorithm": "ECDSAP256SHA256",
+            "algorithmNumber": 13,
+            "labels": 5,
+            "originalTtl": 3600,
+            "signatureExpiration": "2026-09-15T19:25:05Z",
+            "signatureInception": "2026-09-01T18:25:05Z",
+            "keyTag": 62160,
+            "signersName": "tdns.home.aliammar.net",
+            "signature": "d6t4EmxTvmHCZ6U9NOXkwOSHzYMUwRfCdsiJBxWhKUYbH2+r3JfvlZAcuGmrE8o+00KrT/wC3F2X6CVdOnYPrg=="
+          },
+          "dnssecStatus": "Unknown",
+          "lastUsedOn": "0001-01-01T00:00:00",
+          "lastModified": "0001-01-01T00:00:00",
+          "expiryTtl": 0,
+          "expiryTtlString": "0s"
+        },
+        {
+          "name": "tofu-test.tdns.home.aliammar.net",
+          "type": "NSEC",
+          "ttl": 900,
+          "ttlString": "15m",
+          "disabled": false,
+          "rData": {
+            "nextDomainName": "tdns.home.aliammar.net",
+            "types": [
+              "A",
+              "RRSIG",
+              "NSEC"
+            ]
+          },
+          "dnssecStatus": "Unknown",
+          "lastUsedOn": "0001-01-01T00:00:00",
+          "lastModified": "0001-01-01T00:00:00",
           "expiryTtl": 0,
           "expiryTtlString": "0s"
         }

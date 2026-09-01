@@ -1,5 +1,5 @@
 {
-  "collected": "2026-09-01T23:51:23+05:00",
+  "collected": "2026-09-02T03:39:47+05:00",
   "controller": {
     "host": "10.10.50.25",
     "version": "6.2.14.11",
@@ -25,11 +25,11 @@
       "needs_upgrade": false,
       "status": 1,
       "connected": true,
-      "uptime_s": 390323,
-      "clients": 19,
+      "uptime_s": 404057,
+      "clients": 20,
       "poe": {
         "support": true,
-        "remain_w": 108.0,
+        "remain_w": 108.2,
         "total_w": 123.0
       },
       "ports": [
@@ -138,7 +138,7 @@
       "needs_upgrade": false,
       "status": 1,
       "connected": true,
-      "uptime_s": 390396,
+      "uptime_s": 404123,
       "clients": 5,
       "poe": {
         "support": false
@@ -158,8 +158,8 @@
       "needs_upgrade": false,
       "status": 1,
       "connected": true,
-      "uptime_s": 390406,
-      "clients": 6,
+      "uptime_s": 404122,
+      "clients": 5,
       "poe": {
         "support": false
       },
