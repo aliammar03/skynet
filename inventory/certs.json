@@ -1,0 +1,110 @@
+{
+  "collected": "2026-09-01T23:46:21+05:00",
+  "source": "tls probe (openssl s_client)",
+  "counts": {
+    "probed": 7,
+    "reachable": 7
+  },
+  "certs": [
+    {
+      "label": "opnsense",
+      "endpoint": "10.10.90.1:443",
+      "reachable": true,
+      "issuer": "CN=OPNsense.internal, C=NL, ST=Zuid-Holland, L=Middelharnis, O=OPNsense self-signed web certificate",
+      "subject": "CN=OPNsense.internal, C=NL, ST=Zuid-Holland, L=Middelharnis, O=OPNsense self-signed web certificate",
+      "sans": [
+        "OPNsense.internal"
+      ],
+      "not_after": "Aug 16 17:36:51 2027 GMT",
+      "days_left": 348
+    },
+    {
+      "label": "omada",
+      "endpoint": "10.10.50.25:8043",
+      "reachable": true,
+      "issuer": "CN=localhost, O=TP-Link, OU=TP-Link",
+      "subject": "CN=localhost, O=TP-Link, OU=TP-Link",
+      "sans": [
+        "Omada"
+      ],
+      "not_after": "Oct 20 17:21:58 2028 GMT",
+      "days_left": 779
+    },
+    {
+      "label": "proxmox-core",
+      "endpoint": "10.10.50.11:8006",
+      "reachable": true,
+      "issuer": "CN=Proxmox Virtual Environment, OU=5a6dce40-9eac-4dda-a89c-dc6115dae590, O=PVE Cluster Manager CA",
+      "subject": "OU=PVE Cluster Node, O=Proxmox Virtual Environment, CN=server-proxmox-core.home.aliammar.net",
+      "sans": [
+        "127.0.0.1",
+        "0:0:0:0:0:0:0:1",
+        "localhost",
+        "10.10.50.11",
+        "server-proxmox-core",
+        "server-proxmox-core.home.aliammar.net"
+      ],
+      "not_after": "Jul 14 15:20:10 2028 GMT",
+      "days_left": 681
+    },
+    {
+      "label": "proxmox-network",
+      "endpoint": "10.10.50.10:8006",
+      "reachable": true,
+      "issuer": "CN=Proxmox Virtual Environment, OU=24dedbbb-a501-408b-be15-4280c98f2534, O=PVE Cluster Manager CA",
+      "subject": "OU=PVE Cluster Node, O=Proxmox Virtual Environment, CN=server-proxmox-network.home.aliammar.net",
+      "sans": [
+        "127.0.0.1",
+        "0:0:0:0:0:0:0:1",
+        "localhost",
+        "10.10.50.10",
+        "server-proxmox-network",
+        "server-proxmox-network.home.aliammar.net"
+      ],
+      "not_after": "Jul 14 15:18:26 2028 GMT",
+      "days_left": 681
+    },
+    {
+      "label": "pbs",
+      "endpoint": "10.10.20.40:8007",
+      "reachable": true,
+      "issuer": "O=Proxmox Backup Server, OU=4F572070-58E8-49AD-B01B-96E7AB17782D, CN=lxc-proxmox-backup-server.home.aliammar.net",
+      "subject": "O=Proxmox Backup Server, OU=4F572070-58E8-49AD-B01B-96E7AB17782D, CN=lxc-proxmox-backup-server.home.aliammar.net",
+      "sans": [
+        "127.0.0.1",
+        "0:0:0:0:0:0:0:1",
+        "localhost",
+        "lxc-proxmox-backup-server",
+        "lxc-proxmox-backup-server.home.aliammar.net"
+      ],
+      "not_after": "Nov 22 22:05:10 3025 GMT",
+      "days_left": 364959
+    },
+    {
+      "label": "technitium-core",
+      "endpoint": "10.10.70.51:53443",
+      "reachable": true,
+      "issuer": "CN=tdns-core.tdns.home.aliammar.net",
+      "subject": "CN=tdns-core.tdns.home.aliammar.net",
+      "sans": [
+        "tdns-core.tdns.home.aliammar.net",
+        "10.10.70.51"
+      ],
+      "not_after": "Aug 11 18:56:02 2031 GMT",
+      "days_left": 1805
+    },
+    {
+      "label": "technitium-network",
+      "endpoint": "10.10.70.50:53443",
+      "reachable": true,
+      "issuer": "CN=tdns-network.tdns.home.aliammar.net",
+      "subject": "CN=tdns-network.tdns.home.aliammar.net",
+      "sans": [
+        "tdns-network.tdns.home.aliammar.net",
+        "10.10.70.50"
+      ],
+      "not_after": "Aug 11 18:59:09 2031 GMT",
+      "days_left": 1805
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "collected": "2026-09-01T23:44:59+05:00",
+  "source": "caddyfile static parse (compose/)",
+  "counts": {
+    "routes": 9
+  },
+  "routes": [
+    {
+      "vhost": "karakeep.aliammar.net",
+      "front_door": "svc/caddy-apps",
+      "front_door_alias": "HOST_PROXY_APPS",
+      "backend": "10.10.100.75:3000",
+      "backend_entity": "svc/karakeep",
+      "auth": "own-auth/plain"
+    },
+    {
+      "vhost": "aiostreams.aliammar.net",
+      "front_door": "svc/caddy-apps",
+      "front_door_alias": "HOST_PROXY_APPS",
+      "backend": "10.10.100.65:3000",
+      "backend_entity": "svc/aiostreams",
+      "auth": "own-auth/plain"
+    },
+    {
+      "vhost": "aiometadata.aliammar.net",
+      "front_door": "svc/caddy-apps",
+      "front_door_alias": "HOST_PROXY_APPS",
+      "backend": "10.10.100.66:3232",
+      "backend_entity": "svc/aiometadata",
+      "auth": "own-auth/plain"
+    },
+    {
+      "vhost": "marinara.aliammar.net",
+      "front_door": "svc/caddy-apps",
+      "front_door_alias": "HOST_PROXY_APPS",
+      "backend": "10.10.100.85:7860",
+      "backend_entity": "svc/marinara",
+      "auth": "own-auth/plain"
+    },
+    {
+      "vhost": "obsidian.aliammar.net",
+      "front_door": "svc/caddy-apps",
+      "front_door_alias": "HOST_PROXY_APPS",
+      "backend": "10.10.100.95:5984",
+      "backend_entity": "svc/obsidian-livesync",
+      "auth": "own-auth/plain"
+    },
+    {
+      "vhost": "calibre.aliammar.net",
+      "front_door": "svc/caddy-apps",
+      "front_door_alias": "HOST_PROXY_APPS",
+      "backend": "10.10.100.53:8080",
+      "backend_entity": "svc/calibre",
+      "auth": "forward_auth (authentik)"
+    },
+    {
+      "vhost": "sillytavern.aliammar.net",
+      "front_door": "svc/caddy-apps",
+      "front_door_alias": "HOST_PROXY_APPS",
+      "backend": "10.10.100.69:8000",
+      "backend_entity": "svc/silly",
+      "auth": "own-auth/plain"
+    },
+    {
+      "vhost": "speed.aliammar.net",
+      "front_door": "svc/caddy-apps",
+      "front_door_alias": "HOST_PROXY_APPS",
+      "backend": "10.10.100.72:8080",
+      "backend_entity": "svc/librespeed",
+      "auth": "own-auth/plain"
+    },
+    {
+      "vhost": "auth.aliammar.net",
+      "front_door": "svc/caddy-apps",
+      "front_door_alias": "HOST_PROXY_APPS",
+      "backend": "10.10.80.37:9000",
+      "backend_entity": "guest/authentik-identity-837",
+      "auth": "identity (authentik)"
+    }
+  ]
+}

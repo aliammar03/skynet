@@ -196,6 +196,28 @@ done
     ${SQLITE3} "${db}" -cmd ".mode tabs" ".read ${REPO_DIR}/scripts/sql/vhosts.sql" 2>/dev/null \
       | awk -F'\t' '{printf "| %s | `%s` ⚠ | %s |\n", $1, $2, $3}'
   fi
+  # Route resolution chain (SKY-018 P5): vanity name → front door → REAL backend entity → auth mode,
+  # from the Caddyfile parse. Answers "where does this actually go" with no manual Caddyfile reading.
+  if has "${inv}/routes.json"; then
+    echo
+    echo "## Route resolution — vanity → front door → backend"
+    echo
+    echo "| Vhost | Front door | Backend | Entity | Auth |"
+    echo "|-------|-----------|---------|--------|------|"
+    j '.routes[]? | [ .vhost, .front_door, .backend, .backend_entity, .auth ] | @tsv' "${inv}/routes.json" \
+      | awk -F'\t' '{printf "| %s | `%s` | `%s` | `%s` | %s |\n", $1,$2,$3,$4,$5}'
+  fi
+  # Certificate expiry (SKY-018 P5), soonest first — so an approaching expiry is visible at a glance.
+  if has "${inv}/certs.json"; then
+    echo
+    echo "## Certificate expiry (soonest first)"
+    echo
+    echo "| Endpoint | Days left | Expires | Issuer |"
+    echo "|----------|----------:|---------|--------|"
+    j '.certs | sort_by(.days_left) | .[] | if .reachable
+        then [ .label, (.days_left|tostring), .not_after, .issuer ] else [ .label, "—", "unreachable", "" ] end | @tsv' "${inv}/certs.json" \
+      | awk -F'\t' '{printf "| %s | %s | %s | %s |\n", $1,$2,$3,$4}'
+  fi
   foot
 } > "${gen}/30-services/README.md"
 
