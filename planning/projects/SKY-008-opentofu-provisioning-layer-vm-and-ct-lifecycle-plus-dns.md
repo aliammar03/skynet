@@ -4,9 +4,9 @@ title: OpenTofu provisioning layer: VM and CT lifecycle plus DNS
 status: active
 horizon: long
 created: 2026-08-17
-updated: 2026-08-27
+updated: 2026-09-02
 phases: 3
-current_phase: 2
+current_phase: 3
 tier_touched: [T2, T2+]   # a new scoped provisioning token + creating/destroying guests moves the
                           # blast-radius dial ⇒ MUST PR docs/system-design.md.
 related:
@@ -92,7 +92,15 @@ lifecycle. **⚠ `destroy` checkpoint.** Exit: create/destroy round-trips cleanl
 Landed as a **permanent base template** `ubuntu-2404-base` (9000) + a throwaway clone (10099) proving
 clone→boot→destroy. New follow-up: extend tofu to the **network node** (standalone — own `svc-tofu`).
 
-### Phase 3 — DNS records + declarative LXC import  (~1–2h)   `[ ]` not started
+### Phase 3 — DNS records + declarative LXC import  (~1–2h)   `[~]` split: LXC done, DNS blocked
+**LXC import — DONE (2026-09-02):** CT 240 imports zero-drift (see status log + [[SKY-008-progress]]).
+**DNS — deferred (blocked on a provider release):** the chosen `kevynb/technitium` provider's only
+release (v0.4.0) cannot *read back* a DNSSEC-signed zone (crashes on the numeric `DNSKEY.protocol`);
+the fix is merged to `main` (commit `b2f6b89c`, 2026-08-20) but unreleased, and our only writable
+primary zone is signed. `add` works (path proven end-to-end), so DNS finishes by re-pinning kevynb
+once a release ships. Second blocker found: the scoped token can *add/modify* records but **not
+delete** them — the future DNS phase needs record-delete added for `tofu destroy` to work.
+
 Two remaining declarative surfaces, deferred out of P2:
 - **DNS (Technitium):** pin/vendor a Technitium provider (or restapi fallback) against a zone-scoped
   token; declare a test record. A DNS record is tofu-managed within T2 zones only.
@@ -149,3 +157,11 @@ Follow AGENTS.md as above.
   destroy/stop), sops secret `tofu-proxmox-network.env` + combined CA bundle in `tofu-env.sh`. Proved
   lifecycle by cloning the disused cloudflared LXC 1033 → 1099, destroyed both. LXC-clone gotcha: stop
   the source first. [[journal 2026-08-27 SKY-008 network node]]. Next: P3 DNS.
+- 2026-09-02 — **P3 split.** **LXC import DONE:** CT 240 imported as `proxmox_virtual_environment_container.pbs`
+  (`tofu/lxc-pbs.tf`), zero-drift `plan` after pinning the fields bpg can't round-trip on import
+  (`ignore_changes`: operating_system/template_file_id, description, initialization, pool_id, vm_id,
+  timeout_*) and matching the read-back `console` block. This is the import technique SKY-018 P11 +
+  SKY-020 reuse. **DNS deferred:** `kevynb/technitium` v0.4.0 can't refresh a DNSSEC-signed zone
+  (numeric `DNSKEY.protocol`; fix on `main` @ `b2f6b89c`, unreleased). `add` proven (record created +
+  verified live, then removed); token also lacks record-delete. Full DNS recipe + gotchas in
+  [[SKY-008-progress]] for a clean resume when kevynb releases. LXC landed via PR (agent never self-merges).
