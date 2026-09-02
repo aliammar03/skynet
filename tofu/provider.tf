@@ -25,3 +25,9 @@ provider "technitium" {
   url   = var.technitium_url
   token = var.technitium_api_token
 }
+
+# Cloudflare public DNS (SKY-014) — T2, scoped Zone:DNS:Edit token for aliammar.net records only.
+# The API is reached over IPv4 (the ops VM has no IPv6 egress; the Go client's happy-eyeballs picks v4).
+provider "cloudflare" {
+  api_token = var.cloudflare_api_token
+}
