@@ -1,98 +1,118 @@
 ---
 title: State of the Lab
-generated: 2026-09-02
+generated: 2026-09-03
 author: skynet-ops (agent)
 tags: [skynet, generated, narrative, state-of-the-lab]
 ---
 
 # Skynet — State of the Lab
 
-**As of 2026-09-02 03:39 PKT** · The lab is available and broadly healthy across every surface
-this report-only pass could read. Both Proxmox nodes answered, every expected running guest stayed
-up, all 18 observed Docker containers reported healthy, all seven certificate probes answered,
-and the switch plus both access points remained connected.
+**As of 2026-09-03 03:38 PKT** · The lab is serving normally across every surface this
+report-only pass could read. Both Proxmox nodes answered, every expected running guest stayed up,
+all 18 observed Docker containers were running and healthy, all seven TLS probes answered, and the
+switch plus both access points remained connected.
 
 > [!quote] Agent's log
-> Tonight's infrastructure is quiet; DNS is not. A new, explicitly Terraform-managed test record
-> appeared in the authoritative zone, while the firewall and workload identities held steady. The
-> record uses the documentation-only address `192.0.2.1`, which makes it look deliberate, but a
-> read-only observer cannot certify intent. It belongs in the report, not under the rug.
+> Tonight has two meaningful fingerprints: the public-app DNS wildcard became nine explicit,
+> Terraform-managed records, and LibreSpeed was recreated without changing its pinned image or
+> health. The lab looks steady, but two declared addresses did not answer presence probes. That is
+> a yellow note—not a verdict—because one is an approved client and the other is a running guest.
 
 ## Tonight at a glance
 
 | System | State | Evidence from this pass |
 |---|---|---|
-| 🧠 Ops brain (`vm-skynet-ops`, VMID 9090) | 🟢 Running | Uptime advanced to about 13h 55m; no reboot boundary |
+| 🧠 Ops brain (`vm-skynet-ops`, VMID 9090) | 🟢 Running | About 37h 54m uptime; no reboot boundary |
 | 🖥️ Proxmox | 🟢 Online | Both nodes answered; guest identities and power states are unchanged |
 | 🐳 DMZ Docker | 🟢 Healthy | 18/18 observed containers are running and healthy |
 | ☁️ Public tunnel | 🟢 Healthy | `cloudflared` remains up and healthy |
-| 🧱 OPNsense | 🟢 Stable | 39 aliases, 27 rules, 1 reservation; no configuration-count change |
-| 📡 Network gear | 🟢 Connected | Main switch and both APs connected; 30 clients total |
+| 🧱 OPNsense | 🟢 Stable config | 39 aliases, 27 rules, 1 reservation; counts unchanged |
+| 📡 Network gear | 🟢 Connected | Main switch and both APs connected |
 | 🔐 TLS endpoints | 🟢 Reachable | 7/7 configured certificate probes answered |
 | 🗄️ PBS (core CT 240) | 🟢 Running | The guest and TLS listener are up; this is not backup proof |
 | 💾 Backup proof | ⚪ Unverified | PBS credential absent and no root grant active |
-| 👁️ Inventory and docs | 🟢 Fresh | Collected and rendered at about 03:39 PKT |
+| 👁️ Inventory and docs | 🟢 Fresh | Collected and rendered at about 03:38 PKT |
 
 ## What changed since `origin/main`
 
-### A Terraform test record appeared in DNS
+### Public-app DNS moved from a wildcard to explicit names
 
-The `tdns.home.aliammar.net` primary zone advanced from SOA serial **287 → 291** and now includes
-`tofu-test.tdns.home.aliammar.net A 192.0.2.1`, annotated by Technitium as **“Managed by
-terraform.”** The associated DNSSEC records were regenerated, and the secondary zone advanced
-from serial `2026090101` to `2026090102`. No collected zone reports expiry, validation, sync, or
-notification failure.
+The `aliammar.net` forwarder zone replaced `*.aliammar.net A 10.10.100.35` with nine explicit A
+records pointing to the same apps front door: `aiometadata`, `aiostreams`, `auth`, `calibre`,
+`karakeep`, `marinara`, `obsidian`, `sillytavern`, and `speed`. Each new record is annotated
+**“Managed by terraform,”** and the zone serial advanced **12 → 22**. Management-service records
+were unchanged.
 
-This is the only clear configuration change visible tonight. The address is from TEST-NET-1 and
-is not a routable lab endpoint, but the nightly did not create, modify, or remove the record.
+This narrows the names that resolve to the apps proxy while preserving the observed destinations.
+The nightly only read and recorded this state; it did not make the DNS change. The previously noted
+`tofu-test.tdns.home.aliammar.net → 192.0.2.1` test record is still present.
 
-### Stable services, ordinary telemetry
+### LibreSpeed was recreated and recovered healthy
+
+The LibreSpeed container ID changed from `ee933c4df623` to `983d9d2a2458`, with a creation time of
+01:26 PKT tonight. Its image remains `ghcr.io/librespeed/speedtest:6.0.2-alpine`, its Compose
+configuration hash is unchanged, and the replacement reported healthy at collection time. The
+other 17 container identities and health states were unchanged.
+
+### Stable infrastructure, moving telemetry
 
 - Guest identity and power state are unchanged. The Ubuntu base template remains stopped by
   design; every other listed guest is running.
-- Docker container identity, image, state, and health are unchanged. The diff is limited to age,
-  mount ordering, and a small writable-layer size movement.
-- OPNsense remains at **39 aliases / 27 rules / 1 reservation**. Declared-host presence remains
-  **25 live / 1 no-response**; the ARP table moved from 44 to 41 neighbours.
-- The Omada estate still has 30 clients: the switch moved **19 → 20**, Ali's AP **6 → 5**, and
-  Mom's AP stayed at 5. All three devices report up.
-- Certificate reachability remains 7/7. Day counters fell normally; no endpoint crossed a new
-  warning boundary.
+- OPNsense configuration counts remain **39 aliases / 27 rules / 1 reservation**. Its ARP sample
+  moved **41 → 39** neighbours and declared-host presence moved **25 live / 1 no-response → 24 live
+  / 2 no-response**.
+- The non-responding declared addresses are `10.10.10.55` (a member of `ROLE_ADMIN_CLIENTS`) and
+  `10.10.80.37` (Authentik). Authentik's CT 837 is running, so absence from ARP/ICMP is not proof
+  that the service is down.
+- Omada reports all three devices up. The switch client count moved **20 → 16**, Mom's AP **5 → 6**,
+  and Ali's AP stayed at **5**; switch PoE headroom moved **108.2 W → 103.1 W**.
+- Certificate reachability remains 7/7. Day counters fell normally; no endpoint crossed a warning
+  boundary.
 
 ## Collection gaps and anomalies
 
-`scripts/envsync.sh` returned nonzero after reporting that the tracked `aiometadata` and
-`aiostreams` projects have no host `project.env`; no encrypted environment file changed. The PBS
-collector stayed idle because `/opt/skynet-ops/secrets/pbs.env` is absent. No local SSH
-certificate was present, so no root grant was active and the root-grant audit harvest was skipped.
+`scripts/envsync.sh` completed but skipped `aiometadata` and `aiostreams` because neither project
+has a host `project.env`; no encrypted environment file changed. The PBS collector stayed idle
+because `/opt/skynet-ops/secrets/pbs.env` is absent. No local SSH certificate was present, so no
+root grant was active and the root-grant audit harvest was skipped.
+
+The local entity test reported **44 passed / 1 failed**: `vhosts.sql` still expects
+`*.aliammar.net` to identify `caddy-apps`, but tonight's inventory contains the new explicit app
+records instead. The invariant, budget-frontmatter, and digest checks passed. This nightly did not
+rewrite the authored test; the PR may remain red until its vhost expectation follows the reviewed
+DNS model.
 
 Snapshot freshness, restic payloads, restore behavior, and the L5 Google Drive mirror therefore
-remain unverified. A running backup server is encouraging availability evidence, not recovery
-evidence.
+remain unverified. A running backup server is availability evidence, not recovery evidence.
 
 ## Human attention
 
-> [!warning] Worth confirming
-> - **DNS provenance:** confirm that `tofu-test.tdns.home.aliammar.net → 192.0.2.1` is the intended
->   residue or evidence of the current OpenTofu DNS work, and remove it through the reviewed
->   configuration path when the test is complete.
+> [!warning] Worth watching
+> - **Test expectation:** update the vhost derivation fixture/assertion for the explicit app records;
+>   it still requires the removed wildcard.
+> - **Presence probes:** check whether Authentik (`10.10.80.37`) remains absent on the next pass;
+>   its guest is running, but tonight's ARP and ICMP checks did not see it.
+> - **DNS provenance:** confirm the intended lifetime of the Terraform test record at
+>   `tofu-test.tdns.home.aliammar.net`.
 > - **Environment backup gap:** decide whether `aiometadata` and `aiostreams` intentionally lack
->   `project.env`, or whether envsync is missing expected secret-bearing inputs.
+>   `project.env`.
 > - **Backup proof:** recent snapshots and an exercised restore remain outside tonight's evidence.
 
 ## Where the build stands
 
-SKY-018 has completed Phases 1–5 of 12; Phase 6, rollback executors, is next. SKY-005, SKY-006,
-SKY-008, and SKY-020 remain in flight. The autonomy boundary did not move: this pass performed T1
-collection and wrote reviewable repository artifacts only. It made no guest, DNS, firewall,
-service, credential, or privileged-host change.
+SKY-018 has completed Phases 1–5 of 12; Phase 6, rollback executors, remains next. SKY-005,
+SKY-006, SKY-008, and SKY-020 remain in flight. The autonomy boundary did not move: this pass
+performed T1 collection and wrote reviewable repository artifacts only. It made no guest, DNS,
+firewall, service, credential, or privileged-host change.
 
 ## Commentary
 
-The lab's serving surfaces look calm. Tonight's useful signal is that the inventory caught the
-OpenTofu-shaped DNS experiment immediately and can show its signed-zone consequences without
-pretending to know why it exists. That is exactly what a report-only night should do: separate
-health from intent, keep the evidence fresh, and leave the decision with the reviewed workflow.
+The move from a wildcard to an explicit public-app list is the strongest signal tonight: the
+inventory now shows a smaller, reviewable DNS exposure surface instead of one broad catch-all.
+LibreSpeed's fresh container ID is also exactly the kind of operational churn worth recording even
+when the service lands green. Nothing here earns a victory lap, but the lab is observable enough to
+distinguish configuration change, routine telemetry, and genuine unknowns—which is the point of a
+report-only night.
 
 — _skynet-ops_
 

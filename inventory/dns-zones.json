@@ -1,17 +1,17 @@
 {
-  "collected": "2026-09-02T03:39:44+05:00",
+  "collected": "2026-09-03T03:38:45+05:00",
   "zones": [
     {
       "name": "",
       "type": "Secondary",
-      "lastModified": "2026-09-01T21:27:30.9609968Z",
+      "lastModified": "2026-09-02T18:27:37.6722178Z",
       "disabled": false,
-      "soaSerial": 2026090102,
+      "soaSerial": 2026090201,
       "catalog": null,
       "dnssecStatus": "SignedWithNSEC",
       "hasDnssecPrivateKeys": false,
       "validationFailed": false,
-      "expiry": "2026-09-08T21:54:31.2093808Z",
+      "expiry": "2026-09-09T22:27:39.1672354Z",
       "isExpired": false,
       "syncFailed": false,
       "notifyFailed": false,
@@ -20,9 +20,9 @@
     {
       "name": "aliammar.net",
       "type": "Forwarder",
-      "lastModified": "2026-08-12T19:07:10.717Z",
+      "lastModified": "2026-09-02T03:42:33.6062229Z",
       "disabled": false,
-      "soaSerial": 12,
+      "soaSerial": 22,
       "catalog": "cluster-catalog.tdns.home.aliammar.net",
       "notifyFailed": false,
       "notifyFailedFor": []
@@ -66,7 +66,7 @@
           "rData": {
             "primaryNameServer": "lxc-technitium-core",
             "responsiblePerson": "invalid",
-            "serial": 12,
+            "serial": 22,
             "refresh": 900,
             "retry": 300,
             "expire": 604800,
@@ -97,23 +97,40 @@
             "proxyType": "DefaultProxy"
           },
           "dnssecStatus": "Unknown",
-          "lastUsedOn": "2026-09-01T22:38:38.1032773Z",
+          "lastUsedOn": "2026-09-02T22:38:37.7834022Z",
           "lastModified": "2026-08-12T17:58:15.378Z",
           "expiryTtl": 0,
           "expiryTtlString": "0s"
         },
         {
-          "name": "*.aliammar.net",
+          "name": "aiometadata.aliammar.net",
           "type": "A",
           "ttl": 300,
           "ttlString": "5m",
           "disabled": false,
+          "comments": "Managed by terraform",
           "rData": {
             "ipAddress": "10.10.100.35"
           },
           "dnssecStatus": "Unknown",
-          "lastUsedOn": "2026-09-01T21:37:37.9692863Z",
-          "lastModified": "2026-08-12T17:59:03.595Z",
+          "lastUsedOn": "0001-01-01T00:00:00",
+          "lastModified": "2026-09-02T03:39:13.243871Z",
+          "expiryTtl": 0,
+          "expiryTtlString": "0s"
+        },
+        {
+          "name": "aiostreams.aliammar.net",
+          "type": "A",
+          "ttl": 300,
+          "ttlString": "5m",
+          "disabled": false,
+          "comments": "Managed by terraform",
+          "rData": {
+            "ipAddress": "10.10.100.35"
+          },
+          "dnssecStatus": "Unknown",
+          "lastUsedOn": "0001-01-01T00:00:00",
+          "lastModified": "2026-09-02T03:39:13.2554569Z",
           "expiryTtl": 0,
           "expiryTtlString": "0s"
         },
@@ -133,6 +150,22 @@
           "expiryTtlString": "0s"
         },
         {
+          "name": "auth.aliammar.net",
+          "type": "A",
+          "ttl": 300,
+          "ttlString": "5m",
+          "disabled": false,
+          "comments": "Managed by terraform",
+          "rData": {
+            "ipAddress": "10.10.100.35"
+          },
+          "dnssecStatus": "Unknown",
+          "lastUsedOn": "2026-09-02T12:14:25.6958592Z",
+          "lastModified": "2026-09-02T03:39:13.2454382Z",
+          "expiryTtl": 0,
+          "expiryTtlString": "0s"
+        },
+        {
           "name": "caddy.aliammar.net",
           "type": "A",
           "ttl": 300,
@@ -144,6 +177,70 @@
           "dnssecStatus": "Unknown",
           "lastUsedOn": "0001-01-01T00:00:00",
           "lastModified": "0001-01-01T00:00:00Z",
+          "expiryTtl": 0,
+          "expiryTtlString": "0s"
+        },
+        {
+          "name": "calibre.aliammar.net",
+          "type": "A",
+          "ttl": 300,
+          "ttlString": "5m",
+          "disabled": false,
+          "comments": "Managed by terraform",
+          "rData": {
+            "ipAddress": "10.10.100.35"
+          },
+          "dnssecStatus": "Unknown",
+          "lastUsedOn": "2026-09-02T12:14:25.6590434Z",
+          "lastModified": "2026-09-02T03:39:13.2398458Z",
+          "expiryTtl": 0,
+          "expiryTtlString": "0s"
+        },
+        {
+          "name": "karakeep.aliammar.net",
+          "type": "A",
+          "ttl": 300,
+          "ttlString": "5m",
+          "disabled": false,
+          "comments": "Managed by terraform",
+          "rData": {
+            "ipAddress": "10.10.100.35"
+          },
+          "dnssecStatus": "Unknown",
+          "lastUsedOn": "0001-01-01T00:00:00",
+          "lastModified": "2026-09-02T03:39:13.2503567Z",
+          "expiryTtl": 0,
+          "expiryTtlString": "0s"
+        },
+        {
+          "name": "marinara.aliammar.net",
+          "type": "A",
+          "ttl": 300,
+          "ttlString": "5m",
+          "disabled": false,
+          "comments": "Managed by terraform",
+          "rData": {
+            "ipAddress": "10.10.100.35"
+          },
+          "dnssecStatus": "Unknown",
+          "lastUsedOn": "0001-01-01T00:00:00",
+          "lastModified": "2026-09-02T03:39:13.235002Z",
+          "expiryTtl": 0,
+          "expiryTtlString": "0s"
+        },
+        {
+          "name": "obsidian.aliammar.net",
+          "type": "A",
+          "ttl": 300,
+          "ttlString": "5m",
+          "disabled": false,
+          "comments": "Managed by terraform",
+          "rData": {
+            "ipAddress": "10.10.100.35"
+          },
+          "dnssecStatus": "Unknown",
+          "lastUsedOn": "0001-01-01T00:00:00",
+          "lastModified": "2026-09-02T03:39:13.2371546Z",
           "expiryTtl": 0,
           "expiryTtlString": "0s"
         },
@@ -202,7 +299,7 @@
             "ipAddress": "10.10.60.35"
           },
           "dnssecStatus": "Unknown",
-          "lastUsedOn": "2026-09-01T22:38:38.1036028Z",
+          "lastUsedOn": "2026-09-02T20:55:37.3738382Z",
           "lastModified": "0001-01-01T00:00:00Z",
           "expiryTtl": 0,
           "expiryTtlString": "0s"
@@ -217,8 +314,40 @@
             "ipAddress": "10.10.60.35"
           },
           "dnssecStatus": "Unknown",
-          "lastUsedOn": "2026-09-01T22:38:37.1065914Z",
+          "lastUsedOn": "2026-09-02T22:38:37.7829858Z",
           "lastModified": "0001-01-01T00:00:00Z",
+          "expiryTtl": 0,
+          "expiryTtlString": "0s"
+        },
+        {
+          "name": "sillytavern.aliammar.net",
+          "type": "A",
+          "ttl": 300,
+          "ttlString": "5m",
+          "disabled": false,
+          "comments": "Managed by terraform",
+          "rData": {
+            "ipAddress": "10.10.100.35"
+          },
+          "dnssecStatus": "Unknown",
+          "lastUsedOn": "0001-01-01T00:00:00",
+          "lastModified": "2026-09-02T03:39:13.2415311Z",
+          "expiryTtl": 0,
+          "expiryTtlString": "0s"
+        },
+        {
+          "name": "speed.aliammar.net",
+          "type": "A",
+          "ttl": 300,
+          "ttlString": "5m",
+          "disabled": false,
+          "comments": "Managed by terraform",
+          "rData": {
+            "ipAddress": "10.10.100.35"
+          },
+          "dnssecStatus": "Unknown",
+          "lastUsedOn": "0001-01-01T00:00:00",
+          "lastModified": "2026-09-02T03:39:13.2524075Z",
           "expiryTtl": 0,
           "expiryTtlString": "0s"
         },
@@ -247,7 +376,7 @@
             "ipAddress": "10.10.60.35"
           },
           "dnssecStatus": "Unknown",
-          "lastUsedOn": "2026-09-01T20:16:58.3843659Z",
+          "lastUsedOn": "2026-09-02T03:42:24.0014786Z",
           "lastModified": "2026-08-12T19:06:53.757Z",
           "expiryTtl": 0,
           "expiryTtlString": "0s"
@@ -532,7 +661,7 @@
             "useSerialDateScheme": false
           },
           "dnssecStatus": "Unknown",
-          "lastUsedOn": "2026-09-01T22:25:15.2230368Z",
+          "lastUsedOn": "2026-09-02T22:25:15.3853569Z",
           "lastModified": "2026-08-28T06:26:36.2004756Z",
           "expiryTtl": 0,
           "expiryTtlString": "0s"
