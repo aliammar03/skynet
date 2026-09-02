@@ -59,7 +59,12 @@ wait_task() {
 case "${op}" in
   create)
     echo "==> snapshot ${kind} ${vmid} @ ${node}: ${snap}"
+    # PVE_SNAPSHOT_VMSTATE=1 includes RAM (vmstate) so a rollback resumes the running guest in place
+    # instead of a stop/start — heavier (writes RAM to disk), only meaningful for a running VM.
+    vmstate_arg=()
+    [ "${PVE_SNAPSHOT_VMSTATE:-0}" = 1 ] && [ "${kind}" = vm ] && vmstate_arg=(--data-urlencode "vmstate=1")
     upid="$(api POST "${base}/snapshot" --data-urlencode "snapname=${snap}" \
+            "${vmstate_arg[@]}" \
             --data-urlencode "description=SKY-018 P6 pre-tofu-apply safety snapshot" | jq -r '.data')"
     wait_task "${upid}"
     ;;

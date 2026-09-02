@@ -81,6 +81,15 @@ Ali: "let's mint the PVE_OPERATE_TOKEN. live production runs after please."
      `${XDG_STATE_HOME:-~/.local/state}/skynet/dns-revert.jsonl` (agent-owned, persisted, no root dir).
 - **LIVE compose gate** — deploy-gate.sh probed healthy `librespeed` (Arcane status + docker health
   over svc-ops SSH to 10.10.100.15) → kept it, rc 0, no rollback. Decision path runs live.
+- **LIVE snapshot ROLLBACK on docker-dmz 10015** (Ali: "just do the snapshot shit for vm-docker-dmz").
+  Added `PVE_SNAPSHOT_VMSTATE=1` to pve-snapshot create (RAM+disk for a running VM → resume-in-place,
+  not stop/start). VM = 16GB max / 11.7GB used. Sequence: vmstate snapshot (~75s) → wrote a marker
+  file on the VM disk AFTER the snapshot → rollback (~22s, SSH back ~3s) → marker GONE (disk reverted)
+  + all 18 containers healthy with uptimes preserved (RAM-state resume, NOT a restart) → snapshot
+  pruned (0 remaining). Caveat stated to Ali first: a rollback reverts every disk write in the window
+  on the live DBs (couchdb/karakeep/mongo) — real data loss for that ~1min window; negligible on idle
+  DBs at ~1am. Clean, zero lasting disruption. So the running-guest rollback IS now proven live; only
+  the broken-compose-deploy auto-revert stays deferred to a canary.
 
 ## Graveyard — tried & abandoned
 - LIVE snapshot ROLLBACK of a running in-pool guest → no safe target exists. Tried template 9000:

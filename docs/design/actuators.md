@@ -1,6 +1,6 @@
 ---
 summary: "The L7 actuators and their rollback executors: what each write can undo, by whom, and how the rollback is decided deterministically."
-tokens: 1400
+tokens: 1545
 ---
 
 # Spoke · Actuators & rollback executors
@@ -44,18 +44,23 @@ Beyond the failure-injection harnesses, these ran against live infrastructure:
 
 - **DNS** — full create → revert cycle against real Cloudflare (a throwaway `sky018-p6-canary`
   record): published, inverse recorded, replayed to delete, confirmed gone, log settled.
-- **Snapshot** — `pve-snapshot.sh create`+`delete` on `guest/docker-dmz-10015` via the operate
-  token (non-disruptive); the task-status check also correctly caught Proxmox refusing to snapshot
-  the **template** VM 9000 ("can't take a snapshot if it's a template") — so a plan touching a
-  template makes `tofu-apply.sh` **fail closed**, as designed.
+- **Snapshot create+delete+rollback** — exercised end-to-end on the live apps host
+  `guest/docker-dmz-10015` via the operate token: a **vmstate** snapshot (RAM+disk, ~75s for 11.7 GB),
+  a marker file written after it, then a **rollback** (~22s) that resumed the VM in place (SSH back in
+  ~3s, all 18 containers healthy with uptimes preserved — a live-state resume, not a restart) and
+  reverted the disk (marker gone), then snapshot pruned. The task-status check also correctly caught
+  Proxmox refusing to snapshot the **template** VM 9000 — so a plan touching a template makes
+  `tofu-apply.sh` **fail closed**, as designed.
 - **Compose gate** — `deploy-gate.sh` probed a healthy running service live (Arcane status + docker
   health over svc-ops SSH) and correctly kept it (no rollback).
 
-A fully-live rollback of a *running* in-pool guest, and the auto-revert of a deliberately-broken
-compose deploy, are **not** rehearsed on production (the only running in-pool guests are the apps
-host, the un-snapshottable PBS CT, and the ops VM itself). Those destructive rehearsals are
-SKY-017's proving ground, against a disposable canary — the harness proves the decision + executor
-logic meanwhile.
+Notes on the snapshot rollback: it uses **vmstate** (`PVE_SNAPSHOT_VMSTATE=1`) for a running guest so
+the rollback resumes in place instead of a stop/start outage — heavier (writes RAM to disk) but
+seamless. A rollback still reverts *every* disk write in the snapshot window, so for a live DB host it
+is a real data-loss event for that window; `tofu-apply.sh` keeps it bounded by snapshotting
+immediately before the apply and rolling back immediately on failure. The one rehearsal still deferred
+to SKY-017's proving ground (a disposable canary) is the **auto-revert of a deliberately-broken
+compose deploy** — not run against a production service; the 7/7 harness proves that decision + executor.
 
 ## Notes that are load-bearing
 
