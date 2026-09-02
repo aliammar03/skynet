@@ -96,9 +96,10 @@ clone→boot→destroy. New follow-up: extend tofu to the **network node** (stan
 **LXC import — DONE (2026-09-02):** CT 240 imports zero-drift (see status log + [[SKY-008-progress]]).
 **DNS — STAGED (Ali's call):** the DNSSEC read bug in `kevynb/technitium` v0.4.0 only affects the
 *signed* zone, so we split by zone:
-- **`aliammar.net` (unsigned Forwarder + A overrides) — DONE:** all 11 vanity A records imported +
-  tofu-managed, zero-drift (`tofu/dns-aliammar-net.tf`, `technitium_record` for_each). v0.4.0 reads
-  the unsigned zone fine.
+- **`aliammar.net` (unsigned Forwarder + A overrides) — DONE:** 10 admin vanity A records imported +
+  9 app-service A records created (the apps-Caddy vhosts → 10.10.100.35, so the wildcard can retire),
+  tofu-managed zero-drift (`tofu/dns-aliammar-net.tf`, `technitium_record` for_each). v0.4.0 reads the
+  unsigned zone fine.
 - **`tdns.home.aliammar.net` (DNSSEC-signed resolver zone) — deferred until a kevynb release** carries
   the fix (commit `b2f6b89c`, 2026-08-20; v0.4.0 is still latest). We chose NOT to un-sign it — its
   TLSA/DANE records depend on the signing.

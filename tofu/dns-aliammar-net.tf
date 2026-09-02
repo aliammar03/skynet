@@ -33,3 +33,35 @@ resource "technitium_record" "aliammar_net" {
   ttl        = each.value.ttl
   ip_address = each.value.ip
 }
+
+# ---------------------------------------------------------------------------------------------------
+# App service records — the published apps served by the apps Caddy (10.10.100.35). These give every
+# app vhost an EXPLICIT A record so the `*.aliammar.net` wildcard can be retired: each resolves to the
+# same IP the wildcard hands out today, so adding them is a no-op on resolution.
+# SOURCE OF TRUTH is the apps Caddyfile (compose/caddy-apps/Caddyfile) — keep this list in lockstep
+# with the vhosts there (add a vhost → add its name here; a name missing here falls through to public
+# DNS once the wildcard is gone).
+# ---------------------------------------------------------------------------------------------------
+locals {
+  apps_caddy_ip = "10.10.100.35"
+  apps_service_names = toset([
+    "karakeep",
+    "aiostreams",
+    "aiometadata",
+    "marinara",
+    "obsidian",
+    "calibre",
+    "sillytavern",
+    "speed",
+    "auth",
+  ])
+}
+
+resource "technitium_record" "apps_service" {
+  for_each = local.apps_service_names
+
+  domain     = "${each.key}.aliammar.net"
+  type       = "A"
+  ttl        = 300
+  ip_address = local.apps_caddy_ip
+}
