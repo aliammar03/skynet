@@ -1,7 +1,7 @@
 ---
 summary: "Triage DNS failures — split internal (Technitium) vs public (Cloudflare), read NXDOMAIN/SERVFAIL, fix the record through the sanctioned T2 path."
 trigger: "A name won't resolve / service unreachable by hostname / ACME DNS-01 failing"
-tokens: 1129
+tokens: 1202
 ---
 
 # Diagnose — DNS failure
@@ -61,7 +61,10 @@ A record change is a **T2, PR-gated** operation.
   ⚠ **Caveat:** that token can *add/modify* but **not delete** records yet — removing a stale record
   needs the record-delete grant (or a manual Technitium-UI delete). The DNSSEC-signed resolver zone
   `tdns.home.aliammar.net` is **not** yet tofu-managed (provider read bug) — edit it via the UI/token.
-- **Public `aliammar.net` records** change via the Cloudflare `DNS:Edit` token (`scripts/cf-dns-route.sh`).
+- **Public `aliammar.net` records are also tofu-managed (SKY-014).** The tunnel CNAMEs live in
+  `tofu/cloudflare-dns.tf`, *derived from the cloudflared ingress* (`compose/cloudflared/config.yml`) —
+  fix via **tofu** (same `eval "$(scripts/tofu-env.sh)"; cd tofu && tofu plan && tofu apply`). Break-glass
+  for an immediate change: `scripts/cf-dns-route.sh` (scoped Cloudflare `DNS:Edit` token).
 
 Record the fix so the generated host map stays truthful. Anything that reaches for Technitium
 **settings** or the Cloudflare **account/zone settings** is **T3 — stop and request a session**.
