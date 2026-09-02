@@ -1,7 +1,7 @@
 ---
 summary: "Triage DNS failures — split internal (Technitium) vs public (Cloudflare), read NXDOMAIN/SERVFAIL, fix the record through the sanctioned T2 path."
 trigger: "A name won't resolve / service unreachable by hostname / ACME DNS-01 failing"
-tokens: 934
+tokens: 1129
 ---
 
 # Diagnose — DNS failure
@@ -24,7 +24,7 @@ Query an actual **resolver**, not a service's web-UI hostname. The resolvers are
 hosts in VLAN 70 — `ROLE_DNS_RESOLVERS` in
 [`docs/generated/20-firewall.md`](../../docs/generated/20-firewall.md)
 (`10.10.70.30/.31/.50/.51`; `tdns-core` = `10.10.70.51`, `tdns-network` = `10.10.70.50`).
-Confirm there — **don't** use a proxied `*.aliammar.net` admin URL: e.g. `technitium-core.aliammar.net`
+Confirm there — **don't** use a proxied `<name>.aliammar.net` admin URL: e.g. `technitium-core.aliammar.net`
 resolves to `HOST_PROXY_ADMIN` (Management Caddy, T3), which is the console front door, not the DNS server.
 
 ```bash
@@ -51,10 +51,20 @@ Host aliases + DHCP reservations + zone records are merged into the generated ho
 
 ## 3. Fix declaratively
 
-A record change is a **T2, PR-gated** operation: make it via the scoped Technitium token (zones only) or
-the Cloudflare `DNS:Edit` token (`aliammar.net` only), and record it so the generated host map stays
-truthful. Anything that reaches for Technitium **settings** or the Cloudflare **account/zone settings**
-is **T3 — stop and request a session**, never a standing path.
+A record change is a **T2, PR-gated** operation.
+
+- **Internal `aliammar.net` records are tofu-managed (SKY-008).** The declarative source of truth is
+  `tofu/dns-aliammar-net.tf` — the app-service records are *derived from the apps Caddyfile*, the admin
+  vanity names are an explicit map. So a missing/wrong internal record is fixed in **git via tofu**
+  (`eval "$(scripts/tofu-env.sh)"; cd tofu && tofu plan && tofu apply`), not a hand-run token call —
+  the scoped Technitium token is what tofu authenticates with under the hood.
+  ⚠ **Caveat:** that token can *add/modify* but **not delete** records yet — removing a stale record
+  needs the record-delete grant (or a manual Technitium-UI delete). The DNSSEC-signed resolver zone
+  `tdns.home.aliammar.net` is **not** yet tofu-managed (provider read bug) — edit it via the UI/token.
+- **Public `aliammar.net` records** change via the Cloudflare `DNS:Edit` token (`scripts/cf-dns-route.sh`).
+
+Record the fix so the generated host map stays truthful. Anything that reaches for Technitium
+**settings** or the Cloudflare **account/zone settings** is **T3 — stop and request a session**.
 
 ## 4. Record
 

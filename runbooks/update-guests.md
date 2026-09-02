@@ -1,7 +1,7 @@
 ---
 summary: "Snapshot then update every guest under a fleet root grant."
 trigger: "Update all guests"
-tokens: 228
+tokens: 231
 ---
 
 # Runbook — update all guests
@@ -20,4 +20,4 @@ tokens: 228
    5. **Failure → snapshot rollback + flag, continue with the rest.** Do not abort the run.
 3. **Summary at the end**, interruptions only for failures. Commit refreshed inventory.
 
-> Renovate handles container image bumps separately (one PR per bump) — see runbook flow in plan §12.
+> Renovate handles container image bumps separately (one PR per bump) — see [`deploy-service.md`](deploy-service.md).

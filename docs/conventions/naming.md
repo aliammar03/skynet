@@ -1,6 +1,6 @@
 ---
 summary: "The one naming grammar — VMIDs, IPs, hostnames, slugs, branches — so a name is predictable and machine-validatable."
-tokens: 1865
+tokens: 1900
 ---
 
 # Spoke · Naming & addressing
@@ -97,8 +97,9 @@ key, not the identity.
   `svc/obsidian-livesync`, `speed.aliammar.net` serves `svc/librespeed` — and need not be a service
   at all (`auth.aliammar.net` fronts `guest/authentik-identity-837`). The edge is read from the
   Caddyfile, never inferred.
-- **Vhosts come from Caddy, not DNS** `[manual]`. A wildcard record serves many vhosts:
-  `*.aliammar.net` covers nine names that have no records of their own.
+- **Vhosts come from Caddy, not DNS** `[manual]`. The apps Caddyfile is the source of truth for the
+  set of app hostnames; each vhost's internal `A` record is **derived from it** by tofu (SKY-008), so
+  DNS mirrors Caddy rather than the reverse — the record set is never authored independently.
 
 ### Services and addresses
 
