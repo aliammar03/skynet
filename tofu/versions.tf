@@ -15,6 +15,14 @@ terraform {
       source  = "kevynb/technitium"
       version = "~> 0.4.0"
     }
+    # SKY-014 public path → tofu. PUBLIC DNS records in aliammar.net only (the per-host tunnel CNAMEs),
+    # via the scoped Zone:DNS:Edit token. Same T2 scope as scripts/cf-dns-route.sh — account / Access /
+    # tunnel config / zone settings stay T3. Per-record: undeclared records (minki, verifications) are
+    # left untouched.
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = "~> 5.24"
+    }
   }
 
   encryption {
