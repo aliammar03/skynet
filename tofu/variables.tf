@@ -38,3 +38,21 @@ variable "technitium_api_token" {
   type        = string
   sensitive   = true
 }
+
+# --- Cloudflare public DNS (T2, aliammar.net records only) — token from cloudflare-dns.env via tofu-env.sh ---
+variable "cloudflare_api_token" {
+  description = "Scoped Cloudflare Zone:DNS:Edit token for aliammar.net (the only secret)"
+  type        = string
+  sensitive   = true
+}
+
+variable "cloudflare_zone_id" {
+  description = "aliammar.net Cloudflare zone id — a PUBLIC identifier (not secret), stable"
+  type        = string
+  default     = "56c76f970190ade4d62262c825272d20"
+}
+
+variable "cloudflare_tunnel_id" {
+  description = "Public cloudflared tunnel UUID — CNAME target is <id>.cfargotunnel.com (from cloudflare-dns.env)"
+  type        = string
+}
