@@ -162,8 +162,11 @@ else
 fi
 
 # --- healthcheck coverage (skynet standard: every service declares one; image-built-in counts) ---
+# `|| true`: the remote loop's final `[ = none ] && echo` exits non-zero when the last container HAS a
+# healthcheck, so ssh returns 1 — without this guard `set -e` would abort here (fatal for --gate, which
+# runs after this block; a live test caught it).
 MISSING="$(ssh "${SSH_HOST}" "for c in \$(docker ps --filter label=com.docker.compose.project=${SVC} --format '{{.Names}}'); do \
-  [ \"\$(docker inspect \"\$c\" --format '{{if .State.Health}}ok{{else}}none{{end}}')\" = none ] && echo \"\$c\"; done")"
+  [ \"\$(docker inspect \"\$c\" --format '{{if .State.Health}}ok{{else}}none{{end}}')\" = none ] && echo \"\$c\"; done" || true)"
 if [ -n "${MISSING}" ]; then
   echo "==> ${SVC}: WARNING — service(s) without a healthcheck (add one to compose):" >&2
   echo "${MISSING}" | sed 's/^/      /' >&2
