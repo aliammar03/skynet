@@ -1,6 +1,6 @@
 ---
 summary: "How a service change becomes a running container via Arcane, with git-revert rollback and image pinning + Renovate."
-tokens: 935
+tokens: 984
 ---
 
 # Spoke · The GitOps loop
@@ -30,7 +30,9 @@ edit compose/<svc>/ → branch → PR → Ali merges
 - **One Arcane Git Sync per project dir**, auto-sync on; Arcane's own auto-update polling **off**
   for git-synced projects (one reconciler, one truth).
 - **Rollback = `git revert`** — Arcane converges back. SSH + `docker context` is the break-glass
-  path when Arcane itself is the patient.
+  path when Arcane itself is the patient. A **health-gated** deploy (`gitops-deploy.sh --gate`) makes
+  that revert *automatic* on a failed health probe — the executor + deterministic decider live in the
+  [actuators](actuators.md) spoke.
 - **Env layering** is Arcane-native (`.env.git` + `project.env` → effective `.env`); the
   secret-bearing `project.env` is what [secrets](secrets.md) encrypts. Every service needs
   `env_file: .env`.

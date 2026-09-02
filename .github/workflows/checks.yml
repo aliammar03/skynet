@@ -50,3 +50,7 @@ jobs:
         run: bash tests/digest-test.sh
       - name: dns-revert-test
         run: bash tests/dns-revert-test.sh
+      - name: compose-rollback-test
+        run: bash tests/compose-rollback-test.sh
+      - name: tofu-rollback-test
+        run: bash tests/tofu-rollback-test.sh

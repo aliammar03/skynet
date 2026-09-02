@@ -20,12 +20,25 @@
 # AGENTS.md §1), so the .env write goes through a throwaway container that bind-mounts the
 # project dir, and the docker ps health checks run as svc-ops too. No T2+ root grant needed.
 #
-# USAGE: scripts/gitops-deploy.sh <service> [--no-deploy]
-#   <service>  a directory name under compose/ (e.g. aiostreams)
+# USAGE: scripts/gitops-deploy.sh <service> [--no-deploy] [--gate] [--revert-commit <sha>]
+#   <service>          a directory name under compose/ (e.g. aiostreams)
+#   --no-deploy        materialise .env + ensure the sync, but don't redeploy
+#   --gate             health-gate the deploy (SKY-018 P6): after deploy, deterministically probe
+#                      the service; if it isn't healthy in the window, auto-revert the deploy commit
+#                      and let Arcane reconcile back. The rollback DECISION is scripts/deploy-gate.sh
+#                      (a container-state check), not the agent — see ADR 0005 §3.
+#   --revert-commit    the commit --gate reverts on failure (default: the newest commit touching
+#                      compose/<service>/, i.e. this deploy's change)
 set -euo pipefail
 
-SVC="${1:?usage: gitops-deploy.sh <service> [--no-deploy]}"
-NO_DEPLOY="${2:-}"
+SVC="${1:?usage: gitops-deploy.sh <service> [--no-deploy] [--gate] [--revert-commit <sha>]}"; shift || true
+NO_DEPLOY=""; GATE=0; REVERT_COMMIT=""
+while [ "$#" -gt 0 ]; do case "$1" in
+  --no-deploy)     NO_DEPLOY="--no-deploy" ;;
+  --gate)          GATE=1 ;;
+  --revert-commit) shift; REVERT_COMMIT="${1:?--revert-commit needs a sha}" ;;
+  *) echo "gitops-deploy: unknown arg '$1'" >&2; exit 2 ;;
+esac; shift; done
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SVC_DIR="${REPO_ROOT}/compose/${SVC}"
 COMPOSE_REL="compose/${SVC}/compose.yaml"
@@ -151,4 +164,15 @@ MISSING="$(ssh "${SSH_HOST}" "for c in \$(docker ps --filter label=com.docker.co
 if [ -n "${MISSING}" ]; then
   echo "==> ${SVC}: WARNING — service(s) without a healthcheck (add one to compose):" >&2
   echo "${MISSING}" | sed 's/^/      /' >&2
+fi
+
+# --- health gate (SKY-018 P6, opt-in via --gate) ----------------------------
+# Deploy → probe → auto-revert on failure. The gate reuses the creds/ids resolved above (exported so
+# deploy-gate.sh's default probe doesn't re-resolve them) and reverts the deploy commit if unhealthy.
+if [ "${GATE}" = 1 ]; then
+  [ -n "${REVERT_COMMIT}" ] || REVERT_COMMIT="$(git -C "${REPO_ROOT}" log -1 --format=%H -- "compose/${SVC}/")"
+  [ -n "${REVERT_COMMIT}" ] || { echo "==> ${SVC}: --gate: no commit touches compose/${SVC}/ — nothing to revert to" >&2; exit 1; }
+  export ARCANE_URL ARCANE_TOKEN SSH_HOST PROJ
+  export ARCANE_ENV_ID="${ENVID}"
+  exec "${REPO_ROOT}/scripts/deploy-gate.sh" "${SVC}" "${REVERT_COMMIT}"
 fi
