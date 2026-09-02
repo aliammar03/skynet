@@ -4,7 +4,7 @@ title: The road to full agent control: verification, proving ground, and an evid
 status: draft
 horizon: long
 created: 2026-08-28
-updated: 2026-08-28
+updated: 2026-09-03
 phases: 5
 current_phase: 0
 tier_touched: [T1, T2]   # P1–P3 build T1 machinery; P4–P5 graduate capabilities to A3/A4, which
@@ -158,6 +158,15 @@ Steps:
    SKY-016's reachability work rather than duplicating it. First executor built: a **health-gated
    compose wrapper** (deploy → probe → on failure `git revert` + reconcile), which closes the Arcane
    gap from P1 without changing platform. **Built by SKY-018 P6** — consume it here, don't rebuild it.
+1c. **An Arcane-integration harness for the compose wrapper.** SKY-018 P6 proved the wrapper live
+   (broke `librespeed`, watched it auto-revert) but that rehearsal surfaced three bugs the P6 unit
+   harness cannot reach — it stubs the reconcile: a transient Arcane sync 500 that aborted the deploy
+   *before* the gate ran, a `set -e` trap in the healthcheck-coverage block that skipped the gate, and
+   a rollback that only *nudged* the sync without a redeploy (so a crash-looping service stayed down
+   after the revert). All three are fixed, but only the live run catches them. Build a stubbed-Arcane
+   integration test — fake `gitops-syncs`/`sync`/`redeploy` endpoints + a scripted crash-loop — so the
+   `gitops-deploy.sh --gate` and `gitops-rollback.sh` reconcile paths have a checker, not just a
+   rehearsal (ADR 0003 "format follows enforcement"). The P2 proving ground is the natural venue.
 1b. **A machine gate between plan and apply**: `conftest`/Rego over `tofu plan -json` — today the
    widest-blast-radius actuator has no deterministic check at all. Keep the policy set small and
    `conftest verify`-tested; the existing hard laws stay in bash (legibility beats uniformity).
@@ -231,3 +240,9 @@ Follow AGENTS.md as above.
   the rollback executors). This directive keeps the ladder: proving ground, budget, breaker,
   adversarial review, track record, graduations. SKY-018 P6 supplies P3's rollback executors and
   SKY-018 P9 supplies the drift signal P4's record depends on.
+- 2026-09-03 — SKY-018 P6 delivered + live-proved all three rollback executors (compose/tofu/DNS),
+  incl. a full broken-deploy auto-revert on `librespeed` and a vmstate snapshot rollback on the live
+  apps host. That live rehearsal is the P3 exit criterion in miniature and confirms P2/P3 are the right
+  home for a **stubbed-Arcane integration harness** — added as P3 step 1c: the three bugs it caught
+  (sync-500 abort, `set -e` gate-skip, nudge-without-redeploy) live in the reconcile paths the P6 unit
+  harness stubs out, so only a rehearsal exercises them today.
