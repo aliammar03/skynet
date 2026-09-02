@@ -1,6 +1,6 @@
 ---
 summary: "The two front doors, split-horizon DNS, the forward_auth boundary that publishes apps without holding auth's keys (SKY-003), and the sanctioned public path via a Skynet-managed Cloudflare Tunnel (SKY-014)."
-tokens: 3229
+tokens: 3313
 ---
 
 # Spoke · Identity & proxy
@@ -36,15 +36,16 @@ model to learn, not two.
 `aliammar.net` resolves differently inside and outside the network, and the whole ingress design
 depends on that being deliberate:
 
-| Where | Resolver | `*.aliammar.net` → | Role |
+| Where | Resolver | `<svc>.aliammar.net` → | Role |
 |---|---|---|---|
-| **Inside** | Technitium (split-horizon) | `10.10.100.35` (apps Caddy) | steers clients to the internal proxy |
-| **Outside** | Cloudflare (public authoritative) | wildcard not published; a **per-host CNAME → the tunnel** for each published hostname | holds the ACME challenge + public cert trust + the public path |
+| **Inside** | Technitium (split-horizon) | `10.10.100.35` (apps Caddy) — an explicit `A` record per app vhost, **tofu-managed and derived from the apps Caddyfile** (SKY-008) | steers clients to the internal proxy |
+| **Outside** | Cloudflare (public authoritative) | no blanket record; a **per-host CNAME → the tunnel** for each published hostname | holds the ACME challenge + public cert trust + the public path |
 
-So `karakeep.aliammar.net` **already resolves** internally to the apps proxy — the wildcard landed
-before the proxy existed. By default a host is **internal-only**: it has no public DNS record, so it
-is unreachable from outside. Publishing one to the internet is a **deliberate, per-hostname act** —
-the sanctioned public path below (SKY-014) — never a blanket exposure.
+So `karakeep.aliammar.net` resolves internally to the apps proxy because it's a vhost in the apps
+Caddyfile, from which its DNS record is derived (add a vhost → its record appears on the next `tofu
+apply`). By default a host is **internal-only**: it has no public DNS record, so it is unreachable
+from outside. Publishing one to the internet is a **deliberate, per-hostname act** — the sanctioned
+public path below (SKY-014) — never a blanket exposure.
 
 ## TLS — publicly-trusted certs with zero device-trust install
 
@@ -55,8 +56,8 @@ Certs are issued by **Let's Encrypt via ACME DNS-01, using Cloudflare** as the c
   cannot reach it — so pointing public ACME at it fails; it would only work with a *private* ACME CA,
   which forces a root cert onto every device. Rejected.
 - **Why Cloudflare.** `aliammar.net`'s public authoritative DNS is on Cloudflare (Cloudflared already
-  runs here). ACME DNS-01 via Cloudflare yields **publicly-trusted `*.aliammar.net` certs with no
-  device-trust install**, fully compatible with the split-horizon: the token writes the challenge on
+  runs here). ACME DNS-01 via Cloudflare yields **publicly-trusted per-host `aliammar.net` certs with
+  no device-trust install**, fully compatible with the split-horizon: the token writes the challenge on
   the *public* zone, Technitium keeps steering clients internally, and cert validity is independent
   of the internal A records.
 - **The one secret.** A Cloudflare API token scoped **Zone → DNS → Edit for `aliammar.net` only**,
@@ -108,20 +109,21 @@ OPNsense **rule 800** (`HOST_CLOUDFLARED .33 → 443, 7844`) — **no firewall c
   it has an explicit `ingress` entry **and** a public DNS CNAME. Publishing = one `ingress` line + one
   CNAME. Blast radius is exactly the listed hostnames. The **`ingress` PR is the gate** — a human
   merges it, and the agent never merges its own. The CNAME half is a **T2 Cloudflare `DNS:Edit`**
-  action (below), written by `scripts/cf-dns-route.sh`, not a manual dashboard step.
+  action (below), **derived from the ingress and applied by tofu** (`tofu/cloudflare-dns.tf`,
+  SKY-014) — `scripts/cf-dns-route.sh` is the break-glass path — not a manual dashboard step.
 - **Cloudflare tier split — records T2, account T3.** Writing DNS records in `aliammar.net` (the
   per-host tunnel CNAMEs, ACME challenges) is **T2**: a scoped `Zone:DNS:Edit` token — the same scope
   Caddy's ACME already holds — kept `0600` at `/opt/skynet-ops/secrets/cloudflare-dns.env`, never in
   git. The Cloudflare **account, Zero-Trust/Access policies, tunnel configuration, and zone settings**
   are **T3** (Ali only). This mirrors the Technitium *zones vs server settings* split: records are not
-  privileged access. Rollback of a publish is symmetric — `cf-dns-route.sh --delete <host>` pulls the
-  CNAME and the hostname stops resolving to the tunnel at once.
+  privileged access. Rollback of a publish is `git revert` the ingress line + `tofu apply` (the derived
+  CNAME goes with it); `cf-dns-route.sh --delete <host>` is the break-glass immediate pull.
 - **Own-auth (or stronger) at the edge.** The pilot is `obsidian.aliammar.net` — CouchDB's own admin
   login, contents E2E-encrypted on the client. An app **without** its own strong login must sit behind
   Cloudflare Access / Authentik before it goes public (revisited then, not now).
 
 **The invariant this turns on:** the **internal path is unchanged and never transits Cloudflare**.
-Internal clients keep resolving `*.aliammar.net` via Technitium straight to the apps Caddy; only an
+Internal clients keep resolving their `aliammar.net` names via Technitium straight to the apps Caddy; only an
 external client hitting a *published* hostname traverses the tunnel. Public exposure is additive and
 per-host — it routes nothing internal through, and takes nothing away from, the internal door.
 

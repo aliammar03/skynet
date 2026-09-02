@@ -66,7 +66,7 @@ policy block.
 
 | Alias / host | Members | Role |
 |---|---|---|
-| `ROLE_DNS_RESOLVERS` | **Technitium** `10.10.70.50` + `.51` (VLAN 70 — split-horizon: resolves the public world **and** the internal `*.aliammar.net` zone), plus `10.10.70.30`/`.31` | the approved **internal** resolvers |
+| `ROLE_DNS_RESOLVERS` | **Technitium** `10.10.70.50` + `.51` (VLAN 70 — split-horizon: resolves the public world **and** the internal `aliammar.net` zone), plus `10.10.70.30`/`.31` | the approved **internal** resolvers |
 | `ROLE_DNS_UPSTREAMS` | `1.1.1.1`, `8.8.8.8`, `9.9.9.9` | approved **public** resolvers (reachable from any segment) |
 | AdGuard | `10.10.20.30` (`adguard-network`), `10.10.20.31` (`adguard-core`) — VLAN 20 | **not** an approved cross-segment resolver — do **not** point services here (they'll be firewall-dropped) |
 

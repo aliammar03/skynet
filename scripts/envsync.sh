@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# envsync.sh — back up each project's secret env layer into git, encrypted (plan §5)
+# envsync.sh — back up each project's secret env layer into git, encrypted (docs/design/secrets.md)
 # TIER: T2 (unprivileged svc-ops SSH read of project.env) + local sops encrypt.
 # USAGE: envsync.sh            # nightly; STAGES compose/<svc>/.env.sops on change (caller commits).
 #   Reads project.env (Arcane's override layer — the only env not reproducible from the repo)

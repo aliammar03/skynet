@@ -1,7 +1,7 @@
 ---
 summary: "Publish a service through the apps Caddy front door: edit the Caddyfile then PR then deploy — own-auth (plain reverse_proxy) or forward-auth via Authentik (scoped-token provider+application); optionally also expose it to the internet via the Cloudflare Tunnel (Path C)."
 trigger: "Publish or expose a service"
-tokens: 4349
+tokens: 4719
 ---
 
 # Runbook — publish a service through the apps Caddy (the front door)
@@ -31,9 +31,12 @@ deliberately, per host, and only for a service that already self-gates (see its 
 ## Prerequisites (true for every publish)
 
 - The origin runs on the **DMZ** network with a known `IP:port` (see its `compose/<svc>/compose.yaml`).
-- `*.aliammar.net` already resolves internally to the apps Caddy (`10.10.100.35`) via Technitium
-  split-DNS — so `<svc>.aliammar.net` resolves the moment the route exists. (Public DNS is Cloudflare;
-  nothing is exposed to the internet — this is internal ingress only.)
+- **Internal DNS is declarative and derived (SKY-008).** Each app vhost has its **own** `A` record →
+  the apps Caddy (`10.10.100.35`), and that record set is **derived from this very Caddyfile** by tofu
+  (`tofu/dns-aliammar-net.tf`: `regexall` over the site-address lines). So adding a site block here is
+  *also* declaring its DNS — the record appears on the next `tofu apply` (step below). There is **no
+  wildcard fallback**: a vhost resolves internally only once its record is applied. (Public DNS is
+  Cloudflare; nothing is exposed to the internet — this is internal ingress only.)
 - TLS is automatic: Caddy issues a publicly-trusted cert via ACME **DNS-01 over Cloudflare**. No
   per-service cert work, no device-trust install.
 
@@ -59,11 +62,20 @@ deliberately, per host, and only for a service that already self-gates (see its 
 3. **PR** with a teaching description (what the service is, its origin `IP:port`, the URL it gets,
    own-auth vs forward-auth). **Ali merges** — the merge gate is what actually protects the routes
    (see the honest security position in the spoke). The agent never merges its own PR.
-4. **Deploy.** A route-only change is just the Caddyfile, and Caddy runs with `--watch`, so once the
+4. **Create the DNS record (T2, tofu).** The new vhost's `A` record is *already declared* — tofu
+   derives it from the Caddyfile — so it just needs applying:
+   ```
+   eval "$(scripts/tofu-env.sh)"
+   cd tofu && tofu plan            # expect exactly: + technitium_record.apps_service["<svc>.aliammar.net"]
+   tofu apply                      # ⚠ T2 DNS write — creates the record → 10.10.100.35
+   ```
+   (This step is what makes `<svc>.aliammar.net` resolve internally — there is no wildcard fallback, so
+   don't skip it.)
+5. **Deploy.** A route-only change is just the Caddyfile, and Caddy runs with `--watch`, so once the
    PR merges Arcane's auto-sync updates the mounted Caddyfile and **Caddy reloads itself** — no
    container recreate, no manual `caddy reload`. Run `scripts/gitops-deploy.sh caddy-apps` only to
    force it immediately (or after a *compose* change, which does need the container recreated).
-5. **Verify** from a peer **DMZ container** — the reliable vantage. The apps Caddy sits on a **macvlan**
+6. **Verify** from a peer **DMZ container** — the reliable vantage. The apps Caddy sits on a **macvlan**
    IP, so it is unreachable *from its own docker host* and from the ops VM (VLAN 90, no rule-200 path):
    ```
    ssh svc-ops@10.10.100.15 "docker exec <some-dmz-container> \
@@ -73,7 +85,8 @@ deliberately, per host, and only for a service that already self-gates (see its 
    The **first** hit on a new hostname may briefly fail TLS while Caddy obtains the ACME cert
    (DNS-01, ~15–30s); retry. A `502` right after a deploy usually just means the upstream is still
    warming up.
-6. If red → `git revert`, re-run `scripts/gitops-deploy.sh caddy-apps`.
+7. If red → `git revert`, re-run `scripts/gitops-deploy.sh caddy-apps`. (Removing the vhost also
+   removes its derived DNS record on the next `tofu apply` — once the token has record-delete.)
 
 ---
 
@@ -194,14 +207,17 @@ is public *only* with an `ingress` rule **and** a public CNAME):
    `--watch` hot-reload). `scripts/gitops-deploy.sh cloudflared` now force-restarts the connector for
    exactly this reason — run it and confirm it comes back healthy (`tunnel ready`, 4 connections). The
    manual fallback if ever needed: `ssh svc-ops@10.10.100.15 "docker restart cloudflared-cloudflared-1"`.
-2. **Create the public DNS CNAME** (T2 Cloudflare `DNS:Edit`) — a proxied `<svc>.aliammar.net` →
-   `<tunnel-id>.cfargotunnel.com`:
+2. **Create the public DNS CNAME (T2, tofu).** The proxied CNAME → `<tunnel-id>.cfargotunnel.com` is
+   *derived from the ingress rule you just added* (`tofu/cloudflare-dns.tf` reads
+   `compose/cloudflared/config.yml`), so it only needs applying:
    ```
-   scripts/cf-dns-route.sh <svc>.aliammar.net
+   eval "$(scripts/tofu-env.sh)"
+   cd tofu && tofu plan     # expect: + cloudflare_dns_record.tunnel["<svc>.aliammar.net"]
+   tofu apply               # ⚠ T2 DNS write — the public record appears
    ```
-   Idempotent; refuses hosts outside `aliammar.net`. (This is the *public* record on Cloudflare's
-   authoritative DNS — separate from Technitium's internal split-DNS, which keeps steering internal
-   clients straight to the Caddy.)
+   (This is the *public* record on Cloudflare's authoritative DNS — separate from Technitium's internal
+   split-DNS, which keeps steering internal clients straight to the Caddy. Break-glass without tofu:
+   `scripts/cf-dns-route.sh <svc>.aliammar.net` — idempotent, refuses hosts outside `aliammar.net`.)
 
 **Verify from OUTSIDE.** The internal path won't exercise the tunnel (internal clients resolve via
 Technitium straight to Caddy, never through Cloudflare). Test from a genuinely external vantage — a
@@ -247,10 +263,11 @@ blocking them breaks logins. Verify the split: `/if/admin/` is `404` over the tu
 internal client; the public login page + `/if/flow/…` serve `200`. And ensure the Authentik account
 that page now exposes uses **MFA / a passkey** (the login is internet-reachable).
 
-**Rollback (symmetric, immediate):** `scripts/cf-dns-route.sh --delete <svc>.aliammar.net` pulls the
-CNAME and the hostname stops resolving publicly at once; then `git revert` the `ingress` line and
-restart the connector. Public exposure is additive and per-host — removing it takes nothing away from
-the internal door.
+**Rollback:** `git revert` the `ingress` line and `tofu apply` — dropping the ingress removes the
+derived CNAME (the hostname stops resolving publicly) — then restart the connector. For an *immediate*
+pull ahead of the revert, the break-glass path is `scripts/cf-dns-route.sh --delete <svc>.aliammar.net`
+(but re-apply tofu afterward so state matches, or tofu will want to recreate it). Public exposure is
+additive and per-host — removing it takes nothing away from the internal door.
 
 ---
 
@@ -274,9 +291,9 @@ shapes show up here, both fixed on the **service**, not the Caddyfile:
   gate is a whitelist: `SILLYTAVERN_WHITELIST=["::1","127.0.0.1","10.10.0.0/16"]` in
   `compose/silly/.env.git` allows the proxy + its `X-Forwarded-For` clients. Prefer an env/`.env.git`
   knob over hand-editing appdata so the gate is reproducible.
-- **The origin does app-level OIDC to `auth.aliammar.net`.** That name has no dedicated DNS record, so
-  the `*.aliammar.net` wildcard lands it on this proxy — it needs the `auth.aliammar.net` →
-  Authentik (`10.10.80.37:9000`) site to exist, or the login redirect 404s. (Already in the Caddyfile.)
+- **The origin does app-level OIDC to `auth.aliammar.net`.** That vhost must exist in this Caddyfile
+  (→ Authentik `10.10.80.37:9000`) or the login redirect 404s — it already does, and because it's a
+  vhost it gets its own derived `A` record like any other (no wildcard dependency).
 
 ### Own-auth vs "no gate at all"
 

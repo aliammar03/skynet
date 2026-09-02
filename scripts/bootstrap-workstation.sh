@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# bootstrap-workstation.sh — one-time setup on ALI'S WORKSTATION (plan §8)
+# bootstrap-workstation.sh — one-time setup on ALI'S WORKSTATION (docs/design/access-and-trust.md)
 # TIER: CA custody — HUMAN RUNS THIS on the workstation, never on the VM.
 #   The SSH user-CA private key is the whole security model: it must exist ONLY here.
 # USAGE: bootstrap-workstation.sh
