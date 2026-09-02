@@ -1,6 +1,6 @@
 ---
 summary: "The L7 actuators and their rollback executors: what each write can undo, by whom, and how the rollback is decided deterministically."
-tokens: 1545
+tokens: 1648
 ---
 
 # Spoke · Actuators & rollback executors
@@ -51,16 +51,20 @@ Beyond the failure-injection harnesses, these ran against live infrastructure:
   reverted the disk (marker gone), then snapshot pruned. The task-status check also correctly caught
   Proxmox refusing to snapshot the **template** VM 9000 — so a plan touching a template makes
   `tofu-apply.sh` **fail closed**, as designed.
-- **Compose gate** — `deploy-gate.sh` probed a healthy running service live (Arcane status + docker
-  health over svc-ops SSH) and correctly kept it (no rollback).
+- **Compose auto-revert (full)** — deliberately broke `librespeed` (a stateless service) with a
+  crash-looping entrypoint on a throwaway branch and ran `gitops-deploy.sh --gate`: the gate detected
+  the unhealthy deploy, `gitops-rollback.sh` git-reverted the break, and Arcane redeployed the reverted
+  compose — librespeed auto-recovered to healthy and serving, **no human step**. This live rehearsal
+  surfaced three bugs a stubbed harness could not: a transient Arcane sync 500 that aborted the deploy
+  before the gate; a `set -e` trap in the healthcheck-coverage block that skipped the gate; and a
+  rollback that only *nudged* the sync without a redeploy, so a crash-looping service stayed down after
+  the revert landed in git. All three fixed (sync retry, `|| true` guard, force-redeploy on rollback).
 
 Notes on the snapshot rollback: it uses **vmstate** (`PVE_SNAPSHOT_VMSTATE=1`) for a running guest so
 the rollback resumes in place instead of a stop/start outage — heavier (writes RAM to disk) but
 seamless. A rollback still reverts *every* disk write in the snapshot window, so for a live DB host it
 is a real data-loss event for that window; `tofu-apply.sh` keeps it bounded by snapshotting
-immediately before the apply and rolling back immediately on failure. The one rehearsal still deferred
-to SKY-017's proving ground (a disposable canary) is the **auto-revert of a deliberately-broken
-compose deploy** — not run against a production service; the 7/7 harness proves that decision + executor.
+immediately before the apply and rolling back immediately on failure.
 
 ## Notes that are load-bearing
 

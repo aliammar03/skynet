@@ -91,6 +91,23 @@ Ali: "let's mint the PVE_OPERATE_TOKEN. live production runs after please."
   DBs at ~1am. Clean, zero lasting disruption. So the running-guest rollback IS now proven live; only
   the broken-compose-deploy auto-revert stays deferred to a canary.
 
+- **LIVE compose auto-revert (full) on librespeed** (Ali: "break production app… test in full").
+  Stateless service, throwaway branch `test/sky018-p6-librespeed-rollback`, crash-loop entrypoint as
+  the break. Ran `gitops-deploy.sh librespeed --gate`. Took 3 iterations — each broken deploy exposed a
+  bug the stubbed harness couldn't (they only surface with a real Arcane + a real crash-loop):
+  1. gitops-deploy `arc()` uses `curl -fsS`; Arcane's sync endpoint 500s transiently right after a
+     branch repoint (races its own ref fetch) → deploy aborted before the gate. Fix: `arc_retry` (5×).
+  2. gitops-rollback only nudged the sync (git pull); Arcane auto-sync only redeploys RUNNING projects,
+     so a crash-looping librespeed stayed down after the revert. Fix: force a `/redeploy` after sync.
+  3. gitops-deploy healthcheck-coverage block: the remote loop's last `[ = none ] && echo` exits 1 when
+     the last container HAS a healthcheck → ssh rc1 → `set -e` killed the script AT `MISSING=$(...)`,
+     BEFORE the gate (harmless for a normal deploy, fatal for --gate). Fix: `|| true`.
+  Iterations 1-2 left librespeed down → recovered manually (`GITOPS_BRANCH=main gitops-deploy.sh
+  librespeed`). Iteration 3 (all fixes): deploy break → gate UNHEALTHY after 30s → git revert (7912bc8)
+  → push → Arcane sync+redeploy → librespeed AUTO-RECOVERED healthy + serving 200, NO manual step.
+  Cleanup: repointed sync back to main + redeployed from main (healthy), deleted the test branch.
+  So the broken-compose auto-revert is now PROVEN LIVE — nothing in P6 is left deferred to a canary.
+
 ## Graveyard — tried & abandoned
 - LIVE snapshot ROLLBACK of a running in-pool guest → no safe target exists. Tried template 9000:
   Proxmox refuses ("you can't take a snapshot if it's a template") — pve-snapshot's wait_task caught
