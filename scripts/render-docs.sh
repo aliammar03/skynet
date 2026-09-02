@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# render-docs.sh — inventory/*.json + firewall config → docs/generated/ (Obsidian) (plan §11)
+# render-docs.sh — inventory/*.json + firewall config → docs/generated/ (Obsidian) (docs/design/memory.md)
 # USAGE: render-docs.sh
 #   Writes Obsidian-flavored markdown (frontmatter, callouts, wikilinks, native Mermaid).
 #   docs/generated/ is MACHINE-OWNED — edit THIS renderer, never the output.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# bootstrap-proxmox.sh — one-time Proxmox operate-access setup (plan §7)
+# bootstrap-proxmox.sh — one-time Proxmox operate-access setup (docs/design/access-and-trust.md)
 # TIER: T3 (node root) — HUMAN RUNS THIS, once per node, in the node's shell.
 #   The agent writes it; Ali runs it because node root is T3, permanently.
 # USAGE: bootstrap-proxmox.sh            # run as root on server-proxmox-core AND -network
@@ -25,7 +25,7 @@ pveum role add OpsOperator \
   2>/dev/null || pveum role modify OpsOperator \
   -privs "VM.Audit,VM.PowerMgmt,VM.Config.Disk,VM.Config.CPU,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.Allocate,VM.Clone,VM.Console,VM.Snapshot,VM.Snapshot.Rollback,VM.Backup,Datastore.AllocateSpace,Datastore.Audit"
 
-# Tokens MUST exist before any ACL can reference them (plan §7 order).
+# Tokens MUST exist before any ACL can reference them (access-and-trust.md — token-before-ACL order).
 echo
 echo "==> TOKENS — copy these ONCE, they are shown only now:"
 echo "--- readonly (privsep 0, PVEAuditor at /) ---"

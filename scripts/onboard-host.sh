@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# onboard-host.sh — make a workload host trust the SSH user-CA (plan §8)
+# onboard-host.sh — make a workload host trust the SSH user-CA (docs/design/access-and-trust.md)
 # TIER: T2+ (runs AS ROOT on the target, inside a grant window; or baked into the golden template).
 # USAGE: run ON the target host as root, with skynet_ops_ca.pub (and, to also provision the
 #        standing user, skynet_ops_svc.pub) present in the CWD:
