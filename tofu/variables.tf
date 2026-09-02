@@ -26,3 +26,15 @@ variable "proxmox_api_token_network" {
   type        = string
   sensitive   = true
 }
+
+# --- Technitium DNS (T2, zones-only) — sourced from technitium.env via tofu-env.sh ---
+variable "technitium_url" {
+  description = "Technitium base URL WITHOUT /api (https://10.10.70.50:53443) — the provider prepends /api itself"
+  type        = string
+}
+
+variable "technitium_api_token" {
+  description = "Zones-scoped Technitium API token — Zones view/modify only (never server settings/T3)"
+  type        = string
+  sensitive   = true
+}
