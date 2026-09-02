@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # skynet-ops-ssh-certs.sh — runs ON vm-skynet-ops. Regenerates the "Match user root" block in
 # ~/.ssh/config from the per-host certs in ~/.ssh/certs/*.pub (+ the legacy single cert), so
-# `ssh root@<host>` presents the RIGHT cert and multiple host grants coexist (plan §8 fix).
+# `ssh root@<host>` presents the RIGHT cert and multiple host grants coexist (access-and-trust.md — SSH user-CA).
 #
 # grant-root calls this after placing a cert; it's idempotent, so re-running is safe. It scopes
 # the certs to root logins only (Match user root), leaving svc-ops (T1) connections untouched.

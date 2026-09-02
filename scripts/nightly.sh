@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# nightly.sh — deterministic report-only nightly pass (plan §9/§11, A5).
+# nightly.sh — deterministic report-only nightly pass (runbooks/nightly.md, A5).
 # Runs on vm-skynet-ops. Serves two roles:
 #   1. the FALLBACK when the LLM engine can't run (see bin/ops nightly), and
 #   2. a standalone report-only pass for anyone who prefers no-LLM.
@@ -47,6 +47,19 @@ git checkout -B "${BRANCH}" "origin/${DEFAULT_BRANCH}" 2>/dev/null || git checko
 # 3c. regenerate the context map 07-context-map.md (what's loadable + what it costs). Deterministic
 #     and read-only, so it stays fresh on this LLM-free path too — the default-lean routing index.
 ./scripts/render-context-map.sh || true
+
+# 3d. tofu DRIFT (report-only). A read-only `tofu plan` over the declared guests + DNS surfaces any
+#     hand-edit / out-of-band change in the nightly PR — the payoff of a declared source of truth
+#     (SKY-008). It NEVER applies. Written as stable text (just the action lines + the Plan:/No-changes
+#     summary, no timestamps) so a clean night adds no spurious churn. Non-fatal: if the tofu env/
+#     secrets or the Proxmox/Technitium APIs aren't reachable this run, it records that and moves on.
+{
+  if drift="$(cd "${REPO_DIR}/tofu" && eval "$(../scripts/tofu-env.sh)" && tofu plan -no-color 2>/dev/null)"; then
+    printf '%s\n' "${drift}" | grep -E '^(No changes\.|Plan: |  # .* will be )' || printf 'No changes.\n'
+  else
+    printf 'tofu drift: plan unavailable this run (tofu env/secrets or API unreachable)\n'
+  fi
+} > inventory/tofu-drift.txt 2>/dev/null || true
 
 # 4. decide if there's anything to report. Stage inventory/docs; envsync already staged any
 #    changed compose/*/.env.sops, and this check folds all of it into one commit.

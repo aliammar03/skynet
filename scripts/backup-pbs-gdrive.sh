@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# backup-pbs-gdrive.sh — off-site copy of the PBS datastore to Google Drive (plan §6 L5)
+# backup-pbs-gdrive.sh — off-site copy of the PBS datastore to Google Drive (docs/backup-strategy.md L5)
 # USAGE: backup-pbs-gdrive.sh
 #   Runs AFTER PBS garbage-collection. Datastore is already client-side encrypted, so
 #   rclone just moves ciphertext. Dedup chunks keep incrementals tiny.

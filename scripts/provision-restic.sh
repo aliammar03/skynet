@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# provision-restic.sh — provision a host for restic → Google Drive backups (plan §6 L3, A4.5).
+# provision-restic.sh — provision a host for restic → Google Drive backups (docs/backup-strategy.md L3, A4.5).
 #
 # Orchestrated FROM vm-skynet-ops over SSH (like gitops-deploy.sh). One command turns a fresh
 # host into a backed-up one: installs restic+rclone, stages secrets 0600, generates the repo
@@ -83,7 +83,7 @@ PATHS_STR="${PATHS[*]:-}"
 EXCL_STR="${EXCLUDES[*]:-}"
 DOCKER_VAL="no"; [ "${WANT_DOCKER}" = yes ] && DOCKER_VAL="yes"
 sshc "umask 077; cat > '${ENVF}' <<EOF
-# restic env for ${LABEL} (plan §6 L3) — sourced by backup-restic.sh ${LABEL}
+# restic env for ${LABEL} (docs/backup-strategy.md L3) — sourced by backup-restic.sh ${LABEL}
 export RESTIC_REPOSITORY='${REPO}'
 export RESTIC_PASSWORD_FILE=${PASSF}
 export RCLONE_CONFIG=${SECRETS}/rclone.conf

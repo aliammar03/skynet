@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 # cf-dns-route.sh — upsert (or delete) a proxied public CNAME for a tunnel hostname (SKY-014).
+# NB: the canonical create path is now TOFU — the tunnel CNAMEs are DERIVED from the cloudflared
+# ingress in tofu/cloudflare-dns.tf (publish = add the ingress line → `tofu apply`). This script is
+# the BREAK-GLASS / immediate path (and `--delete` for an urgent pull); re-apply tofu afterward so
+# state matches, or tofu will want to reconcile the record back.
 # USAGE:
 #   cf-dns-route.sh <hostname>            # publish: CNAME <host> → <tunnel>.cfargotunnel.com, proxied
 #   cf-dns-route.sh --delete <hostname>   # rollback: pull the record (hostname stops resolving)

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# backup-restic.sh — nightly restic backup of a host → Google Drive (plan §6 L3).
+# backup-restic.sh — nightly restic backup of a host → Google Drive (docs/backup-strategy.md L3).
 # TIER: runs on/against the host; restic encrypts client-side (Google sees ciphertext).
 # Provisioned by scripts/provision-restic.sh (A4.5). USAGE: backup-restic.sh <host-label> [tag ...]
 # The systemd timer passes no tags (snapshot tagged `scheduled`); on-demand runs pass one or
