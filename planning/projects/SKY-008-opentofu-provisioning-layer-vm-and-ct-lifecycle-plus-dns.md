@@ -97,7 +97,8 @@ clone→boot→destroy. New follow-up: extend tofu to the **network node** (stan
 **DNS — STAGED (Ali's call):** the DNSSEC read bug in `kevynb/technitium` v0.4.0 only affects the
 *signed* zone, so we split by zone:
 - **`aliammar.net` (unsigned Forwarder + A overrides) — DONE:** 10 admin vanity A records imported +
-  9 app-service A records created (the apps-Caddy vhosts → 10.10.100.35, so the wildcard can retire),
+  9 app-service A records created (the apps-Caddy vhosts → 10.10.100.35; the `*.aliammar.net` wildcard
+  is now retired — Ali deleted it 2026-09-02),
   tofu-managed zero-drift (`tofu/dns-aliammar-net.tf`, `technitium_record` for_each). v0.4.0 reads the
   unsigned zone fine.
 - **`tdns.home.aliammar.net` (DNSSEC-signed resolver zone) — deferred until a kevynb release** carries
