@@ -39,20 +39,34 @@ if [ "${PUSH}" = 1 ]; then
   git push
 fi
 
-# Best-effort immediate reconcile: nudge Arcane's Git Sync for this service so it pulls the revert
-# now instead of on its next poll. If Arcane is unreachable the git push still converges on the poll,
-# so this is a nudge, not a dependency — the rollback does not hinge on the agent or the API.
+# Immediate reconcile: pull the revert AND redeploy, so a crash-looping (non-running) project is
+# actually recreated from the reverted compose — Arcane's auto-sync only redeploys projects that are
+# already running, so a nudge alone leaves a down service down (a live test caught this). If Arcane is
+# unreachable the git push still converges on the next poll for a running project, so this is
+# best-effort, not a dependency for that case; for a down service the redeploy is what recovers it.
 ARC_ENV="/opt/skynet-ops/secrets/arcane.env"
 if [ "${GITOPS_ROLLBACK_NO_RECONCILE:-0}" != 1 ] && { [ -r "${ARC_ENV}" ] || sudo -n test -r "${ARC_ENV}" 2>/dev/null; }; then
   set -a; source <(cat "${ARC_ENV}" 2>/dev/null || sudo -n cat "${ARC_ENV}"); set +a
   ENVID="${ARCANE_ENV_ID:-0}"
   arc() { local m="$1" p="$2"; shift 2; curl -fsS -X "${m}" -H "X-API-Key: ${ARCANE_TOKEN}" "${ARCANE_URL}/api${p}" "$@"; }
+  # Arcane's sync endpoint can 500 transiently right after a push (it races its own fetch of the new
+  # ref); retry a few times before giving up.
+  arc_retry() { local m="$1" p="$2"; shift 2; local i; for i in 1 2 3 4 5; do arc "${m}" "${p}" "$@" && return 0; sleep 2; done; return 1; }
   SID="$(arc GET "/environments/${ENVID}/gitops-syncs" 2>/dev/null \
         | jq -r --arg n "${SVC}" '.data[] | select(.name==$n or .projectName==$n) | .id' | head -1 || true)"
   if [ -n "${SID:-}" ]; then
-    arc POST "/environments/${ENVID}/gitops-syncs/${SID}/sync" >/dev/null 2>&1 \
-      && echo "==> nudged Arcane sync ${SID} for ${SVC}" \
-      || echo "==> Arcane nudge failed (git push will reconcile on the next poll)" >&2
+    if arc_retry POST "/environments/${ENVID}/gitops-syncs/${SID}/sync" >/dev/null 2>&1; then
+      echo "==> pulled the revert into Arcane sync ${SID} for ${SVC}"
+    else
+      echo "==> Arcane sync nudge failed after retries (git push will reconcile a RUNNING project on the next poll)" >&2
+    fi
+    # Force a redeploy so the container is recreated from the reverted compose even if it's down.
+    PROJ="$(arc GET "/environments/${ENVID}/gitops-syncs/${SID}" 2>/dev/null | jq -r '.data.projectId' || true)"
+    if [ -n "${PROJ:-}" ] && [ "${PROJ}" != null ]; then
+      arc_retry POST "/environments/${ENVID}/projects/${PROJ}/redeploy" >/dev/null 2>&1 \
+        && echo "==> redeployed ${SVC} from the reverted compose" \
+        || echo "==> redeploy call failed — check the service; git is already reverted" >&2
+    fi
   fi
 fi
 echo "==> gitops-rollback: ${SVC} reverted to pre-${COMMIT} state"

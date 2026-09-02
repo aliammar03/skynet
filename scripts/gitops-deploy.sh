@@ -64,6 +64,9 @@ arc() { # arc METHOD PATH [curl-args...]
   local m="$1" p="$2"; shift 2
   curl -fsS -X "${m}" -H "X-API-Key: ${ARCANE_TOKEN}" "${ARCANE_URL}/api${p}" "$@"
 }
+# Arcane's sync endpoint can 500 transiently right after a branch repoint/push (it races its own
+# fetch of the new ref). Retry a few times so a flake doesn't abort the deploy before the gate runs.
+arc_retry() { local m="$1" p="$2"; shift 2; local i; for i in 1 2 3 4 5; do arc "${m}" "${p}" "$@" && return 0; sleep 2; done; return 1; }
 
 # --- resolve repository id (match Arcane's registered repo to git origin) ----
 ORIGIN="$(git -C "${REPO_ROOT}" config --get remote.origin.url)"; ORIGIN="${ORIGIN%.git}"
@@ -89,7 +92,7 @@ else
       -d "$(jq -nc --arg b "${BRANCH}" '{branch:$b}')" >/dev/null
   fi
   echo "==> GitOps sync exists for ${SVC} (${SID}); pulling latest (branch ${BRANCH})"
-  arc POST "/environments/${ENVID}/gitops-syncs/${SID}/sync" >/dev/null
+  arc_retry POST "/environments/${ENVID}/gitops-syncs/${SID}/sync" >/dev/null
 fi
 sleep 2
 
