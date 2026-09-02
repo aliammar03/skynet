@@ -2,7 +2,7 @@
 date: 2026-09-03
 kind: session          # session | incident | decision
 title: SKY-018 P6 — L7 rollback executors
-tier_touched: [T1]      # tiers this episode ACTUALLY used (not what it could touch)
+tier_touched: [T1, T2]  # T1 build; T2 live runs (Cloudflare DNS write, Proxmox operate-token snapshot)
 grants: []              # root grants used this episode: "host KeyID", else empty
 refs: [SKY-018, ADR-0005, PR-141]                # SKY-###, PR #NNN, ADR NNNN, hosts — anything to cross-link
 ---
@@ -57,12 +57,38 @@ not the LLM (ADR 0005 §3). Each executor is dumb + agent-independent + tested i
 - directive frontmatter current_phase 5→6, updated →2026-09-03, P6 box [x]; §6 P5+P6 log entries;
   memory SKY-018-progress refreshed; bin/plan list → 6/12
 
+## Live production runs (2026-09-03, after the PR) + bugs they caught
+Ali: "let's mint the PVE_OPERATE_TOKEN. live production runs after please."
+- **Nothing to mint.** The operate token already exists (A6 bootstrap) and is already sops-managed —
+  the secret files carry it as `PVE_TOKEN_OPERATE` (`svc-ops@pve!operate=…`), NOT the `PVE_OPERATE_TOKEN`
+  my script guessed. Verified auth on both nodes (GET /version OK). Fixed pve-snapshot.sh to read
+  `PVE_TOKEN_OPERATE` (env `PVE_OPERATE_TOKEN` still overrides for a one-off). Also learned: the agent
+  (aliammar) READS these secrets directly (sops-nix → /run/secrets/<name> owner=aliammar → symlinked
+  into /opt/skynet-ops/secrets); the secrets DIR is 0711 root so you can't `ls` it, but you can read a
+  known file. `sudo -n` is only `systemctl … skynet-*`.
+- **LIVE snapshot create+delete on docker-dmz (10015)** via pve-snapshot.sh + operate token → worked,
+  non-disruptive. Real operate-token snapshot lifecycle proven.
+- **LIVE DNS create→revert on real Cloudflare** (throwaway sky018-p6-canary.aliammar.net). Caught TWO
+  bugs the harness missed (harness undo was `touch`, no option tokens, no re-record):
+  1. `jq … --args … --delete …` → jq parses `--delete` as its OWN option → the inverse was never
+     recorded, canary left lingering. Fix: build the undo array via `--argjson` (printf|jq -R|jq -s),
+     no `--args`. +regression test (option-like token).
+  2. The revert's own `cf-dns-route --delete` re-recorded a counter-inverse → endless pending chain.
+     Fix: dns-revert sets `DNS_REVERT_REPLAYING=1` around the replay; cf-dns-route's `record_inverse`
+     helper skips recording when set. +regression test (guard exported). Re-ran clean: create→present→
+     revert→gone→log settled. dns-revert-test now 7/7.
+  3. `/opt/skynet-ops/state` doesn't exist / not agent-writable → changed dns-revert default log to
+     `${XDG_STATE_HOME:-~/.local/state}/skynet/dns-revert.jsonl` (agent-owned, persisted, no root dir).
+- **LIVE compose gate** — deploy-gate.sh probed healthy `librespeed` (Arcane status + docker health
+  over svc-ops SSH to 10.10.100.15) → kept it, rc 0, no rollback. Decision path runs live.
+
 ## Graveyard — tried & abandoned
-- Considered a LIVE failure-case demo (real Cloudflare scratch record / a canary compose deploy / a
-  real Proxmox snapshot+rollback). Abandoned for this session: live prod DNS/compose/tofu writes carry
-  noise/disruption risk and aren't required — the failure-injection harnesses run the REAL wrapper
-  control flow + rollback executor with only the side-effecting externals stubbed, which is a genuine
-  controlled failure case. Live scratch demo left as an option, noted in the PR.
+- LIVE snapshot ROLLBACK of a running in-pool guest → no safe target exists. Tried template 9000:
+  Proxmox refuses ("you can't take a snapshot if it's a template") — pve-snapshot's wait_task caught
+  it correctly, 9000 intact. The only running in-pool guests are 10015 (all apps, disruptive), 240
+  (PBS CT, NFS mount blocks LXC snapshot), and 9090 (this ops VM). So a live running-guest rollback +
+  a broken-deploy auto-revert are deferred to a disposable canary (SKY-017 proving ground); the 9/9 +
+  7/7 harnesses prove the decision + executor logic meanwhile.
 - Refusing ALL tofu deletes (incl. DNS record deletes) vs only guest destroys: chose to refuse ANY
   delete/replace outright in the wrapper — stricter, matches "destroy refused outright", DNS reverts
   are the DNS executor's job. A legit DNS delete is human-run or via a deliberate future PR.

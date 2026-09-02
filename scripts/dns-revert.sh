@@ -5,7 +5,8 @@
 # is a DUMB replayer (ADR 0005 §3): it re-runs a captured command, needs no agent judgement, and works
 # when the thing that failed is the agent's plan. It never decides — it only reverts what was recorded.
 #
-# Log: append-only JSONL at $DNS_REVERT_LOG (default /opt/skynet-ops/state/dns-revert.jsonl). Each line:
+# Log: append-only JSONL at $DNS_REVERT_LOG (default $XDG_STATE_HOME/skynet/dns-revert.jsonl, i.e.
+# ~/.local/state/skynet — agent-owned + persisted, no root dir needed). Each line:
 #   {"ts":ISO, "actuator":"cloudflare|technitium", "target":"host", "undo":["cmd","arg",...],
 #    "prior":"<what was there before, for the human>", "reverted":false}
 #
@@ -17,7 +18,7 @@
 #   dns-revert.sh undo --dry-run [...]                          # print what it WOULD run, change nothing
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-LOG="${DNS_REVERT_LOG:-/opt/skynet-ops/state/dns-revert.jsonl}"
+LOG="${DNS_REVERT_LOG:-${XDG_STATE_HOME:-${HOME}/.local/state}/skynet/dns-revert.jsonl}"
 command -v jq >/dev/null || { echo "dns-revert: jq is required" >&2; exit 1; }
 
 ensure_log() { local d; d="$(dirname "${LOG}")"; [ -d "${d}" ] || mkdir -p "${d}" 2>/dev/null || sudo -n mkdir -p "${d}"; [ -f "${LOG}" ] || : >> "${LOG}" 2>/dev/null || sudo -n touch "${LOG}"; }
@@ -30,8 +31,13 @@ case "${cmd}" in
     [ "$#" -ge 1 ] || { echo "dns-revert record: need -- <undo-cmd...>" >&2; exit 1; }
     prior="${DNS_REVERT_PRIOR:-}"
     ensure_log
+    # Build the undo array separately, NOT via jq --args: an undo token like `--delete` would be
+    # eaten by jq's own option parser (caught by a live run — cf-dns-route's delete inverse starts
+    # with --delete). Encode each token as a JSON string, then slurp into an array.
+    undo_json="$(printf '%s\n' "$@" | jq -R . | jq -sc .)"
     jq -cn --arg ts "$(date -Iseconds)" --arg a "${actuator}" --arg t "${target}" \
-       --arg p "${prior}" --args '{ts:$ts, actuator:$a, target:$t, prior:$p, reverted:false, undo:$ARGS.positional}' "$@" \
+       --arg p "${prior}" --argjson undo "${undo_json}" \
+       '{ts:$ts, actuator:$a, target:$t, prior:$p, reverted:false, undo:$undo}' \
       >> "${LOG}"
     echo "dns-revert: recorded undo for ${actuator} ${target}"
     ;;
@@ -55,7 +61,10 @@ case "${cmd}" in
     if [ "${dry}" = 1 ]; then echo "would run: ${undo[*]}  (revert ${tgt})"; exit 0; fi
     echo "reverting ${tgt}: ${undo[*]}"
     # the undo command is repo-relative (e.g. scripts/cf-dns-route.sh); run it from the repo.
-    ( cd "${REPO_DIR}" && "${undo[@]}" )
+    # DNS_REVERT_REPLAYING tells the writer (cf-dns-route.sh) NOT to record a counter-inverse for
+    # this write — else every revert spawns a fresh pending entry and the log never settles (a live
+    # run caught this: undo cf-dns-route --delete was recording a re-publish inverse in turn).
+    ( cd "${REPO_DIR}" && DNS_REVERT_REPLAYING=1 "${undo[@]}" )
     # mark that entry reverted (rewrite the log with the flag flipped at $idx)
     tmp="$(mktemp)"; jq -c --argjson i "${idx}" 'to_entries[] | if .key==$i then .value + {reverted:true} else .value end' \
       < <(jq -s '.' "${LOG}") > "${tmp}" 2>/dev/null && { cat "${tmp}" > "${LOG}" 2>/dev/null || sudo -n cp "${tmp}" "${LOG}"; }

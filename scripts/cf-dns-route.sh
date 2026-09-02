@@ -35,6 +35,15 @@ api() { # <path> [curl args...]
     -H "Content-Type: application/json" "https://api.cloudflare.com/client/v4/$1" "${@:2}"
 }
 
+# Record this write's inverse for the rollback executor — UNLESS we are ourselves a replay of an
+# inverse (DNS_REVERT_REPLAYING=1): a revert must not record a counter-inverse, or the log never
+# settles. USAGE: record_inverse "<prior>" <undo cmd...>
+record_inverse() {
+  [ "${DNS_REVERT_REPLAYING:-0}" = 1 ] && return 0
+  local prior="$1"; shift
+  DNS_REVERT_PRIOR="${prior}" "${SELF_DIR}/dns-revert.sh" record cloudflare "${host}" -- "$@" || true
+}
+
 zid="$(api "zones?name=${CF_ZONE}" | jq -r '.result[0].id // empty')"
 [ -n "${zid}" ] || { echo "zone ${CF_ZONE} not visible to this token (check its scope)" >&2; exit 1; }
 
@@ -45,8 +54,8 @@ if [ "${del}" = 1 ]; then
   prior="$(api "zones/${zid}/dns_records/${rid}" | jq -r '.result.content // "?"')"
   api "zones/${zid}/dns_records/${rid}" -X DELETE >/dev/null
   echo "deleted CNAME ${host}"
-  # record the inverse: re-publish restores this tunnel CNAME (SKY-018 P6 rollback executor).
-  DNS_REVERT_PRIOR="CNAME → ${prior}" "${SELF_DIR}/dns-revert.sh" record cloudflare "${host}" -- "${SELF_DIR}/cf-dns-route.sh" "${host}" || true
+  # inverse of a delete = re-publish restores this tunnel CNAME (SKY-018 P6 rollback executor).
+  record_inverse "CNAME → ${prior}" "${SELF_DIR}/cf-dns-route.sh" "${host}"
   exit 0
 fi
 
@@ -56,11 +65,11 @@ if [ -n "${rid}" ]; then
   prior="$(api "zones/${zid}/dns_records/${rid}" | jq -r '.result.content // "?"')"
   api "zones/${zid}/dns_records/${rid}" -X PUT --data "${body}" >/dev/null
   echo "updated CNAME ${host} → ${target} (proxied)"
-  # the record existed; the inverse is a re-publish (idempotent restore of the tunnel CNAME).
-  DNS_REVERT_PRIOR="CNAME → ${prior}" "${SELF_DIR}/dns-revert.sh" record cloudflare "${host}" -- "${SELF_DIR}/cf-dns-route.sh" "${host}" || true
+  # the record existed; inverse = re-publish (idempotent restore of the tunnel CNAME).
+  record_inverse "CNAME → ${prior}" "${SELF_DIR}/cf-dns-route.sh" "${host}"
 else
   api "zones/${zid}/dns_records" -X POST --data "${body}" >/dev/null
   echo "created CNAME ${host} → ${target} (proxied)"
-  # the record was new; the inverse is a delete (SKY-018 P6 rollback executor).
-  DNS_REVERT_PRIOR="absent (new record)" "${SELF_DIR}/dns-revert.sh" record cloudflare "${host}" -- "${SELF_DIR}/cf-dns-route.sh" --delete "${host}" || true
+  # the record was new; inverse = delete (SKY-018 P6 rollback executor).
+  record_inverse "absent (new record)" "${SELF_DIR}/cf-dns-route.sh" --delete "${host}"
 fi

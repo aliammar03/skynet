@@ -1,6 +1,6 @@
 ---
 summary: "The L7 actuators and their rollback executors: what each write can undo, by whom, and how the rollback is decided deterministically."
-tokens: 1093
+tokens: 1400
 ---
 
 # Spoke · Actuators & rollback executors
@@ -37,6 +37,25 @@ that failed. Two consequences shape everything here:
 **Destroy is not in this table by design.** `tofu-apply.sh` refuses any plan containing a
 `delete`/replace action or touching a T3 excluded guest (5001, 635, 837, 2020) — those are human-run,
 permanently ([Judgement Day §6](../system-design.md)).
+
+### Live validation (2026-09-03)
+
+Beyond the failure-injection harnesses, these ran against live infrastructure:
+
+- **DNS** — full create → revert cycle against real Cloudflare (a throwaway `sky018-p6-canary`
+  record): published, inverse recorded, replayed to delete, confirmed gone, log settled.
+- **Snapshot** — `pve-snapshot.sh create`+`delete` on `guest/docker-dmz-10015` via the operate
+  token (non-disruptive); the task-status check also correctly caught Proxmox refusing to snapshot
+  the **template** VM 9000 ("can't take a snapshot if it's a template") — so a plan touching a
+  template makes `tofu-apply.sh` **fail closed**, as designed.
+- **Compose gate** — `deploy-gate.sh` probed a healthy running service live (Arcane status + docker
+  health over svc-ops SSH) and correctly kept it (no rollback).
+
+A fully-live rollback of a *running* in-pool guest, and the auto-revert of a deliberately-broken
+compose deploy, are **not** rehearsed on production (the only running in-pool guests are the apps
+host, the un-snapshottable PBS CT, and the ops VM itself). Those destructive rehearsals are
+SKY-017's proving ground, against a disposable canary — the harness proves the decision + executor
+logic meanwhile.
 
 ## Notes that are load-bearing
 

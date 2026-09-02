@@ -10,9 +10,10 @@
 # delete a guest, so it never crosses the destroy/T3 checkpoint.
 #
 # Auth: /opt/skynet-ops/secrets/proxmox-<core|network>.env for PVE_HOST + PVE_CACERT, and the OPERATE
-# token from PVE_OPERATE_TOKEN (env, or set in that env file). The read-only PVE_TOKEN cannot snapshot;
-# if no operate token is available the script exits non-zero so the caller FAILS CLOSED (no snapshot =
-# no apply = no unguarded change).
+# token PVE_TOKEN_OPERATE (`svc-ops@pve!operate=…`, already sops-managed alongside the readonly
+# PVE_TOKEN). The read-only PVE_TOKEN cannot snapshot; if no operate token is available the script
+# exits non-zero so the caller FAILS CLOSED (no snapshot = no apply = no unguarded change).
+# (PVE_OPERATE_TOKEN in the environment overrides, for a one-off / test.)
 #
 # USAGE:
 #   pve-snapshot.sh create   <node_name> <vm|lxc> <vmid> <snapname>
@@ -32,8 +33,9 @@ secret_file="/opt/skynet-ops/secrets/proxmox-${suffix}.env"
 # shellcheck disable=SC1090
 eval "$(cat "${secret_file}" 2>/dev/null || sudo -n cat "${secret_file}")"
 : "${PVE_HOST:?}" "${PVE_CACERT:?}"
-TOKEN="${PVE_OPERATE_TOKEN:-}"
-[ -n "${TOKEN}" ] || { echo "pve-snapshot: PVE_OPERATE_TOKEN not set (read-only token cannot snapshot) — set the operate token in ${secret_file} or the env" >&2; exit 1; }
+# The operate token: env override first (one-off/test), then the sops-managed PVE_TOKEN_OPERATE.
+TOKEN="${PVE_OPERATE_TOKEN:-${PVE_TOKEN_OPERATE:-}}"
+[ -n "${TOKEN}" ] || { echo "pve-snapshot: no operate token (PVE_TOKEN_OPERATE in ${secret_file}, or PVE_OPERATE_TOKEN in env) — the read-only token cannot snapshot" >&2; exit 1; }
 [ -r "${PVE_CACERT}" ] || { echo "pve-snapshot: PVE_CACERT ${PVE_CACERT} unreadable" >&2; exit 1; }
 
 api() { local m="$1" p="$2"; shift 2; curl -sSf --max-time 30 --cacert "${PVE_CACERT}" \
