@@ -1,7 +1,7 @@
 ---
 summary: "Publish a service through the apps Caddy front door: edit the Caddyfile then PR then deploy — own-auth (plain reverse_proxy) or forward-auth via Authentik (scoped-token provider+application); optionally also expose it to the internet via the Cloudflare Tunnel (Path C)."
 trigger: "Publish or expose a service"
-tokens: 4591
+tokens: 4719
 ---
 
 # Runbook — publish a service through the apps Caddy (the front door)
@@ -207,14 +207,17 @@ is public *only* with an `ingress` rule **and** a public CNAME):
    `--watch` hot-reload). `scripts/gitops-deploy.sh cloudflared` now force-restarts the connector for
    exactly this reason — run it and confirm it comes back healthy (`tunnel ready`, 4 connections). The
    manual fallback if ever needed: `ssh svc-ops@10.10.100.15 "docker restart cloudflared-cloudflared-1"`.
-2. **Create the public DNS CNAME** (T2 Cloudflare `DNS:Edit`) — a proxied `<svc>.aliammar.net` →
-   `<tunnel-id>.cfargotunnel.com`:
+2. **Create the public DNS CNAME (T2, tofu).** The proxied CNAME → `<tunnel-id>.cfargotunnel.com` is
+   *derived from the ingress rule you just added* (`tofu/cloudflare-dns.tf` reads
+   `compose/cloudflared/config.yml`), so it only needs applying:
    ```
-   scripts/cf-dns-route.sh <svc>.aliammar.net
+   eval "$(scripts/tofu-env.sh)"
+   cd tofu && tofu plan     # expect: + cloudflare_dns_record.tunnel["<svc>.aliammar.net"]
+   tofu apply               # ⚠ T2 DNS write — the public record appears
    ```
-   Idempotent; refuses hosts outside `aliammar.net`. (This is the *public* record on Cloudflare's
-   authoritative DNS — separate from Technitium's internal split-DNS, which keeps steering internal
-   clients straight to the Caddy.)
+   (This is the *public* record on Cloudflare's authoritative DNS — separate from Technitium's internal
+   split-DNS, which keeps steering internal clients straight to the Caddy. Break-glass without tofu:
+   `scripts/cf-dns-route.sh <svc>.aliammar.net` — idempotent, refuses hosts outside `aliammar.net`.)
 
 **Verify from OUTSIDE.** The internal path won't exercise the tunnel (internal clients resolve via
 Technitium straight to Caddy, never through Cloudflare). Test from a genuinely external vantage — a
@@ -260,10 +263,11 @@ blocking them breaks logins. Verify the split: `/if/admin/` is `404` over the tu
 internal client; the public login page + `/if/flow/…` serve `200`. And ensure the Authentik account
 that page now exposes uses **MFA / a passkey** (the login is internet-reachable).
 
-**Rollback (symmetric, immediate):** `scripts/cf-dns-route.sh --delete <svc>.aliammar.net` pulls the
-CNAME and the hostname stops resolving publicly at once; then `git revert` the `ingress` line and
-restart the connector. Public exposure is additive and per-host — removing it takes nothing away from
-the internal door.
+**Rollback:** `git revert` the `ingress` line and `tofu apply` — dropping the ingress removes the
+derived CNAME (the hostname stops resolving publicly) — then restart the connector. For an *immediate*
+pull ahead of the revert, the break-glass path is `scripts/cf-dns-route.sh --delete <svc>.aliammar.net`
+(but re-apply tofu afterward so state matches, or tofu will want to recreate it). Public exposure is
+additive and per-host — removing it takes nothing away from the internal door.
 
 ---
 
