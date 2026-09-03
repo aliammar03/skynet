@@ -49,7 +49,8 @@ STUB
 chmod +x "${TMP}/curl"
 # a dummy cacert file so the collector skips fingerprint capture (openssl untouched)
 : > "${TMP}/pbs.crt"
-printf 'PBS_HOST=10.10.20.40\nPBS_TOKEN=svc-ops@pbs!readonly=deadbeef\nPBS_CACERT=%s\n' "${TMP}/pbs.crt" > "${TMP}/pbs.env"
+# PBS_SNI set so the stub path skips cert-hostname extraction (no real cert to read here)
+printf 'PBS_HOST=10.10.20.40\nPBS_TOKEN=svc-ops@pbs!readonly=deadbeef\nPBS_CACERT=%s\nPBS_SNI=pbs.test\n' "${TMP}/pbs.crt" > "${TMP}/pbs.env"
 
 rm -f "${OUT}"
 PATH="${TMP}:${PATH}" PBS_ENV_FILE="${TMP}/pbs.env" PBS_SKIP_REACHABILITY=1 bash "${SCRIPT}" >/dev/null 2>&1

@@ -9,7 +9,7 @@
 # Reads /opt/skynet-ops/secrets/pbs.env (0600 root-owned; the agent reads it via the sops-nix
 # symlink, or falls back to `sudo -n cat` on a NOPASSWD host):
 #   PBS_HOST=10.10.20.40
-#   PBS_TOKEN='svc-ops@pbs!readonly=<uuid>'    # a token with Datastore.Audit (read-only) on the store
+#   PBS_TOKEN='svc-ops@pbs!readonly:<uuid>'    # DatastoreAudit token (read-only); PBS uses ':' (PVE '=')
 #   PBS_FINGERPRINT='BA:C3:..:2C'  (optional)  # leaf-cert SHA256; defaults to the PVE-recorded pin below
 #   PBS_CACERT=/opt/skynet-ops/certs/pbs.crt   # optional: pin by a cert FILE instead of the fingerprint
 #
@@ -63,8 +63,26 @@ else
   cacert="${CADIR}/pbs-pinned.crt"; printf '%s\n' "${leaf}" > "${cacert}"
 fi
 
-api() { curl -sSf --max-time 20 --cacert "${cacert}" -H "Authorization: PBSAPIToken=${PBS_TOKEN}" \
-        "https://${PBS_HOST}:${PBS_PORT}/api2/json/$1"; }
+# PBS's self-signed cert has NO IP in its SAN (only the hostname), so verifying by the IP we dial
+# fails "no alternative certificate subject name matches" even with the right CA. Connect with
+# SNI = the cert's own hostname (via --resolve → the IP), so the SAN matches AND the pin holds.
+# Auto-extract it from the pinned cert (prefer an FQDN SAN, else the CN); PBS_SNI overrides.
+sni="${PBS_SNI:-}"
+if [ -z "${sni}" ]; then
+  sni="$(openssl x509 -in "${cacert}" -noout -ext subjectAltName 2>/dev/null \
+          | grep -oE 'DNS:[A-Za-z0-9.-]+' | sed 's/DNS://' | grep '\.' | grep -vi '^localhost' | head -1)"
+  [ -n "${sni}" ] || sni="$(openssl x509 -in "${cacert}" -noout -subject 2>/dev/null \
+          | grep -oE 'CN *= *[^,/]+' | sed 's/CN *= *//' | head -1)"
+fi
+: "${sni:?could not determine PBS cert hostname (set PBS_SNI in ${secret_file})}"
+
+# PBS wants the token as `PBSAPIToken=<tokenid>:<secret>` — a COLON, unlike PVE's `=`. Tolerate a
+# PVE-style `=` separator (easy to write by muscle memory) by swapping the first `=` to `:`; the
+# tokenid and the UUID secret contain neither, so this only ever hits the separator.
+PBS_AUTH="${PBS_TOKEN/=/:}"
+api() { curl -sSf --max-time 20 --cacert "${cacert}" --resolve "${sni}:${PBS_PORT}:${PBS_HOST}" \
+        -H "Authorization: PBSAPIToken=${PBS_AUTH}" \
+        "https://${sni}:${PBS_PORT}/api2/json/$1"; }
 
 # --- datastores + their backup content ---------------------------------------
 # For each datastore: usage (status) + the backup groups. A group is one guest's backup history;
