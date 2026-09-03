@@ -38,24 +38,24 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 **Loose ends from recent episodes** (the journal's own open-thread bullets, verbatim):
 
+- Check whether the ten newly created PBS snapshots acquire `verify_state: ok` after the verifier runs; VM 10015 remains the pre-existing latest-snapshot verification gap. — _2026-09-04 session          # session | incident | decision_
+- Exercise an end-to-end restore; this pass did not test PBS restore, restic, or the L5 Drive mirror. — _2026-09-04 session          # session | incident | decision_
+- Decide whether missing `project.env` for `aiometadata` and `aiostreams` is intentional and whether `scripts/envsync.sh` should exit 1 after those skips. — _2026-09-04 session          # session | incident | decision_
+- Confirm whether `10.10.80.37` should answer continuously. The three silent `10.10.10.*` values are members of `ROLE_ADMIN_CLIENTS` and may be offline client slots. — _2026-09-04 session          # session | incident | decision_
 - ⚠ pve-snapshot.sh needs the OPERATE token (PVE_OPERATE_TOKEN); standing proxmox-<node>.env only has the readonly token. Confirm it's materialized before any live `tofu-apply.sh`. Until then tofu-apply fails closed (can't snapshot → won't apply) — correct, but means no live tofu rollback demo yet. — _2026-09-03 session          # session | incident | decision_
 - P6 wrappers are opt-in and not yet wired into bin/ops / the nightly (report-only). That wiring is a SKY-017 autonomy-promotion step, not P6. — _2026-09-03 session          # session | incident | decision_
 - NEXT: P7 (conftest/Rego over `tofu plan`) — explicitly NOT started this session. — _2026-09-03 session          # session | incident | decision_
 - Confirm whether VMID 10015's reboot was planned. — _2026-09-03 session_
-- Check `10.10.80.37` if the identity host should be continuously reachable. — _2026-09-03 session_
-- Confirm whether missing `project.env` files for `aiometadata` and `aiostreams` are intentional, and why `scripts/envsync.sh` exits 1 after those skips. — _2026-09-03 session_
-- Exercise a restore, verify restic and the L5 Google Drive mirror, and review the 11 PBS groups without a verification state. — _2026-09-03 session_
-- VM 10015 is the only PBS guest group whose latest snapshot has no verification state. — _2026-09-03 session          # session | incident | decision_
 
 ## 📓 Recent episodes
 
+- **2026-09-04** · session          # session | incident | decision · [[2026-09-04-session-nightly-2026-09-04|nightly 2026-09-04]]
 - **2026-09-03** · session          # session | incident | decision · [[2026-09-03-session-sky-018-p6-l7-rollback-executors|SKY-018 P6 — L7 rollback executors]]
 - **2026-09-03** · session · [[2026-09-03-session-nightly-2026-09-03|nightly 2026-09-03]]
 - **2026-09-03** · session          # session | incident | decision · [[2026-09-03-session-nightly-2026-09-03-1206|nightly 2026-09-03 1206]]
 - **2026-09-02** · session          # session | incident | decision · [[2026-09-02-session-sky-008-p3-ct-240-import-dns-provider-blocked|SKY-008 P3 — CT 240 import + DNS provider blocked]]
 - **2026-09-02** · session          # session | incident | decision · [[2026-09-02-session-nightly-2026-09-02|nightly 2026-09-02]]
 - **2026-09-01** · session          # session | incident | decision · [[2026-09-01-session-sky-018-p1-first-entity-audit|SKY-018 P1 first entity audit]]
-- **2026-09-01** · session          # session | incident | decision · [[2026-09-01-session-nightly-2026-09-01|nightly 2026-09-01]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._
