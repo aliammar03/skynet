@@ -45,17 +45,17 @@ follow a link for the full story; distill episodes at read time, never in this f
 - Check `10.10.80.37` if the identity host should be continuously reachable. — _2026-09-03 session_
 - Confirm whether missing `project.env` files for `aiometadata` and `aiostreams` are intentional, and why `scripts/envsync.sh` exits 1 after those skips. — _2026-09-03 session_
 - Exercise a restore, verify restic and the L5 Google Drive mirror, and review the 11 PBS groups without a verification state. — _2026-09-03 session_
-- **Ali action:** delete the leftover live record `tofu-test.tdns.home.aliammar.net A 192.0.2.1`, and add record-delete to the scoped Technitium token (the DNS phase needs it for `tofu destroy`). — _2026-09-02 session          # session | incident | decision_
+- VM 10015 is the only PBS guest group whose latest snapshot has no verification state. — _2026-09-03 session          # session | incident | decision_
 
 ## 📓 Recent episodes
 
 - **2026-09-03** · session          # session | incident | decision · [[2026-09-03-session-sky-018-p6-l7-rollback-executors|SKY-018 P6 — L7 rollback executors]]
 - **2026-09-03** · session · [[2026-09-03-session-nightly-2026-09-03|nightly 2026-09-03]]
+- **2026-09-03** · session          # session | incident | decision · [[2026-09-03-session-nightly-2026-09-03-1206|nightly 2026-09-03 1206]]
 - **2026-09-02** · session          # session | incident | decision · [[2026-09-02-session-sky-008-p3-ct-240-import-dns-provider-blocked|SKY-008 P3 — CT 240 import + DNS provider blocked]]
 - **2026-09-02** · session          # session | incident | decision · [[2026-09-02-session-nightly-2026-09-02|nightly 2026-09-02]]
 - **2026-09-01** · session          # session | incident | decision · [[2026-09-01-session-sky-018-p1-first-entity-audit|SKY-018 P1 first entity audit]]
 - **2026-09-01** · session          # session | incident | decision · [[2026-09-01-session-nightly-2026-09-01|nightly 2026-09-01]]
-- **2026-09-01** · session · [[2026-09-01-session-nightly-2026-09-01-2350|nightly 2026-09-01 2350]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._
