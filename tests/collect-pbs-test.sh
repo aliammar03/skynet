@@ -36,12 +36,16 @@ cat > "${TMP}/curl" <<'STUB'
 #!/usr/bin/env bash
 url="${@: -1}"
 case "${url}" in
-  */admin/datastore)               echo '{"data":[{"store":"unraid"}]}' ;;
-  */admin/datastore/unraid/status) echo '{"data":{"total":1000,"used":400,"avail":600}}' ;;
-  */admin/datastore/unraid/groups) echo '{"data":[
-      {"backup-type":"vm","backup-id":"10015","backup-count":7,"last-backup":1788388202,"owner":"svc-ops@pbs","verification":{"state":"ok"}},
-      {"backup-type":"ct","backup-id":"635","backup-count":3,"last-backup":1788300000,"owner":"svc-ops@pbs","verification":{"state":"failed"}}
+  # backups live in namespaces; snapshots (not groups) carry the verify state. Match ns queries first.
+  */admin/datastore/unraid/snapshots\?ns=core) echo '{"data":[
+      {"backup-type":"vm","backup-id":"10015","backup-time":100,"owner":"svc-ops@pbs","verification":{"state":"ok"}},
+      {"backup-type":"vm","backup-id":"10015","backup-time":200,"owner":"svc-ops@pbs","verification":null},
+      {"backup-type":"ct","backup-id":"101","backup-time":150,"owner":"svc-ops@pbs","verification":{"state":"ok"}}
     ]}' ;;
+  */admin/datastore/unraid/snapshots)  echo '{"data":[]}' ;;      # root namespace: empty
+  */admin/datastore/unraid/namespace)  echo '{"data":[{"ns":""},{"ns":"core"}]}' ;;
+  */admin/datastore/unraid/status)     echo '{"data":{"total":1000,"used":400,"avail":600}}' ;;
+  */admin/datastore)                   echo '{"data":[{"store":"unraid"}]}' ;;
   *) echo '{"data":[]}' ;;
 esac
 exit 0
@@ -58,10 +62,14 @@ eq "collector exits 0 with stubbed creds" "$?" "0"
 if [ -s "${OUT}" ]; then
   eq "one datastore recorded"                 "$(jq '.datastores|length' "${OUT}")"                                  "1"
   eq "host recorded"                          "$(jq -r '.host' "${OUT}")"                                            "10.10.20.40"
-  eq "group_count = 2"                        "$(jq '.datastores[0].group_count' "${OUT}")"                          "2"
-  eq "snapshot_total sums backup counts (7+3)" "$(jq '.datastores[0].snapshot_total' "${OUT}")"                      "10"
-  eq "vm/10015 verify_state = ok"             "$(jq -r '.datastores[0].groups[]|select(.backup_id=="10015").verify_state' "${OUT}")" "ok"
-  eq "ct/635 verify_state = failed (surfaced, not hidden)" "$(jq -r '.datastores[0].groups[]|select(.backup_id=="635").verify_state' "${OUT}")" "failed"
+  eq "group_count = 2 (root ns empty, both guests in core)" "$(jq '.datastores[0].group_count' "${OUT}")"           "2"
+  eq "snapshot_total counts snapshots (2+1)"  "$(jq '.datastores[0].snapshot_total' "${OUT}")"                       "3"
+  eq "vm/10015 backup_count = 2"              "$(jq '.datastores[0].groups[]|select(.backup_id=="10015").backup_count' "${OUT}")" "2"
+  eq "vm/10015 last_backup = latest (200)"    "$(jq '.datastores[0].groups[]|select(.backup_id=="10015").last_backup' "${OUT}")" "200"
+  eq "vm/10015 verify_state = null (latest unverified — surfaced)" "$(jq '.datastores[0].groups[]|select(.backup_id=="10015").verify_state' "${OUT}")" "null"
+  eq "ct/101 verify_state = ok"               "$(jq -r '.datastores[0].groups[]|select(.backup_id=="101").verify_state' "${OUT}")" "ok"
+  eq "groups carry their namespace"           "$(jq -r '.datastores[0].groups[0].ns' "${OUT}")"                      "core"
+  eq "unverified count = 1"                   "$(jq '.datastores[0].unverified' "${OUT}")"                           "1"
   eq "datastore usage carried through"        "$(jq '.datastores[0].status.used' "${OUT}")"                         "400"
 else
   bad "collector wrote no inventory with stubbed creds"

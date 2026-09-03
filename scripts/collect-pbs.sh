@@ -93,21 +93,36 @@ api() { curl -sSf --max-time 20 --cacert "${cacert}" --resolve "${sni}:${PBS_POR
 stores_json="$(api admin/datastore | jq '[.data[]?.store]')"
 
 store_block() { # <store>
-  local s="$1" status groups
+  local s="$1" status ns_json snaps groups
   status="$(api "admin/datastore/${s}/status" 2>/dev/null | jq '.data // null' || echo null)"
-  groups="$(api "admin/datastore/${s}/groups" 2>/dev/null \
-    | jq '[.data[]? | {
-             backup_type: ."backup-type",
-             backup_id:   ."backup-id",
-             backup_count:(."backup-count" // 0),
-             last_backup: (."last-backup" // null),
-             owner:       (.owner // null),
-             verify_state:(.["verification"].state // .last_verify_state // null)
-           }]' 2>/dev/null || echo null)"
+  # Backups live in NAMESPACES (e.g. core, network), not just the root — and per-snapshot carries
+  # the verification state that the groups view omits. So enumerate namespaces (always include root
+  # ""), pull each namespace's snapshots once, tag them, then reduce to per-guest groups.
+  ns_json="$(api "admin/datastore/${s}/namespace" 2>/dev/null | jq '[.data[]?.ns] // []' 2>/dev/null || echo '[]')"
+  ns_json="$(printf '%s' "${ns_json:-[]}" | jq 'if any(.[]; .=="") then . else [""] + . end')"
+  snaps="[]"
+  while IFS= read -r ns; do
+    local q d
+    if [ -z "${ns}" ]; then q="admin/datastore/${s}/snapshots"; else q="admin/datastore/${s}/snapshots?ns=${ns}"; fi
+    d="$(api "${q}" 2>/dev/null | jq --arg ns "${ns}" '[.data[]? | {
+           ns:$ns, backup_type:."backup-type", backup_id:."backup-id",
+           backup_time:."backup-time", verify:(.verification.state // null), owner:(.owner // null)
+         }]' 2>/dev/null || echo '[]')"
+    snaps="$(jq -n --argjson a "${snaps}" --argjson b "${d:-[]}" '$a + $b' 2>/dev/null || printf '%s' "${snaps}")"
+  done < <(printf '%s' "${ns_json}" | jq -r '.[]')
+  # reduce snapshots → one row per (namespace, guest): count, last-backup time, and the verify state
+  # OF THE LATEST snapshot (null = never verified — a real soundness gap, surfaced not hidden).
+  groups="$(printf '%s' "${snaps}" | jq '
+    group_by(.ns + "/" + .backup_type + "/" + .backup_id)
+    | map( sort_by(.backup_time) as $g | {
+        ns:$g[0].ns, backup_type:$g[0].backup_type, backup_id:$g[0].backup_id, owner:$g[-1].owner,
+        backup_count:($g|length), last_backup:$g[-1].backup_time, verify_state:$g[-1].verify } )
+    | sort_by(.ns, .backup_type, .backup_id)' 2>/dev/null || echo null)"
   jq -n --arg s "${s}" --argjson status "${status:-null}" --argjson groups "${groups:-null}" \
     '{store:$s, status:$status, groups:$groups,
       group_count:(if $groups==null then null else ($groups|length) end),
-      snapshot_total:(if $groups==null then null else ([$groups[].backup_count]|add // 0) end)}'
+      snapshot_total:(if $groups==null then null else ([$groups[].backup_count]|add // 0) end),
+      unverified:(if $groups==null then null else ([$groups[]|select(.verify_state==null)]|length) end)}'
 }
 
 datastores="$(printf '%s' "${stores_json}" | jq -r '.[]?' | while IFS= read -r s; do

@@ -1,0 +1,200 @@
+{
+  "collected": "2026-09-03T11:28:34+05:00",
+  "host": "10.10.20.40",
+  "datastores": [
+    {
+      "store": "unraid",
+      "status": {
+        "avail": 1233715200000,
+        "backend-type": "filesystem",
+        "total": 7999426396160,
+        "used": 6765711196160
+      },
+      "groups": [
+        {
+          "ns": "core",
+          "backup_type": "ct",
+          "backup_id": "101",
+          "owner": "root@pam!pve-core",
+          "backup_count": 5,
+          "last_backup": 1786885613,
+          "verify_state": "ok"
+        },
+        {
+          "ns": "core",
+          "backup_type": "ct",
+          "backup_id": "231",
+          "owner": "root@pam!pve-core",
+          "backup_count": 11,
+          "last_backup": 1786746607,
+          "verify_state": "ok"
+        },
+        {
+          "ns": "core",
+          "backup_type": "ct",
+          "backup_id": "240",
+          "owner": "root@pam!pve-core",
+          "backup_count": 4,
+          "last_backup": 1786746614,
+          "verify_state": "ok"
+        },
+        {
+          "ns": "core",
+          "backup_type": "ct",
+          "backup_id": "731",
+          "owner": "root@pam!pve-core",
+          "backup_count": 7,
+          "last_backup": 1788388202,
+          "verify_state": null
+        },
+        {
+          "ns": "core",
+          "backup_type": "ct",
+          "backup_id": "751",
+          "owner": "root@pam!pve-core",
+          "backup_count": 6,
+          "last_backup": 1788388210,
+          "verify_state": null
+        },
+        {
+          "ns": "core",
+          "backup_type": "vm",
+          "backup_id": "10015",
+          "owner": "root@pam!pve-core",
+          "backup_count": 7,
+          "last_backup": 1788388251,
+          "verify_state": null
+        },
+        {
+          "ns": "core",
+          "backup_type": "vm",
+          "backup_id": "9000",
+          "owner": "root@pam!pve-core",
+          "backup_count": 3,
+          "last_backup": 1788388218,
+          "verify_state": null
+        },
+        {
+          "ns": "core",
+          "backup_type": "vm",
+          "backup_id": "9090",
+          "owner": "root@pam!pve-core",
+          "backup_count": 3,
+          "last_backup": 1788388226,
+          "verify_state": null
+        },
+        {
+          "ns": "core",
+          "backup_type": "vm",
+          "backup_id": "999",
+          "owner": "root@pam!pve-core",
+          "backup_count": 2,
+          "last_backup": 1786746638,
+          "verify_state": "ok"
+        },
+        {
+          "ns": "network",
+          "backup_type": "ct",
+          "backup_id": "1033",
+          "owner": "root@pam!pve-network",
+          "backup_count": 4,
+          "last_backup": 1786741549,
+          "verify_state": "ok"
+        },
+        {
+          "ns": "network",
+          "backup_type": "ct",
+          "backup_id": "1035",
+          "owner": "root@pam!pve-network",
+          "backup_count": 4,
+          "last_backup": 1786741566,
+          "verify_state": "ok"
+        },
+        {
+          "ns": "network",
+          "backup_type": "ct",
+          "backup_id": "240",
+          "owner": "root@pam!pve-network",
+          "backup_count": 4,
+          "last_backup": 1786741202,
+          "verify_state": "ok"
+        },
+        {
+          "ns": "network",
+          "backup_type": "ct",
+          "backup_id": "525",
+          "owner": "root@pam!pve-network",
+          "backup_count": 12,
+          "last_backup": 1788382800,
+          "verify_state": null
+        },
+        {
+          "ns": "network",
+          "backup_type": "ct",
+          "backup_id": "526",
+          "owner": "root@pam!pve-network",
+          "backup_count": 9,
+          "last_backup": 1786741260,
+          "verify_state": "ok"
+        },
+        {
+          "ns": "network",
+          "backup_type": "ct",
+          "backup_id": "635",
+          "owner": "root@pam!pve-network",
+          "backup_count": 6,
+          "last_backup": 1788382833,
+          "verify_state": null
+        },
+        {
+          "ns": "network",
+          "backup_type": "ct",
+          "backup_id": "720",
+          "owner": "root@pam!pve-network",
+          "backup_count": 4,
+          "last_backup": 1786741369,
+          "verify_state": "ok"
+        },
+        {
+          "ns": "network",
+          "backup_type": "ct",
+          "backup_id": "730",
+          "owner": "root@pam!pve-network",
+          "backup_count": 2,
+          "last_backup": 1788382879,
+          "verify_state": null
+        },
+        {
+          "ns": "network",
+          "backup_type": "ct",
+          "backup_id": "750",
+          "owner": "root@pam!pve-network",
+          "backup_count": 5,
+          "last_backup": 1788382893,
+          "verify_state": null
+        },
+        {
+          "ns": "network",
+          "backup_type": "ct",
+          "backup_id": "837",
+          "owner": "root@pam!pve-network",
+          "backup_count": 6,
+          "last_backup": 1788382907,
+          "verify_state": null
+        },
+        {
+          "ns": "network",
+          "backup_type": "vm",
+          "backup_id": "5001",
+          "owner": "root@pam!pve-network",
+          "backup_count": 7,
+          "last_backup": 1788383078,
+          "verify_state": null
+        }
+      ],
+      "group_count": 20,
+      "snapshot_total": 111,
+      "unverified": 11
+    }
+  ]
+}
