@@ -28,7 +28,7 @@ PBS_FINGERPRINT_DEFAULT="BA:C3:32:F3:92:6B:4D:8F:FB:39:0D:D9:C4:B5:27:1D:D1:28:8
 if ! { test -e "${secret_file}" 2>/dev/null || sudo -n test -f "${secret_file}" 2>/dev/null; }; then
   echo "no creds yet (${secret_file}) — collector idle. Mint a read token: on PBS run" >&2
   echo "  proxmox-backup-manager user generate-token svc-ops@pbs readonly" >&2
-  echo "  proxmox-backup-manager acl update /datastore/unraid Datastore.Audit --auth-id 'svc-ops@pbs!readonly'" >&2
+  echo "  proxmox-backup-manager acl update /datastore/unraid DatastoreAudit --auth-id 'svc-ops@pbs!readonly'" >&2
   echo "then add PBS_HOST/PBS_TOKEN to ${secret_file} (sops). Idle is not a failure — exit 0." >&2
   exit 0
 fi
