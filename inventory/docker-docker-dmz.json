@@ -1,7 +1,25 @@
 {
   "host": "docker-dmz",
-  "collected": "2026-09-02T03:39:44+05:00",
+  "collected": "2026-09-03T11:44:31+05:00",
   "containers": [
+    {
+      "Command": "\"docker-php-entrypoi…\"",
+      "CreatedAt": "2026-09-03 01:26:23 +0500 PKT",
+      "HealthStatus": "healthy",
+      "ID": "983d9d2a2458",
+      "Image": "ghcr.io/librespeed/speedtest:6.0.2-alpine",
+      "Labels": "com.docker.compose.config-hash=2e35672bfcf9092f86e5de65ee13978b764a4ba121452c2aa86e4297de3beece,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:2f855523c6e5f9cab079f183d7863684dbde21864ec4ab64387cb6a53243b90d,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/opt/docker/arcane-projects/librespeed/compose.yaml,com.docker.compose.project.working_dir=/opt/docker/arcane-projects/librespeed,com.docker.compose.project=librespeed,com.docker.compose.service=librespeed,com.docker.compose.version=,org.opencontainers.image.created=2026-04-14T12:33:26.483Z,org.opencontainers.image.description=Self-hosted Speed Test for HTML5 and more. Easy setup, examples, configurable, mobile friendly. Supports PHP, Node, Multiple servers, and more,org.opencontainers.image.documentation=https://github.com/librespeed/speedtest/blob/master/doc_docker.md,org.opencontainers.image.licenses=LGPL-3.0,org.opencontainers.image.revision=c3d68308144c578d67eee4fe36c968329346c6cc,org.opencontainers.image.source=https://github.com/librespeed/speedtest,org.opencontainers.image.title=speedtest,org.opencontainers.image.url=https://github.com/librespeed/speedtest,org.opencontainers.image.vendor=LibreSpeed,org.opencontainers.image.version=6.0.2-alpine",
+      "LocalVolumes": "0",
+      "Mounts": "/opt/docker/ap…",
+      "Names": "librespeed-librespeed-1",
+      "Networks": "dmz",
+      "Platform": null,
+      "Ports": "",
+      "RunningFor": "10 hours ago",
+      "Size": "44.4MB (virtual 272MB)",
+      "State": "running",
+      "Status": "Up 10 hours (healthy)"
+    },
     {
       "Command": "\"/usr/local/bin/entr…\"",
       "CreatedAt": "2026-08-30 14:22:13 +0500 PKT",
@@ -15,10 +33,10 @@
       "Networks": "aiometadata_backend,dmz",
       "Platform": null,
       "Ports": "3232/tcp",
-      "RunningFor": "2 days ago",
+      "RunningFor": "3 days ago",
       "Size": "0B (virtual 437MB)",
       "State": "running",
-      "Status": "Up 2 days (healthy)"
+      "Status": "Up 3 days (healthy)"
     },
     {
       "Command": "\"docker-entrypoint.s…\"",
@@ -33,28 +51,10 @@
       "Networks": "aiometadata_backend",
       "Platform": null,
       "Ports": "6379/tcp",
-      "RunningFor": "2 days ago",
+      "RunningFor": "3 days ago",
       "Size": "0B (virtual 38.6MB)",
       "State": "running",
-      "Status": "Up 2 days (healthy)"
-    },
-    {
-      "Command": "\"docker-php-entrypoi…\"",
-      "CreatedAt": "2026-08-23 09:13:53 +0500 PKT",
-      "HealthStatus": "healthy",
-      "ID": "ee933c4df623",
-      "Image": "ghcr.io/librespeed/speedtest:6.0.2-alpine",
-      "Labels": "com.docker.compose.config-hash=2e35672bfcf9092f86e5de65ee13978b764a4ba121452c2aa86e4297de3beece,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:2f855523c6e5f9cab079f183d7863684dbde21864ec4ab64387cb6a53243b90d,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/opt/docker/arcane-projects/librespeed/compose.yaml,com.docker.compose.project.working_dir=/opt/docker/arcane-projects/librespeed,com.docker.compose.project=librespeed,com.docker.compose.service=librespeed,com.docker.compose.version=,org.opencontainers.image.created=2026-04-14T12:33:26.483Z,org.opencontainers.image.description=Self-hosted Speed Test for HTML5 and more. Easy setup, examples, configurable, mobile friendly. Supports PHP, Node, Multiple servers, and more,org.opencontainers.image.documentation=https://github.com/librespeed/speedtest/blob/master/doc_docker.md,org.opencontainers.image.licenses=LGPL-3.0,org.opencontainers.image.revision=c3d68308144c578d67eee4fe36c968329346c6cc,org.opencontainers.image.source=https://github.com/librespeed/speedtest,org.opencontainers.image.title=speedtest,org.opencontainers.image.url=https://github.com/librespeed/speedtest,org.opencontainers.image.vendor=LibreSpeed,org.opencontainers.image.version=6.0.2-alpine",
-      "LocalVolumes": "0",
-      "Mounts": "/opt/docker/ap…",
-      "Names": "librespeed-librespeed-1",
-      "Networks": "dmz",
-      "Platform": null,
-      "Ports": "",
-      "RunningFor": "9 days ago",
-      "Size": "44.4MB (virtual 272MB)",
-      "State": "running",
-      "Status": "Up 4 days (healthy)"
+      "Status": "Up 3 days (healthy)"
     },
     {
       "Command": "\"tini -- ./docker-en…\"",
@@ -69,10 +69,10 @@
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "13 days ago",
+      "RunningFor": "2 weeks ago",
       "Size": "4.22kB (virtual 565MB)",
       "State": "running",
-      "Status": "Up 4 days (healthy)"
+      "Status": "Up 5 days (healthy)"
     },
     {
       "Command": "\"cloudflared --no-au…\"",
@@ -82,15 +82,15 @@
       "Image": "cloudflare/cloudflared:2026.8.2",
       "Labels": "CI_BUILD_DATE=2026-08-14 12:29:10.174645,CI_DOCKER_FROM=gcr.io/distroless/base-debian13:nonroot-amd64@sha256:ce2a20e0e277b7d913aa8bcfa098fc2a543dc08028f7393434963fa24b39ea81,CI_DOCKER_VERSION={\"Platform\": {\"Name\": \"Docker Engine - Community\"}, \"Version\": \"29.5.3\", \"ApiVersion\": \"1.54\", \"MinAPIVersion\": \"1.40\", \"Os\": \"linux\", \"Arch\": \"amd64\", \"Components\": [{\"Name\": \"Engine\", \"Version\": \"29.5.3\", \"Details\": {\"ApiVersion\": \"1.54\", \"Arch\": \"amd64\", \"BuildTime\": \"2026-06-03T18:00:10.000000000+00:00\", \"Experimental\": \"false\", \"GitCommit\": \"285b471\", \"GoVersion\": \"go1.26.4\", \"KernelVersion\": \"6.18.40-cloudflare-2026.7.14\", \"MinAPIVersion\": \"1.40\", \"Module\": \"github.com/moby/moby/v2\", \"ModuleVersion\": \"v2.0.0+unknown\", \"Os\": \"linux\"}}, {\"Name\": \"containerd\", \"Version\": \"v2.2.6\", \"Details\": {\"GitCommit\": \"11ce9d5f3c68c941867e82890e93e815c1304f1b\"}}, {\"Name\": \"runc\", \"Version\": \"1.3.6\", \"Details\": {\"GitCommit\": \"v1.3.6-0-g491b69ba\"}}, {\"Name\": \"docker-init\", \"Version\": \"0.19.0\", \"Details\": {\"GitCommit\": \"de40ad0\"}}], \"GitCommit\": \"285b471\", \"GoVersion\": \"go1.26.4\", \"KernelVersion\": \"6.18.40-cloudflare-2026.7.14\", \"BuildTime\": \"2026-06-03T18:00:10.000000000+00:00\"},CI_GIT_COMMIT=733bfb939963e150dcf5c4faddb1603f744fbc98,CI_GIT_REMOTE=https://gitlab.cfdata.org/cloudflare/tun/cloudflared.git,CI_TEAMCITY_BUILDCONF=,CI_TEAMCITY_BUILD_NUMBER=,IMAGE_TYPE=distroless,com.docker.compose.config-hash=66a088d2a413df1711d707b70a91966009d761623caa6735ecba4329c7e90899,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:96d2b4cae75ec77eb3590565f530245e63a4822951998f61510a08ecfa64f31e,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/opt/docker/arcane-projects/cloudflared/compose.yaml,com.docker.compose.project.working_dir=/opt/docker/arcane-projects/cloudflared,com.docker.compose.project=cloudflared,com.docker.compose.service=cloudflared,com.docker.compose.version=,org.opencontainers.image.source=https://github.com/cloudflare/cloudflared",
       "LocalVolumes": "0",
-      "Mounts": "/opt/docker/ap…,/opt/docker/ar…",
+      "Mounts": "/opt/docker/ar…,/opt/docker/ap…",
       "Names": "cloudflared-cloudflared-1",
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "13 days ago",
+      "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 63.9MB)",
       "State": "running",
-      "Status": "Up 4 days (healthy)"
+      "Status": "Up 5 days (healthy)"
     },
     {
       "Command": "\"/bin/bash -c 'cp /e…\"",
@@ -108,7 +108,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "1.38kB (virtual 272MB)",
       "State": "running",
-      "Status": "Up 4 days (healthy)"
+      "Status": "Up 5 days (healthy)"
     },
     {
       "Command": "\"caddy run --config …\"",
@@ -126,7 +126,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 111MB)",
       "State": "running",
-      "Status": "Up 4 days (healthy)"
+      "Status": "Up 5 days (healthy)"
     },
     {
       "Command": "\"tini -- /bin/sh -c …\"",
@@ -144,7 +144,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 158MB)",
       "State": "running",
-      "Status": "Up 4 days (healthy)"
+      "Status": "Up 5 days (healthy)"
     },
     {
       "Command": "\"chromium-browser --…\"",
@@ -162,7 +162,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "194kB (virtual 670MB)",
       "State": "running",
-      "Status": "Up 4 days (healthy)"
+      "Status": "Up 5 days (healthy)"
     },
     {
       "Command": "\"/nodejs/bin/node /a…\"",
@@ -180,7 +180,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 277MB)",
       "State": "running",
-      "Status": "Up 4 days (healthy)"
+      "Status": "Up 5 days (healthy)"
     },
     {
       "Command": "\"/app/docker-entrypo…\"",
@@ -198,7 +198,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "3.52MB (virtual 667MB)",
       "State": "running",
-      "Status": "Up 4 days (healthy)"
+      "Status": "Up 5 days (healthy)"
     },
     {
       "Command": "\"docker-entrypoint.s…\"",
@@ -216,7 +216,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 27.9MB)",
       "State": "running",
-      "Status": "Up 4 days (healthy)"
+      "Status": "Up 5 days (healthy)"
     },
     {
       "Command": "\"docker-entrypoint.s…\"",
@@ -226,7 +226,7 @@
       "Image": "mongo:focal",
       "Labels": "com.docker.compose.config-hash=e25a8dcf6ef9057aa00e09caf5a3f6fd8e684d0f31d66e5e7dcd08b4a1d193ba,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:edacb1e1210bb539c18015131ecfb2cce4c9ad1cdd99ad7b5391ed70a48f2ac7,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/opt/docker/arcane-projects/aiometadata/compose.yaml,com.docker.compose.project.working_dir=/opt/docker/arcane-projects/aiometadata,com.docker.compose.project=aiometadata,com.docker.compose.service=jikan_mongo,com.docker.compose.version=,org.opencontainers.image.ref.name=ubuntu,org.opencontainers.image.version=20.04",
       "LocalVolumes": "2",
-      "Mounts": "/opt/docker/ar…,118a8201ca6e48…,aiometadata_ji…",
+      "Mounts": "118a8201ca6e48…,aiometadata_ji…,/opt/docker/ar…",
       "Names": "aiometadata-jikan_mongo-1",
       "Networks": "aiometadata_backend",
       "Platform": null,
@@ -234,7 +234,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 644MB)",
       "State": "running",
-      "Status": "Up 4 days (healthy)"
+      "Status": "Up 5 days (healthy)"
     },
     {
       "Command": "\"/opt/typesense-serv…\"",
@@ -252,7 +252,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 799MB)",
       "State": "running",
-      "Status": "Up 4 days (healthy)"
+      "Status": "Up 5 days (healthy)"
     },
     {
       "Command": "\"node /usr/local/bin…\"",
@@ -270,7 +270,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 2.27GB)",
       "State": "running",
-      "Status": "Up 4 days (healthy)"
+      "Status": "Up 5 days (healthy)"
     },
     {
       "Command": "\"/init\"",
@@ -286,9 +286,9 @@
       "Platform": null,
       "Ports": "",
       "RunningFor": "2 weeks ago",
-      "Size": "7.2MB (virtual 3.52GB)",
+      "Size": "7.53MB (virtual 3.52GB)",
       "State": "running",
-      "Status": "Up 4 days (healthy)"
+      "Status": "Up 5 days (healthy)"
     },
     {
       "Command": "\"/init\"",
@@ -306,7 +306,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "8.99MB (virtual 1.48GB)",
       "State": "running",
-      "Status": "Up 4 days (healthy)"
+      "Status": "Up 5 days (healthy)"
     },
     {
       "Command": "\"./arcane\"",
@@ -324,7 +324,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 149MB)",
       "State": "running",
-      "Status": "Up 4 days (healthy)"
+      "Status": "Up 5 days (healthy)"
     }
   ],
   "images": [
@@ -343,7 +343,7 @@
     {
       "Containers": "1",
       "CreatedAt": "2026-08-13 10:52:58 +0500 PKT",
-      "CreatedSince": "2 weeks ago",
+      "CreatedSince": "3 weeks ago",
       "Digest": "<none>",
       "ID": "bada659891d3",
       "Repository": "zenika/alpine-chrome",
@@ -355,7 +355,7 @@
     {
       "Containers": "1",
       "CreatedAt": "2026-08-13 06:11:46 +0500 PKT",
-      "CreatedSince": "2 weeks ago",
+      "CreatedSince": "3 weeks ago",
       "Digest": "<none>",
       "ID": "c23588695093",
       "Repository": "ghcr.io/getarcaneapp/manager",
@@ -367,7 +367,7 @@
     {
       "Containers": "1",
       "CreatedAt": "2026-08-12 19:01:15 +0500 PKT",
-      "CreatedSince": "2 weeks ago",
+      "CreatedSince": "3 weeks ago",
       "Digest": "<none>",
       "ID": "d9a67afbfc0a",
       "Repository": "ghcr.io/viren070/aiostreams",
@@ -415,7 +415,7 @@
     {
       "Containers": "0",
       "CreatedAt": "2026-08-06 03:18:32 +0500 PKT",
-      "CreatedSince": "3 weeks ago",
+      "CreatedSince": "4 weeks ago",
       "Digest": "<none>",
       "ID": "a2e017921464",
       "Repository": "ghcr.io/getarcaneapp/arcane-headless",
@@ -427,7 +427,7 @@
     {
       "Containers": "0",
       "CreatedAt": "2026-08-05 05:44:08 +0500 PKT",
-      "CreatedSince": "3 weeks ago",
+      "CreatedSince": "4 weeks ago",
       "Digest": "<none>",
       "ID": "0458cdd27215",
       "Repository": "redis",
@@ -451,7 +451,7 @@
     {
       "Containers": "0",
       "CreatedAt": "2026-07-29 22:26:59 +0500 PKT",
-      "CreatedSince": "4 weeks ago",
+      "CreatedSince": "5 weeks ago",
       "Digest": "<none>",
       "ID": "395425e54d98",
       "Repository": "node",
@@ -535,7 +535,7 @@
     {
       "Containers": "0",
       "CreatedAt": "2026-07-15 21:01:59 +0500 PKT",
-      "CreatedSince": "6 weeks ago",
+      "CreatedSince": "7 weeks ago",
       "Digest": "<none>",
       "ID": "24232b540de3",
       "Repository": "rommapp/romm",
@@ -643,7 +643,7 @@
     {
       "Containers": "0",
       "CreatedAt": "2024-12-11 13:46:58 +0500 PKT",
-      "CreatedSince": "20 months ago",
+      "CreatedSince": "21 months ago",
       "Digest": "<none>",
       "ID": "7551dbeefe0d",
       "Repository": "curlimages/curl",

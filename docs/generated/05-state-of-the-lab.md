@@ -1,92 +1,98 @@
 ---
 title: State of the Lab
-generated: 2026-09-02
+generated: 2026-09-03
 author: skynet-ops (agent)
 tags: [skynet, generated, narrative, state-of-the-lab]
 ---
 
 # Skynet — State of the Lab
 
-**As of 2026-09-02 03:39 PKT** · The lab is available and broadly healthy across every surface
-this report-only pass could read. Both Proxmox nodes answered, every expected running guest stayed
-up, all 18 observed Docker containers reported healthy, all seven certificate probes answered,
-and the switch plus both access points remained connected.
+**As of 2026-09-03 11:44 PKT** · The lab is serving normally across every surface this
+report-only pass could read. Both Proxmox nodes answered, every non-template guest is running,
+all 18 observed Docker containers report healthy, all seven TLS probes answered, and the switch
+plus both access points remain connected.
 
 > [!quote] Agent's log
-> Tonight's infrastructure is quiet; DNS is not. A new, explicitly Terraform-managed test record
-> appeared in the authoritative zone, while the firewall and workload identities held steady. The
-> record uses the documentation-only address `192.0.2.1`, which makes it look deliberate, but a
-> read-only observer cannot certify intent. It belongs in the report, not under the rug.
+> The broad picture is green, but not perfectly still: the Docker VM crossed a reboot boundary,
+> one declared identity host stopped answering presence checks, and DNS moved from a wildcard
+> front door to explicit application records in the human-facing render. None of those is a reason
+> to reach for a wrench during a report-only run; all three are reasons to leave good evidence.
 
 ## Tonight at a glance
 
 | System | State | Evidence from this pass |
 |---|---|---|
-| 🧠 Ops brain (`vm-skynet-ops`, VMID 9090) | 🟢 Running | Uptime advanced to about 13h 55m; no reboot boundary |
+| 🧠 Ops brain (`vm-skynet-ops`, VMID 9090) | 🟢 Running | About 46h uptime; the read-only nightly completed from this host |
 | 🖥️ Proxmox | 🟢 Online | Both nodes answered; guest identities and power states are unchanged |
 | 🐳 DMZ Docker | 🟢 Healthy | 18/18 observed containers are running and healthy |
 | ☁️ Public tunnel | 🟢 Healthy | `cloudflared` remains up and healthy |
-| 🧱 OPNsense | 🟢 Stable | 39 aliases, 27 rules, 1 reservation; no configuration-count change |
-| 📡 Network gear | 🟢 Connected | Main switch and both APs connected; 30 clients total |
+| 🧱 OPNsense | 🟡 Watch | Configuration counts remain 39 aliases / 27 rules / 1 reservation; declared presence is 24 live / 2 silent |
+| 📡 Network gear | 🟢 Connected | Main switch and both APs are up; 28 clients observed |
 | 🔐 TLS endpoints | 🟢 Reachable | 7/7 configured certificate probes answered |
-| 🗄️ PBS (core CT 240) | 🟢 Running | The guest and TLS listener are up; this is not backup proof |
-| 💾 Backup jobs | 🟢 Last run OK | Both nodes' vzdump last-ran **OK** (core 03:30, network 02:00 PKT → `pbs-unraid`); see [[90-backup-status]] |
-| 💾 Restore proof | ⚪ Unverified | PBS-side snapshot counts + an exercised restore still need the PBS read token / a root grant |
-| 👁️ Inventory and docs | 🟢 Fresh | Collected and rendered at about 03:39 PKT |
+| 🗄️ PBS datastore | 🟢 Visible | `unraid` reports 111 snapshots in 20 groups; 11 groups have no verification state |
+| 💾 Proxmox backup jobs | 🟢 Last run OK | Core 03:30 and network 02:00 jobs both last returned **OK** to `pbs-unraid` |
+| 👁️ Inventory and docs | 🟢 Fresh | Collected and rendered at about 11:44 PKT |
 
 ## What changed since `origin/main`
 
-### A Terraform test record appeared in DNS
+### The Docker VM restarted; its workloads recovered
 
-The `tdns.home.aliammar.net` primary zone advanced from SOA serial **287 → 291** and now includes
-`tofu-test.tdns.home.aliammar.net A 192.0.2.1`, annotated by Technitium as **“Managed by
-terraform.”** The associated DNSSEC records were regenerated, and the secondary zone advanced
-from serial `2026090101` to `2026090102`. No collected zone reports expiry, validation, sync, or
-notification failure.
+`vm-docker-dmz` (VMID 10015) now reports roughly **10h 40m** uptime, down from about **4d 16h**
+in the prior inventory, so it crossed a reboot boundary. Container names and images are unchanged,
+and all 18 containers are running and healthy. LibreSpeed also reports about ten hours of age,
+consistent with recreation after that boundary. The inventory does not establish why the VM
+restarted.
 
-This is the only clear configuration change visible tonight. The address is from TEST-NET-1 and
-is not a routable lab endpoint, but the nightly did not create, modify, or remove the record.
+### One declared host changed from present to silent
+
+OPNsense still exposes **39 aliases, 27 rules, and 1 reservation**. Its live table moved from
+**25 live / 1 silent** to **24 live / 2 silent**, and `10.10.80.37` changed from ARP-present to
+`no-arp,no-icmp`. ARP neighbours fell from 41 to 39. This is a point-in-time reachability signal,
+not proof that the underlying service is failed.
+
+### DNS now renders the explicit application front doors
+
+The collected A-record set is unchanged from the latest inventory on `origin/main`, but the
+generated service page had not yet caught up with it. Tonight's render replaces the old
+`*.aliammar.net` row with nine explicit app records (`aiometadata`, `aiostreams`, `auth`,
+`calibre`, `karakeep`, `marinara`, `obsidian`, `sillytavern`, and `speed`), all targeting
+`10.10.100.35` and marked **Managed by terraform**. The earlier `tofu-test` record is absent from
+both the baseline and tonight's live record set. The `aliammar.net` forwarder serial advanced
+**12 → 22** and the secondary serial advanced **2026090102 → 2026090300**; no collected zone
+reports expiry, validation, sync, or notification failure.
 
 ### Stable services, ordinary telemetry
 
-- Guest identity and power state are unchanged. The Ubuntu base template remains stopped by
+- Guest identities and power states are unchanged. The Ubuntu base template remains stopped by
   design; every other listed guest is running.
-- Docker container identity, image, state, and health are unchanged. The diff is limited to age,
-  mount ordering, and a small writable-layer size movement.
-- OPNsense remains at **39 aliases / 27 rules / 1 reservation**. Declared-host presence remains
-  **25 live / 1 no-response**; the ARP table moved from 44 to 41 neighbours.
-- The Omada estate still has 30 clients: the switch moved **19 → 20**, Ali's AP **6 → 5**, and
-  Mom's AP stayed at 5. All three devices report up.
+- Omada still reports all three devices connected. Observed clients moved **30 → 28**: the switch
+  stayed at 20 while each AP moved **5 → 4**. Remaining PoE budget moved **108.2 W → 107.6 W**.
 - Certificate reachability remains 7/7. Day counters fell normally; no endpoint crossed a new
   warning boundary.
+- PBS remains at 111 snapshots across 20 groups. Eleven groups currently carry no verification
+  state; snapshot existence is not restore proof.
 
 ## Collection gaps and anomalies
 
-`scripts/envsync.sh` returned nonzero after reporting that the tracked `aiometadata` and
-`aiostreams` projects have no host `project.env`; no encrypted environment file changed. The PBS
-collector stayed idle because `/opt/skynet-ops/secrets/pbs.env` is absent. No local SSH
-certificate was present, so no root grant was active and the root-grant audit harvest was skipped.
+`scripts/envsync.sh` exited **1** after reporting that `aiometadata` and `aiostreams` have no host
+`project.env`; no `.env.sops` file changed. No local SSH host certificate was present, so no root
+grant was active and the root-grant audit was correctly skipped.
 
-> [!note] Updated 2026-09-03 — the PVE collector now reads the **vzdump backup jobs** and each
-> node's last-run result (`/cluster/backup` + the task log, read-only). Both nodes' most recent
-> backups returned **OK**, so we now have job-run proof at the front door. PBS-side snapshot counts
-> and an exercised restore are still unverified (that needs the PBS read token / a root grant).
-
-Snapshot freshness, restic payloads, restore behavior, and the L5 Google Drive mirror therefore
-remain unverified. A running backup server plus a succeeding vzdump job is encouraging availability
-evidence, not recovery evidence.
+The PBS API is readable tonight, but payload-level restic freshness, an exercised restore, and the
+L5 Google Drive mirror remain outside this pass. A populated snapshot catalog and successful
+vzdump tasks are useful evidence; they are not recovery proof.
 
 ## Human attention
 
-> [!warning] Worth confirming
-> - **DNS provenance:** confirm that `tofu-test.tdns.home.aliammar.net → 192.0.2.1` is the intended
->   residue or evidence of the current OpenTofu DNS work, and remove it through the reviewed
->   configuration path when the test is complete.
+> [!warning] Worth checking
+> - **Docker reboot provenance:** confirm whether VMID 10015's restart was planned; workloads have
+>   recovered and are healthy now.
+> - **Identity reachability:** check `10.10.80.37` if it is expected to be continuously available;
+>   it did not answer ARP or ICMP during collection.
 > - **Environment backup gap:** decide whether `aiometadata` and `aiostreams` intentionally lack
 >   `project.env`, or whether envsync is missing expected secret-bearing inputs.
-> - **Backup proof:** vzdump jobs are now visible and their last runs returned OK (see
->   [[90-backup-status]]); PBS-side snapshot counts and an exercised restore remain outside
->   tonight's evidence until the PBS read token lands (SKY-002).
+> - **Recovery evidence:** schedule a restore exercise and verify the restic/L5 mirror paths; 11
+>   PBS groups also lack a current verification state.
 
 ## Where the build stands
 
@@ -97,10 +103,10 @@ service, credential, or privileged-host change.
 
 ## Commentary
 
-The lab's serving surfaces look calm. Tonight's useful signal is that the inventory caught the
-OpenTofu-shaped DNS experiment immediately and can show its signed-zone consequences without
-pretending to know why it exists. That is exactly what a report-only night should do: separate
-health from intent, keep the evidence fresh, and leave the decision with the reviewed workflow.
+This is a healthy lab with three honest footnotes, not a flawless green wall. The best news is
+operational: the Docker host came back with its whole observed workload healthy, the backup catalog
+is visible, and every management surface answered. The best next move is equally plain—explain the
+reboot, identify the silent host, and turn "backups exist" into "a restore worked."
 
 — _skynet-ops_
 
