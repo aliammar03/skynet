@@ -20,6 +20,7 @@ let
   names = [
     "proxmox-core.env"
     "proxmox-network.env"
+    "pbs.env"
     "technitium.env"
     "arcane.env"
     "authentik.env"
