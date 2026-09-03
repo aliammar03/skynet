@@ -1,5 +1,5 @@
 {
-  "collected": "2026-09-03T11:44:30+05:00",
+  "collected": "2026-09-03T12:07:02+05:00",
   "host": "10.10.20.40",
   "datastores": [
     {
@@ -45,7 +45,7 @@
           "owner": "root@pam!pve-core",
           "backup_count": 7,
           "last_backup": 1788388202,
-          "verify_state": null
+          "verify_state": "ok"
         },
         {
           "ns": "core",
@@ -54,7 +54,7 @@
           "owner": "root@pam!pve-core",
           "backup_count": 6,
           "last_backup": 1788388210,
-          "verify_state": null
+          "verify_state": "ok"
         },
         {
           "ns": "core",
@@ -72,7 +72,7 @@
           "owner": "root@pam!pve-core",
           "backup_count": 3,
           "last_backup": 1788388218,
-          "verify_state": null
+          "verify_state": "ok"
         },
         {
           "ns": "core",
@@ -81,7 +81,7 @@
           "owner": "root@pam!pve-core",
           "backup_count": 3,
           "last_backup": 1788388226,
-          "verify_state": null
+          "verify_state": "ok"
         },
         {
           "ns": "core",
@@ -126,7 +126,7 @@
           "owner": "root@pam!pve-network",
           "backup_count": 12,
           "last_backup": 1788382800,
-          "verify_state": null
+          "verify_state": "ok"
         },
         {
           "ns": "network",
@@ -144,7 +144,7 @@
           "owner": "root@pam!pve-network",
           "backup_count": 6,
           "last_backup": 1788382833,
-          "verify_state": null
+          "verify_state": "ok"
         },
         {
           "ns": "network",
@@ -162,7 +162,7 @@
           "owner": "root@pam!pve-network",
           "backup_count": 2,
           "last_backup": 1788382879,
-          "verify_state": null
+          "verify_state": "ok"
         },
         {
           "ns": "network",
@@ -171,7 +171,7 @@
           "owner": "root@pam!pve-network",
           "backup_count": 5,
           "last_backup": 1788382893,
-          "verify_state": null
+          "verify_state": "ok"
         },
         {
           "ns": "network",
@@ -180,7 +180,7 @@
           "owner": "root@pam!pve-network",
           "backup_count": 6,
           "last_backup": 1788382907,
-          "verify_state": null
+          "verify_state": "ok"
         },
         {
           "ns": "network",
@@ -189,12 +189,12 @@
           "owner": "root@pam!pve-network",
           "backup_count": 7,
           "last_backup": 1788383078,
-          "verify_state": null
+          "verify_state": "ok"
         }
       ],
       "group_count": 20,
       "snapshot_total": 111,
-      "unverified": 11
+      "unverified": 1
     }
   ]
 }
