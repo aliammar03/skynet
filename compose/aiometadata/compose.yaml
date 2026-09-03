@@ -43,7 +43,7 @@ services:
         max-file: "5"
 
   redis:
-    image: docker.io/redis:7.2.15-alpine@sha256:05a97a479bc73de66f087dc05b569010772880f778cc8671fa6b8aadee32e5c6
+    image: docker.io/redis:8.10.1-alpine@sha256:becdda6c7f4b3fb42e42fd7f120bbf5c54c4caaaf16f26da24e4563d2c1f0576
     restart: unless-stopped
     init: true
     env_file:
@@ -167,7 +167,7 @@ services:
         max-file: "5"
 
   jikan_redis:
-    image: docker.io/redis:6.2.23-alpine@sha256:ec5e187c913d422cdf60f4216a5fdfb95246792c6de6fe21ff5bed75cbfc8c23
+    image: docker.io/redis:8.10.1-alpine@sha256:becdda6c7f4b3fb42e42fd7f120bbf5c54c4caaaf16f26da24e4563d2c1f0576
     restart: unless-stopped
     init: true
     environment:
