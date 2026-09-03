@@ -270,8 +270,35 @@ done
     echo "> [!note] No backup-job data this pass (PVE readonly token idle, or \`/cluster/backup\` unreachable)."
   fi
   echo
-  echo "> [!note] These jobs write to \`pbs-unraid\` (PBS on Unraid). PBS-side datastore snapshot"
-  echo "> counts stay unverified until \`/opt/skynet-ops/secrets/pbs.env\` holds a read token (SKY-002)."
+  echo "> [!note] These jobs write to \`pbs-unraid\` — the PBS datastore below."
+  echo
+  # ── PBS datastore(s): the receiving end of the vzdump jobs (collect-pbs.sh). Renders usage +
+  #    guest/snapshot counts + the DETERMINISTIC verify flag: 🟢 nothing unverified, 🟡 some latest
+  #    snapshot carries no verification (backed up but unproven — schedule a PBS verify job). ──
+  echo "## PBS datastore"
+  echo
+  if has "${inv}/pbs.json"; then
+    totsnap="$(j '[.datastores[]?.snapshot_total // 0]|add // 0' "${inv}/pbs.json")"
+    totun="$(j '[.datastores[]?.unverified // 0]|add // 0' "${inv}/pbs.json")"
+    if   [ "${totsnap:-0}" = 0 ]; then echo "> [!note] PBS reachable but no snapshots recorded this pass."
+    elif [ "${totun:-0}" = 0 ];   then echo "> [!success] 🟢 All ${totsnap} snapshots' latest backup carries a verification state."
+    else echo "> [!warning] 🟡 ${totun} guest(s) have a latest snapshot with NO verification — backed up but unproven. Schedule a PBS verify job."
+    fi
+    echo
+    echo "| Datastore | Used / Total | Guests | Snapshots | Unverified |"
+    echo "|-----------|--------------|-------:|----------:|-----------:|"
+    j '.datastores[]? | [ .store,
+         (((.status.used // 0)/1099511627776*10|round)/10|tostring),
+         (((.status.total // 0)/1099511627776*10|round)/10|tostring),
+         (.group_count // 0), (.snapshot_total // 0), (.unverified // 0) ] | @tsv' "${inv}/pbs.json" \
+      | awk -F'\t' '{printf "| `%s` | %s / %s TiB | %s | %s | %s |\n", $1,$2,$3,$4,$5,$6}'
+    echo
+    unlist="$(j '[.datastores[]?.groups[]? | select(.verify_state==null) | "\(.ns)/\(.backup_type)/\(.backup_id)"] | join(", ")' "${inv}/pbs.json")"
+    [ -n "${unlist}" ] && { echo "> [!note] Unverified (latest snapshot): ${unlist}"; echo; }
+    echo "_\`unraid\` is NFS-backed on Unraid; the L5 job mirrors it to \`gdrive:Skynet/Backups/pbs\` (PBS-encrypted + deduped). Restore proof still needs an exercised restore drill._"
+  else
+    echo "> [!note] PBS not collected this pass — \`inventory/pbs.json\` absent (token idle or PBS unreachable)."
+  fi
   echo
   echo "## Root-grant audit"
   echo
