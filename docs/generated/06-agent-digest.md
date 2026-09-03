@@ -25,8 +25,8 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 - **SKY-005** (projects · in-progress · 2/3) — Imperative ops discipline: recon toolkit, diagnosis library, lab bench
 - **SKY-006** (projects · in-progress · 2/3) — Agent episodic memory: journal + retrieval
-- **SKY-008** (projects · active · 2/3) — OpenTofu provisioning layer: VM and CT lifecycle plus DNS
-- **SKY-018** (projects · in-progress · 5/12) — Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain
+- **SKY-008** (projects · active · 3/3) — OpenTofu provisioning layer: VM and CT lifecycle plus DNS
+- **SKY-018** (projects · in-progress · 6/12) — Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain
 - **SKY-020** (projects · in-progress · 1/6) — Firewall-as-code — OPNsense config to T2 via OpenTofu
 - **SKY-002** (ideas · draft) — Ongoing backup strategy for CT 240 (PBS host)
 - **SKY-004** (ideas · draft) — Reactive operations: event-driven layer + drift-as-signal
@@ -38,24 +38,24 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 **Loose ends from recent episodes** (the journal's own open-thread bullets, verbatim):
 
-- Confirm the intended lifetime of `tofu-test.tdns.home.aliammar.net → 192.0.2.1` through the reviewed OpenTofu workflow. — _2026-09-02 session          # session | incident | decision_
-- Confirm whether missing `project.env` files for `aiometadata` and `aiostreams` are intentional. — _2026-09-02 session          # session | incident | decision_
-- PBS snapshot freshness, restic payloads, restore behavior, and the L5 Google Drive mirror remain unverified. — _2026-09-02 session          # session | incident | decision_
-- **P2 next:** move the VLAN display-name map + reverse-proxy front-door alias set out of `render-docs.sh` into `lab.json`; add `entity_conventions` (VMID->IP law + declared exceptions) to `invariants.json`; add the 4th law to `check-invariants.sh` (every running entity mapped or excepted). arcane-manager, 101, 526, 999 must each be triaged (destroy / bring-in / declare) before the law can go enforcing rather than report-only. — _2026-09-01 session          # session | incident | decision_
-- lab.json currently holds only `docker_hosts`; P2 owns the rest of its authored content. — _2026-09-01 session          # session | incident | decision_
-- vhost + net classes have no collector yet (P5 Caddy routes, P4 network gear). — _2026-09-01 session          # session | incident | decision_
-- Recent PBS snapshots and the L5 Google Drive mirror remain unverified by this run. — _2026-09-01 session          # session | incident | decision_
-- Confirm whether the observed firewall removals and role-member reductions were intentional. — _2026-09-01 session_
+- ⚠ pve-snapshot.sh needs the OPERATE token (PVE_OPERATE_TOKEN); standing proxmox-<node>.env only has the readonly token. Confirm it's materialized before any live `tofu-apply.sh`. Until then tofu-apply fails closed (can't snapshot → won't apply) — correct, but means no live tofu rollback demo yet. — _2026-09-03 session          # session | incident | decision_
+- P6 wrappers are opt-in and not yet wired into bin/ops / the nightly (report-only). That wiring is a SKY-017 autonomy-promotion step, not P6. — _2026-09-03 session          # session | incident | decision_
+- NEXT: P7 (conftest/Rego over `tofu plan`) — explicitly NOT started this session. — _2026-09-03 session          # session | incident | decision_
+- Confirm whether VMID 10015's reboot was planned. — _2026-09-03 session_
+- Check `10.10.80.37` if the identity host should be continuously reachable. — _2026-09-03 session_
+- Confirm whether missing `project.env` files for `aiometadata` and `aiostreams` are intentional, and why `scripts/envsync.sh` exits 1 after those skips. — _2026-09-03 session_
+- Exercise a restore, verify restic and the L5 Google Drive mirror, and review the 11 PBS groups without a verification state. — _2026-09-03 session_
+- **Ali action:** delete the leftover live record `tofu-test.tdns.home.aliammar.net A 192.0.2.1`, and add record-delete to the scoped Technitium token (the DNS phase needs it for `tofu destroy`). — _2026-09-02 session          # session | incident | decision_
 
 ## 📓 Recent episodes
 
+- **2026-09-03** · session          # session | incident | decision · [[2026-09-03-session-sky-018-p6-l7-rollback-executors|SKY-018 P6 — L7 rollback executors]]
+- **2026-09-03** · session · [[2026-09-03-session-nightly-2026-09-03|nightly 2026-09-03]]
+- **2026-09-02** · session          # session | incident | decision · [[2026-09-02-session-sky-008-p3-ct-240-import-dns-provider-blocked|SKY-008 P3 — CT 240 import + DNS provider blocked]]
 - **2026-09-02** · session          # session | incident | decision · [[2026-09-02-session-nightly-2026-09-02|nightly 2026-09-02]]
 - **2026-09-01** · session          # session | incident | decision · [[2026-09-01-session-sky-018-p1-first-entity-audit|SKY-018 P1 first entity audit]]
 - **2026-09-01** · session          # session | incident | decision · [[2026-09-01-session-nightly-2026-09-01|nightly 2026-09-01]]
 - **2026-09-01** · session · [[2026-09-01-session-nightly-2026-09-01-2350|nightly 2026-09-01 2350]]
-- **2026-09-01** · session          # session | incident | decision · [[2026-09-01-session-nightly-2026-09-01-1805|nightly 2026-09-01 1805]]
-- **2026-09-01** · session · [[2026-09-01-session-nightly-2026-09-01-1735-rerun|nightly 2026-09-01 1735 rerun]]
-- **2026-09-01** · session          # session | incident | decision · [[2026-09-01-session-generated-docs-review-and-digest-stale-thread-fix|generated-docs review and digest stale-thread fix]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._
