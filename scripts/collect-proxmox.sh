@@ -43,11 +43,28 @@ pools="$(api pools | jq -r '.data[].poolid' | while IFS= read -r pid; do
            pool_detail "${pid}"
          done | jq -s '.')"
 
+# Backup jobs (vzdump schedule, /cluster/backup) + the most recent vzdump RESULT per node — the
+# "are backups even configured, and did the last one pass?" signal the inventory used to be blind
+# to. Read-only (PVEAuditor covers both endpoints). Degrade to null (never []) so a token/endpoint
+# gap reads as "unknown", not a false "no backup jobs". starttime stays raw epoch (UTC) — the
+# renderer formats it to PKT — so the JSON carries truth, not a tz-flavoured string.
+backup_jobs="$(api cluster/backup 2>/dev/null \
+  | jq '[.data[]? | {id, schedule, storage, enabled, all, vmid, pool, mode, node}]' 2>/dev/null || echo null)"
+backup_last="$(api nodes | jq -r '.data[]?.node' | while IFS= read -r n; do
+    [ -n "${n}" ] || continue
+    api "nodes/${n}/tasks?typefilter=vzdump&limit=5" 2>/dev/null \
+      | jq --arg n "${n}" '[.data[]? | select(.status)] | (.[0] // {}) |
+          {node:$n, starttime:(.starttime // null), status:(.status // null)}'
+  done | jq -s '.' 2>/dev/null || echo null)"
+
 out="${REPO_DIR}/inventory/proxmox-${node}.json"
 jq -n \
   --argjson nodes "$(api nodes | jq '.data')" \
   --argjson resources "$(api cluster/resources | jq '.data')" \
   --argjson pools "${pools}" \
+  --argjson backup_jobs "${backup_jobs:-null}" \
+  --argjson backup_last "${backup_last:-null}" \
   --arg node "${node}" --arg ts "$(date -Iseconds)" \
-  '{node:$node, collected:$ts, nodes:$nodes, resources:$resources, pools:$pools}' > "${out}"
+  '{node:$node, collected:$ts, nodes:$nodes, resources:$resources, pools:$pools,
+    backup_jobs:$backup_jobs, backup_last:$backup_last}' > "${out}"
 echo "wrote ${out}"

@@ -221,5 +221,25 @@
       "comment": null,
       "members": []
     }
+  ],
+  "backup_jobs": [
+    {
+      "id": "backup-17bdad95-1b13",
+      "schedule": "02:00",
+      "storage": "pbs-unraid",
+      "enabled": 1,
+      "all": 1,
+      "vmid": null,
+      "pool": null,
+      "mode": "snapshot",
+      "node": null
+    }
+  ],
+  "backup_last": [
+    {
+      "node": "server-proxmox-network",
+      "starttime": 1788382800,
+      "status": "OK"
+    }
   ]
 }
