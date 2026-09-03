@@ -234,6 +234,45 @@ done
   echo "> [!note] Live snapshot counts need a root grant to read the restic repo; the nightly"
   echo "> pass records what it can without one. For live counts: \`restic snapshots\` on the host."
   echo
+  echo "## Proxmox backup jobs (vzdump)"
+  echo
+  # Job schedule + last-run RESULT per node, collected read-only from /cluster/backup and the vzdump
+  # task log (collect-proxmox.sh). The flag is DETERMINISTIC: 🟢 only when every job is enabled AND
+  # every node's last vzdump returned OK — so a disabled job or a failed run can't hide as green.
+  bjrows=""; worst="ok"
+  for f in "${inv}/proxmox-core.json" "${inv}/proxmox-network.json"; do
+    has "${f}" || continue
+    nodename="$(j '.node' "${f}")"
+    lstart="$(j '.backup_last[0].starttime // empty' "${f}")"
+    lstat="$(j '.backup_last[0].status // "unknown"' "${f}")"
+    if [ -n "${lstart}" ]; then lrun="$(TZ=Asia/Karachi date -d "@${lstart}" '+%Y-%m-%d %H:%M' 2>/dev/null || echo '—')"; else lrun="—"; fi
+    case "${lstat}" in OK) res="🟢 OK";; unknown) res="⚪ unknown";; *) res="🔴 ${lstat}";; esac
+    while IFS=$'\t' read -r sched storage enabled scope; do
+      [ -n "${sched}" ] || continue
+      en="$([ "${enabled}" = "1" ] && echo "yes" || echo "**NO**")"
+      bjrows+="| \`${nodename}\` | ${sched} | \`${storage}\` | ${scope} | ${en} | ${lrun} | ${res} |"$'\n'
+    done < <(j '.backup_jobs[]? | [.schedule, .storage, (.enabled|tostring),
+                  (if .all==1 then "all guests" elif .vmid then ("VMIDs "+.vmid) elif .pool then ("pool "+.pool) else "—" end)] | @tsv' "${f}")
+    case "${lstat}" in OK) : ;; unknown) [ "${worst}" = "ok" ] && worst="unknown" ;; *) worst="fail" ;; esac
+    [ "$(j '[.backup_jobs[]?|select(.enabled!=1)]|length' "${f}")" != "0" ] && worst="fail"
+  done
+  if [ -n "${bjrows}" ]; then
+    case "${worst}" in
+      ok)      echo "> [!success] 🟢 Backup jobs healthy — every vzdump job enabled and its last run returned OK." ;;
+      unknown) echo "> [!note] ⚪ Backup jobs configured, but the last-run result could not be confirmed this pass." ;;
+      *)       echo "> [!warning] 🔴 A backup job is disabled or its last run did not return OK — see the table." ;;
+    esac
+    echo
+    echo "| Node | Schedule | Storage | Scope | Enabled | Last run (PKT) | Result |"
+    echo "|------|----------|---------|-------|---------|----------------|--------|"
+    printf '%s' "${bjrows}"
+  else
+    echo "> [!note] No backup-job data this pass (PVE readonly token idle, or \`/cluster/backup\` unreachable)."
+  fi
+  echo
+  echo "> [!note] These jobs write to \`pbs-unraid\` (PBS on Unraid). PBS-side datastore snapshot"
+  echo "> counts stay unverified until \`/opt/skynet-ops/secrets/pbs.env\` holds a read token (SKY-002)."
+  echo
   echo "## Root-grant audit"
   echo
   if has "${inv}/grant-audit.json"; then

@@ -30,7 +30,8 @@ and the switch plus both access points remained connected.
 | 📡 Network gear | 🟢 Connected | Main switch and both APs connected; 30 clients total |
 | 🔐 TLS endpoints | 🟢 Reachable | 7/7 configured certificate probes answered |
 | 🗄️ PBS (core CT 240) | 🟢 Running | The guest and TLS listener are up; this is not backup proof |
-| 💾 Backup proof | ⚪ Unverified | PBS credential absent and no root grant active |
+| 💾 Backup jobs | 🟢 Last run OK | Both nodes' vzdump last-ran **OK** (core 03:30, network 02:00 PKT → `pbs-unraid`); see [[90-backup-status]] |
+| 💾 Restore proof | ⚪ Unverified | PBS-side snapshot counts + an exercised restore still need the PBS read token / a root grant |
 | 👁️ Inventory and docs | 🟢 Fresh | Collected and rendered at about 03:39 PKT |
 
 ## What changed since `origin/main`
@@ -66,9 +67,14 @@ is not a routable lab endpoint, but the nightly did not create, modify, or remov
 collector stayed idle because `/opt/skynet-ops/secrets/pbs.env` is absent. No local SSH
 certificate was present, so no root grant was active and the root-grant audit harvest was skipped.
 
+> [!note] Updated 2026-09-03 — the PVE collector now reads the **vzdump backup jobs** and each
+> node's last-run result (`/cluster/backup` + the task log, read-only). Both nodes' most recent
+> backups returned **OK**, so we now have job-run proof at the front door. PBS-side snapshot counts
+> and an exercised restore are still unverified (that needs the PBS read token / a root grant).
+
 Snapshot freshness, restic payloads, restore behavior, and the L5 Google Drive mirror therefore
-remain unverified. A running backup server is encouraging availability evidence, not recovery
-evidence.
+remain unverified. A running backup server plus a succeeding vzdump job is encouraging availability
+evidence, not recovery evidence.
 
 ## Human attention
 
@@ -78,7 +84,9 @@ evidence.
 >   configuration path when the test is complete.
 > - **Environment backup gap:** decide whether `aiometadata` and `aiostreams` intentionally lack
 >   `project.env`, or whether envsync is missing expected secret-bearing inputs.
-> - **Backup proof:** recent snapshots and an exercised restore remain outside tonight's evidence.
+> - **Backup proof:** vzdump jobs are now visible and their last runs returned OK (see
+>   [[90-backup-status]]); PBS-side snapshot counts and an exercised restore remain outside
+>   tonight's evidence until the PBS read token lands (SKY-002).
 
 ## Where the build stands
 

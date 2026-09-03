@@ -276,5 +276,25 @@
         }
       ]
     }
+  ],
+  "backup_jobs": [
+    {
+      "id": "backup-c59694d0-3593",
+      "schedule": "03:30",
+      "storage": "pbs-unraid",
+      "enabled": 1,
+      "all": 1,
+      "vmid": null,
+      "pool": null,
+      "mode": "snapshot",
+      "node": null
+    }
+  ],
+  "backup_last": [
+    {
+      "node": "server-proxmox-core",
+      "starttime": 1788388202,
+      "status": "OK"
+    }
   ]
 }
