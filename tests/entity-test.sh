@@ -134,10 +134,20 @@ if command -v sqlite3 >/dev/null 2>&1; then
     eq "docker-dmz guest is entity-keyed in the host map" \
        "$(sqlite3 "${db}" -cmd '.mode tabs' ".read scripts/sql/host-map.sql" | awk -F'\t' '$1=="10.10.100.15"{print $4}')" \
        "guest/docker-dmz-10015"
-    # vhosts resolve to a front door (SKY-015 fix); the wildcard must be one of them
-    eq "vhosts.sql flags *.aliammar.net as a front-door vhost" \
-       "$(sqlite3 "${db}" -cmd '.mode tabs' ".read scripts/sql/vhosts.sql" | awk -F'\t' '$1=="*.aliammar.net"{print $3}')" \
-       "caddy-apps"
+    # vhosts resolve to a front door, not a host (SKY-015 fix). The *.aliammar.net wildcard used to
+    # be the canonical example, but SKY-008 P3 retired it (explicit per-app A records derived from
+    # the Caddyfile). Assert the invariant against the LIVE set instead of a single name that can
+    # churn: both declared front doors carry ≥1 vhost, and no emitted row lands on an unknown proxy.
+    vhosts="$(sqlite3 "${db}" -cmd '.mode tabs' ".read scripts/sql/vhosts.sql")"
+    apps_vh="$(printf '%s\n' "${vhosts}" | awk -F'\t' '$3=="caddy-apps"' | grep -c . || true)"
+    mgmt_vh="$(printf '%s\n' "${vhosts}" | awk -F'\t' '$3=="caddy-management"' | grep -c . || true)"
+    [ "${apps_vh}" -gt 0 ] && ok "vhosts.sql flags ${apps_vh} caddy-apps front-door vhost(s)" \
+                           || bad "vhosts.sql found no caddy-apps vhosts (SKY-015 classification broken?)"
+    [ "${mgmt_vh}" -gt 0 ] && ok "vhosts.sql flags ${mgmt_vh} caddy-management front-door vhost(s)" \
+                           || bad "vhosts.sql found no caddy-management vhosts"
+    eq "every vhosts.sql row lands on a declared front door (no orphan proxy)" \
+       "$(printf '%s\n' "${vhosts}" | awk -F'\t' 'NF && $3!="caddy-apps" && $3!="caddy-management"' | grep -c . || true)" \
+       "0"
     # P4: the Omada estate loads into the cache, one netgear row per collected device
     if [ -s inventory/network-gear.json ]; then
       eq "netgear rows == devices collected" \
