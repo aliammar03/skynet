@@ -4,9 +4,9 @@ title: "Eight-layer reconciliation: entity spine, the Analyze phase, and the ver
 status: in-progress
 horizon: long
 created: 2026-08-28
-updated: 2026-09-01
+updated: 2026-09-03
 phases: 12
-current_phase: 5
+current_phase: 6
 tier_touched: [T1, T2]   # Mostly T1 (derive, collect, render, check). P4 EXTENDS the T1 read surface
                          # to the UniFi/Omada controllers ⇒ docs/system-design.md §3 PR. P6/P11 touch
                          # existing T2 actuators without widening any dial — no new pool, no new tier.
@@ -341,7 +341,7 @@ Steps:
 Exit criteria: a vanity hostname resolves end-to-end in the generated docs; every certificate has a
 recorded expiry; no manual Caddyfile reading is needed to answer "where does this actually go".
 
-### Phase 6 — L7: rollback executors  (~1–2h)   `[ ]` not started
+### Phase 6 — L7: rollback executors  (~1–2h)   `[x]` done 2026-09-03
 The phase that unblocks A4 for three actuators. Each executor must be **automatic, testable in the
 failure case, and independent of the agent** (ADR 0005 §3).
 Steps:
@@ -537,3 +537,27 @@ Follow AGENTS.md as above.
   = 0, all covered). Degrades gracefully with no sqlite3. Tests 41/41 (P3 skips when sqlite3 absent, so
   the pre-rebuild pre-commit hook stays green; CI on ubuntu runs them). **⚠ Post-merge: `nixos-rebuild
   switch` on the ops VM**, else the nightly render degrades to "Host map pending" until sqlite3 is on PATH.
+- 2026-09-01 — **P5 done (PR #141, merged).** L2 routes + certs — the vhost class's only source.
+  `scripts/collect-routes.sh` static-parses `compose/caddy-apps/Caddyfile` → `inventory/routes.json`
+  (vhost → front door `svc/caddy-apps` → backend **entity** → auth); the backend edge is derived via
+  the compose `ipv4_address` map (name-mismatches resolved: obsidian→obsidian-livesync,
+  speed→librespeed; `auth`→`guest/authentik-identity-837`), 9/9 resolving. `scripts/collect-certs.sh`
+  → `inventory/certs.json` (openssl-probe of reachable infra endpoints; app-vhost ACME certs
+  unreachable from VLAN 90, pending). vhost class joined into the audit; routes+certs DB tables;
+  `30-services` renders the resolution chain + a soonest-first expiry table. All T1, additive.
+- 2026-09-03 — **P6 done** (this branch). L7 rollback executors, one per actuator, each with a
+  **deterministic** rollback decision (never the LLM) and a **failure-case test**. (1) **Compose:**
+  `gitops-deploy.sh --gate` → `scripts/deploy-gate.sh` (probe: every project container Running / not
+  Restarting / healthy-or-none) → on failure `scripts/gitops-rollback.sh` (`git revert` the deploy
+  commit → push → Arcane reconciles). (2) **Tofu:** `scripts/tofu-apply.sh <saved-plan>` — refuses
+  delete/replace and T3 excluded-guest plans outright, snapshots every touched in-pool guest
+  (`scripts/pve-snapshot.sh`, operate token), applies the **saved** plan, verifies (post-apply plan
+  clean), rolls the snapshot back on apply-or-verify failure, prunes on success; **fails closed** if a
+  guest can't be snapshotted. (3) **DNS:** `scripts/dns-revert.sh` records+replays the inverse of every
+  `cf-dns-route.sh` write (landed as commit 1/3). Failure-case demos: `tests/compose-rollback-test.sh`
+  7/7, `tests/tofu-rollback-test.sh` 9/9, `tests/dns-revert-test.sh` 5/5 — all inject the failure and
+  assert the executor fired (externals stubbed; no production writes). New spoke
+  `docs/design/actuators.md` (the executor registry + the deterministic-rollback rule) + §7 row +
+  gitops-loop pointer. All three tests wired into CI + pre-commit. No dial moved; destroy/T3 stays a
+  hard checkpoint (the tofu wrapper refuses it). **NEXT — P7** (conftest/Rego over `tofu plan`) — do
+  NOT start it or SKY-020 in this session.

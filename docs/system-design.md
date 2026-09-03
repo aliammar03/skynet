@@ -305,6 +305,7 @@ The depth lives here. **This set is open** — spokes are added by PR as the sys
 | [access-and-trust](design/access-and-trust.md) | Trust tiers in depth, Proxmox operate tokens, SSH user-CA + grants, T3 dormant aliases | §2, §7, §8 |
 | [secrets](design/secrets.md) | sops+age, `.env.git`/`project.env` layering, envsync | §5, §4 |
 | [gitops-loop](design/gitops-loop.md) | Arcane deploy loop, rollback, image pinning + Renovate | §4, §12 |
+| [actuators](design/actuators.md) | L7 actuators + their rollback executors; the deterministic-rollback rule | SKY-018 P6, ADR 0005 §3 |
 | [disaster-recovery](design/disaster-recovery.md) | Survival kit + DR design (procedures in `runbooks/dr/`) | §10 |
 | [observability](design/observability.md) | render-docs, nightly, inventory, generated docs | §11 |
 | [memory](design/memory.md) | The four memory kinds; episodic journal + read-time digest + decision ADRs; write-raw/read-summarize; cache-not-truth | SKY-006 |

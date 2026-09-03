@@ -16,6 +16,7 @@
 #   CF_ZONE        the zone, i.e. aliammar.net
 #   TUNNEL_ID      the tunnel UUID (public), e.g. 7f4c50f9-cee6-40bb-ad5a-ef6c7f30ca56
 set -euo pipefail
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # for the dns-revert executor (SKY-018 P6)
 
 envfile="/opt/skynet-ops/secrets/cloudflare-dns.env"
 { test -r "${envfile}" 2>/dev/null || sudo -n test -r "${envfile}" 2>/dev/null; } || { echo "missing ${envfile} (0600) — mint the scoped token first" >&2; exit 1; }
@@ -34,6 +35,15 @@ api() { # <path> [curl args...]
     -H "Content-Type: application/json" "https://api.cloudflare.com/client/v4/$1" "${@:2}"
 }
 
+# Record this write's inverse for the rollback executor — UNLESS we are ourselves a replay of an
+# inverse (DNS_REVERT_REPLAYING=1): a revert must not record a counter-inverse, or the log never
+# settles. USAGE: record_inverse "<prior>" <undo cmd...>
+record_inverse() {
+  [ "${DNS_REVERT_REPLAYING:-0}" = 1 ] && return 0
+  local prior="$1"; shift
+  DNS_REVERT_PRIOR="${prior}" "${SELF_DIR}/dns-revert.sh" record cloudflare "${host}" -- "$@" || true
+}
+
 zid="$(api "zones?name=${CF_ZONE}" | jq -r '.result[0].id // empty')"
 [ -n "${zid}" ] || { echo "zone ${CF_ZONE} not visible to this token (check its scope)" >&2; exit 1; }
 
@@ -41,16 +51,25 @@ rid="$(api "zones/${zid}/dns_records?type=CNAME&name=${host}" | jq -r '.result[0
 
 if [ "${del}" = 1 ]; then
   [ -n "${rid}" ] || { echo "no CNAME ${host} — nothing to delete"; exit 0; }
+  prior="$(api "zones/${zid}/dns_records/${rid}" | jq -r '.result.content // "?"')"
   api "zones/${zid}/dns_records/${rid}" -X DELETE >/dev/null
-  echo "deleted CNAME ${host}"; exit 0
+  echo "deleted CNAME ${host}"
+  # inverse of a delete = re-publish restores this tunnel CNAME (SKY-018 P6 rollback executor).
+  record_inverse "CNAME → ${prior}" "${SELF_DIR}/cf-dns-route.sh" "${host}"
+  exit 0
 fi
 
 target="${TUNNEL_ID}.cfargotunnel.com"
 body="$(jq -nc --arg n "${host}" --arg c "${target}" '{type:"CNAME",name:$n,content:$c,proxied:true,ttl:1}')"
 if [ -n "${rid}" ]; then
+  prior="$(api "zones/${zid}/dns_records/${rid}" | jq -r '.result.content // "?"')"
   api "zones/${zid}/dns_records/${rid}" -X PUT --data "${body}" >/dev/null
   echo "updated CNAME ${host} → ${target} (proxied)"
+  # the record existed; inverse = re-publish (idempotent restore of the tunnel CNAME).
+  record_inverse "CNAME → ${prior}" "${SELF_DIR}/cf-dns-route.sh" "${host}"
 else
   api "zones/${zid}/dns_records" -X POST --data "${body}" >/dev/null
   echo "created CNAME ${host} → ${target} (proxied)"
+  # the record was new; inverse = delete (SKY-018 P6 rollback executor).
+  record_inverse "absent (new record)" "${SELF_DIR}/cf-dns-route.sh" --delete "${host}"
 fi
