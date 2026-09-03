@@ -1,35 +1,139 @@
 #!/usr/bin/env bash
 # collect-pbs.sh — T1 read-only snapshot of Proxmox Backup Server → inventory/pbs.json
-# USAGE: collect-pbs.sh
-#   Reads /opt/skynet-ops/secrets/pbs.env:
-#     PBS_HOST=10.10.20.40   PBS_TOKEN='svc-ops@pbs!readonly=<uuid>'
-# NOTE (finding, 2026-08-15): PBS:8007 was unreachable during A1 env checks — verify
-#   reachability before relying on this collector (A4).
+#
+# Reports the datastores AND their backup CONTENT — per store: usage, and the backup groups
+# (what guest is backed up, how many snapshots, when it last ran, whether it verified). That is
+# the "are the backups actually there and sound?" signal; the old collector only listed that a
+# datastore *existed*, which proved nothing.
+#
+# Reads /opt/skynet-ops/secrets/pbs.env (0600 root-owned; the agent reads it via the sops-nix
+# symlink, or falls back to `sudo -n cat` on a NOPASSWD host):
+#   PBS_HOST=10.10.20.40
+#   PBS_TOKEN='svc-ops@pbs!readonly:<uuid>'    # DatastoreAudit token (read-only); PBS uses ':' (PVE '=')
+#   PBS_FINGERPRINT='BA:C3:..:2C'  (optional)  # leaf-cert SHA256; defaults to the PVE-recorded pin below
+#   PBS_CACERT=/opt/skynet-ops/certs/pbs.crt   # optional: pin by a cert FILE instead of the fingerprint
+#
+# TLS: PBS serves a self-signed cert, so we PIN it — never `-k`/insecure. Default is trust-by-
+# fingerprint: capture the leaf, verify its SHA256 against PBS_FINGERPRINT (the exact value Proxmox
+# already stores for the `pbs-unraid` storage — public material, not a secret), then verify the API
+# call against that pinned leaf. A PBS_CACERT file, if set, wins. Re-pin if the cert is rotated.
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-secret="/opt/skynet-ops/secrets/pbs.env"
+secret_file="${PBS_ENV_FILE:-/opt/skynet-ops/secrets/pbs.env}"  # PBS_ENV_FILE: test seam only
 
-if ! { test -e "${secret}" 2>/dev/null || sudo -n test -f "${secret}" 2>/dev/null; }; then
-  echo "no creds yet (${secret}) — collector idle until A2/A4" >&2
+# Default fingerprint = the pin Proxmox records for the pbs-unraid storage (collect-proxmox sees it
+# at /storage). Overridable via PBS_FINGERPRINT in the secret; a PBS_CACERT file overrides both.
+PBS_FINGERPRINT_DEFAULT="BA:C3:32:F3:92:6B:4D:8F:FB:39:0D:D9:C4:B5:27:1D:D1:28:8A:41:F6:49:11:D0:FF:BE:21:9E:77:53:53:2C"
+
+if ! { test -e "${secret_file}" 2>/dev/null || sudo -n test -f "${secret_file}" 2>/dev/null; }; then
+  echo "no creds yet (${secret_file}) — collector idle. Mint a read token: on PBS run" >&2
+  echo "  proxmox-backup-manager user generate-token svc-ops@pbs readonly" >&2
+  echo "  proxmox-backup-manager acl update /datastore/unraid DatastoreAudit --auth-id 'svc-ops@pbs!readonly'" >&2
+  echo "then add PBS_HOST/PBS_TOKEN to ${secret_file} (sops). Idle is not a failure — exit 0." >&2
   exit 0
 fi
 # shellcheck disable=SC1090
-eval "$(cat "${secret}" 2>/dev/null || sudo -n cat "${secret}")"
+eval "$(cat "${secret_file}" 2>/dev/null || sudo -n cat "${secret_file}")"
 : "${PBS_HOST:?}" "${PBS_TOKEN:?}"
-: "${PBS_CACERT:?set PBS_CACERT in ${secret} — run: scripts/pin-cert.sh ${PBS_HOST:-<host>} 8007 /opt/skynet-ops/certs/pbs.crt}"
-[ -r "${PBS_CACERT}" ] || { echo "PBS_CACERT ${PBS_CACERT} not readable" >&2; exit 1; }
+PBS_PORT="${PBS_PORT:-8007}"
+PBS_FINGERPRINT="${PBS_FINGERPRINT:-${PBS_FINGERPRINT_DEFAULT}}"
 
-if ! timeout 5 bash -c "</dev/tcp/${PBS_HOST}/8007" 2>/dev/null; then
-  echo "PBS ${PBS_HOST}:8007 unreachable — see A1 finding; not writing inventory" >&2
-  exit 1
+if [ "${PBS_SKIP_REACHABILITY:-0}" != "1" ]; then  # PBS_SKIP_REACHABILITY: test seam only
+  if ! timeout 5 bash -c "</dev/tcp/${PBS_HOST}/${PBS_PORT}" 2>/dev/null; then
+    echo "PBS ${PBS_HOST}:${PBS_PORT} unreachable — not writing inventory" >&2
+    exit 1
+  fi
 fi
 
-api() { curl -sSf --max-time 15 --cacert "${PBS_CACERT}" -H "Authorization: PBSAPIToken=${PBS_TOKEN}" \
-        "https://${PBS_HOST}:8007/api2/json/$1"; }
+# --- pin the TLS cert ---------------------------------------------------------
+CADIR="$(mktemp -d)"; trap 'rm -rf "${CADIR}"' EXIT
+if [ -n "${PBS_CACERT:-}" ]; then
+  [ -r "${PBS_CACERT}" ] || { echo "PBS_CACERT ${PBS_CACERT} not readable" >&2; exit 1; }
+  cacert="${PBS_CACERT}"
+else
+  leaf="$(timeout 6 openssl s_client -connect "${PBS_HOST}:${PBS_PORT}" -servername "${PBS_HOST}" \
+            </dev/null 2>/dev/null | openssl x509 2>/dev/null)"
+  [ -n "${leaf}" ] || { echo "could not capture PBS TLS cert for pinning" >&2; exit 1; }
+  got="$(printf '%s' "${leaf}" | openssl x509 -noout -fingerprint -sha256 2>/dev/null | sed 's/.*=//')"
+  if [ "${got}" != "${PBS_FINGERPRINT}" ]; then
+    echo "PBS cert fingerprint mismatch — refusing (got ${got}, want ${PBS_FINGERPRINT})" >&2
+    echo "  if the PBS cert was rotated, re-pin: set PBS_FINGERPRINT in ${secret_file} to the new value" >&2
+    exit 1
+  fi
+  cacert="${CADIR}/pbs-pinned.crt"; printf '%s\n' "${leaf}" > "${cacert}"
+fi
+
+# PBS's self-signed cert has NO IP in its SAN (only the hostname), so verifying by the IP we dial
+# fails "no alternative certificate subject name matches" even with the right CA. Connect with
+# SNI = the cert's own hostname (via --resolve → the IP), so the SAN matches AND the pin holds.
+# Auto-extract it from the pinned cert (prefer an FQDN SAN, else the CN); PBS_SNI overrides.
+sni="${PBS_SNI:-}"
+if [ -z "${sni}" ]; then
+  sni="$(openssl x509 -in "${cacert}" -noout -ext subjectAltName 2>/dev/null \
+          | grep -oE 'DNS:[A-Za-z0-9.-]+' | sed 's/DNS://' | grep '\.' | grep -vi '^localhost' | head -1)"
+  [ -n "${sni}" ] || sni="$(openssl x509 -in "${cacert}" -noout -subject 2>/dev/null \
+          | grep -oE 'CN *= *[^,/]+' | sed 's/CN *= *//' | head -1)"
+fi
+: "${sni:?could not determine PBS cert hostname (set PBS_SNI in ${secret_file})}"
+
+# PBS wants the token as `PBSAPIToken=<tokenid>:<secret>` — a COLON, unlike PVE's `=`. Tolerate a
+# PVE-style `=` separator (easy to write by muscle memory) by swapping the first `=` to `:`; the
+# tokenid and the UUID secret contain neither, so this only ever hits the separator.
+PBS_AUTH="${PBS_TOKEN/=/:}"
+api() { curl -sSf --max-time 20 --cacert "${cacert}" --resolve "${sni}:${PBS_PORT}:${PBS_HOST}" \
+        -H "Authorization: PBSAPIToken=${PBS_AUTH}" \
+        "https://${sni}:${PBS_PORT}/api2/json/$1"; }
+
+# --- datastores + their backup content ---------------------------------------
+# For each datastore: usage (status) + the backup groups. A group is one guest's backup history;
+# we project the stable, decision-carrying fields — count of snapshots, last-backup time, and the
+# verification state — so the report can say "vm/10015: 7 snapshots, last 2026-09-03, verify ok".
+# Every per-store call degrades to null (never []), so a missing Datastore.Audit grant on one store
+# reads as "unknown", not a false "no backups".
+stores_json="$(api admin/datastore | jq '[.data[]?.store]')"
+
+store_block() { # <store>
+  local s="$1" status ns_json snaps groups
+  status="$(api "admin/datastore/${s}/status" 2>/dev/null | jq '.data // null' || echo null)"
+  # Backups live in NAMESPACES (e.g. core, network), not just the root — and per-snapshot carries
+  # the verification state that the groups view omits. So enumerate namespaces (always include root
+  # ""), pull each namespace's snapshots once, tag them, then reduce to per-guest groups.
+  ns_json="$(api "admin/datastore/${s}/namespace" 2>/dev/null | jq '[.data[]?.ns] // []' 2>/dev/null || echo '[]')"
+  ns_json="$(printf '%s' "${ns_json:-[]}" | jq 'if any(.[]; .=="") then . else [""] + . end')"
+  snaps="[]"
+  while IFS= read -r ns; do
+    local q d
+    if [ -z "${ns}" ]; then q="admin/datastore/${s}/snapshots"; else q="admin/datastore/${s}/snapshots?ns=${ns}"; fi
+    d="$(api "${q}" 2>/dev/null | jq --arg ns "${ns}" '[.data[]? | {
+           ns:$ns, backup_type:."backup-type", backup_id:."backup-id",
+           backup_time:."backup-time", verify:(.verification.state // null), owner:(.owner // null)
+         }]' 2>/dev/null || echo '[]')"
+    snaps="$(jq -n --argjson a "${snaps}" --argjson b "${d:-[]}" '$a + $b' 2>/dev/null || printf '%s' "${snaps}")"
+  done < <(printf '%s' "${ns_json}" | jq -r '.[]')
+  # reduce snapshots → one row per (namespace, guest): count, last-backup time, and the verify state
+  # OF THE LATEST snapshot (null = never verified — a real soundness gap, surfaced not hidden).
+  groups="$(printf '%s' "${snaps}" | jq '
+    group_by(.ns + "/" + .backup_type + "/" + .backup_id)
+    | map( sort_by(.backup_time) as $g | {
+        ns:$g[0].ns, backup_type:$g[0].backup_type, backup_id:$g[0].backup_id, owner:$g[-1].owner,
+        backup_count:($g|length), last_backup:$g[-1].backup_time, verify_state:$g[-1].verify } )
+    | sort_by(.ns, .backup_type, .backup_id)' 2>/dev/null || echo null)"
+  jq -n --arg s "${s}" --argjson status "${status:-null}" --argjson groups "${groups:-null}" \
+    '{store:$s, status:$status, groups:$groups,
+      group_count:(if $groups==null then null else ($groups|length) end),
+      snapshot_total:(if $groups==null then null else ([$groups[].backup_count]|add // 0) end),
+      unverified:(if $groups==null then null else ([$groups[]|select(.verify_state==null)]|length) end)}'
+}
+
+datastores="$(printf '%s' "${stores_json}" | jq -r '.[]?' | while IFS= read -r s; do
+                [ -n "${s}" ] || continue
+                store_block "${s}"
+              done | jq -s '.')"
 
 out="${REPO_DIR}/inventory/pbs.json"
 jq -n \
-  --argjson datastores "$(api admin/datastore | jq '.data')" \
+  --arg host "${PBS_HOST}" \
   --arg ts "$(date -Iseconds)" \
-  '{collected:$ts, datastores:$datastores}' > "${out}"
-echo "wrote ${out}"
+  --argjson datastores "${datastores:-[]}" \
+  '{collected:$ts, host:$host, datastores:$datastores}' > "${out}"
+echo "wrote ${out} ($(printf '%s' "${datastores}" | jq 'length') datastore(s), $(printf '%s' "${datastores}" | jq '[.[].snapshot_total // 0]|add // 0') snapshot(s))"
