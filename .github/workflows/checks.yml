@@ -54,3 +54,5 @@ jobs:
         run: bash tests/compose-rollback-test.sh
       - name: tofu-rollback-test
         run: bash tests/tofu-rollback-test.sh
+      - name: collect-pbs-test
+        run: bash tests/collect-pbs-test.sh
