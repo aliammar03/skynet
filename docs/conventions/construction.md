@@ -12,14 +12,12 @@ summary: "The construction delegation contract: one accountable lead hands bound
 
 Tags: **[testable]** = a lint/config gate could assert it; **[manual]** = holds by review.
 
-## The default is still one agent
+## A lead proactively earns delegation
 
-```text
-one task → one lead → done
-```
-
-Delegation is used **only** when it cuts cognitive load or elapsed time by more than the
-coordination it adds. A bigger fan-out is not the goal.
+One capable lead always owns the task end to end. For **substantial construction work**, it
+proactively looks for BIV (Bounded, Independent, Verifiable) chunks and hands each suitable one to
+the cheapest reliable role; Ali does not need to ask for helpers. Tiny work stays with the lead when
+coordinating a helper costs more than doing the work. A bigger fan-out is not the goal.
 
 ## Roles → GPT-5.6 tier
 
@@ -63,8 +61,9 @@ complete,"* never *"the phase is complete."* `[manual]`
 
 The 30-second version of everything below — what to reach for, when.
 
-1. **Default: don't delegate.** `one task → one lead → done`. Delegate only when it saves more than
-   the coordination it costs.
+1. **Assess substantial construction for delegation.** Proactively scan it for BIV chunks and delegate
+   each chunk whose cognitive-load or elapsed-time saving exceeds its coordination cost. Keep tiny
+   work with the lead when coordination exceeds execution; Ali need not request delegation.
 2. **Gate every hand-off through BIV** — Bounded, Independent, Verifiable. If you can't state success
    in a sentence, or you'd have to babysit it, or you can't cheaply check it: keep it, or send it back
    to Ali. Ambiguity is never delegated.

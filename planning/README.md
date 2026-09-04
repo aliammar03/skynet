@@ -83,7 +83,7 @@ so running or resuming one is a single paste into a fresh session.
 | SKY-019 | Relocate the Arcane controller off the DMZ to a dedicated Management docker VM, managing docker hosts remotely | ideas | draft | — | 🔭 long |
 | SKY-020 | Firewall-as-code — OPNsense config to T2 via OpenTofu | projects | in-progress | 1/6 | 🔭 long |
 | SKY-021 | NixOS-in-LXC: prove the container path and set the new-CT default | archive | done | — | 🌱 short |
-| SKY-022 | "Lean multi-agent construction orchestration: lead-driven delegation" | ideas | in-progress | — | 🔭 long |
+| SKY-022 | "Lean multi-agent construction orchestration: lead-driven delegation" | ideas | done | — | 🔭 long |
 | SKY-023 | Eliminate documentation drift and shrink operational context | ideas | draft | — | 🌱 short |
 | SKY-024 | tofu declares all pool guests — API-driven CT/VM lifecycle, no node SSH | projects | in-progress | 3/6 | 🌱 short |
 <!-- ROADMAP:END -->
