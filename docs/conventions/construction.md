@@ -59,6 +59,38 @@ the Terra↔Luna choice *is* the Builder↔Mechanic split:
 The lead is **accountable for the whole result**; a helper can report only *"my delegated subtask is
 complete,"* never *"the phase is complete."* `[manual]`
 
+## The lead's playbook (quick reference)
+
+The 30-second version of everything below — what to reach for, when.
+
+1. **Default: don't delegate.** `one task → one lead → done`. Delegate only when it saves more than
+   the coordination it costs.
+2. **Gate every hand-off through BIV** — Bounded, Independent, Verifiable. If you can't state success
+   in a sentence, or you'd have to babysit it, or you can't cheaply check it: keep it, or send it back
+   to Ali. Ambiguity is never delegated.
+3. **Pick the role by task *shape*, then read the tier off it:**
+
+   | The subtask is… | Role | Tier · effort | Writes |
+   |---|---|---|---|
+   | architecture / cross-cutting / ambiguous — the hard core | *(keep it)* / hard-lead | Terra→**Sol** · xhigh (Sol-only `max` if brutal) | — |
+   | **novel bounded logic** behind an interface, with tests | **Builder** | **Terra · high** | workspace |
+   | **fully-specified, low-context** repetitive edit / rename / fixture | **Mechanic** | **Luna · high** | workspace |
+   | **read-only** search / compare / investigate | **Scout** | **Luna · medium** | none |
+   | "make it better" / "decide what to build" / vague | **don't delegate** | — | — |
+
+4. **The tier tell:** Terra unless the job is *tightly specified and low-context* — then Luna. Luna
+   context-rots and over-codes on vague specs, so a loose "Builder" chunk stays Terra; a Builder is
+   cheap to run but a *wrong* one costs a rework loop in expensive lead time. When unsure, spend the
+   Terra token, not the rework.
+5. **Invoke** — native in-session (preferred): ask Codex to spawn the `builder`/`mechanic`/`scout`
+   agent (defs in `.codex/agents/`, cap = 2). Standalone or to preview: `bin/agent <role> "<prompt>"
+   [--hard] [--dry-run]` — always `--dry-run` first to see the resolved model/effort/sandbox.
+6. **Write a real helper prompt:** state the scope surface, the expected output, the write allowance,
+   and the exact verification (which tests/gates). A helper with a vague prompt is your bug, not its.
+7. **Integrate + own it:** you inspect the returned work, run the gates yourself, and land the PR.
+   The helper's "done" is a claim to verify, never a merge signal — and you never self-merge (§ trust
+   boundary).
+
 ## Delegation depth = one
 
 - **Allowed:** `Ali → lead → helper`. `[manual]`
