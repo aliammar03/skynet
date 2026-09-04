@@ -1,0 +1,8 @@
+# Codex project config — construction delegation only (SKY-022).
+# Doctrine + rationale: docs/conventions/construction.md. This file sets nothing that touches
+# production; it only bounds how a lead may fan out to build-time helpers.
+
+[agents]
+# The two-helper cap is enforced here, not by vigilance. Raise only when real work proves two is
+# constraining (SKY-022 §2·B). One delegation level is doctrine, not a knob — helpers never spawn.
+max_concurrent_threads_per_session = 2

@@ -24,7 +24,8 @@ Tags: **[testable]** = a lint gate could assert it; **[manual]** = holds by revi
 | `journal/<YYYY>/*.md` | **Episodic memory** — raw append-only session/incident/decision episodes | memory |
 | `compose/<svc>/` | One dir per service (the GitOps loop) | ops |
 | `scripts/*.sh` | Procedures runbooks/entry-points call | ops |
-| `bin/*` | Operator-facing entry points (`plan`, `new`, `ops`, `grant-root`) | ops |
+| `bin/*` | Operator-facing entry points (`plan`, `new`, `ops`, `grant-root`, `agent`) | ops |
+| `.codex/config.toml`, `.codex/agents/*.toml` | Native Codex construction-helper defs (SKY-022) — build-time only, no prod authority | doctrine |
 | `runbooks/*.md`, `runbooks/dr/*.md` | Engine-neutral procedures, catalogued in `runbooks/README.md` | ops |
 | `templates/` | The golden templates `bin/new` stamps from — one folder, all kinds | doctrine |
 | `planning/{scratchpad,ideas,backlog,projects,archive,services}/` | The `SKY-###` directive pipeline | planning |

@@ -1,12 +1,12 @@
 ---
 id: SKY-022
 title: "Lean multi-agent construction orchestration: lead-driven delegation"
-status: draft
+status: in-progress
 horizon: long
 created: 2026-09-04
 updated: 2026-09-04
 phases: 6
-current_phase: 0
+current_phase: 1
 tier_touched: [T1]
 related:
   - docs/system-design.md
@@ -238,7 +238,7 @@ Construction parallelism must never become an accidental second production-contr
 
 ## 4. The plan
 
-### Phase 1 · Role contract + tiny launcher  (~1–2h)   `[ ]` not started
+### Phase 1 · Role contract + tiny launcher  (~1–2h)   `[x]` done 2026-09-04
 
 Goal: make the mental model concrete without building orchestration infrastructure.
 

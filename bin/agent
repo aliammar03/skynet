@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# agent — launch a bounded construction helper by ROLE, or preview the resolution. → a codex process.
+# TIER: T1 — build-time only. Helpers get NO production authority (no secrets/tokens/T2/T3); the
+#   sandbox (writers=workspace-write, scout=read-only) is the boundary. Doctrine: docs/conventions/construction.md.
+# USAGE:
+#   bin/agent <lead|builder|mechanic|scout> "<prompt>" [--hard] [--dry-run]
+#     --hard      lead only: promote Terra → Sol for genuinely hard / cross-cutting work
+#     --dry-run   print the resolved role/tier/model/sandbox + exact command, launch nothing
+#   Tier→model is env-overridable (the only knob): AGENT_MODEL_{SOL,TERRA,LUNA}. No secrets are read.
+#
+# This is the STANDALONE mirror of the native in-session delegation in .codex/agents/*.toml. When a
+# job fits native Codex subagents, prefer those (they enforce the ≤2-helper cap). One delegation
+# level only — a helper launched here never launches its own helper.
+set -euo pipefail
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "${REPO_DIR}"
+
+die() { echo "agent: $*" >&2; exit 1; }
+
+role="${1:?usage: bin/agent <lead|builder|mechanic|scout> \"<prompt>\" [--hard] [--dry-run]}"
+prompt="${2:?usage: bin/agent <role> \"<prompt>\" [--hard] [--dry-run]}"
+shift 2 || true
+
+hard=0; dry=0
+for a in "$@"; do case "$a" in
+  --hard)    hard=1;;
+  --dry-run) dry=1;;
+  *) die "unknown flag '$a' (--hard | --dry-run)";;
+esac; done
+
+# tier → concrete model. Env override is the ONLY place model IDs live (SKY-022 §2·C).
+model_for_tier() { case "$1" in
+  sol)   echo "${AGENT_MODEL_SOL:-gpt-5.6-sol}";;
+  terra) echo "${AGENT_MODEL_TERRA:-gpt-5.6-terra}";;
+  luna)  echo "${AGENT_MODEL_LUNA:-gpt-5.6-luna}";;
+  *) return 1;; esac; }
+
+# role → tier / reasoning effort / sandbox / approval. The one routing table in code (doctrine:
+# docs/conventions/construction.md). Scout is read-only by contract; writers stay workspace-scoped —
+# deliberately MORE restricted than the nightly's full bypass, because construction touches no prod.
+case "${role}" in
+  lead)     tier=terra; [ "${hard}" = 1 ] && tier=sol; effort=high;   sandbox=workspace-write; approval=on-failure;;
+  builder)  tier=terra;                       effort=medium; sandbox=workspace-write; approval=on-failure;;
+  mechanic) tier=luna;                        effort=low;    sandbox=workspace-write; approval=on-failure;;
+  scout)    tier=luna;                        effort=medium; sandbox=read-only;       approval=never;;
+  *) die "unknown role '${role}' (lead|builder|mechanic|scout)";;
+esac
+[ "${hard}" = 1 ] && [ "${role}" != lead ] && die "--hard is lead-only (promotes Terra→Sol)"
+
+model="$(model_for_tier "${tier}")"
+
+# codex exec: non-interactive helper, sandboxed, model + reasoning effort pinned to the role.
+set -- codex exec \
+  --model "${model}" \
+  --sandbox "${sandbox}" \
+  --ask-for-approval "${approval}" \
+  -c "model_reasoning_effort=\"${effort}\"" \
+  "${prompt}"
+
+echo "role=${role}  tier=${tier}  model=${model}  effort=${effort}  sandbox=${sandbox}  approval=${approval}" >&2
+if [ "${dry}" = 1 ]; then
+  printf 'DRY-RUN — would launch:\n  ' >&2; printf '%q ' "$@" >&2; echo >&2
+  exit 0
+fi
+command -v codex >/dev/null 2>&1 || die "codex not on PATH (install it, or use --dry-run to preview)"
+exec "$@"
