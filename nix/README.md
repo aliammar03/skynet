@@ -34,6 +34,9 @@ nix/home/
   One age key lab-wide ([secrets](../docs/design/secrets.md)).
 - **Agent CLIs are home-manager packages** (from nixpkgs-unstable) in `~aliammar`. The repo is
   checked out in `~aliammar` too — Nix defines the machine, the checked-out runtime is replaceable.
+- **Agent permission ergonomics follow the OS boundary.** Claude, Codex, and OpenCode may freely
+  read, edit, run Nix, commit, push branches, and open PRs as `aliammar`; PR merge and root-grant
+  commands still prompt. The unprivileged account and scoped sudo remain the real security wall.
 - **Least-privilege sudo, no standing root.** wheel needs a password; only the commands ops actually
   runs are NOPASSWD (aliammar: `systemctl skynet-*`; svc-ops: deploy-activation). Interactive root is
   Ali's password or a grant-root cert.

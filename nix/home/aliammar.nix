@@ -86,15 +86,38 @@ in
     enable = true;
     package = unstable.codex;
     enableMcpIntegration = true;
-    # on-failure: run sandboxed silently, only surface when a command needs to escalate. workspace-write
-    # + network_access: the collectors hit the Proxmox/DNS/Docker APIs, so the sandbox must reach the net.
-    # trust_level: skip the per-project trust prompt for the box's repo.
+    # Match Claude's acceptEdits + Bash allow posture: the aliammar OS account is the security wall,
+    # so the interactive lead may read/write/run anything that account can. This also keeps Nix,
+    # normal git work, branch pushes, and `gh pr create` prompt-free. The two real checkpoints live
+    # in skynet.rules below. SKY-022 helpers remain bounded because bin/agent passes an explicit
+    # per-role --sandbox, overriding this interactive-lead default.
     settings = {
-      approval_policy = "on-failure";
-      sandbox_mode = "workspace-write";
-      sandbox_workspace_write.network_access = true;
+      model = "gpt-5.6-sol";
+      model_reasoning_effort = "medium";
+      approval_policy = "on-request";
+      sandbox_mode = "danger-full-access";
       projects."/home/aliammar/skynet".trust_level = "trusted";
     };
+    # Use a named managed rule file instead of default.rules: Codex owns the latter when Ali accepts
+    # a remembered command interactively, and Home Manager must not collide with that local file.
+    # Rule precedence is restrictive, so these prompts override any remembered allow rule.
+    rules.skynet = ''
+      prefix_rule(
+        pattern = ["gh", "pr", "merge"],
+        decision = "prompt",
+        justification = "Authored pull requests require an explicit human merge decision",
+      )
+      prefix_rule(
+        pattern = ["bin/grant-root"],
+        decision = "prompt",
+        justification = "Root access requires an explicit time-bounded grant",
+      )
+      prefix_rule(
+        pattern = ["./bin/grant-root"],
+        decision = "prompt",
+        justification = "Root access requires an explicit time-bounded grant",
+      )
+    '';
   };
   programs.opencode = {
     enable = true;
