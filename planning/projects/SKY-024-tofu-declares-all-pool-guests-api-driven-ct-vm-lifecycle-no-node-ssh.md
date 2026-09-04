@@ -5,7 +5,7 @@ status: in-progress
 horizon: short
 created: 2026-09-04
 updated: 2026-09-04
-phases: 3
+phases: 6
 current_phase: 3
 tier_touched: [T2, T3]   # T3: consolidating the agent's Proxmox identity (tofu → operate token) +
                          # a network-node pveum → the plan MUST PR docs/system-design.md.
@@ -126,6 +126,56 @@ Steps:
 
 Exit criteria: a new pool guest is a single data entry + flake host + PR; the pattern covers CTs and VMs.
 
+---
+*Phases 4–6 migrate the remaining pool services onto the P1–P3 machinery — each the SKY-021
+adguard-core pattern: author `hosts/lxc-<name>/` (service config in Nix + sops-nix Option C), add a
+`pool_cts` entry (MAC pinned), snapshot the old CT, provision the NixOS replacement, `deploy`, verify,
+keep the old CT **stopped** as rollback, PR + close-out. They flip the new-CT default from theory to
+fleet. Ordered by fit-certainty and stakes.*
+
+### Phase 4 — technitium-core (751) → NixOS pool CT  (~1–2h)   `[ ]` not started
+The DNS clients actually use (unlike the adguard leftover) — so a **real** cutover. Core node, VLAN 70
+`.51`, VMID 751. Steps:
+1. **First:** confirm the resolver redundancy — sequence the cutover so clients keep DNS through the
+   gap (technitium-network `.50` as fallback, or a short low-traffic window). Snapshot old 751.
+2. Author `hosts/lxc-technitium-core/`. **Open Q — the config surface:** Technitium keeps state in a
+   DB/config dir, not a single declarative file like AdGuard's YAML. Check nixpkgs for a
+   `technitium-dns-server` package/module; if config isn't cleanly declarative, decide the model
+   (persist the config dir + seed zones via the Technitium API/tofu, vs. a full declarative port).
+   Zones stay T2 (the Technitium zones token); *server settings* are T3.
+3. Option C secret (admin), `pool_cts` entry (pinned MAC = its existing MAC). Provision → inject →
+   deploy → verify resolution + zones from a client.
+4. Cut over; keep old 751 **stopped** as rollback. ⚠ real DNS — hard checkpoint. PR + close-out.
+
+Exit criteria: technitium-core runs NixOS, clients resolve through it, zones intact; old CT stopped.
+
+### Phase 5 — omada (525) → evaluate fit, then migrate  (~1–2h)   `[ ]` not started
+The Omada controller (VLAN 50 `.25`, VMID 525) manages the switch/AP estate (losing it drops
+*management*, not the network). Steps:
+1. **Fit check first (⚠ decision):** Omada is a Java app often shipped as Docker — and pool CTs are
+   **unprivileged, no Docker-in-CT**. Check nixpkgs for a native `tplink-omada-controller` service. If
+   it only runs under Docker → checkpoint to Ali: keep it Debian, run it on the DMZ Docker host, or a
+   privileged-CT exception. Don't force it into the NixOS-LXC pattern.
+2. If a native service fits: author the host + Option C + `pool_cts` entry; snapshot; provision; deploy;
+   re-adopt/verify the estate; keep old stopped. PR + close-out.
+
+Exit criteria: a recorded verdict — omada on NixOS (if it fits) or a logged decision on its alternative.
+
+### Phase 6 — authentik (837) → gated on leaving T3 + a fit check  (~1–2h)   `[ ]` not started
+**Two gates before any work.** authentik (network node, VMID 837) is currently a **T3-excluded** guest
+(server admin is T3; on the pool-scoped network node). Steps:
+1. **⚠ Constitution decision:** does authentik's *envelope* graduate out of `excluded_guests` so the
+   agent may own its lifecycle? (App-admin — flows/policies/keys — can stay T3 even if the box is a
+   NixOS CT.) A `docs/system-design.md` PR; if **no**, the phase closes as won't-do and authentik stays
+   hand-managed.
+2. **⚠ Fit check:** authentik is a **multi-service** app (server + worker + postgres + redis), normally
+   Docker-compose — which does **not** fit an unprivileged single-CT NixOS host. If it doesn't fit,
+   record that it stays on the Docker host / Debian, not a pool CT.
+3. Only if both gates pass: author the host + secrets + `pool_cts` entry (⚠ network-node new VMID needs
+   a human) + cutover.
+
+Exit criteria: a recorded decision — authentik migrated, or a logged won't-do with the reason (T3 or fit).
+
 ## 4. ▶ Execute prompt
 > Paste into a fresh Skynet session to run this directive. Swap `<N>` for the phase to run.
 ```
@@ -164,7 +214,9 @@ Follow AGENTS.md as above.
   the envelope, deploy-rs owns the inside, one token, no node SSH. Constitution + invariants.json updated;
   check-invariants green. Throwaway .tf removed (adguard-core is the Phase-2 committed reference).
   Follow-up: Ali can deactivate the now-unused svc-tofu tokens + we can drop the tofu-proxmox*.sops secrets.
-- 2026-09-04 — **Phase 3 DONE (SKY-024 COMPLETE)** (branch `feat/sky-024-p3`). Built the `for_each`
+- 2026-09-04 — **Phase 3 DONE** (branch `feat/sky-024-p3`, PR #171). The core objective is met; the
+  fleet migrations that ride this machinery are now added as **Phases 4–6** (technitium-core, omada,
+  authentik) — SKY-024 stays open as their umbrella rather than archiving. Built the `for_each`
   module `tofu/pool-cts.tf`: a `local.pool_cts` map (`{vmid,node,vlan,octet,mac,cores,memory,swap,disk,
   tags}` per guest) → one `proxmox_virtual_environment_container "pool_ct"` for_each. **A new pool CT is
   now one data entry** (+ a flake host + a PR). `mac` is a required field → pinning is structural, the
@@ -173,7 +225,10 @@ Follow AGENTS.md as above.
   `lxc-adguard-core.tf`. Migration candidates (technitium-core/omada/authentik) are commented one-block
   adds in the map. **VMs deferred:** a for_each VM module for the single pool VM (docker-dmz) adds no
   value — VMs stay per-file until there are several (the directive's "where it adds value"). Runbook
-  `provision-lxc.md` updated to the data-entry flow. Retire the whole SKY-024 arc → archive after merge.
+  `provision-lxc.md` updated to the data-entry flow.
+- 2026-09-04 — added **Phases 4–6** (Ali): the pool-service migrations onto the P1–P3 machinery —
+  technitium-core (751), omada (525), authentik (837). Each is now a `pool_cts` entry + a flake host +
+  a cutover, following the SKY-021 adguard-core pattern. Not started; SKY-024 stays open.
 - 2026-09-04 — **Phase 2 DONE** (same branch/PR #168, Ali's "go ahead in the same pr"). adguard-core
   (CT 731) is now the tofu reference: `tofu/lxc-adguard-core.tf` **zero-drift imported** (MAC pinned in
   code — `network_interface.mac_address` round-trips, so it's declarative now). Import needed the console

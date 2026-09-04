@@ -85,5 +85,5 @@ so running or resuming one is a single paste into a fresh session.
 | SKY-021 | NixOS-in-LXC: prove the container path and set the new-CT default | archive | done | — | 🌱 short |
 | SKY-022 | "Lean multi-agent construction orchestration: lead-driven delegation" | ideas | draft | — | 🔭 long |
 | SKY-023 | Eliminate documentation drift and shrink operational context | ideas | draft | — | 🌱 short |
-| SKY-024 | tofu declares all pool guests — API-driven CT/VM lifecycle, no node SSH | projects | in-progress | 1/3 | 🌱 short |
+| SKY-024 | tofu declares all pool guests — API-driven CT/VM lifecycle, no node SSH | projects | in-progress | 3/6 | 🌱 short |
 <!-- ROADMAP:END -->
