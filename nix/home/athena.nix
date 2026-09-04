@@ -23,7 +23,9 @@ in
   # both `gh` and the `gh auth git-credential` helper below authenticate with no hosts.yml dance.
   programs.zsh = {
     enable = true;
-    initContent = ''
+    # .zshenv (not .zshrc): sourced by every zsh — interactive, login, and non-interactive — so
+    # GH_TOKEN is present for git/gh subprocesses too, and children inherit it from the login shell.
+    envExtra = ''
       [ -r /run/secrets/gh-token ] && export GH_TOKEN="$(cat /run/secrets/gh-token)"
     '';
   };
@@ -101,8 +103,11 @@ in
     };
   };
 
-  # The remaining CLIs + the mcp-nixos binary (same set as the ops VM).
+  # The remaining CLIs + the mcp-nixos binary (same set as the ops VM). gh is the interactive
+  # GitHub CLI (the git credential helper uses its absolute store path regardless, but Ali wants
+  # `gh` on PATH like the ops VM has).
   home.packages = [
+    pkgs.gh
     pkgs.mcp-nixos
     unstable.pi-coding-agent
     unstable.aider-chat
