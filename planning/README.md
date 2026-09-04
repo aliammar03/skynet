@@ -84,4 +84,5 @@ so running or resuming one is a single paste into a fresh session.
 | SKY-020 | Firewall-as-code — OPNsense config to T2 via OpenTofu | projects | in-progress | 1/6 | 🔭 long |
 | SKY-021 | NixOS-in-LXC: prove the container path and set the new-CT default | projects | in-progress | 3/3 | 🌱 short |
 | SKY-023 | Eliminate documentation drift and shrink operational context | ideas | draft | — | 🌱 short |
+| SKY-024 | tofu declares all pool guests — API-driven CT/VM lifecycle, no node SSH | ideas | draft | — | 🌱 short |
 <!-- ROADMAP:END -->
