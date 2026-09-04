@@ -39,13 +39,14 @@ model_for_tier() { case "$1" in
 # role → tier / reasoning effort / sandbox / approval. The one routing table in code (doctrine:
 # docs/conventions/construction.md). Scout is read-only by contract; writers stay workspace-scoped —
 # deliberately MORE restricted than the nightly's full bypass, because construction touches no prod.
-# Effort is evidence-backed (SKY-022 P1 research): effort — not tool access — buys first-try
-# reliability, and PLANNING is where xhigh pays off most (high→xhigh moved perfect first runs
-# 28%→89% for +9–29% cost). So the lead reasons hardest; writers get high; chores get medium.
+# Routing follows the researched guides (SKY-022 P1): the SOL/TERRA PLANNER + LUNA WORKER split —
+# the lead reasons hardest (xhigh; planning is where high→xhigh moved perfect first runs 28%→89%),
+# and Luna does the scoped implementation, chores, and search, since strong checks make premium
+# models unnecessary and Luna's economics dominate bounded/verifiable work.
 case "${role}" in
   lead)     tier=terra; [ "${hard}" = 1 ] && tier=sol; effort=xhigh;  sandbox=workspace-write; approval=on-failure;;
-  builder)  tier=terra;                       effort=high;   sandbox=workspace-write; approval=on-failure;;
-  mechanic) tier=luna;                        effort=medium; sandbox=workspace-write; approval=on-failure;;
+  builder)  tier=luna;                        effort=high;   sandbox=workspace-write; approval=on-failure;;
+  mechanic) tier=luna;                        effort=high;   sandbox=workspace-write; approval=on-failure;;
   scout)    tier=luna;                        effort=medium; sandbox=read-only;       approval=never;;
   *) die "unknown role '${role}' (lead|builder|mechanic|scout)";;
 esac

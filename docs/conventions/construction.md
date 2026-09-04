@@ -28,19 +28,27 @@ Roles are the stable contract; the model behind a role is configuration and swap
 | Role | Owns | Tier (GPT-5.6) | Effort | Writes? |
 |---|---|---|---|---:|
 | **Lead** | Intent, architecture, decomposition, integration, verification, the PR | **Terra** (→ **Sol** for genuinely hard / cross-cutting work) | **xhigh** | yes |
-| **Builder** | One bounded component behind a clear interface | **Terra** | **high** | yes |
-| **Mechanic** | Repetitive edits — fixtures, renames, formatting, routine docs | **Luna** | **medium** | yes |
-| **Scout** | Search / compare / investigate, returns a concise report | **Luna** (Terra if the reasoning is hard) | **medium** | **no** |
+| **Builder** | One bounded component behind a clear interface | **Luna** | **high** | yes |
+| **Mechanic** | Repetitive edits — fixtures, renames, formatting, routine docs | **Luna** | **high** | yes |
+| **Scout** | Search / compare / investigate, returns a concise report | **Luna** | **medium** | **no** |
 
 Sol is the flagship (hardest problems), Terra the balanced workhorse, Luna the fast/cheap tier for
-repeatable objective-check work. **Route by uncertainty and consequence, not prompt length.**
+repeatable objective-check work. This routing follows the researched selection guides:
+**route by uncertainty and consequence, not prompt length** — which yields a **Sol/Terra planner +
+Luna worker** split.
 
-Effort is evidence-backed, not taste: reasoning effort — *not* tool access — buys first-try
-reliability, and **planning is where the highest effort pays off most** (raising a planning turn from
-high→xhigh moved perfect first runs 28%→89% for +9–29% cost). So the **lead reasons hardest**
-(xhigh), a **builder** implements at high, **chores** run at medium. Only Sol supports `max`; reserve
-it for a genuinely brutal hard-lead task. The lead is **accountable for the whole result**; a helper
-can report only *"my delegated subtask is complete,"* never *"the phase is complete."* `[manual]`
+- The **lead** carries the uncertainty and consequence, so it reasons hardest — **xhigh** — because
+  reasoning effort, *not* tool access, is what buys first-try reliability (raising a planning turn
+  high→xhigh moved perfect first runs 28%→89% for +9–29% cost). Terra by default; **Sol** for
+  architecture / cross-cutting / ambiguous work. Only Sol supports **`max`** — reserve it for a
+  genuinely brutal hard-lead task.
+- The **helpers are Luna workers.** A delegated subtask is BIV — bounded, test-checked, verifiable —
+  and there the guides route to Luna: strong objective checks make a premium model pointless, and
+  Luna's economics dominate high-volume work. Builder and Mechanic run at **high** (correctness is
+  cheap at Luna prices, and scaling — not per-call cost — dominates); read-only Scout at **medium**.
+
+The lead is **accountable for the whole result**; a helper can report only *"my delegated subtask is
+complete,"* never *"the phase is complete."* `[manual]`
 
 ## Delegation depth = one
 

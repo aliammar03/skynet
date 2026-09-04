@@ -108,14 +108,19 @@ Initial maximum active helpers: **2**. Raise only after real work demonstrates t
 
 Canonical roles:
 
-| Role | Purpose | Initial model class | Writes? |
+| Role | Purpose | Tier · effort | Writes? |
 |---|---|---|---:|
-| **Lead** | Owns intent, architecture, decomposition, integration, verification | Terra normally; Sol for hard/cross-cutting work | yes |
-| **Builder** | Implements one bounded component with a clear interface | Terra | yes |
-| **Mechanic** | Repetitive edits, fixtures, renames, formatting, routine docs | Luna | yes |
-| **Scout** | Searches, compares, investigates, returns a concise report | Luna or Terra | **no** |
+| **Lead** | Owns intent, architecture, decomposition, integration, verification | Terra `xhigh` (→ Sol for hard/cross-cutting; Sol-only `max` for a brutal task) | yes |
+| **Builder** | Implements one bounded component with a clear interface | Luna `high` | yes |
+| **Mechanic** | Repetitive edits, fixtures, renames, formatting, routine docs | Luna `high` | yes |
+| **Scout** | Searches, compares, investigates, returns a concise report | Luna `medium` | **no** |
 
-Model IDs live in configuration or the invoking tool, not in the architecture. A future model swap should not change the role contract.
+Tier · effort follow the researched selection guides (P1) — a **Sol/Terra planner + Luna worker**
+split, routed by uncertainty and consequence: the lead reasons hardest (effort, not tool access,
+buys first-try reliability), while BIV subtasks go to Luna because strong objective checks make a
+premium model pointless. Model IDs live in configuration or the invoking tool (`bin/agent`,
+`.codex/agents/*.toml`), not in the architecture — a future model swap should not change the role
+contract. Details + the effort rationale: [`docs/conventions/construction.md`](../../docs/conventions/construction.md).
 
 ### D · Delegation must pass the BIV test
 

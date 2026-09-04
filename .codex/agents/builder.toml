@@ -1,8 +1,9 @@
 # Builder — implements one bounded component behind a clear interface. SKY-022 role.
-# Contract + BIV test: docs/conventions/construction.md. Terra tier (balanced workhorse).
+# Contract + BIV test: docs/conventions/construction.md. Luna tier = the WORKER model: the routing
+# guides route scoped, test-checked implementation to Luna (its economics dominate bounded work).
 name = "builder"
 description = "Implement one bounded, interface-clear component the lead has scoped; run the named tests; report done. Not for architecture or open-ended 'make it better' work."
-model = "gpt-5.6-terra"
+model = "gpt-5.6-luna"
 # high: implementation is where reasoning effort buys first-try reliability (SKY-022 research);
 # escalate to xhigh only if corrective prompts prove expensive for this component.
 model_reasoning_effort = "high"
