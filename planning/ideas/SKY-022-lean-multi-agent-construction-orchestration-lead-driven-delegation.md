@@ -11,80 +11,45 @@ tier_touched: [T1]
 related:
   - docs/system-design.md
   - AGENTS.md
-  - docs/design/memory.md
-  - docs/design/observability.md
+  - docs/conventions/construction.md
   - planning/ideas/SKY-017-the-road-to-full-agent-control-verification-proving-ground-and-an-evidence-earned-ratchet.md
   - "[[SKY-022-progress]]"
 ---
 
 # SKY-022 · Lean multi-agent construction orchestration: lead-driven delegation
 
-> Give one capable Codex lead a small bench of helpers. The lead owns the task, delegates only bounded work to smaller agents, integrates the result, and stays understandable enough that Ali can reason about the whole system from memory.
+> One accountable Codex lead owns the task, proactively offloads bounded work to cheaper helpers,
+> integrates the result, verifies it, and remains the sole owner of the PR.
 
-## 1. Problem / motivation
+## 1. Goal
 
-Skynet does not need an enterprise workflow platform to build a homelab. It does need a little more leverage than a single monolithic coding session.
-
-The useful target is deliberately small:
+Skynet should get the leverage of multi-agent construction without becoming an orchestration
+platform. The target is deliberately small:
 
 ```text
-Ali
-  ↓
+Ali states intent
+    ↓
 lead agent
-  ├── scout: inspect / research, read-only
-  ├── mechanic: repetitive edits
-  └── builder: bounded implementation chunk
-  ↓
-lead integrates
-  ↓
-tests / gates
-  ↓
+    ├── Scout    → Luna, read-only investigation
+    ├── Mechanic → Luna, deterministic/repetitive edits
+    └── Builder  → Terra, bounded implementation
+    ↓
+lead integrates + verifies
+    ↓
 PR
-  ↓
+    ↓
 Ali merges
 ```
 
-The lead remains the one accountable operator. Subagents are temporary helpers, not peers competing for control of the task.
-
-This directive exists to make that pattern explicit, repeatable and pleasant without building a queue, scheduler, workflow database, daemon, task ledger, custom DAG engine, or home-grown CI platform before one is actually needed.
-
-### The problem to solve
-
-Today a large construction task can force one agent to spend context on everything at once:
-
-- architecture and implementation;
-- searching the repo for affected call sites;
-- mechanical fixture or documentation updates;
-- independent investigation of APIs or prior art;
-- final integration and verification.
-
-Some of those subtasks are naturally independent and cheap to delegate. A lead should be able to hand them to a smaller model, keep its own context focused on the hard part, then verify and integrate the returned work.
-
-### The non-problem
-
-We are **not** trying to maximize the number of simultaneous agents.
-
-The default remains:
-
-```text
-one task → one lead → done
-```
-
-Delegation is used only when it reduces cognitive load or elapsed time without creating more coordination cost than it saves.
+The lead is the foreman. Helpers are temporary workers, never peers, reviewers, or production
+operators.
 
 ## 2. Decisions
 
 ### A · One lead owns the task
 
-Options:
-
-- **Peer swarm:** several equal agents coordinate among themselves. Powerful, but ownership becomes fuzzy and integration becomes a second project.
-- **Central orchestrator service:** software assigns tasks, tracks state, retries workers and merges results. Reliable at scale, but far beyond the demonstrated need.
-- **Lead + bounded helpers:** one agent owns intent, scope, integration and final verification; helpers receive narrow jobs and report back.
-
-**Decision: lead + bounded helpers (CHOSEN).**
-
-The lead is accountable for the whole result. A helper can say only "my delegated subtask is complete," never "the phase is complete."
+One lead owns intent, decomposition, architecture, integration, verification, and the PR. A helper
+may report only that its delegated subtask is complete.
 
 ### B · Delegation depth = one
 
@@ -94,369 +59,246 @@ Allowed:
 Ali → lead → helper
 ```
 
-Not allowed:
+Never:
 
 ```text
-Ali → lead → helper → helper → ...
+Ali → lead → helper → helper
 ```
 
-**Decision: one delegation level (CHOSEN).** It keeps context ownership and failure diagnosis obvious.
-
-Initial maximum active helpers: **2**. Raise only after real work demonstrates that two is constraining rather than comfortably sufficient.
+Maximum active helpers: **2**. Raise only after real work proves this is constraining.
 
 ### C · Roles are stable; models are replaceable
 
-Canonical roles:
-
-| Role | Purpose | Tier · effort | Writes? |
+| Role | Owns | Tier · effort | Writes? |
 |---|---|---|---:|
-| **Lead** | Owns intent, architecture, decomposition, integration, verification | Terra `xhigh` (→ Sol for hard/cross-cutting; Sol-only `max` for a brutal task) | yes |
-| **Builder** | Implements one bounded component with a clear interface | Terra `high` | yes |
-| **Mechanic** | Repetitive edits, fixtures, renames, formatting, routine docs | Luna `high` | yes |
-| **Scout** | Searches, compares, investigates, returns a concise report | Luna `medium` | **no** |
+| **Lead** | intent, architecture, decomposition, integration, verification | current interactive lead model; Sol for hard/cross-cutting work | yes |
+| **Builder** | bounded implementation behind a clear interface | Terra · high | yes |
+| **Mechanic** | repetitive, low-judgement edits | Luna · high | yes |
+| **Scout** | bounded search / compare / investigate | Luna · medium | no |
 
-Tier · effort are benchmark-backed (P1), routed by uncertainty and consequence. The Terra↔Luna
-choice *is* the Builder↔Mechanic split: **Builder → Terra** because novel bounded logic is where
-correctness margin matters (Terra wins every coding benchmark, and a wrong builder costs a rework
-loop paid in expensive lead tokens — dwarfing Luna's small per-token saving); **Mechanic → Luna**
-because high-volume deterministic edits with airtight checks are where Luna's economics dominate. The
-lead reasons hardest (effort, not tool access, buys first-try reliability). Model IDs live in
-configuration or the invoking tool (`bin/agent`, `.codex/agents/*.toml`), not in the architecture —
-a future model swap should not change the role contract. Details + the full evidence:
-[`docs/conventions/construction.md`](../../docs/conventions/construction.md).
+Route by uncertainty and consequence, not prompt length. Model IDs live in `.codex/agents/*.toml`,
+`bin/agent`, or the invoking configuration, not in architecture prose.
 
-### D · Delegation must pass the BIV test
+### D · BIV is the delegation gate
 
 A subtask is delegatable only when it is:
 
-1. **Bounded** — success can be stated clearly;
-2. **Independent** — it does not require constant coordination with the lead;
+1. **Bounded** — success can be stated in one sentence;
+2. **Independent** — it does not need continuous lead interaction;
 3. **Verifiable** — the lead can cheaply inspect or test the result.
 
-Good:
+Ambiguity stays with the lead or goes back to Ali.
 
-- "Find every call site that assumes the old entity ID and report file + function."
-- "Update these fixtures to schema v2; do not touch production code."
-- "Implement parser X behind this existing interface and run tests A/B."
+### E · Proactive cost-aware delegation is the desired steady state
 
-Bad:
+For a **substantial** task, the lead should actively look for BIV work to offload **without waiting
+for Ali to request delegation**.
 
-- "Figure out the architecture."
-- "Make this subsystem better."
-- "Decide what we should build."
-
-Ambiguity stays with the lead or goes back to Ali. A bigger model is not a substitute for a clear objective.
-
-### E · Native tooling first
-
-Use the agent platform's own subagent/delegation support when it can express the job cleanly.
-
-Do **not** build a scheduler around something Codex already does natively.
-
-If native delegation is unavailable for a particular task, a second ordinary Codex invocation is acceptable. The repository contract, not the transport, is what matters.
-
-### F · Worktrees only for concurrent writers
-
-Read-only scouts need no worktree.
-
-A helper making a small edit within a lead-managed native session may not need one either if the platform safely coordinates file writes.
-
-Use `git worktree` when two independent writing agents genuinely need separate filesystem state. Git is the isolation mechanism; SKY-022 does not build a worktree manager.
-
-### G · Continuity is a small local checkpoint, not another memory system
-
-For tasks likely to cross sessions/context boundaries, the **lead** maintains:
+The decision rule is:
 
 ```text
-.agent/CHECKPOINT.md
+Can this chunk pass BIV?
+    ├── no  → lead keeps it
+    └── yes → use the cheapest reliable role
+               ├── investigation/search       → Scout / Luna
+               ├── repetitive/objective edit → Mechanic / Luna
+               └── bounded coding judgement  → Builder / Terra
 ```
 
-`.agent/` is gitignored.
+The lead should use up to two helpers concurrently when independent work exists. It should still do a
+tiny task itself when spawn/coordination cost obviously exceeds the work. The target is **automatic
+economic delegation, not maximum fan-out**.
 
-The checkpoint contains only:
+### F · Native tooling first
+
+Use Codex native subagent support when it expresses the job cleanly. `bin/agent` remains the thin
+standalone mirror and dry-run/debug path. Do not build a scheduler, queue, DAG engine, worker service,
+or custom agent protocol around functionality Codex already provides.
+
+### G · Worktrees only for concurrent writers
+
+Read-only Scouts need none. A single writer in a lead-managed session usually needs none. Use plain
+`git worktree` only when two independent writers genuinely require separate filesystem state.
+Helpers write; the lead commits and integrates.
+
+### H · Continuity stays tiny
+
+For work likely to cross a session boundary, the lead may keep gitignored `.agent/CHECKPOINT.md`
+with only:
 
 ```text
 Goal
 Done
 Current
-Decisions needed to continue
-Dead ends not to retry
-Verification passed / remaining
-Next exact step
+Decisions
+Dead ends
+Verified
+Next
 ```
 
-It is disposable working memory, not truth. On completion, durable facts go to the proper home: directive/docs/ADR/journal/git, then the checkpoint disappears.
+Delete it when done. Durable truth remains in git, directives, docs, ADRs, and the journal.
 
-No separate run ledger in v1. Git history, the directive, the PR and the journal already cover durable history.
+### I · Review stays outside the helper family
 
-### H · Review is outside the helper family
+A helper never reviews the lead that instructed it. Normal changes use deterministic gates + human
+merge. Consequential work may use a fresh cold Sol or cross-provider review. Deterministic checks
+outrank model opinion.
 
-A helper is not an independent reviewer of the lead that instructed it.
+### J · Construction never gains production authority
 
-Normal changes use existing tests/gates and human review. Consequential changes may additionally receive a **fresh cold Sol review**, and especially sensitive cross-provider changes may receive a Claude review.
+Helpers receive no production credentials or T2/T3 authority. Construction parallelism does not
+create a second production-control path. Authored work remains PR-based and never self-merged.
 
-Review remains optional and proportional to risk; deterministic gates outrank every model opinion.
+## 3. Non-goals
 
-### I · Complexity must be earned
+SKY-022 does **not** build:
 
-SKY-022 deliberately does **not** start with:
+- a queue or scheduler;
+- a workflow database or durable task ledger;
+- a custom DAG engine;
+- worker leases, heartbeats, or retry infrastructure;
+- automatic merge machinery;
+- a second production-control plane;
+- Codex App Server integration merely for orchestration aesthetics.
 
-- GitHub issue queues;
-- orchestration daemons;
-- persistent workflow state;
-- event ledgers;
-- custom DAG engines;
-- heartbeats;
-- worker leases;
-- bespoke retry frameworks;
-- automatic merge machinery.
+If later dogfooding exposes a concrete transport/control failure that native delegation cannot solve,
+that can be minted separately with evidence. It is no longer part of SKY-022.
 
-If repeated dogfooding exposes a concrete failure mode, automate that failure mode specifically.
+## 4. Plan
 
-## 3. Scope
+### Phase 1 · Role contract + tiny launcher  `[x]` done 2026-09-04
 
-### In scope
+Shipped Lead / Builder / Mechanic / Scout, BIV, one-level depth, max-two helpers, role/model routing,
+`.codex/agents/*.toml`, `.codex/config.toml`, and `bin/agent` with dry-run.
 
-- a clear lead/helper operating contract;
-- simple role/model routing;
-- native lead-driven delegation;
-- read-only scouting;
-- bounded builder/mechanic delegation;
-- a tiny optional `.agent/CHECKPOINT.md` continuity convention;
-- optional `git worktree` isolation for truly parallel writers;
-- proportional cold review guidance;
-- a final thin Codex App Server phase after the simple model is proven.
+### Phase 2 · Native lead-driven delegation  `[x]` done 2026-09-04
 
-### Non-goals
+Proved one real lead+helper task with Scout + Builder, lead integration, machine-enforced helper
+constraints, and final verification owned by the lead.
 
-- production multi-agent operation;
-- changing Skynet's A0–A5 autonomy ladder;
-- widening T2/T3 access;
-- giving construction helpers production credentials;
-- a general-purpose agent platform;
-- maximizing concurrency;
-- automated merging of authored PRs;
-- replacing `AGENTS.md`, directives, git, CI or existing deterministic gates.
+### Phase 3 · Lightweight continuity  `[x]` done 2026-09-04
 
-### Trust boundary
+Proved cold-session continuation from only canonical repo context + disposable
+`.agent/CHECKPOINT.md` + git state.
 
-SKY-022 is a **construction** pattern. Production operation remains behind the existing Skynet trust model and `bin/ops`.
+### Phase 4 · Parallel writers only where they pay  `[x]` done 2026-09-04
 
-Construction parallelism must never become an accidental second production-control path.
+Proved two concurrent writers using plain git worktrees. Helpers write; the lead commits, resolves
+conflicts, integrates, and tears worktrees down.
 
-## 4. The plan
+### Phase 5 · Dogfood the foreman model  `[x]` done 2026-09-04
 
-### Phase 1 · Role contract + tiny launcher  (~1–2h)   `[x]` done 2026-09-04
+Covered the routing matrix across real work: single lead, Luna Mechanic, Luna Scout, hard lead + Terra
+Builder, and parallel writers. Native shallow delegation, plain Git, and the disposable checkpoint
+were sufficient. No queue, scheduler, ledger, worktree manager, retry layer, or wider fan-out was
+earned.
 
-Goal: make the mental model concrete without building orchestration infrastructure.
+**P5 conclusion:** the remaining issue is not transport. It is **policy bias**. The existing doctrine
+still tells the lead that the default is to avoid delegation, which underuses the cheaper workers and
+requires Ali to think about orchestration. The desired user experience is instead: **Ali states the
+job; the lead automatically decides what should be delegated and routes BIV chunks downward.**
 
-Steps:
-1. Add a short construction/multi-agent convention in the appropriate existing docs/conventions location rather than bloating `AGENTS.md`.
-2. Define Lead / Builder / Mechanic / Scout and the BIV delegation test.
-3. Define initial routing: Terra lead by default, Sol for genuinely hard/cross-cutting work, Terra builder, Luna mechanic/scout where appropriate.
-4. Add the one-level / max-two-helper rule.
-5. If it materially improves ergonomics, add a tiny `bin/agent` wrapper or equivalent helper that resolves a role to the configured Codex model. Keep it thin enough to read in one sitting.
-6. Add a dry-run mode if a wrapper exists so the resolved role/model/prompt is visible before launch.
-7. Do not add a service, state store or daemon.
+### Phase 6 · Flip to proactive cost-aware delegation  (~1–2h)   `[ ]` not started
 
-Exit criteria:
-- Ali can explain the whole model in one minute;
-- a Lead, Builder, Mechanic and Scout can each be invoked deliberately;
-- model mapping is centralized rather than scattered;
-- no production authority changes.
-
-### Phase 2 · Native lead-driven delegation  (~1–2h)   `[x]` done 2026-09-04 (PR #173)
-
-Goal: prove the useful part of multi-agent work on a real Skynet task.
+Goal: make automatic delegation the normal behavior for substantial construction tasks while keeping
+BIV, one-level depth, the two-helper cap, lead accountability, and production isolation unchanged.
 
 Steps:
-1. Pick one real T1/repo-only task with at least two natural subtasks.
-2. Run it with one Terra or Sol lead.
-3. Have the lead decide whether delegation is worthwhile rather than forcing delegation.
-4. Delegate one read-only Scout task and one bounded Builder or Mechanic task using native Codex delegation where available.
-5. Require each helper prompt to state scope, output expected, write allowance, and verification requirement.
-6. Lead receives the results, inspects them, integrates them, runs final tests/gates and owns the PR.
-7. Record any coordination friction in the normal raw journal, not in a new telemetry system.
+1. Update `docs/conventions/construction.md` so the doctrine no longer says "default: don't delegate."
+   Replace it with: **for substantial work, proactively search for BIV subtasks and offload them to
+   the cheapest reliable role without waiting for Ali to request delegation.**
+2. Keep the anti-overengineering rule: tiny tasks stay with the lead when coordination would cost
+   more than execution. The goal is cost-aware delegation, not fan-out for its own sake.
+3. Make the routing rule explicit and compact:
+   - Scout / Luna for bounded investigation and search;
+   - Mechanic / Luna for deterministic repetitive edits;
+   - Builder / Terra for bounded implementation requiring coding judgement;
+   - lead retains ambiguity, architecture, cross-cutting decisions, integration, and final verification.
+4. Update the quick-reference/runbook wording so a fresh Codex lead sees the proactive rule during
+   normal construction work without Ali having to say "spawn workers".
+5. Remove stale App Server language from SKY-022 and any construction docs that imply App Server is
+   the next step. Do **not** add an App Server adapter, scheduler, or new orchestration component.
+6. Dogfood the flipped policy on at least three real tasks:
+   - one substantial task where the lead autonomously spawns a Luna helper;
+   - one substantial task where the lead autonomously spawns a Terra Builder;
+   - one small task where the lead correctly chooses **not** to delegate.
+   Ali must give only the task intent, not an instruction to delegate.
+7. Record whether the lead actually delegates without prompting, whether routing is economical, and
+   whether any delegated chunk causes expensive rework. Adjust wording only if the evidence warrants
+   it.
+8. Run the existing construction/helper/invariant tests and full repo gates. No authority boundary or
+   helper sandbox may widen.
 
 Exit criteria:
-- one real task completes with useful delegation;
-- lead remains clearly accountable;
-- helper work is independently verifiable;
-- delegation saves effort/context rather than creating obvious coordination tax.
-
-### Phase 3 · Lightweight continuity  (~1–2h)   `[x]` done 2026-09-04
-
-Goal: make long tasks survive a fresh lead session with almost no machinery.
-
-Steps:
-1. Add `.agent/` to `.gitignore`.
-2. Document the compact `.agent/CHECKPOINT.md` shape.
-3. Define when the lead writes it: meaningful milestone, handoff/context reset, blocker, or before intentionally ending a long session. Not after every command.
-4. Start a real task, stop after a meaningful milestone, then resume in a fresh Codex lead from only:
-   - `AGENTS.md` / required design context;
-   - the named SKY phase;
-   - `.agent/CHECKPOINT.md`;
-   - `git status` + `git diff`.
-5. Verify the fresh lead continues from the recorded next step without rereading an old conversation transcript.
-6. Delete the checkpoint when the task is complete after moving durable information to its correct home.
-
-Exit criteria:
-- a cold lead resumes a half-finished task correctly;
-- checkpoint stays small and disposable;
-- no second durable memory/ledger system is introduced.
-
-### Phase 4 · Parallel writers only where they pay  (~1–2h)   `[x]` done 2026-09-04
-
-Goal: prove safe parallel editing using plain Git rather than custom coordination software.
-
-Steps:
-1. Pick a task with two genuinely independent writing subtasks.
-2. Give each writer its own branch/worktree with ordinary `git worktree` commands.
-3. Lead retains the integration branch and responsibility.
-4. Run both helpers concurrently, bounded to their declared file/scope surfaces.
-5. Integrate their commits/diffs through normal Git.
-6. Exercise one intentional overlap/conflict and confirm the lead, not another orchestration layer, resolves it.
-7. Document the rule: worktree by exception for parallel writers, not by default for every agent invocation.
-
-Exit criteria:
-- two writers can make progress without trampling one checkout;
-- integration remains understandable with normal Git tools;
-- no custom worktree lifecycle service is required.
-
-### Phase 5 · Dogfood the foreman model  (~1–2h sessions across real work)   `[x]` done 2026-09-04
-
-Goal: test the pattern enough to distinguish real needs from imagined ones.
-
-Run at least five real construction tasks covering:
-
-1. one task completed entirely by a single Terra lead;
-2. one task with Luna mechanical delegation;
-3. one task with a read-only Scout;
-4. one hard task led by Sol with a bounded Terra builder;
-5. one task using two parallel writer worktrees.
-
-For each, capture only useful observations in the existing journal:
-
-- Was delegation actually faster/cleaner?
-- Did the lead delegate too much or too little?
-- Did helper output require expensive rework?
-- Did context stay cleaner?
-- Did worktree handling become annoying?
-- Did we repeatedly wish for programmatic spawn/steer/resume/monitoring?
-
-At phase close, write a short decision in this directive on what, if anything, deserves additional automation.
-
-Exit criteria:
-- at least five real tasks exercised the model;
-- no recurring ambiguity about ownership;
-- no helper accidentally gains production authority;
-- any request for more orchestration is backed by repeated evidence rather than aesthetics.
-
-**Decision after five runs:** the foreman model is sufficient as-is. Native shallow delegation,
-plain Git, and the disposable checkpoint covered the work without ownership ambiguity or production
-authority leaking to a helper. No queue, scheduler, ledger, worktree manager, retry layer, or wider
-fan-out is earned. Two standalone-process frictions did recur: `codex exec` exposes progress on
-stderr/final output on stdout, and completion polling lagged behind the finished helper. Phase 6 may
-therefore test only a tiny optional App Server adapter for structured progress/result and clean
-interrupt/resume. Keep it only if the comparison is materially cleaner than native delegation;
-otherwise record the negative result and leave the native path primary.
-
-### Phase 6 · Thin Codex App Server control surface  (~1–2h)   `[ ]` not started
-
-Goal: add **only** the small amount of programmable control that proved useful in P1–P5, using Codex App Server instead of inventing our own agent protocol.
-
-This phase is intentionally last. The simple lead/helper model must work before software starts coordinating it.
-
-Steps:
-1. Read the installed/current Codex App Server interface and generate/use its current schema rather than hard-coding assumptions.
-2. Build the smallest practical adapter that can:
-   - start a Codex thread/turn for a named role;
-   - stream or surface progress;
-   - return the final result to the lead;
-   - cancel/stop a child cleanly;
-   - optionally resume/continue when App Server supports that cleanly.
-3. Keep the adapter stateless beyond what App Server itself needs for the active interaction; git + directive + checkpoint remain sufficient to recover if App Server state disappears.
-4. Expose the adapter behind the same role vocabulary from P1 so callers ask for `builder` / `mechanic` / `scout`, not App Server internals.
-5. Do **not** add a queue, scheduler, database, durable workflow engine, GitHub polling daemon, automatic merge system, or generic DAG executor.
-6. Compare one real delegated task through App Server against the native/manual path.
-7. Keep the App Server layer only where it removes demonstrated friction. If it merely adds indirection, document that result and leave the native path primary.
-
-Exit criteria:
-- a lead can programmatically launch at least one bounded helper through a tiny App Server adapter;
-- the adapter remains optional and replaceable;
-- losing App Server state cannot lose architectural/system truth;
-- the construction model is still understandable as "one lead with a couple of helpers," not as a distributed system.
+- on substantial work, a fresh lead proactively identifies and delegates BIV subtasks without Ali
+  asking it to spawn workers;
+- Luna receives cheap search/mechanical work and Terra receives bounded coding judgement;
+- a tiny task remains single-agent when delegation would be wasteful;
+- one-level depth and max-two-helper cap still hold;
+- helper sandboxes and production isolation are unchanged;
+- no App Server or new orchestration service is introduced;
+- Ali's normal interface is simply: **state the task and let the lead orchestrate.**
 
 ## 5. Operating doctrine after completion
 
-The desired steady state is:
+Normal substantial task:
 
 ```text
-well-specified normal task
+Ali: "Do the task"
         ↓
-     Terra lead
+lead understands + decomposes
         │
-        ├── delegates nothing if unnecessary
-        ├── Luna mechanic for chores
-        ├── Luna/Terra scout for bounded investigation
-        └── Terra builder for an isolated implementation chunk
+        ├── proactively offloads cheap BIV work
+        │      ├── Luna Scout
+        │      ├── Luna Mechanic
+        │      └── Terra Builder
+        │
+        ├── keeps ambiguity / architecture / integration
         ↓
- lead integrates + verifies
+lead verifies everything
         ↓
-       PR
+PR
         ↓
-      Ali
+Ali merges
 ```
 
-Hard/cross-cutting task:
+Tiny task:
 
 ```text
-Sol lead
-  ├── Terra builder
-  └── Scout
-  ↓
-integrate / verify
-  ↓
-optional cold review
-  ↓
-PR
+Ali → lead → done
 ```
 
-The lead is the foreman. Helpers are tools with judgment, not a committee.
+The lead decides. Ali does not micromanage worker spawning.
 
 ## 6. ▶ Execute prompt
 
 ```text
-Read planning/ideas/SKY-022-lean-multi-agent-construction-orchestration-lead-driven-delegation.md and execute Phase <N>.
+Read planning/ideas/SKY-022-lean-multi-agent-construction-orchestration-lead-driven-delegation.md
+and execute Phase 6 only.
 
-Follow AGENTS.md and docs/system-design.md. Preserve SKY-022's simplicity doctrine: one accountable lead, one delegation level, at most two active helpers initially, delegate only bounded/independent/verifiable work, and do not build orchestration infrastructure the phase does not explicitly require.
-
-Construction work does not gain production authority. Plan loudly, then run quietly. Land authored work by PR and never self-merge it. When the phase exit criteria are met, perform the phase close-out.
+Follow AGENTS.md and docs/system-design.md. Flip construction doctrine to proactive cost-aware
+BIV delegation: on substantial work, the lead should autonomously offload bounded, independent,
+verifiable chunks to the cheapest reliable helper without waiting for Ali to ask. Preserve one lead,
+one delegation level, max two active helpers, helper sandboxes, production isolation, lead-owned
+integration/verification, and human merge. Remove the App Server phase rather than implementing it.
+Dogfood the new behavior and perform phase close-out when the exit criteria pass.
 ```
 
 ## 7. Phase close-out
 
-After every completed phase:
-
-- [ ] Land authored work through a PR; the agent never merges its own authored PR.
-- [ ] Write/refresh `[[SKY-022-progress]]` with what shipped, what was learned, and the next exact phase.
-- [ ] Flip the completed phase box to `[x]`, bump `current_phase`, `updated`, and status as appropriate.
-- [ ] Run `bin/plan list` to refresh the roadmap.
-- [ ] Put raw surprises/dead ends in the journal rather than bloating durable design docs.
-- [ ] Leave a cold-startable Continue prompt.
-
-Continue prompt:
-
-```text
-Continue planning/ideas/SKY-022-lean-multi-agent-construction-orchestration-lead-driven-delegation.md at Phase <N+1>.
-Resume from [[SKY-022-progress]]. Follow AGENTS.md and preserve the one-lead / shallow-delegation / complexity-must-be-earned doctrine.
-```
+- Land one reviewable PR; the agent never self-merges it.
+- Refresh `[[SKY-022-progress]]` with what shipped and the observed delegation behavior.
+- Flip P6 to `[x]`, set `current_phase: 6`, and mark SKY-022 done if exit criteria pass.
+- Run `bin/plan list`.
+- Put raw run evidence in `journal/`, not durable doctrine.
 
 ## 8. Status log
 
-- 2026-09-04 — minted. Chosen shape: one accountable lead, shallow native delegation to Builder/Mechanic/Scout helpers, lightweight checkpointing for long tasks, worktrees only for genuine parallel writers, dogfood before automation, and Codex App Server as the **final thin control-surface phase**, not the foundation.
-- 2026-09-04 — **P1 done** (PR #172): role contract in `docs/conventions/construction.md`, native `.codex/agents/*.toml` + `.codex/config.toml` cap, `bin/agent` launcher.
-- 2026-09-04 — **P2 done** (PR #173): first real lead+helper run. A Claude lead delegated to real Codex helpers via `bin/agent` — a read-only Scout (`gpt-5.6-luna`) scoped the gap, a Builder (`gpt-5.6-terra`) implemented it — to make the construction doctrine's `[testable]` claims machine-enforced (`invariants.json` `construction` section + `check-invariants.sh` check #6 + `tests/construction-test.sh`, wired into hook + CI). Fixed a P1 `bin/agent` bug found by dogfooding (`codex exec` 0.149.0 has no `--ask-for-approval`). Lead verified all helper output incl. live fail-closed proofs; owns the PR, does not self-merge. Raw episode in `journal/`.
-- 2026-09-04 — **P4 done** (branch `phase/sky-022-p4`): parallel writers via `git worktree` — first phase with two active helpers. Added `bin/agent --cwd <dir>` to root a helper at a worktree; ran two concurrent Codex Builders in two worktrees (`tests/agent-test.sh`, `tests/gitignore-test.sh`), each registering in the same shared files. Finding: a `workspace-write` sandbox can't write a worktree's git metadata (under the main repo's `.git/worktrees/`), so **helpers write, the lead commits**. Integrated via plain git; the engineered conflict on pre-commit + checks.yml was resolved by hand (kept both). Full suite 9/9 green; worktrees torn down. Rule recorded: worktree by exception.
-- 2026-09-04 — **P3 done** (branch `phase/sky-022-p3`): lightweight continuity. `.gitignore` ignores `.agent/`; `construction.md` gained the compact `CHECKPOINT.md` shape + write-triggers. Dogfooded the cold resume on a real task: wrote `runbooks/construction-delegation.md` half-way (M1, e7beeaa), then a **fresh cold Codex lead** (`bin/agent lead`) resumed from ONLY AGENTS.md + `.agent/CHECKPOINT.md` + git state — no transcript — and completed the worked example + catalog row exactly per the checkpoint's Next step, in scope, without committing (M2, 06a231b). Checkpoint disposed on completion. Continuity convention proven; no second memory system introduced. Raw episode in `journal/`.
-- 2026-09-04 — **P5 done** (branch `phase/sky-022-p5`): five real construction tasks covered the full routing matrix using P2/P3/P4 evidence plus two new runs. A Luna Mechanic added `--cwd` regression assertions; a read-only Scout then found that `--cwd` accepted arbitrary directories, so the hard lead fixed the policy and delegated only the bounded launcher implementation to a Terra Builder. `bin/agent` now accepts only exact registered worktree roots belonging to this repository; the lead adapted the tests (39/39), updated doctrine/runbook, and verified a live linked-worktree dry-run plus the complete gate suite. No orchestration layer earned; P6 is narrowed to an optional structured App Server comparison addressing only the two repeated standalone-process frictions.
+- 2026-09-04 — SKY-022 minted: one accountable lead, shallow native helpers, tiny checkpoint,
+  worktrees by exception, dogfood before automation.
+- 2026-09-04 — P1–P5 completed and dogfooded across the full routing matrix.
+- 2026-09-04 — P6 **replaced before execution**: the planned thin Codex App Server experiment was
+  removed. Evidence from P1–P5 showed native delegation was sufficient; the actual mismatch was the
+  doctrine's conservative "default: don't delegate" bias. New P6 flips the steady state to proactive,
+  cost-aware BIV delegation so Ali can state intent and let the lead automatically route cheap work
+  to Luna/Terra helpers.
