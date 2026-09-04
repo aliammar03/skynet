@@ -58,6 +58,18 @@
       packages.${system}.lxc-proof-tarball =
         self.nixosConfigurations.lxc-proof.config.system.build.tarball;
 
+      # SKY-021 P3 — adguard-core (CT 731), the first real pool CT off the Debian community-script
+      # path. Its AdGuard config lives in Nix (rendered via a sops template); day-2 is deploy-rs
+      # magic-rollback (P2); secrets via Option C (per-CT age key). sops-nix module wired in here.
+      nixosConfigurations.lxc-adguard-core = nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = { inherit inputs; };
+        modules = [
+          sops-nix.nixosModules.sops
+          ./hosts/lxc-adguard-core
+        ];
+      };
+
       # deploy-rs day-2: magicRollback auto-reverts if it can't reconnect (~30s) — the decisive
       # feature for an LLM operator (a config that kills SSH self-heals instead of bricking).
       deploy.nodes.vm-skynet-ops = {
@@ -81,6 +93,20 @@
           user = "root";
           sshUser = "root";
           path = deploy-rs.lib.${system}.activate.nixos self.nixosConfigurations.lxc-proof;
+          magicRollback = true;
+          autoRollback = true;
+        };
+      };
+
+      # SKY-021 P3 — adguard-core day-2 over deploy-rs. Steady-state hostname is 10.10.70.31 (VLAN 70,
+      # the old 731's address, taken after cutover). During the cutover the new CT boots on a temp IP
+      # and is deployed there first; this node targets the final address. sshUser=root (agent key baked).
+      deploy.nodes.lxc-adguard-core = {
+        hostname = "10.10.70.31";
+        profiles.system = {
+          user = "root";
+          sshUser = "root";
+          path = deploy-rs.lib.${system}.activate.nixos self.nixosConfigurations.lxc-adguard-core;
           magicRollback = true;
           autoRollback = true;
         };
