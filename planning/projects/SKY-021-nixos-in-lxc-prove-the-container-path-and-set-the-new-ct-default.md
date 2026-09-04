@@ -6,7 +6,7 @@ horizon: short
 created: 2026-09-03
 updated: 2026-09-04
 phases: 3
-current_phase: 0
+current_phase: 1
 tier_touched: [T2]     # reprovisions a pool CT (T2 destroy/recreate) + sets a new-CT default
                        # policy → the plan MUST PR docs/system-design.md (the constitution).
 related:
@@ -83,7 +83,7 @@ committing the fleet.
   couldn't mint a *new* VMID (SKY-007 P1b) — if the same bites, **⚠ Ali creates the empty CT shell**;
   the agent does everything else.
 
-### Phase 1 — path proof on a throwaway CT  (~1–2h)   `[ ]` not started
+### Phase 1 — path proof on a throwaway CT  (~1–2h)   `[x]` DONE (2026-09-04)
 Prove the LXC build+boot+rebuild path once, on a CT we destroy at the end.
 Steps:
 1. Author a minimal in-repo flake output for a `proxmox-lxc` template — import
@@ -174,3 +174,15 @@ Follow AGENTS.md as above.
   LLM-safety win) in question for containers. Upstream's tested baseline is NixOS 25.11 / PVE 9.1;
   **our pilot pins NixOS 26.05** to match the ops box, so the pilot also proves the path on 26.05
   before flipping the fleet. Pairs with SKY-008 ("Tofu makes the box, Nix defines it").
+- 2026-09-04 — **Phase 1 DONE** (PR pending). Flake path authored (`nix/modules/lxc-base.nix`,
+  `hosts/lxc-proof`, `packages.lxc-proof-tarball` → 261M tarball). **Decisive verdict: in-place
+  `nixos-rebuild switch` WORKS** on CT 9099 (unprivileged, nesting=1, `ostype=nixos`) — the 26.05
+  proxmox-lxc module already bakes in the historically-broken fixes; no `NIX_REMOTE=""` needed;
+  systemd healthy, generation advanced, `hello` marker applied. CT destroyed after. Surfaced +
+  recorded a **core-node blast-radius widening**: operate token gained `/vms`-root + AllocateTemplate
+  + SDN.Use + local-lvm AllocateSpace on core (self-provisioning; Unraid 2020 → VM-envelope reachable;
+  OPNsense/635/837 stay T3 on the network node) — PR'd to `docs/system-design.md` + shipped its
+  **ACL-audit gate** (collect-proxmox-acl.sh + invariants `operate_token_scope` + check-invariants #5,
+  guarding the bright lines: no Permissions.Modify / Sys node-root, /vms-root core-only). Cleared a
+  full `local` storage (0 avail) by deleting ~61G of stale vzdumps (all in PBS). P2 next: deploy-rs
+  magic-rollback round-trip in the container.
