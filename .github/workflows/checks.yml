@@ -53,3 +53,5 @@ jobs:
         run: bash tests/construction-test.sh
       - name: agent-test
         run: bash tests/agent-test.sh
+      - name: gitignore-test
+        run: bash tests/gitignore-test.sh
