@@ -1,7 +1,7 @@
 ---
 id: SKY-021
 title: NixOS-in-LXC: prove the container path and set the new-CT default
-status: in-progress
+status: done
 horizon: short
 created: 2026-09-03
 updated: 2026-09-04
