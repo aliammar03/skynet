@@ -6,7 +6,7 @@ horizon: long
 created: 2026-09-04
 updated: 2026-09-04
 phases: 6
-current_phase: 2
+current_phase: 3
 tier_touched: [T1]
 related:
   - docs/system-design.md
@@ -284,7 +284,7 @@ Exit criteria:
 - helper work is independently verifiable;
 - delegation saves effort/context rather than creating obvious coordination tax.
 
-### Phase 3 · Lightweight continuity  (~1–2h)   `[ ]` not started
+### Phase 3 · Lightweight continuity  (~1–2h)   `[x]` done 2026-09-04
 
 Goal: make long tasks survive a fresh lead session with almost no machinery.
 
@@ -448,3 +448,4 @@ Resume from [[SKY-022-progress]]. Follow AGENTS.md and preserve the one-lead / s
 - 2026-09-04 — minted. Chosen shape: one accountable lead, shallow native delegation to Builder/Mechanic/Scout helpers, lightweight checkpointing for long tasks, worktrees only for genuine parallel writers, dogfood before automation, and Codex App Server as the **final thin control-surface phase**, not the foundation.
 - 2026-09-04 — **P1 done** (PR #172): role contract in `docs/conventions/construction.md`, native `.codex/agents/*.toml` + `.codex/config.toml` cap, `bin/agent` launcher.
 - 2026-09-04 — **P2 done** (PR #173): first real lead+helper run. A Claude lead delegated to real Codex helpers via `bin/agent` — a read-only Scout (`gpt-5.6-luna`) scoped the gap, a Builder (`gpt-5.6-terra`) implemented it — to make the construction doctrine's `[testable]` claims machine-enforced (`invariants.json` `construction` section + `check-invariants.sh` check #6 + `tests/construction-test.sh`, wired into hook + CI). Fixed a P1 `bin/agent` bug found by dogfooding (`codex exec` 0.149.0 has no `--ask-for-approval`). Lead verified all helper output incl. live fail-closed proofs; owns the PR, does not self-merge. Raw episode in `journal/`.
+- 2026-09-04 — **P3 done** (branch `phase/sky-022-p3`): lightweight continuity. `.gitignore` ignores `.agent/`; `construction.md` gained the compact `CHECKPOINT.md` shape + write-triggers. Dogfooded the cold resume on a real task: wrote `runbooks/construction-delegation.md` half-way (M1, e7beeaa), then a **fresh cold Codex lead** (`bin/agent lead`) resumed from ONLY AGENTS.md + `.agent/CHECKPOINT.md` + git state — no transcript — and completed the worked example + catalog row exactly per the checkpoint's Next step, in scope, without committing (M2, 06a231b). Checkpoint disposed on completion. Continuity convention proven; no second memory system introduced. Raw episode in `journal/`.
