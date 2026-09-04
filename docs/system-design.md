@@ -125,6 +125,16 @@ can be moved openly rather than eroded quietly. **Widening any of them is a PR t
   Technitium zones. The pool set holds **two** pools today — *a current count, never a fixed law*;
   new pools join by PR here. (Details: [access-and-trust](design/access-and-trust.md),
   [network](design/network.md).)
+  - **Core-node exception (SKY-021).** On the **core** node only, the operate token additionally
+    holds its `OpsOperator` role at the `/vms` root — VM-level create/config/power over *every core
+    guest* + new VMIDs. This buys agent **self-provisioning of pool CTs** (mint a new VMID without a
+    human minting the shell). It widens core's blast radius past pool membership: it now reaches
+    Unraid VM 2020 (see the pool-dial note), and the two hand-built service CTs 731 (adguard-core) /
+    751 (technitium-core, the **secondary** resolver — redundant, loss survivable) — both SKY-021
+    migration targets. It does **not**
+    grant Unraid/guest *OS root* (still T3), only VM-envelope ops. The **network node keeps
+    pool-membership scoping** — OPNsense 5001, CT 635, CT 837 remain untouched (T3). Expands to the
+    network node only by a later PR here, as autonomy earns it.
 - **The merge gate** = human merge, today — with **one** carve-out now taken: the agent
   auto-merges its **own nightly generated-only PRs** (every changed path under `inventory/`,
   `docs/generated/`, `journal/`, or matching `compose/*/.env.sops`) and **only** when CI is green.
@@ -195,11 +205,15 @@ principal — lives in [access-and-trust](design/access-and-trust.md); this is t
   firewall alias membership (add the controller to `ROLE_OPS_API_TARGETS` + its port to
   `PORT_OPS_API`), a T3 OPNsense change. (Landed by SKY-018 P4 — see
   [access-and-trust](design/access-and-trust.md).)
-- **Pool membership is the blast-radius dial.** Joining a guest to an `ops-managed` pool hands the
-  agent T2 over it; leaving it out keeps it look-but-don't-touch. **VM 5001 (OPNsense) never joins
-  any pool** — same for CT 635, CT 837, Unraid VM 2020. Never pooled, destroyed, or stopped by the
-  agent (T3); `svc-tofu`'s config-only `/vms` role (both nodes) can config-touch them (name/onboot/
-  cloud-init) but nothing heavier — never destroy/stop/re-disk/re-NIC. See [access-and-trust](design/access-and-trust.md).
+- **Pool membership is the blast-radius dial** — *on the network node.* Joining a guest to an
+  `ops-managed` pool hands the agent T2 over it; leaving it out keeps it look-but-don't-touch.
+  **VM 5001 (OPNsense) never joins any pool** — same for CT 635, CT 837. Never pooled, destroyed, or
+  stopped by the agent (T3); `svc-tofu`'s config-only `/vms` role (both nodes) can config-touch them
+  (name/onboot/cloud-init) but nothing heavier — never destroy/stop/re-disk/re-NIC.
+  On the **core node**, the dial is superseded by the operate token's `/vms`-root grant above
+  (SKY-021): **Unraid VM 2020 is now agent-reachable at the VM envelope** (create/config/power — not
+  guest OS root, still T3). The self-leash set (5001/635/837) is on the network node and stays T3.
+  See [access-and-trust](design/access-and-trust.md).
 
 ## 4. The agent-agnostic contract
 
