@@ -21,6 +21,15 @@ assert_token() {
   fi
 }
 
+assert_contains() {
+  local label="$1" text="$2" needle="$3"
+  if printf '%s\n' "${text}" | grep -Fq -- "${needle}"; then
+    ok "${label}: ${needle}"
+  else
+    bad "${label}: missing ${needle} in [${text}]"
+  fi
+}
+
 assert_resolution() {
   local label="$1" role="$2" tier="$3" model="$4" effort="$5" sandbox="$6"
   shift 6
@@ -49,6 +58,22 @@ assert_resolution "lead --hard" lead sol gpt-5.6-sol xhigh workspace-write --har
 echo "== bin/agent: invalid role options =="
 rc "builder --hard fails (lead-only)" 1 bin/agent builder noop --hard --dry-run
 rc "unknown role fails" 1 bin/agent foo noop --dry-run
+
+echo "== bin/agent: --cwd validation and rendering =="
+agent_cwd="$(mktemp -d)"
+trap 'rm -rf -- "${agent_cwd}"' EXIT
+canonical_cwd="$(cd "${REPO_DIR}" && pwd -P)"
+cwd_out="$(bin/agent mechanic noop --cwd "${REPO_DIR}" --dry-run 2>&1)"
+cwd_rc=$?
+eq "--cwd registered root dry-run exits 0" "${cwd_rc}" "0"
+assert_contains "--cwd reports canonical registered root" "${cwd_out}" "cwd=${canonical_cwd}"
+assert_contains "--cwd renders canonical registered root" "${cwd_out}" "-C ${canonical_cwd}"
+rc "--cwd nonexistent fails" 1 bin/agent mechanic noop --cwd "${agent_cwd}/definitely-nonexistent" --dry-run
+rc "--cwd plain directory fails" 1 bin/agent mechanic noop --cwd "${agent_cwd}" --dry-run
+rc "--cwd worktree subdirectory fails" 1 bin/agent mechanic noop --cwd "${REPO_DIR}/tests" --dry-run
+mkdir "${agent_cwd}/unrelated"
+git -C "${agent_cwd}/unrelated" init -q
+rc "--cwd unrelated repository fails" 1 bin/agent mechanic noop --cwd "${agent_cwd}/unrelated" --dry-run
 
 echo
 echo "agent-test: ${pass} passed, ${fail} failed"
