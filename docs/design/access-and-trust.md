@@ -75,60 +75,44 @@ own effective perms → `inventory/proxmox-<node>-acl.json`; `invariants.json` `
 network node, or a bright line — is a `docs/system-design.md` PR (§2), never a silent `pveum`. Details:
 [system-design §2](../system-design.md) core-node exception.
 
-## Proxmox provisioning access — `svc-tofu` (SKY-008)
+## Proxmox provisioning access — the operate token (SKY-008 → SKY-024)
 
-A separate user + privilege-separated token, two custom roles, **per-node** ACLs (the nodes are
-**standalone, not clustered** — each has its own `pveum` DB). No `Sys.Modify`, no `root@pam`, no SSH
-(the provider's SSH transport is unconfigured). Bootstrap is out-of-band — Ali runs `pveum` on the
-node; tofu never manages the token it authenticates with.
+Tofu drives Proxmox through the **`svc-ops@pve!operate`** API token — the *same* identity the
+imperative ops scripts use. **SKY-008** originally split this off into a dedicated `svc-tofu` user
+(privilege-separated, pool-scoped, with a config-only `/vms` role); **[SKY-024](../../planning/projects/SKY-024-tofu-declares-all-pool-guests-api-driven-ct-vm-lifecycle-no-node-ssh.md)
+retired that split** — one operator token per node **declares *and* fixes**, instead of granting every
+capability twice and leaving neither identity able to do the whole job. The nodes are **standalone, not
+clustered**, so each has its own `pveum` DB and its own token. **API-only** — the provider's SSH
+transport is unconfigured (bpg needs SSH only for snippets/idmap/local-file imports, none of which our
+shape uses), no `root@pam`. Bootstrap is out-of-band — Ali runs `pveum`; tofu never manages the token
+it authenticates with.
 
-```bash
-# Roles: lifecycle (heavy) vs. create-time config + read. TofuVmConfig carries VM.Audit too: the /vms
-# binding shadows the propagated `/` PVEAuditor at /vms/<id>, so without it the token would list only
-# *pooled* guests. VM.Audit is read-only (T1) — it does not widen write.
-pveum role add TofuProvisioner -privs "VM.Audit,VM.Allocate,VM.Clone,VM.Config.Disk,VM.Config.CPU,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.Config.HWType,VM.Config.Cloudinit,VM.PowerMgmt,Pool.Allocate,Pool.Audit,Datastore.AllocateSpace,Datastore.AllocateTemplate,Datastore.Audit,SDN.Use"
-pveum role add TofuVmConfig    -privs "VM.Config.Options,VM.Config.Cloudinit,VM.Config.CDROM,VM.Audit"
+**Per-node scope** — bright lines held everywhere and machine-checked (`invariants.json`
+`operate_token_scope`): **no `Permissions.Modify`** (the token rewriting its own ACLs), **no
+`Sys.Modify/PowerMgmt/Console`** (node root), **no node SSH**.
 
-# User + privsep token
-pveum user add svc-tofu@pve --comment "opentofu provisioning agent (SKY-008)"
-pveum user token add svc-tofu@pve operate --privsep 1
-
-# READ (T1) — user + token, full cluster read. (Node-wide GUEST listing also needs VM.Audit reachable
-# at /vms/<id>, which TofuVmConfig above provides; `/` PVEAuditor alone is shadowed by the /vms role.)
-pveum acl modify / --users  svc-tofu@pve           --roles PVEAuditor
-pveum acl modify / --tokens 'svc-tofu@pve!operate' --roles PVEAuditor
-
-# WRITE (lifecycle) — TofuProvisioner on the pool + its storages + the SDN zone. Bind BOTH per path.
-for path in /pool/ops-managed /storage/local /storage/local-lvm /sdn/zones/localnetwork; do
-  pveum acl modify "$path" --tokens 'svc-tofu@pve!operate' --roles TofuProvisioner
-  pveum acl modify "$path" --users  svc-tofu@pve            --roles TofuProvisioner
-done
-
-# CREATE-TIME config — config-only role at /vms (no VM.Allocate/VM.PowerMgmt)
-pveum acl modify /vms --tokens 'svc-tofu@pve!operate' --roles TofuVmConfig
-pveum acl modify /vms --users  svc-tofu@pve            --roles TofuVmConfig
-```
+- **Core** — the full VM/Datastore/Pool/SDN operator set at `/` (the SKY-021 `/vms`-root broaden), so
+  the token can **mint new VMIDs** and fully manage pool guests. Consequence: Unraid VM 2020's envelope
+  is reachable (stop/destroy possible at the VM level) but it stays **unpooled + guest-OS-root T3** — a
+  behavioral + audited line, the posture SKY-021 accepted.
+- **Network** — **pool-scoped, no `/vms`-root**: `OpsOperator` on `/pool/ops-managed` + `/storage/local`,
+  plus (SKY-024) `Datastore.AllocateSpace`/`SDN.Use` on `/storage/local-lvm` + `/sdn/zones/localnetwork`.
+  It manages *existing* pool guests but **cannot mint a new VMID or touch the T3 guests** (OPNsense 5001,
+  Caddy 635, Authentik 837) at the envelope at all. Deliberate: **OPNsense enforces the agent's own
+  leash**, so envelope-destroy over it is off by the "never widen your own leash" law. A new network CT
+  is a rare, deliberate act (a human mints the shell, or a later PR earns the broaden).
 
 Load-bearing rules:
 
-- **Privsep intersection.** A privsep token's effective privileges are **user ∩ token** on each path
-  — bind the role on **both** user and token, on every write path (and grant `Pool.Audit` in the role,
-  not just at `/`: the `/`-level read doesn't survive the intersection at a path that carries a role).
-- **Heavy privs are pool-scoped.** `VM.Allocate` (create/**destroy**) and `VM.PowerMgmt` (start/**stop**)
-  live only in `TofuProvisioner`, bound only on `ops-managed`. The `/vms` config role exists because a
-  new VMID isn't a pool member yet at `qmcreate`, so its config checks have no pool fallback; it can
-  rewrite name/tags/onboot + cloud-init/CDROM drive on any core VM but **never** destroy/stop/re-disk/re-NIC.
-- **Per-node — one `svc-tofu` per standalone node.** Both nodes run the same setup (core `.11`,
-  network `.10`), each with its own user/token/roles and a separate provider (`proxmox.network`). Both
-  bind the config-only `/vms` role, so tofu has config-reach — name/tags/onboot + cloud-init/CDROM
-  drive — over **every** guest, the T3 excluded ones included (Unraid 2020 on core; OPNsense 5001,
-  Caddy 635, Authentik 837 on the network node). Held safe by the same split: **no `VM.Allocate`,
-  no `VM.PowerMgmt`** over them, so tofu can **never destroy, stop, re-disk, or re-NIC** an excluded
-  guest — those privs stay pool-scoped, per node, and the excluded guests are never pooled.
-- **A separate user** (not a second `svc-ops` token): `svc-ops` must never carry `Pool.Allocate`.
-- **No URL download.** `download_file`/`query-url-metadata` needs `Sys.Modify` on `/` (T3) — not
-  granted. Base images land in `local`'s `import` store out-of-band (rare, human/root); tofu imports
-  from the present volume (`Datastore.AllocateSpace` only, never calls `query-url-metadata`).
+- **Privsep intersection.** The operate token is privilege-separated: effective privileges are
+  **user ∩ token** on each path — a grant must bind the role on **both** `svc-ops@pve` and
+  `svc-ops@pve!operate`, on every path (a bare `/` read is shadowed at a path that carries a role).
+- **`VM.Allocate` = create *and* destroy**, and Proxmox ACLs can't scope it to "new IDs only" — which
+  is exactly why it is off the network node (above) and why the core grant is a `docs/system-design.md`
+  change, machine-audited, never a silent `pveum`.
+- **No URL download / snippets / SSH.** `download_file`/`query-url-metadata` needs `Sys.Modify` (T3,
+  not granted); base images land in `local`'s `import` store out-of-band (rare, human/root) and tofu
+  references the present volume. bpg's SSH block stays unconfigured (SKY-024).
 
 ## Pool membership = the blast-radius dial
 
@@ -236,7 +220,7 @@ the agent's own leash T3, never-standing.**
   a boundary (the box already holds the raw `config.xml` via the mirror).
 - **T2 (firewall config, PR-gated via OpenTofu):** aliases and rules become `tofu/` resources managed
   through the **OPNsense tofu provider**. A change is a `tofu plan` diff **in a PR** → human-merged →
-  `apply` via the API — the exact `svc-tofu`-for-guests model (SKY-008). A separate T2 **write** API
+  `apply` via the API — the exact tofu-for-guests model (SKY-008). A separate T2 **write** API
   key (Ali-minted, sops-nix) is used **only** by `apply` on a merged plan; non-destructive maintenance
   (service restart, apply-config, flush) is T2 too. **This is a directive-sized build (firewall-as-code)
   — the T1 read slice ships first.**
@@ -273,7 +257,7 @@ the agent's own leash T3, never-standing.**
 - **More hosts / more pools under T2.** The operate model generalizes without redesign: onboard to
   the CA, decide pool membership, add to `ROLE_OPS_SSH_TARGETS`, land in inventory. A *new pool* is
   the only move that touches the constitution (it widens the dial).
-- **OpenTofu provisioning** (SKY-008). `svc-tofu` token carries `TofuProvisioner` — same pool-scoped
-  shape as `svc-ops`/`OpsOperator` but trades backup/snapshot privs for `Pool.Allocate`. The
-  autonomy ratchet: `apply` starts human-gated; `destroy` stays a hard checkpoint permanently;
-  create/modify graduates to auto-approve one action at a time, by PR.
+- **OpenTofu provisioning** (SKY-008 → SKY-024). Tofu runs as the **`svc-ops!operate`** token now (the
+  `svc-tofu` split retired — one operator token per node). The autonomy ratchet is unchanged: `apply`
+  starts human-gated; `destroy` stays a hard checkpoint permanently; create/modify graduates to
+  auto-approve one action at a time, by PR.

@@ -21,6 +21,6 @@ creation_rules:
       age1stah9c426pq0xf3k4qc58e92vs263lf6uvze2f6nmx84nvk86cusfgexyw,
       age1vr4fpg7tgegx6vgv5z5hqdfnqq9pmdf2sj3euzkesken0prcyupszj4k7k
   # SKY-007: host secrets for the ops VM, consumed by sops-nix (decrypt-to-tmpfs).
-  # Also covers SKY-008 tofu secrets (tofu-passphrase.sops, tofu-proxmox.env.sops).
+  # Also covers the SKY-008 tofu state passphrase (tofu-passphrase.sops).
   - path_regex: secrets/.*\.sops$
     age: age1stah9c426pq0xf3k4qc58e92vs263lf6uvze2f6nmx84nvk86cusfgexyw
