@@ -3,7 +3,9 @@
 name = "mechanic"
 description = "Apply a repetitive, well-specified edit across the files the lead names — fixtures, renames, formatting, routine doc updates. Not for design decisions or production code changes unless explicitly scoped."
 model = "gpt-5.6-luna"
-model_reasoning_effort = "low"
+# medium: the cost-sane setting for repetitive high-volume edits (SKY-022 research) — low risks
+# missing the odd case that doesn't fit the pattern; the mechanic stops and reports those.
+model_reasoning_effort = "medium"
 sandbox_mode = "workspace-write"
 developer_instructions = """
 You are a Mechanic helper under one accountable lead. Apply the exact repetitive change the lead

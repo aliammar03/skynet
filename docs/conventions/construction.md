@@ -25,16 +25,22 @@ coordination it adds. A bigger fan-out is not the goal.
 
 Roles are the stable contract; the model behind a role is configuration and swaps freely.
 
-| Role | Owns | Tier (GPT-5.6) | Writes? |
-|---|---|---|---:|
-| **Lead** | Intent, architecture, decomposition, integration, verification, the PR | **Terra** (→ **Sol** for genuinely hard / cross-cutting work) | yes |
-| **Builder** | One bounded component behind a clear interface | **Terra** | yes |
-| **Mechanic** | Repetitive edits — fixtures, renames, formatting, routine docs | **Luna** | yes |
-| **Scout** | Search / compare / investigate, returns a concise report | **Luna** (Terra if the reasoning is hard) | **no** |
+| Role | Owns | Tier (GPT-5.6) | Effort | Writes? |
+|---|---|---|---|---:|
+| **Lead** | Intent, architecture, decomposition, integration, verification, the PR | **Terra** (→ **Sol** for genuinely hard / cross-cutting work) | **xhigh** | yes |
+| **Builder** | One bounded component behind a clear interface | **Terra** | **high** | yes |
+| **Mechanic** | Repetitive edits — fixtures, renames, formatting, routine docs | **Luna** | **medium** | yes |
+| **Scout** | Search / compare / investigate, returns a concise report | **Luna** (Terra if the reasoning is hard) | **medium** | **no** |
 
 Sol is the flagship (hardest problems), Terra the balanced workhorse, Luna the fast/cheap tier for
-repeatable objective-check work. The lead is **accountable for the whole result**; a helper can
-report only *"my delegated subtask is complete,"* never *"the phase is complete."* `[manual]`
+repeatable objective-check work. **Route by uncertainty and consequence, not prompt length.**
+
+Effort is evidence-backed, not taste: reasoning effort — *not* tool access — buys first-try
+reliability, and **planning is where the highest effort pays off most** (raising a planning turn from
+high→xhigh moved perfect first runs 28%→89% for +9–29% cost). So the **lead reasons hardest**
+(xhigh), a **builder** implements at high, **chores** run at medium. Only Sol supports `max`; reserve
+it for a genuinely brutal hard-lead task. The lead is **accountable for the whole result**; a helper
+can report only *"my delegated subtask is complete,"* never *"the phase is complete."* `[manual]`
 
 ## Delegation depth = one
 
