@@ -44,6 +44,8 @@ collect_all() {
   echo "== refreshing inventory =="
   ./scripts/collect-proxmox.sh core    || true
   ./scripts/collect-proxmox.sh network || true
+  ./scripts/collect-proxmox-acl.sh core    || true   # operate-token ACL audit (SKY-021 bright-line gate)
+  ./scripts/collect-proxmox-acl.sh network || true
   ./scripts/collect-pbs.sh             || true
   ./scripts/collect-docker.sh docker-dmz || true
   ./scripts/collect-dns.sh             || true

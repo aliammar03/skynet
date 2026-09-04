@@ -44,6 +44,19 @@
         ];
       };
 
+      # SKY-021 — the throwaway proof CT (Phase 1). Unprivileged proxmox-lxc; the tarball output
+      # below is the CT template. deploy-rs/sops-nix get wired for the real service host in Phase 3.
+      nixosConfigurations.lxc-proof = nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = { inherit inputs; };
+        modules = [ ./hosts/lxc-proof ];
+      };
+
+      # `nix build .#lxc-proof-tarball` → the .tar.xz to upload as a Proxmox CT template
+      # (local:vztmpl/). The proxmox-lxc module exposes it as system.build.tarball.
+      packages.${system}.lxc-proof-tarball =
+        self.nixosConfigurations.lxc-proof.config.system.build.tarball;
+
       # deploy-rs day-2: magicRollback auto-reverts if it can't reconnect (~30s) — the decisive
       # feature for an LLM operator (a config that kills SSH self-heals instead of bricking).
       deploy.nodes.vm-skynet-ops = {

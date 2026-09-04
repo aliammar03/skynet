@@ -19,11 +19,23 @@ pveum acl modify / --users svc-ops@pve --roles PVEAuditor
 echo "==> pool ops-managed (idempotent)"
 pveum pool list 2>/dev/null | grep -q 'ops-managed' || pveum pool add ops-managed
 
-echo "==> custom role OpsOperator"
-pveum role add OpsOperator \
-  -privs "VM.Audit,VM.PowerMgmt,VM.Config.Disk,VM.Config.CPU,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.Allocate,VM.Clone,VM.Console,VM.Snapshot,VM.Snapshot.Rollback,VM.Backup,Datastore.AllocateSpace,Datastore.Audit" \
-  2>/dev/null || pveum role modify OpsOperator \
-  -privs "VM.Audit,VM.PowerMgmt,VM.Config.Disk,VM.Config.CPU,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.Allocate,VM.Clone,VM.Console,VM.Snapshot,VM.Snapshot.Rollback,VM.Backup,Datastore.AllocateSpace,Datastore.Audit"
+# Node-aware scope (SKY-021). The two nodes are standalone PVE instances with separate ACL DBs, so
+# each runs its own OpsOperator. NETWORK = pool-scoped (the original shape). CORE = full ownership of
+# guests/storage/network/pools, bound at / (agent self-provisions pool CTs) — with the bright lines
+# held out: NO Permissions.Modify (self-leash rewrite) and NO Sys.Modify/PowerMgmt/Console (node root).
+# The ACL-audit gate (invariants.json operate_token_scope + check-invariants.sh) enforces both.
+case "$(hostname)" in
+  *core*)    IS_CORE=1 ;;
+  *network*) IS_CORE=0 ;;
+  *) echo "hostname '$(hostname)' is neither *core* nor *network* — refusing to guess node scope" >&2; exit 1 ;;
+esac
+
+NET_PRIVS="VM.Audit,VM.PowerMgmt,VM.Config.Disk,VM.Config.CPU,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.Allocate,VM.Clone,VM.Console,VM.Snapshot,VM.Snapshot.Rollback,VM.Backup,Datastore.AllocateSpace,Datastore.Audit"
+CORE_PRIVS="VM.Allocate,VM.Audit,VM.Backup,VM.Clone,VM.Config.CDROM,VM.Config.CPU,VM.Config.Cloudinit,VM.Config.Disk,VM.Config.HWType,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.Console,VM.GuestAgent.Audit,VM.GuestAgent.FileRead,VM.GuestAgent.FileSystemMgmt,VM.GuestAgent.FileWrite,VM.GuestAgent.Unrestricted,VM.Migrate,VM.PowerMgmt,VM.Replicate,VM.Snapshot,VM.Snapshot.Rollback,Datastore.Allocate,Datastore.AllocateSpace,Datastore.AllocateTemplate,Datastore.Audit,Pool.Allocate,Pool.Audit,SDN.Allocate,SDN.Audit,SDN.Use,Sys.Audit,Mapping.Audit,Mapping.Use"
+if [ "${IS_CORE}" -eq 1 ]; then PRIVS="${CORE_PRIVS}"; else PRIVS="${NET_PRIVS}"; fi
+
+echo "==> custom role OpsOperator ($([ "${IS_CORE}" -eq 1 ] && echo 'core: full guests/storage/network/pools' || echo 'network: pool-scoped'))"
+pveum role add OpsOperator -privs "${PRIVS}" 2>/dev/null || pveum role modify OpsOperator -privs "${PRIVS}"
 
 # Tokens MUST exist before any ACL can reference them (access-and-trust.md — token-before-ACL order).
 echo
@@ -50,5 +62,17 @@ pveum acl modify /pool/ops-managed --users svc-ops@pve --roles PVEAuditor
 # whose NFS-backed datastore mountpoint blocks LXC snapshots). Grant the role there too.
 pveum acl modify /storage/local --users svc-ops@pve --roles OpsOperator
 pveum acl modify /storage/local --tokens 'svc-ops@pve!operate' --roles OpsOperator
+
+if [ "${IS_CORE}" -eq 1 ]; then
+  # CORE broaden (SKY-021): bind OpsOperator at / for BOTH user and token (privsep intersection) —
+  # full guests/storage/network/pools across the node + self-provisioning of new VMIDs. This
+  # supersedes the pool/storage bindings above on core (they stay as harmless documentation of the
+  # base scope). The bright lines are held by OpsOperator NOT carrying them (see role privs above);
+  # the ACL-audit gate fails the build if they ever appear, or if / VM.Allocate shows up on network.
+  echo "==> CORE: OpsOperator at / (full guests/storage/network/pools; bright lines held out)"
+  pveum acl modify / --users  svc-ops@pve            --roles OpsOperator
+  pveum acl modify / --tokens 'svc-ops@pve!operate'  --roles OpsOperator
+fi
 echo
 echo "Reminder: OPNsense VM 5001 never joins ops-managed. Same for CT 635, CT 837, VM 2020."
+echo "         Core /-bind grants the VM envelope of 2020 (not guest OS root, still T3); 5001/635/837 are on the network node."

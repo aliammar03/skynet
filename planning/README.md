@@ -82,5 +82,5 @@ so running or resuming one is a single paste into a fresh session.
 | SKY-018 | "Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain" | projects | in-progress | 6/12 | 🔭 long |
 | SKY-019 | Relocate the Arcane controller off the DMZ to a dedicated Management docker VM, managing docker hosts remotely | ideas | draft | — | 🔭 long |
 | SKY-020 | Firewall-as-code — OPNsense config to T2 via OpenTofu | projects | in-progress | 1/6 | 🔭 long |
-| SKY-021 | NixOS-in-LXC: prove the container path and set the new-CT default | ideas | draft | — | 🌱 short |
+| SKY-021 | NixOS-in-LXC: prove the container path and set the new-CT default | projects | in-progress | 1/3 | 🌱 short |
 <!-- ROADMAP:END -->
