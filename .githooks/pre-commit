@@ -2,18 +2,16 @@
 # Repo pre-commit hook → the deterministic gates. Active when core.hooksPath=.githooks
 # (bootstrap-workstation.sh sets this; or run once: git config core.hooksPath .githooks).
 #   1. secret-scan       — no plaintext secrets enter a commit (AGENTS.md §6, staged tree).
-#   2. budget --check    — every loadable doc keeps a summary: and a fresh tokens: (SKY-010).
-#   3. check-invariants  — the machine-checkable hard laws hold: excluded guests unpooled, the
+#   2. check-invariants  — the machine-checkable hard laws hold: excluded guests unpooled, the
 #                          ops-managed pool set matches the declared dial, no plaintext secrets (SKY-011).
-#   4. entity-test       — the L0 VMID->IP derivation + entity-ID grammar hold against the known-good
+#   3. entity-test       — the L0 VMID->IP derivation + entity-ID grammar hold against the known-good
 #                          set (SKY-018 P1). Unit test of scripts/entity.sh.
-#   5. digest-test       — the cold-boot digest doesn't resurface open threads about DESTROYED guests
+#   4. digest-test       — the cold-boot digest doesn't resurface open threads about DESTROYED guests
 #                          (SKY-018 review — the append-only-journal feedback loop).
 # Bypass a false positive with:  git commit --no-verify  (CI re-runs every gate regardless).
 set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 "${ROOT}/scripts/secret-scan.sh"
-"${ROOT}/scripts/budget-frontmatter.sh" --check
 "${ROOT}/scripts/check-invariants.sh"
 bash "${ROOT}/tests/entity-test.sh"
 bash "${ROOT}/tests/digest-test.sh"

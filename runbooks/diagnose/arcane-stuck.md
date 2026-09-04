@@ -1,7 +1,6 @@
 ---
 summary: "Triage a merged compose PR that didn't deploy — check the Arcane Git Sync status/error, compare git vs running, distinguish sync-fail vs apply-fail vs drift."
 trigger: "A merged compose PR didn't deploy / Arcane isn't reconciling / git and running have drifted"
-tokens: 796
 ---
 
 # Diagnose — Arcane stuck (GitOps not reconciling)

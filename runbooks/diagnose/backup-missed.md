@@ -1,7 +1,6 @@
 ---
 summary: "Triage a missed backup — check the timer, the last snapshot age, and repo reachability across restic→gdrive and PBS→gdrive, fix the timer/creds/repo declaratively."
 trigger: "An expected backup/snapshot is missing / a restic or PBS timer failed"
-tokens: 745
 ---
 
 # Diagnose — backup missed

@@ -1,6 +1,5 @@
 ---
 summary: "The house style for every executable in scripts/ and bin/: same shape, fails safe, and declares the tier it runs at."
-tokens: 663
 ---
 
 # Spoke · Scripts (`scripts/`, `bin/`)

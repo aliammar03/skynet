@@ -1,7 +1,6 @@
 ---
 summary: "Snapshot then update every guest under a fleet root grant."
 trigger: "Update all guests"
-tokens: 231
 ---
 
 # Runbook — update all guests

@@ -1,7 +1,6 @@
 ---
 summary: "Recover when server-proxmox-network is dead — OPNsense and routing gone."
 trigger: "Network node or OPNsense is dead"
-tokens: 350
 ---
 
 # DR — server-proxmox-network is dead (OPNsense + routing gone)

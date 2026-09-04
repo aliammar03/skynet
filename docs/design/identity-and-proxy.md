@@ -1,6 +1,5 @@
 ---
 summary: "The two front doors, split-horizon DNS, the forward_auth boundary that publishes apps without holding auth's keys (SKY-003), and the sanctioned public path via a Skynet-managed Cloudflare Tunnel (SKY-014)."
-tokens: 3313
 ---
 
 # Spoke · Identity & proxy

@@ -1,6 +1,5 @@
 ---
 summary: "How a stateless agent remembers: the four memory kinds, the episodic journal→digest, and the default-lean working-memory discipline."
-tokens: 2933
 ---
 
 # Spoke · Agent memory

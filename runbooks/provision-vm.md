@@ -1,7 +1,6 @@
 ---
 summary: "Declare a guest as an OpenTofu resource (clone the base template), plan/apply, then harden under a scoped auto-expiring root grant with restic."
 trigger: "Set up a VM for X, hardened, with restic"
-tokens: 896
 ---
 
 # Runbook — provision a hardened guest (declarative, via OpenTofu)

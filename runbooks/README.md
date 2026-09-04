@@ -1,6 +1,5 @@
 ---
 summary: "Catalog of engine-neutral procedures any agent can execute, each tagged by tier and trigger — the routing menu."
-tokens: 1601
 ---
 
 # runbooks — procedures any agent can execute
@@ -68,6 +67,6 @@ These assume the lab is gone and the DR agent starts from a laptop + phone hotsp
 - **Don't hardcode unverified specifics.** A host IP, hostname, or container name goes in as a clear
   `<placeholder>`, or cites the generated host map (`docs/generated/`) — never a value typed from
   memory.
-- **Before committing, run `scripts/budget-frontmatter.sh`** to stamp the generated `tokens:` line
-  (never hand-set it — the pre-commit hook rejects a stale/missing value). Author `summary:`/`trigger:`.
+- **Author a `summary:`** (and a `trigger:` where there's a natural spoken cue) in the frontmatter —
+  the context map builds its row from these and computes the `~tokens` cost itself at render time.
 - Anything touching **T2+/T3** or a blast-radius boundary must also PR `docs/system-design.md`.

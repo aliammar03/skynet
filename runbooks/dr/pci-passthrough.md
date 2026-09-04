@@ -1,7 +1,6 @@
 ---
 summary: "Re-establish NIC passthrough for VM 5001 (OPNsense) after a rebuild."
 trigger: "NIC passthrough for OPNsense"
-tokens: 626
 ---
 
 # NIC passthrough — VM 5001 (OPNsense)

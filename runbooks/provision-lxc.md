@@ -1,7 +1,6 @@
 ---
 summary: "Provision a NixOS pool LXC: declare it in tofu (API-only create from the NixOS vztmpl), inject its Option C age key, deploy-rs its flake host. Tofu owns the envelope, nix owns the inside."
 trigger: "Set up / deploy a new LXC for X"
-tokens: 965
 ---
 
 # Runbook — provision a NixOS pool LXC (declarative)

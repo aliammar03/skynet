@@ -1,6 +1,5 @@
 ---
 summary: "Where each kind of artifact lives, and the minimum files each must have to be well-formed."
-tokens: 1422
 ---
 
 # Spoke · Repo layout & required files

@@ -1,7 +1,6 @@
 ---
 summary: "Recover when server-proxmox-core (with PBS aboard) is dead."
 trigger: "Core node is dead"
-tokens: 642
 ---
 
 # DR — server-proxmox-core is dead (with PBS aboard)

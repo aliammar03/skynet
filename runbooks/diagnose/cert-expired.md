@@ -1,7 +1,6 @@
 ---
 summary: "Triage an expired/failing TLS cert — read the served cert's dates, find why ACME isn't renewing (HTTP-01 vs DNS-01, rate limit, clock), fix in Caddy config."
 trigger: "Cert warning / TLS handshake fails / 'certificate expired' / ACME renewal failing"
-tokens: 780
 ---
 
 # Diagnose — cert expired

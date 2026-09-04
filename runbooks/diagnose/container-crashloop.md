@@ -1,7 +1,6 @@
 ---
 summary: "Triage a container that restarts, is unhealthy, or exits — read exit code + logs + healthcheck, branch to the cause, fix in compose/."
 trigger: "A container is Restarting / unhealthy / keeps exiting"
-tokens: 834
 ---
 
 # Diagnose — container crash-loop

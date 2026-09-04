@@ -1,7 +1,6 @@
 ---
 summary: "Restore a service or VM from restic/PBS — conversational and deterministic, executable verbatim."
 trigger: "Restore a service / recover from backup"
-tokens: 1105
 ---
 
 # Runbook — restore a service (conversational, deterministic)
