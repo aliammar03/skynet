@@ -15,6 +15,9 @@ age.key
 *.tmp
 *.log
 .DS_Store
+# SKY-022: the lead's disposable cross-session checkpoint (.agent/CHECKPOINT.md).
+# Working memory, never truth — durable facts move to directive/docs/ADR/journal/git on completion.
+.agent/
 
 # Collector working files (final JSON is committed by the collectors themselves)
 inventory/**/*.partial.json

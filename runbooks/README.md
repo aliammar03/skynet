@@ -42,6 +42,12 @@ with its own **Tier** and (where relevant) **Trigger** line; the summaries below
 | [`provision-vm.md`](provision-vm.md) | T2 tofu apply + T2+ root grant | **Declarative (SKY-008)** — declare the guest as an OpenTofu resource cloning the base template, `plan`/apply, then harden with restic under a scoped root grant. Trigger: *"Set up a VM for X, hardened, with restic."* |
 | [`provision-lxc.md`](provision-lxc.md) | T2 tofu apply (API-only) + deploy-rs | **NixOS pool LXC (SKY-021/024)** — a new CT = a `proxmox_virtual_environment_container` block (from the NixOS vztmpl, MAC pinned) + a `hosts/lxc-<name>/` flake host + PR → `tofu apply` (tofu owns the envelope) → Option C key inject → `deploy` (nix owns the inside). Trigger: *"Set up / deploy a new LXC for X."* |
 
+## Build & collaboration
+
+| Runbook | Tier | What it does |
+|---|---|---|
+| [`construction-delegation.md`](construction-delegation.md) | T1 build-time | Run a lead+bounded-helper construction job: BIV-gate each hand-off, route roles, independently verify results, and integrate a PR. |
+
 ## Backup & restore
 
 | Runbook | Tier | What it does |

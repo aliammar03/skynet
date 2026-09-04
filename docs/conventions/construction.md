@@ -143,9 +143,25 @@ Use Codex's own subagent support — do not build a scheduler around it. `[manua
   writers genuinely need separate filesystem state. Git is the isolation mechanism — SKY-022 builds
   no worktree manager. (Proven in [SKY-022 Phase 4](../../planning/ideas/SKY-022-lean-multi-agent-construction-orchestration-lead-driven-delegation.md).)
 - **Continuity is a checkpoint, not a memory system.** `[manual]` For a task likely to cross a
-  session boundary, the lead keeps a compact `.agent/CHECKPOINT.md` (gitignored, disposable). On
-  completion, durable facts move to their real home — directive / docs / ADR / journal / git — and
-  the checkpoint is deleted. (Detailed in [SKY-022 Phase 3](../../planning/ideas/SKY-022-lean-multi-agent-construction-orchestration-lead-driven-delegation.md).)
+  session/context boundary, the lead keeps a compact `.agent/CHECKPOINT.md` (gitignored, disposable —
+  it is working memory, never truth). A cold lead must be able to resume from **only** `AGENTS.md` +
+  the named `SKY-###` phase + this file + `git status`/`git diff` — no old transcript. Keep it to
+  these fields, one or two lines each:
+
+  ```text
+  Goal        — the task in one sentence
+  Done        — milestones already landed (with commit shas if committed)
+  Current     — the working state right now
+  Decisions   — choices made that must not be relitigated
+  Dead ends   — tried-and-abandoned, so the cold lead won't re-walk them
+  Verified    — gates that passed / still to run
+  Next        — the exact next step, concrete enough to act on cold
+  ```
+
+  Write it at a **meaningful milestone, a handoff / context reset, a blocker, or before intentionally
+  ending a long session** — *not* after every command. On completion, move durable facts to their
+  real home (directive / docs / ADR / journal / git) and **delete** the checkpoint. (Proven in
+  [SKY-022 Phase 3](../../planning/ideas/SKY-022-lean-multi-agent-construction-orchestration-lead-driven-delegation.md).)
 - **Review lives outside the helper family.** `[manual]` A helper never reviews the lead that
   instructed it. Normal changes ride existing tests/gates + human merge; consequential ones may get a
   fresh cold Sol review, sensitive cross-provider ones a Claude review. Deterministic gates outrank
