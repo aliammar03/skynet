@@ -41,18 +41,9 @@
 
   services.getty.autologinUser = lib.mkForce "aliammar";
 
-  # Option C: this CT's age identity, injected to keyFile at provision (before the first deploy).
-  sops.age.keyFile = "/var/lib/sops-nix/age.key";
-
-  # Seeded gh token (dual-recipient sops). Decrypts to /run/secrets/gh-token (owner aliammar); the
-  # login shell exports it as GH_TOKEN (nix/home/athena.nix) so `gh` and the git credential helper
-  # authenticate unattended. claude/codex provider auth is still a one-time interactive OAuth login.
-  sops.secrets."gh-token" = {
-    sopsFile = ../../secrets/lxc-athena/gh-token.sops;
-    format = "binary";
-    owner = "aliammar";
-    mode = "0400";
-  };
+  # No secrets on this box: git/gh auth is done by Ali interactively (`gh auth login`), not seeded.
+  # If the vault ever needs a secret, mint an Option C age identity then (runbooks/provision-lxc.md)
+  # and re-add sops-nix here + to flake.nix.
 
   system.stateVersion = "26.05";
 }

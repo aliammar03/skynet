@@ -1,5 +1,5 @@
 {
-  "collected": "2026-09-04T03:43:06+05:00",
+  "collected": "2026-09-04T21:22:21+05:00",
   "source": "tls probe (openssl s_client)",
   "counts": {
     "probed": 7,
@@ -45,7 +45,7 @@
         "server-proxmox-core.home.aliammar.net"
       ],
       "not_after": "Jul 14 15:20:10 2028 GMT",
-      "days_left": 679
+      "days_left": 678
     },
     {
       "label": "proxmox-network",
@@ -62,7 +62,7 @@
         "server-proxmox-network.home.aliammar.net"
       ],
       "not_after": "Jul 14 15:18:26 2028 GMT",
-      "days_left": 679
+      "days_left": 678
     },
     {
       "label": "pbs",

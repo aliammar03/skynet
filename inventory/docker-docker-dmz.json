@@ -1,6 +1,6 @@
 {
   "host": "docker-dmz",
-  "collected": "2026-09-04T03:43:01+05:00",
+  "collected": "2026-09-04T21:22:17+05:00",
   "containers": [
     {
       "Command": "\"docker-php-entrypoi…\"",
@@ -15,10 +15,10 @@
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "26 hours ago",
+      "RunningFor": "44 hours ago",
       "Size": "44.4MB (virtual 272MB)",
       "State": "running",
-      "Status": "Up 26 hours (healthy)"
+      "Status": "Up 44 hours (healthy)"
     },
     {
       "Command": "\"/usr/local/bin/entr…\"",
@@ -30,13 +30,13 @@
       "LocalVolumes": "0",
       "Mounts": "/opt/docker/ap…,/opt/docker/ap…,/opt/docker/ap…",
       "Names": "aiometadata-aiometadata-1",
-      "Networks": "dmz,aiometadata_backend",
+      "Networks": "aiometadata_backend,dmz",
       "Platform": null,
       "Ports": "3232/tcp",
-      "RunningFor": "4 days ago",
+      "RunningFor": "5 days ago",
       "Size": "0B (virtual 437MB)",
       "State": "running",
-      "Status": "Up 4 days (healthy)"
+      "Status": "Up 5 days (healthy)"
     },
     {
       "Command": "\"docker-entrypoint.s…\"",
@@ -51,10 +51,10 @@
       "Networks": "aiometadata_backend",
       "Platform": null,
       "Ports": "6379/tcp",
-      "RunningFor": "4 days ago",
+      "RunningFor": "5 days ago",
       "Size": "0B (virtual 38.6MB)",
       "State": "running",
-      "Status": "Up 4 days (healthy)"
+      "Status": "Up 5 days (healthy)"
     },
     {
       "Command": "\"tini -- ./docker-en…\"",
@@ -72,7 +72,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "4.22kB (virtual 565MB)",
       "State": "running",
-      "Status": "Up 6 days (healthy)"
+      "Status": "Up 7 days (healthy)"
     },
     {
       "Command": "\"cloudflared --no-au…\"",
@@ -90,7 +90,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 63.9MB)",
       "State": "running",
-      "Status": "Up 6 days (healthy)"
+      "Status": "Up 7 days (healthy)"
     },
     {
       "Command": "\"/bin/bash -c 'cp /e…\"",
@@ -108,7 +108,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "1.38kB (virtual 272MB)",
       "State": "running",
-      "Status": "Up 6 days (healthy)"
+      "Status": "Up 7 days (healthy)"
     },
     {
       "Command": "\"caddy run --config …\"",
@@ -126,7 +126,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 111MB)",
       "State": "running",
-      "Status": "Up 6 days (healthy)"
+      "Status": "Up 7 days (healthy)"
     },
     {
       "Command": "\"tini -- /bin/sh -c …\"",
@@ -144,7 +144,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 158MB)",
       "State": "running",
-      "Status": "Up 6 days (healthy)"
+      "Status": "Up 7 days (healthy)"
     },
     {
       "Command": "\"chromium-browser --…\"",
@@ -162,7 +162,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "194kB (virtual 670MB)",
       "State": "running",
-      "Status": "Up 6 days (healthy)"
+      "Status": "Up 7 days (healthy)"
     },
     {
       "Command": "\"/nodejs/bin/node /a…\"",
@@ -180,7 +180,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 277MB)",
       "State": "running",
-      "Status": "Up 6 days (healthy)"
+      "Status": "Up 7 days (healthy)"
     },
     {
       "Command": "\"/app/docker-entrypo…\"",
@@ -196,9 +196,9 @@
       "Platform": null,
       "Ports": "2114/tcp, 8080/tcp",
       "RunningFor": "2 weeks ago",
-      "Size": "3.52MB (virtual 667MB)",
+      "Size": "3.54MB (virtual 667MB)",
       "State": "running",
-      "Status": "Up 6 days (healthy)"
+      "Status": "Up 7 days (healthy)"
     },
     {
       "Command": "\"docker-entrypoint.s…\"",
@@ -216,7 +216,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 27.9MB)",
       "State": "running",
-      "Status": "Up 6 days (healthy)"
+      "Status": "Up 7 days (healthy)"
     },
     {
       "Command": "\"docker-entrypoint.s…\"",
@@ -234,7 +234,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 644MB)",
       "State": "running",
-      "Status": "Up 6 days (healthy)"
+      "Status": "Up 7 days (healthy)"
     },
     {
       "Command": "\"/opt/typesense-serv…\"",
@@ -252,7 +252,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 799MB)",
       "State": "running",
-      "Status": "Up 6 days (healthy)"
+      "Status": "Up 7 days (healthy)"
     },
     {
       "Command": "\"node /usr/local/bin…\"",
@@ -270,7 +270,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "0B (virtual 2.27GB)",
       "State": "running",
-      "Status": "Up 6 days (healthy)"
+      "Status": "Up 7 days (healthy)"
     },
     {
       "Command": "\"/init\"",
@@ -286,9 +286,9 @@
       "Platform": null,
       "Ports": "",
       "RunningFor": "2 weeks ago",
-      "Size": "7.69MB (virtual 3.52GB)",
+      "Size": "7.88MB (virtual 3.52GB)",
       "State": "running",
-      "Status": "Up 6 days (healthy)"
+      "Status": "Up 7 days (healthy)"
     },
     {
       "Command": "\"/init\"",
@@ -306,7 +306,7 @@
       "RunningFor": "2 weeks ago",
       "Size": "8.99MB (virtual 1.48GB)",
       "State": "running",
-      "Status": "Up 6 days (healthy)"
+      "Status": "Up 7 days (healthy)"
     },
     {
       "Command": "\"./arcane\"",
@@ -316,7 +316,7 @@
       "Image": "ghcr.io/getarcaneapp/manager:latest",
       "Labels": "com.docker.compose.config-hash=311332f1063d7274160c75c8793eb2d9e1bd33a231e13d99ef5e669a6ab5088b,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:c23588695093944e3fb31355dde56f3e057e017315f1df4a53396ac1bde4aeaa,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/opt/docker/arcane-manager/compose.yaml,com.docker.compose.project.working_dir=/opt/docker/arcane-manager,com.docker.compose.project=arcane-manager,com.docker.compose.service=arcane,com.docker.compose.version=5.4.0,com.getarcaneapp.arcane=true,org.opencontainers.image.authors=OFKM Technologies,org.opencontainers.image.description=Modern Docker Management, Made for Everyone,org.opencontainers.image.documentation=https://github.com/getarcaneapp/arcane/blob/main/README.md,org.opencontainers.image.licenses=BSD-3-Clause,org.opencontainers.image.revision=b8bc5b4f8d0c6487b18a6e6d2185c71c4c0d0fe0,org.opencontainers.image.source=https://github.com/getarcaneapp/arcane,org.opencontainers.image.title=Arcane,org.opencontainers.image.url=https://github.com/getarcaneapp/arcane,org.opencontainers.image.version=v2.8.0",
       "LocalVolumes": "0",
-      "Mounts": "/opt/docker/ar…,/var/run/docke…,/opt/docker/ap…",
+      "Mounts": "/opt/docker/ap…,/opt/docker/ar…,/var/run/docke…",
       "Names": "arcane",
       "Networks": "arcane-manager_default",
       "Platform": null,
@@ -324,7 +324,7 @@
       "RunningFor": "3 weeks ago",
       "Size": "0B (virtual 149MB)",
       "State": "running",
-      "Status": "Up 6 days (healthy)"
+      "Status": "Up 7 days (healthy)"
     }
   ],
   "images": [
@@ -403,7 +403,7 @@
     {
       "Containers": "1",
       "CreatedAt": "2026-08-07 08:28:05 +0500 PKT",
-      "CreatedSince": "3 weeks ago",
+      "CreatedSince": "4 weeks ago",
       "Digest": "<none>",
       "ID": "b7bc0ec4b0ef",
       "Repository": "lscr.io/linuxserver/calibre",

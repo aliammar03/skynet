@@ -1,5 +1,5 @@
 {
-  "collected": "2026-09-04T03:43:05+05:00",
+  "collected": "2026-09-04T21:22:20+05:00",
   "source": "opnsense-api (live read-only)",
   "host": "10.10.90.1",
   "firmware": {
@@ -8,10 +8,10 @@
     "needs_upgrade": false
   },
   "counts": {
-    "arp": 37,
+    "arp": 48,
     "interfaces": 17,
-    "live": 22,
-    "silent": 4
+    "live": 26,
+    "silent": 1
   },
   "arp": [
     {
@@ -23,7 +23,18 @@
       "manufacturer": "Proxmox Server Solutions GmbH",
       "permanent": false,
       "expired": false,
-      "expires": 973
+      "expires": 1138
+    },
+    {
+      "ip": "10.10.50.3",
+      "mac": "98:03:8e:ec:56:df",
+      "hostname": "",
+      "intf": "igb0",
+      "intf_description": "MGMT",
+      "manufacturer": "TP-Link Systems Inc.",
+      "permanent": false,
+      "expired": false,
+      "expires": 868
     },
     {
       "ip": "10.10.50.1",
@@ -45,7 +56,7 @@
       "manufacturer": "TP-Link Systems Inc.",
       "permanent": false,
       "expired": false,
-      "expires": 947
+      "expires": 795
     },
     {
       "ip": "10.10.50.7",
@@ -56,7 +67,7 @@
       "manufacturer": "TP-Link Systems Inc.",
       "permanent": false,
       "expired": false,
-      "expires": 876
+      "expires": 927
     },
     {
       "ip": "10.10.50.10",
@@ -67,7 +78,7 @@
       "manufacturer": "GIGA-BYTE TECHNOLOGY CO.,LTD.",
       "permanent": false,
       "expired": false,
-      "expires": 399
+      "expires": 374
     },
     {
       "ip": "10.10.50.11",
@@ -78,7 +89,7 @@
       "manufacturer": "GIGA-BYTE TECHNOLOGY CO.,LTD.",
       "permanent": false,
       "expired": false,
-      "expires": 315
+      "expires": 159
     },
     {
       "ip": "192.168.1.1",
@@ -89,7 +100,7 @@
       "manufacturer": "zte corporation",
       "permanent": false,
       "expired": false,
-      "expires": 1182
+      "expires": 1192
     },
     {
       "ip": "192.168.1.2",
@@ -111,7 +122,7 @@
       "manufacturer": "HUAWEI TECHNOLOGIES CO.,LTD",
       "permanent": false,
       "expired": false,
-      "expires": 1067
+      "expires": 1113
     },
     {
       "ip": "192.168.0.29",
@@ -125,6 +136,17 @@
       "expires": -1
     },
     {
+      "ip": "10.10.10.169",
+      "mac": "be:93:dd:1a:16:1d",
+      "hostname": "",
+      "intf": "vlan01",
+      "intf_description": "10Trusted",
+      "manufacturer": "",
+      "permanent": false,
+      "expired": false,
+      "expires": 1199
+    },
+    {
       "ip": "10.10.10.108",
       "mac": "10:9f:41:b2:86:fa",
       "hostname": "",
@@ -133,7 +155,18 @@
       "manufacturer": "Apple, Inc.",
       "permanent": false,
       "expired": false,
-      "expires": 834
+      "expires": 1178
+    },
+    {
+      "ip": "10.10.10.141",
+      "mac": "b6:b8:0e:fb:80:8e",
+      "hostname": "",
+      "intf": "vlan01",
+      "intf_description": "10Trusted",
+      "manufacturer": "",
+      "permanent": false,
+      "expired": false,
+      "expires": 1195
     },
     {
       "ip": "10.10.10.109",
@@ -144,7 +177,18 @@
       "manufacturer": "Apple, Inc.",
       "permanent": false,
       "expired": false,
-      "expires": 1186
+      "expires": 1077
+    },
+    {
+      "ip": "10.10.10.65",
+      "mac": "7e:68:8b:a2:39:25",
+      "hostname": "",
+      "intf": "vlan01",
+      "intf_description": "10Trusted",
+      "manufacturer": "",
+      "permanent": false,
+      "expired": false,
+      "expires": 869
     },
     {
       "ip": "10.10.10.1",
@@ -166,7 +210,18 @@
       "manufacturer": "Hui Zhou Gaoshengda Technology Co.,LTD",
       "permanent": false,
       "expired": false,
-      "expires": 755
+      "expires": 1177
+    },
+    {
+      "ip": "10.10.10.60",
+      "mac": "6a:4b:5a:91:7e:fd",
+      "hostname": "",
+      "intf": "vlan01",
+      "intf_description": "10Trusted",
+      "manufacturer": "",
+      "permanent": false,
+      "expired": false,
+      "expires": 1104
     },
     {
       "ip": "10.10.10.178",
@@ -177,7 +232,7 @@
       "manufacturer": "",
       "permanent": false,
       "expired": false,
-      "expires": 1199
+      "expires": 1150
     },
     {
       "ip": "10.10.10.50",
@@ -188,7 +243,18 @@
       "manufacturer": "ASRock Incorporation",
       "permanent": false,
       "expired": false,
-      "expires": 756
+      "expires": 634
+    },
+    {
+      "ip": "10.10.10.182",
+      "mac": "b0:0c:9d:92:32:49",
+      "hostname": "",
+      "intf": "vlan01",
+      "intf_description": "10Trusted",
+      "manufacturer": "Quectel Wireless Solutions Co.,Ltd.",
+      "permanent": false,
+      "expired": false,
+      "expires": 1187
     },
     {
       "ip": "10.10.20.20",
@@ -199,7 +265,7 @@
       "manufacturer": "Proxmox Server Solutions GmbH",
       "permanent": false,
       "expired": false,
-      "expires": 419
+      "expires": 332
     },
     {
       "ip": "10.10.20.1",
@@ -221,7 +287,7 @@
       "manufacturer": "Proxmox Server Solutions GmbH",
       "permanent": false,
       "expired": false,
-      "expires": 642
+      "expires": 604
     },
     {
       "ip": "10.10.30.186",
@@ -232,40 +298,29 @@
       "manufacturer": "Shanghai High-Flying Electronics  Technology Co., Ltd",
       "permanent": false,
       "expired": false,
-      "expires": 1190
+      "expires": 965
     },
     {
-      "ip": "10.10.30.182",
-      "mac": "7a:54:7f:95:05:bb",
+      "ip": "10.10.30.178",
+      "mac": "ba:aa:ad:21:c6:dc",
       "hostname": "",
       "intf": "vlan03",
       "intf_description": "30IoT",
       "manufacturer": "",
       "permanent": false,
       "expired": false,
-      "expires": 1118
+      "expires": 152
     },
     {
-      "ip": "10.10.30.102",
-      "mac": "88:a2:9e:05:99:16",
+      "ip": "10.10.30.112",
+      "mac": "c4:98:5c:81:97:d2",
       "hostname": "",
       "intf": "vlan03",
       "intf_description": "30IoT",
-      "manufacturer": "Raspberry Pi (Trading) Ltd",
+      "manufacturer": "Hui Zhou Gaoshengda Technology Co.,LTD",
       "permanent": false,
       "expired": false,
-      "expires": 483
-    },
-    {
-      "ip": "10.10.30.161",
-      "mac": "2a:5b:c3:bf:20:b4",
-      "hostname": "",
-      "intf": "vlan03",
-      "intf_description": "30IoT",
-      "manufacturer": "",
-      "permanent": false,
-      "expired": false,
-      "expires": 1135
+      "expires": 1166
     },
     {
       "ip": "10.10.30.1",
@@ -309,7 +364,7 @@
       "manufacturer": "Proxmox Server Solutions GmbH",
       "permanent": false,
       "expired": false,
-      "expires": 235
+      "expires": 506
     },
     {
       "ip": "10.10.70.1",
@@ -331,7 +386,7 @@
       "manufacturer": "Proxmox Server Solutions GmbH",
       "permanent": false,
       "expired": false,
-      "expires": 1199
+      "expires": 1173
     },
     {
       "ip": "10.10.70.51",
@@ -342,7 +397,29 @@
       "manufacturer": "Proxmox Server Solutions GmbH",
       "permanent": false,
       "expired": false,
-      "expires": 1161
+      "expires": 1197
+    },
+    {
+      "ip": "10.10.70.30",
+      "mac": "bc:24:11:ec:5f:e1",
+      "hostname": "",
+      "intf": "vlan07",
+      "intf_description": "70NetworkSVC",
+      "manufacturer": "Proxmox Server Solutions GmbH",
+      "permanent": false,
+      "expired": false,
+      "expires": 874
+    },
+    {
+      "ip": "10.10.70.31",
+      "mac": "bc:24:11:69:9e:4d",
+      "hostname": "",
+      "intf": "vlan07",
+      "intf_description": "70NetworkSVC",
+      "manufacturer": "Proxmox Server Solutions GmbH",
+      "permanent": false,
+      "expired": false,
+      "expires": 874
     },
     {
       "ip": "10.10.80.1",
@@ -356,6 +433,17 @@
       "expires": -1
     },
     {
+      "ip": "10.10.80.37",
+      "mac": "bc:24:11:41:35:03",
+      "hostname": "",
+      "intf": "vlan08",
+      "intf_description": "80Identity",
+      "manufacturer": "Proxmox Server Solutions GmbH",
+      "permanent": false,
+      "expired": false,
+      "expires": 766
+    },
+    {
       "ip": "10.10.90.90",
       "mac": "bc:24:11:04:fd:09",
       "hostname": "",
@@ -364,7 +452,7 @@
       "manufacturer": "Proxmox Server Solutions GmbH",
       "permanent": false,
       "expired": false,
-      "expires": 1159
+      "expires": 824
     },
     {
       "ip": "10.10.90.1",
@@ -378,6 +466,28 @@
       "expires": -1
     },
     {
+      "ip": "10.10.100.69",
+      "mac": "ea:d2:27:4a:72:12",
+      "hostname": "",
+      "intf": "vlan010",
+      "intf_description": "100DMZ",
+      "manufacturer": "",
+      "permanent": false,
+      "expired": false,
+      "expires": 873
+    },
+    {
+      "ip": "10.10.100.65",
+      "mac": "76:a7:41:fe:d7:bc",
+      "hostname": "",
+      "intf": "vlan010",
+      "intf_description": "100DMZ",
+      "manufacturer": "",
+      "permanent": false,
+      "expired": false,
+      "expires": 873
+    },
+    {
       "ip": "10.10.100.33",
       "mac": "1a:c6:55:33:03:b6",
       "hostname": "",
@@ -386,7 +496,7 @@
       "manufacturer": "",
       "permanent": false,
       "expired": false,
-      "expires": 1179
+      "expires": 1197
     },
     {
       "ip": "10.10.100.1",
@@ -408,7 +518,7 @@
       "manufacturer": "",
       "permanent": false,
       "expired": false,
-      "expires": 528
+      "expires": 873
     },
     {
       "ip": "10.10.100.15",
@@ -419,7 +529,18 @@
       "manufacturer": "Proxmox Server Solutions GmbH",
       "permanent": false,
       "expired": false,
-      "expires": 882
+      "expires": 881
+    },
+    {
+      "ip": "10.10.100.85",
+      "mac": "ea:20:4e:73:2f:3f",
+      "hostname": "",
+      "intf": "vlan010",
+      "intf_description": "100DMZ",
+      "manufacturer": "",
+      "permanent": false,
+      "expired": false,
+      "expires": 873
     }
   ],
   "interfaces": [
@@ -545,29 +666,14 @@
   ],
   "presence": [
     {
-      "ip": "10.10.10.50",
-      "live": true,
-      "via": "arp"
-    },
-    {
-      "ip": "10.10.10.55",
-      "live": false,
-      "via": "no-arp,no-icmp"
-    },
-    {
-      "ip": "10.10.10.60",
-      "live": false,
-      "via": "no-arp,no-icmp"
-    },
-    {
-      "ip": "10.10.10.65",
-      "live": false,
-      "via": "no-arp,no-icmp"
-    },
-    {
       "ip": "10.10.100.15",
       "live": true,
       "via": "arp"
+    },
+    {
+      "ip": "10.10.100.30",
+      "live": true,
+      "via": "icmp"
     },
     {
       "ip": "10.10.100.33",
@@ -582,17 +688,37 @@
     {
       "ip": "10.10.100.65",
       "live": true,
-      "via": "icmp"
+      "via": "arp"
     },
     {
       "ip": "10.10.100.69",
       "live": true,
-      "via": "icmp"
+      "via": "arp"
     },
     {
       "ip": "10.10.100.85",
       "live": true,
-      "via": "icmp"
+      "via": "arp"
+    },
+    {
+      "ip": "10.10.10.50",
+      "live": true,
+      "via": "arp"
+    },
+    {
+      "ip": "10.10.10.55",
+      "live": false,
+      "via": "no-arp,no-icmp"
+    },
+    {
+      "ip": "10.10.10.60",
+      "live": true,
+      "via": "arp"
+    },
+    {
+      "ip": "10.10.10.65",
+      "live": true,
+      "via": "arp"
     },
     {
       "ip": "10.10.20.20",
@@ -627,7 +753,7 @@
     {
       "ip": "10.10.50.3",
       "live": true,
-      "via": "icmp"
+      "via": "arp"
     },
     {
       "ip": "10.10.50.6",
@@ -647,12 +773,12 @@
     {
       "ip": "10.10.70.30",
       "live": true,
-      "via": "icmp"
+      "via": "arp"
     },
     {
       "ip": "10.10.70.31",
       "live": true,
-      "via": "icmp"
+      "via": "arp"
     },
     {
       "ip": "10.10.70.50",
@@ -666,8 +792,8 @@
     },
     {
       "ip": "10.10.80.37",
-      "live": false,
-      "via": "no-arp,no-icmp"
+      "live": true,
+      "via": "arp"
     },
     {
       "ip": "10.10.90.90",
