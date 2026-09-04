@@ -111,16 +111,19 @@ Canonical roles:
 | Role | Purpose | Tier · effort | Writes? |
 |---|---|---|---:|
 | **Lead** | Owns intent, architecture, decomposition, integration, verification | Terra `xhigh` (→ Sol for hard/cross-cutting; Sol-only `max` for a brutal task) | yes |
-| **Builder** | Implements one bounded component with a clear interface | Luna `high` | yes |
+| **Builder** | Implements one bounded component with a clear interface | Terra `high` | yes |
 | **Mechanic** | Repetitive edits, fixtures, renames, formatting, routine docs | Luna `high` | yes |
 | **Scout** | Searches, compares, investigates, returns a concise report | Luna `medium` | **no** |
 
-Tier · effort follow the researched selection guides (P1) — a **Sol/Terra planner + Luna worker**
-split, routed by uncertainty and consequence: the lead reasons hardest (effort, not tool access,
-buys first-try reliability), while BIV subtasks go to Luna because strong objective checks make a
-premium model pointless. Model IDs live in configuration or the invoking tool (`bin/agent`,
-`.codex/agents/*.toml`), not in the architecture — a future model swap should not change the role
-contract. Details + the effort rationale: [`docs/conventions/construction.md`](../../docs/conventions/construction.md).
+Tier · effort are benchmark-backed (P1), routed by uncertainty and consequence. The Terra↔Luna
+choice *is* the Builder↔Mechanic split: **Builder → Terra** because novel bounded logic is where
+correctness margin matters (Terra wins every coding benchmark, and a wrong builder costs a rework
+loop paid in expensive lead tokens — dwarfing Luna's small per-token saving); **Mechanic → Luna**
+because high-volume deterministic edits with airtight checks are where Luna's economics dominate. The
+lead reasons hardest (effort, not tool access, buys first-try reliability). Model IDs live in
+configuration or the invoking tool (`bin/agent`, `.codex/agents/*.toml`), not in the architecture —
+a future model swap should not change the role contract. Details + the full evidence:
+[`docs/conventions/construction.md`](../../docs/conventions/construction.md).
 
 ### D · Delegation must pass the BIV test
 

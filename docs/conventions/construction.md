@@ -28,24 +28,28 @@ Roles are the stable contract; the model behind a role is configuration and swap
 | Role | Owns | Tier (GPT-5.6) | Effort | Writes? |
 |---|---|---|---|---:|
 | **Lead** | Intent, architecture, decomposition, integration, verification, the PR | **Terra** (→ **Sol** for genuinely hard / cross-cutting work) | **xhigh** | yes |
-| **Builder** | One bounded component behind a clear interface | **Luna** | **high** | yes |
+| **Builder** | One bounded component behind a clear interface | **Terra** | **high** | yes |
 | **Mechanic** | Repetitive edits — fixtures, renames, formatting, routine docs | **Luna** | **high** | yes |
 | **Scout** | Search / compare / investigate, returns a concise report | **Luna** | **medium** | **no** |
 
 Sol is the flagship (hardest problems), Terra the balanced workhorse, Luna the fast/cheap tier for
-repeatable objective-check work. This routing follows the researched selection guides:
-**route by uncertainty and consequence, not prompt length** — which yields a **Sol/Terra planner +
-Luna worker** split.
+repeatable objective-check work. **Route by uncertainty and consequence, not prompt length** — and
+the Terra↔Luna choice *is* the Builder↔Mechanic split:
 
 - The **lead** carries the uncertainty and consequence, so it reasons hardest — **xhigh** — because
   reasoning effort, *not* tool access, is what buys first-try reliability (raising a planning turn
   high→xhigh moved perfect first runs 28%→89% for +9–29% cost). Terra by default; **Sol** for
   architecture / cross-cutting / ambiguous work. Only Sol supports **`max`** — reserve it for a
   genuinely brutal hard-lead task.
-- The **helpers are Luna workers.** A delegated subtask is BIV — bounded, test-checked, verifiable —
-  and there the guides route to Luna: strong objective checks make a premium model pointless, and
-  Luna's economics dominate high-volume work. Builder and Mechanic run at **high** (correctness is
-  cheap at Luna prices, and scaling — not per-call cost — dominates); read-only Scout at **medium**.
+- **Builder → Terra.** Novel bounded *logic* is where correctness margin matters: Terra wins every
+  coding benchmark (Terminal-Bench 87.4 vs 84.7, SWE-Bench Pro 63.4 vs 62.7, Coding-Agent-Index 77.4
+  vs 74.6) and is the documented pick for coding-agent / CI loops. The saving from Luna on one small
+  component is ~2.5×/token on a *tiny* base; a wrong builder costs a rework loop paid in **expensive
+  lead** tokens, which dwarfs it. Escalate to xhigh only if corrective prompts prove costly.
+- **Mechanic → Luna.** High-*volume*, deterministic edits with airtight objective checks are exactly
+  where Luna's economics + steep effort curve win: scaling — not per-call cost — dominates, and
+  strong checks make a premium model pointless. Run it at **high** (Luna is cheap enough that high is
+  affordable across many edits). Read-only **Scout → Luna medium**.
 
 The lead is **accountable for the whole result**; a helper can report only *"my delegated subtask is
 complete,"* never *"the phase is complete."* `[manual]`

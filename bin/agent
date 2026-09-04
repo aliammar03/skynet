@@ -39,13 +39,17 @@ model_for_tier() { case "$1" in
 # role → tier / reasoning effort / sandbox / approval. The one routing table in code (doctrine:
 # docs/conventions/construction.md). Scout is read-only by contract; writers stay workspace-scoped —
 # deliberately MORE restricted than the nightly's full bypass, because construction touches no prod.
-# Routing follows the researched guides (SKY-022 P1): the SOL/TERRA PLANNER + LUNA WORKER split —
-# the lead reasons hardest (xhigh; planning is where high→xhigh moved perfect first runs 28%→89%),
-# and Luna does the scoped implementation, chores, and search, since strong checks make premium
-# models unnecessary and Luna's economics dominate bounded/verifiable work.
+# Routing is benchmark-backed (SKY-022 P1). The Terra-vs-Luna axis IS the builder-vs-mechanic split:
+#   - lead reasons hardest (xhigh; high→xhigh moved perfect first runs 28%→89%). Terra, Sol if hard.
+#   - builder = novel bounded LOGIC → TERRA: it wins every coding bench (Terminal-Bench 87.4 vs 84.7,
+#     SWE-Bench Pro 63.4 vs 62.7), and a wrong builder costs a rework loop paid in expensive LEAD
+#     tokens — that dwarfs Luna's ~2.5x/token saving on a small component.
+#   - mechanic = high-VOLUME deterministic edits with airtight checks → LUNA high: exactly where
+#     scaling dominates per-call cost and objective checks make a premium model pointless.
+#   - scout = read-only search → Luna medium.
 case "${role}" in
   lead)     tier=terra; [ "${hard}" = 1 ] && tier=sol; effort=xhigh;  sandbox=workspace-write; approval=on-failure;;
-  builder)  tier=luna;                        effort=high;   sandbox=workspace-write; approval=on-failure;;
+  builder)  tier=terra;                       effort=high;   sandbox=workspace-write; approval=on-failure;;
   mechanic) tier=luna;                        effort=high;   sandbox=workspace-write; approval=on-failure;;
   scout)    tier=luna;                        effort=medium; sandbox=read-only;       approval=never;;
   *) die "unknown role '${role}' (lead|builder|mechanic|scout)";;
