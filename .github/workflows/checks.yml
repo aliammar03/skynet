@@ -51,3 +51,5 @@ jobs:
       # helper may declare danger-full-access (construction never gains production authority).
       - name: construction-test
         run: bash tests/construction-test.sh
+      - name: agent-test
+        run: bash tests/agent-test.sh
