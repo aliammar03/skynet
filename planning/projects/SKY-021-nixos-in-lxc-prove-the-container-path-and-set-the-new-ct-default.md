@@ -1,12 +1,12 @@
 ---
 id: SKY-021
 title: NixOS-in-LXC: prove the container path and set the new-CT default
-status: draft
+status: in-progress
 horizon: short
 created: 2026-09-03
-updated: 2026-09-03
+updated: 2026-09-04
 phases: 3
-current_phase: 0
+current_phase: 3
 tier_touched: [T2]     # reprovisions a pool CT (T2 destroy/recreate) + sets a new-CT default
                        # policy → the plan MUST PR docs/system-design.md (the constitution).
 related:
@@ -83,7 +83,7 @@ committing the fleet.
   couldn't mint a *new* VMID (SKY-007 P1b) — if the same bites, **⚠ Ali creates the empty CT shell**;
   the agent does everything else.
 
-### Phase 1 — path proof on a throwaway CT  (~1–2h)   `[ ]` not started
+### Phase 1 — path proof on a throwaway CT  (~1–2h)   `[x]` DONE (2026-09-04)
 Prove the LXC build+boot+rebuild path once, on a CT we destroy at the end.
 Steps:
 1. Author a minimal in-repo flake output for a `proxmox-lxc` template — import
@@ -104,7 +104,7 @@ whether in-place `nixos-rebuild switch` reliably applies changes on our stack �
 for the chosen in-place model, which Phase 2 then hardens with deploy-rs rollback.
 Grants / human actions: ⚠ possibly Ali mints the empty CT shell (pool-scoped `VM.Allocate` limit).
 
-### Phase 2 — deploy-rs round-trip + pick the day-2 model  (~1–2h)   `[ ]` not started
+### Phase 2 — deploy-rs round-trip + pick the day-2 model  (~1–2h)   `[x]` DONE (2026-09-04)
 Steps:
 1. On a fresh throwaway CT from the P1 template, wire **deploy-rs** and attempt the magic-rollback
    round-trip proven on the VM in SKY-007 1c (trivial deploy confirmed → an SSH-breaking change
@@ -122,7 +122,10 @@ Exit criteria: recorded verdict that in-place rebuild + deploy-rs rollback work 
 LXC on 26.05 — or, if not, a logged checkpoint to Ali on the fallback (not an autonomous switch).
 Grants / human actions: same possible CT-shell checkpoint as P1.
 
-### Phase 3 — convert `adguard-network` + set the new-CT default  (~1–2h)   `[ ]` not started
+### Phase 3 — convert `adguard-core` + set the new-CT default  (~1–2h)   `[x]` DONE (2026-09-04)
+> Pilot retargeted mid-flight from `adguard-network` (730, network node — grant-walled) to
+> **`adguard-core` (731, core node)** where the token self-provisions (Ali's call). Both are AdGuard
+> filters; clients use Technitium, so adguard is a survivable leftover.
 Steps:
 1. Author the real `hosts/lxc-adguard-network/` flake host: base module + `services.adguardhome`
    (service config now lives in Nix — the new surface vs the ops box where Arcane owned services),
@@ -174,3 +177,43 @@ Follow AGENTS.md as above.
   LLM-safety win) in question for containers. Upstream's tested baseline is NixOS 25.11 / PVE 9.1;
   **our pilot pins NixOS 26.05** to match the ops box, so the pilot also proves the path on 26.05
   before flipping the fleet. Pairs with SKY-008 ("Tofu makes the box, Nix defines it").
+- 2026-09-04 — **Phase 1 DONE** (PR pending). Flake path authored (`nix/modules/lxc-base.nix`,
+  `hosts/lxc-proof`, `packages.lxc-proof-tarball` → 261M tarball). **Decisive verdict: in-place
+  `nixos-rebuild switch` WORKS** on CT 9099 (unprivileged, nesting=1, `ostype=nixos`) — the 26.05
+  proxmox-lxc module already bakes in the historically-broken fixes; no `NIX_REMOTE=""` needed;
+  systemd healthy, generation advanced, `hello` marker applied. CT destroyed after. Surfaced +
+  recorded a **core-node blast-radius widening**: operate token gained `/vms`-root + AllocateTemplate
+  + SDN.Use + local-lvm AllocateSpace on core (self-provisioning; Unraid 2020 → VM-envelope reachable;
+  OPNsense/635/837 stay T3 on the network node) — PR'd to `docs/system-design.md` + shipped its
+  **ACL-audit gate** (collect-proxmox-acl.sh + invariants `operate_token_scope` + check-invariants #5,
+  guarding the bright lines: no Permissions.Modify / Sys node-root, /vms-root core-only). Cleared a
+  full `local` storage (0 avail) by deleting ~61G of stale vzdumps (all in PBS). P2 next: deploy-rs
+  magic-rollback round-trip in the container.
+- 2026-09-04 — **Phase 2 DONE** (PR pending, branch `feat/sky-021-nixos-lxc-p2`). Both container
+  open questions answered **YES**, on a fresh throwaway CT 9099 (token self-provisioned the id — the
+  P1 `/`-broaden means no ⚠ Ali mint). **(1) deploy-rs magic-rollback works in an unprivileged LXC:**
+  wired `deploy.nodes.lxc-proof` (magic+autoRollback, sshUser=root); trivial `deploy .#lxc-proof`
+  confirmed (gen 1→2, `hello` applied); an SSH-breaking deploy (sshd→2222) activated then **auto-
+  reverted** on confirmTimeout — `switching profile 3→2 → re-activate last generation` — SSH back on
+  :22, no bootloader involved. **(2) sops-nix decrypt-to-tmpfs works:** proven via the container's own
+  host-key age identity (`sshKeyPaths`, `ssh-to-age`) — `/run/secrets/…` on ramfs, 0400 root, plaintext
+  absent from /nix/store — **without** putting the lab master age key on a throwaway CT (§2 checkpoint).
+  So the chosen in-place `nixos-rebuild switch` + deploy-rs magic-rollback day-2 model **holds for
+  containers** — no ⚠ fallback checkpoint to Ali needed. Committed only the deploy node (sops wiring is
+  a P3 deliverable). **New P3 input:** age-key distribution to a pool CT is a real choice — lab-one-key
+  (needs the master key on the CT) vs host-key-derived (per-CT recipient, no crown-jewel spread). CT
+  9099 stopped; destroy held as a §6 checkpoint for Ali.
+- 2026-09-04 — **Phase 3 DONE** (PRs #162 Option C, #163 host+cutover, #164 ops network tools).
+  Resolved the P2 open question by implementing **Option C** (per-CT age identity, two-tier: lab key
+  → per-CT key committed lab-encrypted → service secrets dual-recipient; `scripts/ct-age-identity.sh`).
+  Pivoted the pilot to **adguard-core (731)** on core. Authored `hosts/lxc-adguard-core/` — a plain
+  `adguardhome` service fed a **sops-templated config rendered verbatim from live 731** (only the admin
+  bcrypt hash is a placeholder). **Live cutover:** stopped+destroyed old Debian 731, provisioned the
+  NixOS CT, injected the Option C key, `deploy .#lxc-adguard-core`. First deploy failed (systemd-resolved
+  held :53 → AdGuard couldn't bind → deploy-rs **auto-rolled-back**, the safety net working); fixed by
+  `services.resolved.enable = false`. Verified: resolve + `*.aliammar.net`/specific rewrites + ad-block
+  + admin auth all correct. Reclaimed the identity to **731/.31** (VMID↔IP law) per Ali; the destroy/
+  recreate churn left OPNsense with a **stale dynamic ARP** for .31 → fixed by pinning the CT's MAC to
+  the one OPNsense already cached (no firewall mutation). **Constitution PR'd:** new-CT default = NixOS
+  for pool-able LXCs (Debian only for T3-excluded/appliance). Also added dig & network-diagnostics tools
+  to the ops box (#164). SKY-021 complete → ready to archive.

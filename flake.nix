@@ -44,6 +44,32 @@
         ];
       };
 
+      # SKY-021 — the throwaway proof CT (Phase 1). Unprivileged proxmox-lxc; the tarball output
+      # below is the CT template. Its deploy-rs node (below) proved magic-rollback + sops-nix work in
+      # a container (Phase 2); the real service host gets its own flake host + deploy node in Phase 3.
+      nixosConfigurations.lxc-proof = nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = { inherit inputs; };
+        modules = [ ./hosts/lxc-proof ];
+      };
+
+      # `nix build .#lxc-proof-tarball` → the .tar.xz to upload as a Proxmox CT template
+      # (local:vztmpl/). The proxmox-lxc module exposes it as system.build.tarball.
+      packages.${system}.lxc-proof-tarball =
+        self.nixosConfigurations.lxc-proof.config.system.build.tarball;
+
+      # SKY-021 P3 — adguard-core (CT 731), the first real pool CT off the Debian community-script
+      # path. Its AdGuard config lives in Nix (rendered via a sops template); day-2 is deploy-rs
+      # magic-rollback (P2); secrets via Option C (per-CT age key). sops-nix module wired in here.
+      nixosConfigurations.lxc-adguard-core = nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = { inherit inputs; };
+        modules = [
+          sops-nix.nixosModules.sops
+          ./hosts/lxc-adguard-core
+        ];
+      };
+
       # deploy-rs day-2: magicRollback auto-reverts if it can't reconnect (~30s) — the decisive
       # feature for an LLM operator (a config that kills SSH self-heals instead of bricking).
       deploy.nodes.vm-skynet-ops = {
@@ -52,6 +78,34 @@
           user = "root";
           sshUser = "svc-ops";
           path = deploy-rs.lib.${system}.activate.nixos self.nixosConfigurations.vm-skynet-ops;
+          magicRollback = true;
+          autoRollback = true;
+        };
+      };
+
+      # SKY-021 P2 — the throwaway proof CT gets the SAME magic-rollback day-2 model, to answer the
+      # open question: does profile-switch + canary rollback work in a container (no bootloader)?
+      # sshUser=root here (the agent key is baked to root in lxc-base, not a separate svc-ops), so a
+      # config that kills SSH must self-heal within confirmTimeout instead of stranding the CT.
+      deploy.nodes.lxc-proof = {
+        hostname = "10.10.90.99";
+        profiles.system = {
+          user = "root";
+          sshUser = "root";
+          path = deploy-rs.lib.${system}.activate.nixos self.nixosConfigurations.lxc-proof;
+          magicRollback = true;
+          autoRollback = true;
+        };
+      };
+
+      # SKY-021 P3 — adguard-core (CT 731 @ 10.10.70.31) day-2 over deploy-rs. sshUser=root (the agent
+      # key is baked to root in lxc-base).
+      deploy.nodes.lxc-adguard-core = {
+        hostname = "10.10.70.31";
+        profiles.system = {
+          user = "root";
+          sshUser = "root";
+          path = deploy-rs.lib.${system}.activate.nixos self.nixosConfigurations.lxc-adguard-core;
           magicRollback = true;
           autoRollback = true;
         };

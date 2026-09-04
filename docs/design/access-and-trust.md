@@ -1,6 +1,6 @@
 ---
 summary: "The trust tiers in full — every token, ACL, principal, and the auto-expiring SSH root grant Skynet can request but never mint."
-tokens: 4320
+tokens: 4828
 ---
 
 # Spoke · Access & trust
@@ -53,6 +53,28 @@ The operate token is privilege-separated, so its effective rights are **user ∩
 
 `VM.Snapshot` + `VM.Snapshot.Rollback` power the snapshot-before-upgrade safety net;
 `VM.Backup` powers on-demand and update-run backups.
+
+### Core-node broaden — full guests/storage/network/pools (SKY-021)
+
+The block above is the **network-node** shape (pool-scoped). On the **core node only**, `OpsOperator`
+is broadened to the full provisioning set and bound at the ACL root `/`, so the agent self-provisions
+pool CTs (mint a new VMID without a human minting the shell) and owns core storage/SDN/pools day-2:
+
+```bash
+# core only — full VM.* / Datastore.* / SDN.* / Pool.* + Sys.Audit; bright lines held out.
+pveum role modify OpsOperator -privs "VM.Allocate,VM.Audit,VM.Backup,VM.Clone,VM.Config.CDROM,VM.Config.CPU,VM.Config.Cloudinit,VM.Config.Disk,VM.Config.HWType,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.Console,VM.GuestAgent.Audit,VM.GuestAgent.FileRead,VM.GuestAgent.FileSystemMgmt,VM.GuestAgent.FileWrite,VM.GuestAgent.Unrestricted,VM.Migrate,VM.PowerMgmt,VM.Replicate,VM.Snapshot,VM.Snapshot.Rollback,Datastore.Allocate,Datastore.AllocateSpace,Datastore.AllocateTemplate,Datastore.Audit,Pool.Allocate,Pool.Audit,SDN.Allocate,SDN.Audit,SDN.Use,Sys.Audit,Mapping.Audit,Mapping.Use"
+pveum acl modify / --users  'svc-ops@pve'         --roles OpsOperator   # privsep: bind BOTH sides
+pveum acl modify / --tokens 'svc-ops@pve!operate' --roles OpsOperator
+```
+
+**Two bright lines are held out and machine-enforced** — the token carries **no `Permissions.Modify`**
+(it can never rewrite its own leash) and **no `Sys.Modify` / `Sys.PowerMgmt` / `Sys.Console`** (no
+standing Proxmox node root). The ACL-audit gate (`scripts/collect-proxmox-acl.sh` snapshots the token's
+own effective perms → `inventory/proxmox-<node>-acl.json`; `invariants.json` `operate_token_scope` +
+`check-invariants.sh` assert it) **fails** if any bright-line priv ever appears, or if node-root
+`VM.Allocate` (`/` or `/vms`) shows up on any node other than the declared core. Widening either — the
+network node, or a bright line — is a `docs/system-design.md` PR (§2), never a silent `pveum`. Details:
+[system-design §2](../system-design.md) core-node exception.
 
 ## Proxmox provisioning access — `svc-tofu` (SKY-008)
 

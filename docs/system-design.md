@@ -125,6 +125,21 @@ can be moved openly rather than eroded quietly. **Widening any of them is a PR t
   Technitium zones. The pool set holds **two** pools today — *a current count, never a fixed law*;
   new pools join by PR here. (Details: [access-and-trust](design/access-and-trust.md),
   [network](design/network.md).)
+  - **Core-node exception (SKY-021).** On the **core** node only, the operate token holds its
+    `OpsOperator` role at the ACL root `/` — **full ownership of guests, storage, network, and pools**
+    (the complete `VM.*` / `Datastore.*` / `SDN.*` / `Pool.*` set + `Sys.Audit`), across every core
+    guest and new VMIDs. This buys agent **self-provisioning of pool CTs** (mint a new VMID without a
+    human minting the shell) plus day-2 ownership of core storage and SDN. It widens core's blast
+    radius past pool membership: it now reaches Unraid VM 2020 (see the pool-dial note) and the two
+    hand-built service CTs 731 (adguard-core) / 751 (technitium-core, the **secondary** resolver —
+    redundant, loss survivable) — both SKY-021 migration targets.
+    **Two bright lines are held out** even here, and machine-enforced by the ACL-audit
+    (`invariants.json` `operate_token_scope` + `check-invariants.sh`): **no `Permissions.Modify`**
+    (the agent can never rewrite its own leash) and **no `Sys.Modify` / `Sys.PowerMgmt` /
+    `Sys.Console`** (no standing Proxmox node root). It also does **not** grant Unraid/guest *OS root*
+    (still T3) — only the VM envelope. The **network node keeps pool-membership scoping** — OPNsense
+    5001, CT 635, CT 837 remain untouched (T3), and the gate fails if node-root VM allocation ever
+    appears there. Expands to the network node only by a later PR here, as autonomy earns it.
 - **The merge gate** = human merge, today — with **one** carve-out now taken: the agent
   auto-merges its **own nightly generated-only PRs** (every changed path under `inventory/`,
   `docs/generated/`, `journal/`, or matching `compose/*/.env.sops`) and **only** when CI is green.
@@ -195,11 +210,15 @@ principal — lives in [access-and-trust](design/access-and-trust.md); this is t
   firewall alias membership (add the controller to `ROLE_OPS_API_TARGETS` + its port to
   `PORT_OPS_API`), a T3 OPNsense change. (Landed by SKY-018 P4 — see
   [access-and-trust](design/access-and-trust.md).)
-- **Pool membership is the blast-radius dial.** Joining a guest to an `ops-managed` pool hands the
-  agent T2 over it; leaving it out keeps it look-but-don't-touch. **VM 5001 (OPNsense) never joins
-  any pool** — same for CT 635, CT 837, Unraid VM 2020. Never pooled, destroyed, or stopped by the
-  agent (T3); `svc-tofu`'s config-only `/vms` role (both nodes) can config-touch them (name/onboot/
-  cloud-init) but nothing heavier — never destroy/stop/re-disk/re-NIC. See [access-and-trust](design/access-and-trust.md).
+- **Pool membership is the blast-radius dial** — *on the network node.* Joining a guest to an
+  `ops-managed` pool hands the agent T2 over it; leaving it out keeps it look-but-don't-touch.
+  **VM 5001 (OPNsense) never joins any pool** — same for CT 635, CT 837. Never pooled, destroyed, or
+  stopped by the agent (T3); `svc-tofu`'s config-only `/vms` role (both nodes) can config-touch them
+  (name/onboot/cloud-init) but nothing heavier — never destroy/stop/re-disk/re-NIC.
+  On the **core node**, the dial is superseded by the operate token's root-`/` grant above
+  (SKY-021 — full guests/storage/network/pools): **Unraid VM 2020 is now agent-reachable at the VM
+  envelope** (create/config/power — not guest OS root, still T3). The self-leash set (5001/635/837) is
+  on the network node and stays T3. See [access-and-trust](design/access-and-trust.md).
 
 ## 4. The agent-agnostic contract
 
@@ -225,7 +244,7 @@ expansion has an admission procedure and a home spoke:
 |---|---|---|
 | **A new service** | `compose/<svc>/` → the [GitOps loop](design/gitops-loop.md); catalog it in `planning/services/` | gitops-loop |
 | **A new managed host** | Onboard to the CA (`onboard-host.sh`), decide pool membership (= its tier), land it in `inventory/` + `ROLE_OPS_SSH_TARGETS` | [access-and-trust](design/access-and-trust.md), [network](design/network.md) |
-| **A host's OS + config, declaratively** | Define it as a reviewed **NixOS flake** (`hosts/` + `nix/modules/`), `nix build` gated in CI. **In place on the ops VM** (SKY-007); any other host is a fresh directive gated on that evidence | [`nix/README.md`](../nix/README.md), SKY-007 |
+| **A host's OS + config, declaratively** | Define it as a reviewed **NixOS flake** (`hosts/` + `nix/modules/`), `nix build` gated in CI. Proven on the ops **VM** (SKY-007) and on a pool **LXC** (SKY-021: adguard-core). **NixOS is the default for a new pool-able CT** (deploy-rs day-2, Option C per-CT sops key); Debian stays only for T3-excluded/appliance CTs the agent can't own | [`nix/README.md`](../nix/README.md), SKY-007, SKY-021 |
 | **A managed guest, declaratively** | Declare it in `tofu/` as an OpenTofu resource; `tofu plan` diff reviewed in PR, `apply` after merge. Pool-scoped `svc-tofu` token — **no node root, no SSH** (SKY-008). `destroy` is a hard checkpoint, never auto-approved | [access-and-trust](design/access-and-trust.md), SKY-008 |
 | **A new `ops-managed` pool** | Widen the blast-radius **dial** by PR here, then create the pool with the operate ACLs | [access-and-trust](design/access-and-trust.md) |
 | **A new VLAN / segment** | Firewall aliases + rules, DNS zones, then hosts | [network](design/network.md) |
@@ -259,8 +278,12 @@ directives** — this section names the horizon and hands off.
   the box is now a reviewed **flake** (`hosts/` + `nix/modules/`), `nix build` gated in CI, deployed
   with deploy-rs (magic-rollback). Impermanence (tmpfs root), sops-nix secrets, and home-manager own
   the box. The old standing passwordless `sudo ALL` is **gone** — narrowed to least-privilege
-  (`aliammar`: `systemctl skynet-*` + password-gated wheel; `svc-ops`: deploy-activation only). Any
-  **other** host is still a fresh directive gated on this evidence. Details in [`nix/README.md`](../nix/README.md).
+  (`aliammar`: `systemctl skynet-*` + password-gated wheel; `svc-ops`: deploy-activation only).
+  **Extended to pool LXCs via [SKY-021](../planning/projects/SKY-021-nixos-in-lxc-prove-the-container-path-and-set-the-new-ct-default.md)**:
+  in-place `nixos-rebuild switch` + deploy-rs magic-rollback + sops-nix all work in an unprivileged
+  Proxmox LXC (proven on a throwaway, then adguard-core), with per-CT age identities (Option C,
+  [secrets](design/secrets.md)) so a container never holds the lab master key. **NixOS is now the
+  default for new pool-able CTs**; Debian only for T3-excluded/appliance CTs. Details in [`nix/README.md`](../nix/README.md).
 - **Declarative provisioning (OpenTofu)** — **landing via [SKY-008](../planning/projects/SKY-008-opentofu-provisioning-layer-vm-and-ct-lifecycle-plus-dns.md)**:
   in-pool VM/CT lifecycle declared as OpenTofu resources (`tofu/`), driven by a **pool-scoped
   `svc-tofu` API token** (privilege-separated, no node root, no SSH). `tofu plan` is the reviewable

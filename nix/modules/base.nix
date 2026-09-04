@@ -44,6 +44,18 @@
     openssl # pin-cert.sh + TLS pinning
     netcat # reachability probes in a few scripts
     opentofu
+
+    # Network diagnostics — the agent operates DNS/firewall/VLAN infra (SKY-005 recon/diagnosis,
+    # SKY-020/021), so dig & friends are standing tools, not one-off `nix run`s.
+    dnsutils # dig, nslookup
+    ldns # drill (DNSSEC-aware dig alternative)
+    mtr # traceroute+ping combined path diagnosis
+    traceroute
+    nmap # ncat + port/host scans for reachability triage
+    tcpdump # packet capture when a probe isn't enough
+    whois
+    socat # bidirectional relays / socket poking
+    iperf3 # throughput between hosts
   ];
 
   # Arcane (on docker-dmz) owns the services; NixOS owns the daemon. The ops VM runs the
