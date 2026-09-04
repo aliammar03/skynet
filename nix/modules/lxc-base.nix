@@ -39,5 +39,10 @@ in
   };
   users.users.root.openssh.authorizedKeys.keys = [ agentKey ];
 
+  # Root autologin on the container console (the Proxmox webshell / `pct console`), matching the old
+  # Debian community-script CTs. Not a remote path — console access already implies node control;
+  # sshd stays key-only above.
+  services.getty.autologinUser = "root";
+
   environment.systemPackages = with pkgs; [ git vim jq curl ];
 }
