@@ -6,7 +6,7 @@ horizon: short
 created: 2026-09-03
 updated: 2026-09-04
 phases: 3
-current_phase: 1
+current_phase: 2
 tier_touched: [T2]     # reprovisions a pool CT (T2 destroy/recreate) + sets a new-CT default
                        # policy → the plan MUST PR docs/system-design.md (the constitution).
 related:
@@ -104,7 +104,7 @@ whether in-place `nixos-rebuild switch` reliably applies changes on our stack �
 for the chosen in-place model, which Phase 2 then hardens with deploy-rs rollback.
 Grants / human actions: ⚠ possibly Ali mints the empty CT shell (pool-scoped `VM.Allocate` limit).
 
-### Phase 2 — deploy-rs round-trip + pick the day-2 model  (~1–2h)   `[ ]` not started
+### Phase 2 — deploy-rs round-trip + pick the day-2 model  (~1–2h)   `[x]` DONE (2026-09-04)
 Steps:
 1. On a fresh throwaway CT from the P1 template, wire **deploy-rs** and attempt the magic-rollback
    round-trip proven on the VM in SKY-007 1c (trivial deploy confirmed → an SSH-breaking change
@@ -186,3 +186,17 @@ Follow AGENTS.md as above.
   guarding the bright lines: no Permissions.Modify / Sys node-root, /vms-root core-only). Cleared a
   full `local` storage (0 avail) by deleting ~61G of stale vzdumps (all in PBS). P2 next: deploy-rs
   magic-rollback round-trip in the container.
+- 2026-09-04 — **Phase 2 DONE** (PR pending, branch `feat/sky-021-nixos-lxc-p2`). Both container
+  open questions answered **YES**, on a fresh throwaway CT 9099 (token self-provisioned the id — the
+  P1 `/`-broaden means no ⚠ Ali mint). **(1) deploy-rs magic-rollback works in an unprivileged LXC:**
+  wired `deploy.nodes.lxc-proof` (magic+autoRollback, sshUser=root); trivial `deploy .#lxc-proof`
+  confirmed (gen 1→2, `hello` applied); an SSH-breaking deploy (sshd→2222) activated then **auto-
+  reverted** on confirmTimeout — `switching profile 3→2 → re-activate last generation` — SSH back on
+  :22, no bootloader involved. **(2) sops-nix decrypt-to-tmpfs works:** proven via the container's own
+  host-key age identity (`sshKeyPaths`, `ssh-to-age`) — `/run/secrets/…` on ramfs, 0400 root, plaintext
+  absent from /nix/store — **without** putting the lab master age key on a throwaway CT (§2 checkpoint).
+  So the chosen in-place `nixos-rebuild switch` + deploy-rs magic-rollback day-2 model **holds for
+  containers** — no ⚠ fallback checkpoint to Ali needed. Committed only the deploy node (sops wiring is
+  a P3 deliverable). **New P3 input:** age-key distribution to a pool CT is a real choice — lab-one-key
+  (needs the master key on the CT) vs host-key-derived (per-CT recipient, no crown-jewel spread). CT
+  9099 stopped; destroy held as a §6 checkpoint for Ali.

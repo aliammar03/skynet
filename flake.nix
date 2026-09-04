@@ -45,7 +45,8 @@
       };
 
       # SKY-021 — the throwaway proof CT (Phase 1). Unprivileged proxmox-lxc; the tarball output
-      # below is the CT template. deploy-rs/sops-nix get wired for the real service host in Phase 3.
+      # below is the CT template. Its deploy-rs node (below) proved magic-rollback + sops-nix work in
+      # a container (Phase 2); the real service host gets its own flake host + deploy node in Phase 3.
       nixosConfigurations.lxc-proof = nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = { inherit inputs; };
@@ -65,6 +66,21 @@
           user = "root";
           sshUser = "svc-ops";
           path = deploy-rs.lib.${system}.activate.nixos self.nixosConfigurations.vm-skynet-ops;
+          magicRollback = true;
+          autoRollback = true;
+        };
+      };
+
+      # SKY-021 P2 — the throwaway proof CT gets the SAME magic-rollback day-2 model, to answer the
+      # open question: does profile-switch + canary rollback work in a container (no bootloader)?
+      # sshUser=root here (the agent key is baked to root in lxc-base, not a separate svc-ops), so a
+      # config that kills SSH must self-heal within confirmTimeout instead of stranding the CT.
+      deploy.nodes.lxc-proof = {
+        hostname = "10.10.90.99";
+        profiles.system = {
+          user = "root";
+          sshUser = "root";
+          path = deploy-rs.lib.${system}.activate.nixos self.nixosConfigurations.lxc-proof;
           magicRollback = true;
           autoRollback = true;
         };
