@@ -14,7 +14,7 @@ let
 in
 {
   imports = [
-    ./shell.nix # zsh + starship + tooling + the login landing board
+    (import ./shell.nix { }) # zsh + starship + tooling + the login landing board (ops VM defaults)
     ./docker.nix # the docker-dmz remote context for collect-docker.sh
   ];
 

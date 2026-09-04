@@ -1,10 +1,11 @@
 { pkgs, inputs, ... }:
-# aliammar's home on lxc-athena — the DEV SANDBOX twin of nix/home/aliammar.nix. Same agent-CLI
-# stack (claude-code / codex / opencode + mcp-nixos) so "the agents are set up like the ops VM",
-# but WITHOUT the ops-VM couplings: no docker-dmz remote context, no OPS_ENGINE nightly selector,
-# and the git identity is Ali's own (this box authors nothing on Skynet's behalf — it has no lab
-# authority). Provider auth for claude/codex is a one-time interactive OAuth login by Ali; the gh
-# token is seeded from sops (see hosts/lxc-athena/default.nix) and exported as GH_TOKEN below.
+# aliammar's home on lxc-athena — the OBSIDIAN VAULT LIBRARIAN. Same agent-CLI stack as the ops VM
+# (claude-code / codex / opencode + mcp-nixos) and the SAME interactive shell (nix/home/shell.nix),
+# but landing in the vault working dir ~/athena with a minimal nix-focused board — not the ops repo.
+# No ops-VM couplings (no docker-dmz context, no OPS_ENGINE selector) and no lab authority: this box
+# curates the vault, it doesn't operate Skynet. The git identity is Ali's own; provider auth for
+# claude/codex is a one-time interactive OAuth login; the gh token is seeded from sops (see
+# hosts/lxc-athena/default.nix) and exported as GH_TOKEN below.
 let
   # Fast-moving agent CLIs ride nixpkgs-unstable (bump that input to update them); the CT stays on
   # stable 26.05. allowUnfree: claude-code / antigravity are unfree.
@@ -14,22 +15,20 @@ let
   };
 in
 {
+  # The ops VM's shell verbatim (zsh + starship + tooling), but a login lands in the vault dir with
+  # a minimal nix-focused board instead of the ops repo + ops board.
+  imports = [ (import ./shell.nix { landingDir = "$HOME/athena"; motdSource = ./athena-motd.sh; }) ];
+
   home.username = "aliammar";
   home.homeDirectory = "/home/aliammar";
   home.stateVersion = "26.05";
 
-  # A usable interactive shell for the dev box (the ops VM's shell.nix carries the ops landing board;
-  # a sandbox doesn't need it). GH_TOKEN is sourced from the sops-decrypted secret when present, so
-  # both `gh` and the `gh auth git-credential` helper below authenticate with no hosts.yml dance.
-  programs.zsh = {
-    enable = true;
-    # .zshenv (not .zshrc): sourced by every zsh — interactive, login, and non-interactive — so
-    # GH_TOKEN is present for git/gh subprocesses too, and children inherit it from the login shell.
-    envExtra = ''
-      [ -r /run/secrets/gh-token ] && export GH_TOKEN="$(cat /run/secrets/gh-token)"
-    '';
-  };
-  programs.starship.enable = true;
+  # GH_TOKEN from the sops-decrypted secret, in .zshenv so every zsh (interactive, login, and
+  # non-interactive git/gh subprocesses) sees it and login-shell children inherit it. Both `gh` and
+  # the `gh auth git-credential` helper below authenticate with no hosts.yml dance.
+  programs.zsh.envExtra = ''
+    [ -r /run/secrets/gh-token ] && export GH_TOKEN="$(cat /run/secrets/gh-token)"
+  '';
 
   # Ali's own git identity (not the Skynet-OPS bot). Auth to GitHub via the seeded gh token, same
   # credential helper as the ops VM.
