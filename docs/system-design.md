@@ -125,16 +125,21 @@ can be moved openly rather than eroded quietly. **Widening any of them is a PR t
   Technitium zones. The pool set holds **two** pools today — *a current count, never a fixed law*;
   new pools join by PR here. (Details: [access-and-trust](design/access-and-trust.md),
   [network](design/network.md).)
-  - **Core-node exception (SKY-021).** On the **core** node only, the operate token additionally
-    holds its `OpsOperator` role at the `/vms` root — VM-level create/config/power over *every core
-    guest* + new VMIDs. This buys agent **self-provisioning of pool CTs** (mint a new VMID without a
-    human minting the shell). It widens core's blast radius past pool membership: it now reaches
-    Unraid VM 2020 (see the pool-dial note), and the two hand-built service CTs 731 (adguard-core) /
-    751 (technitium-core, the **secondary** resolver — redundant, loss survivable) — both SKY-021
-    migration targets. It does **not**
-    grant Unraid/guest *OS root* (still T3), only VM-envelope ops. The **network node keeps
-    pool-membership scoping** — OPNsense 5001, CT 635, CT 837 remain untouched (T3). Expands to the
-    network node only by a later PR here, as autonomy earns it.
+  - **Core-node exception (SKY-021).** On the **core** node only, the operate token holds its
+    `OpsOperator` role at the ACL root `/` — **full ownership of guests, storage, network, and pools**
+    (the complete `VM.*` / `Datastore.*` / `SDN.*` / `Pool.*` set + `Sys.Audit`), across every core
+    guest and new VMIDs. This buys agent **self-provisioning of pool CTs** (mint a new VMID without a
+    human minting the shell) plus day-2 ownership of core storage and SDN. It widens core's blast
+    radius past pool membership: it now reaches Unraid VM 2020 (see the pool-dial note) and the two
+    hand-built service CTs 731 (adguard-core) / 751 (technitium-core, the **secondary** resolver —
+    redundant, loss survivable) — both SKY-021 migration targets.
+    **Two bright lines are held out** even here, and machine-enforced by the ACL-audit
+    (`invariants.json` `operate_token_scope` + `check-invariants.sh`): **no `Permissions.Modify`**
+    (the agent can never rewrite its own leash) and **no `Sys.Modify` / `Sys.PowerMgmt` /
+    `Sys.Console`** (no standing Proxmox node root). It also does **not** grant Unraid/guest *OS root*
+    (still T3) — only the VM envelope. The **network node keeps pool-membership scoping** — OPNsense
+    5001, CT 635, CT 837 remain untouched (T3), and the gate fails if node-root VM allocation ever
+    appears there. Expands to the network node only by a later PR here, as autonomy earns it.
 - **The merge gate** = human merge, today — with **one** carve-out now taken: the agent
   auto-merges its **own nightly generated-only PRs** (every changed path under `inventory/`,
   `docs/generated/`, `journal/`, or matching `compose/*/.env.sops`) and **only** when CI is green.
@@ -210,10 +215,10 @@ principal — lives in [access-and-trust](design/access-and-trust.md); this is t
   **VM 5001 (OPNsense) never joins any pool** — same for CT 635, CT 837. Never pooled, destroyed, or
   stopped by the agent (T3); `svc-tofu`'s config-only `/vms` role (both nodes) can config-touch them
   (name/onboot/cloud-init) but nothing heavier — never destroy/stop/re-disk/re-NIC.
-  On the **core node**, the dial is superseded by the operate token's `/vms`-root grant above
-  (SKY-021): **Unraid VM 2020 is now agent-reachable at the VM envelope** (create/config/power — not
-  guest OS root, still T3). The self-leash set (5001/635/837) is on the network node and stays T3.
-  See [access-and-trust](design/access-and-trust.md).
+  On the **core node**, the dial is superseded by the operate token's root-`/` grant above
+  (SKY-021 — full guests/storage/network/pools): **Unraid VM 2020 is now agent-reachable at the VM
+  envelope** (create/config/power — not guest OS root, still T3). The self-leash set (5001/635/837) is
+  on the network node and stays T3. See [access-and-trust](design/access-and-trust.md).
 
 ## 4. The agent-agnostic contract
 
