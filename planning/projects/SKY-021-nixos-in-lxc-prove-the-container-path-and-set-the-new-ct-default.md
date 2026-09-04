@@ -1,10 +1,10 @@
 ---
 id: SKY-021
 title: NixOS-in-LXC: prove the container path and set the new-CT default
-status: draft
+status: in-progress
 horizon: short
 created: 2026-09-03
-updated: 2026-09-03
+updated: 2026-09-04
 phases: 3
 current_phase: 0
 tier_touched: [T2]     # reprovisions a pool CT (T2 destroy/recreate) + sets a new-CT default
