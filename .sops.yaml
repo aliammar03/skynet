@@ -8,6 +8,18 @@ creation_rules:
   # recipient; the *.sops suffix keeps it out of the plaintext-secret scanners.
   - path_regex: compose/cloudflared/credentials\.json\.sops$
     age: age1stah9c426pq0xf3k4qc58e92vs263lf6uvze2f6nmx84nvk86cusfgexyw
+  # SKY-021 Option C — a pool CT's own age PRIVATE key (bootstrap secret): lab key ONLY, injected at
+  # provision so the CT can decrypt its service secrets. Must precede the generic secrets/ rule below.
+  # (scripts/ct-age-identity.sh mints these; the two-tier hierarchy is documented there.)
+  - path_regex: secrets/[^/]+-age\.key\.sops$
+    age: age1stah9c426pq0xf3k4qc58e92vs263lf6uvze2f6nmx84nvk86cusfgexyw
+  # SKY-021 Option C — a pool CT's SERVICE secrets: DUAL-recipient (lab key so ops/Ali can always
+  # decrypt; the CT's own recipient so sops-nix decrypts at activation). One block per host, its
+  # public recipient inlined (from secrets/<host>-age.pub). Precedes the generic rule (first match wins).
+  - path_regex: secrets/lxc-adguard-core/.*\.sops$
+    age: >-
+      age1stah9c426pq0xf3k4qc58e92vs263lf6uvze2f6nmx84nvk86cusfgexyw,
+      age1vr4fpg7tgegx6vgv5z5hqdfnqq9pmdf2sj3euzkesken0prcyupszj4k7k
   # SKY-007: host secrets for the ops VM, consumed by sops-nix (decrypt-to-tmpfs).
   # Also covers SKY-008 tofu secrets (tofu-passphrase.sops, tofu-proxmox.env.sops).
   - path_regex: secrets/.*\.sops$
