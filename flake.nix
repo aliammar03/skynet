@@ -70,9 +70,10 @@
         ];
       };
 
-      # lxc-athena (CT 10030 @ 10.10.100.30, VLAN 100/DMZ) — coding-agent dev sandbox. Same lean
-      # pool-CT spine as adguard, plus home-manager carrying the agent CLIs (nix/home/athena.nix) and
-      # sops-nix for the seeded gh token. No lab authority (see hosts/lxc-athena/default.nix).
+      # lxc-athena (CT 10030 @ 10.10.100.30, VLAN 100/DMZ) — the Obsidian vault librarian: a
+      # coding-agent box (nix/home/athena.nix) that curates Ali's vault. Same lean pool-CT spine as
+      # adguard, plus home-manager for the agent CLIs and sops-nix for the seeded gh token. No lab
+      # authority (see hosts/lxc-athena/default.nix).
       nixosConfigurations.lxc-athena = nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = { inherit inputs; };

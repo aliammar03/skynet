@@ -1,9 +1,10 @@
 { config, lib, pkgs, ... }:
-# lxc-athena (CT 10030 @ 10.10.100.30, VLAN 100 / DMZ) — a coding-agent DEV SANDBOX. Claude Code,
-# Codex and opencode set up like the ops VM (nix/home/athena.nix), on the lean pool-CT spine
-# (lxc-base: nix/flakes, the agent SSH key for deploy-rs day-2, sshd key-only). By contract this box
-# has NO lab authority: no svc-ops operate tokens, no grant-root CA trust, no Proxmox/DNS/firewall
-# reach — it builds code, it doesn't operate Skynet. Provision + rollback: runbooks/provision-lxc.md.
+# lxc-athena (CT 10030 @ 10.10.100.30, VLAN 100 / DMZ) — the OBSIDIAN VAULT LIBRARIAN: a coding-agent
+# box (Claude Code / Codex / opencode, set up like the ops VM — nix/home/athena.nix) that curates
+# Ali's Obsidian vault under ~/athena. Built on the lean pool-CT spine (lxc-base: nix/flakes, the
+# agent SSH key for deploy-rs day-2, sshd key-only). By contract it has NO lab authority: no svc-ops
+# operate tokens, no grant-root CA trust, no Proxmox/DNS/firewall reach — it tends the vault, it
+# doesn't operate Skynet. Provision + rollback: runbooks/provision-lxc.md.
 {
   imports = [ ../../nix/modules/lxc-base.nix ];
 
@@ -18,21 +19,26 @@
   # zsh as a system shell so aliammar's login shell can be zsh (per-user config in nix/home/athena.nix).
   programs.zsh.enable = true;
 
-  # The dev operator. Declarative-only (mutableUsers=false) to match the flake-is-truth model. This
-  # is a sandbox with no lab creds on the box, so wheel is passwordless — the convenience is bought
-  # with the box holding nothing worth stealing (no tokens, no CA trust). Ali logs in with his
-  # workstation key; the console autologs in as aliammar (overriding lxc-base's root autologin).
+  # The librarian operator. Declarative-only (mutableUsers=false) to match the flake-is-truth model.
+  # No lab creds live on this box, so wheel is passwordless — the convenience is bought with the box
+  # holding nothing worth stealing (no tokens, no CA trust). Ali logs in with his workstation key;
+  # the console autologs in as aliammar (overriding lxc-base's root autologin).
   users.mutableUsers = false;
   users.users.aliammar = {
     isNormalUser = true;
-    description = "Ali — dev sandbox";
+    description = "Ali — Obsidian vault librarian";
     shell = pkgs.zsh;
     extraGroups = [ "wheel" ];
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMY3q277EOHizg5Ji/WUU7WvUi4X/ezbRPebk65lQVBJ aliammar@RK-W"
     ];
   };
-  security.sudo.wheelNeedsPassword = false; # sandbox: no password on the box, so no password gate
+  security.sudo.wheelNeedsPassword = false; # no password on the box, so no password gate
+
+  # The vault working dir a login lands in (nix/home/shell.nix cd's here). Created empty; the vault
+  # itself is synced/curated at runtime.
+  systemd.tmpfiles.rules = [ "d /home/aliammar/athena 0755 aliammar users -" ];
+
   services.getty.autologinUser = lib.mkForce "aliammar";
 
   # Option C: this CT's age identity, injected to keyFile at provision (before the first deploy).
