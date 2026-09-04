@@ -284,13 +284,20 @@ directives** — this section names the horizon and hands off.
   Proxmox LXC (proven on a throwaway, then adguard-core), with per-CT age identities (Option C,
   [secrets](design/secrets.md)) so a container never holds the lab master key. **NixOS is now the
   default for new pool-able CTs**; Debian only for T3-excluded/appliance CTs. Details in [`nix/README.md`](../nix/README.md).
-- **Declarative provisioning (OpenTofu)** — **landing via [SKY-008](../planning/projects/SKY-008-opentofu-provisioning-layer-vm-and-ct-lifecycle-plus-dns.md)**:
-  in-pool VM/CT lifecycle declared as OpenTofu resources (`tofu/`), driven by a **pool-scoped
-  `svc-tofu` API token** (privilege-separated, no node root, no SSH). `tofu plan` is the reviewable
-  diff; `apply` runs after human merge; `destroy` is a hard checkpoint. State is local on the ops VM,
-  encrypted with OpenTofu native PBKDF2 (passphrase in sops). Provider: `bpg/proxmox` (API-native
-  cloud-init only — the SSH-snippet path is deliberately unconfigured). Tofu makes the box exist;
-  NixOS (SKY-007) defines what's on it. See [access-and-trust](design/access-and-trust.md).
+- **Declarative provisioning (OpenTofu)** — **[SKY-008](../planning/projects/SKY-008-opentofu-provisioning-layer-vm-and-ct-lifecycle-plus-dns.md)**,
+  extended by **[SKY-024](../planning/projects/SKY-024-tofu-declares-all-pool-guests-api-driven-ct-vm-lifecycle-no-node-ssh.md)**:
+  VM/CT lifecycle declared as OpenTofu resources (`tofu/`), including **fresh create** from a NixOS
+  vztmpl — proven API-only (`tofu apply` makes the box, deploy-rs specializes it). SKY-024 **retired
+  the svc-tofu split**: tofu now runs as the **one operator token per node** (`svc-ops!operate`, the
+  same identity as imperative ops) — one token that declares *and* fixes, no per-capability grant
+  dance. **Core** is `/`-broadened (can mint VMIDs); **network stays pool-scoped** — OPNsense (the
+  firewall enforcing the agent's own leash) lives there, so `/vms`-root envelope-destroy over it is off
+  by the same "never widen your own leash" law (machine-checked: `vms_root_nodes=[core]`). The three
+  bright lines stay off even this token: **no `Permissions.Modify`, no `Sys.*` node root, no node SSH**
+  — API-native only (bpg needs SSH only for snippets/idmap/local-file imports, which our shape doesn't
+  use). `tofu plan` is the reviewable diff; `apply` after human merge; `destroy` a hard checkpoint.
+  State local on the ops VM, PBKDF2-encrypted (passphrase in sops). Tofu makes the box exist; NixOS
+  (SKY-007) defines what's on it. See [access-and-trust](design/access-and-trust.md).
 - **A secrets vault beyond sops+age** — an external backend (Vault / Infisical-class) if the
   service count outgrows file-level sops. Migration path sketched in [secrets](design/secrets.md).
 - **SSO / authentication** — Authentik graduating out of T3 into something the agent can operate
