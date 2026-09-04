@@ -14,7 +14,7 @@ GRN=$(e '38;2;166;218;149')  # green  — clean / actions
 
 host=$(cat /proc/sys/kernel/hostname 2>/dev/null || echo '?')
 ip=$(hostname -I 2>/dev/null | awk '{print $1}')
-osver=$(cut -d. -f1-2 /run/current-system/nixos-version 2>/dev/null)
+osver=$(grep -oE '[0-9]+\.[0-9]+' /run/current-system/nixos-version 2>/dev/null | head -1)
 gen=$(readlink /nix/var/nix/profiles/system 2>/dev/null | grep -oE '[0-9]+' | head -1)
 up=$(awk '{s=int($1);h=int((s%86400)/3600);m=int((s%3600)/60);d=int(s/86400);
   if(d>0)printf "%dd %dh",d,h; else if(h>0)printf "%dh %dm",h,m; else printf "%dm",m}' /proc/uptime 2>/dev/null)
