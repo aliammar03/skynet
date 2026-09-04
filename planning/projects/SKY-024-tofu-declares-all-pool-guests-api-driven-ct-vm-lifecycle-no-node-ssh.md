@@ -6,7 +6,7 @@ horizon: short
 created: 2026-09-04
 updated: 2026-09-04
 phases: 3
-current_phase: 2
+current_phase: 3
 tier_touched: [T2, T3]   # T3: consolidating the agent's Proxmox identity (tofu → operate token) +
                          # a network-node pveum → the plan MUST PR docs/system-design.md.
 related:
@@ -117,7 +117,7 @@ Steps:
 Exit criteria: adguard-core's envelope is tofu-declared with a clean plan; the end-to-end runbook is
 documented and reproducible.
 
-### Phase 3 — generalize (module + VMs)  (~1–2h)   `[ ]` not started
+### Phase 3 — generalize (module + VMs)  (~1–2h)   `[x]` DONE (2026-09-04)
 Steps:
 1. Extract a small `for_each` module so a new pool guest is a **data entry** (name/vlan/octet/resources)
    — VMID derived by the naming law, MAC pinned, wired to its flake host.
@@ -164,6 +164,16 @@ Follow AGENTS.md as above.
   the envelope, deploy-rs owns the inside, one token, no node SSH. Constitution + invariants.json updated;
   check-invariants green. Throwaway .tf removed (adguard-core is the Phase-2 committed reference).
   Follow-up: Ali can deactivate the now-unused svc-tofu tokens + we can drop the tofu-proxmox*.sops secrets.
+- 2026-09-04 — **Phase 3 DONE (SKY-024 COMPLETE)** (branch `feat/sky-024-p3`). Built the `for_each`
+  module `tofu/pool-cts.tf`: a `local.pool_cts` map (`{vmid,node,vlan,octet,mac,cores,memory,swap,disk,
+  tags}` per guest) → one `proxmox_virtual_environment_container "pool_ct"` for_each. **A new pool CT is
+  now one data entry** (+ a flake host + a PR). `mac` is a required field → pinning is structural, the
+  ARP footgun can't recur. Migrated adguard-core into it via a `moved {}` block (state rename, **0 infra
+  change** — verified live: DNS rewrite + ad-block still answer). Removed the standalone
+  `lxc-adguard-core.tf`. Migration candidates (technitium-core/omada/authentik) are commented one-block
+  adds in the map. **VMs deferred:** a for_each VM module for the single pool VM (docker-dmz) adds no
+  value — VMs stay per-file until there are several (the directive's "where it adds value"). Runbook
+  `provision-lxc.md` updated to the data-entry flow. Retire the whole SKY-024 arc → archive after merge.
 - 2026-09-04 — **Phase 2 DONE** (same branch/PR #168, Ali's "go ahead in the same pr"). adguard-core
   (CT 731) is now the tofu reference: `tofu/lxc-adguard-core.tf` **zero-drift imported** (MAC pinned in
   code — `network_interface.mac_address` round-trips, so it's declarative now). Import needed the console
