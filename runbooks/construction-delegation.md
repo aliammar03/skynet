@@ -62,12 +62,16 @@ bin/agent <scout|builder|mechanic|lead> "<prompt>" --dry-run
 # then for real (drop --dry-run). --hard promotes a lead Terra→Sol.
 bin/agent scout   "<read-only investigation prompt>"
 bin/agent builder "<bounded-logic prompt>"
+# Only an exact registered worktree of this repository is accepted as an alternate root:
+bin/agent builder "<parallel-writer prompt>" --cwd /path/to/skynet-worktree
 ```
 
 - `bin/agent` runs a `codex exec` process, sandboxed to the role. The transcript streams to
   **stderr**; the helper's **final report is on stdout**. Wait on process exit, not on output bytes.
 - If the lead session is itself Codex, prefer **native in-session** delegation (the `.codex/agents/`
   definitions enforce the ≤2 cap); `bin/agent` is the standalone mirror for any other lead engine.
+- `--cwd` fails closed for plain directories, unrelated repositories, and worktree subdirectories;
+  this keeps every helper inside the Skynet construction boundary.
 - **The helper's "done" is a claim to verify, never a merge signal.** Re-check every `file:line` a
   scout cites; read a writer's full diff; run the gates **yourself**
   (`./scripts/check-invariants.sh`, the relevant `tests/*-test.sh`). Prove a new gate actually

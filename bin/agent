@@ -15,7 +15,7 @@
 # level only — a helper launched here never launches its own helper.
 set -euo pipefail
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_DIR="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
 die() { echo "agent: $*" >&2; exit 1; }
 
@@ -31,11 +31,46 @@ while [ $# -gt 0 ]; do case "$1" in
   *) die "unknown flag '$1' (--hard | --cwd <dir> | --dry-run)";;
 esac; shift; done
 
-# Root the run at a worktree if --cwd was given, else the main checkout. Git is the only isolation.
+# Root the run at a registered worktree if --cwd was given, else the main checkout. Git is the only
+# isolation: accepting an arbitrary directory would let a helper escape the repository contract.
 workdir="${REPO_DIR}"
 if [ -n "${cwd}" ]; then
   [ -d "${cwd}" ] || die "--cwd '${cwd}' is not a directory"
-  workdir="$(cd "${cwd}" && pwd)"
+  workdir="$(cd -P "${cwd}" && pwd -P)"
+
+  # A usable --cwd is precisely a root listed by this repository's worktree registry, with the
+  # same common Git directory. The top-level check rejects a subdirectory; the common-dir check
+  # rejects an unrelated repository; the registry check rejects an ordinary directory or a
+  # lookalike Git checkout.
+  repo_common_dir="$(git -C "${REPO_DIR}" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" \
+    || die "cannot determine this repository's Git common directory"
+  repo_common_dir="$(cd -P "${repo_common_dir}" && pwd -P)" \
+    || die "cannot resolve this repository's Git common directory"
+
+  candidate_root="$(git -C "${workdir}" rev-parse --show-toplevel 2>/dev/null)" \
+    || die "--cwd must be a registered Git worktree root for this repository"
+  candidate_root="$(cd -P "${candidate_root}" && pwd -P)" \
+    || die "--cwd must be a registered Git worktree root for this repository"
+  [ "${candidate_root}" = "${workdir}" ] \
+    || die "--cwd must be a registered Git worktree root for this repository"
+
+  candidate_common_dir="$(git -C "${workdir}" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" \
+    || die "--cwd must be a registered Git worktree root for this repository"
+  candidate_common_dir="$(cd -P "${candidate_common_dir}" && pwd -P)" \
+    || die "--cwd must be a registered Git worktree root for this repository"
+  [ "${candidate_common_dir}" = "${repo_common_dir}" ] \
+    || die "--cwd must be a registered Git worktree root for this repository"
+
+  registered=0
+  while IFS= read -r registered_root; do
+    registered_root="$(cd -P "${registered_root}" 2>/dev/null && pwd -P)" || continue
+    if [ "${registered_root}" = "${workdir}" ]; then
+      registered=1
+      break
+    fi
+  done < <(git -C "${REPO_DIR}" worktree list --porcelain | sed -n 's/^worktree //p')
+  [ "${registered}" = 1 ] \
+    || die "--cwd must be a registered Git worktree root for this repository"
 fi
 cd "${workdir}"
 

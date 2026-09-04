@@ -142,6 +142,9 @@ Use Codex's own subagent support — do not build a scheduler around it. `[manua
   a lead-managed session usually needs none. Reach for `git worktree` only when two independent
   writers genuinely need separate filesystem state. Git is the isolation mechanism — SKY-022 builds
   no worktree manager. Place a helper in a worktree with `bin/agent <role> "<prompt>" --cwd <worktree>`.
+  `bin/agent` fails closed unless `<worktree>` is an exact registered worktree root belonging to this
+  repository; a plain directory, unrelated checkout, or worktree subdirectory is outside the
+  construction leash.
   **Helpers write; the lead commits.** A `workspace-write` sandbox rooted at a worktree cannot write
   that worktree's git metadata (it lives under the *main* repo's `.git/worktrees/<name>/`, outside the
   sandbox), so a helper physically cannot commit there — which is the cleaner trust story: the helper
