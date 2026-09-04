@@ -20,11 +20,6 @@ creation_rules:
     age: >-
       age1stah9c426pq0xf3k4qc58e92vs263lf6uvze2f6nmx84nvk86cusfgexyw,
       age1vr4fpg7tgegx6vgv5z5hqdfnqq9pmdf2sj3euzkesken0prcyupszj4k7k
-  # SKY — lxc-athena (dev sandbox CT) service secrets: DUAL-recipient (lab key + the CT's own key).
-  - path_regex: secrets/lxc-athena/.*\.sops$
-    age: >-
-      age1stah9c426pq0xf3k4qc58e92vs263lf6uvze2f6nmx84nvk86cusfgexyw,
-      age1xvk8tlpytnusgt86g6rnynza3mzxqyfcrrr5aeqxmj7r76zjuydszczt2x
   # SKY-007: host secrets for the ops VM, consumed by sops-nix (decrypt-to-tmpfs).
   # Also covers the SKY-008 tofu state passphrase (tofu-passphrase.sops).
   - path_regex: secrets/.*\.sops$

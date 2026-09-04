@@ -73,12 +73,12 @@
       # lxc-athena (CT 10030 @ 10.10.100.30, VLAN 100/DMZ) — the Obsidian vault librarian: a
       # coding-agent box (nix/home/athena.nix) that curates Ali's vault. Same lean pool-CT spine as
       # adguard, plus home-manager for the agent CLIs and sops-nix for the seeded gh token. No lab
-      # authority (see hosts/lxc-athena/default.nix).
+      # authority (see hosts/lxc-athena/default.nix). No sops-nix: the box holds no secrets (git/gh
+      # auth is interactive) — re-add it here if the vault ever needs one.
       nixosConfigurations.lxc-athena = nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = { inherit inputs; };
         modules = [
-          sops-nix.nixosModules.sops
           inputs.home-manager.nixosModules.home-manager
           {
             home-manager.useGlobalPkgs = true;

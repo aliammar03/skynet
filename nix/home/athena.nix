@@ -3,9 +3,9 @@
 # (claude-code / codex / opencode + mcp-nixos) and the SAME interactive shell (nix/home/shell.nix),
 # but landing in the vault working dir ~/athena with a minimal nix-focused board — not the ops repo.
 # No ops-VM couplings (no docker-dmz context, no OPS_ENGINE selector) and no lab authority: this box
-# curates the vault, it doesn't operate Skynet. The git identity is Ali's own; provider auth for
-# claude/codex is a one-time interactive OAuth login; the gh token is seeded from sops (see
-# hosts/lxc-athena/default.nix) and exported as GH_TOKEN below.
+# curates the vault, it doesn't operate Skynet. The git identity is Ali's own; auth is interactive —
+# `gh auth login` for GitHub (the credential helper reads gh's stored auth) and a one-time OAuth
+# login for claude/codex. No seeded tokens on the box.
 let
   # Fast-moving agent CLIs ride nixpkgs-unstable (bump that input to update them); the CT stays on
   # stable 26.05. allowUnfree: claude-code / antigravity are unfree.
@@ -23,15 +23,9 @@ in
   home.homeDirectory = "/home/aliammar";
   home.stateVersion = "26.05";
 
-  # GH_TOKEN from the sops-decrypted secret, in .zshenv so every zsh (interactive, login, and
-  # non-interactive git/gh subprocesses) sees it and login-shell children inherit it. Both `gh` and
-  # the `gh auth git-credential` helper below authenticate with no hosts.yml dance.
-  programs.zsh.envExtra = ''
-    [ -r /run/secrets/gh-token ] && export GH_TOKEN="$(cat /run/secrets/gh-token)"
-  '';
-
-  # Ali's own git identity (not the Skynet-OPS bot). Auth to GitHub via the seeded gh token, same
-  # credential helper as the ops VM.
+  # Ali's own git identity (not the Skynet-OPS bot). GitHub auth is interactive (`gh auth login`);
+  # the credential helper reads gh's stored auth — same helper as the ops VM. No GH_TOKEN env var
+  # (it would block `gh auth login`).
   programs.git = {
     enable = true;
     settings.user = {
