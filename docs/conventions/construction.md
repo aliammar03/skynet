@@ -141,7 +141,13 @@ Use Codex's own subagent support — do not build a scheduler around it. `[manua
 - **Worktrees by exception.** `[manual]` A read-only scout needs none; a single writing helper inside
   a lead-managed session usually needs none. Reach for `git worktree` only when two independent
   writers genuinely need separate filesystem state. Git is the isolation mechanism — SKY-022 builds
-  no worktree manager. (Proven in [SKY-022 Phase 4](../../planning/ideas/SKY-022-lean-multi-agent-construction-orchestration-lead-driven-delegation.md).)
+  no worktree manager. Place a helper in a worktree with `bin/agent <role> "<prompt>" --cwd <worktree>`.
+  **Helpers write; the lead commits.** A `workspace-write` sandbox rooted at a worktree cannot write
+  that worktree's git metadata (it lives under the *main* repo's `.git/worktrees/<name>/`, outside the
+  sandbox), so a helper physically cannot commit there — which is the cleaner trust story: the helper
+  produces a bounded working-tree diff, and the lead commits it on the writer's branch and integrates
+  the branches with plain git (a conflict in a shared registry is resolved by the lead, not an
+  orchestration layer). (Proven in [SKY-022 Phase 4](../../planning/ideas/SKY-022-lean-multi-agent-construction-orchestration-lead-driven-delegation.md).)
 - **Continuity is a checkpoint, not a memory system.** `[manual]` For a task likely to cross a
   session/context boundary, the lead keeps a compact `.agent/CHECKPOINT.md` (gitignored, disposable —
   it is working memory, never truth). A cold lead must be able to resume from **only** `AGENTS.md` +

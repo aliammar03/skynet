@@ -10,6 +10,8 @@
 #                          (SKY-018 review — the append-only-journal feedback loop).
 #   5. construction-test — the SKY-022 construction [testable] claims hold: the ≤2-helper cap and each
 #                          helper's declared .codex/ sandbox match invariants.json (format-follows-enforcement).
+#   6. agent-test        — bin/agent resolves each role to the right tier/model/effort/sandbox (SKY-022 P4).
+#   7. gitignore-test    — the disposable .agent/ checkpoint dir stays gitignored (SKY-022 P3 invariant).
 # Bypass a false positive with:  git commit --no-verify  (CI re-runs every gate regardless).
 set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
