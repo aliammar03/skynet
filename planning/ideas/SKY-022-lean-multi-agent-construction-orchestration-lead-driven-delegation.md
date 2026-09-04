@@ -1,12 +1,12 @@
 ---
 id: SKY-022
 title: "Lean multi-agent construction orchestration: lead-driven delegation"
-status: in-progress
+status: done
 horizon: long
 created: 2026-09-04
 updated: 2026-09-04
 phases: 6
-current_phase: 5
+current_phase: 6
 tier_touched: [T1]
 related:
   - docs/system-design.md
@@ -198,7 +198,7 @@ still tells the lead that the default is to avoid delegation, which underuses th
 requires Ali to think about orchestration. The desired user experience is instead: **Ali states the
 job; the lead automatically decides what should be delegated and routes BIV chunks downward.**
 
-### Phase 6 · Flip to proactive cost-aware delegation  (~1–2h)   `[ ]` not started
+### Phase 6 · Flip to proactive cost-aware delegation  `[x]` done 2026-09-04
 
 Goal: make automatic delegation the normal behavior for substantial construction tasks while keeping
 BIV, one-level depth, the two-helper cap, lead accountability, and production isolation unchanged.
@@ -238,6 +238,13 @@ Exit criteria:
 - helper sandboxes and production isolation are unchanged;
 - no App Server or new orchestration service is introduced;
 - Ali's normal interface is simply: **state the task and let the lead orchestrate.**
+
+**P6 conclusion:** a plain task-intent prompt caused the lead to route one bounded read-only audit
+to a Luna Scout and one bounded doctrine implementation to a Terra Builder, without an instruction
+from Ali to spawn helpers. Both returned usable work without a corrective helper round. The lead
+kept the small directive/journal/roadmap close-out because delegating it would cost more than doing
+it. Native shallow delegation remains sufficient; no wider fan-out or orchestration component was
+earned.
 
 ## 5. Operating doctrine after completion
 
@@ -302,3 +309,6 @@ Dogfood the new behavior and perform phase close-out when the exit criteria pass
   doctrine's conservative "default: don't delegate" bias. New P6 flips the steady state to proactive,
   cost-aware BIV delegation so Ali can state intent and let the lead automatically route cheap work
   to Luna/Terra helpers.
+- 2026-09-04 — P6 completed: proactive routing is now the construction default for substantial
+  work; one lead, BIV, one-level depth, the two-helper cap, helper sandboxes, production isolation,
+  lead-owned verification, and human merge are unchanged. SKY-022 is done.

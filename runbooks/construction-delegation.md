@@ -1,12 +1,13 @@
 ---
-summary: "Run a construction job as a lead with bounded helpers — decide→BIV→route→invoke bin/agent→verify→integrate→PR — without gaining any production authority."
-trigger: "Build X with a couple of helpers / delegate this bounded chunk / run a lead+helper construction job"
+summary: "Run substantial construction as a lead — proactively find BIV chunks, route bounded helpers, verify, integrate, and PR — without gaining any production authority."
+trigger: "Do a substantial construction task / build X / implement or change X"
 ---
 
 # Runbook — construction delegation (lead + bounded helpers)
 
-**Trigger:** *"Build X with a couple of helpers"* / *"delegate this bounded chunk"* — any
-**build-time** task where a lead wants to hand narrow work to a smaller agent and integrate the result.
+**Trigger:** Any normal *"do the task"*, *"build X"*, *"implement X"*, or *"change X"* request
+that is substantial **build-time** construction. The lead assesses it for narrow helper work on its
+own initiative, then integrates every accepted result.
 **Tier:** **T1, build-time only.** Helpers get **no** production authority — no secrets, no tokens, no
 T2/T3 grant. Each helper's sandbox (writers `workspace-write`, scout `read-only`) is the entire leash.
 
@@ -15,10 +16,12 @@ T2/T3 grant. Each helper's sandbox (writers `workspace-write`, scout `read-only`
 > and is the authority if the two ever disagree. Born of
 > [SKY-022](../planning/ideas/SKY-022-lean-multi-agent-construction-orchestration-lead-driven-delegation.md).
 
-## 1. First, decide whether to delegate at all
+## 1. Proactively assess substantial work for BIV chunks
 
-The default is `one task → one lead → done`. Delegate **only** when it cuts cognitive load or
-elapsed time by more than the coordination it adds. If in doubt, don't — do it yourself.
+One accountable lead owns every task end to end. At the start of substantial construction, it
+proactively searches for BIV (Bounded, Independent, Verifiable) chunks and delegates each suitable
+chunk to the cheapest reliable role. Ali does not need to request helpers. Keep tiny work with the
+lead when coordination costs more than execution; do not manufacture parallelism to fill the cap.
 
 ## 2. Gate every hand-off through BIV
 
