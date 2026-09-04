@@ -50,6 +50,11 @@ the Terra↔Luna choice *is* the Builder↔Mechanic split:
   where Luna's economics + steep effort curve win: scaling — not per-call cost — dominates, and
   strong checks make a premium model pointless. Run it at **high** (Luna is cheap enough that high is
   affordable across many edits). Read-only **Scout → Luna medium**.
+- **The operational tell (practitioner-reported):** Luna suffers *context rot* as context fills and
+  *over-codes on vague specs* — so it shines only on a tightly-specified, low-context job. That is the
+  Mechanic's and Scout's profile, not the Builder's. If a "Builder" subtask is really a fully-spelled,
+  low-context transform, Luna fits; if it needs judgement or carries surrounding-code context, keep it
+  on Terra. The BIV **B**ound has to be *tight* before a job drops a tier.
 
 The lead is **accountable for the whole result**; a helper can report only *"my delegated subtask is
 complete,"* never *"the phase is complete."* `[manual]`
