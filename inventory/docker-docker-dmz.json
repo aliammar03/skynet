@@ -1,6 +1,6 @@
 {
   "host": "docker-dmz",
-  "collected": "2026-09-04T21:22:17+05:00",
+  "collected": "2026-09-05T03:42:16+05:00",
   "containers": [
     {
       "Command": "\"docker-php-entrypoi…\"",
@@ -15,10 +15,10 @@
       "Networks": "dmz",
       "Platform": null,
       "Ports": "",
-      "RunningFor": "44 hours ago",
+      "RunningFor": "2 days ago",
       "Size": "44.4MB (virtual 272MB)",
       "State": "running",
-      "Status": "Up 44 hours (healthy)"
+      "Status": "Up 2 days (healthy)"
     },
     {
       "Command": "\"/usr/local/bin/entr…\"",
@@ -118,7 +118,7 @@
       "Image": "ghcr.io/caddybuilds/caddy-cloudflare:2.11.4-alpine",
       "Labels": "com.docker.compose.config-hash=7ca5b1d418313e5e2f6eb4905b5d713d0fd327fa495084669023fdc859a05cea,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.image=sha256:1fdf385c8e953aa3e31e5f8164fc6222bac3fc426c2d89dc1f9f3177a8ee1364,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/opt/docker/arcane-projects/caddy-apps/compose.yaml,com.docker.compose.project.working_dir=/opt/docker/arcane-projects/caddy-apps,com.docker.compose.project=caddy-apps,com.docker.compose.service=caddy,com.docker.compose.version=,org.opencontainers.image.created=2026-06-04T02:40:04.052Z,org.opencontainers.image.description=Caddy with Cloudflare DNS module (Alpine),org.opencontainers.image.documentation=https://caddyserver.com/docs,org.opencontainers.image.licenses=MIT,org.opencontainers.image.revision=280cd873b440bb8e1ffe8183ae0b53b3cdf1a3e5,org.opencontainers.image.source=https://github.com/CaddyBuilds/caddy-cloudflare,org.opencontainers.image.title=Caddy Cloudflare Alpine,org.opencontainers.image.url=https://github.com/CaddyBuilds/caddy-cloudflare,org.opencontainers.image.vendor=CaddyBuilds,org.opencontainers.image.version=2.11.4-alpine",
       "LocalVolumes": "0",
-      "Mounts": "/opt/docker/ap…,/opt/docker/ap…,/opt/docker/ar…",
+      "Mounts": "/opt/docker/ar…,/opt/docker/ap…,/opt/docker/ap…",
       "Names": "caddy-apps-caddy-1",
       "Networks": "dmz",
       "Platform": null,
@@ -286,7 +286,7 @@
       "Platform": null,
       "Ports": "",
       "RunningFor": "2 weeks ago",
-      "Size": "7.88MB (virtual 3.52GB)",
+      "Size": "7.94MB (virtual 3.52GB)",
       "State": "running",
       "Status": "Up 7 days (healthy)"
     },
@@ -463,7 +463,7 @@
     {
       "Containers": "0",
       "CreatedAt": "2026-07-24 22:18:48 +0500 PKT",
-      "CreatedSince": "5 weeks ago",
+      "CreatedSince": "6 weeks ago",
       "Digest": "<none>",
       "ID": "c112940ffc18",
       "Repository": "redis",
@@ -475,7 +475,7 @@
     {
       "Containers": "1",
       "CreatedAt": "2026-07-24 22:12:09 +0500 PKT",
-      "CreatedSince": "5 weeks ago",
+      "CreatedSince": "6 weeks ago",
       "Digest": "<none>",
       "ID": "c09cfd71b4b8",
       "Repository": "redis",
@@ -487,7 +487,7 @@
     {
       "Containers": "1",
       "CreatedAt": "2026-07-24 22:12:09 +0500 PKT",
-      "CreatedSince": "5 weeks ago",
+      "CreatedSince": "6 weeks ago",
       "Digest": "<none>",
       "ID": "c09cfd71b4b8",
       "Repository": "redis",
@@ -499,7 +499,7 @@
     {
       "Containers": "1",
       "CreatedAt": "2026-07-24 22:11:46 +0500 PKT",
-      "CreatedSince": "5 weeks ago",
+      "CreatedSince": "6 weeks ago",
       "Digest": "<none>",
       "ID": "305eb88302bd",
       "Repository": "redis",

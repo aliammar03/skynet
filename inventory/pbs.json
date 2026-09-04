@@ -1,16 +1,25 @@
 {
-  "collected": "2026-09-04T21:22:16+05:00",
+  "collected": "2026-09-05T03:42:15+05:00",
   "host": "10.10.20.40",
   "datastores": [
     {
       "store": "unraid",
       "status": {
-        "avail": 1230270103552,
+        "avail": 1221229805568,
         "backend-type": "filesystem",
         "total": 7999426396160,
-        "used": 6769156292608
+        "used": 6778196590592
       },
       "groups": [
+        {
+          "ns": "core",
+          "backup_type": "ct",
+          "backup_id": "10030",
+          "owner": "root@pam!pve-core",
+          "backup_count": 1,
+          "last_backup": 1788561298,
+          "verify_state": null
+        },
         {
           "ns": "core",
           "backup_type": "ct",
@@ -43,8 +52,8 @@
           "backup_type": "ct",
           "backup_id": "731",
           "owner": "root@pam!pve-core",
-          "backup_count": 8,
-          "last_backup": 1788474604,
+          "backup_count": 9,
+          "last_backup": 1788561001,
           "verify_state": null
         },
         {
@@ -52,8 +61,8 @@
           "backup_type": "ct",
           "backup_id": "751",
           "owner": "root@pam!pve-core",
-          "backup_count": 7,
-          "last_backup": 1788474613,
+          "backup_count": 8,
+          "last_backup": 1788561068,
           "verify_state": null
         },
         {
@@ -61,8 +70,8 @@
           "backup_type": "vm",
           "backup_id": "10015",
           "owner": "root@pam!pve-core",
-          "backup_count": 8,
-          "last_backup": 1788474660,
+          "backup_count": 9,
+          "last_backup": 1788561221,
           "verify_state": null
         },
         {
@@ -70,8 +79,8 @@
           "backup_type": "vm",
           "backup_id": "9000",
           "owner": "root@pam!pve-core",
-          "backup_count": 4,
-          "last_backup": 1788474621,
+          "backup_count": 5,
+          "last_backup": 1788561076,
           "verify_state": null
         },
         {
@@ -79,8 +88,8 @@
           "backup_type": "vm",
           "backup_id": "9090",
           "owner": "root@pam!pve-core",
-          "backup_count": 4,
-          "last_backup": 1788474628,
+          "backup_count": 5,
+          "last_backup": 1788561084,
           "verify_state": null
         },
         {
@@ -124,8 +133,8 @@
           "backup_type": "ct",
           "backup_id": "525",
           "owner": "root@pam!pve-network",
-          "backup_count": 13,
-          "last_backup": 1788469204,
+          "backup_count": 14,
+          "last_backup": 1788555606,
           "verify_state": null
         },
         {
@@ -142,8 +151,8 @@
           "backup_type": "ct",
           "backup_id": "635",
           "owner": "root@pam!pve-network",
-          "backup_count": 7,
-          "last_backup": 1788469237,
+          "backup_count": 8,
+          "last_backup": 1788555638,
           "verify_state": null
         },
         {
@@ -160,8 +169,8 @@
           "backup_type": "ct",
           "backup_id": "730",
           "owner": "root@pam!pve-network",
-          "backup_count": 3,
-          "last_backup": 1788469304,
+          "backup_count": 4,
+          "last_backup": 1788555705,
           "verify_state": null
         },
         {
@@ -169,8 +178,8 @@
           "backup_type": "ct",
           "backup_id": "750",
           "owner": "root@pam!pve-network",
-          "backup_count": 6,
-          "last_backup": 1788469319,
+          "backup_count": 7,
+          "last_backup": 1788555722,
           "verify_state": null
         },
         {
@@ -178,8 +187,8 @@
           "backup_type": "ct",
           "backup_id": "837",
           "owner": "root@pam!pve-network",
-          "backup_count": 7,
-          "last_backup": 1788469337,
+          "backup_count": 8,
+          "last_backup": 1788555746,
           "verify_state": null
         },
         {
@@ -187,14 +196,14 @@
           "backup_type": "vm",
           "backup_id": "5001",
           "owner": "root@pam!pve-network",
-          "backup_count": 8,
-          "last_backup": 1788469516,
+          "backup_count": 9,
+          "last_backup": 1788555943,
           "verify_state": null
         }
       ],
-      "group_count": 20,
-      "snapshot_total": 122,
-      "unverified": 11
+      "group_count": 21,
+      "snapshot_total": 134,
+      "unverified": 12
     }
   ]
 }
