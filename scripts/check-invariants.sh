@@ -89,6 +89,39 @@ else
   printf '%s\n' "${audit_out}" | grep -E 'running-unmapped' | sed 's/^/        /' >&2
 fi
 
+# --- 5. Operate-token ACL never crosses the bright lines / self-provisions off-node (SKY-021) ----
+# The checker for the /vms-root widening: read each node's collected operate-token ACL and assert
+# (1) NO forbidden privilege at any path (Permissions.Modify = self-leash rewrite; Sys.Modify/
+# PowerMgmt/Console = node root), (2) node-root VM allocation only on declared vms_root_nodes.
+echo "== operate-token ACL holds the bright lines (no self-leash / node-root; /vms-root only where declared) =="
+before=${fail}
+mapfile -t forbidden < <(jq -r '.operate_token_scope.forbidden_privileges[]' "${INV}")
+mapfile -t vms_root_nodes < <(jq -r '.operate_token_scope.vms_root_nodes[].node' "${INV}")
+forbidden_json="$(jq -c '.operate_token_scope.forbidden_privileges' "${INV}")"
+acl_seen=0
+for aclf in inventory/proxmox-*-acl.json; do
+  [ -e "${aclf}" ] || continue
+  acl_seen=1
+  anode="$(jq -r '.node // "?"' "${aclf}")"
+  # (1) any forbidden privilege at any path → violation (path:priv listed)
+  while IFS= read -r hit; do
+    [ -n "${hit}" ] && violation "${anode}: operate token holds bright-line privilege ${hit} — never standing (constitution §2/§6); revoke via pveum"
+  done < <(jq -r --argjson f "${forbidden_json}" \
+    '[.permissions | to_entries[] as $e | $f[] as $p | select($e.value[$p]==1) | "\($e.key)=\($p)"] | unique | .[]' "${aclf}")
+  # (2) node-root VM.Allocate (/ or /vms) allowed only on a declared vms_root node
+  roots="$(jq -r '[.permissions | to_entries[] | select((.key=="/" or .key=="/vms") and (.value["VM.Allocate"]==1)) | .key] | join(",")' "${aclf}")"
+  if [ -n "${roots}" ]; then
+    allowed=0; for n in "${vms_root_nodes[@]}"; do [ "${n}" = "${anode}" ] && allowed=1; done
+    [ "${allowed}" -eq 1 ] \
+      || violation "${anode}: operate token has node-root VM.Allocate (${roots}) but ${anode} is not a declared vms_root_node — a /vms grant off the declared node is a docs/system-design.md PR, not a silent pveum"
+  fi
+done
+if [ "${acl_seen}" -eq 0 ]; then
+  ok "no proxmox-*-acl.json in inventory yet — acl audit idle (run scripts/collect-proxmox-acl.sh)"
+elif [ "${fail}" -eq "${before}" ]; then
+  ok "operate token: no bright-line privilege anywhere; /vms-root only on declared node(s) [${vms_root_nodes[*]}]"
+fi
+
 echo
 if [ "${fail}" -ne 0 ]; then
   echo "check-invariants: FAILED — a hard law is violated (see ✗ above). This PR must not land." >&2

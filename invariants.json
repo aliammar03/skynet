@@ -25,6 +25,15 @@
     ]
   },
 
+  "operate_token_scope": {
+    "why": "SKY-021: the operate token (svc-ops@pve!operate) gained a /vms-root grant on the CORE node (self-provisioning pool CTs — mint a new VMID without a human minting the shell). That confers VM ops WITHOUT pool membership, so the pool-membership gate above no longer captures the full core blast radius. This section is the checker for that widening. The gate (check-invariants.sh) reads each node's collected ACL (inventory/proxmox-<node>-acl.json, written by collect-proxmox-acl.sh — the token reading its OWN effective perms) and asserts: (1) NONE of forbidden_privileges appears at any path on EITHER node — these are the never-standing bright lines (Permissions.Modify = the agent rewriting its own leash; Sys.Modify/PowerMgmt/Console = Proxmox node root); (2) node-root VM allocation (VM.Allocate at / or /vms) appears ONLY on nodes listed in vms_root_nodes. Widening either — a bright-line priv anywhere, or a /vms grant on a new node — is a docs/system-design.md PR (constitution §2), never a silent pveum. Excluded guests on a vms_root node (Unraid 2020 on core) are reachable at the VM envelope by this grant but keep guest-OS-root T3 (t3_targets) and stay unpooled (excluded_guests).",
+    "token": "svc-ops@pve!operate",
+    "forbidden_privileges": [ "Permissions.Modify", "Sys.Modify", "Sys.PowerMgmt", "Sys.Console" ],
+    "vms_root_nodes": [
+      { "node": "server-proxmox-core", "why": "self-provisioning of pool CTs on core (SKY-021 P1). Network node stays pool-membership-scoped until a later PR earns it." }
+    ]
+  },
+
   "t3_targets": {
     "why": "The never-standing-credential list (constitution §2a / §3, AGENTS.md §6). No standing route or credential that can CHANGE any of these — reached only via a dormant alias + per-session credentials, revoked same day. OPNsense is the tiered exception (ADR 0006): read+diagnostics T1, firewall CONFIG T2 (PR-gated via OpenTofu), but the entries below stay never-standing. Documented here now as desired truth; future checks (e.g. asserting no standing WRITE token references these) build on it.",
     "targets": [

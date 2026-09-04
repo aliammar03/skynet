@@ -1,0 +1,41 @@
+{
+  "node": "server-proxmox-network",
+  "token": "svc-ops@pve!operate",
+  "collected": "2026-09-04T11:35:04+05:00",
+  "permissions": {
+    "/pool/ops-managed": {
+      "VM.Allocate": 1,
+      "VM.Audit": 1,
+      "VM.Config.Memory": 1,
+      "VM.Backup": 1,
+      "VM.Config.Network": 1,
+      "VM.Config.Options": 1,
+      "Datastore.Audit": 1,
+      "VM.Config.Disk": 1,
+      "VM.Snapshot": 1,
+      "VM.Clone": 1,
+      "VM.Console": 1,
+      "VM.Snapshot.Rollback": 1,
+      "Datastore.AllocateSpace": 1,
+      "VM.Config.CPU": 1,
+      "VM.PowerMgmt": 1
+    },
+    "/storage/local": {
+      "VM.Backup": 1,
+      "VM.Audit": 1,
+      "VM.Config.Memory": 1,
+      "VM.Allocate": 1,
+      "VM.Config.Options": 1,
+      "VM.Config.Network": 1,
+      "Datastore.Audit": 1,
+      "VM.Config.Disk": 1,
+      "VM.Console": 1,
+      "VM.Clone": 1,
+      "VM.Snapshot": 1,
+      "VM.PowerMgmt": 1,
+      "Datastore.AllocateSpace": 1,
+      "VM.Config.CPU": 1,
+      "VM.Snapshot.Rollback": 1
+    }
+  }
+}
