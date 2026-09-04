@@ -1,5 +1,32 @@
 {
   "nodes": {
+    "athena": {
+      "inputs": {
+        "deploy-rs": [
+          "deploy-rs"
+        ],
+        "home-manager": [
+          "home-manager"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "nixpkgs-unstable": "nixpkgs-unstable"
+      },
+      "locked": {
+        "lastModified": 1788542546,
+        "narHash": "sha256-sBicwlvFVfgs5ncQl3vEOIN8cAzK0pdPbuQkRCUfogw=",
+        "owner": "aliammar03",
+        "repo": "athena",
+        "rev": "544fd22b91e89fc769c61b6861dbd1059bbd8a85",
+        "type": "github"
+      },
+      "original": {
+        "owner": "aliammar03",
+        "repo": "athena",
+        "type": "github"
+      }
+    },
     "deploy-rs": {
       "inputs": {
         "flake-compat": "flake-compat",
@@ -137,6 +164,22 @@
     },
     "nixpkgs-unstable": {
       "locked": {
+        "lastModified": 1788400875,
+        "narHash": "sha256-JIHQ6xNAN53cdo6zZ72LRcQ9lpvnABCnNE4hldJ5uZU=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "5545adfad2e98de106a5544ca7067e03010410bd",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixpkgs-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs-unstable_2": {
+      "locked": {
         "lastModified": 1787424095,
         "narHash": "sha256-dWLO5AHhKaw6rdWCtTes8hnntT1r0/J5yhQGm0f0ZgU=",
         "owner": "NixOS",
@@ -169,12 +212,13 @@
     },
     "root": {
       "inputs": {
+        "athena": "athena",
         "deploy-rs": "deploy-rs",
         "disko": "disko",
         "home-manager": "home-manager",
         "impermanence": "impermanence",
         "nixpkgs": "nixpkgs_2",
-        "nixpkgs-unstable": "nixpkgs-unstable",
+        "nixpkgs-unstable": "nixpkgs-unstable_2",
         "sops-nix": "sops-nix"
       }
     },
