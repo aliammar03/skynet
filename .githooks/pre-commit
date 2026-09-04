@@ -8,6 +8,8 @@
 #                          set (SKY-018 P1). Unit test of scripts/entity.sh.
 #   4. digest-test       — the cold-boot digest doesn't resurface open threads about DESTROYED guests
 #                          (SKY-018 review — the append-only-journal feedback loop).
+#   5. construction-test — the SKY-022 construction [testable] claims hold: the ≤2-helper cap and each
+#                          helper's declared .codex/ sandbox match invariants.json (format-follows-enforcement).
 # Bypass a false positive with:  git commit --no-verify  (CI re-runs every gate regardless).
 set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
@@ -19,3 +21,4 @@ bash "${ROOT}/tests/dns-revert-test.sh"
 bash "${ROOT}/tests/compose-rollback-test.sh"
 bash "${ROOT}/tests/tofu-rollback-test.sh"
 bash "${ROOT}/tests/collect-pbs-test.sh"
+bash "${ROOT}/tests/construction-test.sh"

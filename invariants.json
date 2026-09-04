@@ -11,6 +11,17 @@
     ]
   },
 
+  "construction": {
+    "why": "SKY-022 P2: format-follows-enforcement (ADR 0003 / SKY-011) for the construction doctrine's [testable] claims (docs/conventions/construction.md). The lead+helper trust boundary is only real if two mechanical facts hold in .codex/: the two-helper cap ('At most two active helpers' [testable]) and each helper's declared sandbox — the scout's read-only no-write contract is 'mechanical, not a promise' [testable]. A construction helper must NEVER get danger-full-access; its sandbox is its entire build-time leash (construction never gains production authority). The gate consumes this section so the doctrine has a CHECKER, not just prose. Changing these values is a docs/conventions/construction.md + this-file PR.",
+    "max_concurrent_threads_per_session": 2,
+    "agents": [
+      { "role": "scout",    "sandbox_mode": "read-only",       "why": "read-only by contract — the no-write guarantee is mechanical, not a promise." },
+      { "role": "builder",  "sandbox_mode": "workspace-write", "why": "writes the repo working tree only; never production." },
+      { "role": "mechanic", "sandbox_mode": "workspace-write", "why": "writes the repo working tree only; never production." }
+    ],
+    "forbidden_sandbox_mode": "danger-full-access"
+  },
+
   "entity_conventions": {
     "why": "SKY-018 L0: the VMID<->IP law (ADR 0001 / docs/conventions/naming.md) and its DECLARED exceptions. LAW: a guest's VMID = VLAN + 2-digit last octet — VMID/100 matches a declared VLAN either canonically (10015 = VLAN 100) or with the trailing zero dropped (240 = VLAN 20), and the octet is the last two digits — so a guest's address derives from its VMID and self-validates. GATE (check-invariants.sh, 4th law): every RUNNING entity is either mapped (a guest's derived IP is a firewall/DNS host fact; a service has a compose/<project>/ dir) OR a declared exception. Exceptions are drawn from TWO places, so there is one source of truth per kind: the T3 excluded_guests below (never-poolable infra — opnsense/caddy-mgmt/authentik/unraid), and the `exceptions` list here (running guests intentionally off the entity map: off-convention VMIDs or standby/not-serving hosts). Empty today — the lab is clean. Changing declared_vlans is a docs/conventions/naming.md change.",
     "declared_vlans": [10, 20, 30, 50, 60, 70, 80, 90, 100],

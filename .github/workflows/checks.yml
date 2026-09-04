@@ -46,3 +46,8 @@ jobs:
         run: bash tests/tofu-rollback-test.sh
       - name: collect-pbs-test
         run: bash tests/collect-pbs-test.sh
+      # SKY-022 P2: the construction doctrine's [testable] claims are machine-checked, not just prose
+      # — the ≤2-helper cap and each helper's declared .codex/ sandbox match invariants.json, and no
+      # helper may declare danger-full-access (construction never gains production authority).
+      - name: construction-test
+        run: bash tests/construction-test.sh

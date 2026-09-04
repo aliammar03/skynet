@@ -126,6 +126,11 @@ Use Codex's own subagent support — do not build a scheduler around it. `[manua
   vigilance. `[testable]`
 - The **scout** definition pins `sandbox_mode = "read-only"` — its no-write contract is mechanical,
   not a promise. `[testable]`
+- Those two `[testable]` facts (plus every helper's declared sandbox, and a ban on
+  `danger-full-access`) are asserted by [`scripts/check-invariants.sh`](../../scripts/check-invariants.sh)
+  against [`invariants.json`](../../invariants.json)'s `construction` section — the gate that turns
+  this doctrine into a checker, not just prose (SKY-022 P2 / [ADR 0003](../decisions/0003-ambiguity-layering-and-format-follows-enforcement.md)).
+  One-level depth stays `[manual]`: Codex exposes no config knob for "a helper cannot spawn a helper."
 - For a helper run as its own process (or to preview a launch), [`bin/agent`](../../bin/agent)
   resolves `role → tier → model` and prints the resolution under `--dry-run`. It is the standalone
   mirror of the same routing table above; if native in-session delegation expresses the job, prefer

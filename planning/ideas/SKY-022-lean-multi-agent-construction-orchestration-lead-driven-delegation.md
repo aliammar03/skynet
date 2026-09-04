@@ -6,7 +6,7 @@ horizon: long
 created: 2026-09-04
 updated: 2026-09-04
 phases: 6
-current_phase: 1
+current_phase: 2
 tier_touched: [T1]
 related:
   - docs/system-design.md
@@ -265,7 +265,7 @@ Exit criteria:
 - model mapping is centralized rather than scattered;
 - no production authority changes.
 
-### Phase 2 · Native lead-driven delegation  (~1–2h)   `[ ]` not started
+### Phase 2 · Native lead-driven delegation  (~1–2h)   `[x]` done 2026-09-04 (PR #173)
 
 Goal: prove the useful part of multi-agent work on a real Skynet task.
 
@@ -446,3 +446,5 @@ Resume from [[SKY-022-progress]]. Follow AGENTS.md and preserve the one-lead / s
 ## 8. Status log
 
 - 2026-09-04 — minted. Chosen shape: one accountable lead, shallow native delegation to Builder/Mechanic/Scout helpers, lightweight checkpointing for long tasks, worktrees only for genuine parallel writers, dogfood before automation, and Codex App Server as the **final thin control-surface phase**, not the foundation.
+- 2026-09-04 — **P1 done** (PR #172): role contract in `docs/conventions/construction.md`, native `.codex/agents/*.toml` + `.codex/config.toml` cap, `bin/agent` launcher.
+- 2026-09-04 — **P2 done** (PR #173): first real lead+helper run. A Claude lead delegated to real Codex helpers via `bin/agent` — a read-only Scout (`gpt-5.6-luna`) scoped the gap, a Builder (`gpt-5.6-terra`) implemented it — to make the construction doctrine's `[testable]` claims machine-enforced (`invariants.json` `construction` section + `check-invariants.sh` check #6 + `tests/construction-test.sh`, wired into hook + CI). Fixed a P1 `bin/agent` bug found by dogfooding (`codex exec` 0.149.0 has no `--ask-for-approval`). Lead verified all helper output incl. live fail-closed proofs; owns the PR, does not self-merge. Raw episode in `journal/`.
