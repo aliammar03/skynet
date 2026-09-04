@@ -48,10 +48,10 @@ model_for_tier() { case "$1" in
 #     scaling dominates per-call cost and objective checks make a premium model pointless.
 #   - scout = read-only search → Luna medium.
 case "${role}" in
-  lead)     tier=terra; [ "${hard}" = 1 ] && tier=sol; effort=xhigh;  sandbox=workspace-write; approval=on-failure;;
-  builder)  tier=terra;                       effort=high;   sandbox=workspace-write; approval=on-failure;;
-  mechanic) tier=luna;                        effort=high;   sandbox=workspace-write; approval=on-failure;;
-  scout)    tier=luna;                        effort=medium; sandbox=read-only;       approval=never;;
+  lead)     tier=terra; [ "${hard}" = 1 ] && tier=sol; effort=xhigh;  sandbox=workspace-write;;
+  builder)  tier=terra;                       effort=high;   sandbox=workspace-write;;
+  mechanic) tier=luna;                        effort=high;   sandbox=workspace-write;;
+  scout)    tier=luna;                        effort=medium; sandbox=read-only;;
   *) die "unknown role '${role}' (lead|builder|mechanic|scout)";;
 esac
 [ "${hard}" = 1 ] && [ "${role}" != lead ] && die "--hard is lead-only (promotes Terra→Sol)"
@@ -59,14 +59,18 @@ esac
 model="$(model_for_tier "${tier}")"
 
 # codex exec: non-interactive helper, sandboxed, model + reasoning effort pinned to the role.
+# The sandbox flag IS the leash — codex exec is already non-interactive, so there is no approval
+# flag to set here (v0.149.0 `exec` has none; escalation beyond the sandbox is denied, not prompted).
+# That is stricter than we need and exactly right for build-time helpers: a scout physically cannot
+# write, a writer cannot leave the workspace. Do NOT reach for --dangerously-bypass-* or
+# --approve-for-me — construction never earns access wider than its role's sandbox.
 set -- codex exec \
   --model "${model}" \
   --sandbox "${sandbox}" \
-  --ask-for-approval "${approval}" \
   -c "model_reasoning_effort=\"${effort}\"" \
   "${prompt}"
 
-echo "role=${role}  tier=${tier}  model=${model}  effort=${effort}  sandbox=${sandbox}  approval=${approval}" >&2
+echo "role=${role}  tier=${tier}  model=${model}  effort=${effort}  sandbox=${sandbox}" >&2
 if [ "${dry}" = 1 ]; then
   printf 'DRY-RUN — would launch:\n  ' >&2; printf '%q ' "$@" >&2; echo >&2
   exit 0
