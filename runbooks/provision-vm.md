@@ -1,15 +1,19 @@
 ---
-summary: "Declare a guest as an OpenTofu resource (clone the base template), plan/apply, then harden under a scoped auto-expiring root grant with restic."
+summary: "Author and review a guest declaration; new-guest apply is blocked pending a rollback-safe saved-plan executor."
 trigger: "Set up a VM for X, hardened, with restic"
 ---
 
 # Runbook — provision a hardened guest (declarative, via OpenTofu)
 
-**Tier:** T2 tofu clone/apply + T2+ root grant for hardening. **Trigger:** *"Set up a VM for X, hardened, with restic."*
+**Tier:** T2 saved-plan clone/apply + T2+ root grant for hardening. **Trigger:** *"Set up a VM for X, hardened, with restic."*
 
 > **Tofu makes the box exist; [SKY-007](../planning/archive/) Nix/cloud-init defines what's on it.**
 > Provisioning is declarative now (SKY-008) — a guest is a `proxmox_virtual_environment_*` resource
 > with a real `plan`-before-apply diff, not a hand-run clone. The imperative path is retired.
+
+> [!warning] **New-guest apply is currently blocked.** `scripts/tofu-apply.sh` snapshots every touched
+> guest before applying; a new VMID does not exist yet, so it fails closed. Do not bypass the wrapper.
+> Continue through review, then stop before apply until a rollback-safe create path is implemented.
 
 ## Steps
 
@@ -22,17 +26,22 @@ trigger: "Set up a VM for X, hardened, with restic"
    path (that is a standing node-SSH dependency, forbidden). **Never** add an excluded guest (OPNsense
    5001, CT 635/837, VM 2020) to any pool. An LXC uses `proxmox_virtual_environment_container`; to bring
    an *existing* container under management, use the zero-drift import recipe in `tofu/lxc-pbs.tf`.
-3. **Plan, then apply (⚠ create checkpoint).**
+3. **Propose the source.** Open a PR containing the tofu declaration and a speculative plan output;
+   Ali reviews and merges the authored change. Do not apply from the unmerged branch.
+4. **Save and review the merged revision; do not apply yet.**
    ```
    eval "$(scripts/tofu-env.sh)"
-   cd tofu && tofu plan            # read the EXACT diff — hosts touched, IP, pool
-   tofu apply                      # ⚠ creating a guest is a hard checkpoint — Ali approves, never auto
+   tofu -chdir=tofu plan -out=/tmp/provision-<newhost>.tfplan
+   tofu -chdir=tofu show -no-color /tmp/provision-<newhost>.tfplan
+   # STOP: the production executor currently rejects new-guest creates; do not bypass it.
    ```
-   The box now exists (clone → boot). Verify running-state via the read API (`/cluster/resources`),
+   Once a rollback-safe create executor is implemented and proven, it must consume this exact saved
+   plan after approval. The remaining steps apply only after that blocker is removed and the box
+   exists. Verify running-state via the read API (`/cluster/resources`),
    **not** the guest agent (the token omits `VM.GuestAgent.Audit` by design; keep `agent { enabled = false }`).
-4. **Request the grant:** print `bin/grant-root <newhost> 2h` (narrowest host, shortest duration).
-   Wait for the cert to land (poll `~/.ssh/id_ed25519-cert.pub`, validate with `ssh-keygen -L`).
-5. **Harden as root** (inside the window):
+5. **Request the grant:** print `bin/grant-root <newhost> 2h` (narrowest host, shortest duration).
+   Wait for the cert to land (poll `~/.ssh/certs/<newhost>-cert.pub`, validate with `ssh-keygen -L`).
+6. **Harden as root** (inside the window):
    - SSH lockdown (`PermitRootLogin prohibit-password`, no password auth);
    - `unattended-upgrades`; `fail2ban` where sensible;
    - **restic backups** — one command from skynet-ops (installs restic+rclone, stages secrets 0600,
@@ -46,7 +55,8 @@ trigger: "Set up a VM for X, hardened, with restic"
      Idempotent (never regenerates the password / re-inits an existing repo). Afterwards save the repo
      password to the survival kit: `ssh root@<ip> cat /opt/skynet-ops/secrets/restic-<newhost>.pass`.
    - guest-firewall notes.
-6. **PR** the tofu config + refreshed `inventory/` + `docs/`. **Internal DNS:** an apps-Caddy service's
+7. **Land evidence** in a follow-up PR: refreshed inventory/docs and any hardening definitions.
+   **Internal DNS:** an apps-Caddy service's
    record derives from the Caddyfile automatically (see [`publish-service.md`](publish-service.md)); a
    standalone host record is its own tofu-managed `technitium_record`. Ali merges. The cert expires on
    its own — no de-provisioning step.

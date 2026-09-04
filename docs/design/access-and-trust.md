@@ -119,8 +119,9 @@ Load-bearing rules:
 Joining a guest to an `ops-managed` pool *is* the act of handing the agent T2 over it. The pool
 set is the Proxmox half of the write blast radius (the SSH half is `ROLE_OPS_SSH_TARGETS`, see
 [network](network.md)). **Two pools today — a count, not a law;** new pools join by PR to the
-constitution. Permanently excluded: **VM 5001 (OPNsense)** — never any pool — plus CT 635, CT 837,
-Unraid VM 2020 (seen at T1, T3 otherwise).
+constitution. Permanently unpooled: **VM 5001 (OPNsense)**, CT 635, CT 837, and Unraid VM 2020.
+The network token cannot reach 5001/635/837 at the envelope. Core's deliberate root-`/` operate ACL
+does reach Unraid 2020's VM envelope, while its guest-OS root remains T3; see the core exception above.
 
 ## SSH access model — standing user + auto-expiring root
 
@@ -169,7 +170,7 @@ next, rollback on failure), and real-root diagnosis — each under one grant Ali
 ## The Authentik scoped-token boundary (realized — SKY-003)
 
 Authentik's graduation out of T3 is no longer hypothetical — directive
-[SKY-003](../../planning/projects/SKY-003-apps-reverse-proxy-authentik-sso-ingress.md) implements it
+[SKY-003](../../planning/archive/SKY-003-apps-reverse-proxy-authentik-sso-ingress.md) implements it
 on exactly the Technitium pattern (view/modify a slice, never settings):
 
 - **T2 (scoped `svc-skynet` token):** CRUD **Applications** + **Providers**, and **bind an existing
@@ -198,12 +199,10 @@ reads it and never touches it — the same view/modify-a-slice split as Techniti
   `/opt/skynet-ops/secrets/omada.env` (`OMADA_HOST`, `OMADA_USER`, `OMADA_PASS`, and `OMADA_CACERT`
   pointing at a pinned cert), same shape as `cloudflare-dns.env` and the Proxmox collector secrets.
   The account holds no admin rights, so a leak reads the estate and nothing more.
-- **Reachability:** the controller is not in the agent's API-target alias by default. Add
-  `HOST_OMADA` (`10.10.50.25`) to `ROLE_OPS_API_TARGETS` and the controller's HTTPS management port
-  (Omada software-controller default **8043** — confirm on the box) to `PORT_OPS_API`; rule 360 then
-  carries it with no new rule. This is a **T3 OPNsense change** — Ali makes it. The collector
-  (`scripts/collect-network-gear.sh`) degrades to `exit 0` until both the credential and reachability
-  exist, like every other collector.
+- **Reachability:** `HOST_OMADA` (`10.10.50.25`) is in `ROLE_OPS_API_TARGETS`; its HTTPS management
+  port is in `PORT_OPS_API`, so rule 360 carries the read-only collector with no dedicated rule.
+  `scripts/collect-network-gear.sh` is live and renders the current estate; it still degrades to
+  `exit 0` when the credential or controller is unavailable.
 
 ## The OPNsense tiers (ADR 0006)
 
@@ -218,12 +217,11 @@ the agent's own leash T3, never-standing.**
   `OPN_USER=svc-skynet-recon`, `OPN_KEY`, `OPN_SECRET`, `OPN_CACERT`), same shape as the Proxmox/Omada
   creds. The collector reads scoped endpoints and **strips secrets** out of `inventory/` — hygiene, not
   a boundary (the box already holds the raw `config.xml` via the mirror).
-- **T2 (firewall config, PR-gated via OpenTofu):** aliases and rules become `tofu/` resources managed
-  through the **OPNsense tofu provider**. A change is a `tofu plan` diff **in a PR** → human-merged →
-  `apply` via the API — the exact tofu-for-guests model (SKY-008). A separate T2 **write** API
-  key (Ali-minted, sops-nix) is used **only** by `apply` on a merged plan; non-destructive maintenance
-  (service restart, apply-config, flush) is T2 too. **This is a directive-sized build (firewall-as-code)
-  — the T1 read slice ships first.**
+- **T2 (firewall config, approved; implementation pending):** the boundary permits non-leash aliases
+  and rules through the **OPNsense tofu provider**, using human-merged source + the reviewed
+  saved-plan executor. SKY-020 has not yet installed the provider/resources or
+  T2 write credential, so **there is no live firewall write path today**. Non-destructive maintenance
+  is also classified T2 but unavailable until that directive implements and proves it.
 - **T3 (never standing):** OPNsense **node root**, **account/API-key/cert admin**, **reboot/halt** (a
   lab-wide outage — a hard checkpoint at every tier), and the **self-leash set** — the rules/aliases
   bounding the agent's own reach (`ROLE_OPS_*`, `ROLE_OPS_PRIV_TARGETS`, the block-other-DNS rules, the
@@ -232,7 +230,7 @@ the agent's own leash T3, never-standing.**
 - **Why not just the git mirror:** `os-git-backup` pushes to the mirror *nightly by default*, so the
   firewall map was routinely stale; the live read removes that lag. **The mirror stays** as the
   rebuild-from-git source of truth (§2a) and DR path — live API for freshness, mirror for truth.
-- **How the credential is born (the *safe* setup):** OPNsense's `user-config-readonly` privilege —
+- **How the T1 credential was born (the *safe* setup):** OPNsense's `user-config-readonly` privilege —
   shown in the group's Assigned Privileges list as **"System: Deny config write"** (not "read only",
   which finds nothing) — makes `ApiControllerBase::throwReadOnly()` block **every** MVC/API *config
   write* regardless of page privileges. It does **not** block non-config *actions* (reboot, restart),

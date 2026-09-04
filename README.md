@@ -1,8 +1,9 @@
 # Skynet
 
 > A homelab that runs itself — safely. A GitHub repo is the single source of truth, an
-> AI ops agent proposes every change as a pull request, and **you** are the only one who
-> merges. No agent touches production without a human hand on the merge button.
+> AI ops agent proposes every authored change as a pull request, and **you** merge it. The only
+> self-merge is the generated-only nightly when CI is green. No authored production change lands
+> without a human hand on the merge button.
 
 **Skynet** is the operations layer for a self-hosted lab: two Proxmox nodes, a PBS backup
 server, Docker hosts, Technitium DNS, and an OPNsense firewall. It's run by an agent on
@@ -75,16 +76,17 @@ the lab is either PR-gated or requires a credential a human hands over for a few
 | Tier | What it can do | Standing access? |
 |---|---|---|
 | **T1 · Read** | See everything — both Proxmox nodes, PBS, Docker, DNS, firewall | ✅ Always |
-| **T2 · Operate** | Change `ops-managed` pools, Docker via Arcane, DNS zones — **all PR-gated** | ✅ (changes need a merge) |
+| **T2 · Operate** | Change managed guests/Docker, DNS records, Authentik apps/providers; non-leash OPNsense config is approved here but still being implemented — **all PR-gated** | ✅ except pending OPNsense write path |
 | **T2+ · Root grant** | Root shell on a workload host, to harden/provision/patch | ⏳ Only inside a cert's validity window |
-| **T3 · Privileged** | OPNsense, Authentik, node root, Unraid root, DNS *settings* | ❌ **Never** — dormant alias + per-session secrets |
+| **T3 · Privileged** | OPNsense node/admin/reboot/self-leash, Authentik admin, node/Unraid OS root, DNS *settings* | ❌ **Never standing** — dormant alias + per-session secrets |
 
 > The authoritative definitions live in **[`AGENTS.md §1`](AGENTS.md)** and
 > **[`docs/system-design.md`](docs/system-design.md)** — this table is the postcard, those are
 > the map. If they ever disagree, **the design wins.**
 
-Some machines the agent can *see* but must **never touch**: OPNsense (VM 5001), CT 635, CT 837,
-and the Unraid VM (2020). They never join a managed pool.
+OPNsense VM 5001 and CTs 635/837 are read-only at the guest envelope and never join a managed pool.
+Unraid VM 2020 also remains unpooled and its guest OS is T3, but the core-node operate ACL can manage
+its VM envelope. The constitution documents that deliberate core exception.
 
 ---
 
@@ -116,8 +118,9 @@ New here? Read in this order: **this file → [`AGENTS.md`](AGENTS.md) →
 
 These are the guarantees that make an autonomous agent safe to keep around:
 
-- 🔐 **No standing keys to the crown jewels.** OPNsense, Authentik, node/Unraid root, DNS
-  settings — dormant until a per-session secret is minted, revoked same day.
+- 🔐 **No standing keys to privileged control planes.** OPNsense node/admin/reboot/self-leash,
+  Authentik administration, node/Unraid OS root, and DNS settings stay dormant. Their explicitly
+  scoped T1/T2 slices are defined in the authoritative trust model.
 - ⏱️ **Root always expires by itself.** The CA lives only on the workstation + the printed
   survival kit. The agent literally *cannot* mint its own access.
 - 🙅 **The agent never merges its own PR**, and never hand-edits generated dirs

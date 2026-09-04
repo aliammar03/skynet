@@ -28,7 +28,7 @@ that failed. Two consequences shape everything here:
 | Actuator | Write path | Rollback executor | Decision (deterministic) | Independent-of-agent | Tested in failure |
 |---|---|---|---|---|---|
 | **Compose deploy** | `gitops-deploy.sh --gate` (Arcane GitOps) | `gitops-rollback.sh` — `git revert` the deploy commit → push → Arcane reconciles | `deploy-gate.sh` — every project container Running, not Restarting, healthy-or-none within the window | ✅ git + Arcane's dumb reconciler | `tests/compose-rollback-test.sh` · 2026-09-03 |
-| **OpenTofu apply** | `tofu-apply.sh <saved-plan>` | snapshot-before-apply → `pve-snapshot.sh rollback` on failure | post-apply `tofu plan -detailed-exitcode` must be clean (+ optional verify hook) | ✅ Proxmox snapshot rollback (operate token) | `tests/tofu-rollback-test.sh` · 2026-09-03 |
+| **OpenTofu existing-guest update / non-guest write** | `tofu-apply.sh <saved-plan>` | snapshot-before-apply → `pve-snapshot.sh rollback` on failure | post-apply `tofu plan -detailed-exitcode` must be clean (+ optional verify hook) | ✅ Proxmox snapshot rollback (operate token) | `tests/tofu-rollback-test.sh` · 2026-09-03 |
 | **DNS write** | `cf-dns-route.sh` (Cloudflare break-glass) | `dns-revert.sh undo` — replays the recorded **inverse** command | replay of a captured inverse (create⇒delete, update/delete⇒re-publish) | ✅ dumb replayer, re-runs a logged command | `tests/dns-revert-test.sh` · 2026-09-01 |
 | deploy-rs (host cfg) | `nixos-rebuild`/deploy-rs | deploy-rs **magic-rollback** (built-in) | activation health check → auto-revert | ✅ platform | pre-existing (ADR 0005 ✅) |
 | OPNsense config | (T2 via tofu, SKY-020) | OPNsense **validate-and-restore** (built-in) | config apply health → restore | ✅ platform | pre-existing (ADR 0005 ✅) |
@@ -36,6 +36,10 @@ that failed. Two consequences shape everything here:
 **Destroy is not in this table by design.** `tofu-apply.sh` refuses any plan containing a
 `delete`/replace action or touching a T3 excluded guest (5001, 635, 837, 2020) — those are human-run,
 permanently ([Judgement Day §6](../system-design.md)).
+
+**New-guest create is not in the registry either.** The wrapper includes creates in its pre-snapshot
+set, so a new VMID fails closed before apply. There is no pre-change guest to roll back to; production
+create stays blocked until a separate executor meets the same failure-tested rollback standard.
 
 ### Live validation (2026-09-03)
 

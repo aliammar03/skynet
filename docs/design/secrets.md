@@ -1,5 +1,5 @@
 ---
-summary: "How Skynet holds secrets with sops+age so plaintext never leaves the repo, plus the .env.git/project.env layering."
+summary: "How Skynet holds secrets with sops+age and materializes GitOps service env from .env.git plus .env.sops."
 ---
 
 # Spoke · Secrets
@@ -50,28 +50,26 @@ lab master key ──decrypts──▶ per-CT age key ──decrypts──▶ th
 - **Recreate re-injects the same identity**, so committed ciphertext stays valid — no re-encryption,
   no master key on the CT. Blast radius of a popped CT = that CT's secrets, not the lab.
 
-## The env layering that makes it safe
+## The GitOps env materialization
 
-Arcane handles env layering natively for git-synced projects. The compose file goes read-only in
-the UI, but `.env` stays editable — internally Arcane keeps three layers:
+Arcane's GitOps projects do not merge `project.env` into the checked-out project. Their complete env
+source is in git:
 
-- **`.env.git`** — repo-sourced, non-secret defaults (optional; ingested from a committed plaintext `.env`).
-- **`project.env`** — the UI-edited override layer. **This is the secret-bearing layer** — the only
-  env content not reproducible from the repo.
-- **effective `.env`** — Arcane merges both, overrides winning, rewritten in place preserving order
-  and comments. No clobbering is possible by design.
+- **`.env.git`** — non-secret defaults, committed plaintext.
+- **`.env.sops`** — secret values, encrypted to the lab age recipient.
+- **effective `.env`** — materialized `0600` by `scripts/gitops-deploy.sh` from `.env.git` plus
+  decrypted `.env.sops`, then consumed through each service's `env_file: .env`.
 
-Every service must declare **`env_file: .env`** in its compose to receive the merged values (see
-[conventions](../conventions.md)).
+Decryption happens on vm-skynet-ops; plaintext crosses only the SSH stream into the project file.
+Arcane owns reconciliation and project lifecycle, while the deploy wrapper owns env materialization.
 
 ## The two directions
 
-- **Host → repo (backup).** Nightly `envsync.sh` reads each project's `project.env` over SSH,
-  encrypts it (`sops --encrypt --input-type dotenv`), and commits `compose/<svc>/.env.sops` **only
-  on change**. Ali keeps editing envs in Arcane's UI; git holds encrypted history within a day.
-- **Repo → host (restore).** `sops -d compose/$svc/.env.sops > project.env` into the project dir —
-  Arcane re-merges with `.env.git` on its own. The repo half of every env restores itself by
-  definition; only the override layer needs the vault.
+- **Repo → host (normal deploy/restore).** `scripts/gitops-deploy.sh <svc>` combines the approved
+  `.env.git` and `.env.sops`, writes the effective `.env`, redeploys, and checks health.
+- **Legacy host → repo import.** `envsync.sh` encrypts `project.env` when a legacy/non-GitOps Arcane
+  project still has one. Current GitOps projects do not require that file; its absence is expected,
+  not a missing secret backup.
 
 This is layer **L1** of the [backup model](../backup-strategy.md).
 
@@ -81,9 +79,9 @@ sops+age is right for today's service count: file-level, git-native, one keypair
 infrastructure. If the fleet outgrows it (many services, rotation needs, dynamic secrets, non-file
 consumers), the migration path is an **external secrets backend** (Vault / Infisical / OpenBao):
 
-- keep `project.env` as the injection point Arcane already merges, so services don't change;
-- move the *source of truth* from `.env.sops` in git to the backend, with a sync shim writing
-  `project.env` (the way `envsync` writes today, inverted);
+- keep `.env` as the container injection point, so services do not change;
+- move the *source of truth* from `.env.sops` in git to the backend, with the deploy wrapper writing
+  the materialized `.env`;
 - the backend itself becomes a tiered target — likely T3 for its administration, an operate-level
   token for read/lease, decided in [access-and-trust](access-and-trust.md).
 

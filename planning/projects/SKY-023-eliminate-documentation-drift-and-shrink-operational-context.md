@@ -1,12 +1,12 @@
 ---
 id: SKY-023
 title: Eliminate documentation drift and shrink operational context
-status: draft
+status: in-progress
 horizon: short
 created: 2026-09-04
 updated: 2026-09-04
 phases: 4
-current_phase: 0
+current_phase: 1
 tier_touched: [T1]
 related:
   - docs/system-design.md
@@ -57,7 +57,7 @@ changes needed to prevent drift. **Non-goals:** infrastructure changes, new capa
 promotion, permission changes, or hand-editing generated outputs. **Rollback:** `git revert`.
 **Human actions:** PR review/merge only; no grants or credentials.
 
-### Phase 1 — reconcile truth before pruning  (~1–2h)   `[ ]`
+### Phase 1 — reconcile truth before pruning  (~1–2h)   `[ ]` paused 2026-09-04
 
 1. Create a temporary conflict matrix: claim, competing sources, runtime evidence, chosen authority.
 2. Resolve every contradiction named in §1, including:
@@ -136,3 +136,8 @@ criteria, then perform Phase close-out.
 ## 6. Status log
 
 - 2026-09-04 — minted from a repository-wide design/runbook redundancy audit; draft idea, not scheduled.
+- 2026-09-04 — Phase 1 paused on `phase/sky-023-p1` after delegated final review found remaining
+  contradictions in DNS deletion rollback, non-guest OpenTofu rollback, live Caddy drift detection,
+  OPNsense actuator availability, forward-auth status, and Authentik mutation ordering. The working
+  tree is a checkpoint, not a phase close-out. Resume Phase 1 only. Evidence:
+  `journal/2026/2026-09-04-session-sky-023-p1-truth-reconciliation.md`.

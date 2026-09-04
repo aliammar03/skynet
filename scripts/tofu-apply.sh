@@ -6,13 +6,14 @@
 #   2. REFUSE any plan containing a `delete`/replace action, or touching a T3 excluded guest, OUTRIGHT.
 #      destroy stays a hard checkpoint at every autonomy level — this wrapper never performs one.
 #   3. Snapshot every in-pool guest the plan touches BEFORE applying. Fail closed: a guest that can't
-#      be snapshotted means no guaranteed rollback → refuse to apply.
+#      be snapshotted means no guaranteed rollback → refuse to apply. This deliberately blocks a
+#      new-guest create: the planned VMID does not exist yet and therefore has no rollback snapshot.
 #   4. Apply the saved plan, then VERIFY deterministically (post-apply plan is clean; plus an optional
 #      external check). The verdict is an exit code, not the agent's opinion.
 #   5. On apply-or-verify failure, roll every snapshot back (scripts/pve-snapshot.sh) and exit non-zero.
 #      On success, prune the safety snapshots.
 #
-# TIER: T2 — svc-tofu apply on the ops-managed pools + svc-ops operate-token snapshots. No new capability.
+# TIER: T2 — svc-ops!operate applies on the managed envelope and takes safety snapshots.
 # USAGE:
 #   tofu-apply.sh <planfile>            # apply a plan saved with: tofu plan -out <planfile>
 # ENV (optional; the failure-case test injects through these):
@@ -52,6 +53,7 @@ if [ -n "${deletes}" ]; then
 fi
 
 # 2. collect guests the plan changes (create/update, not no-op) → (kind vmid node) triples.
+# A create reaches the snapshot preflight below and fails closed because the VMID does not exist.
 mapfile -t guest_rows < <(printf '%s' "${PLAN_JSON}" | jq -r --arg types "${GUEST_TYPES}" '
   ($types | split(" ")) as $gt
   | .resource_changes[]?

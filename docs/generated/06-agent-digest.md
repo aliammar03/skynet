@@ -28,6 +28,8 @@ follow a link for the full story; distill episodes at read time, never in this f
 - **SKY-008** (projects · active · 3/3) — OpenTofu provisioning layer: VM and CT lifecycle plus DNS
 - **SKY-018** (projects · in-progress · 6/12) — Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain
 - **SKY-020** (projects · in-progress · 1/6) — Firewall-as-code — OPNsense config to T2 via OpenTofu
+- **SKY-023** (projects · in-progress · 1/4) — Eliminate documentation drift and shrink operational context
+- **SKY-024** (projects · in-progress · 3/6) — tofu declares all pool guests — API-driven CT/VM lifecycle, no node SSH
 - **SKY-002** (ideas · draft) — Ongoing backup strategy for CT 240 (PBS host)
 - **SKY-004** (ideas · draft) — Reactive operations: event-driven layer + drift-as-signal
 - **SKY-012** (ideas · draft) — Runbooks as executable capabilities
@@ -38,24 +40,24 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 **Loose ends from recent episodes** (the journal's own open-thread bullets, verbatim):
 
-- Check whether the ten newly created PBS snapshots acquire `verify_state: ok` after the verifier runs; VM 10015 remains the pre-existing latest-snapshot verification gap. — _2026-09-04 session          # session | incident | decision_
-- Exercise an end-to-end restore; this pass did not test PBS restore, restic, or the L5 Drive mirror. — _2026-09-04 session          # session | incident | decision_
-- Decide whether missing `project.env` for `aiometadata` and `aiostreams` is intentional and whether `scripts/envsync.sh` should exit 1 after those skips. — _2026-09-04 session          # session | incident | decision_
-- Confirm whether `10.10.80.37` should answer continuously. The three silent `10.10.10.*` values are members of `ROLE_ADMIN_CLIENTS` and may be offline client slots. — _2026-09-04 session          # session | incident | decision_
-- ⚠ pve-snapshot.sh needs the OPERATE token (PVE_OPERATE_TOKEN); standing proxmox-<node>.env only has the readonly token. Confirm it's materialized before any live `tofu-apply.sh`. Until then tofu-apply fails closed (can't snapshot → won't apply) — correct, but means no live tofu rollback demo yet. — _2026-09-03 session          # session | incident | decision_
-- P6 wrappers are opt-in and not yet wired into bin/ops / the nightly (report-only). That wiring is a SKY-017 autonomy-promotion step, not P6. — _2026-09-03 session          # session | incident | decision_
-- NEXT: P7 (conftest/Rego over `tofu plan`) — explicitly NOT started this session. — _2026-09-03 session          # session | incident | decision_
-- Confirm whether VMID 10015's reboot was planned. — _2026-09-03 session_
+- Phase 1 was paused before close-out. A delegated final review found six remaining corrections: DNS deletion rollback must not claim `tofu-apply.sh` can apply deletes; non-guest OpenTofu writes have no automatic snapshot rollback; the OPNsense write actuator is pending SKY-020; nightly route collection does not compare live Caddy config with git; Obsidian is the own-auth reference while calibre is the proven forward-auth reference; and the forward-auth runbook must put the merged PR before Authentik API mutations. — _2026-09-04 session          # session | incident | decision_
+- Resume Phase 1 on `phase/sky-023-p1`. Apply those corrections, including the related comments in `scripts/gitops-deploy.sh`, `tofu/cloudflare-dns.tf`, and `tofu/pool-cts.tf`; clarify that the core credential can technically reach Unraid 2020's envelope although policy forbids destructive use. — _2026-09-04 session          # session | incident | decision_
+- Re-run owning generators sequentially, then the full invariant/test/syntax/link suite and `git diff --check`. Only then mark Phase 1 complete and open its human-merged PR. — _2026-09-04 session          # session | incident | decision_
+- Phase 2 remains out of scope until the Phase 1 PR is reviewed and merged. — _2026-09-04 session          # session | incident | decision_
+- Design and failure-test a compliant new-guest create executor before VM/LXC provisioning is used again; the production runbooks now fail closed at that boundary. — _2026-09-04 session          # session | incident | decision_
+- Design a rollback path for non-guest OpenTofu writes and a detector that compares live Caddy configuration with git; neither capability is A4-eligible today. — _2026-09-04 session          # session | incident | decision_
+- `envsync.sh` should return cleanly when current GitOps projects lack legacy `project.env`; the 2026-09-04 nightly reported exit 1 even though absence is now classified as expected. — _2026-09-04 session          # session | incident | decision_
+- — none; SKY-022 exit criteria passed. — _2026-09-04 session_
 
 ## 📓 Recent episodes
 
-- **2026-09-04** · session          # session | incident | decision · [[2026-09-04-session-nightly-2026-09-04|nightly 2026-09-04]]
-- **2026-09-03** · session          # session | incident | decision · [[2026-09-03-session-sky-018-p6-l7-rollback-executors|SKY-018 P6 — L7 rollback executors]]
-- **2026-09-03** · session · [[2026-09-03-session-nightly-2026-09-03|nightly 2026-09-03]]
-- **2026-09-03** · session          # session | incident | decision · [[2026-09-03-session-nightly-2026-09-03-1206|nightly 2026-09-03 1206]]
-- **2026-09-02** · session          # session | incident | decision · [[2026-09-02-session-sky-008-p3-ct-240-import-dns-provider-blocked|SKY-008 P3 — CT 240 import + DNS provider blocked]]
-- **2026-09-02** · session          # session | incident | decision · [[2026-09-02-session-nightly-2026-09-02|nightly 2026-09-02]]
-- **2026-09-01** · session          # session | incident | decision · [[2026-09-01-session-sky-018-p1-first-entity-audit|SKY-018 P1 first entity audit]]
+- **2026-09-04** · session          # session | incident | decision · [[2026-09-04-session-sky-023-p1-truth-reconciliation|SKY-023 P1 truth reconciliation]]
+- **2026-09-04** · session · [[2026-09-04-session-sky-022-p6-proactive-cost-aware-delegation|SKY-022 P6 — proactive cost-aware delegation]]
+- **2026-09-04** · session · [[2026-09-04-session-sky-022-p5-five-run-foreman-dogfood|SKY-022 P5 — five-run foreman dogfood]]
+- **2026-09-04** · session          # session | incident | decision · [[2026-09-04-session-sky-022-p4-parallel-worktree-writers-conflict|SKY-022 P4 — parallel worktree writers + conflict]]
+- **2026-09-04** · session          # session | incident | decision · [[2026-09-04-session-sky-022-p3-checkpoint-continuity-cold-lead-resume|SKY-022 P3 — checkpoint continuity + cold-lead resume]]
+- **2026-09-04** · session          # session | incident | decision · [[2026-09-04-session-sky-022-p2-first-real-lead-helper-delegation|SKY-022 P2 — first real lead+helper delegation]]
+- **2026-09-04** · session          # session | incident | decision · [[2026-09-04-session-sky-022-p1-construction-delegation-contract|SKY-022 P1 construction delegation contract]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._

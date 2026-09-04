@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # tofu-env.sh — export env vars for OpenTofu from sops-nix decrypted secrets.
 # TIER: T2 — reads the Proxmox API tokens for BOTH nodes (standalone, not clustered → one token each).
-# SKY-024 retired the svc-tofu split on CORE: tofu there now runs as the ONE operator token
+# SKY-024 retired the svc-tofu split: tofu now runs as the ONE operator token on each node
 # (svc-ops@pve!operate, full VM/Datastore/Pool/SDN at /, bright lines held), the same identity the
-# imperative ops scripts use — so declare + fix is one token, not a per-capability grant dance. The
-# network node stays on its own svc-tofu token until a later phase. USAGE: eval "$(scripts/tofu-env.sh)".
+# imperative ops scripts use — so declare + fix is one token, not a per-capability grant dance. Core
+# is root-ACL broadened; network remains pool-scoped. USAGE: eval "$(scripts/tofu-env.sh)".
 #   Reads: /opt/skynet-ops/secrets/proxmox-core.env          (core node .11 — operate token)
-#          /opt/skynet-ops/secrets/tofu-proxmox-network.env  (network node .10 — svc-tofu, pool-scoped)
+#          /opt/skynet-ops/secrets/proxmox-network.env       (network node .10 — operate, pool-scoped)
 #          /opt/skynet-ops/secrets/tofu-passphrase           (state encryption passphrase)
 #          /opt/skynet-ops/secrets/technitium.env            (T2 zones-only DNS token, SKY-008 P3)
 #          /opt/skynet-ops/secrets/cloudflare-dns.env        (T2 Zone:DNS:Edit token, SKY-014 public DNS)
@@ -30,8 +30,7 @@ for f in "${pass_file}" "${core_file}" "${net_file}" "${tech_file}"; do
   [ -f "${f}" ] || { echo "missing ${f} — is sops-nix decryption working? (nixos-rebuild)" >&2; exit 1; }
 done
 
-# Source each dotenv in turn and capture into node-specific vars. Core uses the operate secret's
-# PVE_* names (svc-ops!operate); network still uses the svc-tofu TOFU_PVE_* names.
+# Source each operate-token dotenv in turn and capture into node-specific vars.
 set -a
 # shellcheck source=/dev/null
 . "${core_file}"; CORE_HOST="${PVE_HOST}"; CORE_TOKEN="${PVE_TOKEN_OPERATE}"; CORE_CACERT="${PVE_CACERT:-${CERTS_DIR}/proxmox-core.crt}"

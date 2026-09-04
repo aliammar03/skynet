@@ -5,7 +5,7 @@
 > future change is measured against. It replaces the old birth plan, now archived verbatim as
 > [`history/deployment-plan-v5.md`](history/deployment-plan-v5.md).
 
-**The one VM:** `vm-skynet-ops` · **10.10.90.90** static · VLAN 90 · VMID 9090 · on `server-proxmox-core` — a **NixOS flake** ([SKY-007](../planning/projects/SKY-007-nixos-host-definition-piloted-on-the-ops-vm.md)).
+**The one VM:** `vm-skynet-ops` · **10.10.90.90** static · VLAN 90 · VMID 9090 · on `server-proxmox-core` — a **NixOS flake** ([SKY-007](../planning/archive/SKY-007-nixos-host-definition-piloted-on-the-ops-vm.md)).
 
 ---
 
@@ -163,7 +163,7 @@ the same latitude it reads prose, so a constraint is binding only once a *determ
 process* consumes it. The hard laws above should therefore be **machine-enforced wherever such a
 check exists** — the machine-checkable ones (excluded guests never pooled, blast radius = the
 declared pool set, no plaintext secrets) are extracted into an authored `invariants.json` and
-asserted by a gate that fails a violating PR ([SKY-011](../planning/projects/SKY-011-machine-enforced-invariants-and-the-ambiguity-layering-doctrine.md)),
+asserted by a gate that fails a violating PR ([SKY-011](../planning/archive/SKY-011-machine-enforced-invariants-and-the-ambiguity-layering-doctrine.md)),
 not left to the agent remembering. This is *not* a licence to rewrite this section into a schema:
 the constitution's job is to constrain judgment, a natural-language act. The full principle —
 ambiguity-tolerance layering; **format follows enforcement** — is [ADR 0003](decisions/0003-ambiguity-layering-and-format-follows-enforcement.md).
@@ -176,7 +176,7 @@ principal — lives in [access-and-trust](design/access-and-trust.md); this is t
 | Tier | Scope | Mechanism | Standing? |
 |---|---|---|---|
 | **T1 Read** | Both Proxmox nodes, PBS, Docker hosts, DNS, the **Omada network controller**, **OPNsense (read-only)** | Read-only API tokens; scoped OPNsense read-only API + mirrored `config.xml` | Always |
-| **T2 Operate** | `ops-managed` pools (both nodes), Docker hosts via Arcane + unprivileged SSH, Technitium zones, Cloudflare **DNS records** (`aliammar.net` zone); **backup/snapshot** of ops-managed guests; **provisioning** of in-pool guests via OpenTofu; **OPNsense firewall config** (aliases/rules) via OpenTofu + non-destructive maintenance (**minus the self-leash set**) | Scoped write tokens, `svc-ops` SSH, the `svc-ops!operate` API token (provisioning + snapshot/backup; SKY-024 retired the separate svc-tofu), Technitium scoped token, Arcane API key, Cloudflare scoped `DNS:Edit` token, OPNsense tofu-write API key | Yes — changes PR-gated |
+| **T2 Operate** | `ops-managed` pools (both nodes), Docker hosts via Arcane + unprivileged SSH, Technitium zones, Cloudflare **DNS records** (`aliammar.net` zone); **backup/snapshot** and supported OpenTofu updates of managed guests (new create currently blocked); approved **OPNsense firewall config** boundary (aliases/rules + non-destructive maintenance, minus self-leash; implementation pending) | Scoped write tokens, `svc-ops` SSH, the `svc-ops!operate` API token (guest update + snapshot/backup; SKY-024 retired the separate svc-tofu), Technitium scoped token, Arcane API key, Cloudflare scoped `DNS:Edit` token; OPNsense write mechanism pending SKY-020 | Yes where implemented — changes PR-gated |
 | **T2+ Root grant** | Root shell on workload hosts (diagnose, harden, provision, OS updates) | SSH user-CA certificate, per-host principal, **auto-expiring** | Grant only; expires itself |
 | **T3 Privileged** | OPNsense *node root / account / cert admin / reboot / self-leash rules*, Management Caddy, Authentik, Proxmox node root, Unraid root, Technitium *server settings*, Cloudflare *account / Access / tunnel config / zone settings* | Dormant alias `ROLE_OPS_PRIV_TARGETS` + per-session credentials | **Never standing** |
 
@@ -197,19 +197,17 @@ principal — lives in [access-and-trust](design/access-and-trust.md); this is t
 - **OPNsense is tiered** (ADR [0006](decisions/0006-opnsense-read-is-t1-write-stays-t3.md)) — three
   planes, because the firewall *is* the trust boundary. **T1 read+diagnostics:** a standing scoped
   credential reads aliases/rules/interfaces/DHCP live and runs non-mutating probes (ping/traceroute/
-  lookup). **T2 firewall config:** aliases and rules are `tofu/` resources — a `tofu plan` diff in a
-  PR, human-merged, applied via API (the same model as tofu provisioning for guests). **T3, never-standing:**
+  lookup). **T2 firewall config is approved but not implemented:** SKY-020 will manage non-leash
+  aliases/rules through the reviewed saved-plan OpenTofu path; no provider/resources or write
+  credential are live yet. **T3, never-standing:**
   node root, account/cert admin, **reboot** (a lab-wide outage — hard checkpoint always), and **the
   agent's own leash** (`ROLE_OPS_*`, the block-other-DNS rules, its own accounts) — human-merged
   forever, machine-gated on the plan (SKY-018 P7). The git mirror stays as rebuild-from-git truth.
-  This is a directive-sized build (firewall-as-code); the T1 read slice ships first.
 - **Omada is T1 for the switch/AP estate only** — read device inventory, ports, PoE, VLAN/profile
   assignment, firmware, and adoption status. A dedicated **read-only** controller account (never an
   admin credential); controller/site *administration* — adopting devices, pushing profiles, server
-  settings — stays **T3**. Same shape as the Technitium Zones-vs-settings split. Reachability is one
-  firewall alias membership (add the controller to `ROLE_OPS_API_TARGETS` + its port to
-  `PORT_OPS_API`), a T3 OPNsense change. (Landed by SKY-018 P4 — see
-  [access-and-trust](design/access-and-trust.md).)
+  settings — stays **T3**. The read credential and rule-360 reachability are live (SKY-018 P4;
+  see [access-and-trust](design/access-and-trust.md)).
 - **Pool membership is the blast-radius dial** — *on the network node.* Joining a guest to an
   `ops-managed` pool hands the agent T2 over it; leaving it out keeps it look-but-don't-touch.
   **VM 5001 (OPNsense) never joins any pool** — same for CT 635, CT 837. Never pooled, destroyed, or
@@ -258,11 +256,11 @@ expansion has an admission procedure and a home spoke:
 Where Skynet expands next. **Vision lives here; the work lives in `planning/` as `SKY-###`
 directives** — this section names the horizon and hands off.
 
-- **Reverse proxy / ingress** — **landing via [SKY-003](../planning/projects/SKY-003-apps-reverse-proxy-authentik-sso-ingress.md)**:
+- **Reverse proxy / ingress** — **landed via [SKY-003](../planning/archive/SKY-003-apps-reverse-proxy-authentik-sso-ingress.md)**:
   a T2 apps Caddy at `10.10.100.35` (the everyday-services twin of the T3 Management Caddy), detailed
   in the new [identity-and-proxy](design/identity-and-proxy.md) spoke. The tier decision is made — the
   apps door is T2, the Management door stays T3.
-- **A sanctioned public path (Cloudflare Tunnel)** — **landing via [SKY-014](../planning/projects/SKY-014-adopt-cloudflared-as-a-skynet-managed-tunnel-public-path-via-apps-caddy.md)**:
+- **A sanctioned public path (Cloudflare Tunnel)** — **landed via [SKY-014](../planning/archive/SKY-014-adopt-cloudflared-as-a-skynet-managed-tunnel-public-path-via-apps-caddy.md)**:
   the hand-run cloudflared LXC (CT 1033) becomes a **T2 Skynet-managed** GitOps service on
   `vm-docker-dmz`, reusing `.33` so it inherits firewall rule 800 (**no OPNsense change**). The
   tunnel is **outbound-only** — it opens no inbound rule, ever — and fronts a **single origin, the
@@ -274,20 +272,22 @@ directives** — this section names the horizon and hands off.
   Cloudflare** (Technitium keeps steering internal clients straight to the apps Caddy). The per-host
   CNAME is written by the agent under the **T2 Cloudflare `DNS:Edit`** grant (§2), not by hand. See
   [identity-and-proxy](design/identity-and-proxy.md).
-- **Declarative host definitions (NixOS)** — **landed for the ops VM via [SKY-007](../planning/projects/SKY-007-nixos-host-definition-piloted-on-the-ops-vm.md)**:
+- **Declarative host definitions (NixOS)** — **landed for the ops VM via [SKY-007](../planning/archive/SKY-007-nixos-host-definition-piloted-on-the-ops-vm.md)**:
   the box is now a reviewed **flake** (`hosts/` + `nix/modules/`), `nix build` gated in CI, deployed
   with deploy-rs (magic-rollback). Impermanence (tmpfs root), sops-nix secrets, and home-manager own
   the box. The old standing passwordless `sudo ALL` is **gone** — narrowed to least-privilege
   (`aliammar`: `systemctl skynet-*` + password-gated wheel; `svc-ops`: deploy-activation only).
-  **Extended to pool LXCs via [SKY-021](../planning/projects/SKY-021-nixos-in-lxc-prove-the-container-path-and-set-the-new-ct-default.md)**:
+  **Extended to pool LXCs via [SKY-021](../planning/archive/SKY-021-nixos-in-lxc-prove-the-container-path-and-set-the-new-ct-default.md)**:
   in-place `nixos-rebuild switch` + deploy-rs magic-rollback + sops-nix all work in an unprivileged
   Proxmox LXC (proven on a throwaway, then adguard-core), with per-CT age identities (Option C,
   [secrets](design/secrets.md)) so a container never holds the lab master key. **NixOS is now the
   default for new pool-able CTs**; Debian only for T3-excluded/appliance CTs. Details in [`nix/README.md`](../nix/README.md).
 - **Declarative provisioning (OpenTofu)** — **[SKY-008](../planning/projects/SKY-008-opentofu-provisioning-layer-vm-and-ct-lifecycle-plus-dns.md)**,
   extended by **[SKY-024](../planning/projects/SKY-024-tofu-declares-all-pool-guests-api-driven-ct-vm-lifecycle-no-node-ssh.md)**:
-  VM/CT lifecycle declared as OpenTofu resources (`tofu/`), including **fresh create** from a NixOS
-  vztmpl — proven API-only (`tofu apply` makes the box, deploy-rs specializes it). SKY-024 **retired
+  VM/CT lifecycle declared as OpenTofu resources (`tofu/`), including an API-only NixOS-vztmpl create
+  model proven by SKY-024. Production **new-guest apply is currently blocked**: the saved-plan executor
+  requires a pre-change snapshot, which a new VMID cannot provide. Do not bypass it until a compliant
+  create rollback is implemented and failure-tested. SKY-024 **retired
   the svc-tofu split**: tofu now runs as the **one operator token per node** (`svc-ops!operate`, the
   same identity as imperative ops) — one token that declares *and* fixes, no per-capability grant
   dance. **Core** is `/`-broadened (can mint VMIDs); **network stays pool-scoped** — OPNsense (the
@@ -295,7 +295,9 @@ directives** — this section names the horizon and hands off.
   by the same "never widen your own leash" law (machine-checked: `vms_root_nodes=[core]`). The three
   bright lines stay off even this token: **no `Permissions.Modify`, no `Sys.*` node root, no node SSH**
   — API-native only (bpg needs SSH only for snippets/idmap/local-file imports, which our shape doesn't
-  use). `tofu plan` is the reviewable diff; `apply` after human merge; `destroy` a hard checkpoint.
+  use). For supported non-create writes, the authored PR is human-merged, `tofu plan -out` creates the
+  exact review artifact, and `scripts/tofu-apply.sh` applies it after approval; `destroy` remains a
+  hard checkpoint.
   State local on the ops VM, PBKDF2-encrypted (passphrase in sops). Tofu makes the box exist; NixOS
   (SKY-007) defines what's on it. See [access-and-trust](design/access-and-trust.md).
 - **A secrets vault beyond sops+age** — an external backend (Vault / Infisical-class) if the
@@ -333,7 +335,7 @@ The depth lives here. **This set is open** — spokes are added by PR as the sys
 | [network](design/network.md) | Placement, VM spec, VLAN 90, firewall aliases/rules | §1, §3 |
 | [identity-and-proxy](design/identity-and-proxy.md) | Two-door model, split-DNS, Cloudflare DNS-01, one-Caddy `forward_auth`, Authentik T2/T3 split, the public path (Cloudflare Tunnel) | SKY-003, SKY-014 |
 | [access-and-trust](design/access-and-trust.md) | Trust tiers in depth, Proxmox operate tokens, SSH user-CA + grants, T3 dormant aliases | §2, §7, §8 |
-| [secrets](design/secrets.md) | sops+age, `.env.git`/`project.env` layering, envsync | §5, §4 |
+| [secrets](design/secrets.md) | sops+age, `.env.git` + `.env.sops` materialization, legacy envsync | §5, §4 |
 | [gitops-loop](design/gitops-loop.md) | Arcane deploy loop, rollback, image pinning + Renovate | §4, §12 |
 | [actuators](design/actuators.md) | L7 actuators + their rollback executors; the deterministic-rollback rule | SKY-018 P6, ADR 0005 §3 |
 | [disaster-recovery](design/disaster-recovery.md) | Survival kit + DR design (procedures in `runbooks/dr/`) | §10 |

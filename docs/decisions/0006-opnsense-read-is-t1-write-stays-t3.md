@@ -75,7 +75,8 @@ Reboot stays a hard checkpoint because it drops the whole network; it is never a
   human-merge. The T1 read credential + live collector is the near-term slice and ships first.
 - Two OPNsense credentials, both Ali-minted (the agent cannot mint firewall access): the T1
   `svc-skynet-recon` (read + diagnostics, "System: Deny config write" via a group), and a T2 write
-  credential used **only** by `tofu apply` after a merged PR. Both sops-nix (`opnsense.env`), same
+  credential used **only** by `scripts/tofu-apply.sh <saved-plan>` after a merged PR and explicit
+  review of that plan. Both sops-nix (`opnsense.env`), same
   shape as the Proxmox/Omada creds.
 - **The live API is the collector; the git mirror is retired to DR-only.** `collect-opnsense.sh`
   writes the canonical firewall inventory (`firewall.json` + `opnsense.json`) live — no push lag; the

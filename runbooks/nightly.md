@@ -33,7 +33,8 @@ the engine can't run (missing/unauthed/errors) — so the nightly always produce
 
 1. **Refresh inventory** — `bin/ops collect` (every collector idempotent, read-only; no creds
    yet = exits 0 without writing).
-2. **envsync** — `scripts/envsync.sh` re-encrypts any changed `project.env` → `.env.sops`.
+2. **Legacy env import** — `scripts/envsync.sh` encrypts any legacy `project.env` it finds; current
+   GitOps services already use committed `.env.git` + `.env.sops`, so a missing file is expected.
 3. **Render docs** — `scripts/render-docs.sh` rewrites the factual `docs/generated/` pages, then
    `scripts/render-digest.sh` regenerates the **agent cold-boot digest** `06-agent-digest.md`
    (recent decisions / open threads / recent episodes, from ADRs + the journal + the roadmap), and

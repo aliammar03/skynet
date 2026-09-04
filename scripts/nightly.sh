@@ -31,8 +31,8 @@ git checkout -B "${BRANCH}" "origin/${DEFAULT_BRANCH}" 2>/dev/null || git checko
 # 1. refresh inventory (each collector is idempotent + read-only; no creds = exit 0)
 ./bin/ops collect || true
 
-# 2. envsync — re-encrypt any changed project.env → .env.sops and STAGE it (secrets never in
-#    plaintext). envsync no longer commits; nightly owns the single commit below so an
+# 2. envsync — import any legacy project.env → .env.sops and STAGE it. Current GitOps projects
+#    are already repo-driven and normally have no project.env. envsync no longer commits; nightly owns the single commit below so an
 #    env-only night can't strand an unpushed .env.sops on a discarded branch.
 ./scripts/envsync.sh || true
 

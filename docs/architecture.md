@@ -23,14 +23,20 @@ included — from a laptop and a phone hotspot.
 | Proxmox core / network | Hypervisors; `ops-managed` pools are the write blast radius | T1 read / T2 pool |
 | PBS (10.10.20.40) | Guest backups, client-side encrypted | T1 / T2 |
 | Technitium (10.10.70.50/.51) | Split-horizon DNS; zones editable at T2 | T2 zones |
-| OPNsense | Router/firewall/DHCP — **read T1** (scoped read-only API + git mirror), **config/admin T3, never standing** | T1 read / T3 write |
+| OPNsense | Router/firewall/DHCP — read/diagnostics live at T1; non-leash aliases/rules approved for T2 but SKY-020 implementation is pending; node/admin/reboot/self-leash T3 | T1 live / T2 config pending / T3 privileged |
+| Authentik | Identity provider; scoped app/provider publishing at T2, administration at T3 | T2 slice / T3 admin |
 | age key | Master secret at `/opt/skynet-ops/secrets/age.key` | — |
 | SSH user-CA | On Ali's workstation only; signs auto-expiring root certs | — |
 
 ## Data flows
 
-- **Deploy:** edit `compose/<svc>/` → PR → merge → Arcane syncs → agent health-checks → inventory commit.
-- **Secrets backup:** nightly `envsync.sh` pulls each project's `project.env`, `sops`-encrypts to `compose/<svc>/.env.sops`.
+- **Deploy:** edit `compose/<svc>/` → PR → merge → `gitops-deploy.sh` materializes `.env`
+  from `.env.git` + decrypted `.env.sops` → Arcane reconciles → health check.
+- **Legacy env import:** `envsync.sh` encrypts a host `project.env` when one exists; GitOps projects
+  use committed `.env.git` + `.env.sops` and do not depend on `project.env`.
+- **OpenTofu:** authored source PR → human merge → reviewed saved plan →
+  `scripts/tofu-apply.sh <planfile>`; no production bare apply. New-guest creates currently fail
+  closed pending a rollback design because there is no pre-change guest to snapshot.
 - **App-data backup:** nightly restic of `/opt/docker/appdata` → rclone → Google Drive.
 - **Guest backup:** vzdump → PBS → nightly `rclone sync` of the datastore → Google Drive.
 - **Docs:** `render-docs.sh` turns `inventory/*.json` + firewall config into `docs/generated/` (Obsidian).

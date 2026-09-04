@@ -37,7 +37,8 @@ Arcane's **GitOps** sync copies `compose.yaml` (and the compose dir, incl. subdi
 owns the project lifecycle — but it does **NOT** merge `.env.git`/`project.env` into `.env`
 (that layering is only for non-GitOps projects). `docker compose` just reads whatever `.env` is on
 disk. So `scripts/gitops-deploy.sh` **materialises** the effective `.env` = `.env.git` +
-`sops -d .env.sops`, written `0600 root`, decrypted off-host (age key never leaves vm-skynet-ops).
+`sops -d .env.sops`, written `0600` and owned by Arcane's project UID, decrypted on vm-skynet-ops
+(the age key never leaves it).
 Arcane leaves a populated `.env` untouched on re-sync, so the two coexist.
 
 ## Deploy / update an existing service

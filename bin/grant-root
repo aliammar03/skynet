@@ -14,9 +14,8 @@
 # (Match user root), so grants for different hosts NO LONGER clobber each other — issue several
 # and they coexist until each expires on its own.
 #
-# STATUS: end-to-end validated on the NixOS box (SKY-007 1d) — a per-host `ops-root-<host>` cert
-# verifies against TrustedUserCAKeys and root login succeeds. The ops box is now `aliammar@` on
-# NixOS (post-cutover); the agent pubkey it signs lives at ~aliammar/.ssh/id_ed25519.pub.
+# STATUS: the per-host path and concurrent grants were validated during the A6 rehearsal recorded in
+# `docs/history/deployment-plan-v5.md`; legacy single-cert loading remains compatibility-only.
 set -euo pipefail
 
 HOST="${1:?host or 'all'}"; DUR="${2:-2h}"

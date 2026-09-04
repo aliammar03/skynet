@@ -1,11 +1,11 @@
 ---
-summary: "Provision a NixOS pool LXC: declare it in tofu (API-only create from the NixOS vztmpl), inject its Option C age key, deploy-rs its flake host. Tofu owns the envelope, nix owns the inside."
+summary: "Author and review a NixOS pool-LXC declaration; new-CT apply is blocked pending a rollback-safe saved-plan executor."
 trigger: "Set up / deploy a new LXC for X"
 ---
 
 # Runbook — provision a NixOS pool LXC (declarative)
 
-**Tier:** T2 (tofu apply via the operator token, API-only — no node SSH; deploy-rs over SSH).
+**Tier:** T2 (reviewed saved-plan apply via the operator token, API-only — no node SSH; deploy-rs over SSH).
 **Trigger:** *"Set up a new LXC for X" / "deploy a new container."*
 
 > **Tofu makes the box, Nix defines it.** A new pool CT is **one data entry in `tofu/pool-cts.tf` + a
@@ -14,6 +14,10 @@ trigger: "Set up / deploy a new LXC for X"
 > into a `for_each` data entry. The reference module is [`tofu/pool-cts.tf`](../tofu/pool-cts.tf); the
 > reference host is
 > [`hosts/lxc-adguard-core/`](../hosts/lxc-adguard-core/).
+
+> [!warning] **New-CT apply is currently blocked.** `scripts/tofu-apply.sh` requires a pre-apply
+> snapshot of every touched guest; a new VMID cannot supply one. Do not bypass the wrapper. Author and
+> review the declaration, then stop before apply until a rollback-safe create path is implemented.
 
 ## Steps
 
@@ -40,16 +44,25 @@ trigger: "Set up / deploy a new LXC for X"
    needs a human (⚠ — that node is pool-scoped by design; OPNsense lives there). **Never** add an
    excluded guest (OPNsense 5001, CT 635/837, VM 2020, PBS 240) to `pool_cts`.
 
-5. **Apply + specialize.** `eval "$(scripts/tofu-env.sh)"` then (from `tofu/`) `tofu plan` → after merge
-   `tofu apply` creates the CT (API-only). Then:
+5. **PR and save the reviewed plan; do not apply yet.** Open a PR with the flake/tofu declarations
+   and speculative plan output; Ali merges. From that merged revision, save and show the exact plan:
+   ```
+   eval "$(scripts/tofu-env.sh)"
+   tofu -chdir=tofu plan -out=/tmp/provision-lxc-<name>.tfplan
+   tofu -chdir=tofu show -no-color /tmp/provision-lxc-<name>.tfplan
+   # STOP: the production executor currently rejects new-guest creates; do not bypass it.
+   ```
+   Once a rollback-safe create executor is implemented and proven, it must consume that approved
+   saved plan. Only then continue:
    ```
    scripts/ct-age-identity.sh inject lxc-<name> root@<ip>   # if it has secrets, BEFORE the first deploy
    nix run github:serokell/deploy-rs -- .#lxc-<name>        # first activation; magic-rollback protects you
    ```
 
-6. **Verify + PR.** Confirm the service works; `bin/ops collect` refreshes inventory; the entity audit
-   must stay green (VMID↔IP). Land the flake host + tofu block via PR (the agent never self-merges).
-   Day-2 is then just edit → `deploy .#lxc-<name>`; rollback = `git revert` (+ deploy) or `tofu destroy`.
+6. **Verify + evidence PR.** Confirm the service works; `bin/ops collect` refreshes inventory; the
+   entity audit must stay green (VMID↔IP). Land refreshed evidence via PR. Day-2 is edit → PR →
+   `deploy .#lxc-<name>`; rollback is a human-merged `git revert` + deploy. Destruction remains a
+   separate explicit hard checkpoint and is never sent through the saved-plan wrapper.
 
 ## Bringing an EXISTING container under tofu (zero-drift import)
 Import instead of create: model the resource on [`tofu/pool-cts.tf`](../tofu/pool-cts.tf)

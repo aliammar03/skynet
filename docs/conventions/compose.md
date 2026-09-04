@@ -66,7 +66,7 @@ compose/<svc>/
 - **Secrets never appear in `.env.git`, `compose.yaml`, or plaintext `.env`/`project.env`**
   `[testable]` (pre-commit `secret-scan.sh` enforces).
 - `scripts/gitops-deploy.sh` **materialises** the effective `.env` = `.env.git` + `sops -d
-  .env.sops`, written `0600`, decrypted on-host (the age key never leaves the ops VM). Full flow:
+  .env.sops`, written `0600`, decrypted on the ops VM (the age key never leaves it). Full flow:
   `compose/README.md` and [`../design/secrets.md`](../design/secrets.md).
 
 ## The loop

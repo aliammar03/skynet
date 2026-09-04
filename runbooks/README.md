@@ -31,7 +31,7 @@ with its own **Tier** and (where relevant) **Trigger** line; the summaries below
 | Runbook | Tier | What it does |
 |---|---|---|
 | [`deploy-service.md`](deploy-service.md) | T2 (PR-gated) | Add or update a service the skynet way — Arcane GitOps, pinned digests, `.env.sops` secrets, healthcheck + role tag. Includes the one-time legacy→GitOps cutover. |
-| [`publish-service.md`](publish-service.md) | T2 (PR-gated) | Give a service a real URL (`https://<svc>.aliammar.net`) through the apps Caddy — edit one Caddyfile → PR → deploy. Own-auth reverse-proxy path (P3 adds the Authentik forward-auth path). |
+| [`publish-service.md`](publish-service.md) | T2 (PR-gated) | Give a service a real URL through apps Caddy: plain reverse proxy for own-auth services or the proven Authentik forward-auth path for no-login services; optional public tunnel. |
 | [`nightly.md`](nightly.md) | T1 read + PR | The `skynet-nightly.timer` maintenance pass: refresh inventory → envsync → render docs → (agent) narrative + grant audit → open a PR. Report-only until actions are promoted. Documents the engine order + deterministic fallback. |
 | [`update-guests.md`](update-guests.md) | T2 snapshot + T2+ fleet root grant | Update all guests. Trigger: *"Update all guests."* |
 
@@ -39,8 +39,8 @@ with its own **Tier** and (where relevant) **Trigger** line; the summaries below
 
 | Runbook | Tier | What it does |
 |---|---|---|
-| [`provision-vm.md`](provision-vm.md) | T2 tofu apply + T2+ root grant | **Declarative (SKY-008)** — declare the guest as an OpenTofu resource cloning the base template, `plan`/apply, then harden with restic under a scoped root grant. Trigger: *"Set up a VM for X, hardened, with restic."* |
-| [`provision-lxc.md`](provision-lxc.md) | T2 tofu apply (API-only) + deploy-rs | **NixOS pool LXC (SKY-021/024)** — a new CT = a `proxmox_virtual_environment_container` block (from the NixOS vztmpl, MAC pinned) + a `hosts/lxc-<name>/` flake host + PR → `tofu apply` (tofu owns the envelope) → Option C key inject → `deploy` (nix owns the inside). Trigger: *"Set up / deploy a new LXC for X."* |
+| [`provision-vm.md`](provision-vm.md) | T2 saved-plan apply + T2+ root grant | **Blocked at apply:** declarations remain reviewable, but the safe wrapper cannot snapshot a new VMID; do not bypass it pending a create rollback design. |
+| [`provision-lxc.md`](provision-lxc.md) | T2 saved-plan apply (API-only) + deploy-rs | **Blocked at apply:** the safe wrapper fails closed for new CTs because no pre-change snapshot can exist; author/review only for now. |
 
 ## Build & collaboration
 

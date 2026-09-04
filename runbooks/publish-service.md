@@ -33,7 +33,7 @@ deliberately, per host, and only for a service that already self-gates (see its 
 - **Internal DNS is declarative and derived (SKY-008).** Each app vhost has its **own** `A` record →
   the apps Caddy (`10.10.100.35`), and that record set is **derived from this very Caddyfile** by tofu
   (`tofu/dns-aliammar-net.tf`: `regexall` over the site-address lines). So adding a site block here is
-  *also* declaring its DNS — the record appears on the next `tofu apply` (step below). There is **no
+  *also* declaring its DNS — the record appears on the next reviewed saved-plan apply (step below). There is **no
   wildcard fallback**: a vhost resolves internally only once its record is applied. (Public DNS is
   Cloudflare; nothing is exposed to the internet — this is internal ingress only.)
 - TLS is automatic: Caddy issues a publicly-trusted cert via ACME **DNS-01 over Cloudflare**. No
@@ -61,12 +61,13 @@ deliberately, per host, and only for a service that already self-gates (see its 
 3. **PR** with a teaching description (what the service is, its origin `IP:port`, the URL it gets,
    own-auth vs forward-auth). **Ali merges** — the merge gate is what actually protects the routes
    (see the honest security position in the spoke). The agent never merges its own PR.
-4. **Create the DNS record (T2, tofu).** The new vhost's `A` record is *already declared* — tofu
-   derives it from the Caddyfile — so it just needs applying:
+4. **Create the DNS record (T2, tofu).** From the human-merged revision, create and show the exact
+   saved plan. Ali approves that diff; the guarded executor applies that same file:
    ```
    eval "$(scripts/tofu-env.sh)"
-   cd tofu && tofu plan            # expect exactly: + technitium_record.apps_service["<svc>.aliammar.net"]
-   tofu apply                      # ⚠ T2 DNS write — creates the record → 10.10.100.35
+   tofu -chdir=tofu plan -out=/tmp/publish-<svc>.tfplan
+   tofu -chdir=tofu show -no-color /tmp/publish-<svc>.tfplan  # expect only the derived A record
+   scripts/tofu-apply.sh /tmp/publish-<svc>.tfplan            # only after explicit approval
    ```
    (This step is what makes `<svc>.aliammar.net` resolve internally — there is no wildcard fallback, so
    don't skip it.)
@@ -84,8 +85,8 @@ deliberately, per host, and only for a service that already self-gates (see its 
    The **first** hit on a new hostname may briefly fail TLS while Caddy obtains the ACME cert
    (DNS-01, ~15–30s); retry. A `502` right after a deploy usually just means the upstream is still
    warming up.
-7. If red → `git revert`, re-run `scripts/gitops-deploy.sh caddy-apps`. (Removing the vhost also
-   removes its derived DNS record on the next `tofu apply` — once the token has record-delete.)
+7. If red → revert by PR, re-run `scripts/gitops-deploy.sh caddy-apps`, then review/apply the
+   resulting saved plan so the derived DNS record is removed (once the token has record-delete).
 
 ---
 
@@ -206,13 +207,13 @@ is public *only* with an `ingress` rule **and** a public CNAME):
    `--watch` hot-reload). `scripts/gitops-deploy.sh cloudflared` now force-restarts the connector for
    exactly this reason — run it and confirm it comes back healthy (`tunnel ready`, 4 connections). The
    manual fallback if ever needed: `ssh svc-ops@10.10.100.15 "docker restart cloudflared-cloudflared-1"`.
-2. **Create the public DNS CNAME (T2, tofu).** The proxied CNAME → `<tunnel-id>.cfargotunnel.com` is
-   *derived from the ingress rule you just added* (`tofu/cloudflare-dns.tf` reads
-   `compose/cloudflared/config.yml`), so it only needs applying:
+2. **Create the public DNS CNAME (T2, tofu).** From the merged ingress revision, save and show the
+   exact derived plan; Ali approves it before the guarded executor applies that file:
    ```
    eval "$(scripts/tofu-env.sh)"
-   cd tofu && tofu plan     # expect: + cloudflare_dns_record.tunnel["<svc>.aliammar.net"]
-   tofu apply               # ⚠ T2 DNS write — the public record appears
+   tofu -chdir=tofu plan -out=/tmp/public-<svc>.tfplan
+   tofu -chdir=tofu show -no-color /tmp/public-<svc>.tfplan  # expect only the derived CNAME
+   scripts/tofu-apply.sh /tmp/public-<svc>.tfplan            # only after explicit approval
    ```
    (This is the *public* record on Cloudflare's authoritative DNS — separate from Technitium's internal
    split-DNS, which keeps steering internal clients straight to the Caddy. Break-glass without tofu:
@@ -262,8 +263,8 @@ blocking them breaks logins. Verify the split: `/if/admin/` is `404` over the tu
 internal client; the public login page + `/if/flow/…` serve `200`. And ensure the Authentik account
 that page now exposes uses **MFA / a passkey** (the login is internet-reachable).
 
-**Rollback:** `git revert` the `ingress` line and `tofu apply` — dropping the ingress removes the
-derived CNAME (the hostname stops resolving publicly) — then restart the connector. For an *immediate*
+**Rollback:** revert the `ingress` line by PR, then review/apply the resulting saved plan — dropping
+the ingress removes the derived CNAME — and restart the connector. For an *immediate*
 pull ahead of the revert, the break-glass path is `scripts/cf-dns-route.sh --delete <svc>.aliammar.net`
 (but re-apply tofu afterward so state matches, or tofu will want to recreate it). Public exposure is
 additive and per-host — removing it takes nothing away from the internal door.
@@ -297,5 +298,5 @@ shapes show up here, both fixed on the **service**, not the Caddyfile:
 ### Own-auth vs "no gate at all"
 
 "Own-auth" means the origin has a **real login** (karakeep, aiostreams, marinara's basic-auth → `401`).
-A service with *no* login is only shielded by network segmentation until Path B (forward-auth) lands —
-proxy it plainly only as a deliberate, internal-only choice.
+A service with *no* login uses the already-proven Path B forward-auth pattern before public exposure.
+Calibre is the live reference; a plain no-auth route remains a deliberate internal-only choice.

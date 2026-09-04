@@ -115,8 +115,9 @@ OPNsense **rule 800** (`HOST_CLOUDFLARED .33 → 443, 7844`) — **no firewall c
   Caddy's ACME already holds — kept `0600` at `/opt/skynet-ops/secrets/cloudflare-dns.env`, never in
   git. The Cloudflare **account, Zero-Trust/Access policies, tunnel configuration, and zone settings**
   are **T3** (Ali only). This mirrors the Technitium *zones vs server settings* split: records are not
-  privileged access. Rollback of a publish is `git revert` the ingress line + `tofu apply` (the derived
-  CNAME goes with it); `cf-dns-route.sh --delete <host>` is the break-glass immediate pull.
+  privileged access. Rollback of a publish is a human-merged revert plus a reviewed
+  `scripts/tofu-apply.sh <saved-plan>` (the derived CNAME goes with it);
+  `cf-dns-route.sh --delete <host>` is the break-glass immediate pull.
 - **Own-auth (or stronger) at the edge.** The pilot is `obsidian.aliammar.net` — CouchDB's own admin
   login, contents E2E-encrypted on the client. An app **without** its own strong login must sit behind
   Cloudflare Access / Authentik before it goes public (revisited then, not now).
@@ -161,8 +162,8 @@ read the forward-auth shared secret from a container's env. What actually guards
    app-client VLANs, **never the internet**, and only until the next sync.
 2. **Config-in-git + human merge gate** — the *sanctioned* way to change a route/auth is a PR **Ali
    merges**. Auth cannot legitimately change without a merge; any direct-host edit is out-of-band.
-3. **Drift is loud and temporary** — Arcane reconciles from git; the nightly inventory diff surfaces
-   tampering, which then auto-reverts.
+3. **Drift is loud** — Arcane's sync restores the tracked project definition on reconciliation, and
+   the report-only nightly surfaces remaining drift. Detection itself does not auto-revert anything.
 
 **Net residual risk:** an insider with the ops SSH key could expose an *internal* service to other
 *internal* users, visibly in git-diff, until the next sync. Contained, auditable, internal-only —
@@ -180,9 +181,10 @@ reach that SSH port in the first place.
 | How a route change deploys (PR → Arcane reconcile) | [gitops-loop](gitops-loop.md) |
 | Publishing a service (both paths) | `runbooks/publish-service.md` |
 
-## Planned expansion
+## Routine extension and planned automation
 
-- **More protected apps.** Each new no-auth service is a `forward_auth` site + a provider/application
+- **More protected apps.** The forward-auth path is live; each additional no-auth service is a
+  `forward_auth` site + a provider/application
   created through the scoped T2 token — routine, no boundary move.
 - **Proxy config generated from `inventory/`.** The Caddyfile could eventually be rendered from
   inventory the way `docs/generated/` already is, closing the loop end-to-end.

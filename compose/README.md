@@ -99,10 +99,10 @@ only applies to Arcane's *non-GitOps* projects. A GitOps project just runs `dock
 against whatever `.env` is on disk.
 
 So `scripts/gitops-deploy.sh` **materialises** the effective `.env` = `.env.git` +
-`sops -d .env.sops`, written `0600 root`, decrypted off-host (the age key never leaves
-vm-skynet-ops). Every service still declares `env_file: .env` so those values reach it. Arcane
+`sops -d .env.sops`, written `0600` and owned by Arcane's project UID, decrypted on
+vm-skynet-ops. Every service still declares `env_file: .env` so those values reach it. Arcane
 leaves a populated `.env` untouched on re-sync; auto-sync only redeploys already-running projects
 (a stopped one updates on next manual start).
 
-Restore secrets by hand: `sops -d compose/<svc>/.env.sops` appended into the project `.env`,
-then redeploy.
+Restore the selected `.env.git`/`.env.sops` revision with `scripts/gitops-deploy.sh <svc>`; the
+wrapper rematerializes the effective file and redeploys it.
