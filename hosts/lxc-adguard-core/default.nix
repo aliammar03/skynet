@@ -25,6 +25,12 @@ in
   # by design). AdGuard binds :53 and :80 via CAP_NET_BIND_SERVICE on the service below.
   networking.firewall.enable = false;
 
+  # AdGuard IS the resolver on this box, so systemd-resolved must not hold :53 — its stub listeners
+  # (127.0.0.53/54:53) otherwise collide with AdGuard's 0.0.0.0:53 and it can't start. Disable it and
+  # give the CT its own upstreams for its OWN outbound lookups (nix, filter-list fetches).
+  services.resolved.enable = false;
+  networking.nameservers = [ "9.9.9.9" "1.1.1.1" ];
+
   # Option C: this CT's age identity, injected to keyFile at provision (before the first deploy).
   sops.age.keyFile = "/var/lib/sops-nix/age.key";
 
@@ -383,6 +389,7 @@ in
       User = "adguardhome";
       Group = "adguardhome";
       StateDirectory = "AdGuardHome";
+      StateDirectoryMode = "0700"; # AdGuard warns if the work dir is group/world-readable
       WorkingDirectory = workDir;
       # nix is the source of truth: re-seed the writable config from the rendered template each start.
       ExecStartPre = "${pkgs.coreutils}/bin/install -m 0600 ${renderedConfig} ${configFile}";
