@@ -84,9 +84,18 @@ facts move to their real home.
 
 ## 7. Worked example
 
-<!-- TODO(SKY-022 P3 · cold-resume milestone 2): fill this in from the P2 journal episode
-     journal/2026/2026-09-04-session-sky-022-p2-first-real-lead-helper-delegation.md.
-     Walk one real job end to end: the task, the scout hand-off + what was verified, the builder
-     hand-off + the BIV prompt shape, the lead's independent verification (incl. the fail-closed
-     negative proof), and the PR. Keep it to a tight dozen lines — a procedure illustration, not a
-     story. This section is intentionally left as a stub for the Phase-3 cold-lead resume test. -->
+To make the construction doctrine's `[testable]` claims enforceable, the lead split the job into
+a read-only investigation and a bounded implementation.
+
+- A Scout located every claim, the enforcement gap, the exact configuration literals, and the
+  existing test/CI wiring. The lead re-checked every cited file and line before using that report.
+- A Builder received a BIV prompt: edit only `invariants.json`, `scripts/check-invariants.sh`, and
+  `tests/construction-test.sh`; add the specified checker and tests; do not commit, push, or touch
+  Git; then run `./scripts/check-invariants.sh` and `./tests/construction-test.sh`.
+- The lead read the complete diff and independently reran the invariant gate, construction test,
+  and JSON validation.
+- To prove the new controls failed closed, the lead temporarily changed the helper cap from two to
+  three and the Scout sandbox from `read-only` to `workspace-write`; each mutation failed with an
+  actionable message, and the lead restored the clean configuration.
+- Finally, the lead wired the test into the pre-commit hook and CI, updated the doctrine's checker
+  references, and opened PR #173.
