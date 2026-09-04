@@ -29,6 +29,9 @@ These hold everywhere and don't get a "unless"; the spokes elaborate, never loos
   → [`conventions/naming.md`](conventions/naming.md)
 - **One authoritative home per rule** — state it once, link everywhere else.
   → [`conventions/docs.md`](conventions/docs.md)
+- **Construction delegation stays lean and unprivileged** — one accountable lead, one delegation
+  level, ≤2 helpers, delegate only bounded/independent/verifiable work, and **no helper ever gains
+  production authority**. → [`conventions/construction.md`](conventions/construction.md)
 
 ## The spokes
 
@@ -41,6 +44,7 @@ These hold everywhere and don't get a "unless"; the spokes elaborate, never loos
 | [git](conventions/git.md) | Branch grammar, PR discipline, commit subjects, what never commits |
 | [docs](conventions/docs.md) | Hub-and-spoke pattern, ADR & runbook format, README-as-catalog |
 | [metadata](conventions/metadata.md) | Directive/service frontmatter schemas, compose label/tag namespaces |
+| [construction](conventions/construction.md) | Lead/Builder/Mechanic/Scout roles, BIV delegation test, tier routing, native Codex subagents, build-time trust boundary |
 
 **Adding a convention:** put the rule in the right spoke (or add a spoke), tag it
 [testable]/[manual], and — if it's load-bearing — surface a one-liner in the invariants above. A

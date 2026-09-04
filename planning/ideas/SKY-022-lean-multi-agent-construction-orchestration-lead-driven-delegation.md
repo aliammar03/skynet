@@ -1,12 +1,12 @@
 ---
 id: SKY-022
 title: "Lean multi-agent construction orchestration: lead-driven delegation"
-status: draft
+status: in-progress
 horizon: long
 created: 2026-09-04
 updated: 2026-09-04
 phases: 6
-current_phase: 0
+current_phase: 1
 tier_touched: [T1]
 related:
   - docs/system-design.md
@@ -108,14 +108,22 @@ Initial maximum active helpers: **2**. Raise only after real work demonstrates t
 
 Canonical roles:
 
-| Role | Purpose | Initial model class | Writes? |
+| Role | Purpose | Tier · effort | Writes? |
 |---|---|---|---:|
-| **Lead** | Owns intent, architecture, decomposition, integration, verification | Terra normally; Sol for hard/cross-cutting work | yes |
-| **Builder** | Implements one bounded component with a clear interface | Terra | yes |
-| **Mechanic** | Repetitive edits, fixtures, renames, formatting, routine docs | Luna | yes |
-| **Scout** | Searches, compares, investigates, returns a concise report | Luna or Terra | **no** |
+| **Lead** | Owns intent, architecture, decomposition, integration, verification | Terra `xhigh` (→ Sol for hard/cross-cutting; Sol-only `max` for a brutal task) | yes |
+| **Builder** | Implements one bounded component with a clear interface | Terra `high` | yes |
+| **Mechanic** | Repetitive edits, fixtures, renames, formatting, routine docs | Luna `high` | yes |
+| **Scout** | Searches, compares, investigates, returns a concise report | Luna `medium` | **no** |
 
-Model IDs live in configuration or the invoking tool, not in the architecture. A future model swap should not change the role contract.
+Tier · effort are benchmark-backed (P1), routed by uncertainty and consequence. The Terra↔Luna
+choice *is* the Builder↔Mechanic split: **Builder → Terra** because novel bounded logic is where
+correctness margin matters (Terra wins every coding benchmark, and a wrong builder costs a rework
+loop paid in expensive lead tokens — dwarfing Luna's small per-token saving); **Mechanic → Luna**
+because high-volume deterministic edits with airtight checks are where Luna's economics dominate. The
+lead reasons hardest (effort, not tool access, buys first-try reliability). Model IDs live in
+configuration or the invoking tool (`bin/agent`, `.codex/agents/*.toml`), not in the architecture —
+a future model swap should not change the role contract. Details + the full evidence:
+[`docs/conventions/construction.md`](../../docs/conventions/construction.md).
 
 ### D · Delegation must pass the BIV test
 
@@ -238,7 +246,7 @@ Construction parallelism must never become an accidental second production-contr
 
 ## 4. The plan
 
-### Phase 1 · Role contract + tiny launcher  (~1–2h)   `[ ]` not started
+### Phase 1 · Role contract + tiny launcher  (~1–2h)   `[x]` done 2026-09-04
 
 Goal: make the mental model concrete without building orchestration infrastructure.
 
