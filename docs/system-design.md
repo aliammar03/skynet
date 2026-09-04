@@ -244,7 +244,7 @@ expansion has an admission procedure and a home spoke:
 |---|---|---|
 | **A new service** | `compose/<svc>/` → the [GitOps loop](design/gitops-loop.md); catalog it in `planning/services/` | gitops-loop |
 | **A new managed host** | Onboard to the CA (`onboard-host.sh`), decide pool membership (= its tier), land it in `inventory/` + `ROLE_OPS_SSH_TARGETS` | [access-and-trust](design/access-and-trust.md), [network](design/network.md) |
-| **A host's OS + config, declaratively** | Define it as a reviewed **NixOS flake** (`hosts/` + `nix/modules/`), `nix build` gated in CI. **In place on the ops VM** (SKY-007); any other host is a fresh directive gated on that evidence | [`nix/README.md`](../nix/README.md), SKY-007 |
+| **A host's OS + config, declaratively** | Define it as a reviewed **NixOS flake** (`hosts/` + `nix/modules/`), `nix build` gated in CI. Proven on the ops **VM** (SKY-007) and on a pool **LXC** (SKY-021: adguard-core). **NixOS is the default for a new pool-able CT** (deploy-rs day-2, Option C per-CT sops key); Debian stays only for T3-excluded/appliance CTs the agent can't own | [`nix/README.md`](../nix/README.md), SKY-007, SKY-021 |
 | **A managed guest, declaratively** | Declare it in `tofu/` as an OpenTofu resource; `tofu plan` diff reviewed in PR, `apply` after merge. Pool-scoped `svc-tofu` token — **no node root, no SSH** (SKY-008). `destroy` is a hard checkpoint, never auto-approved | [access-and-trust](design/access-and-trust.md), SKY-008 |
 | **A new `ops-managed` pool** | Widen the blast-radius **dial** by PR here, then create the pool with the operate ACLs | [access-and-trust](design/access-and-trust.md) |
 | **A new VLAN / segment** | Firewall aliases + rules, DNS zones, then hosts | [network](design/network.md) |
@@ -278,8 +278,12 @@ directives** — this section names the horizon and hands off.
   the box is now a reviewed **flake** (`hosts/` + `nix/modules/`), `nix build` gated in CI, deployed
   with deploy-rs (magic-rollback). Impermanence (tmpfs root), sops-nix secrets, and home-manager own
   the box. The old standing passwordless `sudo ALL` is **gone** — narrowed to least-privilege
-  (`aliammar`: `systemctl skynet-*` + password-gated wheel; `svc-ops`: deploy-activation only). Any
-  **other** host is still a fresh directive gated on this evidence. Details in [`nix/README.md`](../nix/README.md).
+  (`aliammar`: `systemctl skynet-*` + password-gated wheel; `svc-ops`: deploy-activation only).
+  **Extended to pool LXCs via [SKY-021](../planning/projects/SKY-021-nixos-in-lxc-prove-the-container-path-and-set-the-new-ct-default.md)**:
+  in-place `nixos-rebuild switch` + deploy-rs magic-rollback + sops-nix all work in an unprivileged
+  Proxmox LXC (proven on a throwaway, then adguard-core), with per-CT age identities (Option C,
+  [secrets](design/secrets.md)) so a container never holds the lab master key. **NixOS is now the
+  default for new pool-able CTs**; Debian only for T3-excluded/appliance CTs. Details in [`nix/README.md`](../nix/README.md).
 - **Declarative provisioning (OpenTofu)** — **landing via [SKY-008](../planning/projects/SKY-008-opentofu-provisioning-layer-vm-and-ct-lifecycle-plus-dns.md)**:
   in-pool VM/CT lifecycle declared as OpenTofu resources (`tofu/`), driven by a **pool-scoped
   `svc-tofu` API token** (privilege-separated, no node root, no SSH). `tofu plan` is the reviewable

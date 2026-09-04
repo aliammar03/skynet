@@ -6,7 +6,7 @@ horizon: short
 created: 2026-09-03
 updated: 2026-09-04
 phases: 3
-current_phase: 2
+current_phase: 3
 tier_touched: [T2]     # reprovisions a pool CT (T2 destroy/recreate) + sets a new-CT default
                        # policy → the plan MUST PR docs/system-design.md (the constitution).
 related:
@@ -122,7 +122,10 @@ Exit criteria: recorded verdict that in-place rebuild + deploy-rs rollback work 
 LXC on 26.05 — or, if not, a logged checkpoint to Ali on the fallback (not an autonomous switch).
 Grants / human actions: same possible CT-shell checkpoint as P1.
 
-### Phase 3 — convert `adguard-network` + set the new-CT default  (~1–2h)   `[ ]` not started
+### Phase 3 — convert `adguard-core` + set the new-CT default  (~1–2h)   `[x]` DONE (2026-09-04)
+> Pilot retargeted mid-flight from `adguard-network` (730, network node — grant-walled) to
+> **`adguard-core` (731, core node)** where the token self-provisions (Ali's call). Both are AdGuard
+> filters; clients use Technitium, so adguard is a survivable leftover.
 Steps:
 1. Author the real `hosts/lxc-adguard-network/` flake host: base module + `services.adguardhome`
    (service config now lives in Nix — the new surface vs the ops box where Arcane owned services),
@@ -200,3 +203,17 @@ Follow AGENTS.md as above.
   a P3 deliverable). **New P3 input:** age-key distribution to a pool CT is a real choice — lab-one-key
   (needs the master key on the CT) vs host-key-derived (per-CT recipient, no crown-jewel spread). CT
   9099 stopped; destroy held as a §6 checkpoint for Ali.
+- 2026-09-04 — **Phase 3 DONE** (PRs #162 Option C, #163 host+cutover, #164 ops network tools).
+  Resolved the P2 open question by implementing **Option C** (per-CT age identity, two-tier: lab key
+  → per-CT key committed lab-encrypted → service secrets dual-recipient; `scripts/ct-age-identity.sh`).
+  Pivoted the pilot to **adguard-core (731)** on core. Authored `hosts/lxc-adguard-core/` — a plain
+  `adguardhome` service fed a **sops-templated config rendered verbatim from live 731** (only the admin
+  bcrypt hash is a placeholder). **Live cutover:** stopped+destroyed old Debian 731, provisioned the
+  NixOS CT, injected the Option C key, `deploy .#lxc-adguard-core`. First deploy failed (systemd-resolved
+  held :53 → AdGuard couldn't bind → deploy-rs **auto-rolled-back**, the safety net working); fixed by
+  `services.resolved.enable = false`. Verified: resolve + `*.aliammar.net`/specific rewrites + ad-block
+  + admin auth all correct. Reclaimed the identity to **731/.31** (VMID↔IP law) per Ali; the destroy/
+  recreate churn left OPNsense with a **stale dynamic ARP** for .31 → fixed by pinning the CT's MAC to
+  the one OPNsense already cached (no firewall mutation). **Constitution PR'd:** new-CT default = NixOS
+  for pool-able LXCs (Debian only for T3-excluded/appliance). Also added dig & network-diagnostics tools
+  to the ops box (#164). SKY-021 complete → ready to archive.

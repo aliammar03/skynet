@@ -98,9 +98,8 @@
         };
       };
 
-      # SKY-021 P3 — adguard-core day-2 over deploy-rs. Steady-state hostname is 10.10.70.31 (VLAN 70,
-      # the old 731's address, taken after cutover). During the cutover the new CT boots on a temp IP
-      # and is deployed there first; this node targets the final address. sshUser=root (agent key baked).
+      # SKY-021 P3 — adguard-core (CT 731 @ 10.10.70.31) day-2 over deploy-rs. sshUser=root (the agent
+      # key is baked to root in lxc-base).
       deploy.nodes.lxc-adguard-core = {
         hostname = "10.10.70.31";
         profiles.system = {
