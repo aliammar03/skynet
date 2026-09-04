@@ -45,12 +45,12 @@ scratchpad ──▶ ideas ──▶ backlog ──▶ projects ──▶ archiv
 bin/plan scratch "quick thought"        # drop a note in scratchpad/ (no ID)
 bin/plan idea "collector CI" [--long]   # mint the next SKY-### in ideas/
 bin/plan service "some app"             # sketch a planned service in services/
-bin/plan promote SKY-014 backlog        # move between stages (ideas|backlog|projects|services|archive)
+bin/plan promote SKY-014 backlog        # move between ideas|backlog|projects|services|archive
 bin/plan start SKY-014                  # → projects/, ready to flesh into phases
                                         #   (also stamps status: in-progress + updated: today —
                                         #    don't re-set those by hand; bump current_phase yourself)
 bin/plan archive SKY-014 [--abandon]    # → archive/ (done, or killed)
-bin/plan show SKY-014                    # print path + open location
+bin/plan show SKY-014                   # print path + open location
 bin/plan list                           # regenerate the roadmap table below
 ```
 
@@ -85,4 +85,7 @@ so running or resuming one is a single paste into a fresh session.
 | SKY-021 | NixOS-in-LXC: prove the container path and set the new-CT default | projects | in-progress | 3/3 | 🌱 short |
 | SKY-023 | Eliminate documentation drift and shrink operational context | ideas | draft | — | 🌱 short |
 | SKY-024 | tofu declares all pool guests — API-driven CT/VM lifecycle, no node SSH | ideas | draft | — | 🌱 short |
+| SKY-021 | NixOS-in-LXC: prove the container path and set the new-CT default | archive | done | — | 🌱 short |
+| SKY-021 | NixOS-in-LXC: prove the container path and set the new-CT default | ideas | draft | — | 🌱 short |
+| SKY-022 | "Lean multi-agent construction orchestration: lead-driven delegation" | ideas | draft | — | 🔭 long |
 <!-- ROADMAP:END -->
