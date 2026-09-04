@@ -1,7 +1,6 @@
 ---
 summary: "Publish a service through the apps Caddy front door: edit the Caddyfile then PR then deploy — own-auth (plain reverse_proxy) or forward-auth via Authentik (scoped-token provider+application); optionally also expose it to the internet via the Cloudflare Tunnel (Path C)."
 trigger: "Publish or expose a service"
-tokens: 4719
 ---
 
 # Runbook — publish a service through the apps Caddy (the front door)

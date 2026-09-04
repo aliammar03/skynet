@@ -1,6 +1,5 @@
 ---
 summary: "The L7 actuators and their rollback executors: what each write can undo, by whom, and how the rollback is decided deterministically."
-tokens: 1648
 ---
 
 # Spoke · Actuators & rollback executors

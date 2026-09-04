@@ -1,6 +1,5 @@
 ---
 summary: "The survival kit and how each node-loss scenario is recovered; the step-by-step procedures live in runbooks/dr/."
-tokens: 926
 ---
 
 # Spoke · Disaster recovery

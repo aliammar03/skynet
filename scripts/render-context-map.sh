@@ -7,7 +7,7 @@
 # loadable and what it costs" — the machine-readable half of the default-lean discipline
 # (docs/design/memory.md).
 #
-# ~tokens = content-bytes / 4 (the SAME documented heuristic as budget-frontmatter.sh), computed HERE
+# ~tokens = content-bytes / 4 (a documented heuristic), computed HERE
 # at render time so the map is always fresh and self-contained — it never edits an authored file, only
 # its own output under the machine-owned docs/generated/. Read-only sources, idempotent, CONTENT-STABLE
 # (no per-run timestamp) so it diffs only on real change. Edit THIS renderer, never its output.

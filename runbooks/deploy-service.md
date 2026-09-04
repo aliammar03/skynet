@@ -1,7 +1,6 @@
 ---
 summary: "Deploy or update a service through the Arcane GitOps loop: edit compose then PR then Arcane reconciles."
 trigger: "Deploy or update a service"
-tokens: 926
 ---
 
 # Runbook — deploy / update a service (Arcane GitOps, the skynet way)

@@ -1,7 +1,6 @@
 ---
 summary: "Triage DNS failures — split internal (Technitium) vs public (Cloudflare), read NXDOMAIN/SERVFAIL, fix the record through the sanctioned T2 path."
 trigger: "A name won't resolve / service unreachable by hostname / ACME DNS-01 failing"
-tokens: 1202
 ---
 
 # Diagnose — DNS failure

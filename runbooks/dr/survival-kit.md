@@ -1,6 +1,5 @@
 ---
 summary: "What lives on paper and in the password manager, outside Skynet, to bootstrap recovery."
-tokens: 337
 ---
 
 # Survival kit — paper + password manager, OUTSIDE Skynet

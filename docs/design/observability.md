@@ -1,6 +1,5 @@
 ---
 summary: "How machine state becomes human-readable docs, and how the nightly run keeps the picture current."
-tokens: 985
 ---
 
 # Spoke · Observability

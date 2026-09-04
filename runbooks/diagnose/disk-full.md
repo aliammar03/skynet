@@ -1,7 +1,6 @@
 ---
 summary: "Triage a full disk (or exhausted inodes) — find what ate the space, distinguish data vs logs vs docker cruft, fix the cause declaratively."
 trigger: "Disk full / write failures / df at 100% (or inodes exhausted with space free)"
-tokens: 763
 ---
 
 # Diagnose — disk full

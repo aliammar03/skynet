@@ -27,8 +27,8 @@ Constraints that shape the decision:
   rulesets are **not enforced**. Upgrading (Pro/Team) or going public were both rejected — the repo
   carries lab topology and sops blobs and is correctly private. So the gate has to live in our code,
   not GitHub's.
-- **CI already runs the hard gates on every PR** (`.github/workflows/checks.yml`: budget-frontmatter,
-  secret-scan, check-invariants) — the same deterministic checks as the pre-commit hook.
+- **CI already runs the hard gates on every PR** (`.github/workflows/checks.yml`: secret-scan,
+  check-invariants) — the same deterministic checks as the pre-commit hook.
 
 ## Decision
 

@@ -1,6 +1,5 @@
 ---
 summary: "The one naming grammar — VMIDs, IPs, hostnames, slugs, branches — so a name is predictable and machine-validatable."
-tokens: 1900
 ---
 
 # Spoke · Naming & addressing

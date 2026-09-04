@@ -1,6 +1,5 @@
 ---
-summary: "How Skynet's prose is structured: hub-and-spoke, ADRs, runbooks, README-as-catalog, and loadable summary/trigger/tokens frontmatter."
-tokens: 1603
+summary: "How Skynet's prose is structured: hub-and-spoke, ADRs, runbooks, README-as-catalog, and loadable summary/trigger frontmatter."
 ---
 
 # Spoke · Documentation, ADRs & runbooks
@@ -61,10 +60,10 @@ Rules `[manual]`:
 - **Not a generated dir** `[manual]` — `journal/` is authored/appended, never re-rendered, so the
   "never hand-edit generated dirs" rule does **not** apply to it (unlike `docs/generated/`).
 
-## Loadable frontmatter — `summary` / `trigger` / `tokens`  `[testable]`
+## Loadable frontmatter — `summary` / `trigger`  `[manual]`
 
 Every **loadable** doc — a design or conventions spoke, a runbook, a generated page — carries a small
-frontmatter block so a routing agent can *cost and choose it without opening it*. This is the metadata
+authored frontmatter block so a routing agent can *choose it without opening it*. This is the metadata
 the context map (SKY-010 P3) reads to build one row per artifact; it's the machine-readable half of
 the [default-lean discipline](../design/memory.md).
 
@@ -72,18 +71,14 @@ the [default-lean discipline](../design/memory.md).
 |---|---|---|
 | `summary:` | **authored**, one line | what the file is, in ≤ ~120 chars, so the map row is legible `[manual]` |
 | `trigger:` | **authored**, optional | the spoken cue that should pull this file in (mainly runbooks) `[manual]` |
-| `tokens:` | **generated** by `scripts/budget-frontmatter.sh` | approx load cost (bytes / 4); **never hand-set** — it drifts `[testable]` |
 
 - **`summary` is the source; the map shows it.** A loadable *without* a `summary:` falls back to its
   first `# heading` in the map — so nothing is invisible, but an authored line is better.
-- **`tokens` is machine-owned metadata**, refreshed by the budget script (and, later, the nightly) —
-  don't edit it by hand. For files under `docs/generated/`, the field is the **renderer's** job, not
-  the budget script's (that dir is never hand- or tool-edited).
-- **The lint gate is live** `[testable]`: `scripts/budget-frontmatter.sh --check` asserts *every
-  loadable has a `summary:` and a fresh `tokens:`*, and runs in **both** the pre-commit hook
-  ([`.githooks/pre-commit`](../../.githooks/pre-commit)) and CI
-  ([`.github/workflows/checks.yml`](../../.github/workflows/checks.yml)) — a stale `tokens:` or a
-  missing `summary:` fails the commit and the PR.
+- **Load cost is computed at render time, not stored.** `scripts/render-context-map.sh` derives the
+  `~tokens` column itself (content bytes ÷ 4) when it builds the map, so the figure is always fresh and
+  no `tokens:` line has to be maintained in each file. (An earlier `tokens:` frontmatter + a
+  `budget-frontmatter` lint gate did this by hand-stamping every doc; retired — the renderer already
+  had the number.)
 
 ## README-as-catalog `[manual]`
 

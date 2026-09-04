@@ -1,6 +1,5 @@
 ---
 summary: "The single 'skynet way' every service's compose conforms to, so the fleet is uniform and Arcane's GitOps loop can own it."
-tokens: 1085
 ---
 
 # Spoke · Compose & the "skynet way" for services

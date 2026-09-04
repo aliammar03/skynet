@@ -1,7 +1,6 @@
 ---
 summary: "Start-here triage: take one T1 read-only host snapshot with scripts/recon.sh, reason over it, then branch to a diagnosis runbook."
 trigger: "Figure out why X is broken / what's going on with <host>"
-tokens: 970
 ---
 
 # Runbook — recon (start here)
