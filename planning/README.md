@@ -83,5 +83,5 @@ so running or resuming one is a single paste into a fresh session.
 | SKY-019 | Relocate the Arcane controller off the DMZ to a dedicated Management docker VM, managing docker hosts remotely | ideas | draft | — | 🔭 long |
 | SKY-020 | Firewall-as-code — OPNsense config to T2 via OpenTofu | projects | in-progress | 1/6 | 🔭 long |
 | SKY-021 | NixOS-in-LXC: prove the container path and set the new-CT default | projects | in-progress | 2/3 | 🌱 short |
-| SKY-022 | Eliminate documentation drift and shrink operational context | ideas | draft | — | 🌱 short |
+| SKY-023 | Eliminate documentation drift and shrink operational context | ideas | draft | — | 🌱 short |
 <!-- ROADMAP:END -->
