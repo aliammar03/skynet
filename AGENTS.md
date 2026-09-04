@@ -44,8 +44,9 @@ failure case, and performed by something dumber than you.
 - Cloudflare is T2 for **DNS records in `aliammar.net` only** (scoped `DNS:Edit` token, `0600` at `/opt/skynet-ops/secrets/cloudflare-dns.env`) — the account, Access policies, tunnel config, and zone settings are T3. Same shape as the Technitium split; publishing still needs the `ingress` PR human-merged.
 - Pool membership is the blast-radius dial. **VM 5001 (OPNsense) never joins any pool.**
   Same exclusion for CT 635, CT 837, Unraid VM 2020. You see them (T1); never pool, destroy, or stop
-  them (T3). (`svc-tofu`'s config-only `/vms` role, both nodes, can config-touch them — name/onboot/
-  cloud-init only, never destroy/stop/re-disk/re-NIC.)
+  them (T3). (SKY-024: tofu runs as the `svc-ops!operate` token now. On the **network** node it's
+  pool-scoped — no `/vms` — so 5001/635/837 are unreachable at the envelope; on **core** the `/vms`-root
+  grant makes Unraid 2020's envelope reachable, but it stays unpooled + guest-OS-root T3.)
 - Root on workload hosts exists **only** inside a certificate validity window. The CA
   private key lives on Ali's workstation — you **cannot** mint your own access. You request; Ali types.
 

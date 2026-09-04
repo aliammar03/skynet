@@ -28,8 +28,8 @@ let
     "omada.env"
     "opnsense.env"
     "rclone.conf"
-    "tofu-proxmox.env"
-    "tofu-proxmox-network.env"
+    # SKY-024: the svc-tofu token is retired (tofu runs as svc-ops!operate, whose creds are
+    # proxmox-{core,network}.env above) — the tofu-proxmox*.env secrets are gone.
     "tofu-passphrase"
   ];
   # each token file: encrypted whole (binary) in git at secrets/<fname>.sops, decrypted to

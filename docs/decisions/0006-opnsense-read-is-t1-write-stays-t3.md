@@ -40,7 +40,7 @@ Tier OPNsense like the rest, using the mechanisms the lab already runs:
   here means *changes no state*, which is why non-mutating diagnostics ride this tier.
 - **T2 — firewall config, PR-gated, via OpenTofu.** Firewall aliases and rules become `tofu/`
   resources managed through the **OPNsense tofu provider**. A change is a `tofu plan` diff **in a PR**;
-  a human merges; `apply` pushes it via the API. This is the **same T2 model as `svc-tofu` for guests
+  a human merges; `apply` pushes it via the API. This is the **same T2 model as tofu for guests
   (SKY-008)** — a standing write credential, but every change is a human-merged plan. Non-destructive
   maintenance (service restart, apply-config, flush states/leases) is T2 too.
 - **T3 — never standing.** OPNsense **node root**; the **account/API-key/cert admin**; **reboot/halt**

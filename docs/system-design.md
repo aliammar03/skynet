@@ -176,7 +176,7 @@ principal — lives in [access-and-trust](design/access-and-trust.md); this is t
 | Tier | Scope | Mechanism | Standing? |
 |---|---|---|---|
 | **T1 Read** | Both Proxmox nodes, PBS, Docker hosts, DNS, the **Omada network controller**, **OPNsense (read-only)** | Read-only API tokens; scoped OPNsense read-only API + mirrored `config.xml` | Always |
-| **T2 Operate** | `ops-managed` pools (both nodes), Docker hosts via Arcane + unprivileged SSH, Technitium zones, Cloudflare **DNS records** (`aliammar.net` zone); **backup/snapshot** of ops-managed guests; **provisioning** of in-pool guests via OpenTofu; **OPNsense firewall config** (aliases/rules) via OpenTofu + non-destructive maintenance (**minus the self-leash set**) | Scoped write tokens, `svc-ops` SSH, `svc-tofu` pool-scoped API token, Technitium scoped token, Arcane API key, Cloudflare scoped `DNS:Edit` token, OPNsense tofu-write API key | Yes — changes PR-gated |
+| **T2 Operate** | `ops-managed` pools (both nodes), Docker hosts via Arcane + unprivileged SSH, Technitium zones, Cloudflare **DNS records** (`aliammar.net` zone); **backup/snapshot** of ops-managed guests; **provisioning** of in-pool guests via OpenTofu; **OPNsense firewall config** (aliases/rules) via OpenTofu + non-destructive maintenance (**minus the self-leash set**) | Scoped write tokens, `svc-ops` SSH, the `svc-ops!operate` API token (provisioning + snapshot/backup; SKY-024 retired the separate svc-tofu), Technitium scoped token, Arcane API key, Cloudflare scoped `DNS:Edit` token, OPNsense tofu-write API key | Yes — changes PR-gated |
 | **T2+ Root grant** | Root shell on workload hosts (diagnose, harden, provision, OS updates) | SSH user-CA certificate, per-host principal, **auto-expiring** | Grant only; expires itself |
 | **T3 Privileged** | OPNsense *node root / account / cert admin / reboot / self-leash rules*, Management Caddy, Authentik, Proxmox node root, Unraid root, Technitium *server settings*, Cloudflare *account / Access / tunnel config / zone settings* | Dormant alias `ROLE_OPS_PRIV_TARGETS` + per-session credentials | **Never standing** |
 
@@ -198,7 +198,7 @@ principal — lives in [access-and-trust](design/access-and-trust.md); this is t
   planes, because the firewall *is* the trust boundary. **T1 read+diagnostics:** a standing scoped
   credential reads aliases/rules/interfaces/DHCP live and runs non-mutating probes (ping/traceroute/
   lookup). **T2 firewall config:** aliases and rules are `tofu/` resources — a `tofu plan` diff in a
-  PR, human-merged, applied via API (the same model as `svc-tofu` for guests). **T3, never-standing:**
+  PR, human-merged, applied via API (the same model as tofu provisioning for guests). **T3, never-standing:**
   node root, account/cert admin, **reboot** (a lab-wide outage — hard checkpoint always), and **the
   agent's own leash** (`ROLE_OPS_*`, the block-other-DNS rules, its own accounts) — human-merged
   forever, machine-gated on the plan (SKY-018 P7). The git mirror stays as rebuild-from-git truth.
@@ -213,8 +213,8 @@ principal — lives in [access-and-trust](design/access-and-trust.md); this is t
 - **Pool membership is the blast-radius dial** — *on the network node.* Joining a guest to an
   `ops-managed` pool hands the agent T2 over it; leaving it out keeps it look-but-don't-touch.
   **VM 5001 (OPNsense) never joins any pool** — same for CT 635, CT 837. Never pooled, destroyed, or
-  stopped by the agent (T3); `svc-tofu`'s config-only `/vms` role (both nodes) can config-touch them
-  (name/onboot/cloud-init) but nothing heavier — never destroy/stop/re-disk/re-NIC.
+  stopped by the agent (T3); the network node's operate token is **pool-scoped (no `/vms`)**, so it
+  cannot reach these at the envelope at all (SKY-024 retired the config-only svc-tofu role).
   On the **core node**, the dial is superseded by the operate token's root-`/` grant above
   (SKY-021 — full guests/storage/network/pools): **Unraid VM 2020 is now agent-reachable at the VM
   envelope** (create/config/power — not guest OS root, still T3). The self-leash set (5001/635/837) is
@@ -245,7 +245,7 @@ expansion has an admission procedure and a home spoke:
 | **A new service** | `compose/<svc>/` → the [GitOps loop](design/gitops-loop.md); catalog it in `planning/services/` | gitops-loop |
 | **A new managed host** | Onboard to the CA (`onboard-host.sh`), decide pool membership (= its tier), land it in `inventory/` + `ROLE_OPS_SSH_TARGETS` | [access-and-trust](design/access-and-trust.md), [network](design/network.md) |
 | **A host's OS + config, declaratively** | Define it as a reviewed **NixOS flake** (`hosts/` + `nix/modules/`), `nix build` gated in CI. Proven on the ops **VM** (SKY-007) and on a pool **LXC** (SKY-021: adguard-core). **NixOS is the default for a new pool-able CT** (deploy-rs day-2, Option C per-CT sops key); Debian stays only for T3-excluded/appliance CTs the agent can't own | [`nix/README.md`](../nix/README.md), SKY-007, SKY-021 |
-| **A managed guest, declaratively** | Declare it in `tofu/` as an OpenTofu resource; `tofu plan` diff reviewed in PR, `apply` after merge. Pool-scoped `svc-tofu` token — **no node root, no SSH** (SKY-008). `destroy` is a hard checkpoint, never auto-approved | [access-and-trust](design/access-and-trust.md), SKY-008 |
+| **A managed guest, declaratively** | Declare it in `tofu/` as an OpenTofu resource; `tofu plan` diff reviewed in PR, `apply` after merge. The `svc-ops!operate` token — **no node root, no SSH** (SKY-008/024). `destroy` is a hard checkpoint, never auto-approved | [access-and-trust](design/access-and-trust.md), SKY-008 |
 | **A new `ops-managed` pool** | Widen the blast-radius **dial** by PR here, then create the pool with the operate ACLs | [access-and-trust](design/access-and-trust.md) |
 | **A new VLAN / segment** | Firewall aliases + rules, DNS zones, then hosts | [network](design/network.md) |
 | **A new capability / trust boundary** | PR here (tier assignment) + a step on the autonomy ratchet in `AGENTS.md` | this file |
