@@ -6,7 +6,7 @@ horizon: long
 created: 2026-09-04
 updated: 2026-09-04
 phases: 6
-current_phase: 4
+current_phase: 5
 tier_touched: [T1]
 related:
   - docs/system-design.md
@@ -323,7 +323,7 @@ Exit criteria:
 - integration remains understandable with normal Git tools;
 - no custom worktree lifecycle service is required.
 
-### Phase 5 · Dogfood the foreman model  (~1–2h sessions across real work)   `[ ]` not started
+### Phase 5 · Dogfood the foreman model  (~1–2h sessions across real work)   `[x]` done 2026-09-04
 
 Goal: test the pattern enough to distinguish real needs from imagined ones.
 
@@ -351,6 +351,15 @@ Exit criteria:
 - no recurring ambiguity about ownership;
 - no helper accidentally gains production authority;
 - any request for more orchestration is backed by repeated evidence rather than aesthetics.
+
+**Decision after five runs:** the foreman model is sufficient as-is. Native shallow delegation,
+plain Git, and the disposable checkpoint covered the work without ownership ambiguity or production
+authority leaking to a helper. No queue, scheduler, ledger, worktree manager, retry layer, or wider
+fan-out is earned. Two standalone-process frictions did recur: `codex exec` exposes progress on
+stderr/final output on stdout, and completion polling lagged behind the finished helper. Phase 6 may
+therefore test only a tiny optional App Server adapter for structured progress/result and clean
+interrupt/resume. Keep it only if the comparison is materially cleaner than native delegation;
+otherwise record the negative result and leave the native path primary.
 
 ### Phase 6 · Thin Codex App Server control surface  (~1–2h)   `[ ]` not started
 
@@ -450,3 +459,4 @@ Resume from [[SKY-022-progress]]. Follow AGENTS.md and preserve the one-lead / s
 - 2026-09-04 — **P2 done** (PR #173): first real lead+helper run. A Claude lead delegated to real Codex helpers via `bin/agent` — a read-only Scout (`gpt-5.6-luna`) scoped the gap, a Builder (`gpt-5.6-terra`) implemented it — to make the construction doctrine's `[testable]` claims machine-enforced (`invariants.json` `construction` section + `check-invariants.sh` check #6 + `tests/construction-test.sh`, wired into hook + CI). Fixed a P1 `bin/agent` bug found by dogfooding (`codex exec` 0.149.0 has no `--ask-for-approval`). Lead verified all helper output incl. live fail-closed proofs; owns the PR, does not self-merge. Raw episode in `journal/`.
 - 2026-09-04 — **P4 done** (branch `phase/sky-022-p4`): parallel writers via `git worktree` — first phase with two active helpers. Added `bin/agent --cwd <dir>` to root a helper at a worktree; ran two concurrent Codex Builders in two worktrees (`tests/agent-test.sh`, `tests/gitignore-test.sh`), each registering in the same shared files. Finding: a `workspace-write` sandbox can't write a worktree's git metadata (under the main repo's `.git/worktrees/`), so **helpers write, the lead commits**. Integrated via plain git; the engineered conflict on pre-commit + checks.yml was resolved by hand (kept both). Full suite 9/9 green; worktrees torn down. Rule recorded: worktree by exception.
 - 2026-09-04 — **P3 done** (branch `phase/sky-022-p3`): lightweight continuity. `.gitignore` ignores `.agent/`; `construction.md` gained the compact `CHECKPOINT.md` shape + write-triggers. Dogfooded the cold resume on a real task: wrote `runbooks/construction-delegation.md` half-way (M1, e7beeaa), then a **fresh cold Codex lead** (`bin/agent lead`) resumed from ONLY AGENTS.md + `.agent/CHECKPOINT.md` + git state — no transcript — and completed the worked example + catalog row exactly per the checkpoint's Next step, in scope, without committing (M2, 06a231b). Checkpoint disposed on completion. Continuity convention proven; no second memory system introduced. Raw episode in `journal/`.
+- 2026-09-04 — **P5 done** (branch `phase/sky-022-p5`): five real construction tasks covered the full routing matrix using P2/P3/P4 evidence plus two new runs. A Luna Mechanic added `--cwd` regression assertions; a read-only Scout then found that `--cwd` accepted arbitrary directories, so the hard lead fixed the policy and delegated only the bounded launcher implementation to a Terra Builder. `bin/agent` now accepts only exact registered worktree roots belonging to this repository; the lead adapted the tests (39/39), updated doctrine/runbook, and verified a live linked-worktree dry-run plus the complete gate suite. No orchestration layer earned; P6 is narrowed to an optional structured App Server comparison addressing only the two repeated standalone-process frictions.
