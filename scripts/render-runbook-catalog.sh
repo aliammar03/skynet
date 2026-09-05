@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# render-runbook-catalog.sh — render runbooks/README.md from leaf frontmatter (SKY-023 P3).
+# render-runbook-catalog.sh — render runbooks/README.md from leaf frontmatter.
 # The README is a routing menu, not a second handwritten source of truth. Edit leaf metadata or this
 # renderer; never hand-edit the rendered catalog.
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${REPO_DIR}"
-PAGE="runbooks/README.md"
+PAGE="${PAGE:-runbooks/README.md}"
 
 # fm <file> <key>: one small YAML frontmatter scalar, with surrounding double quotes removed.
 fm() { awk -v k="$2" 'NR==1&&$0=="---"{f=1;next} f&&$0=="---"{exit} f{if($0 ~ ("^" k ":")){sub("^" k ":[[:space:]]*","");gsub(/^"|"$/," ");sub(/^ /,"");sub(/ $/,"");print;exit}}' "$1"; }

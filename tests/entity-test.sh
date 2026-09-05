@@ -135,7 +135,7 @@ if command -v sqlite3 >/dev/null 2>&1; then
        "$(sqlite3 "${db}" -cmd '.mode tabs' ".read scripts/sql/host-map.sql" | awk -F'\t' '$1=="10.10.100.15"{print $4}')" \
        "guest/docker-dmz-10015"
     # vhosts resolve to a front door, not a host (SKY-015 fix). The *.aliammar.net wildcard used to
-    # be the canonical example, but SKY-008 P3 retired it (explicit per-app A records derived from
+    # be the canonical example; explicit per-app A records are derived from
     # the Caddyfile). Assert the invariant against the LIVE set instead of a single name that can
     # churn: both declared front doors carry ≥1 vhost, and no emitted row lands on an unknown proxy.
     vhosts="$(sqlite3 "${db}" -cmd '.mode tabs' ".read scripts/sql/vhosts.sql")"

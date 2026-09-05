@@ -1,84 +1,48 @@
 ---
-summary: "Start-here triage: take one T1 read-only host snapshot with scripts/recon.sh, reason over it, then branch to a diagnosis runbook."
+summary: "Take a bounded T1 host snapshot, interpret its signals, and route to the focused diagnosis runbook."
 trigger: "Figure out why X is broken / what's going on with <host>"
 tier: "T1 read-only"
 executor: "scripts/recon.sh"
-rollback: "None; read-only diagnosis"
+rollback: "none; recon does not mutate"
 ---
 
-# Runbook — recon (start here)
+# Runbook — reconnaissance
 
-**Trigger:** *"Figure out why `<host>` is broken"* / *"what's going on with `<host>`?"* — any
-investigation that starts with *looking*.
-**Tier:** **T1 read-only.** Recon takes **no grant**: the whole point of this step is that
-observing a host costs nothing and touches nothing. Reach for root only *after* the snapshot
-tells you what to look at — via a diagnosis runbook, under a narrowest-host/shortest grant.
-
-> Principle: **diagnose imperatively, fix declaratively.** This runbook is the imperative
-> *looking*. The eventual fix is a PR to `compose/` / a module / a tofu resource — never an
-> orphan mutation of the host. (SKY-005.)
+**Tier:** T1 read-only. Diagnose imperatively; fix declaratively through the relevant source/PR.
 
 ## Preconditions
 
-- Choose the affected host from the generated host map. No grant is needed to observe it.
+- Select the affected host from the generated host map. No grant is required to observe it.
 
 ## Steps
 
-### Take the snapshot
+1. Capture the snapshot:
+   ```bash
+   scripts/recon.sh <host>
+   scripts/recon.sh <host> > /tmp/recon-<host>.md
+   scripts/recon.sh <host> --json
+   ```
+   `<host>` can be a mapped label or explicit `user@host`; no argument inspects the ops VM. Each probe is bounded by `RECON_TIMEOUT` (default six seconds), and sections requiring root say so instead of requesting a grant.
+2. Read the returned host/kernel/uptime, pressure (including inodes), failed units, sockets, container state, warnings, and recent configuration/package changes. A failed unit, unhealthy container, full/inode-exhausted filesystem, or change immediately before failure is usually the best starting signal.
+3. Follow the focused branch (the script prints likely matches):
 
-```bash
-scripts/recon.sh <host>        # remote host as svc-ops over SSH
-scripts/recon.sh               # this host (the ops VM) — no arg
-scripts/recon.sh <host> > /tmp/recon-<host>.md   # keep it to attach to a journal record
-scripts/recon.sh <host> --json # machine-readable object (drift checks, tooling)
-```
-
-`<host>` is a bare label (mapped to `svc-ops@<label>`) or an explicit `user@host`. One
-Markdown snapshot comes back (or a JSON object with `--json`): host/kernel/uptime,
-load+memory, disk **and inode** pressure, failed systemd units, listening sockets, container
-health (unprivileged docker), recent journal warnings, and recent `/etc` + package changes.
-Sections that would need root say so rather than failing — recon never blocks on a grant.
-Every probe is bounded by `RECON_TIMEOUT` (default 6s), so a hung mount or wedged daemon
-can't stall the snapshot.
-
-### Interpret the snapshot
-
-| Section | Read it for |
-|---|---|
-| Load / memory / CPU | Runaway process, memory pressure, OOM risk. |
-| Disk (usage + **inodes**) | A full FS **or** inode exhaustion (looks like "disk full" with space free). |
-| systemd — failed units | The fastest single signal: a unit in `failed` is usually *the* incident. |
-| Listening sockets | Missing port (service down) or unexpected one. |
-| Containers | Crash-loops (`Restarting`), `unhealthy`, or an exited container. |
-| Recent warnings/errors | The failure's own words — grep the unit name here. |
-| Recent config / package changes | *What changed just before it broke* — the usual root cause. |
-
-### Choose the focused diagnosis
-
-`recon.sh` prints a **Next — likely diagnosis runbooks** block whenever the snapshot itself shows a
-matching signal (a crash-looping container, a filesystem ≥90%, a failed unit, a backup unit) — so it
-routes you to the next step, not just describes it. The full map (including symptom-driven classes a
-host snapshot can't see, like cert/DNS):
-
-| Snapshot symptom | Triage runbook |
-|---|---|
-| a container `Restarting` / `unhealthy` / exited | [`diagnose/container-crashloop.md`](diagnose/container-crashloop.md) |
-| a filesystem full, or inodes exhausted | [`diagnose/disk-full.md`](diagnose/disk-full.md) |
-| a name won't resolve / unreachable by hostname | [`diagnose/dns-failure.md`](diagnose/dns-failure.md) |
-| TLS warning / expired cert / ACME failing | [`diagnose/cert-expired.md`](diagnose/cert-expired.md) |
-| a missing snapshot / a failed backup timer | [`diagnose/backup-missed.md`](diagnose/backup-missed.md) |
-| a merged compose PR that didn't deploy / drift | [`diagnose/arcane-stuck.md`](diagnose/arcane-stuck.md) |
+   | Signal | Runbook |
+   |---|---|
+   | container unhealthy, exited, or restarting | [`diagnose/container-crashloop.md`](diagnose/container-crashloop.md) |
+   | disk or inode exhaustion | [`diagnose/disk-full.md`](diagnose/disk-full.md) |
+   | hostname resolution failure | [`diagnose/dns-failure.md`](diagnose/dns-failure.md) |
+   | TLS/ACME problem | [`diagnose/cert-expired.md`](diagnose/cert-expired.md) |
+   | missing backup or failed backup timer | [`diagnose/backup-missed.md`](diagnose/backup-missed.md) |
+   | merged Compose change did not reconcile | [`diagnose/arcane-stuck.md`](diagnose/arcane-stuck.md) |
 
 ## Verify
 
-- The snapshot identifies the host, its current pressure/health signals, and a next diagnosis path.
+- The snapshot identifies the host, relevant health/pressure signals, and a next diagnosis path.
 
 ## Rollback
 
-None. Recon is read-only; do not use it as a substitute for a declarative fix.
+- None. Recon is read-only and never replaces a declarative fix.
 
 ## Evidence
 
-Whatever the fix is, route it back through git so nothing is orphaned: a `compose/` PR, a
-config module, a tofu resource. If an emergency forced an imperative change on the host,
-**reconcile it back into declared state in the same session** and note it in the journal.
+- Attach the snapshot to the incident/journal record. Reconcile any emergency imperative change into declared state in the same session.

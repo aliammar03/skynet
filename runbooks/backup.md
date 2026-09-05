@@ -1,120 +1,63 @@
 ---
-summary: "How restic + PBS backups run, and how to trigger one on demand."
+summary: "How restic and PBS backups run, how to provision restic, and how to take a pre-change backup."
 trigger: "How do backups work / run a backup"
 tier: "T2+ root grant"
 executor: "scripts/provision-restic.sh and backup-restic.sh"
 rollback: "Restore with restore-service.md"
 ---
 
-# Runbook — backups (how they run, and how to trigger one)
+# Runbook — backups
 
-**Tier:** T2+ (host-level restic/PBS work needs a root grant). **Companion:**
-[`restore-service.md`](restore-service.md) for getting data back;
-[`../docs/backup-strategy.md`](../docs/backup-strategy.md) for the *why*.
-
-Two layers run on their own timers; you rarely touch them. This runbook covers what they do,
-how to stand a new host up, how to force a backup **before you do something risky**, and how to
-check they're healthy.
-
----
+**Tier:** T2+ root grant for host actions. [`restore-service.md`](restore-service.md) restores data; [`../docs/backup-strategy.md`](../docs/backup-strategy.md) owns policy.
 
 ## Preconditions
 
-- For any host-side action, obtain the narrowest root grant. Routine status inspection is read-only.
+- Obtain the narrowest required root grant. Status inspection is T1.
 
 ## Steps
 
-### What runs automatically
+### Automatic layers
 
-| Layer | Where | Unit / script | Schedule | Covers |
-|---|---|---|---|---|
-| **L3 restic → gdrive** | each docker/host | `skynet-restic-backup@<label>` → `backup-restic.sh <label>` | 02:30 +jitter | `/opt/docker/appdata` + `skynet.backup=protect` volumes + any `BACKUP_PATHS` |
-| **L5 PBS → gdrive** | `lxc-proxmox-backup-server` | `skynet-pbs-gdrive` → `backup-pbs-gdrive.sh` | 04:00 +jitter | mirrors the whole PBS datastore off-site |
+| Layer | Where | Schedule | Covers |
+|---|---|---|---|
+| L3 restic → gdrive | each Docker/host | `skynet-restic-backup@<label>` at 02:30 + jitter | appdata, protected volumes, `BACKUP_PATHS` |
+| L5 PBS → gdrive | PBS host | `skynet-pbs-gdrive` at 04:00 + jitter | whole PBS datastore |
 
-Repos live at `gdrive:Skynet/Backups/{restic/<label>,pbs}`. restic keeps
-`--keep-daily 7 --keep-weekly 4 --keep-monthly 6` (auto `forget --prune` + `check` each run).
-Secrets are `0600` under `/opt/skynet-ops/secrets/` on each host (`restic-<label>.env`,
-`restic-<label>.pass`, `rclone.conf`; PBS: `pbs-gdrive.env`).
+Repos are `gdrive:Skynet/Backups/{restic/<label>,pbs}`. Restic retains 7 daily, 4 weekly, and 6 monthly snapshots, then checks and prunes. L4 vzdump → PBS is scheduled in Proxmox/PBS.
 
-L4 (vzdump → PBS) is scheduled inside PBS/Proxmox itself, not here.
+### Provision restic on a host
 
----
-
-### Provision a new host for restic backups
-
-One command from skynet-ops, inside a root grant to the target (`gr <host>`). Composable —
-`--docker` for a docker host, `--path DIR` (repeatable) for any folders, both together:
+Run inside a root grant:
 
 ```bash
-scripts/provision-restic.sh <label> root@<ip> --docker                 # docker host
-scripts/provision-restic.sh <label> root@<ip> --path /srv/data         # plain host
-scripts/provision-restic.sh <label> root@<ip> --docker --path /srv/x --time 03:15
+scripts/provision-restic.sh <label> root@<ip> --docker
+scripts/provision-restic.sh <label> root@<ip> --path /srv/data --time 03:15
 ```
 
-It installs restic+rclone, stages secrets `0600`, generates the repo password **on the host**,
-deploys `backup-restic.sh`, inits the repo, and enables the nightly timer. **Idempotent** — safe
-to re-run (never regenerates the password, never re-inits an existing repo). Afterwards, put the
-repo password in the survival kit: `ssh root@<ip> cat /opt/skynet-ops/secrets/restic-<label>.pass`.
+The idempotent script stages restrictive secrets, deploys and enables the timer, initializes only a new repository, and creates the repository password on the host. Save that password to the survival kit.
 
----
+### Take a pre-change backup
 
-### Run an on-demand backup before a risky change
+1. Request the host grant if needed.
+2. Run `ssh root@<ip> /opt/skynet-ops/scripts/backup-restic.sh <label> pre-<reason>`.
+3. Record the returned snapshot ID before making the risky change; restore it with `restore-service.md` if needed.
 
-> "back up docker-dmz before I upgrade it" / "snapshot aiometadata, I'm about to wipe its config"
-
-This is the safety net before a risky change. Tell the agent; it will:
-
-1. **Grant:** if no root grant is active, request the narrowest one (`gr <host>`). You issue it.
-2. **Back up now, tagged** so the pre-change snapshot is trivial to find later:
-   ```bash
-   ssh root@<ip> /opt/skynet-ops/scripts/backup-restic.sh <label> pre-<reason>
-   ```
-   The snapshot is tagged `manual` + `pre-<reason>` (scheduled runs are tagged `scheduled`).
-3. **Report the snapshot ID** — that's your restore point. Then you do the risky thing.
-4. **If it goes wrong:** restore that snapshot per `restore-service.md`
-   (`restic restore <id>` / find it with `restic snapshots --tag manual`).
-
-Notes:
-- restic backups are **incremental + deduplicated**, so an extra on-demand snapshot right before
-  a change is cheap and fast (only what changed since the last run uploads).
-- For a **guest VM/CT** (not app data), the fast pre-change safety is a **Proxmox snapshot**
-  (T2, instant, rollback-able) — `qm/pct snapshot`, see `update-guests.md`. Use a PBS backup
-  when you want a durable/off-host copy rather than an in-place snapshot.
-- Agent-initiated uploads *can* trip the ops safety guard; if so, run the one-liner above
-  yourself (you're already SSH'd into skynet-ops) — it's the same command.
-
----
+For a guest configuration change, use a Proxmox snapshot for fast rollback; use PBS for a durable off-host copy.
 
 ## Verify
 
 ```bash
-# restic (per host, inside a grant):
-ssh root@<ip> 'set -a; . /opt/skynet-ops/secrets/restic-<label>.env; set +a; \
-  restic snapshots; restic check --read-data-subset=2%'
-
-# timers firing?
+ssh root@<ip> 'set -a; . /opt/skynet-ops/secrets/restic-<label>.env; set +a; restic snapshots; restic check --read-data-subset=2%'
 ssh root@<ip> systemctl list-timers 'skynet-*' --no-pager
-
-# L5 PBS off-site copy (on the PBS host):
 ssh root@10.10.20.40 'journalctl -u skynet-pbs-gdrive.service -n 20 --no-pager'
 ```
 
-The A5 nightly run will fold "last restic/PBS run + snapshot counts" into
-`docs/generated/90-backup-status.md` so this becomes a glance, not a command.
-
----
-
-### Check actual PBS datastore size
-
-The PBS datastore is on an Unraid NFS user-share, so `df` reports the **whole array**, not the
-datastore. For the real (deduplicated, on-disk) size — what L5 actually uploads — read PBS's GC
-log: `grep -i "on-disk usage" /var/log/proxmox-backup/tasks/*/*garbage_collection*`.
+For actual PBS datastore use (not the Unraid share’s `df`), inspect PBS GC logs for `on-disk usage`.
 
 ## Rollback
 
-An on-demand backup is additive. Restore the reported snapshot through
-[`restore-service.md`](restore-service.md); do not remove backup data as part of this procedure.
+- Backups are additive. Restore the selected snapshot; do not delete backup data during recovery.
 
 ## Evidence
 
-Record the snapshot ID, host, tag, and timer/health result in the job report or journal entry.
+- Record snapshot ID, host, tag, and timer/health result in the job report or journal.

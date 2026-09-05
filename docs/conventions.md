@@ -14,8 +14,9 @@ it's revived.
 
 These hold everywhere and don't get a "unless"; the spokes elaborate, never loosen them.
 
-- **Never commit to `main` directly; the agent never merges its own PRs.** One branch per unit of
-  work, one PR per change, `git revert` is the rollback. → [`conventions/git.md`](conventions/git.md)
+- **Never commit to `main` directly; authored PRs are human-merged.** The deterministic gate may
+  merge only its own generated-only, CI-green nightly PR. One branch per unit of work, one PR per
+  change, `git revert` is the rollback. → [`conventions/git.md`](conventions/git.md)
 - **No plaintext secrets in git — ever.** Only sops-encrypted `*.env.sops`, or agent-readable
   restrictive files under `/opt/skynet-ops/secrets/` (`0400 aliammar`; lab age key
   `0640 root:users`). The agent decrypts sops without sudo. The pre-commit scan enforces it.
