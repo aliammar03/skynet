@@ -5,52 +5,41 @@ summary: "The survival kit and how each node-loss scenario is recovered; the ste
 # Spoke · Disaster recovery
 
 > The design of *coming back* — what's in the survival kit, and how the two node-loss scenarios
-> are recovered. Governed by [`../system-design.md`](../system-design.md). Sourced from plan §10.
-> The step-by-step **procedures** live in [`../../runbooks/dr/`](../../runbooks/dr/); this spoke is
-> the design behind them.
+> are recovered. Governed by [`../system-design.md`](../system-design.md). Procedures: [`runbooks/dr/`](../../runbooks/dr/).
 
 ## Why recovery is even possible
 
-Skynet is **stateless by design**: everything it knows is in git, and its only unique material
-(age key, SSH keypair) is in the survival kit. Truth lives on GitHub — including the firewall
-config, which *survives the router* — and the ops brain holds a static IP so it stays reachable
-when DHCP (OPNsense) is the thing that died. Those three choices are what make the runbooks work.
+Skynet rebuilds from git; only payload data comes from backups. The survival kit holds the unique
+age and SSH keys. GitHub also holds the OPNsense configuration, and the ops brain has a static IP
+so it remains reachable when OPNsense/DHCP is unavailable.
 
 ## Survival kit (paper + password manager, outside Skynet)
 
-The kit is **load-bearing** — without it, the encrypted backups are noise:
+The kit is load-bearing; its recovery procedure and verification are in
+[`survival-kit.md`](../../runbooks/dr/survival-kit.md).
 
 - age private key · restic password · PBS encryption key · **SSH CA private key**
 - GitHub fine-grained PATs · rclone Google OAuth config
 - Proxmox + OPNsense ISOs on USB
-- NIC passthrough PCI IDs + BIOS notes (versioned in `runbooks/dr/pci-passthrough.md`)
+- NIC passthrough PCI IDs + BIOS notes ([`pci-passthrough.md`](../../runbooks/dr/pci-passthrough.md))
 - one printed page: *"clone the repo, open `runbooks/dr/`, follow it."*
 
-Verified **quarterly** (a constitution invariant).
+It is verified quarterly.
 
 ## The two scenarios
 
-### Network node dies (`runbooks/dr/DR-network-node.md`)
+### Network node dies
 
-`server-proxmox-network` dies, taking OPNsense and all routing with it — the exact case the
-static IP and GitHub-as-truth exist for:
+[`DR-network-node.md`](../../runbooks/dr/DR-network-node.md) rebuilds
+`server-proxmox-network` and restores routing. Its primary OPNsense path is a fresh VM 5001 plus
+the `skynet-opnsense` `config.xml` import; PBS restore remains the secondary path because it needs
+VLAN 20 L2 reachability before routing exists. After routing, recover the remaining PBS guests and
+reconcile refreshed inventory against the last pre-disaster commit.
 
-1. **Workspace:** laptop + phone hotspot, clone both repos, run *any* CLI agent on the laptop —
-   the payoff of agent-agnostic design is the DR agent needs nothing from the dead lab.
-2. **Hypervisor:** install Proxmox from USB; `server-proxmox-network`, VLAN 50 native, 10.10.50.10.
-3. **OPNsense — config-import (primary, ~30 min):** fresh install into VM 5001, redo NIC
-   passthrough from the documented PCI IDs, **Restore** `config.xml` from `skynet-opnsense` — VLANs,
-   aliases, rules, reservations, WAN failover in one import. (Secondary: PBS restore of VM 5001 —
-   valid but needs L2 access to VLAN 20 *before* routing exists; config-import has no chicken-and-egg.)
-4. **Verify** routing/DNS/DHCP, then restore remaining guests from PBS.
-5. **Reconcile:** collectors run, `inventory/` diffed against the last pre-disaster commit; a green
-   diff ends the disaster.
+### Core node dies with PBS aboard
 
-### Core node dies with PBS aboard (`runbooks/dr/DR-core-node.md`)
-
-Core dies **with PBS on it** → pull the datastore from Google Drive (L5), stand PBS up first, then
-Unraid, skynet-ops, the rest. This is why L5 (PBS → Drive) exists and why its completeness is
-guarded (see the A6 story in [build-log](../history/build-log.md)).
+[`DR-core-node.md`](../../runbooks/dr/DR-core-node.md) restores the PBS datastore from Google Drive
+(L5), then PBS, Unraid, skynet-ops, and remaining guests in that order.
 
 ## Design dependencies (don't let these rot)
 
@@ -58,12 +47,5 @@ guarded (see the A6 story in [build-log](../history/build-log.md)).
   dual-port NICs, bus 03/04, `ovmf`/`q35`) — a wrong ID blocks OPNsense rebuild.
 - **The `skynet-opnsense` repo** must exist and receive os-git-backup pushes — a missing or
   misnamed repo blocks the OPNsense rebuild.
-- **L5 completeness** must be guarded, not assumed — an `rclone check` completion guard verifies the
-  off-site PBS copy is whole rather than trusting it.
-
-## Planned expansion
-
-- A periodic **DR game-day** beyond the graduation drills, on a cadence, as more hosts come under
-  management.
-- As services grow, `restore-service.md` scales per-service (DB pre-hooks etc.) — tracked in
-  [gitops-loop](gitops-loop.md) / [backup-strategy](../backup-strategy.md), not here.
+- **L5 completeness** is checked with `rclone check`; an unverified off-site copy is not a recovery
+  source.

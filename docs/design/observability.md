@@ -5,8 +5,7 @@ summary: "How machine state becomes human-readable docs, and how the nightly run
 # Spoke · Observability
 
 > How Skynet turns machine state into things a human can read, and how the nightly run keeps the
-> picture current. Governed by [`../system-design.md`](../system-design.md). Sourced from plan §11
-> (render-docs / Obsidian) and the A5 visibility work.
+> picture current. Governed by [`../system-design.md`](../system-design.md).
 
 ## Inventory → human-readable docs
 
@@ -30,17 +29,14 @@ hand-maintained:
 invariant). The docs cannot drift from reality because they're re-rendered after each inventory
 refresh.
 
-**Sync to Obsidian** via the Obsidian Git community plugin: a clone of `skynet` (sparse-checkout
-`docs/generated/` if desired) as a vault folder, auto-pull every 30 min. It never touches the
-CouchDB LiveSync vault. Setup: [`../obsidian-setup.md`](../obsidian-setup.md).
+Obsidian sync uses a `skynet` clone (optionally sparse-checking out `docs/generated/`) and never
+touches the CouchDB LiveSync vault. Configuration: [`obsidian-setup.md`](../obsidian-setup.md).
 
 ## The nightly run
 
-`bin/ops nightly` (`skynet-nightly.timer`, 03:30, **report-only**) tries **primary engine →
-fallback engine → deterministic `scripts/nightly.sh`**. Engine and models come from
-`~/.config/skynet-ops/ops.env` (`OPS_ENGINE`, `OPS_ENGINE_FALLBACK`, `OPS_CODEX_MODEL`,
-`OPS_CLAUDE_MODEL`). A weekly timer (`skynet-cli-update`, Sun 05:00) updates both CLIs and writes
-each provider's current `--model` ids into `ops.env` as commented suggestions.
+[`nightly.md`](../../runbooks/nightly.md) defines the 03:30 `skynet-nightly.timer` flow: primary
+engine, fallback engine, then deterministic [`scripts/nightly.sh`](../../scripts/nightly.sh).
+Engine and model selection are in `~/.config/skynet-ops/ops.env`.
 
 Report-only is a constitution dial: the nightly run *observes and proposes*, it does not act
 outside the version-controlled auto-approve list.
@@ -55,16 +51,7 @@ only part that lives here is the *rendering*: `scripts/render-digest.sh` produce
 pages (deterministic, content-stable), and the human narrative
 [`05-state-of-the-lab.md`](../generated/05-state-of-the-lab.md) is the agent-authored counterpart.
 
-## What "observability" covers today vs. next
+## Scope
 
-Today this spoke is **descriptive**: state, rendered, nightly. It answers *what is the lab right
-now* and *what changed*. It is not yet *alerting* — there's no live signal that pages when
-something breaks between nightlies.
-
-## Planned expansion — from description to monitoring
-
-- **A monitoring / alerting stack** (metrics + a notifier) is the named growth direction: live
-  health, thresholds, and push alerts (an ntfy channel already fits the grant-approval pattern).
-  This becomes its own `SKY-###`, and likely deepens this spoke rather than adding a new one.
-- **Richer nightly reasoning** — the report-only run graduating individual, well-understood
-  actions onto the auto-approve list, one PR at a time (the autonomy ratchet).
+Observability is descriptive: rendered state and nightly change detection. It does not provide
+live alerting between nightly runs.

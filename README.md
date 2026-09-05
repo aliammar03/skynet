@@ -126,8 +126,9 @@ These are the guarantees that make an autonomous agent safe to keep around:
   survival kit. The agent literally *cannot* mint its own access.
 - 🙅 **The agent never merges its own PR**, and never hand-edits generated dirs
   (`inventory/`, `docs/generated/`).
-- 🤫 **No plaintext secrets, ever** — sops-encrypted in git, or `0600` on disk. Never in a
-  commit, a transcript, or a chat.
+- 🤫 **No plaintext secrets, ever** — sops-encrypted in git, or restrictive local files. The lab
+  age key is `0640 root:users` so the agent can decrypt sops without sudo; never put a secret in a
+  commit, terminal transcript, or chat.
 - 🌙 **Nightly runs are report-only** until an action is explicitly promoted, by PR, to the
   auto-approve list. Even the leash is version-controlled.
 - 🧯 **The kill switch is drilled before autonomy day one:** disable tokens + `qm stop 9090`.

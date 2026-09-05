@@ -2,7 +2,7 @@
 # sops-nix wired to the ONE lab age key (survival kit), per docs/design/secrets.md — one age key
 # lab-wide. The ops VM's token files are decrypted to tmpfs (/run/secrets) at activation; the
 # collectors read them (owner=aliammar) with NO sudo. Only the master age.key is a real on-disk
-# file (root 0600, the bootstrap secret).
+# file (root:users 0640, so the agent can decrypt sops without sudo).
 #
 # IMPERMANENCE ORDERING (hard-won): sops-install-secrets runs in EARLY (initrd) activation, one
 # second BEFORE systemd mounts the /opt/skynet-ops persist bind-mount in stage-2. So:
@@ -72,7 +72,7 @@ in
   };
 
   # The secrets dir must be traversable (o+x) so aliammar can follow the symlinks to /run/secrets;
-  # the age.key inside stays root 0600 (its own file perms), unreadable to aliammar.
+  # the age.key is root:users 0640 so the agent can decrypt sops without sudo.
   systemd.tmpfiles.rules =
     [ "d ${secretsDir} 0751 root root -" ]
     ++ (map mkLink names)

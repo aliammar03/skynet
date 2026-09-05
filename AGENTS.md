@@ -173,8 +173,9 @@ one. A directive touching **T2+/T3** or a blast-radius boundary must also PR `do
   (The merge gate is a version-controlled dial set by `docs/system-design.md` — **human-merge
   today**, with **one** carve-out (§2b): the nightly auto-merges its own **generated-only** PRs
   when CI is green. The agent never self-merges an **authored** change.)
-- Secrets: sops-encrypted in git **or** 0600 under `/opt/skynet-ops/secrets/` — never
-  plaintext in commits, transcripts, or chat.
+- Secrets: sops-encrypted in git **or** restrictive local files under
+  `/opt/skynet-ops/secrets/` — never plaintext in commits, transcripts, or chat. The lab age key
+  is the narrow exception: `0640 root:users`, so the agent user can decrypt sops without sudo.
 - Nightly = report-only outside the version-controlled auto-approve list. Each promotion is a
   step on the A0–A5 ladder, paid for with evidence; from **A4** a capability needs a rollback that is
   automatic, tested in failure, and run by a dumb executor. Irreversible actions (`destroy`, data

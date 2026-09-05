@@ -5,8 +5,7 @@ summary: "Where Skynet sits, how it's addressed on VLAN 90, and the firewall rul
 # Spoke · Network & placement
 
 > Where Skynet sits, how it's addressed, and the firewall rules that let it reach exactly what it
-> needs and nothing more. Governed by [`../system-design.md`](../system-design.md). Sourced from
-> plan §1 (placement) and §3 (firewall).
+> needs and nothing more. Governed by [`../system-design.md`](../system-design.md).
 
 ## Placement & VM spec
 
@@ -83,12 +82,10 @@ half — see [access-and-trust](access-and-trust.md)). A host is reachable for o
 **only** once it's in this alias. Adding a host here is part of the "new managed host" extension
 point in the constitution.
 
-## The apps-ingress rails (realized — SKY-003)
+## Apps ingress
 
-The reverse-proxy edge is no longer hypothetical: the firewall was already staged for it, and
-directive [SKY-003](../../planning/archive/SKY-003-apps-reverse-proxy-authentik-sso-ingress.md)
-lands the proxy onto these rails. The tier decision (apps door T2, Management door T3) and the
-routing map live in the [identity-and-proxy](identity-and-proxy.md) spoke; the network layer is:
+The apps door is T2 and the Management door is T3; their routing map is in
+[identity-and-proxy](identity-and-proxy.md). Its network boundary is:
 
 | Item | Value | Role |
 |---|---|---|
@@ -99,17 +96,12 @@ routing map live in the [identity-and-proxy](identity-and-proxy.md) spoke; the n
 | Rule **250** | `HOST_PROXY_APPS` → `ROLE_APP_ORIGINS:PORT_APP_BACKENDS` | proxy → each declared app origin/port |
 | Rule **830** | `Caddy → :53` (authoritative DNS) | **not widened for the apps proxy** — it validates ACME over the Cloudflare API on 443 (rule 810), not `:53` |
 
-`ROLE_APP_ORIGINS` / `PORT_APP_BACKENDS` are reconciled to the origins actually proxied, including
-karakeep on port 3000. The apps-ingress rails and SSH exposure were verified by SKY-003 Phase 4.
+`ROLE_APP_ORIGINS` / `PORT_APP_BACKENDS` contain the currently proxied origins, including karakeep
+on port 3000.
 
-## Omada read reachability (realized — SKY-018 P4)
+## Omada read reachability
 
 The T1 network-gear collector reaches `HOST_OMADA` (`10.10.50.25`) through
 `ROLE_OPS_API_TARGETS` on the controller HTTPS port carried by rule 360. The credential is read-only;
 controller administration remains T3. Current device evidence is rendered in
 [`../generated/50-network-gear.md`](../generated/50-network-gear.md).
-
-## Planned expansion
-
-- **New VLAN / segment.** Admitted via new aliases + rules here, then DNS zones, then hosts — never
-  by widening an existing role alias to mean two things.

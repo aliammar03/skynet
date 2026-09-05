@@ -5,8 +5,7 @@ summary: "How a service change becomes a running container via Arcane, with git-
 # Spoke · The GitOps loop
 
 > How a change to a service becomes a running container, and how versions stay pinned and current.
-> Governed by [`../system-design.md`](../system-design.md). Sourced from plan §4 (truth model +
-> loop) and §12 (pinning). Naming/compose rules live in [conventions](../conventions.md).
+> Governed by [`../system-design.md`](../system-design.md). Compose rules: [conventions](../conventions.md).
 
 ## The truth model
 
@@ -28,21 +27,18 @@ edit compose/<svc>/ → branch → PR → Ali merges
 
 - **One Arcane Git Sync per project dir**, auto-sync on; Arcane's own auto-update polling **off**
   for git-synced projects (one reconciler, one truth).
-- **Rollback = `git revert`** — a health-gated deploy reports the deterministic failure without
-  mutating its checkout. An operator can explicitly run `gitops-rollback.sh --prepare` to create the
-  inverse in an isolated review branch; after human review/merge, Arcane converges back. SSH +
-  `docker context` is the break-glass path when Arcane itself is the patient. The executor +
-  deterministic decider live in the [actuators](actuators.md) spoke.
+- **Rollback = `git revert`.** A failed health gate does not mutate its checkout. The explicit,
+  review-branch rollback executor is [`gitops-rollback.sh`](../../scripts/gitops-rollback.sh);
+  its decision and limits are in [actuators](actuators.md). SSH + `docker context` is break-glass
+  access when Arcane is unavailable.
 - **Env materialization** belongs to `gitops-deploy.sh`: committed `.env.git` + decrypted
   `.env.sops` → effective `0600` `.env`. Arcane GitOps does not merge `project.env`; every service
   consumes the wrapper-built file through `env_file: .env`.
 - Auto-sync **only redeploys projects already running** — a stopped project updates on its next
   manual start (matters during maintenance windows).
 
-Restore is conversational and made deterministic by `runbooks/restore-service.md` — pause sync →
-stop stack → `restic restore` the dated snapshot → select the matching `.env.git`/`.env.sops`
-revision → `gitops-deploy.sh` materializes and deploys it → resume sync → verify. (See
-[backup-strategy](../backup-strategy.md).)
+Service recovery follows [`restore-service.md`](../../runbooks/restore-service.md); its restore
+revision includes the matching `.env.git` and `.env.sops` files. See [backup strategy](../backup-strategy.md).
 
 ## Image pinning & updates
 
@@ -50,19 +46,5 @@ Every `compose.yaml` pins an **exact version tag**. **Renovate** (Mend's free Gi
 repos, first-class docker-compose manager) watches the repo and opens one PR per bump with release
 notes embedded. Arcane's auto-update stays off for git-synced projects.
 
-*"Update everything"* → the agent triages open Renovate PRs, reads the embedded notes, researches
-the consequential ones, and reports (routine vs. needs-a-migration vs. propose-deferring) →
-Ali says apply → Arcane converges each project → health watch → inventory commit → summary.
-Anything unhealthy: `git revert`, Arcane rolls it back.
-
-## Planned expansion
-
-- **Generated-only auto-merge — shipped.** The nightly now self-merges its own PR when the diff is
-  confined to `inventory/`, `docs/generated/`, `journal/`, and `compose/*/.env.sops` and CI is green
-  — the merge-gate dial's foreseeable first loosening ([system-design §2b](../system-design.md),
-  [ADR 0004](../decisions/0004-auto-merge-generated-only-nightly-prs.md)). Authored PRs still human-merge.
-- **A managed reverse proxy** gives services a consistent front door and hooks into this loop — the
-  apps Caddy publishes routes as a Caddyfile in git, deployed by the same PR → Arcane-reconcile path
-  (SKY-003). Its design lives in the [identity-and-proxy](identity-and-proxy.md) spoke; a future step
-  is generating that Caddyfile from `inventory/` the way `docs/generated/` already is.
-- **Service intake** — `planning/services/` maturing into a steady pipeline feeding this loop.
+Review updates through their Renovate PRs, then deploy through [`deploy-service.md`](../../runbooks/deploy-service.md).
+An unhealthy deployment is reverted in git and Arcane converges to that revision.
