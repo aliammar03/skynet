@@ -48,7 +48,7 @@ Design context: [`../../docs/design/identity-and-proxy.md`](../../docs/design/id
      caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
    ```
 
-   `caddy fmt --overwrite /etc/caddy/Caddyfile` may be used to normalize formatting.
+   `caddy fmt --overwrite /etc/caddy/Caddyfile` normalizes formatting.
 
 3. Open a teaching PR that states the service, origin `IP:port`, resulting URL, and that this is
    an own-auth internal route. Ali merges it; the agent does not merge its own PR.

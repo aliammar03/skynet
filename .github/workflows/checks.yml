@@ -69,3 +69,5 @@ jobs:
         run: bash tests/nightly-sequence-test.sh
       - name: documentation-drift-test
         run: bash tests/documentation-drift-test.sh
+      - name: temporal-hygiene-test
+        run: bash tests/temporal-hygiene-test.sh

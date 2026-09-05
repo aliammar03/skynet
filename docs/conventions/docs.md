@@ -96,3 +96,6 @@ contents must meet. The README is the hub for that directory.
   tried, what broke, and how it was fixed is **episodic → [`journal/`](../../journal/README.md)**
   (build-phase incidents live in [`../history/build-log.md`](../history/build-log.md)). No "learned
   at X" / "we tried Y, it fell apart" narratives in design prose — same principle as write-raw-to-journal.
+- **Finished artifacts are current-state only.** Keep completed directive IDs, phase labels,
+  migration chronology, and replacement narratives in the journal, history, ADRs, or
+  planning. Live docs and runbooks contain present behavior and the rationale required to operate it.
