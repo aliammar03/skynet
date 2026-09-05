@@ -292,3 +292,10 @@ criteria, then perform Phase close-out.
   work. Mocked order/failure regressions cover the sequence. This is not Phase completion: Obsidian
   artifact hygiene, substantive runbook/policy reduction, and the remaining exit targets are open.
   Evidence: `journal/2026/2026-09-05-session-sky-023-p3-nightly-sequence.md`.
+
+- 2026-09-05 — Phase 3 Obsidian-artifact hygiene checkpoint prepared on
+  `docs/sky-023-p3-obsidian-hygiene` after PR #194 merged. Removed local workspace state and bundled
+  Obsidian Git payload from tracking without deleting local files; retained shared vault settings,
+  documented Community Plugins installation, and added an index/ignore regression. This is not Phase
+  completion: substantive runbook and repeated-policy reduction still must meet the Phase exit
+  targets. Evidence: `journal/2026/2026-09-05-session-sky-023-p3-obsidian-artifact-hygiene.md`.
