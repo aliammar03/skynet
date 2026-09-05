@@ -275,3 +275,12 @@ criteria, then perform Phase close-out.
   to the materialized `0400 aliammar` contract. This is not Phase completion: substantive corpus
   reduction plus digest/nightly consolidation remain open. Evidence:
   `journal/2026/2026-09-05-session-sky-023-p3-current-truth-sweep.md`.
+
+- 2026-09-05 — Phase 3 digest-resolution checkpoint prepared on
+  `fix/sky-023-p3-digest-nightly` after PR #192 merged. The digest now derives current follow-ups
+  only from explicit `thread_status: open` records, reports legacy unclassified follow-ups as
+  unknown, and orders same-day episodes by explicit time. Journal scaffolding records both fields;
+  regressions cover resolved PR #185/#186 and completed phase dependencies without rewriting
+  append-only history. This is not Phase completion: deterministic nightly consolidation and the
+  substantive corpus-reduction exit target remain open. Evidence:
+  `journal/2026/2026-09-05-session-sky-023-p3-digest-resolution.md`.

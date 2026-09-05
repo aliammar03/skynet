@@ -35,8 +35,10 @@ what broke — and distillation happens later, when something is actually retrie
 
 - **Filename:** `journal/<YYYY>/<YYYY-MM-DD>-<kind>-<slug>.md` — dated, so the directory
   self-indexes chronologically; multiple episodes may share a date.
-- **Frontmatter:** `date`, `kind`, `title`, `tier_touched`, `grants` (root grants actually used —
-  host + KeyID), `refs` (SKY-###, PR, ADR, hosts). See [`../templates/journal.md`](../templates/journal.md).
+- **Frontmatter:** `date`, `time`, `kind`, `title`, `tier_touched`, `grants` (root grants actually used —
+  host + KeyID), `refs` (SKY-###, PR, ADR, hosts), and `thread_status`. The digest orders same-day
+  episodes by `time` and shows only explicitly `open` follow-ups; missing status is unknown, never resolved.
+  See [`../templates/journal.md`](../templates/journal.md).
 - **Body:** `## What happened` (raw), `## Actions & outcomes`, `## Graveyard — tried & abandoned`,
   `## Follow-ups / open threads`.
 - **The Graveyard is load-bearing.** Negative results are memory: the approaches that *failed* are
