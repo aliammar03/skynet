@@ -6,7 +6,7 @@ horizon: short
 created: 2026-09-04
 updated: 2026-09-06
 phases: 9
-current_phase: 5
+current_phase: 6
 tier_touched: [T1]
 related:
   - AGENTS.md
@@ -129,7 +129,7 @@ and pre-commit. Close-out evidence:
 
 ## 5. Reopened maintenance plan
 
-### Phase 5 — temporal-hygiene purge: prose and operational docs  (~1–2h)  `[ ]`
+### Phase 5 — temporal-hygiene purge: prose and operational docs  (~1–2h)  `[x]` complete 2026-09-06
 
 Build a temporary **crud matrix** with columns: path, offending text, class, present-day dependency,
 action, destination/owner. Do not commit the matrix as current design; summarize it in the phase PR

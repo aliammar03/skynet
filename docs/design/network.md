@@ -73,7 +73,7 @@ policy block.
 - **Exception — the Cloudflare Tunnel:** `compose/cloudflared` uses the approved **public** upstreams
   (`1.1.1.1`/`8.8.8.8`), not Technitium. It only ever resolves Cloudflare's public edge, and
   Technitium returns an *empty* answer for that edge's `_v2-origintunneld._tcp.argotunnel.com` SRV
-  (it serves other SRVs and the legacy `_origintunneld` fine — the newer record is the gap).
+  (it serves other SRVs and `_origintunneld`; the `_v2` record is the gap).
 
 ## The blast-radius boundary, at the network layer
 

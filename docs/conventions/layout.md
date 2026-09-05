@@ -25,7 +25,7 @@ Tags: **[testable]** = a lint gate could assert it; **[manual]** = holds by revi
 | `compose/<svc>/` | One dir per service (the GitOps loop) | ops |
 | `scripts/*.sh` | Procedures runbooks/entry-points call | ops |
 | `bin/*` | Operator-facing entry points (`plan`, `new`, `ops`, `grant-root`, `agent`) | ops |
-| `.codex/config.toml`, `.codex/agents/*.toml` | Native Codex construction-helper defs (SKY-022) — build-time only, no prod authority | doctrine |
+| `.codex/config.toml`, `.codex/agents/*.toml` | Native Codex construction-helper definitions — build-time only, no production authority | doctrine |
 | `runbooks/*.md`, `runbooks/dr/*.md` | Engine-neutral procedures, catalogued in `runbooks/README.md` | ops |
 | `templates/` | The golden templates `bin/new` stamps from — one folder, all kinds | doctrine |
 | `planning/{scratchpad,ideas,backlog,projects,archive,services}/` | The `SKY-###` directive pipeline | planning |
@@ -76,7 +76,7 @@ the parked lint gate.
 `invariants.json` at the repo root is the **constraint layer** of ADR 0003's ambiguity ladder:
 authored *desired* truth — the machine-checkable hard laws (excluded guests, the `ops-managed` pool
 set, the T3 targets, plaintext-secret patterns) — that a **deterministic gate**
-(`scripts/check-invariants.sh`, SKY-011 P3) reads to fail a violating PR. It is deliberately three
+(`scripts/check-invariants.sh`) reads to fail a violating PR. It is deliberately three
 things at once and none of the others:
 
 - **Authored, not generated** — unlike `inventory/**` and `docs/generated/**`, you *do* hand-edit it.

@@ -41,11 +41,8 @@ rollback: "Stop at the selected restore point; preserve the prior state until ve
 1. With the PBS token, list snapshots and restore the selected guest into `ops-managed`.
 2. Boot and verify it. An excluded guest requires an explicit T3 session.
 
-The Drive→scratch-PBS path and CT 101 archive reconstruction were proven on 2026-08-16. A full core-node-loss drill has not run; use [`dr/DR-core-node.md`](dr/DR-core-node.md) when PBS itself is unavailable.
-
-### Known service note
-
-- **aiometadata:** raw restic recovery of SQLite plus the protected Mongo volume was witnessed consistent on 2026-08-16; `scripts/gitops-deploy.sh aiometadata` returned all six containers healthy. Add a dump pre-hook if its write load later makes hot-copy recovery unsafe.
+Targeted archive recovery is verified. Full core-node-loss recovery remains unverified; use
+[`dr/DR-core-node.md`](dr/DR-core-node.md) when PBS itself is unavailable.
 
 ## Verify
 

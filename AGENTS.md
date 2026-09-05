@@ -36,16 +36,16 @@ failure case, and performed by something dumber than you.
 | Tier | Scope | Mechanism | Standing? |
 |---|---|---|---|
 | **T1 Read** | Both Proxmox nodes, PBS, Docker hosts, DNS, firewall state (**OPNsense read-only API + git mirror**), Omada controller | Read-only API tokens; scoped OPNsense read + mirrored config.xml | Always |
-| **T2 Operate** | `ops-managed` pools on both nodes, core-managed guest envelopes, Docker hosts via Arcane + unprivileged SSH, Technitium zones, scoped Authentik Applications/Providers, Cloudflare DNS records (`aliammar.net`), approved **OPNsense firewall config** (aliases/rules) boundary — minus the self-leash set | Scoped write tokens, `svc-ops` SSH, agent-readable materialized secret files, Technitium scoped token, scoped Authentik token, Arcane API key, Cloudflare scoped `DNS:Edit` token; OPNsense write mechanism pending SKY-020 | Yes where implemented — changes PR-gated |
+| **T2 Operate** | `ops-managed` pools on both nodes, core-managed guest envelopes, Docker hosts via Arcane + unprivileged SSH, Technitium zones, scoped Authentik Applications/Providers, Cloudflare DNS records (`aliammar.net`), approved **OPNsense firewall config** (aliases/rules) boundary — minus the self-leash set | Scoped write tokens, `svc-ops` SSH, agent-readable materialized secret files, Technitium scoped token, scoped Authentik token, Arcane API key, Cloudflare scoped `DNS:Edit` token; OPNsense write mechanism not yet available | Yes where implemented — changes PR-gated |
 | **T2+ Root grant** | Root shell on workload hosts (diagnose, harden, provision, OS updates) | SSH user-CA certificate, per-host principal, auto-expiring | Grant only; expires by itself |
 | **T3 Privileged** | OPNsense *node root / account / cert admin / reboot / self-leash rules*, Management Caddy, Authentik administration (flows/policies/users/settings/keys), Proxmox node root, Unraid root, Technitium *server settings*, Cloudflare *account / Access / tunnel config / zone settings* | Dormant alias `ROLE_OPS_PRIV_TARGETS` + per-session credentials | **Never standing** |
 
 - Technitium is T2 for **Zones view/modify only** — no Settings/Administration/DHCP. Server settings are T3.
 - Authentik is T2 only for scoped Applications/Providers CRUD and binding an existing outpost;
   flows, policies, users, groups, system settings, outpost tokens, and signing keys remain T3.
-- OPNsense aliases/rules are an **approved T2 boundary, not a live actuator yet**: SKY-020 has shipped
-  T1 read only; its provider, write credential, policy gate, and first apply are still pending. Until
-  they land, the agent has no OPNsense write path. This is implementation status, not a tier change.
+- OPNsense aliases/rules are an **approved T2 boundary, not a live actuator yet**: only T1 read is
+  available. Until the provider, write credential, policy gate, and first apply exist, the agent has
+  no OPNsense write path. This is implementation status, not a tier change.
 - Cloudflare is T2 for **DNS records in `aliammar.net` only** (scoped `DNS:Edit` token,
   materialized `0400` for `aliammar` at `/opt/skynet-ops/secrets/cloudflare-dns.env`) — the account,
   Access policies, tunnel config, and zone settings are T3. Same shape as the Technitium split;
@@ -55,8 +55,8 @@ failure case, and performed by something dumber than you.
   the envelope. Core service CTs 731, 751, and 10030 are currently unpooled but their envelopes are
   managed by the core root-`/` ACL. Core can technically reach Unraid's VM envelope, but automated
   and OpenTofu paths must not target it: power/config is a human hard checkpoint, it remains
-  unpooled, is never destroyed by the agent, and guest-OS root stays T3. (SKY-021/024; the
-  constitution owns this exception.)
+  unpooled, is never destroyed by the agent, and guest-OS root stays T3. The constitution owns this
+  exception.
 - Root on workload hosts exists **only** inside a certificate validity window. The CA
   private key lives on Ali's workstation — you **cannot** mint your own access. You request; Ali types.
 
@@ -166,7 +166,7 @@ one. A directive touching **T2+/T3** or a blast-radius boundary must also PR `do
 - **You never widen your own leash — firewall included.** Even with OPNsense config at T2, the agent
   may **never** change the rules/aliases bounding its own reach (`ROLE_OPS_*`, `ROLE_OPS_PRIV_TARGETS`,
   the block-other-DNS rules, its own OPNsense accounts): human-merged forever, off the ratchet, and
-  machine-gated on the `tofu plan` (SKY-018 P7).
+  machine-gated on the `tofu plan`.
 - Root on workload hosts exists **only** inside a certificate's validity window; the CA
   never leaves Ali's custody; every root session's KeyID is logged and harvested nightly.
 - Write blast radius = the `ops-managed` pool **set** (two today — a count, not a law) +

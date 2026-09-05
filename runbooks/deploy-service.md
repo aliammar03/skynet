@@ -56,17 +56,8 @@ Arcane leaves a populated `.env` untouched on re-sync, so the two coexist.
    `cd compose/<svc> && printf '…dummy…' > .env && docker compose config -q && rm .env`.
 2. **PR** with a teaching description (what it is, ports, front door, backup impact). **Ali merges.**
 3. `scripts/gitops-deploy.sh <svc>` — ensures the sync, materialises `.env`, redeploys, health-checks.
-   (During a migration you may verify off a branch first: `GITOPS_BRANCH=<branch> scripts/gitops-deploy.sh <svc>`.)
+   For a branch verification, use `GITOPS_BRANCH=<branch> scripts/gitops-deploy.sh <svc>`.
 4. If red → `git revert`, re-run `gitops-deploy.sh <svc>`.
-
-### Cut over a legacy non-GitOps project
-
-Only needed the first time a hand-managed project moves to GitOps. **Destructive.**
-
-1. Confirm data is on absolute appdata or named volumes (destroy won't touch appdata; a new compose
-   project **name** gives fresh named volumes — fine only when data is disposable/rebuildable).
-2. `POST projects/{id}/down` then `DELETE projects/{id}/destroy` (removes containers + old project dir).
-3. `scripts/gitops-deploy.sh <svc>` creates the GitOps project fresh and deploys.
 
 ## Verify
 
@@ -74,7 +65,7 @@ Only needed the first time a hand-managed project moves to GitOps. **Destructive
 
 ## Rollback
 
-- Revert the merged compose change and run `scripts/gitops-deploy.sh <svc>` to reconcile it. A legacy cutover needs its data/backout reviewed before destruction.
+- Revert the merged compose change and run `scripts/gitops-deploy.sh <svc>` to reconcile it.
 
 ## Evidence
 

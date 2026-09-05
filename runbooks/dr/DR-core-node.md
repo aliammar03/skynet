@@ -11,8 +11,8 @@ rollback: "preserve surviving state; stop before destructive recovery changes"
 **Tier:** **T2+** (supervised recovery using PBS, Proxmox, and the survival-kit materials).
 **Trigger:** `server-proxmox-core` is unavailable and PBS cannot serve restores.
 
-The L5 Google Drive mirror and archive reconstruction are proven; rebuilding PBS, attaching the
-recovered datastore, and booting a guest after actual core loss remain a supervised recovery procedure.
+Targeted L5 archive recovery is verified. Rebuilding PBS, attaching the recovered datastore, and
+booting a guest after core loss remain unverified and require supervised recovery.
 
 ## Preconditions
 

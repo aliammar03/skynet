@@ -37,8 +37,7 @@ Rules `[manual]`:
   stays in effect for its topic; when reality changes (a correction *or* a full reversal), you
   **edit that same ADR** to state the current decision and add a dated line to a short
   `## History` section. There is no `Status: superseded` and no second ADR for the same topic —
-  the git log holds the prior wording; the ADR body always tells you what's true now. ADR 0001 was
-  amended this way on 2026-08-17 (static-for-ops-brain → static-for-all-guests).
+  the git log holds the prior wording; the ADR body always tells you what's true now.
 
 ## Runbooks (`runbooks/`)
 
@@ -65,7 +64,7 @@ Rules `[manual]`:
 
 Every **loadable** doc — a design or conventions spoke, a runbook, a generated page — carries a small
 authored frontmatter block so a routing agent can *choose it without opening it*. This is the metadata
-the context map (SKY-010 P3) reads to build one row per artifact; it's the machine-readable half of
+the context map reads to build one row per artifact; it's the machine-readable half of
 the [default-lean discipline](../design/memory.md).
 
 | Field | Who writes it | Rule |
@@ -78,8 +77,8 @@ the [default-lean discipline](../design/memory.md).
 - **Load cost is computed at render time, not stored.** `scripts/render-context-map.sh` derives the
   `~tokens` column itself (content bytes ÷ 4) when it builds the map, so the figure is always fresh and
   no `tokens:` line has to be maintained in each file. (An earlier `tokens:` frontmatter + a
-  `budget-frontmatter` lint gate did this by hand-stamping every doc; retired — the renderer already
-  had the number.)
+  `budget-frontmatter` lint gate did this by hand-stamping every doc; the renderer already has the
+  number.)
 
 ## README-as-catalog `[manual]`
 
@@ -90,7 +89,7 @@ contents must meet. The README is the hub for that directory.
 ## Prose style `[manual]`
 
 - Write to **teach** — Ali is learning git/infra through this repo. Say *why*, not just *what*.
-- **Convert relative dates to absolute** (`2026-08-17`, not "today") in anything that persists.
+- **Convert relative dates to absolute** (`YYYY-MM-DD`, not "today") in anything that persists.
 - Prefer tables and short rules over long paragraphs; keep the hub scannable.
 - **State the rule, not the incident that taught it.** Design docs, spokes, and conventions carry
   the durable rule plus small actionable notes — *what to do now and why*. The story of what was
