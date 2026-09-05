@@ -1,110 +1,41 @@
 ---
-summary: "Run substantial construction as a lead — proactively find BIV chunks, route bounded helpers, verify, integrate, and PR — without gaining any production authority."
+summary: "Run substantial construction as a lead — route bounded helpers, verify their work, and open the PR without granting production authority."
 trigger: "Do a substantial construction task / build X / implement or change X"
 tier: "T1 build-time only"
 executor: "Lead with bounded native helpers or bin/agent"
 rollback: "git revert accepted repository changes"
 ---
 
-# Runbook — construction delegation (lead + bounded helpers)
+# Runbook — construction delegation
 
-**Trigger:** Any normal *"do the task"*, *"build X"*, *"implement X"*, or *"change X"* request
-that is substantial **build-time** construction. The lead assesses it for narrow helper work on its
-own initiative, then integrates every accepted result.
-**Tier:** **T1, build-time only.** Helpers get **no** production authority — no secrets, no tokens, no
-T2/T3 grant. Each helper's sandbox (writers `workspace-write`, scout `read-only`) is the entire leash.
-
-> This runbook is the *procedure*. The *doctrine* (roles, the BIV test, tier routing, the trust
-> boundary, "complexity must be earned") lives in [`../docs/conventions/construction.md`](../docs/conventions/construction.md)
-> and is the authority if the two ever disagree.
+**Tier:** T1 build-time only. Helpers have no secrets, tokens, grants, or production authority; their sandbox is their leash. The authoritative role, BIV, and tier rules are in [`../docs/conventions/construction.md`](../docs/conventions/construction.md).
 
 ## Preconditions
 
-- The lead owns the task, has a scoped success condition, and keeps every helper inside the build-time boundary.
+- The lead owns a scoped success condition and can independently verify every delegated result.
 
 ## Steps
 
-### Assess substantial work for BIV chunks
-
-One accountable lead owns every task end to end. At the start of substantial construction, it
-proactively searches for BIV (Bounded, Independent, Verifiable) chunks and delegates each suitable
-chunk to the cheapest reliable role. Ali does not need to request helpers. Keep tiny work with the
-lead when coordination costs more than execution; do not manufacture parallelism to fill the cap.
-
-### Gate every hand-off through BIV
-
-A subtask is delegatable only when it is:
-
-- **Bounded** — you can state success in one sentence;
-- **Independent** — it needs no constant back-and-forth;
-- **Verifiable** — you can cheaply inspect or test the result.
-
-If it fails any of the three — "figure out the architecture", "make this better", anything with
-live ambiguity — **keep it**, or send it back to Ali. A bigger model is not a substitute for a clear
-objective.
-
-### Route by task shape, role, and tier
-
-| The subtask is… | Role | Tier · effort | Writes |
-|---|---|---|---|
-| architecture / cross-cutting / ambiguous — the hard core | *(keep it)* / hard-lead | Terra→**Sol** · xhigh | — |
-| **novel bounded logic** behind an interface, with tests | **Builder** | Terra · high | workspace |
-| **fully-specified, low-context** repetitive edit / rename / fixture | **Mechanic** | Luna · high | workspace |
-| **read-only** search / compare / investigate | **Scout** | Luna · medium | none |
-
-The tell: **Terra unless the job is tightly specified and low-context — then Luna** (Luna
-context-rots and over-codes on vague specs). At most **two** active helpers, **one** delegation level
-(a helper never launches its own helper). Details + evidence: the doctrine spoke.
-
-### Write a real helper prompt
-
-A helper with a vague prompt is *your* bug, not its. Every prompt states, explicitly:
-
-1. **Scope surface** — the exact files/dirs it may touch, nothing else.
-2. **Expected output** — the concrete deliverable, and its shape.
-3. **Write allowance** — for a writer, "edit only the scope files; do **not** commit / push / touch git."
-4. **Verification** — the exact commands it must run before reporting (and paste the output).
-
-### Invoke and integrate
-
-```bash
-# preview the resolved role→tier→model→sandbox first — launches nothing:
-bin/agent <scout|builder|mechanic|lead> "<prompt>" --dry-run
-# then for real (drop --dry-run). --hard promotes a lead Terra→Sol.
-bin/agent scout   "<read-only investigation prompt>"
-bin/agent builder "<bounded-logic prompt>"
-# Only an exact registered worktree of this repository is accepted as an alternate root:
-bin/agent builder "<parallel-writer prompt>" --cwd /path/to/skynet-worktree
-```
-
-- `bin/agent` runs a `codex exec` process, sandboxed to the role. The transcript streams to
-  **stderr**; the helper's **final report is on stdout**. Wait on process exit, not on output bytes.
-- If the lead session is itself Codex, prefer **native in-session** delegation (the `.codex/agents/`
-  definitions enforce the ≤2 cap); `bin/agent` is the standalone mirror for any other lead engine.
-- `--cwd` fails closed for plain directories, unrelated repositories, and worktree subdirectories;
-  this keeps every helper inside the Skynet construction boundary.
-- **The helper's "done" is a claim to verify, never a merge signal.** Re-check every `file:line` a
-  scout cites; read a writer's full diff; run the gates **yourself**.
-- **You integrate and you own the PR.** Wire in anything the helper couldn't, then land it as a PR
-  under [`../docs/conventions/git.md`](../docs/conventions/git.md).
-
-### Preserve continuity for a long job
-
-If the task may cross a session/context boundary, keep a compact, gitignored `.agent/CHECKPOINT.md`
-(shape + write-triggers in the doctrine spoke). A cold lead resumes from **only** `AGENTS.md` + the
-`SKY-###` phase + the checkpoint + `git status`/`git diff`. Delete it on completion after durable
-facts move to their real home.
+1. **Assess for BIV work.** For substantial construction, proactively delegate only a chunk that is **Bounded** (one-sentence outcome), **Independent** (no continual decisions), and **Verifiable** (cheap inspection/test). Keep ambiguous architecture or tightly coupled work with the lead; do not create parallelism for its own sake.
+2. **Choose the smallest suitable role.** Keep the cross-cutting core with the lead; use a Builder for novel bounded code with tests, a Mechanic for fully specified repetitive edits, and a Scout for read-only investigation. Keep at most two helpers active and one delegation level.
+3. **Write the hand-off.** State the exact files/dirs, deliverable, write allowance (including “do not commit/push”), and verification commands. Tell every writer that other agents share the repo and they must preserve concurrent edits.
+4. **Launch deliberately.** In a Codex lead session, use native bounded helpers. Other engines can use the equivalent:
+   ```bash
+   bin/agent <scout|builder|mechanic|lead> "<scoped prompt>" --dry-run
+   bin/agent <scout|builder|mechanic|lead> "<scoped prompt>"
+   ```
+   `--cwd` is permitted only for an exact registered Skynet worktree. A helper report is not a merge signal.
+5. **Integrate.** Re-read cited evidence, inspect each full writer diff, run the declared tests yourself, and make any necessary integration edits. The lead owns the resulting PR.
+6. **Preserve continuity.** For a job crossing sessions, keep the compact ignored `.agent/CHECKPOINT.md`; delete it after durable facts move to their actual home.
 
 ## Verify
 
-
-- Verify each accepted result independently: inspect its full diff, run its stated tests, and confirm scope stayed within the helper's allowance.
-- Confirm the final PR contains the integrated change, its tests, and any required catalog or convention updates.
+- Each accepted result is within its stated scope and passes its verification; the final PR includes the integrated tests and catalog/convention updates where required.
 
 ## Rollback
 
-- Revert accepted repository changes through the normal PR path. Stop and escalate if a helper's scope or output cannot be verified.
+- Revert accepted repository changes through the normal PR path. Stop if a helper’s scope or result cannot be verified.
 
 ## Evidence
 
-- Retain the helper prompts/reports, reviewed diffs, verification output, and final PR as the construction record.
+- Retain the prompts, reports, reviewed diffs, verification output, and PR.

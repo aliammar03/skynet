@@ -3,7 +3,7 @@
 #   compose/ into inventory/routes.json: vhost -> front door -> backend ENTITY -> auth mode.
 # TIER: T1 — reads compose/ (git), resolves backends via the compose ipv4_address map + entity.sh.
 #   No live access, no writes. The Caddyfile is the VHOST class's source of truth (it declares each
-#   vhost + backend); internal DNS is now DERIVED from it (tofu, SKY-008), so it holds no extra signal.
+#   vhost + backend); internal DNS is derived from it by tofu, so it holds no extra signal.
 # The vhost->backend edge is NOT derivable by hostname (obsidian -> obsidian-livesync, speed ->
 #   librespeed), but it IS derivable by the backend IP the Caddyfile targets: every app declares its
 #   macvlan ipv4_address in its compose.yaml, so backend-IP -> svc is a lookup; a non-service backend

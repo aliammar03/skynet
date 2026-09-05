@@ -1,12 +1,12 @@
 ---
 id: SKY-023
 title: Eliminate documentation drift and shrink operational context
-status: in-progress
+status: done
 horizon: short
 created: 2026-09-04
-updated: 2026-09-05
+updated: 2026-09-06
 phases: 4
-current_phase: 3
+current_phase: 4
 tier_touched: [T1]
 related:
   - docs/system-design.md
@@ -86,7 +86,7 @@ test evidence; production runbooks contain no bare re-planning `tofu apply` path
 **Exit:** constitution is at least **40% smaller**; design corpus at least **30% smaller**; no
 `Planned expansion` sections remain in spokes; all removed load-bearing content has one reachable home.
 
-### Phase 3 — fix the merge gate, then prune operational context   `[ ]`
+### Phase 3 — fix the merge gate, then prune operational context   `[x]` complete 2026-09-06
 
 Execute in bounded ~1–2h checkpoint batches: merge-gate repair first, documentation/editor cleanup
 second, digest/nightly consolidation third. Record the completed batch and exact next step at each
@@ -164,7 +164,7 @@ only the validated head; the digest does not revive resolved PRs/phases or hide 
 nightly sequence owns each deterministic step; repeated policy agrees with the constitution; and
 editor artifacts are removed from tracking or retained with a documented rebuild justification.
 
-### Phase 4 — make drift fail CI  (~1–2h)   `[ ]`
+### Phase 4 — make drift fail CI  (~1–2h)   `[x]` complete 2026-09-06
 
 1. Add narrow deterministic checks for:
    - bare production `tofu apply` in runbooks;
@@ -299,3 +299,11 @@ criteria, then perform Phase close-out.
   documented Community Plugins installation, and added an index/ignore regression. This is not Phase
   completion: substantive runbook and repeated-policy reduction still must meet the Phase exit
   targets. Evidence: `journal/2026/2026-09-05-session-sky-023-p3-obsidian-artifact-hygiene.md`.
+
+- 2026-09-06 — Phases 3 and 4 complete. The runbook corpus is 11,190 words, 21.6% below the
+  14,276-word Phase 3 baseline; high-load leaves are task-shaped and the catalog is renderer-owned.
+  Current-authority merge summaries preserve the generated-only nightly carve-out. The deterministic
+  documentation-drift test covers catalog divergence, task metadata, current operational references,
+  saved-plan instructions, archive placement, and local links/scripts; it and the Phase 3 nightly/
+  Obsidian regressions are wired into CI and pre-commit. Full tests, invariants, and syntax passed.
+  Evidence: `journal/2026/2026-09-06-session-sky-023-phase-3-and-4-close-out.md`.

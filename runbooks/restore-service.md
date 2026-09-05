@@ -1,97 +1,60 @@
 ---
-summary: "Restore a service or VM from restic/PBS — conversational and deterministic, executable verbatim."
+summary: "Restore a service or VM from restic/PBS using a selected recovery point."
 trigger: "Restore a service / recover from backup"
 tier: "T2; PBS token for VM restore"
 executor: "restic, PBS, and scripts/gitops-deploy.sh"
 rollback: "Stop at the selected restore point; preserve the prior state until verification"
 ---
 
-# Runbook — restore a service (conversational, deterministic)
+# Runbook — restore a service
 
-**Tier:** T2 + (if VM restore) T2 PBS token. **Goal:** any agent can execute this verbatim.
-**Companion:** [`backup.md`](backup.md) (how backups run / how to take one) ·
-[`../docs/backup-strategy.md`](../docs/backup-strategy.md) (the why).
-
-> **Finding a snapshot:** `restic snapshots` lists all; `restic snapshots --tag manual` finds
-> on-demand *pre-change* backups (taken before a risky change), `--tag scheduled` the nightly ones.
+**Tier:** T2; VM restore needs the PBS token. [`backup.md`](backup.md) covers backup operation and [`../docs/backup-strategy.md`](../docs/backup-strategy.md) owns policy.
 
 ## Preconditions
 
-- Identify the service or guest, the intended restore point, data paths, and required grant/token. Preserve a current recovery point before replacing data when feasible.
+- Identify the service/guest, restore point, paths, and necessary grant/token. Preserve a current recovery point before replacement where feasible.
 
 ## Steps
 
-### Restore container application data
+### Restore container data
 
-The docker-dmz restic repo is `rclone:gdrive:Skynet/Backups/restic/docker-dmz`
-(env: `/opt/skynet-ops/secrets/restic-docker-dmz.env` on the host; needs a root grant —
-`gr vm-docker-dmz`). It backs up `/opt/docker/appdata` **plus** named volumes labelled
-`skynet.backup=protect` (resolved to their `/var/lib/docker/volumes/<vol>/_data` mountpoints).
-
-1. **Pause Arcane sync** for the project so auto-sync can't fight the restore:
-   `PUT /api/environments/0/gitops-syncs/<id> {"autoSync":false}`.
-2. **Stop the stack**: `POST /api/environments/0/projects/<id>/down` (or `docker context`).
-3. **Find + restore the snapshot** (as root on the host, env sourced):
+1. Pause the Arcane Git Sync for the project, then stop its stack through Arcane (or the Docker context).
+2. On the affected host under its root grant, source its restic environment, list snapshots, and restore only the service paths:
    ```bash
-   set -a; . /opt/skynet-ops/secrets/restic-docker-dmz.env; set +a
-   restic snapshots                       # pick the dated <id>
+   set -a; . /opt/skynet-ops/secrets/restic-<host>.env; set +a
+   restic snapshots
    restic restore <id> --target / \
      --include /opt/docker/appdata/<svc> \
-     --include /var/lib/docker/volumes/<svc>_<vol>/_data   # scope to this svc's paths
+     --include /var/lib/docker/volumes/<svc>_<vol>/_data
    ```
-   Scoping with `--include` avoids clobbering other services' appdata. Restoring into wiped
-   paths necessarily pulls the data blobs from Google Drive (clear `/root/.cache/restic`
-   first if you want to *prove* an off-site fetch).
-4. **Env for that point in time:** `git checkout <commit> -- compose/<svc>/.env.sops`, then
-   redeploy with `scripts/gitops-deploy.sh <svc>` from skynet-ops — it materialises the
-   effective `.env` (= `.env.git` + `sops -d .env.sops`, decrypted where the age key lives),
-   redeploys, and health-checks. (Plain "restore to now" can skip the `git checkout`.)
-5. **Resume Arcane sync** (`{"autoSync":true}`), **health check**, **report**.
-
-> DB-backed services: verify DB consistency after restore (below). If a hot filesystem copy
-> proves inconsistent under real load, add a `mongodump`/`pg_dump` pre-hook to
-> `scripts/backup-restic.sh` that writes into `/opt/docker/appdata/<svc>/` before the sweep,
-> then restore the dump per the service note.
+   `--include` prevents replacing unrelated service data. `--tag manual` selects pre-change snapshots; `--tag scheduled` selects nightly snapshots.
+3. Restore configuration for that point only when required, then redeploy:
+   ```bash
+   git checkout <commit> -- compose/<svc>/.env.sops
+   scripts/gitops-deploy.sh <svc>
+   ```
+   The deploy script materializes `.env.git` plus decrypted `.env.sops`, deploys, and checks health. A restore to current configuration can omit the checkout.
+4. Re-enable Git Sync and check application-level consistency. For an inconsistent hot database copy, add an appropriate dump pre-hook before relying on filesystem restore.
 
 ### Restore a guest
 
-1. T2 PBS token → list snapshots → **PBS restore** into `ops-managed`.
-2. Boot → verify. (Never restore an excluded guest without an explicit T3 grant.)
+1. With the PBS token, list snapshots and restore the selected guest into `ops-managed`.
+2. Boot and verify it. An excluded guest requires an explicit T3 session.
 
-> **L5 proof is scoped.** The Drive→scratch-PBS path and CT 101 archive reconstruction were proven
-> on 2026-08-16. A full core-node-loss exercise — rebuild PBS, attach the recovered datastore, restore,
-> and boot a guest — has not been live-drilled. Follow `runbooks/dr/DR-core-node.md` when PBS is gone.
+The Drive→scratch-PBS path and CT 101 archive reconstruction were proven on 2026-08-16. A full core-node-loss drill has not run; use [`dr/DR-core-node.md`](dr/DR-core-node.md) when PBS itself is unavailable.
 
-### List available recovery points
+### Known service note
 
-`restic snapshots` (per host) + PBS index + `git tag` / commit history. Report the menu.
+- **aiometadata:** raw restic recovery of SQLite plus the protected Mongo volume was witnessed consistent on 2026-08-16; `scripts/gitops-deploy.sh aiometadata` returned all six containers healthy. Add a dump pre-hook if its write load later makes hot-copy recovery unsafe.
 
 ## Verify
 
-- Resume Git Sync, confirm the service or guest is healthy, and verify application-level data consistency.
+- Git Sync is resumed; service/guest health and application data consistency match the selected restore point.
 
 ## Rollback
 
-- Stop if the selected snapshot is wrong or verification fails; retain the original data/state for operator recovery instead of layering another restore over it.
+- Stop if the point is wrong or verification fails. Preserve the pre-restore state for operator recovery; do not layer another restore over it.
 
 ## Evidence
 
-- Record snapshot ID, source, restored paths, commit used for configuration, health result, and consistency checks.
-
-## Per-service DB notes
-
-_(append as services are onboarded: service → dump path → restore command)_
-
-### aiometadata (mongo + SQLite) — **witnessed restore, 2026-08-16**
-
-- **State backed up:** `/opt/docker/appdata/aiometadata/data` (holds `db.sqlite` in WAL mode,
-  the addon's own DB; `poster-cache/` + `cold-store/` are excluded as rebuildable) and the
-  named volume `aiometadata_jikan_mongo_data` (jikan's mongo, labelled `skynet.backup=protect`).
-- **Consistency:** raw-volume restore of the hot copies was **verified consistent** — SQLite
-  `PRAGMA integrity_check` = ok, and mongo (WiredTiger) recovered its journal on start with the
-  data fingerprint (per-collection doc counts) byte-identical to pre-wipe. No pre-hook needed at
-  current data volume; add a `mongodump` pre-hook if mongo later carries heavy write load.
-- **A4 witness (proof the whole L3 path works):** snapshot `f157b5ec` restored from Google
-  Drive after wiping `data/` + the mongo volume and clearing the restic cache; redeployed via
-  `scripts/gitops-deploy.sh aiometadata`; all 6 containers returned `healthy`; mongo + SQLite
-  verified as above.
+- Record snapshot ID, source, restored paths, configuration commit, health, and consistency result.

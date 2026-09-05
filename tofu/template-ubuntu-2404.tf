@@ -1,4 +1,4 @@
-# SKY-008 — permanent Ubuntu 24.04 base cloud-init template (T2, svc-ops!operate). Clone source for guests.
+# Permanent Ubuntu 24.04 base cloud-init template (T2, svc-ops!operate). Clone source for guests.
 # Base image is placed in local's `import` store out-of-band (URL download needs Sys.Modify/T3); this
 # builds the template from the present volume. It contains no Skynet CA trust or svc-ops account:
 # clones receive a temporary cloud-init bootstrap key, then scripts/onboard-host.sh installs the
@@ -8,7 +8,7 @@ resource "proxmox_virtual_environment_vm" "ubuntu_2404_base" {
   vm_id       = 9000
   name        = "ubuntu-2404-base"
   pool_id     = "ops-managed" # so the token can VM.Clone it (pool ACL) and see it (VM.Audit)
-  description = "SKY-008 base cloud-init template — clone source. Managed by OpenTofu."
+  description = "Ubuntu base cloud-init template — clone source. Managed by OpenTofu."
   tags        = ["template", "skynet", "sky-008"]
   template    = true
   started     = false

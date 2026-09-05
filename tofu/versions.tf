@@ -10,7 +10,7 @@ terraform {
     # declares, leaves undeclared ones untouched (the zones-only fit). Pinned + lock-file'd like bpg.
     # NB: v0.4.0 can't read a DNSSEC-SIGNED zone (numeric DNSKEY.protocol; fix on main @ b2f6b89c,
     # unreleased) → only the UNSIGNED aliammar.net zone is managed here; the signed resolver zone
-    # tdns.home.aliammar.net waits for a release. See [[SKY-008-progress]].
+    # tdns.home.aliammar.net waits for a provider release.
     technitium = {
       source  = "kevynb/technitium"
       version = "~> 0.4.0"

@@ -24,8 +24,9 @@ Tags: **[testable]** = a lint/CI gate could assert it; **[manual]** = holds by r
 
 - **PRs teach** `[manual]`: the description says *what* changed, *why*, and *what merging causes*.
   Ali is learning git/infra through these — write them as lessons, not changelogs.
-- **The agent never merges its own PRs.** `[manual]` Ali merges. This is a hard invariant
-  ([`AGENTS.md`](../../AGENTS.md) §6), restated here because it's a git rule too.
+- **Authored PRs are human-merged.** `[manual]` The deterministic nightly gate alone may merge its
+  own generated-only, CI-green PR; all other changes wait for Ali. This is the invariant in
+  [`AGENTS.md`](../../AGENTS.md) §6.
 - **`git revert` is the rollback** `[manual]` — never force-push `main`, never rewrite shared
   history. Arcane and the inventory converge back after a revert.
 

@@ -61,3 +61,11 @@ jobs:
         run: bash tests/agent-test.sh
       - name: gitignore-test
         run: bash tests/gitignore-test.sh
+      - name: obsidian-hygiene-test
+        run: bash tests/obsidian-hygiene-test.sh
+      - name: nightly-automerge-test
+        run: bash tests/nightly-automerge-test.sh
+      - name: nightly-sequence-test
+        run: bash tests/nightly-sequence-test.sh
+      - name: documentation-drift-test
+        run: bash tests/documentation-drift-test.sh
