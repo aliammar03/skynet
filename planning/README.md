@@ -14,8 +14,8 @@ life as it moves through the stages below.
 scratchpad ──▶ ideas ──▶ backlog ──▶ projects ──▶ archive
   (raw)      (shaped,   (vetted,   (active,       (done/
              short|long) queued)   phased plan)   abandoned)
-                                      ▲
-                          services ───┘  (catalog of services to onboard)
+                                      ▲               │
+                          services ───┘               └── explicit human reopen for maintenance only
 ```
 
 | Stage | Folder | What lives here |
@@ -25,7 +25,7 @@ scratchpad ──▶ ideas ──▶ backlog ──▶ projects ──▶ archiv
 | **backlog** | `backlog/` | Agreed-we-want-it, waiting to be scheduled. |
 | **projects** | `projects/` | Active, fully-phased plans you actually execute. |
 | **services** | `services/` | Planned services to bring onto the Skynet way. |
-| **archive** | `archive/` | Completed or killed, kept for the record. |
+| **archive** | `archive/` | Completed or killed, kept for the record; completed maintenance may be explicitly reopened. |
 
 ## Conventions
 
@@ -38,6 +38,10 @@ scratchpad ──▶ ideas ──▶ backlog ──▶ projects ──▶ archiv
 - **PR-gated.** Directives land via PR like all repo changes; the agent never merges its own.
 - **Phases are ~1–2h.** Anything longer is split, and each phase ends with a **close-out**: a PR,
   a `SKY-###-progress` memory, a frontmatter bump, and a **Continue prompt** so the next session cold-starts.
+- **Reopening is exceptional.** A completed maintenance directive may return from `archive/` to
+  `projects/` only on explicit human instruction when the same maintenance domain needs another bounded
+  phase set. Preserve its completed phases/history and permanent ID; never keep duplicate archive and
+  project copies. Ordinary feature work gets a new directive instead of reopening an old one.
 
 ## The `bin/plan` helper
 
@@ -49,6 +53,7 @@ bin/plan promote SKY-014 backlog        # move between ideas|backlog|projects|se
 bin/plan start SKY-014                  # → projects/, ready to flesh into phases
                                         #   (also stamps status: in-progress + updated: today —
                                         #    don't re-set those by hand; bump current_phase yourself)
+bin/plan promote SKY-023 projects       # explicit human-approved maintenance reopen from archive
 bin/plan archive SKY-014 [--abandon]    # → archive/ (done, or killed)
 bin/plan show SKY-014                   # print path + open location
 bin/plan list                           # regenerate the roadmap table below
@@ -84,6 +89,6 @@ so running or resuming one is a single paste into a fresh session.
 | SKY-020 | Firewall-as-code — OPNsense config to T2 via OpenTofu | projects | in-progress | 1/6 | 🔭 long |
 | SKY-021 | NixOS-in-LXC: prove the container path and set the new-CT default | archive | done | — | 🌱 short |
 | SKY-022 | "Lean multi-agent construction orchestration: lead-driven delegation" | archive | done | — | 🔭 long |
-| SKY-023 | Eliminate documentation drift and shrink operational context | archive | done | — | 🌱 short |
+| SKY-023 | Eliminate documentation drift and shrink operational context | projects | in-progress | 5/9 | 🌱 short |
 | SKY-024 | tofu declares managed core guests — API-driven CT/VM lifecycle, no node SSH | projects | in-progress | 4/6 | 🌱 short |
 <!-- ROADMAP:END -->
