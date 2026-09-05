@@ -98,7 +98,7 @@ resource "proxmox_virtual_environment_container" "pool_ct" {
     type = "nixos"
     # Unreadable on a live CT (source template gone) → placeholder + ignored below. On a fresh create
     # this is the real bootstrap rootfs; deploy-rs specializes it afterwards.
-    template_file_id = "local:vztmpl/nixos-lxc-proof-26.05.tar.xz"
+    template_file_id = "local:vztmpl/nixos-lxc-base-26.05.tar.xz"
   }
 
   initialization {
@@ -173,7 +173,7 @@ resource "proxmox_virtual_environment_container" "core_ct" {
 
   operating_system {
     type             = "nixos"
-    template_file_id = "local:vztmpl/nixos-lxc-proof-26.05.tar.xz"
+    template_file_id = "local:vztmpl/nixos-lxc-base-26.05.tar.xz"
   }
 
   initialization {
