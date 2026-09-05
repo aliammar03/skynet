@@ -1,10 +1,12 @@
 ---
 date: __DATE__
+time: __TIME__            # local HH:MM:SS; orders same-day episodes in the digest
 kind: __KIND__          # session | incident | decision
 title: __TITLE__
 tier_touched: [T1]      # tiers this episode ACTUALLY used (not what it could touch)
 grants: []              # root grants used this episode: "host KeyID", else empty
 refs: []                # SKY-###, PR #NNN, ADR NNNN, hosts — anything to cross-link
+thread_status: none     # none | open | resolved | unknown; digest shows only explicit open
 ---
 
 # __DATE__ · __KIND__ · __TITLE__

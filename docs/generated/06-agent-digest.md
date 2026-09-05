@@ -37,26 +37,20 @@ follow a link for the full story; distill episodes at read time, never in this f
 - **SKY-017** (ideas · draft) — The road to full agent control: verification, proving ground, and an evidence-earned ratchet
 - **SKY-019** (ideas · draft) — Relocate the Arcane controller off the DMZ to a dedicated Management docker VM, managing docker hosts remotely
 
-**Loose ends from recent episodes** (the journal's own open-thread bullets, verbatim):
+**Explicit durable follow-ups:**
 
-- Phase 1 remains T1 repository remediation. Provider-root/state separation for plan creation and a failure-tested automatic inverse for newly created guests remain future work; neither is claimed as A4-ready. — _2026-09-05 session          # session | incident | decision_
-- PR #185 needs normal human review, CI confirmation, and merge. The agent must not merge it. — _2026-09-05 session          # session | incident | decision_
-- PR #186 needs CI and human review. The agent does not merge authored changes. — _2026-09-05 session          # session | incident | decision_
-- Phase 3: split the publishing monolith and make all runbooks task-shaped. — _2026-09-05 session          # session | incident | decision_
-- The directive references `[[SKY-023-progress]]`, but no repository-backed progress-memory file exists. This raw close-out episode is the durable repo record for resumption. — _2026-09-05 session          # session | incident | decision_
-- Ali reviews and merges PR #185. Phase 2 starts only after that merge. — _2026-09-05 session          # session | incident | decision_
-- Human-review and merge the Phase 1 PR; the agent does not merge authored work. — _2026-09-05 session          # session | incident | decision_
-- Phase 2 may start only after Phase 1 merges. It owns constitution/spoke pruning and size targets; no Phase 2 pruning was performed here. — _2026-09-05 session          # session | incident | decision_
+- _none explicitly open._
+- _65 historical episode(s) have unclassified follow-ups; status unknown, not promoted as current work._
 
 ## 📓 Recent episodes
 
-- **2026-09-05** · session          # session | incident | decision · [[2026-09-05-session-sky-023-phase-1-audit-remediation|SKY-023 Phase 1 audit remediation]]
-- **2026-09-05** · session          # session | incident | decision · [[2026-09-05-session-sky-023-p2-secret-access-clarification|SKY-023 P2 secret-access clarification]]
-- **2026-09-05** · session          # session | incident | decision · [[2026-09-05-session-sky-023-p2-close-out|SKY-023 P2 close-out]]
-- **2026-09-05** · session          # session | incident | decision · [[2026-09-05-session-sky-023-p1-pr-integration|SKY-023 P1 PR integration]]
-- **2026-09-05** · session          # session | incident | decision · [[2026-09-05-session-sky-023-p1-close-out|SKY-023 P1 close-out]]
-- **2026-09-05** · session · [[2026-09-05-session-nightly-2026-09-05|nightly 2026-09-05]]
-- **2026-09-05** · session          # session | incident | decision · [[2026-09-05-session-archive-sky-008-as-done|Archive SKY-008 as done]]
+- **2026-09-05** · session · [[2026-09-05-session-sky-023-p3-digest-resolution|SKY-023 P3 digest resolution]]
+- **2026-09-05** · session · [[2026-09-05-session-sky-023-phase-1-audit-remediation|SKY-023 Phase 1 audit remediation]]
+- **2026-09-05** · session · [[2026-09-05-session-sky-023-p3-runbook-contract-publish-split|SKY-023 P3 runbook contract and publish split]]
+- **2026-09-05** · session · [[2026-09-05-session-sky-023-p3-merge-gate-checkpoint|SKY-023 P3 merge-gate checkpoint]]
+- **2026-09-05** · session · [[2026-09-05-session-sky-023-p3-current-truth-sweep|SKY-023 P3 current-truth sweep]]
+- **2026-09-05** · session · [[2026-09-05-session-sky-023-p2-secret-access-clarification|SKY-023 P2 secret-access clarification]]
+- **2026-09-05** · session · [[2026-09-05-session-sky-023-p2-close-out|SKY-023 P2 close-out]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._

@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
-# digest-test.sh — the cold-boot digest must not resurface threads about DESTROYED guests.
-#   The journal is append-only, so a thread resolved later still sits in its original entry and the
-#   nightly re-copies it forward (SKY-018 review found CT 526 / CT 1035 — both destroyed — reported as
-#   live). render-digest.sh drops an open-thread bullet naming only guests absent from inventory.
+# digest-test.sh — the cold-boot digest reads explicit current thread state, never guesses from old
+# journal prose. T1 — fixtures only; no network or repository mutation. Run: bash tests/digest-test.sh
 # TIER: T1 — renders to a TEMP page against a fixture journal + the real inventory. No network, no writes.
 # Run: bash tests/digest-test.sh
 set -uo pipefail
@@ -32,17 +30,68 @@ title: fixture
 - PBS snapshots remain unverified this run.
 EOF
 
+cat > "${tmpj}/2026/2026-01-01-session-resolved.md" <<'EOF'
+---
+date: 2026-01-01
+time: 09:00:00
+kind: session # inline template comment must not leak into the digest
+title: resolved fixture
+thread_status: resolved
+---
+## Follow-ups / open threads
+- PR #185 still needs review.
+- PR #186 needs CI and human review.
+- Phase 2 may start only after Phase 1 merges.
+EOF
+
+cat > "${tmpj}/2026/2026-01-01-session-open-early.md" <<'EOF'
+---
+date: 2026-01-01
+time: 10:00:00
+kind: session
+title: explicit open early
+thread_status: open
+---
+## Follow-ups / open threads
+- Explicit early follow-up remains open.
+EOF
+
+cat > "${tmpj}/2026/2026-01-01-session-open-late.md" <<'EOF'
+---
+date: 2026-01-01
+time: 18:00:00
+kind: session
+title: explicit open late
+thread_status: open
+---
+## Follow-ups / open threads
+- Explicit late follow-up remains open.
+EOF
+
 JDIR="${tmpj}" PAGE="${tmpp}" ./scripts/render-digest.sh >/dev/null 2>&1 || bad "render-digest failed"
 out="$(cat "${tmpp}")"
 
-for ghost in "CT 526" "CT 1035" "101, 231, 999"; do
+for ghost in "CT 526" "CT 1035" "101, 231, 999" "VMID 9090 restart" "PBS snapshots remain unverified"; do
   if grep -qF "${ghost}" <<<"${out}"; then bad "digest still lists a destroyed-guest thread: ${ghost}"
-  else ok "dropped destroyed-guest thread (${ghost})"; fi
+  else ok "untagged historical thread is not promoted (${ghost})"; fi
 done
-if grep -qF "VMID 9090 restart" <<<"${out}"; then ok "kept the live-guest thread (VMID 9090)"
-else bad "wrongly dropped the live-guest (9090) thread"; fi
-if grep -qF "PBS snapshots remain unverified" <<<"${out}"; then ok "kept the guest-free thread (PBS)"
-else bad "wrongly dropped the guest-free (PBS) thread"; fi
+grep -qF "Explicit early follow-up remains open" <<<"${out}" \
+  && grep -qF "Explicit late follow-up remains open" <<<"${out}" \
+  && ok "explicit open threads remain visible" || bad "explicit open threads missing"
+if grep -Eq 'PR #185|PR #186|Phase 2 may start only after Phase 1' <<<"${out}"; then
+  bad "resolved dependency was promoted"
+else
+  ok "resolved dependencies stay hidden"
+fi
+grep -qF "unclassified follow-ups; status unknown" <<<"${out}" \
+  && ok "untagged historical state is reported unknown" || bad "unknown thread state was not surfaced"
+if [ "$(grep -n 'explicit open late' <<<"${out}" | head -1 | cut -d: -f1)" -lt "$(grep -n 'explicit open early' <<<"${out}" | head -1 | cut -d: -f1)" ]; then
+  ok "same-day episodes sort by explicit time"
+else
+  bad "same-day episode ordering did not use time"
+fi
+grep -qF 'session # inline' <<<"${out}" \
+  && bad "inline frontmatter comment leaked" || ok "frontmatter parser strips inline comments"
 
 echo
 echo "digest-test: ${pass} passed, ${fail} failed"

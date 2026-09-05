@@ -83,14 +83,14 @@ cmd_adr() {
 # The dir self-indexes by date; multiple episodes may share a date (slug keeps them distinct).
 cmd_journal() {
   local kind="${1:?usage: new journal <session|incident|decision> <title>}"
-  local title="${2:?usage: new journal <session|incident|decision> <title>}" slug date dir dest
+  local title="${2:?usage: new journal <session|incident|decision> <title>}" slug date time dir dest
   case "$kind" in session|incident|decision) ;; *) die "kind must be session|incident|decision";; esac
   slug="$(slugify "$title")"; [ -n "$slug" ] || die "empty slug from '$title'"
-  date="$(date +%F)"; dir="journal/${date%%-*}"; dest="${dir}/${date}-${kind}-${slug}.md"
+  date="$(date +%F)"; time="$(date +%T)"; dir="journal/${date%%-*}"; dest="${dir}/${date}-${kind}-${slug}.md"
   [ -e "$dest" ] && die "$dest already exists (episodes are append-only — pick a distinct title)"
   need templates/journal.md
   mkdir -p "$dir"
-  sed -e "s/__DATE__/${date}/g" -e "s/__KIND__/${kind}/g" -e "s/__TITLE__/$(sed_rep "$title")/g" \
+  sed -e "s/__DATE__/${date}/g" -e "s/__TIME__/${time}/g" -e "s/__KIND__/${kind}/g" -e "s/__TITLE__/$(sed_rep "$title")/g" \
       templates/journal.md > "$dest"
   echo "created ${dest} — write it RAW (journal/README.md); do not summarize at write time"
 }
