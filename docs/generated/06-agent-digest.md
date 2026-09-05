@@ -40,6 +40,7 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 **Loose ends from recent episodes** (the journal's own open-thread bullets, verbatim):
 
+- Ali reviews and merges PR #185. Phase 2 starts only after that merge. — _2026-09-05 session          # session | incident | decision_
 - Human-review and merge the Phase 1 PR; the agent does not merge authored work. — _2026-09-05 session          # session | incident | decision_
 - Phase 2 may start only after Phase 1 merges. It owns constitution/spoke pruning and size targets; no Phase 2 pruning was performed here. — _2026-09-05 session          # session | incident | decision_
 - SKY-020 still owns the OPNsense provider, write credential, policy gate, apply, and rollback proof. — _2026-09-05 session          # session | incident | decision_
@@ -47,17 +48,16 @@ follow a link for the full story; distill episodes at read time, never in this f
 - Confirm that the 12 newest PBS snapshots acquire `verify_state: ok`; CT 10030 is a new backup group and the other 11 latest snapshots were already unverified in the `origin/main` baseline. — _2026-09-05 session_
 - Exercise an end-to-end restore; this run read backup metadata only. — _2026-09-05 session_
 - Decide whether missing `project.env` for `aiometadata` and `aiostreams` is intentional and whether `scripts/envsync.sh` should exit 1 after those skips. — _2026-09-05 session_
-- Confirm whether `10.10.80.37` should answer continuously. CT 837 was running during this pass, while the separate identity address returned neither ARP nor ICMP presence. — _2026-09-05 session_
 
 ## 📓 Recent episodes
 
+- **2026-09-05** · session          # session | incident | decision · [[2026-09-05-session-sky-023-p1-pr-integration|SKY-023 P1 PR integration]]
 - **2026-09-05** · session          # session | incident | decision · [[2026-09-05-session-sky-023-p1-close-out|SKY-023 P1 close-out]]
 - **2026-09-05** · session · [[2026-09-05-session-nightly-2026-09-05|nightly 2026-09-05]]
 - **2026-09-04** · session          # session | incident | decision · [[2026-09-04-session-sky-023-p1-truth-reconciliation|SKY-023 P1 truth reconciliation]]
 - **2026-09-04** · session · [[2026-09-04-session-sky-022-p6-proactive-cost-aware-delegation|SKY-022 P6 — proactive cost-aware delegation]]
 - **2026-09-04** · session · [[2026-09-04-session-sky-022-p5-five-run-foreman-dogfood|SKY-022 P5 — five-run foreman dogfood]]
 - **2026-09-04** · session          # session | incident | decision · [[2026-09-04-session-sky-022-p4-parallel-worktree-writers-conflict|SKY-022 P4 — parallel worktree writers + conflict]]
-- **2026-09-04** · session          # session | incident | decision · [[2026-09-04-session-sky-022-p3-checkpoint-continuity-cold-lead-resume|SKY-022 P3 — checkpoint continuity + cold-lead resume]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._

@@ -141,7 +141,10 @@ criteria, then perform Phase close-out.
   OPNsense actuator availability, forward-auth status, and Authentik mutation ordering. The working
   tree is a checkpoint, not a phase close-out. Resume Phase 1 only. Evidence:
   `journal/2026/2026-09-04-session-sky-023-p1-truth-reconciliation.md`.
-- 2026-09-05 — Phase 1 complete on `phase/sky-023-p1`. Resolved the six final-review blockers,
+- 2026-09-05 — Phase 1 complete in [PR #185](https://github.com/aliammar03/skynet/pull/185) on
+  `phase/sky-023-p1`. Resolved the six final-review blockers,
   added a failure test that distinguishes existing-guest snapshot rollback from non-guest recovery,
   regenerated owned views, and passed the invariant, test, syntax, link, command-reference, and diff
-  gates. Evidence: `journal/2026/2026-09-05-session-sky-023-p1-close-out.md`.
+  gates. The PR is merge-clean and CI-green after integrating current `main`. Evidence:
+  `journal/2026/2026-09-05-session-sky-023-p1-close-out.md` and
+  `journal/2026/2026-09-05-session-sky-023-p1-pr-integration.md`.
