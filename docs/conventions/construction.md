@@ -7,8 +7,7 @@ summary: "The construction delegation contract: one accountable lead hands bound
 > One capable **lead** owns a construction task end to end. It may hand narrow jobs to a small bench
 > of **helpers**, integrate the result, and stay understandable enough that Ali can reason about the
 > whole thing from memory. This is a **build-time** pattern only — production operation stays behind
-> the trust model and `bin/ops`. Governed by [`../conventions.md`](../conventions.md); full rationale
-> in [`../../planning/ideas/SKY-022-lean-multi-agent-construction-orchestration-lead-driven-delegation.md`](../../planning/ideas/SKY-022-lean-multi-agent-construction-orchestration-lead-driven-delegation.md).
+> the trust model and `bin/ops`. Governed by [`../conventions.md`](../conventions.md).
 
 Tags: **[testable]** = a lint/config gate could assert it; **[manual]** = holds by review.
 
@@ -128,7 +127,7 @@ Use Codex's own subagent support — do not build a scheduler around it. `[manua
 - Those two `[testable]` facts (plus every helper's declared sandbox, and a ban on
   `danger-full-access`) are asserted by [`scripts/check-invariants.sh`](../../scripts/check-invariants.sh)
   against [`invariants.json`](../../invariants.json)'s `construction` section — the gate that turns
-  this doctrine into a checker, not just prose (SKY-022 P2 / [ADR 0003](../decisions/0003-ambiguity-layering-and-format-follows-enforcement.md)).
+  this doctrine into a checker, not just prose ([ADR 0003](../decisions/0003-ambiguity-layering-and-format-follows-enforcement.md)).
   One-level depth stays `[manual]`: Codex exposes no config knob for "a helper cannot spawn a helper."
 - For a helper run as its own process (or to preview a launch), [`bin/agent`](../../bin/agent)
   resolves `role → tier → model` and prints the resolution under `--dry-run`. It is the standalone
@@ -139,8 +138,8 @@ Use Codex's own subagent support — do not build a scheduler around it. `[manua
 
 - **Worktrees by exception.** `[manual]` A read-only scout needs none; a single writing helper inside
   a lead-managed session usually needs none. Reach for `git worktree` only when two independent
-  writers genuinely need separate filesystem state. Git is the isolation mechanism — SKY-022 builds
-  no worktree manager. Place a helper in a worktree with `bin/agent <role> "<prompt>" --cwd <worktree>`.
+  writers genuinely need separate filesystem state. Git is the isolation mechanism; use no worktree
+  manager. Place a helper in a worktree with `bin/agent <role> "<prompt>" --cwd <worktree>`.
   `bin/agent` fails closed unless `<worktree>` is an exact registered worktree root belonging to this
   repository; a plain directory, unrelated checkout, or worktree subdirectory is outside the
   construction leash.
@@ -149,7 +148,7 @@ Use Codex's own subagent support — do not build a scheduler around it. `[manua
   sandbox), so a helper physically cannot commit there — which is the cleaner trust story: the helper
   produces a bounded working-tree diff, and the lead commits it on the writer's branch and integrates
   the branches with plain git (a conflict in a shared registry is resolved by the lead, not an
-  orchestration layer). (Proven in [SKY-022 Phase 4](../../planning/ideas/SKY-022-lean-multi-agent-construction-orchestration-lead-driven-delegation.md).)
+  orchestration layer).
 - **Continuity is a checkpoint, not a memory system.** `[manual]` For a task likely to cross a
   session/context boundary, the lead keeps a compact `.agent/CHECKPOINT.md` (gitignored, disposable —
   it is working memory, never truth). A cold lead must be able to resume from **only** `AGENTS.md` +
@@ -168,8 +167,7 @@ Use Codex's own subagent support — do not build a scheduler around it. `[manua
 
   Write it at a **meaningful milestone, a handoff / context reset, a blocker, or before intentionally
   ending a long session** — *not* after every command. On completion, move durable facts to their
-  real home (directive / docs / ADR / journal / git) and **delete** the checkpoint. (Proven in
-  [SKY-022 Phase 3](../../planning/ideas/SKY-022-lean-multi-agent-construction-orchestration-lead-driven-delegation.md).)
+  real home (directive / docs / ADR / journal / git) and **delete** the checkpoint.
 - **Review lives outside the helper family.** `[manual]` A helper never reviews the lead that
   instructed it. Normal changes ride existing tests/gates + human merge; consequential ones may get a
   fresh cold Sol review, sensitive cross-provider ones a Claude review. Deterministic gates outrank
@@ -187,6 +185,6 @@ Use Codex's own subagent support — do not build a scheduler around it. `[manua
 
 ## Complexity must be earned
 
-SKY-022 deliberately ships **no** queue, scheduler, workflow database, event ledger, DAG engine,
+Skynet ships **no** queue, scheduler, workflow database, event ledger, DAG engine,
 heartbeat, worker lease, retry framework, or automatic-merge machinery. If repeated dogfooding
 exposes a concrete failure mode, automate *that* failure mode specifically — nothing sooner.

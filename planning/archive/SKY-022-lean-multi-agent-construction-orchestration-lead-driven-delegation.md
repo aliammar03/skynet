@@ -4,7 +4,7 @@ title: "Lean multi-agent construction orchestration: lead-driven delegation"
 status: done
 horizon: long
 created: 2026-09-04
-updated: 2026-09-04
+updated: 2026-09-05
 phases: 6
 current_phase: 6
 tier_touched: [T1]
@@ -280,7 +280,7 @@ The lead decides. Ali does not micromanage worker spawning.
 ## 6. ▶ Execute prompt
 
 ```text
-Read planning/ideas/SKY-022-lean-multi-agent-construction-orchestration-lead-driven-delegation.md
+Read planning/archive/SKY-022-lean-multi-agent-construction-orchestration-lead-driven-delegation.md
 and execute Phase 6 only.
 
 Follow AGENTS.md and docs/system-design.md. Flip construction doctrine to proactive cost-aware

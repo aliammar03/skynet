@@ -17,7 +17,7 @@ provider "proxmox" {
   insecure  = false
 }
 
-# Technitium DNS (SKY-008 P3) — T2, zones-only scoped token. `url` must OMIT the /api suffix: the
+# Technitium DNS — T2, zones-only scoped token. `url` must OMIT the /api suffix: the
 # client prepends /api itself (a `.../api` url yields `.../api/api/...` → 404 → EOF). Self-signed
 # cert is PINNED, not skipped: tofu-env.sh appends technitium.crt to the SSL_CERT_FILE bundle, so
 # the provider's Go client verifies chain + SAN (the same cert collect-dns.sh trusts on this IP).
@@ -26,7 +26,7 @@ provider "technitium" {
   token = var.technitium_api_token
 }
 
-# Cloudflare public DNS (SKY-014) — T2, scoped Zone:DNS:Edit token for aliammar.net records only.
+# Cloudflare public DNS — T2, scoped Zone:DNS:Edit token for aliammar.net records only.
 # The API is reached over IPv4 (the ops VM has no IPv6 egress; the Go client's happy-eyeballs picks v4).
 provider "cloudflare" {
   api_token = var.cloudflare_api_token

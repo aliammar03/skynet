@@ -19,8 +19,8 @@ related:
 # SKY-020 · Firewall-as-code — OPNsense config to T2 via OpenTofu
 
 > Make OPNsense firewall config a reviewed `tofu plan`: the agent proposes alias/rule changes as a
-> PR, a human merges, `apply` pushes them via the API — the same T2 GitOps loop as `svc-tofu` for
-> guests. The tier decision is **ADR 0006** (config T2, node-root/reboot/self-leash T3); this
+> PR, a human merges, the saved-plan executor pushes them via the API — the same T2 GitOps loop as
+> managed guest envelopes. The tier decision is **ADR 0006** (config T2, node-root/reboot/self-leash T3); this
 > directive is the **build**.
 
 > **Status: idea.** Long horizon. Promote with `bin/plan start SKY-020`. Gated on the ADR 0006 /
@@ -32,7 +32,7 @@ OPNsense is the one device the agent most often needs to reason about and cannot
 config is read-only through a git mirror; every change is a human clicking through the OPNsense UI, and
 the agent can only *propose in prose*. ADR 0006 moves firewall **config** to T2 — but a tier decision
 without a mechanism is just a promise. The mechanism has to be **reviewable at the diff level** (not a
-`config.xml` restore blob), **reuse the existing T2 machinery** (`svc-tofu`, plan-in-PR, apply-on-merge),
+`config.xml` restore blob), **reuse the existing T2 machinery** (saved-plan review and scoped apply),
 and **be unable to widen the agent's own leash** — the firewall is the meta-boundary, so a bad rule
 could open the network or the agent's own reach. That last constraint is the whole reason this is its
 own directive and not a one-session hack.
@@ -41,8 +41,8 @@ own directive and not a one-session hack.
 
 - **Mechanism = the OpenTofu OPNsense provider**, not raw `config.xml` restore. Resource-level plans
   read like every other T2 change; a config-restore blob is all-or-nothing and unreviewable. **CHOSEN.**
-- **Reuse the `svc-tofu` model** (SKY-008): a standing T2 **write** API key used *only* by `apply` on a
-  merged plan; the agent never applies an un-merged plan. **CHOSEN.**
+- **Reuse the saved-plan model:** a standing T2 **write** API key used *only* by the scoped executor
+  on a merged and approved plan; the agent never applies an unmerged plan. **CHOSEN.**
 - **The self-leash set is T3 forever**, enforced two ways: every change is human-merged (a human sees
   any plan touching it), and a **conftest/Rego gate on `tofu plan -json`** hard-denies it. That gate is
   **SKY-018 P7** — this directive consumes it rather than rebuilding it. **CHOSEN.**

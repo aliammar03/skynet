@@ -267,3 +267,11 @@ criteria, then perform Phase close-out.
   14,276 words, so the 20%-smaller exit target and the remaining current-truth/editor/digest/nightly
   work remain open. Evidence:
   `journal/2026/2026-09-05-session-sky-023-p3-runbook-contract-publish-split.md`.
+
+- 2026-09-05 — Phase 3 current-truth sweep checkpoint prepared on
+  `docs/sky-023-p3-current-truth-sweep` after PR #191 merged. Archived completed SKY-022 and
+  regenerated the roadmap; repaired active/archive links; removed retired-Proxmox-identity and
+  project-history comments from operational code; and corrected the Cloudflare DNS token read path
+  to the materialized `0400 aliammar` contract. This is not Phase completion: substantive corpus
+  reduction plus digest/nightly consolidation remain open. Evidence:
+  `journal/2026/2026-09-05-session-sky-023-p3-current-truth-sweep.md`.

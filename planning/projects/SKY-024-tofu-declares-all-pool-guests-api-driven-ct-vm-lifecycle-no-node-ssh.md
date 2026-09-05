@@ -11,7 +11,7 @@ tier_touched: [T2, T3]   # T3: consolidating the agent's Proxmox identity (tofu 
                          # a network-node pveum → the plan MUST PR docs/system-design.md.
 related:
   - docs/system-design.md
-  - planning/projects/SKY-008-opentofu-provisioning-layer-vm-and-ct-lifecycle-plus-dns.md
+  - planning/archive/SKY-008-opentofu-provisioning-layer-vm-and-ct-lifecycle-plus-dns.md
   - planning/archive/SKY-021-nixos-in-lxc-prove-the-container-path-and-set-the-new-ct-default.md
   - "[[SKY-008-progress]]"
   - "[[SKY-021-progress]]"
