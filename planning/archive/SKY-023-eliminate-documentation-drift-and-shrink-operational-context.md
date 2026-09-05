@@ -1,7 +1,7 @@
 ---
 id: SKY-023
 title: Eliminate documentation drift and shrink operational context
-status: in-progress
+status: done
 horizon: short
 created: 2026-09-04
 updated: 2026-09-06
@@ -265,7 +265,7 @@ Turn the policy into deterministic guardrails.
 - legitimate current provider/import/compatibility comments still pass;
 - history-bearing directories remain free to record history without lint noise.
 
-### Phase 9 — make hygiene a repeatable maintenance capability and re-archive  (~1–2h)  `[ ]`
+### Phase 9 — make hygiene a repeatable maintenance capability and re-archive  (~1–2h)  `[x]` complete 2026-09-06
 
 Create one deterministic, T1, no-network-by-default maintenance entry point, preferably
 `bin/ops hygiene` backed by a small script, that composes existing checks rather than inventing another
@@ -334,3 +334,6 @@ roadmap renderer, and close out with the exact next phase.
   config comments. Phases 5–9 add systematic purge, dead-path adjudication, deterministic enforcement,
   and a repeatable maintenance capability. No live infrastructure or authority boundary is changed by
   this planning update.
+- 2026-09-06 — Phase 9 added the local-only `bin/ops hygiene` report, its deterministic composition
+  test, context-budget deltas, and advisory orphan review. The cold-agent route review and full local
+  gates passed; the offline firewall mirror parser remains an intentional review-only candidate.

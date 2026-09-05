@@ -5,6 +5,7 @@
 #   bin/ops run "<prompt>"     # hand an ad-hoc task to the configured engine
 #   bin/ops collect            # refresh inventory (all collectors), no agent
 #   bin/ops entities           # L0 identity audit: derive every entity, flag running-unmapped holes
+#   bin/ops hygiene            # report repository hygiene and context-budget drift (T1, local only)
 #   bin/ops query "<sql>"      # ad-hoc SQL over the rebuildable inventory.db join cache
 # The engine is agent-agnostic by contract (AGENTS.md). Codex CLI is the default daily driver.
 set -euo pipefail
@@ -44,6 +45,7 @@ cmd="${1:-nightly}"; shift || true
 case "${cmd}" in
   collect) exec ./scripts/collect-all.sh ;;
   entities) exec ./scripts/audit-entities.sh ;;
+  hygiene) exec ./scripts/hygiene.sh "$@" ;;
   query)
     sql="${1:?usage: bin/ops query \"<sql>\"}"
     SQLITE3="${SQLITE3:-sqlite3}"
@@ -66,7 +68,7 @@ case "${cmd}" in
     trap 'rm -f "${status_file}"' EXIT
     export OPS_NIGHTLY_STATUS_FILE="${status_file}"
     ./scripts/nightly.sh --prepare
-    prompt="Run only the optional agent stage of the nightly pass described in runbooks/nightly.md. The deterministic sequence already owns the branch, collection, envsync, rendering, journal entry, digest/context refresh, commit, PR, and merge gate. Do not repeat or run any of those steps; do not commit, push, open a PR, or merge. Report-only: if a root grant is active, harvest its audit into inventory/grant-audit.json; then (re)write docs/generated/05-state-of-the-lab.md as an honest human narrative based on the prepared branch. Take no T2 write or granted-root action unless it is on the AGENTS.md auto-approve list. Exit non-zero if this optional work cannot complete; the deterministic finalizer will preserve partial work and finish the report."
+    prompt="Run only the optional agent stage of the nightly pass described in runbooks/nightly.md. The deterministic sequence already owns the branch, collection, rendering, journal entry, digest/context refresh, commit, PR, and merge gate. Do not repeat or run any of those steps; do not commit, push, open a PR, or merge. Report-only: if a root grant is active, harvest its audit into inventory/grant-audit.json; then (re)write docs/generated/05-state-of-the-lab.md as an honest human narrative based on the prepared branch. Take no T2 write or granted-root action unless it is on the AGENTS.md auto-approve list. Exit non-zero if this optional work cannot complete; the deterministic finalizer will preserve partial work and finish the report."
     if [ "${OPS_NIGHTLY_MODE:-agent}" = agent ]; then
       # Ordered optional attempts: primary engine → fallback engine; the deterministic finalizer follows.
       agent_ready=0
