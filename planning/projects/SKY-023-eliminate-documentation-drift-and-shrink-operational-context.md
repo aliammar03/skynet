@@ -6,7 +6,7 @@ horizon: short
 created: 2026-09-04
 updated: 2026-09-06
 phases: 9
-current_phase: 7
+current_phase: 8
 tier_touched: [T1]
 related:
   - AGENTS.md
@@ -199,7 +199,7 @@ state-address requirement, or compatibility behavior.
 - OpenTofu state moves/import ignores and other load-bearing compatibility mechanics remain intact;
 - syntax/unit/invariant tests pass unchanged or stronger.
 
-### Phase 7 — remove dead migration and compatibility machinery  (~1–2h)  `[ ]`
+### Phase 7 — remove dead migration and compatibility machinery  (~1–2h)  `[x]` complete 2026-09-06
 
 Now inspect the **behavior**, not just the prose. For every migration/compatibility path discovered in
 Phases 5–6, trace callers and prove whether it still has a current job.

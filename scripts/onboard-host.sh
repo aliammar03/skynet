@@ -19,7 +19,7 @@ mkdir -p /etc/ssh/auth_principals
 printf 'ops-root-%s\nops-root-all\n' "$(hostname)" > /etc/ssh/auth_principals/root
 
 # Standing unprivileged user (T2): docker group + the agent's key — inventory, docker
-# contexts, log reading, envsync. Guarded so CA-only onboarding still works without it.
+# contexts, and log reading. Guarded so CA-only onboarding still works without it.
 SVC_USER="${SVC_USER:-svc-ops}"
 if [ -f skynet_ops_svc.pub ]; then
   echo "==> provisioning standing user ${SVC_USER} (docker group + agent key)"

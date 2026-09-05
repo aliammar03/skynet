@@ -1,11 +1,11 @@
 { modulesPath, lib, pkgs, ... }:
 # Container baseline for pool-able NixOS LXCs. The VM baseline (base.nix) assumes a kernel,
 # a bootloader and a disk; a container has none, so this is a separate, leaner spine. The upstream
-# proxmox-lxc module already bakes in the historically-broken fixes (boot.isContainer, the
+# proxmox-lxc module already supplies required platform fixes (boot.isContainer, the
 # register-nix-paths profile that lets `nixos-rebuild` find a "system" profile, and the getty@tty1
 # start) — so this module adds only the lab conventions on top: nix flakes, the agent's SSH trust,
-# the ops timezone, and a minimal toolchain. Reused by every pool CT host (lxc-proof first, then the
-# real service hosts). Rationale + the in-place-rebuild verdict live in planning/ + journal/.
+# the ops timezone, and a minimal toolchain. Reused by pool CT hosts; each per-host module supplies
+# its role-specific configuration.
 let
   # The agent's outbound key (svc-ops@vm-skynet-ops) — same identity ops-user.nix trusts on the VM,
   # so the agent can `nixos-rebuild switch --target-host` into the container to activate day-2.
