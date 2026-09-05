@@ -93,7 +93,7 @@ case "${cmd}" in
         # The LLM opens the PR but never merges. Afterward run the SAME dumb merge-gate the
         # deterministic path uses (ADR 0004): generated-only + CI-green → squash-merge, else left
         # open. The safety is code, not the engine's judgement. Fails closed on any error.
-        if ${c} "${prompt}"; then ./scripts/nightly-automerge.sh || true; exit 0; fi
+        if ${c} "${prompt}"; then ./scripts/nightly-automerge.sh "${OPS_NIGHTLY_BRANCH}" || true; exit 0; fi
         echo "engine '${e}' failed — trying next" >&2
       done
       echo "all engines exhausted — deterministic fallback" >&2
