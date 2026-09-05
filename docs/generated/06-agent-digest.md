@@ -25,7 +25,6 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 - **SKY-005** (projects · in-progress · 2/3) — Imperative ops discipline: recon toolkit, diagnosis library, lab bench
 - **SKY-006** (projects · in-progress · 2/3) — Agent episodic memory: journal + retrieval
-- **SKY-008** (projects · active · 3/3) — OpenTofu provisioning layer: VM and CT lifecycle plus DNS
 - **SKY-018** (projects · in-progress · 6/12) — Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain
 - **SKY-020** (projects · in-progress · 1/6) — Firewall-as-code — OPNsense config to T2 via OpenTofu
 - **SKY-023** (projects · in-progress · 3/4) — Eliminate documentation drift and shrink operational context
@@ -57,7 +56,7 @@ follow a link for the full story; distill episodes at read time, never in this f
 - **2026-09-05** · session          # session | incident | decision · [[2026-09-05-session-sky-023-p1-pr-integration|SKY-023 P1 PR integration]]
 - **2026-09-05** · session          # session | incident | decision · [[2026-09-05-session-sky-023-p1-close-out|SKY-023 P1 close-out]]
 - **2026-09-05** · session · [[2026-09-05-session-nightly-2026-09-05|nightly 2026-09-05]]
-- **2026-09-05** · decision          # session | incident | decision · [[2026-09-05-decision-sky-023-p1-create-blocker-correction|SKY-023 P1 create blocker correction]]
+- **2026-09-05** · session          # session | incident | decision · [[2026-09-05-session-archive-sky-008-as-done|Archive SKY-008 as done]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._
