@@ -28,7 +28,7 @@ tier() { local t; t=$(fm "$1" tier); [ -n "$t" ] || t=$(grep -m1 -oE '\*\*Tier:\
 esc() { printf '%s' "$1" | sed 's/|/\\|/g'; }
 
 # file sets (deterministic order)
-RUNBOOKS=$( { ls runbooks/*.md runbooks/dr/*.md 2>/dev/null || true; } | grep -v '/README.md$' | sort)
+RUNBOOKS=$(find runbooks -type f -name '*.md' ! -name README.md -print 2>/dev/null | sort)
 SPOKES=$(ls docs/design/*.md 2>/dev/null | sort)
 CONV=$(ls docs/conventions/*.md 2>/dev/null | sort)
 CATALOGS=$(printf '%s\n' planning/README.md compose/README.md journal/README.md runbooks/README.md templates/README.md | sort)

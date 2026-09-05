@@ -1,20 +1,25 @@
 ---
 summary: "Triage an expired/failing TLS cert — read the served cert's dates, find why ACME isn't renewing (HTTP-01 vs DNS-01, rate limit, clock), fix in Caddy config."
 trigger: "Cert warning / TLS handshake fails / 'certificate expired' / ACME renewal failing"
+tier: "T1"
+executor: "TLS probes and Caddy log inspection"
+rollback: "git revert the Caddy configuration fix"
 ---
 
 # Diagnose — cert expired
 
-**Trigger:** a browser cert warning, a TLS handshake failure, an "expired certificate" error, or the
-apps **Caddy** logging ACME renewal failures.
-**Tier:** **T1 to inspect** the served cert and read Caddy logs (unprivileged `svc-ops` docker). The
-**fix is a Caddy-config PR** (the Caddyfile lives in git) and/or resolving the ACME path; cert *material*
-is never hand-placed on a host.
+**Tier:** **T1** to inspect with unprivileged `svc-ops` access. **Trigger:** a browser cert warning, TLS
+handshake failure, expired-certificate error, or Caddy ACME renewal failure. The fix is a Caddy-config
+PR; certificate material is never hand-placed on a host.
 
-> **Diagnose imperatively, fix declaratively.** Certs are issued by config (Caddy + ACME), so the fix is
-> a config change in git, not a file dropped on the box. ([recon](../recon.md), SKY-005.)
+## Preconditions
 
-## 1. Confirm — what is actually being served
+- Have the affected hostname and read access to its endpoint and Caddy container logs.
+- Do not copy certificate or key material onto a host; inspect only served metadata and logs.
+
+## Steps
+
+### Confirm the served certificate
 
 ```bash
 echo | openssl s_client -connect <host>:443 -servername <name> 2>/dev/null \
@@ -31,7 +36,7 @@ date -u                                  # and on the host — clock skew breaks
 ssh svc-ops@<docker-host> timedatectl    # NTP synced?
 ```
 
-## 2. Branch on the cause
+### Classify the cause
 
 | Signal | Cause | Next |
 |---|---|---|
@@ -42,14 +47,25 @@ ssh svc-ops@<docker-host> timedatectl    # NTP synced?
 | cert valid but handshake fails | clock skew, or wrong cert bound to the vhost | `timedatectl` (NTP), then the Caddyfile site match |
 | Authentik/other origin cert expired | that origin's own renewal | inspect that service, same method |
 
-## 3. Fix declaratively
+### Fix declaratively
 
 Edit the **Caddyfile in git** (the site block, the ACME method, the DNS provider config) →
 branch → PR → Ali merges → deploy → Caddy re-issues. If clock skew was the cause, fix **NTP in the
 host's config module**, not by hand. Never copy a `.crt`/`.key` onto a host — that is an orphan the next
 reconcile erases. Cloudflare tunnel/Access config is **T3**; a DNS *record* for the challenge is T2.
 
-## 4. Record
+## Verify
+
+Confirm the endpoint serves the expected hostname, issuer, and unexpired `notAfter` date, and Caddy
+logs show successful issuance or renewal. Check the challenge path again when HTTP-01 or DNS-01 was the
+cause.
+
+## Rollback
+
+Revert the Caddyfile or host configuration PR and let the normal deployment restore the prior issuance
+configuration. Never roll back by copying certificate files onto the host.
+
+## Evidence
 
 `bin/new journal incident "<name> cert expired — <ACME cause>"` — the served `notAfter`, the ACME log
 line, and the config PR that restored issuance. ([journal](../../journal/README.md).)

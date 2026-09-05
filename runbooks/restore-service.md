@@ -1,6 +1,9 @@
 ---
 summary: "Restore a service or VM from restic/PBS — conversational and deterministic, executable verbatim."
 trigger: "Restore a service / recover from backup"
+tier: "T2; PBS token for VM restore"
+executor: "restic, PBS, and scripts/gitops-deploy.sh"
+rollback: "Stop at the selected restore point; preserve the prior state until verification"
 ---
 
 # Runbook — restore a service (conversational, deterministic)
@@ -12,7 +15,13 @@ trigger: "Restore a service / recover from backup"
 > **Finding a snapshot:** `restic snapshots` lists all; `restic snapshots --tag manual` finds
 > on-demand *pre-change* backups (taken before a risky change), `--tag scheduled` the nightly ones.
 
-## "Restore <svc> to <when>" (container app data)
+## Preconditions
+
+- Identify the service or guest, the intended restore point, data paths, and required grant/token. Preserve a current recovery point before replacing data when feasible.
+
+## Steps
+
+### Restore container application data
 
 The docker-dmz restic repo is `rclone:gdrive:Skynet/Backups/restic/docker-dmz`
 (env: `/opt/skynet-ops/secrets/restic-docker-dmz.env` on the host; needs a root grant —
@@ -44,7 +53,7 @@ The docker-dmz restic repo is `rclone:gdrive:Skynet/Backups/restic/docker-dmz`
 > `scripts/backup-restic.sh` that writes into `/opt/docker/appdata/<svc>/` before the sweep,
 > then restore the dump per the service note.
 
-## "Roll VM <id> back to <when>" (guest)
+### Restore a guest
 
 1. T2 PBS token → list snapshots → **PBS restore** into `ops-managed`.
 2. Boot → verify. (Never restore an excluded guest without an explicit T3 grant.)
@@ -53,9 +62,21 @@ The docker-dmz restic repo is `rclone:gdrive:Skynet/Backups/restic/docker-dmz`
 > on 2026-08-16. A full core-node-loss exercise — rebuild PBS, attach the recovered datastore, restore,
 > and boot a guest — has not been live-drilled. Follow `runbooks/dr/DR-core-node.md` when PBS is gone.
 
-## "What can we restore right now?"
+### List available recovery points
 
 `restic snapshots` (per host) + PBS index + `git tag` / commit history. Report the menu.
+
+## Verify
+
+- Resume Git Sync, confirm the service or guest is healthy, and verify application-level data consistency.
+
+## Rollback
+
+- Stop if the selected snapshot is wrong or verification fails; retain the original data/state for operator recovery instead of layering another restore over it.
+
+## Evidence
+
+- Record snapshot ID, source, restored paths, commit used for configuration, health result, and consistency checks.
 
 ## Per-service DB notes
 

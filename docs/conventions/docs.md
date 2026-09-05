@@ -44,11 +44,12 @@ Rules `[manual]`:
 
 - **Engine-neutral markdown + bash** `[manual]` — no vendor skill/command format. Any agent that
   reads a file and runs bash executes them.
-- **Open with a `Tier` line** (T1/T2/T2+/T3, PR-gated or grant), and a **Trigger** line where the
-  runbook has a natural spoken trigger `[testable]`. The machine-readable `trigger:` lives in the
-  loadable frontmatter (below); this prose line is its human twin.
-- **Every runbook is listed in `runbooks/README.md`** `[testable]` — the catalog is the menu;
-  an uncatalogued runbook is invisible.
+- **Use compact frontmatter:** `summary`, `tier`, `executor`, and `rollback`; add `trigger` where the
+  runbook has a natural spoken cue `[testable]`. Its prose `Tier`/`Trigger` lines are the human twins.
+- **Use the fixed task shape:** `Preconditions` → `Steps` → `Verify` → `Rollback` → `Evidence`
+  `[testable]`. Keep doctrine in its authoritative document and raw history in `journal/`.
+- **Every runbook is rendered into `runbooks/README.md`** `[testable]` by
+  `scripts/render-runbook-catalog.sh`; leaf frontmatter is the catalog source.
 
 ## Journal — episodic memory (`journal/`)
 

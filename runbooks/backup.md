@@ -1,6 +1,9 @@
 ---
 summary: "How restic + PBS backups run, and how to trigger one on demand."
 trigger: "How do backups work / run a backup"
+tier: "T2+ root grant"
+executor: "scripts/provision-restic.sh and backup-restic.sh"
+rollback: "Restore with restore-service.md"
 ---
 
 # Runbook — backups (how they run, and how to trigger one)
@@ -15,7 +18,13 @@ check they're healthy.
 
 ---
 
-## What runs automatically
+## Preconditions
+
+- For any host-side action, obtain the narrowest root grant. Routine status inspection is read-only.
+
+## Steps
+
+### What runs automatically
 
 | Layer | Where | Unit / script | Schedule | Covers |
 |---|---|---|---|---|
@@ -31,7 +40,7 @@ L4 (vzdump → PBS) is scheduled inside PBS/Proxmox itself, not here.
 
 ---
 
-## Provision a NEW host for restic backups
+### Provision a new host for restic backups
 
 One command from skynet-ops, inside a root grant to the target (`gr <host>`). Composable —
 `--docker` for a docker host, `--path DIR` (repeatable) for any folders, both together:
@@ -49,7 +58,7 @@ repo password in the survival kit: `ssh root@<ip> cat /opt/skynet-ops/secrets/re
 
 ---
 
-## On-demand backup — BEFORE something potentially destructive
+### Run an on-demand backup before a risky change
 
 > "back up docker-dmz before I upgrade it" / "snapshot aiometadata, I'm about to wipe its config"
 
@@ -76,7 +85,7 @@ Notes:
 
 ---
 
-## Check backups are healthy
+## Verify
 
 ```bash
 # restic (per host, inside a grant):
@@ -95,8 +104,17 @@ The A5 nightly run will fold "last restic/PBS run + snapshot counts" into
 
 ---
 
-## Sizing gotcha (don't trust `df`)
+### Check actual PBS datastore size
 
 The PBS datastore is on an Unraid NFS user-share, so `df` reports the **whole array**, not the
 datastore. For the real (deduplicated, on-disk) size — what L5 actually uploads — read PBS's GC
 log: `grep -i "on-disk usage" /var/log/proxmox-backup/tasks/*/*garbage_collection*`.
+
+## Rollback
+
+An on-demand backup is additive. Restore the reported snapshot through
+[`restore-service.md`](restore-service.md); do not remove backup data as part of this procedure.
+
+## Evidence
+
+Record the snapshot ID, host, tag, and timer/health result in the job report or journal entry.

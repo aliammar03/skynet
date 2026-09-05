@@ -258,3 +258,12 @@ criteria, then perform Phase close-out.
   tests cover retrieval, identity, checks, and head-change failures. This fix needs human review
   and merge before the Phase 3 documentation/editor-cleanup batch begins. Evidence:
   `journal/2026/2026-09-05-session-sky-023-p3-merge-gate-checkpoint.md`.
+
+- 2026-09-05 — Phase 3 runbook-contract/publish-split checkpoint prepared on
+  `docs/sky-023-p3-runbook-context-cleanup` after PR #190 merged. Split the publishing monolith
+  into a router plus independently executable internal-route, forward-auth, and public-tunnel
+  leaves; standardized every runbook leaf and rendered the catalog from frontmatter. The context
+  map now discovers nested runbooks. This is not Phase completion: the recursive runbook corpus is
+  14,276 words, so the 20%-smaller exit target and the remaining current-truth/editor/digest/nightly
+  work remain open. Evidence:
+  `journal/2026/2026-09-05-session-sky-023-p3-runbook-contract-publish-split.md`.
