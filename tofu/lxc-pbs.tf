@@ -1,4 +1,4 @@
-# SKY-008 P3 — declarative import of CT 240 (lxc-proxmox-backup-server), the only ops-managed LXC.
+# Declarative import of existing ops-managed CT 240 (lxc-proxmox-backup-server).
 # Core node, running, ops-managed pool. This proves the zero-drift IMPORT technique (import is
 # read-only — no live mutation) that SKY-018 P11 (import in-pool guests) and SKY-020 (OPNsense
 # provider) both reuse. bpg cannot read some fields back from a live container, so those are pinned

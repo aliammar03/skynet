@@ -17,7 +17,7 @@ related:
   - docs/design/access-and-trust.md
   - compose/arcane-manager/            # the interim in-DMZ capture this directive relocates
   - planning/projects/SKY-018-eight-layer-reconciliation-entity-spine-the-analyze-phase-and-the-verification-toolchain.md
-  - planning/ideas/SKY-008-opentofu-provisioning-layer-vm-and-ct-lifecycle-plus-dns.md
+  - planning/archive/SKY-008-opentofu-provisioning-layer-vm-and-ct-lifecycle-plus-dns.md
   - "[[SKY-019-progress]]"
   - "[[arcane-api-reference]]"
 ---

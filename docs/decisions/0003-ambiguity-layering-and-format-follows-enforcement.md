@@ -8,9 +8,9 @@
 A question kept recurring across the roadmap: should Skynet's system design itself be rewritten
 "machine-readable" — invariants, tiers, and exclusions converted from prose to a schema — so the
 agent interprets it less loosely? The instinct is understandable. Two of our best directives push
-in adjacent directions: *shrink the always-loaded context* ([SKY-010](../../planning/projects/SKY-010-default-lean-context-load-on-demand.md))
-and *push the declarative boundary down* ([SKY-007](../../planning/ideas/SKY-007-nixos-host-definition-piloted-on-the-ops-vm.md)
-Nix, [SKY-008](../../planning/ideas/SKY-008-opentofu-provisioning-layer-vm-and-ct-lifecycle-plus-dns.md)
+in adjacent directions: *shrink the always-loaded context* ([SKY-010](../../planning/archive/SKY-010-default-lean-context-load-on-demand.md))
+and *push the declarative boundary down* ([SKY-007](../../planning/archive/SKY-007-nixos-host-definition-piloted-on-the-ops-vm.md)
+Nix, [SKY-008](../../planning/archive/SKY-008-opentofu-provisioning-layer-vm-and-ct-lifecycle-plus-dns.md)
 Tofu). Surely schematizing the constitution is more of the same good medicine?
 
 Working it through surfaced the opposite conclusion, and a principle none of the existing
@@ -35,7 +35,7 @@ Set against those, the **blast-radius laws** are prose repeated across `AGENTS.m
 `docs/system-design.md §2/§3`, and directive warnings — and enforced by *nothing but the agent
 remembering them*: excluded guests (5001/635/837/2020) never joining a pool, the write blast radius
 equalling the declared pool set, secrets never landing in plaintext. That gap grows dangerous the
-instant [SKY-008](../../planning/ideas/SKY-008-opentofu-provisioning-layer-vm-and-ct-lifecycle-plus-dns.md)
+instant [SKY-008](../../planning/archive/SKY-008-opentofu-provisioning-layer-vm-and-ct-lifecycle-plus-dns.md)
 can touch pool membership — pool membership *is* the blast-radius dial, so a mis-generated `tofu
 apply` needs a dumb gate behind it that no amount of plausible reasoning can talk past.
 
@@ -71,9 +71,9 @@ constitution.
 
 This is the spine that [SKY-004](../../planning/ideas/SKY-004-reactive-operations-event-driven-layer-drift-as-signal.md),
 [SKY-006](../../planning/projects/SKY-006-agent-episodic-memory-journal-retrieval.md),
-[SKY-007](../../planning/ideas/SKY-007-nixos-host-definition-piloted-on-the-ops-vm.md),
-[SKY-008](../../planning/ideas/SKY-008-opentofu-provisioning-layer-vm-and-ct-lifecycle-plus-dns.md),
-and [SKY-010](../../planning/projects/SKY-010-default-lean-context-load-on-demand.md) all silently
+[SKY-007](../../planning/archive/SKY-007-nixos-host-definition-piloted-on-the-ops-vm.md),
+[SKY-008](../../planning/archive/SKY-008-opentofu-provisioning-layer-vm-and-ct-lifecycle-plus-dns.md),
+and [SKY-010](../../planning/archive/SKY-010-default-lean-context-load-on-demand.md) all silently
 assume. Writing it down stops a future session from "helpfully" schematizing the constitution and
 calling it safety — and tells the declarative-infra bets exactly *what* to schematize (the state and
 constraints they generate or assert) and what to leave as prose (the judgment about whether to).

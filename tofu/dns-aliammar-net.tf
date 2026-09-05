@@ -1,12 +1,11 @@
-# SKY-008 P3 — the aliammar.net vanity A records under tofu (T2, Technitium zones-only).
+# aliammar.net vanity A records under tofu (T2, Technitium zones-only).
 # aliammar.net is a Forwarder zone that also holds authoritative A overrides for the lab's admin
 # vanity names. It is UNSIGNED (no DNSKEY), so kevynb/technitium v0.4.0 reads it fine — unlike the
 # DNSSEC-signed resolver zone tdns.home.aliammar.net, deferred until a release carries b2f6b89c.
 #
 # The named admin hosts front onto the Management Caddy (10.10.60.35). The record-scoped provider
 # manages ONLY these records and leaves the zone's SOA / FWD / DNSSEC-none machinery untouched.
-# NB: the former `*.aliammar.net` wildcard is retired (Ali deleted it 2026-09-02) — every app vhost
-# now has its own explicit record (below), so there is no catch-all.
+# Every app vhost has its own explicit record below; there is no catch-all.
 locals {
   aliammar_net_a = {
     # name (relative to zone) => { ip, ttl }

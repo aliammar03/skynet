@@ -427,7 +427,7 @@ Steps:
 2. Declare the remaining **in-pool** guests as tofu resources, importing rather than recreating.
    Coverage goes from ~2 of 21 to every guest the agent may already write.
 3. Leave everything else observed-only **on purpose**, and say so in the spoke: excluded guests, the
-   node config, template bootstrap, and the `svc-tofu` token itself.
+   node config, template bootstrap, and Proxmox credential administration.
 
 Exit criteria: `tofu plan` is clean against reality for every declared resource; the plan gate passes;
 no excluded guest appears in any tofu resource.

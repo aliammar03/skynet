@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 # tofu-env.sh — export env vars for OpenTofu from sops-nix decrypted secrets.
 # TIER: T2 — reads the Proxmox API tokens for BOTH nodes (standalone, not clustered → one token each).
-# SKY-024 retired the svc-tofu split: tofu now runs as the ONE operator token on each node
-# (svc-ops@pve!operate, full VM/Datastore/Pool/SDN at /, bright lines held), the same identity the
-# imperative ops scripts use — so declare + fix is one token, not a per-capability grant dance. Core
-# is root-ACL broadened; network remains pool-scoped. USAGE: eval "$(scripts/tofu-env.sh)".
+# OpenTofu uses the `svc-ops@pve!operate` token on each node, the same identity as imperative
+# operations. Core is root-ACL broadened; network remains pool-scoped. USAGE:
+# eval "$(scripts/tofu-env.sh)".
 #   Reads: /opt/skynet-ops/secrets/proxmox-core.env          (core node .11 — operate token)
 #          /opt/skynet-ops/secrets/proxmox-network.env       (network node .10 — operate, pool-scoped)
 #          /opt/skynet-ops/secrets/tofu-passphrase           (state encryption passphrase)
-#          /opt/skynet-ops/secrets/technitium.env            (T2 zones-only DNS token, SKY-008 P3)
-#          /opt/skynet-ops/secrets/cloudflare-dns.env        (T2 Zone:DNS:Edit token, SKY-014 public DNS)
+#          /opt/skynet-ops/secrets/technitium.env            (T2 zones-only DNS token)
+#          /opt/skynet-ops/secrets/cloudflare-dns.env        (T2 Zone:DNS:Edit token for public DNS)
 #   Optional scope: state|proxmox-core|proxmox-network|technitium-dns|cloudflare-dns|all (default).
 #   A saved-plan apply loads only its declared actuator credentials after first loading `state` to
 #   decrypt and inspect the plan. Plan creation from the legacy combined root still uses `all`.
@@ -25,9 +24,8 @@ SECRETS_DIR="${SECRETS_DIR:-/opt/skynet-ops/secrets}"
 CERTS_DIR="${CERTS_DIR:-/opt/skynet-ops/certs}"
 
 pass_file="${SECRETS_DIR}/tofu-passphrase"
-# SKY-024: one operator token per node — tofu runs as svc-ops!operate on BOTH (the svc-tofu split is
-# retired). Core is /-broadened (can mint VMIDs); network stays pool-scoped by design — OPNsense (the
-# leash-enforcing firewall) lives there, so no /vms-root envelope-destroy over it.
+# One operator token per node: core is /-broadened (can mint VMIDs); network stays pool-scoped
+# because it contains the leash-enforcing firewall and has no /vms-root envelope-destroy boundary.
 core_file="${SECRETS_DIR}/proxmox-core.env"
 net_file="${SECRETS_DIR}/proxmox-network.env"
 tech_file="${SECRETS_DIR}/technitium.env"
@@ -64,10 +62,10 @@ if [ "${scope}" = technitium-dns ] || [ "${scope}" = all ]; then
   . "${tech_file}"; TECH_CACERT="${TECH_CACERT:-${CERTS_DIR}/technitium.crt}"
 fi
 if [ "${scope}" = cloudflare-dns ] || [ "${scope}" = all ]; then
-  # cloudflare-dns.env is root-owned (not sops-nix) → read with a sudo fallback.
+  # sops-nix materializes the scoped DNS token as 0400 aliammar; never require sudo to read it.
   # shellcheck disable=SC1090
-  source <(cat "${cf_file}" 2>/dev/null || sudo -n cat "${cf_file}" 2>/dev/null || true)
-  [ -n "${CF_DNS_TOKEN:-}" ] || { echo "missing/unreadable ${cf_file} (CF_DNS_TOKEN) — 0600 root; scoped Zone:DNS:Edit token" >&2; exit 1; }
+  source <(cat "${cf_file}" 2>/dev/null || true)
+  [ -n "${CF_DNS_TOKEN:-}" ] || { echo "missing/unreadable ${cf_file} (CF_DNS_TOKEN) — expected 0400 aliammar scoped Zone:DNS:Edit token" >&2; exit 1; }
 fi
 set +a
 
