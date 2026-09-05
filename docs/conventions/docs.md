@@ -99,3 +99,12 @@ contents must meet. The README is the hub for that directory.
 - **Finished artifacts are current-state only.** Keep completed directive IDs, phase labels,
   migration chronology, and replacement narratives in the journal, history, ADRs, or
   planning. Live docs and runbooks contain present behavior and the rationale required to operate it.
+
+## Repository surface classification `[testable]`
+
+`scripts/repo-surface.sh` classifies every tracked text file before repository hygiene gates run.
+Text defaults to **current authority**; a new operational directory therefore enters the temporal and
+drift checks without a path-list edit. The only file-level exemptions are explicit: `planning/`,
+`journal/`, `docs/history/`, and ADRs are history-bearing; renderer-owned output and inventory are
+generated; tests/fixtures are fixture data; encrypted payloads and binary data are opaque. A path with
+zero or multiple classes fails the gate.

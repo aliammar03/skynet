@@ -1,4 +1,4 @@
-# Scout — searches, compares, investigates; returns a concise report. Read-only by contract. SKY-022 role.
+# Scout — searches, compares, investigates; returns a concise report. Read-only by contract.
 # Contract: docs/conventions/construction.md. Luna tier (Terra if the reasoning is genuinely hard).
 name = "scout"
 description = "Search the repo/APIs/prior art, compare options, and return a concise report to the lead. Never edits anything."

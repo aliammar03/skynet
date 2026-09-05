@@ -1,4 +1,4 @@
-# Mechanic — repetitive, low-judgement edits: fixtures, renames, formatting, routine docs. SKY-022 role.
+# Mechanic — repetitive, low-judgement edits: fixtures, renames, formatting, routine docs.
 # Contract: docs/conventions/construction.md. Luna tier (fast/cheap, repeatable objective-check work).
 name = "mechanic"
 description = "Apply a repetitive, well-specified edit across the files the lead names — fixtures, renames, formatting, routine doc updates. Not for design decisions or production code changes unless explicitly scoped."

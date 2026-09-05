@@ -1,7 +1,6 @@
 name: nix
 
-# SKY-007 Phase 1a: the Phase-0 fluency build, now a gate. Every PR that touches the flake must
-# still build the ops-VM system closure. Unlike checks.yml (read-only, no network), this job
+# Every PR that touches the flake builds the ops-VM system closure. Unlike checks.yml (read-only, no network), this job
 # fetches nixpkgs and builds a closure — so it lives in its own workflow, keeping the
 # deterministic gates' no-network promise intact.
 on:
@@ -24,7 +23,6 @@ jobs:
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
-      # flake.lock is committed once the twin exists (a real Nix host — Nix stays off the live ops
-      # box per the Phase-0 rule). Until then Nix resolves inputs in-flight; still green.
+      # This workflow resolves locked inputs and builds the declared system closure.
       - name: build the ${{ matrix.host }} system closure
         run: nix build .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel --print-build-logs

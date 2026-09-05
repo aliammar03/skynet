@@ -4,21 +4,14 @@
 set -uo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${REPO_DIR}"
+source scripts/repo-surface.sh
 
 pass=0; fail=0
 ok()  { printf '  ✓ %s\n' "$1"; pass=$((pass + 1)); }
 bad() { printf '  ✗ %s\n' "$1" >&2; fail=$((fail + 1)); }
 TMP="$(mktemp -d)"; trap 'rm -rf "${TMP}"' EXIT
 
-current_files=(AGENTS.md README.md flake.nix .sops.yaml templates/runbook.md templates/script.sh)
-while IFS= read -r file; do current_files+=("${file}"); done < <(
-  find docs -type f -name '*.md' ! -path 'docs/generated/*' ! -path 'docs/history/*' ! -path 'docs/decisions/*'
-  find runbooks -type f -name '*.md'
-  find scripts bin -type f
-  find tofu -type f -name '*.tf'
-  find nix hosts -type f -name '*.nix'
-  find compose -type f ! -name '*.sops'
-)
+mapfile -t current_files < <(repo_surface_files current)
 
 numeric_violations() {
   grep -nE 'SKY-[0-9]{3}' "$@" \
@@ -30,6 +23,8 @@ narrative_violations() {
 }
 
 echo "== current-authority temporal hygiene =="
+repo_surface_check && ok "every tracked text file has one surface classification" \
+  || bad "tracked text has an invalid surface classification"
 numeric="$(numeric_violations "${current_files[@]}")"
 [ -z "${numeric}" ] && ok "no numeric directive provenance in current authority" \
   || bad "numeric directive provenance remains:\n${numeric}"

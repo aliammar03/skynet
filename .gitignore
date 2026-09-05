@@ -15,8 +15,8 @@ age.key
 *.tmp
 *.log
 .DS_Store
-# SKY-022: the lead's disposable cross-session checkpoint (.agent/CHECKPOINT.md).
-# Working memory, never truth — durable facts move to directive/docs/ADR/journal/git on completion.
+# The lead's disposable cross-session checkpoint (.agent/CHECKPOINT.md).
+# Working memory is not repository truth; durable facts live in current docs or history-bearing files.
 .agent/
 
 # Collector working files (final JSON is committed by the collectors themselves)
@@ -24,8 +24,7 @@ inventory/**/*.partial.json
 result
 result-*
 
-# SKY-018 P3: the SQLite join cache is REBUILT from inventory/ at render time — git stays truth,
-# the DB is a throwaway cache (same rule as a future semantic index). Never committed.
+# The SQLite join cache is rebuilt from inventory/ at render time; git remains the source of truth.
 .cache/
 
 # Obsidian local session state and installed plugin payloads. Shared vault settings in .obsidian/

@@ -13,7 +13,7 @@ thread_status: none     # none | open | resolved | unknown; digest shows only ex
 
 <!-- RAW EPISODE. Write what actually happened, in the concrete. Do NOT summarize, generalize,
      or collapse this into a lesson — that destroys the episodic signal before it can be used
-     (SKY-006 / journal/README.md). Distillation happens at READ time, never here. -->
+     (journal/README.md). Distillation happens at READ time, never here. -->
 
 ## What happened
 Intent, then the trajectory: what ran, on which hosts, what changed, what broke. Keep it raw
