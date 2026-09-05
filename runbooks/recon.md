@@ -1,6 +1,9 @@
 ---
 summary: "Start-here triage: take one T1 read-only host snapshot with scripts/recon.sh, reason over it, then branch to a diagnosis runbook."
 trigger: "Figure out why X is broken / what's going on with <host>"
+tier: "T1 read-only"
+executor: "scripts/recon.sh"
+rollback: "None; read-only diagnosis"
 ---
 
 # Runbook — recon (start here)
@@ -15,7 +18,13 @@ tells you what to look at — via a diagnosis runbook, under a narrowest-host/sh
 > *looking*. The eventual fix is a PR to `compose/` / a module / a tofu resource — never an
 > orphan mutation of the host. (SKY-005.)
 
-## 1. Take the snapshot
+## Preconditions
+
+- Choose the affected host from the generated host map. No grant is needed to observe it.
+
+## Steps
+
+### Take the snapshot
 
 ```bash
 scripts/recon.sh <host>        # remote host as svc-ops over SSH
@@ -32,7 +41,7 @@ Sections that would need root say so rather than failing — recon never blocks 
 Every probe is bounded by `RECON_TIMEOUT` (default 6s), so a hung mount or wedged daemon
 can't stall the snapshot.
 
-## 2. Reason over it — what each section is telling you
+### Interpret the snapshot
 
 | Section | Read it for |
 |---|---|
@@ -44,7 +53,7 @@ can't stall the snapshot.
 | Recent warnings/errors | The failure's own words — grep the unit name here. |
 | Recent config / package changes | *What changed just before it broke* — the usual root cause. |
 
-## 3. Branch to a diagnosis runbook
+### Choose the focused diagnosis
 
 `recon.sh` prints a **Next — likely diagnosis runbooks** block whenever the snapshot itself shows a
 matching signal (a crash-looping container, a filesystem ≥90%, a failed unit, a backup unit) — so it
@@ -60,7 +69,15 @@ host snapshot can't see, like cert/DNS):
 | a missing snapshot / a failed backup timer | [`diagnose/backup-missed.md`](diagnose/backup-missed.md) |
 | a merged compose PR that didn't deploy / drift | [`diagnose/arcane-stuck.md`](diagnose/arcane-stuck.md) |
 
-## 4. Fix declaratively
+## Verify
+
+- The snapshot identifies the host, its current pressure/health signals, and a next diagnosis path.
+
+## Rollback
+
+None. Recon is read-only; do not use it as a substitute for a declarative fix.
+
+## Evidence
 
 Whatever the fix is, route it back through git so nothing is orphaned: a `compose/` PR, a
 config module, a tofu resource. If an emergency forced an imperative change on the host,

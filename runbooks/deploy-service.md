@@ -1,13 +1,22 @@
 ---
 summary: "Deploy or update a service through the Arcane GitOps loop: edit compose then PR then Arcane reconciles."
 trigger: "Deploy or update a service"
+tier: "T2 PR-gated"
+executor: "scripts/gitops-deploy.sh and Arcane Git Sync"
+rollback: "git revert"
 ---
 
 # Runbook — deploy / update a service (Arcane GitOps, the skynet way)
 
 **Tier:** T2 (PR-gated). **Executor:** `scripts/gitops-deploy.sh` + Arcane Git Sync. **Rollback:** `git revert`.
 
-## The standard (every service looks the same)
+## Preconditions
+
+- Identify the service, its persistent data, its intended ingress, and whether it needs encrypted configuration.
+
+## Steps
+
+### Apply the service standard
 
 ```
 compose/<svc>/compose.yaml   # pinned image DIGESTS, env_file: .env, STRUCTURAL only
@@ -31,7 +40,7 @@ compose/<svc>/.env.sops      # secrets only (sops+age); omit if the service has 
   labels are immutable — to change them, recreate the volume (`down` → `docker volume rm` →
   redeploy). When switching a named volume to a bind mount, remove the orphan.
 
-## How env actually reaches the container (important)
+### Materialize the runtime environment
 
 Arcane's **GitOps** sync copies `compose.yaml` (and the compose dir, incl. subdirs) from git and
 owns the project lifecycle — but it does **NOT** merge `.env.git`/`project.env` into `.env`
@@ -41,7 +50,7 @@ disk. So `scripts/gitops-deploy.sh` **materialises** the effective `.env` = `.en
 (the age key never leaves it).
 Arcane leaves a populated `.env` untouched on re-sync, so the two coexist.
 
-## Deploy / update an existing service
+### Deploy or update an existing service
 
 1. **Branch** `deploy/<svc>`; edit `compose/<svc>/*` per the standard. Validate:
    `cd compose/<svc> && printf '…dummy…' > .env && docker compose config -q && rm .env`.
@@ -50,7 +59,7 @@ Arcane leaves a populated `.env` untouched on re-sync, so the two coexist.
    (During a migration you may verify off a branch first: `GITOPS_BRANCH=<branch> scripts/gitops-deploy.sh <svc>`.)
 4. If red → `git revert`, re-run `gitops-deploy.sh <svc>`.
 
-## One-time cutover of a legacy (non-GitOps / filesystem) project
+### Cut over a legacy non-GitOps project
 
 Only needed the first time a hand-managed project moves to GitOps. **Destructive.**
 
@@ -58,3 +67,15 @@ Only needed the first time a hand-managed project moves to GitOps. **Destructive
    project **name** gives fresh named volumes — fine only when data is disposable/rebuildable).
 2. `POST projects/{id}/down` then `DELETE projects/{id}/destroy` (removes containers + old project dir).
 3. `scripts/gitops-deploy.sh <svc>` creates the GitOps project fresh and deploys.
+
+## Verify
+
+- `scripts/gitops-deploy.sh <svc>` completes, the service healthcheck is healthy, and the expected route works from its intended vantage.
+
+## Rollback
+
+- Revert the merged compose change and run `scripts/gitops-deploy.sh <svc>` to reconcile it. A legacy cutover needs its data/backout reviewed before destruction.
+
+## Evidence
+
+- Include the compose validation, deploy/health result, persistent-data impact, and any refreshed inventory in the PR or journal record.

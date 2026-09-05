@@ -1,3 +1,11 @@
+---
+summary: "<what this procedure does, in one line>"
+trigger: "<spoken cue, when natural>"
+tier: "T1|T2|T2+|T3 with gating"
+executor: "<script or manual executor>"
+rollback: "<how to back out>"
+---
+
 # Runbook — __TITLE__
 
 **Tier:** T1|T2|T2+|T3 (PR-gated / grant). **Executor:** `<script or manual>`. **Rollback:** `<how>`.
@@ -9,7 +17,7 @@
 > **Before you finish: add this runbook to [`README.md`](README.md)** (with its Tier + Trigger).
 > An uncatalogued runbook is invisible.
 
-## When to run
+## Preconditions
 
 <the trigger / precondition>
 
@@ -25,3 +33,7 @@
 ## Rollback
 
 <how to back out — `git revert`, disable a timer, `docker compose down`, …>
+
+## Evidence
+
+<what to record in the PR, report, or journal>

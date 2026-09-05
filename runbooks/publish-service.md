@@ -1,310 +1,45 @@
 ---
-summary: "Publish a service through the apps Caddy front door: edit the Caddyfile then PR then deploy — own-auth (plain reverse_proxy) or forward-auth via Authentik (scoped-token provider+application); optionally also expose it to the internet via the Cloudflare Tunnel (Path C)."
+summary: "Choose the runbook for publishing a service through apps Caddy, Authentik, or the Cloudflare Tunnel."
 trigger: "Publish or expose a service"
+tier: "T2 PR-gated"
+executor: "Choose and follow one publish leaf"
+rollback: "See the selected leaf"
 ---
 
-# Runbook — publish a service through the apps Caddy (the front door)
+# Runbook — publish a service
 
-**Tier:** T2 (PR-gated). **Executor:** edit the Caddyfile → PR → Ali merges → `scripts/gitops-deploy.sh caddy-apps`.
-**Rollback:** `git revert` (Arcane reconciles the old routes back).
+**Tier:** T2 (PR-gated). **Executor:** choose and follow one leaf below. **Rollback:** use the
+selected leaf's rollback procedure.
 
-This is how a service gets a real URL (`https://<svc>.aliammar.net`) instead of a raw `IP:port`.
-The whole apps ingress is **one file in git** — `compose/caddy-apps/Caddyfile` — so publishing is a
-reviewable PR, not a bespoke task. Background + the trust model: [`../docs/design/identity-and-proxy.md`](../docs/design/identity-and-proxy.md).
+## Preconditions
 
-## Which path? Two kinds of service
+- Know the service's origin, whether it has a real login, and whether it needs public reachability.
+- Do not publish sensitive infrastructure through apps Caddy.
 
-| The service… | Path | What you add |
-|---|---|---|
-| **has its own login** (karakeep, most apps) | **own-auth reverse proxy** | one `reverse_proxy` site block |
-| **has no gate of its own** (calibre) | **forward-auth** | the same site **plus** `forward_auth` to an Authentik outpost, **plus** a scoped-token-created Authentik provider/application |
+## Steps
 
-Pick the own-auth path unless the service genuinely has no authentication of its own.
+Choose the smallest path that meets the service's authentication and reachability needs:
 
-**Internal vs public.** Paths A/B give a service a `https://<svc>.aliammar.net` URL reachable **only
-inside the lab** (split-DNS → apps Caddy; nothing is exposed to the internet). If you *also* want the
-service reachable **from the public internet**, that's an **additive** step — **Path C** — layered on
-top of an existing internal route (A or B). Most services want internal-only; choose Path C
-deliberately, per host, and only for a service that already self-gates (see its edge-auth rule).
+| Need | Runbook |
+|---|---|
+| An internally reachable service with its own login | [`publish/internal-route.md`](publish/internal-route.md) |
+| An internally reachable service with no login of its own | [`publish/forward-auth.md`](publish/forward-auth.md) |
+| Public internet access for an already-working internal route | [`publish/public-tunnel.md`](publish/public-tunnel.md) |
 
-## Prerequisites (true for every publish)
+The internal hostname is `https://<svc>.aliammar.net`. Internal split-DNS points it to apps Caddy
+(`10.10.100.35`); public DNS and the Cloudflare Tunnel are separate, additive configuration. A
+service with no gate of its own must use forward-auth before any public exposure. Never publish
+sensitive infrastructure (`opnsense`, `technitium`, `arcane`, `pbs`, and similar services) through
+the apps Caddy door.
 
-- The origin runs on the **DMZ** network with a known `IP:port` (see its `compose/<svc>/compose.yaml`).
-- **Internal DNS is declarative and derived (SKY-008).** Each app vhost has its **own** `A` record →
-  the apps Caddy (`10.10.100.35`), and that record set is **derived from this very Caddyfile** by tofu
-  (`tofu/dns-aliammar-net.tf`: `regexall` over the site-address lines). So adding a site block here is
-  *also* declaring its DNS — the record appears on the next reviewed saved-plan apply (step below). There is **no
-  wildcard fallback**: a vhost resolves internally only once its record is applied. (Public DNS is
-  Cloudflare; nothing is exposed to the internet — this is internal ingress only.)
-- TLS is automatic: Caddy issues a publicly-trusted cert via ACME **DNS-01 over Cloudflare**. No
-  per-service cert work, no device-trust install.
+## Verify
 
----
+- The selected leaf matches the service's authentication and public-exposure requirement before editing a route.
 
-## Path A — own-auth reverse proxy (the common case)
+## Rollback
 
-1. **Branch** `deploy/caddy-apps`. Edit `compose/caddy-apps/Caddyfile`, add a site block:
-   ```
-   <svc>.aliammar.net {
-       reverse_proxy <origin-ip>:<origin-port>
-   }
-   ```
-   Use the origin's **actual** listen port (e.g. karakeep-web is `10.10.100.75:3000`, not 8080).
-2. **Validate** the Caddyfile before you PR (catches typos without touching the running proxy):
-   ```
-   cd compose/caddy-apps
-   docker run --rm -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" \
-     ghcr.io/caddybuilds/caddy-cloudflare:2.11.4-alpine \
-     caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
-   ```
-   (`caddy fmt --overwrite /etc/caddy/Caddyfile` normalizes formatting.)
-3. **PR** with a teaching description (what the service is, its origin `IP:port`, the URL it gets,
-   own-auth vs forward-auth). **Ali merges** — the merge gate is what actually protects the routes
-   (see the honest security position in the spoke). The agent never merges its own PR.
-4. **Create the DNS record (T2, tofu).** From the human-merged revision, create and show the exact
-   saved plan. Ali approves that diff; the guarded executor applies that same file:
-   ```
-   eval "$(scripts/tofu-env.sh)"
-   tofu -chdir=tofu plan -out=/tmp/publish-<svc>.tfplan
-   tofu -chdir=tofu show -no-color /tmp/publish-<svc>.tfplan  # expect only the derived A record
-   TOFU_APPLY_SCOPE=technitium-dns scripts/tofu-apply.sh /tmp/publish-<svc>.tfplan  # only after explicit approval
-   ```
-   (This step is what makes `<svc>.aliammar.net` resolve internally — there is no wildcard fallback, so
-   don't skip it.)
-5. **Deploy.** A route-only change is just the Caddyfile, and Caddy runs with `--watch`, so once the
-   PR merges Arcane's auto-sync updates the mounted Caddyfile and **Caddy reloads itself** — no
-   container recreate, no manual `caddy reload`. Run `scripts/gitops-deploy.sh caddy-apps` only to
-   force it immediately (or after a *compose* change, which does need the container recreated).
-6. **Verify** from a peer **DMZ container** — the reliable vantage. The apps Caddy sits on a **macvlan**
-   IP, so it is unreachable *from its own docker host* and from the ops VM (VLAN 90, no rule-200 path):
-   ```
-   ssh svc-ops@10.10.100.15 "docker exec <some-dmz-container> \
-     curl -sSI --resolve <svc>.aliammar.net:443:10.10.100.35 https://<svc>.aliammar.net"
-   # expect a real status (200/302/401…) and a valid public cert (ssl_verify_result=0)
-   ```
-   The **first** hit on a new hostname may briefly fail TLS while Caddy obtains the ACME cert
-   (DNS-01, ~15–30s); retry. A `502` right after a deploy usually just means the upstream is still
-   warming up.
-7. If red → revert the Caddyfile by PR and let Arcane reconcile. Removing the derived Technitium
-   record is a separate delete hard checkpoint: `scripts/tofu-apply.sh` refuses delete plans, and the
-   current zone token lacks record-delete. Do not bypass either guard; leave the now-unused record
-   visible until a compliant deletion path is approved.
+- Follow the selected leaf; route rollback is normally a reverting PR, while DNS/object deletion remains separately gated.
 
----
+## Evidence
 
-## Path B — forward-auth (no-login services, via Authentik)
-
-For a service with **no gate of its own**, Authentik sits in front: an unauthenticated request is
-bounced to the Authentik login, an authenticated one passes through. This is the **per-app** model
-(SKY-003 P3) — each no-auth service gets its **own** proxy provider + application, so authorization
-(who may reach it) and audit are per-service.
-
-**Prerequisites (one-time, done in P3):**
-- The scoped Authentik **`svc-skynet`** token lives `0600` at `/opt/skynet-ops/secrets/authentik.env`
-  (`AUTHENTIK_TOKEN` + `AUTHENTIK_URL`). It can CRUD Applications/Providers and view/bind outposts —
-  **nothing else** (Flows, Users, settings, keys are T3 and the token 403s on them). Creating it is a
-  **T3 ceremony only Ali can do** — Skynet cannot mint it.
-- The **embedded proxy outpost** exists (Applications → Outposts, `authentik Embedded Outpost`,
-  type *proxy*). It is served by the Authentik server itself at **`10.10.80.37:9000`**.
-
-**Network fact that shapes how you call the API:** only the **apps-Caddy** (`10.10.100.35`) may reach
-Authentik (firewall **rule 240**) — the ops VM cannot. So Authentik API calls are driven from inside
-the `caddy-apps-caddy-1` container (which has `curl`), and the token is fed on **stdin** (a curl
-`-K -` config, or `read`) so it never lands in any argv. `POST /api/v3/...` bodies below are that
-same call shape.
-
-1. **Propose the route before mutating Authentik.** On a branch, add the Caddyfile site below and
-   validate it as in Path A step 2. Open the PR and wait for Ali to merge it. The merged route fails
-   closed until its provider exists; do not create the Authentik provider/application from an
-   unmerged proposal.
-   ```
-   <svc>.aliammar.net {
-       reverse_proxy /outpost.goauthentik.io/* 10.10.80.37:9000
-       forward_auth 10.10.80.37:9000 {
-           uri /outpost.goauthentik.io/auth/caddy
-           copy_headers X-Authentik-Username X-Authentik-Groups X-Authentik-Email X-Authentik-Name X-Authentik-Uid
-           trusted_proxies private_ranges
-       }
-       reverse_proxy <origin-ip>:<origin-port>
-   }
-   ```
-2. **Create the proxy provider** (`forward_single`) only after that merge. It needs an `authorization_flow` +
-   `invalidation_flow`, but the scoped token **cannot list Flows** (they're T3) — so **copy the flow
-   UUIDs from an existing proxy provider** you *can* read:
-   ```
-   GET  /api/v3/providers/proxy/          # note authorization_flow + invalidation_flow of any entry
-   POST /api/v3/providers/proxy/
-        {"name":"<svc>","mode":"forward_single",
-         "external_host":"https://<svc>.aliammar.net",
-         "authorization_flow":"<uuid>","invalidation_flow":"<uuid>"}
-   ```
-3. **Create the application**, bound to the new provider (`pk` from step 2):
-   ```
-   POST /api/v3/core/applications/
-        {"name":"<Svc>","slug":"<svc>","provider":<pk>,
-         "meta_launch_url":"https://<svc>.aliammar.net"}
-   ```
-   Authorization-policy changes are T3 and outside this runbook. The scoped token cannot alter the
-   policy spine; stop for a separate T3 ceremony if the application needs a new policy binding.
-4. **Bind the provider to the embedded outpost** — `PATCH` its `providers` list, **keeping the
-   existing entries** and appending the new `pk` (clobbering the list unbinds everything else):
-   ```
-   GET   /api/v3/outposts/instances/                       # find the embedded outpost pk + current providers
-   PATCH /api/v3/outposts/instances/<outpost-pk>/  {"providers":[<existing…>, <pk>]}
-   ```
-   The outpost picks the provider up in seconds. Sanity-check from the
-   `caddy-apps` container, the outpost auth endpoint should 302 to Authentik for your host:
-   ```
-   docker exec caddy-apps-caddy-1 curl -sI -H "Host: <svc>.aliammar.net" \
-     http://10.10.80.37:9000/outpost.goauthentik.io/auth/caddy   # expect 302 -> auth.aliammar.net
-   ```
-5. **Create the internal DNS record.** Follow Path A step 4 from the merged revision. This is a
-   supervised non-guest tofu write: the saved-plan/delete guards apply, but no automatic snapshot
-   rollback exists for DNS.
-6. **Verify** from a peer DMZ container: an unauthenticated hit is **302'd to Authentik**, not served:
-   ```
-   ssh svc-ops@10.10.100.15 "docker exec <some-dmz-container> \
-     curl -sI --resolve <svc>.aliammar.net:443:10.10.100.35 https://<svc>.aliammar.net"
-   # expect 302 with Location: https://auth.aliammar.net/... — never the app's own page
-   ```
-   Then in a browser: unauthenticated → Authentik login → after login → the service.
-
-**Rollback:** revert the Caddyfile block by PR (Arcane reconciles). Authentik and DNS deletion are
-separate hard checkpoints; do not send their delete plans through `scripts/tofu-apply.sh`. Remove the
-application/provider with an explicitly approved scoped-token call (application first, then provider)
-and leave the Technitium record visible until its compliant delete path exists.
-
----
-
-## Path C — also expose to the internet (Cloudflare Tunnel) — *optional, additive*
-
-Publishing a hostname to the **public internet** through the Skynet-managed Cloudflare Tunnel
-(`compose/cloudflared/`, SKY-014). This is **layered on top of Path A or B** — the tunnel forwards
-every public request to the **same apps Caddy** (`https://10.10.100.35`), so a public host **reuses its
-internal Caddy route verbatim**; there is no second copy of the routing and TLS stays end-to-end.
-Background + the trust model: [`../docs/design/identity-and-proxy.md`](../docs/design/identity-and-proxy.md) (“The public path”).
-
-**Prerequisites**
-- The service already has a working **internal route** (Path A or B) — Path C does not create routes,
-  it only makes an existing hostname reachable from outside.
-- The scoped Cloudflare **`DNS:Edit`** token is `0600` at `/opt/skynet-ops/secrets/cloudflare-dns.env`
-  (`CF_DNS_TOKEN`, `CF_ZONE=aliammar.net`, `TUNNEL_ID`). The Cloudflare account / Access / tunnel
-  config are **T3** — out of reach here.
-
-**⚠ The edge-auth gate — decide *should* this be public, not just *can* it.** The public internet is
-hostile. Only expose a service that **self-gates at the edge**: it has its own strong login (own-auth,
-Path A — e.g. obsidian's CouchDB admin login, ideally with client-side E2E) **or** it sits behind
-**forward-auth** (Path B). A service with **no gate of its own must NOT go public plain** — put
-Authentik forward-auth (Path B) or Cloudflare Access in front first. Network segmentation protects an
-internal-only no-auth service; it protects nothing once the hostname is on the internet.
-
-Publishing is **two halves — both required** (the tunnel's catch-all is `http_status:404`, so a host
-is public *only* with an `ingress` rule **and** a public CNAME):
-
-1. **Add the `ingress` rule** to `compose/cloudflared/config.yml`, **above** the closing
-   `- service: http_status:404` catch-all (first match wins):
-   ```yaml
-   - hostname: <svc>.aliammar.net
-     service: https://10.10.100.35            # the apps Caddy — the tunnel's only origin
-     originRequest:
-       originServerName: <svc>.aliammar.net   # SNI → Caddy serves this host's LE cert (not the IP's)
-   ```
-   **PR** it — *this is the public-exposure gate*; Ali merges, the agent never merges its own. Then
-   **reload the connector**: cloudflared reads `config.yml` only at startup, and a bind-mounted file
-   change doesn't alter the compose spec, so Arcane's sync alone won't reload it (unlike Caddy's
-   `--watch` hot-reload). `scripts/gitops-deploy.sh cloudflared` now force-restarts the connector for
-   exactly this reason — run it and confirm it comes back healthy (`tunnel ready`, 4 connections). The
-   manual fallback if ever needed: `ssh svc-ops@10.10.100.15 "docker restart cloudflared-cloudflared-1"`.
-2. **Create the public DNS CNAME (T2, tofu).** From the merged ingress revision, save and show the
-   exact derived plan; Ali approves it before the guarded executor applies that file:
-   ```
-   eval "$(scripts/tofu-env.sh)"
-   tofu -chdir=tofu plan -out=/tmp/public-<svc>.tfplan
-   tofu -chdir=tofu show -no-color /tmp/public-<svc>.tfplan  # expect only the derived CNAME
-   TOFU_APPLY_SCOPE=cloudflare-dns scripts/tofu-apply.sh /tmp/public-<svc>.tfplan  # only after explicit approval
-   ```
-   (This is the *public* record on Cloudflare's authoritative DNS — separate from Technitium's internal
-   split-DNS, which keeps steering internal clients straight to the Caddy. Break-glass without tofu:
-   `scripts/cf-dns-route.sh <svc>.aliammar.net` — idempotent, refuses hosts outside `aliammar.net`.)
-
-**Verify from OUTSIDE.** The internal path won't exercise the tunnel (internal clients resolve via
-Technitium straight to Caddy, never through Cloudflare). Test from a genuinely external vantage — a
-phone on mobile data, or by resolving the public CNAME through a public resolver and then hitting the
-**Cloudflare edge IP it returns**. This is two steps on purpose: `--resolve …:1.1.1.1` would connect
-to the *resolver* service on `1.1.1.1:443`, not the CDN edge that fronts the tunnel, so it doesn't
-actually test the public path:
-```
-edge=$(dig +short <svc>.aliammar.net @1.1.1.1 | grep -E '^[0-9]' | head -1)   # a Cloudflare edge IP (104.x / 172.67.x)
-curl -sSI --resolve <svc>.aliammar.net:443:"$edge" https://<svc>.aliammar.net
-```
-Expect a real status + valid public cert (`ssl_verify_result=0`), served from that edge IP. In a
-browser from off-network: the app loads (and, for a Path-B host, is bounced to Authentik first).
-**Confirm the internal path is unchanged** — on-network, Technitium (`10.10.70.50`) still resolves
-`<svc>.aliammar.net` to `10.10.100.35`, never a Cloudflare edge:
-```
-dig +short <svc>.aliammar.net @10.10.70.50    # expect 10.10.100.35
-```
-
-### Publishing a *forward-auth* (Path B) app — the extra half
-
-A forward-auth app **can't go public alone**: an unauthenticated request is 302'd to
-`auth.aliammar.net` to log in, so the **Authentik login host must be public too** or the redirect
-dead-ends off-network. So publish **both** hostnames (each = one ingress line + one CNAME): the app
-*and* `auth.aliammar.net`. This is a **one-time** step — once `auth.aliammar.net` is public, every
-future forward-auth app is just its own ingress line + CNAME.
-
-Exposing the IdP means **locking its admin surface to internal-only**. In the `auth.aliammar.net`
-Caddy vhost, refuse the admin UI when the request arrives over the tunnel — cloudflared connects to
-Caddy from `10.10.100.33`, so `remote_ip 10.10.100.33` means "came in publicly":
-```
-auth.aliammar.net {
-    @tunnel_admin {
-        remote_ip 10.10.100.33      # arrived via the public tunnel
-        path /if/admin/*
-    }
-    respond @tunnel_admin 404
-    reverse_proxy 10.10.80.37:9000
-}
-```
-**Do not** block `/api/v3/*` or `/if/flow/*` — the login **flow executor** lives under them, so
-blocking them breaks logins. Verify the split: `/if/admin/` is `404` over the tunnel but `200` from an
-internal client; the public login page + `/if/flow/…` serve `200`. And ensure the Authentik account
-that page now exposes uses **MFA / a passkey** (the login is internet-reachable).
-
-**Rollback:** revert the `ingress` line by PR and restart the connector. The resulting tofu plan is a
-delete, which `scripts/tofu-apply.sh` refuses; do not route it through the wrapper. Remove the public
-CNAME as an explicit hard checkpoint with `scripts/cf-dns-route.sh --delete <svc>.aliammar.net`, then
-run a read-only `tofu plan` to confirm the refreshed state, source, and Cloudflare all agree. Public
-exposure is additive and per-host — removing it takes nothing away from the internal door.
-
----
-
-## Notes
-
-- **Certs persist** across restarts (bind-mounted `/opt/docker/appdata/caddy-apps/data`) — Caddy does
-  not re-issue on redeploy, so Let's Encrypt rate limits are not a concern for routine route changes.
-- **One role tag** (`proxy`, red) and **one healthcheck** (Caddy admin API on `:2019`) already ship in
-  `compose/caddy-apps/compose.yaml`; a new *site* changes only the Caddyfile, never the compose.
-- **The apps Caddy is T2, the Management Caddy is T3** and out of scope — never publish sensitive infra
-  (`opnsense`, `technitium`, `arcane`, `pbs`, …) through this door.
-
-### When the upstream *self-protects* (check the origin, not just the route)
-
-A site block only moves bytes — it doesn't change how the origin treats the proxy. Two failure
-shapes show up here, both fixed on the **service**, not the Caddyfile:
-
-- **The origin allow-lists source IPs.** If it only trusts certain clients, it will `403` the proxy
-  (which connects from `10.10.100.35`). Fix it *in the service's own config, in git* — e.g.
-  **SillyTavern** refuses to run with no gate at all (it crash-loops on `whitelistMode=false`), so its
-  gate is a whitelist: `SILLYTAVERN_WHITELIST=["::1","127.0.0.1","10.10.0.0/16"]` in
-  `compose/silly/.env.git` allows the proxy + its `X-Forwarded-For` clients. Prefer an env/`.env.git`
-  knob over hand-editing appdata so the gate is reproducible.
-- **The origin does app-level OIDC to `auth.aliammar.net`.** That vhost must exist in this Caddyfile
-  (→ Authentik `10.10.80.37:9000`) or the login redirect 404s — it already does, and because it's a
-  vhost it gets its own derived `A` record like any other (no wildcard dependency).
-
-### Own-auth vs "no gate at all"
-
-"Own-auth" means the origin has a **real login**; Obsidian/CouchDB is the proved public-path reference.
-A service with *no* login uses the already-proven Path B forward-auth pattern before public exposure;
-calibre is that live reference. A plain no-auth route remains a deliberate internal-only choice.
+- The selected leaf's PR, saved-plan approval where applicable, and post-deploy probe are the publish evidence.

@@ -1,78 +1,43 @@
 ---
-summary: "Catalog of engine-neutral procedures any agent can execute, each tagged by tier and trigger — the routing menu."
+summary: "Catalog of task-shaped, engine-neutral operational procedures. Rendered from runbook frontmatter."
 ---
 
 # runbooks — procedures any agent can execute
 
-A **runbook** is a plain-markdown procedure. Nothing auto-loads them; an agent reads one
-when a task (or a `SKY-###` directive's ▶ Execute prompt) calls for it. That keeps them free
-at startup and — because they're just markdown + bash — readable by **every** engine
-(Codex CLI, Claude Code, Goose, Amp…). This is deliberate: Skynet is agent-agnostic by
-contract (see [`../AGENTS.md`](../AGENTS.md)), so procedures live here as prose, **not** as any
-one vendor's skill/command format.
+A runbook is engine-neutral markdown plus plain bash. Read the leaf whose trigger matches the task; do not load unrelated procedures.
 
-**This file is that catalog** — the menu so a runbook is never invisible. Each runbook opens
-with its own **Tier** and (where relevant) **Trigger** line; the summaries below mirror them.
+## Catalog
 
-## Diagnosis (imperative — "diagnose imperatively, fix declaratively")
+| Runbook | Tier | Trigger | Summary |
+|---|---|---|---|
+| [`backup.md`](backup.md) | T2+ root grant | How do backups work / run a backup | How restic + PBS backups run, and how to trigger one on demand. |
+| [`construction-delegation.md`](construction-delegation.md) | T1 build-time only | Do a substantial construction task / build X / implement or change X | Run substantial construction as a lead — proactively find BIV chunks, route bounded helpers, verify, integrate, and PR — without gaining any production authority. |
+| [`deploy-service.md`](deploy-service.md) | T2 PR-gated | Deploy or update a service | Deploy or update a service through the Arcane GitOps loop: edit compose then PR then Arcane reconciles. |
+| [`diagnose/arcane-stuck.md`](diagnose/arcane-stuck.md) | T1/T2 | A merged compose PR didn't deploy / Arcane isn't reconciling / git and running have drifted | Triage a merged compose PR that didn't deploy — check the Arcane Git Sync status/error, compare git vs running, distinguish sync-fail vs apply-fail vs drift. |
+| [`diagnose/backup-missed.md`](diagnose/backup-missed.md) | T1/T2 | An expected backup/snapshot is missing / a restic or PBS timer failed | Triage a missed backup — check the timer, the last snapshot age, and repo reachability across restic→gdrive and PBS→gdrive, fix the timer/creds/repo declaratively. |
+| [`diagnose/cert-expired.md`](diagnose/cert-expired.md) | T1 | Cert warning / TLS handshake fails / 'certificate expired' / ACME renewal failing | Triage an expired/failing TLS cert — read the served cert's dates, find why ACME isn't renewing (HTTP-01 vs DNS-01, rate limit, clock), fix in Caddy config. |
+| [`diagnose/container-crashloop.md`](diagnose/container-crashloop.md) | T1 | A container is Restarting / unhealthy / keeps exiting | Triage a container that restarts, is unhealthy, or exits — read exit code + logs + healthcheck, branch to the cause, fix in compose/. |
+| [`diagnose/disk-full.md`](diagnose/disk-full.md) | T1/T2+ | Disk full / write failures / df at 100% (or inodes exhausted with space free) | Triage a full disk (or exhausted inodes) — find what ate the space, distinguish data vs logs vs docker cruft, fix the cause declaratively. |
+| [`diagnose/dns-failure.md`](diagnose/dns-failure.md) | T1/T2 | A name won't resolve / service unreachable by hostname / ACME DNS-01 failing | Triage DNS failures — split internal (Technitium) vs public (Cloudflare), read NXDOMAIN/SERVFAIL, fix the record through the sanctioned T2 path. |
+| [`dr/DR-core-node.md`](dr/DR-core-node.md) | T2+ | Core node is dead | Recover when server-proxmox-core (with PBS aboard) is dead. |
+| [`dr/DR-network-node.md`](dr/DR-network-node.md) | T3 | Network node or OPNsense is dead | Recover when server-proxmox-network is dead — OPNsense and routing gone. |
+| [`dr/pci-passthrough.md`](dr/pci-passthrough.md) | T3 | NIC passthrough for OPNsense | Re-establish NIC passthrough for VM 5001 (OPNsense) after a rebuild. |
+| [`dr/survival-kit.md`](dr/survival-kit.md) | T3 | Prepare or verify the off-site survival kit | What lives on paper and in the password manager, outside Skynet, to bootstrap recovery. |
+| [`nightly.md`](nightly.md) | T1 read + generated-only PR | Run the nightly / nightly timer | The report-only nightly maintenance run on both engine paths, and what it refreshes. |
+| [`provision-lxc.md`](provision-lxc.md) | Supervised T2 saved-plan create | Set up / deploy a new LXC for X | Provision a NixOS core-managed LXC from merged source and an explicitly approved saved plan; creates are supervised T2 without automatic rollback. |
+| [`provision-vm.md`](provision-vm.md) | Supervised T2 saved-plan create + T2+ root grant | Set up a VM for X, hardened, with restic | Provision a VM from merged source and an explicitly approved saved plan; creates are supervised T2 without automatic rollback. |
+| [`publish-service.md`](publish-service.md) | T2 PR-gated | Publish or expose a service | Choose the runbook for publishing a service through apps Caddy, Authentik, or the Cloudflare Tunnel. |
+| [`publish/forward-auth.md`](publish/forward-auth.md) | T2 PR-gated | Put a no-login service behind Authentik | Publish a service with no native login behind Authentik forward-auth on apps Caddy. |
+| [`publish/internal-route.md`](publish/internal-route.md) | T2 PR-gated | Give an authenticated service an internal aliammar.net URL | Publish an own-auth service on the internal apps Caddy front door. |
+| [`publish/public-tunnel.md`](publish/public-tunnel.md) | T2 PR-gated | Expose an internally published service to the public internet | Add Cloudflare Tunnel and public DNS exposure to an already-working internal route. |
+| [`recon.md`](recon.md) | T1 read-only | Figure out why X is broken / what's going on with <host> | Start-here triage: take one T1 read-only host snapshot with scripts/recon.sh, reason over it, then branch to a diagnosis runbook. |
+| [`restore-service.md`](restore-service.md) | T2; PBS token for VM restore | Restore a service / recover from backup | Restore a service or VM from restic/PBS — conversational and deterministic, executable verbatim. |
+| [`update-guests.md`](update-guests.md) | T2 snapshot + T2+ fleet root grant | Update all guests | Snapshot then update every guest under a fleet root grant. |
 
-| Runbook | Tier | What it does |
-|---|---|---|
-| [`recon.md`](recon.md) | T1 read-only | **Start here.** One `scripts/recon.sh <host>` snapshot — units, disk/inodes, ports, containers, recent warnings + changes — with **no grant to observe**, then branch to a diagnosis runbook. Trigger: *"figure out why X is broken."* |
-| [`diagnose/container-crashloop.md`](diagnose/container-crashloop.md) | T1 diagnose · fix = compose PR | A container `Restarting`/`unhealthy`/exiting — exit code + logs + healthcheck + env layering → the cause → a `compose/` fix. |
-| [`diagnose/disk-full.md`](diagnose/disk-full.md) | T1 diagnose · fix = config/grant | Full FS **or** exhausted inodes — find what ate it (data vs logs vs docker cruft) → rotation/log-limit/resize, declaratively. |
-| [`diagnose/dns-failure.md`](diagnose/dns-failure.md) | T1 read · fix = T2 record | A name won't resolve — split internal (Technitium) vs public (Cloudflare), read NXDOMAIN/SERVFAIL → fix declaratively (tofu for internal `aliammar.net`; Cloudflare token for public). |
-| [`diagnose/cert-expired.md`](diagnose/cert-expired.md) | T1 inspect · fix = Caddy PR | Expired/failing TLS — read the served cert, find why ACME isn't renewing (HTTP-01/DNS-01/rate-limit/clock) → Caddy-config fix. |
-| [`diagnose/backup-missed.md`](diagnose/backup-missed.md) | T1 read (grant for repo) | A missing snapshot / failed timer — timer + last-snapshot age + repo reachability (restic→gdrive, PBS) → timer/creds fix. |
-| [`diagnose/arcane-stuck.md`](diagnose/arcane-stuck.md) | T1/T2 · fix = compose PR | A merged compose PR that didn't deploy — Git Sync status + git-vs-running → sync-fail / apply-fail / drift → reconcile in git. |
+## Runbook contract
 
-## Routine operations
+- Use compact frontmatter: `summary`, `trigger` where natural, `tier`, `executor`, and `rollback`.
+- Structure every leaf as **Preconditions → Steps → Verify → Rollback → Evidence**.
+- Keep procedures current and task-shaped; doctrine belongs in its authoritative design/convention document, history in `journal/`.
 
-| Runbook | Tier | What it does |
-|---|---|---|
-| [`deploy-service.md`](deploy-service.md) | T2 (PR-gated) | Add or update a service the skynet way — Arcane GitOps, pinned digests, `.env.sops` secrets, healthcheck + role tag. Includes the one-time legacy→GitOps cutover. |
-| [`publish-service.md`](publish-service.md) | T2 (PR-gated) | Give a service a real URL through apps Caddy: plain reverse proxy for own-auth services or the proven Authentik forward-auth path for no-login services; optional public tunnel. |
-| [`nightly.md`](nightly.md) | T1 read + PR | The `skynet-nightly.timer` maintenance pass: refresh inventory → envsync → render docs → (agent) narrative + grant audit → open a PR. Report-only until actions are promoted. Documents the engine order + deterministic fallback. |
-| [`update-guests.md`](update-guests.md) | T2 snapshot + T2+ fleet root grant | Update all guests. Trigger: *"Update all guests."* |
-
-## Provisioning
-
-| Runbook | Tier | What it does |
-|---|---|---|
-| [`provision-vm.md`](provision-vm.md) | supervised T2 saved-plan create + T2+ root grant | Provision a new VM after source merge and exact-plan approval; creates have no automatic rollback and stay below A4. |
-| [`provision-lxc.md`](provision-lxc.md) | supervised T2 saved-plan create (API-only) + deploy-rs | Provision a NixOS pool LXC from one data entry; a partial create needs operator recovery and is never auto-destroyed. |
-
-## Build & collaboration
-
-| Runbook | Tier | What it does |
-|---|---|---|
-| [`construction-delegation.md`](construction-delegation.md) | T1 build-time | Run a lead+bounded-helper construction job: BIV-gate each hand-off, route roles, independently verify results, and integrate a PR. |
-
-## Backup & restore
-
-| Runbook | Tier | What it does |
-|---|---|---|
-| [`backup.md`](backup.md) | T2+ (root grant) | How restic/PBS backups run, and how to trigger one on demand. See [`../docs/backup-strategy.md`](../docs/backup-strategy.md) for the *why*. |
-| [`restore-service.md`](restore-service.md) | T2 (+ PBS token for a VM restore) | Conversational, deterministic recovery of a service's data — or a whole guest. Written so any agent runs it verbatim. |
-
-## Disaster recovery (`dr/`)
-
-These assume the lab is gone and the DR agent starts from a laptop + phone hotspot and this repo.
-
-| Runbook | Tier | What it does |
-|---|---|---|
-| [`dr/DR-network-node.md`](dr/DR-network-node.md) | DR | Rebuild `server-proxmox-network` — OPNsense + routing — needing nothing from the dead lab. |
-| [`dr/DR-core-node.md`](dr/DR-core-node.md) | DR | Rebuild `server-proxmox-core` when it dies carrying PBS; recover via the L5 off-site copy on Google Drive. |
-| [`dr/survival-kit.md`](dr/survival-kit.md) | reference | The paper + password-manager kit stored **outside** Skynet (keys, IDs, one printed page). Without it, encrypted history is confetti. Verified quarterly. |
-
-## Adding or changing a runbook
-
-- Keep it **engine-neutral**: markdown prose + plain bash, no vendor-specific invocation.
-- Open with a **Tier** line (and **Trigger** where there's a natural phrase), matching §1 of `AGENTS.md`.
-- Add a row here in the same PR — an uncatalogued runbook is an invisible one.
-- **Don't hardcode unverified specifics.** A host IP, hostname, or container name goes in as a clear
-  `<placeholder>`, or cites the generated host map (`docs/generated/`) — never a value typed from
-  memory.
-- **Author a `summary:`** (and a `trigger:` where there's a natural spoken cue) in the frontmatter —
-  the context map builds its row from these and computes the `~tokens` cost itself at render time.
-- Anything touching **T2+/T3** or a blast-radius boundary must also PR `docs/system-design.md`.
+_A cache — regenerate with `scripts/render-runbook-catalog.sh`; never hand-edit._

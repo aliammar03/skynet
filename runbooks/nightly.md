@@ -1,6 +1,9 @@
 ---
 summary: "The report-only nightly maintenance run on both engine paths, and what it refreshes."
 trigger: "Run the nightly / nightly timer"
+tier: "T1 read + generated-only PR"
+executor: "bin/ops nightly"
+rollback: "git revert generated nightly PR"
 ---
 
 # Runbook — nightly maintenance (report-only)
@@ -9,7 +12,13 @@ trigger: "Run the nightly / nightly timer"
 **Tier:** T1 read + PR. **Mode:** report-only until actions are promoted to the AGENTS.md
 auto-approve list.
 
-## How it runs
+## Preconditions
+
+- Keep the configured engine and fallback in the timer environment; the job remains report-only outside the versioned auto-approve list.
+
+## Steps
+
+### Choose an execution path
 
 `bin/ops nightly` prefers the **LLM engine**, and **falls back to a deterministic script** if
 the engine can't run (missing/unauthed/errors) — so the nightly always produces a report.
@@ -29,7 +38,7 @@ the engine can't run (missing/unauthed/errors) — so the nightly always produce
   the same inventory refresh + render (incl. the agent digest `06-agent-digest.md`) + PR + a raw (LLM-free)
   journal entry, minus the LLM-authored **narrative prose** and grant audit.
 
-## Steps (both paths)
+### Run the shared maintenance sequence
 
 1. **Refresh inventory** — `bin/ops collect` (every collector idempotent, read-only; no creds
    yet = exits 0 without writing).
@@ -56,6 +65,18 @@ the engine can't run (missing/unauthed/errors) — so the nightly always produce
    hand.** The merge is decided afterward by the deterministic gate `scripts/nightly-automerge.sh`
    (both paths call it): generated-only diff **and** green CI → squash-merge; anything else → left
    open for a human (merge-gate carve-out, [ADR 0004](../docs/decisions/0004-auto-merge-generated-only-nightly-prs.md); off-switch `OPS_NIGHTLY_AUTOMERGE=0`).
+
+## Verify
+
+- Confirm the PR contains only the expected generated/encrypted paths, the deterministic merge gate reports its decision, and anomalies are visible in the report.
+
+## Rollback
+
+- Revert an incorrect generated-only nightly PR. Do not use the nightly to repair an anomaly; route a fix through its normal declarative PR.
+
+## Evidence
+
+- The raw journal entry, generated inventory/docs, grant audit when available, and nightly PR are the run evidence.
 
 ## Guardrails
 

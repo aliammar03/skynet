@@ -1,19 +1,25 @@
 ---
 summary: "Provision a VM from merged source and an explicitly approved saved plan; creates are supervised T2 without automatic rollback."
 trigger: "Set up a VM for X, hardened, with restic"
+tier: "Supervised T2 saved-plan create + T2+ root grant"
+executor: "OpenTofu saved-plan wrapper, onboard-host.sh, and provision-restic.sh"
+rollback: "No automatic rollback for a new VM; operator recovery on partial create"
 ---
 
 # Runbook — provision a hardened guest (declarative, via OpenTofu)
 
 **Tier:** T2 saved-plan clone/apply + T2+ root grant for hardening. **Trigger:** *"Set up a VM for X, hardened, with restic."*
 
-> **Tofu makes the box exist; [SKY-007](../planning/archive/) Nix/cloud-init defines what's on it.**
-> Provisioning is declarative now (SKY-008) — a guest is a `proxmox_virtual_environment_*` resource
+> **Tofu makes the box exist; cloud-init defines its first boot.** A guest is a `proxmox_virtual_environment_*` resource
 > with a real `plan`-before-apply diff, not a hand-run clone. The imperative path is retired.
 
 > [!warning] **Create is supervised, not automatically reversible.** A new VMID has no pre-change
 > snapshot. `scripts/tofu-apply.sh` applies the exact approved plan but never auto-destroys a partial
 > create. Inspect failures and request separate approval before any cleanup; this path stays below A4.
+
+## Preconditions
+
+- Agree name, VMID/IP, resources, purpose, hardening scope, backups, and partial-create recovery. The merged source and exact saved plan need explicit approval.
 
 ## Steps
 
@@ -58,8 +64,20 @@ trigger: "Set up a VM for X, hardened, with restic"
      Idempotent (never regenerates the password / re-inits an existing repo). Afterwards save the repo
      password to the survival kit: `ssh root@<ip> cat /opt/skynet-ops/secrets/restic-<newhost>.pass`.
    - guest-firewall notes.
-7. **Land evidence** in a follow-up PR: refreshed inventory/docs and any hardening definitions.
+7. Land refreshed inventory/docs and any hardening definitions in a follow-up PR.
    **Internal DNS:** an apps-Caddy service's
    record derives from the Caddyfile automatically (see [`publish-service.md`](publish-service.md)); a
-   standalone host record is its own tofu-managed `technitium_record`. Ali merges. The cert expires on
-   its own — no de-provisioning step.
+   standalone host record is its own tofu-managed `technitium_record`. The cert expires on its own —
+   no de-provisioning step.
+
+## Verify
+
+- Confirm the VM is running through the read API, onboarding/hardening completed inside the grant window, backups are configured, and the intended service/DNS path works.
+
+## Rollback
+
+- A new VM has no pre-change snapshot. On a partial-create or verification failure, stop for operator recovery; do not auto-destroy. Later definition changes roll back by human-merged `git revert`.
+
+## Evidence
+
+- Preserve the saved plan and approval record; land the provisioning/hardening definitions plus refreshed inventory/docs in the follow-up PR.
