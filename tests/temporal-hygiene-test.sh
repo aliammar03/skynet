@@ -21,12 +21,12 @@ while IFS= read -r file; do current_files+=("${file}"); done < <(
 )
 
 numeric_violations() {
-  rg -n 'SKY-[0-9]{3}' "$@" 2>/dev/null \
+  grep -nE 'SKY-[0-9]{3}' "$@" \
     | grep -vE '^bin/plan:[0-9]+:.*SKY-000' || true
 }
 
 narrative_violations() {
-  rg -n -i 'used to|previously|formerly|retired|replaced|introduced by|validated during|SKY-[0-9]{3}[[:space:]]+P[0-9]+' "$@" 2>/dev/null || true
+  grep -nEi 'used to|previously|formerly|retired|replaced|introduced by|validated during|SKY-[0-9]{3}[[:space:]]+P[0-9]+' "$@" || true
 }
 
 echo "== current-authority temporal hygiene =="
