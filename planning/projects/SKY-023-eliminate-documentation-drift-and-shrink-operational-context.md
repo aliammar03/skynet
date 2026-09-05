@@ -251,3 +251,10 @@ criteria, then perform Phase close-out.
   the existing publish split, one deterministic nightly sequence, and Obsidian artifact hygiene.
   Phase 4 owns ongoing regression enforcement. This is a planning update only; implementation
   and phase completion are not claimed, and the existing trust/merge boundaries are unchanged.
+
+- 2026-09-05 — Phase 3 merge-gate checkpoint prepared on
+  `fix/sky-023-p3-nightly-merge-gate`: exact nightly-PR identity, non-empty file retrieval,
+  explicit CI readback, and `--match-head-commit` validation all fail closed. Mocked regression
+  tests cover retrieval, identity, checks, and head-change failures. This fix needs human review
+  and merge before the Phase 3 documentation/editor-cleanup batch begins. Evidence:
+  `journal/2026/2026-09-05-session-sky-023-p3-merge-gate-checkpoint.md`.
