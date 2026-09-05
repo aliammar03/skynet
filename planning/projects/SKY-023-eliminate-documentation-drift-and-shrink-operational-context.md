@@ -6,7 +6,7 @@ horizon: short
 created: 2026-09-04
 updated: 2026-09-06
 phases: 9
-current_phase: 8
+current_phase: 9
 tier_touched: [T1]
 related:
   - AGENTS.md
@@ -235,7 +235,7 @@ silently deleting it.
 - every dead helper is removed with its callers/tests/docs in the same PR;
 - no live infrastructure is changed by this phase.
 
-### Phase 8 — make temporal crud fail locally and in CI  (~1–2h)  `[ ]`
+### Phase 8 — make temporal crud fail locally and in CI  (~1–2h)  `[x]` complete 2026-09-06
 
 Turn the policy into deterministic guardrails.
 

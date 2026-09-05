@@ -16,6 +16,9 @@ rollback: "<how to back out>"
 >
 > **Before you finish: add this runbook to [`README.md`](README.md)** (with its Tier + Trigger).
 > An uncatalogued runbook is invisible.
+>
+> Write only the current procedure and its load-bearing rationale. Put completed directive IDs,
+> migration chronology, and replacement stories in journal/history/ADRs.
 
 ## Preconditions
 

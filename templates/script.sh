@@ -3,6 +3,8 @@
 # TIER: T1|T2|T2+|T3 — the blast radius; the reader must know it before running.
 # USAGE: scripts/__NAME__.sh <args>
 #   <if it reads creds: from /opt/skynet-ops/secrets/<name>.env — reference by var, never echo a value>
+# Keep the finished header current-state only; history, completed directive IDs, migration chronology,
+# and replacement stories belong in journal/history/ADRs.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

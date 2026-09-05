@@ -28,6 +28,9 @@ Tags: **[testable]** = a lint gate could assert it; **[manual]** = holds by revi
   contract; if it would write, it isn't a collector.
 - **Never echo a secret** `[manual]` — no secret value to stdout, logs, or transcripts. Read creds
   from `/opt/skynet-ops/secrets/<name>.env` and reference by var, never by literal.
+- **Keep comments current-state only** `[manual]` — explain present behavior, constraints, and
+  failure modes. Completed directive IDs, migration stories, and replacement narratives belong in
+  journal/history/ADRs, not executable artifacts.
 
 ## TLS to internal APIs — pin, never `-k`
 
