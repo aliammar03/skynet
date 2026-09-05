@@ -1,5 +1,5 @@
 {
-  "_comment": "AUTHORED desired-truth registry of the machine-checkable hard laws (SKY-011). This is the constraint layer of ADR 0003's ambiguity ladder: authored data a DETERMINISTIC gate reads (scripts/check-invariants.sh, Phase 3) — NOT generated, and distinct from inventory/ (observed truth) and docs/generated/ (machine-owned). Rigor comes from the gate consuming this file, not from the JSON itself: an LLM reads it with the same latitude as prose. Each entry carries a one-line 'why' so the load-bearing rationale rides WITH the constraint. Editing ops_managed_pools moves the blast-radius dial and is a docs/system-design.md PR (§2b). Doctrine: docs/decisions/0003-ambiguity-layering-and-format-follows-enforcement.md.",
+  "_comment": "Authored desired-truth registry for scripts/check-invariants.sh. It is distinct from collected inventory and generated docs. Each entry carries the current rationale required to operate the constraint. Changing ops_managed_pools moves the blast-radius dial and requires a docs/system-design.md PR (§2b). Doctrine: docs/decisions/0003-ambiguity-layering-and-format-follows-enforcement.md.",
 
   "excluded_guests": {
     "why": "These guests are permanently unpooled. Pool membership is the enforced line: joining any to an ops-managed pool hands the agent full T2 write, so the gate fails any PR where one appears as a member. Envelope reach depends on the node (see operate_token_scope): on NETWORK the token remains pool-scoped, so opnsense 5001, caddy-mgmt 635, and authentik 837 are unreachable and never stopped/reconfigured by the agent. On CORE the root-/ operate ACL makes Unraid 2020 envelope-reachable for config/power, but policy keeps it unpooled and never-destroyed while guest-OS root stays T3 (t3_targets). See docs/system-design.md §2b/§3 and docs/design/access-and-trust.md.",
@@ -12,7 +12,7 @@
   },
 
   "construction": {
-    "why": "SKY-022 P2: format-follows-enforcement (ADR 0003 / SKY-011) for the construction doctrine's [testable] claims (docs/conventions/construction.md). The lead+helper trust boundary is only real if two mechanical facts hold in .codex/: the two-helper cap ('At most two active helpers' [testable]) and each helper's declared sandbox — the scout's read-only no-write contract is 'mechanical, not a promise' [testable]. A construction helper must NEVER get danger-full-access; its sandbox is its entire build-time leash (construction never gains production authority). The gate consumes this section so the doctrine has a CHECKER, not just prose. Changing these values is a docs/conventions/construction.md + this-file PR.",
+    "why": "Construction doctrine (docs/conventions/construction.md) requires a two-helper cap and declared helper sandboxes. The scout's no-write contract is mechanical, and a construction helper never receives danger-full-access. This section lets the invariant gate verify those constraints. Changing these values requires a docs/conventions/construction.md and invariants.json PR.",
     "max_concurrent_threads_per_session": 2,
     "agents": [
       { "role": "scout",    "sandbox_mode": "read-only",       "why": "read-only by contract — the no-write guarantee is mechanical, not a promise." },
@@ -23,7 +23,7 @@
   },
 
   "entity_conventions": {
-    "why": "SKY-018 L0: the VMID<->IP law (ADR 0001 / docs/conventions/naming.md) and its DECLARED exceptions. LAW: a guest's VMID = VLAN + 2-digit last octet — VMID/100 matches a declared VLAN either canonically (10015 = VLAN 100) or with the trailing zero dropped (240 = VLAN 20), and the octet is the last two digits — so a guest's address derives from its VMID and self-validates. GATE (check-invariants.sh, 4th law): every RUNNING entity is either mapped (a guest's derived IP is a firewall/DNS host fact; a service has a compose/<project>/ dir) OR a declared exception. Exceptions are drawn from TWO places, so there is one source of truth per kind: the T3 excluded_guests below (never-poolable infra — opnsense/caddy-mgmt/authentik/unraid), and the `exceptions` list here (running guests intentionally off the entity map: off-convention VMIDs or standby/not-serving hosts). Empty today — the lab is clean. Changing declared_vlans is a docs/conventions/naming.md change.",
+    "why": "The VMID/IP law (ADR 0001 and docs/conventions/naming.md) derives a guest address from its VLAN and last two VMID digits. The invariant gate requires every running entity to be mapped or declared here. T3 guests are listed separately in excluded_guests; this list is for intentionally unmapped running guests. Changing declared_vlans requires a docs/conventions/naming.md change.",
     "declared_vlans": [10, 20, 30, 50, 60, 70, 80, 90, 100],
     "exceptions": []
   },
@@ -37,11 +37,11 @@
   },
 
   "operate_token_scope": {
-    "why": "SKY-021: the operate token (svc-ops@pve!operate) gained a /vms-root grant on the CORE node (self-provisioning pool CTs — mint a new VMID without a human minting the shell). That confers VM ops WITHOUT pool membership, so the pool-membership gate above no longer captures the full core blast radius. This section is the checker for that widening. The gate (check-invariants.sh) reads each node's collected ACL (inventory/proxmox-<node>-acl.json, written by collect-proxmox-acl.sh — the token reading its OWN effective perms) and asserts: (1) NONE of forbidden_privileges appears at any path on EITHER node — these are the never-standing bright lines (Permissions.Modify = the agent rewriting its own leash; Sys.Modify/PowerMgmt/Console = Proxmox node root); (2) node-root VM allocation (VM.Allocate at / or /vms) appears ONLY on nodes listed in vms_root_nodes. Widening either — a bright-line priv anywhere, or a /vms grant on a new node — is a docs/system-design.md PR (constitution §2), never a silent pveum. Excluded guests on a vms_root node (Unraid 2020 on core) are reachable at the VM envelope by this grant but keep guest-OS-root T3 (t3_targets) and stay unpooled (excluded_guests). SKY-024: OpenTofu now runs as THIS token (the svc-tofu split retired — one operator token per node), so this gate audits the declarative path too. The network node deliberately stays OFF vms_root_nodes: OPNsense (VM 5001, the firewall enforcing the agent's own leash) lives there, so /vms-root envelope-destroy over it would be a self-leash bypass — the same law as forbidden Permissions.Modify, machine-checked here.",
+    "why": "The operate token may allocate VM envelopes at /vms on the declared core node, so pool membership alone does not describe its reach. The gate reads each node's collected ACL and rejects forbidden privileges everywhere; node-root VM allocation may appear only on vms_root_nodes. Widening either boundary requires a docs/system-design.md PR. Excluded guests remain unpooled, and the network node has no /vms allocation because it hosts OPNsense and enforces the agent's leash.",
     "token": "svc-ops@pve!operate",
     "forbidden_privileges": [ "Permissions.Modify", "Sys.Modify", "Sys.PowerMgmt", "Sys.Console" ],
     "vms_root_nodes": [
-      { "node": "server-proxmox-core", "why": "self-provisioning of pool CTs on core (SKY-021 P1). Network node stays pool-membership-scoped until a later PR earns it." }
+      { "node": "server-proxmox-core", "why": "Allocates managed pool guests. The network node remains pool-membership-scoped." }
     ]
   },
 
@@ -49,7 +49,7 @@
     "why": "The never-standing-credential list (constitution §2a / §3, AGENTS.md §6). No standing route or credential that can CHANGE any of these — reached only via a dormant alias + per-session credentials, revoked same day. OPNsense is the tiered exception (ADR 0006): read+diagnostics T1, firewall CONFIG T2 (PR-gated via OpenTofu), but the entries below stay never-standing. Documented here now as desired truth; future checks (e.g. asserting no standing WRITE token references these) build on it.",
     "targets": [
       { "name": "OPNsense node root / account / cert / reboot", "why": "OPNsense is tiered (ADR 0006): read+diagnostics T1, firewall config T2 (aliases/rules via OpenTofu, PR-gated). But node root, API-key/cert admin, and REBOOT/halt (a lab-wide outage — hard checkpoint at every tier) stay T3, never-standing. See ADR 0006 / docs/design/access-and-trust.md." },
-      { "name": "OPNsense self-leash rules", "why": "The §6 'never widen your own leash' invariant on the firewall: the agent may NEVER change the rules/aliases bounding its own reach (ROLE_OPS_*, ROLE_OPS_PRIV_TARGETS, the block-other-DNS rules, its own svc-skynet-recon/tofu accounts). Human-merged FOREVER, never on the autonomy ratchet, and machine-gated on the tofu plan (SKY-018 P7 conftest/Rego). Even at T2, this subset is T3." },
+      { "name": "OPNsense self-leash rules", "why": "The agent never changes rules or aliases bounding its own reach: ROLE_OPS_*, ROLE_OPS_PRIV_TARGETS, block-other-DNS, and its OPNsense accounts. This boundary remains human-merged and T3 even when other firewall config is T2." },
       { "name": "Management Caddy",      "why": "the privileged front door (VMID 635)." },
       { "name": "Authentik server admin","why": "flows, policies, users, system settings, outpost tokens, signing keys stay T3 (VMID 837)." },
       { "name": "Proxmox node root",     "why": "root on either hypervisor node is T3." },

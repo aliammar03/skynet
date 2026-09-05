@@ -54,16 +54,16 @@
       };
 
       # NixOS LXC build target. The tarball output below is the CT template.
-      nixosConfigurations.lxc-proof = nixpkgs.lib.nixosSystem {
+      nixosConfigurations.lxc-base = nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = { inherit inputs; };
-        modules = [ ./hosts/lxc-proof ];
+        modules = [ ./hosts/lxc-base ];
       };
 
-      # `nix build .#lxc-proof-tarball` → the .tar.xz to upload as a Proxmox CT template
+      # `nix build .#lxc-base-tarball` produces the Proxmox CT template tarball.
       # (local:vztmpl/). The proxmox-lxc module exposes it as system.build.tarball.
-      packages.${system}.lxc-proof-tarball =
-        self.nixosConfigurations.lxc-proof.config.system.build.tarball;
+      packages.${system}.lxc-base-tarball =
+        self.nixosConfigurations.lxc-base.config.system.build.tarball;
 
       # adguard-core (CT 731) is a NixOS LXC. Its AdGuard config is rendered from a sops template;
       # deploy-rs supplies day-two rollback and the host has a per-CT age key.
@@ -76,9 +76,8 @@
         ];
       };
 
-      # lxc-athena's INSIDE is owned by its own repo (aliammar03/athena, the `athena` input above) —
-      # Ali edits it in place on the box and rebuilds from ~/athena (ATH-000). Skynet keeps only the
-      # ENVELOPE: the tofu CT (tofu/pool-cts.tf) + the HOST_ATHENA firewall mapping. The break-glass
+      # lxc-athena's inside is owned by its own repo (aliammar03/athena, the `athena` input above).
+      # Skynet keeps only the envelope: the tofu CT (tofu/pool-cts.tf) and HOST_ATHENA firewall mapping. The break-glass
       # deploy node below tracks the pinned athena input; bump it with `nix flake lock --update-input
       # athena` (needs a GitHub token for the private repo — the ops account has read access).
 
@@ -90,20 +89,6 @@
           user = "root";
           sshUser = "svc-ops";
           path = deploy-rs.lib.${system}.activate.nixos self.nixosConfigurations.vm-skynet-ops;
-          magicRollback = true;
-          autoRollback = true;
-        };
-      };
-
-      # The LXC deploy node uses the same magic-rollback day-two model. sshUser=root here (the agent
-      # key is baked to root in lxc-base, not a separate svc-ops), so a
-      # config that kills SSH must self-heal within confirmTimeout instead of stranding the CT.
-      deploy.nodes.lxc-proof = {
-        hostname = "10.10.90.99";
-        profiles.system = {
-          user = "root";
-          sshUser = "root";
-          path = deploy-rs.lib.${system}.activate.nixos self.nixosConfigurations.lxc-proof;
           magicRollback = true;
           autoRollback = true;
         };

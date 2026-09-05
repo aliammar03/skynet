@@ -14,10 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # SKY-011: the machine-checkable hard laws in invariants.json hold against observed inventory
-      # + the tracked tree — excluded guests never pooled, the ops-managed pool set matches the
-      # declared dial, no plaintext secret patterns. A non-LLM gate (ADR 0003); fails the PR on any
-      # violation. Also runs in the pre-commit hook.
+      # Hard laws in invariants.json hold against observed inventory and the tracked tree: excluded
+      # guests stay unpooled, the managed-pool dial matches, and plaintext secret patterns fail.
       - name: check-invariants
         run: ./scripts/check-invariants.sh
 
@@ -26,16 +24,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # SKY-018 P1: the VMID->IP derivation and entity-ID grammar (scripts/entity.sh) have a checker,
-      # not just a writer. Unit-tests the convention against the known-good set. Deterministic, no
-      # network/secrets. (The `bin/ops entities` audit's running-unmapped exit is a report signal, not
-      # a PR gate yet — P2 promotes the "every running entity is mapped or excepted" law into
-      # check-invariants.sh once the stale/undeclared holes are triaged.)
+      # Unit-test VMID/IP derivation and entity-ID grammar against the known-good set. This is local,
+      # deterministic, and independent of credentials or network access.
       - name: entity-test
         run: bash tests/entity-test.sh
-      # SKY-018 review: the cold-boot digest must not resurface open threads about DESTROYED guests
-      # (the append-only journal + verbatim-copy nightly created a feedback loop). render-digest.sh
-      # suppresses them; this asserts it stays suppressed.
+      # The cold-boot digest includes explicit open threads and suppresses resolved history.
       - name: digest-test
         run: bash tests/digest-test.sh
       - name: dns-revert-test
@@ -52,9 +45,8 @@ jobs:
         run: bash tests/provisioning-truth-test.sh
       - name: collect-pbs-test
         run: bash tests/collect-pbs-test.sh
-      # SKY-022 P2: the construction doctrine's [testable] claims are machine-checked, not just prose
-      # — the ≤2-helper cap and each helper's declared .codex/ sandbox match invariants.json, and no
-      # helper may declare danger-full-access (construction never gains production authority).
+      # Construction limits and helper sandboxes match invariants.json; no helper receives production
+      # authority through a danger-full-access sandbox.
       - name: construction-test
         run: bash tests/construction-test.sh
       - name: agent-test
@@ -71,5 +63,7 @@ jobs:
         run: bash tests/documentation-drift-test.sh
       - name: temporal-hygiene-test
         run: bash tests/temporal-hygiene-test.sh
+      - name: repo-surface-test
+        run: bash tests/repo-surface-test.sh
       - name: hygiene-test
         run: bash tests/hygiene-test.sh

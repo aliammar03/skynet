@@ -4,12 +4,14 @@
 set -uo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${REPO_DIR}"
+source scripts/repo-surface.sh
 
 pass=0; fail=0
 ok()  { printf '  ✓ %s\n' "$1"; pass=$((pass + 1)); }
 bad() { printf '  ✗ %s\n' "$1" >&2; fail=$((fail + 1)); }
 
 TMP="$(mktemp -d)"; trap 'rm -rf "${TMP}"' EXIT
+mapfile -t current_files < <(repo_surface_files current)
 
 echo "== runbook contract and rendered catalog =="
 contract_ok=1
@@ -28,9 +30,7 @@ cmp -s "${TMP}/README.md" runbooks/README.md \
   || bad "runbooks/README.md diverges from its renderer"
 
 echo "== current-authority terminology =="
-surfaces=(AGENTS.md README.md docs runbooks tofu scripts nix)
-stale="$(rg -n 'planning/projects/SKY-008|svc-tofu|tofu-proxmox' "${surfaces[@]}" \
-  -g '!docs/generated/**' -g '!docs/history/**' 2>/dev/null || true)"
+stale="$(rg -n 'planning/projects/SKY-008|svc-tofu|tofu-proxmox' "${current_files[@]}" 2>/dev/null || true)"
 [ -z "${stale}" ] && ok "no retired directive path or tofu identity in current authority" \
   || bad "retired operational reference remains:\n${stale}"
 tokens="$(rg -n '^tokens:' docs runbooks 2>/dev/null || true)"
@@ -50,13 +50,14 @@ while IFS= read -r file; do
     case "${target}" in ''|http://*|https://*|mailto:*|\#*) continue ;; esac
     [ -e "$(dirname "${file}")/${target}" ] || { bad "${file} links to missing ${target}"; links_ok=0; }
   done < <(grep -oE '\]\(([^ )]+)' "${file}" | sed 's/^]('//)
-done < <(printf '%s\n' AGENTS.md README.md; find docs -type f -name '*.md' ! -path 'docs/generated/*' ! -path 'docs/history/*'; find runbooks -type f -name '*.md' | sort)
+done < <(printf '%s\n' "${current_files[@]}" | grep -E '\.md$' | sort)
 [ "${links_ok}" -eq 1 ] && ok "current-authority local links resolve"
 
 scripts_ok=1
 while IFS= read -r path; do
   [ -f "${path}" ] || { bad "current authority names missing ${path}"; scripts_ok=0; }
-done < <(for file in AGENTS.md README.md $(find docs runbooks -type f -name '*.md' ! -path 'docs/generated/*' ! -path 'docs/history/*'); do
+done < <(for file in "${current_files[@]}"; do
+  case "${file}" in templates/*) continue;; esac
   rg -o 'scripts/[A-Za-z0-9_.-]+\.sh' "${file}" || true
 done | sort -u)
 [ "${scripts_ok}" -eq 1 ] && ok "current-authority script references resolve"

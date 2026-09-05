@@ -1,43 +1,29 @@
 #!/usr/bin/env bash
-# hygiene.sh — report current-authority drift, review candidates, and context-budget change.
+# hygiene.sh — report current-authority drift, review candidates, and configured context budgets.
 # TIER: T1 — reads the local repository only; never uses the network or changes repository/live state.
-# USAGE: scripts/hygiene.sh [baseline-ref] (or HYGIENE_BASE_REF=<git-ref>); invoked by bin/ops hygiene.
+# USAGE: scripts/hygiene.sh [comparison-ref] (or HYGIENE_BASE_REF=<git-ref>); invoked by bin/ops hygiene.
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${REPO_DIR}"
+source scripts/repo-surface.sh
 
-BASE_REF="${1:-${HYGIENE_BASE_REF:-b6dea99}}"
+BASE_REF="${1:-${HYGIENE_BASE_REF:-}}"
 [ "$#" -le 1 ] || { echo "usage: bin/ops hygiene [baseline-ref]" >&2; exit 2; }
-
-surface_path() {
-  case "$1" in
-    AGENTS.md|README.md|CLAUDE.md|flake.nix|.sops.yaml|templates/runbook.md|templates/script.sh) return 0 ;;
-    docs/generated/*|docs/history/*|docs/decisions/*) return 1 ;;
-    docs/*.md|runbooks/*.md|scripts/*|bin/*|tofu/*.tf|nix/*.nix|hosts/*.nix|compose/*) ;;
-    *) return 1 ;;
-  esac
-  case "$1" in *.sops) return 1;; esac
-  return 0
-}
+MAX_ALWAYS_LOADED_TOKENS="${MAX_ALWAYS_LOADED_TOKENS:-6500}"
+MAX_CURRENT_AUTHORITY_TOKENS="${MAX_CURRENT_AUTHORITY_TOKENS:-170000}"
 
 always_loaded_path() {
   case "$1" in AGENTS.md|README.md|CLAUDE.md) return 0;; *) return 1;; esac
 }
 
 current_surface_files() {
-  {
-    for path in AGENTS.md README.md CLAUDE.md flake.nix .sops.yaml templates/runbook.md templates/script.sh; do
-      [ -f "${path}" ] && printf '%s\n' "${path}"
-    done
-    find docs runbooks scripts bin tofu nix hosts compose -type f
-  } | sort -u | while IFS= read -r path; do
-    surface_path "${path}" && printf '%s\n' "${path}"
-  done
+  repo_surface_files current
 }
 
 baseline_surface_files() {
   git ls-tree -r --name-only "${BASE_REF}" | while IFS= read -r path; do
-    surface_path "${path}" && printf '%s\n' "${path}"
+    git show "${BASE_REF}:${path}" 2>/dev/null | LC_ALL=C grep -Iq '' || continue
+    repo_surface_classify_path "${path}" | grep -qx current && printf '%s\n' "${path}"
   done
 }
 
@@ -88,6 +74,7 @@ orphan_candidates() {
 
 echo "== Skynet hygiene (T1, local-only) =="
 failures=0
+repo_surface_check || failures=$((failures + 1))
 report_gate "temporal-hygiene" tests/temporal-hygiene-test.sh || failures=$((failures + 1))
 report_gate "documentation-drift" tests/documentation-drift-test.sh || failures=$((failures + 1))
 
@@ -107,22 +94,27 @@ current_always_bytes="$(current_surface_files | while IFS= read -r path; do if a
 current_always_words="$(current_surface_files | while IFS= read -r path; do if always_loaded_path "${path}"; then printf '%s\n' "${path}"; fi; done | files_words)"
 current_bytes="$(current_surface_files | files_bytes)"
 current_words="$(current_surface_files | files_words)"
-if git rev-parse --verify --quiet "${BASE_REF}^{commit}" >/dev/null; then
+always_tokens="$((current_always_bytes / 4))"
+authority_tokens="$((current_bytes / 4))"
+printf '  configured limits: always-loaded <= %s tokens; current-authority <= %s tokens\n' "${MAX_ALWAYS_LOADED_TOKENS}" "${MAX_CURRENT_AUTHORITY_TOKENS}"
+printf '  always-loaded: %s words, %s bytes, approx. %s tokens\n' "${current_always_words}" "${current_always_bytes}" "${always_tokens}"
+printf '  current-authority: %s words, %s bytes, approx. %s tokens\n' "${current_words}" "${current_bytes}" "${authority_tokens}"
+[ "${always_tokens}" -le "${MAX_ALWAYS_LOADED_TOKENS}" ] || failures=$((failures + 1))
+[ "${authority_tokens}" -le "${MAX_CURRENT_AUTHORITY_TOKENS}" ] || failures=$((failures + 1))
+if [ -n "${BASE_REF}" ] && git rev-parse --verify --quiet "${BASE_REF}^{commit}" >/dev/null; then
   base_always_bytes="$(baseline_surface_files | while IFS= read -r path; do if always_loaded_path "${path}"; then printf '%s\n' "${path}"; fi; done | while IFS= read -r path; do git cat-file -s "${BASE_REF}:${path}"; done | awk '{sum += $1} END {print sum + 0}')"
   base_always_words="$(baseline_surface_files | while IFS= read -r path; do if always_loaded_path "${path}"; then printf '%s\n' "${path}"; fi; done | while IFS= read -r path; do git show "${BASE_REF}:${path}" | wc -w; done | awk '{sum += $1} END {print sum + 0}')"
   base_bytes="$(baseline_bytes)"
   base_words="$(baseline_words)"
-  echo "  baseline: ${BASE_REF}"
-  printf '  always-loaded: %s words (%s), %s bytes (%s), approx. %s tokens\n' \
+  echo "  comparison: ${BASE_REF}"
+  printf '  always-loaded delta: %s words, %s bytes\n' \
     "${current_always_words}" "$(delta "${base_always_words}" "${current_always_words}")" \
-    "${current_always_bytes}" "$(delta "${base_always_bytes}" "${current_always_bytes}")" "$((current_always_bytes / 4))"
-  printf '  current-authority: %s words (%s), %s bytes (%s), approx. %s tokens\n' \
+    "${current_always_bytes}" "$(delta "${base_always_bytes}" "${current_always_bytes}")"
+  printf '  current-authority delta: %s words, %s bytes\n' \
     "${current_words}" "$(delta "${base_words}" "${current_words}")" \
-    "${current_bytes}" "$(delta "${base_bytes}" "${current_bytes}")" "$((current_bytes / 4))"
-else
-  echo "  baseline: ${BASE_REF} unavailable locally; showing current totals only"
-  printf '  always-loaded: %s words, %s bytes, approx. %s tokens\n' "${current_always_words}" "${current_always_bytes}" "$((current_always_bytes / 4))"
-  printf '  current-authority: %s words, %s bytes, approx. %s tokens\n' "${current_words}" "${current_bytes}" "$((current_bytes / 4))"
+    "${current_bytes}" "$(delta "${base_bytes}" "${current_bytes}")"
+elif [ -n "${BASE_REF}" ]; then
+  echo "  comparison: ${BASE_REF} unavailable locally"
 fi
 
 echo
