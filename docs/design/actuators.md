@@ -4,8 +4,9 @@ summary: "The L7 actuators and their rollback executors: what each write can und
 
 # Spoke · Actuators & rollback executors
 
-> Every actuator that writes state carries a **rollback executor**: a dumb, agent-independent way to
-> undo the write. Governed by [`../system-design.md`](../system-design.md) and
+> This registry states which write actuators have a **rollback executor**: a dumb,
+> agent-independent way to undo the write. An actuator without one remains supervised and cannot
+> reach A4. Governed by [`../system-design.md`](../system-design.md) and
 > [ADR 0005 §3](../decisions/0005-full-agent-control-as-terminal-goal.md) (the reversibility test).
 > Sourced from SKY-018 P6 (L7). The complementary *reachability* half of deploy hardening is SKY-016.
 
@@ -28,10 +29,11 @@ that failed. Two consequences shape everything here:
 | Actuator | Write path | Rollback executor | Decision (deterministic) | Independent-of-agent | Tested in failure |
 |---|---|---|---|---|---|
 | **Compose deploy** | `gitops-deploy.sh --gate` (Arcane GitOps) | `gitops-rollback.sh` — `git revert` the deploy commit → push → Arcane reconciles | `deploy-gate.sh` — every project container Running, not Restarting, healthy-or-none within the window | ✅ git + Arcane's dumb reconciler | `tests/compose-rollback-test.sh` · 2026-09-03 |
-| **OpenTofu existing-guest update / non-guest write** | `tofu-apply.sh <saved-plan>` | snapshot-before-apply → `pve-snapshot.sh rollback` on failure | post-apply `tofu plan -detailed-exitcode` must be clean (+ optional verify hook) | ✅ Proxmox snapshot rollback (operate token) | `tests/tofu-rollback-test.sh` · 2026-09-03 |
+| **OpenTofu existing-guest update** | `tofu-apply.sh <saved-plan>` | snapshot-before-apply → `pve-snapshot.sh rollback` on failure | post-apply `tofu plan -detailed-exitcode` must be clean (+ optional verify hook) | ✅ Proxmox snapshot rollback (operate token) | `tests/tofu-rollback-test.sh` · 2026-09-03 |
+| OpenTofu non-guest create/update (including DNS) | `tofu-apply.sh <saved-plan>` (supervised only) | **none** — the wrapper has no non-guest snapshot/inverse | post-apply plan is checked, but a failure still needs operator recovery | ❌ | ❌ |
 | **DNS write** | `cf-dns-route.sh` (Cloudflare break-glass) | `dns-revert.sh undo` — replays the recorded **inverse** command | replay of a captured inverse (create⇒delete, update/delete⇒re-publish) | ✅ dumb replayer, re-runs a logged command | `tests/dns-revert-test.sh` · 2026-09-01 |
 | deploy-rs (host cfg) | `nixos-rebuild`/deploy-rs | deploy-rs **magic-rollback** (built-in) | activation health check → auto-revert | ✅ platform | pre-existing (ADR 0005 ✅) |
-| OPNsense config | (T2 via tofu, SKY-020) | OPNsense **validate-and-restore** (built-in) | config apply health → restore | ✅ platform | pre-existing (ADR 0005 ✅) |
+| OPNsense config (planned, not live) | pending SKY-020 | planned OPNsense validate-and-restore path | not implemented | — | ❌ |
 
 **Destroy is not in this table by design.** `tofu-apply.sh` refuses any plan containing a
 `delete`/replace action or touching a T3 excluded guest (5001, 635, 837, 2020) — those are human-run,
@@ -77,8 +79,12 @@ immediately before the apply and rolling back immediately on failure.
   can't be snapshotted), it refuses to apply — no rollback point means no change.
 - **The compose gate probes the service's own declared endpoint** (the compose healthcheck the skynet
   service standard already requires), so the gate adds a *decision*, not a new contract.
-- **DNS records under tofu** (`tofu/dns-*.tf`, `tofu/cloudflare-dns.tf`) roll back through the tofu
-  path (revert the source + `tofu-apply.sh`); `dns-revert.sh` covers the imperative break-glass write.
+- **Non-guest writes are not snapshot-rolled back.** `tofu-apply.sh` still enforces the saved plan,
+  delete guard, and post-apply check for DNS, but it has no automatic inverse for those resources.
+  They remain supervised below A4 until a failure-tested rollback exists.
+- **A source revert that removes a tofu resource produces a delete plan, which the wrapper refuses.**
+  DNS removal therefore uses an explicit hard-checkpoint path; `dns-revert.sh` covers Cloudflare's
+  imperative break-glass writer. Do not describe a deletion as a `tofu-apply.sh` rollback.
 
 ## Where this is going
 

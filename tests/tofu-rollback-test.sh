@@ -2,9 +2,10 @@
 # tofu-rollback-test.sh — the L7 tofu-apply rollback (SKY-018 P6) in its guard + failure cases.
 #   The wrapper must: refuse a delete/destroy plan and an excluded-guest plan OUTRIGHT (no apply);
 #   snapshot touched guests before applying; roll those snapshots back when apply OR verify fails;
-#   prune them on success; and fail closed if a snapshot can't be taken. Every decision is an exit
-#   code from deterministic tooling, never the agent — proven by injecting apply/verify/snapshot
-#   results and asserting what the wrapper did. tofu + pve-snapshot are stubbed: nothing real is touched.
+#   prune them on success; fail closed if a snapshot can't be taken; and state honestly that a
+#   non-guest write has no automatic snapshot rollback. Every decision is an exit code from
+#   deterministic tooling, never the agent — proven by injecting apply/verify/snapshot results and
+#   asserting what the wrapper did. tofu + pve-snapshot are stubbed: nothing real is touched.
 # TIER: T1 — stubs only.
 set -uo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"; cd "${REPO_DIR}"
@@ -80,6 +81,12 @@ printf '%s' "$(snaps)" | grep -q '^rollback' && bad "rolled back a successful ap
 # 6. fail closed: snapshot cannot be taken → refuse to apply (exit 4), no apply
 rc="$(STUB_APPLY_RC=0 STUB_VERIFY_RC=0 FAIL_SNAPSHOT=1 run "$(guest update 10015)")"
 [ "${rc}" = 4 ] && ok "snapshot failure → FAIL CLOSED (no apply without a rollback point)" || bad "did not fail closed on snapshot failure (rc=${rc})"
+
+# 7. non-guest apply failure → no guest snapshot exists; output requires operator recovery
+non_guest='{"resource_changes":[{"address":"cloudflare_dns_record.tunnel[\"x\"]","type":"cloudflare_dns_record","change":{"actions":["create"],"before":null,"after":{"name":"x.aliammar.net"}}}]}'
+rc="$(STUB_APPLY_RC=1 STUB_VERIFY_RC=0 run "${non_guest}")"
+{ [ "${rc}" = 5 ] && [ -z "$(snaps)" ] && grep -q "non-guest changes need operator recovery" "${TMP}/out"; } \
+  && ok "non-guest failure → no false snapshot rollback claim" || bad "non-guest rollback truth wrong (rc=${rc}, snaps=[$(snaps | tr '\n' ';')])"
 
 echo
 echo "tofu-rollback-test: ${pass} passed, ${fail} failed"

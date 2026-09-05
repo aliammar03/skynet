@@ -3,8 +3,10 @@
 #
 # SINGLE SOURCE OF TRUTH = the cloudflared ingress (compose/cloudflared/config.yml). Every `hostname:`
 # there is a published host, so its public CNAME → the tunnel is DERIVED, never hand-listed: add an
-# ingress line → its CNAME appears on the next `tofu apply`. Same shape as the apps Caddyfile → DNS
-# derivation. (Non-tunnel records — the `minki` ChatGPT custom domain, Google/OpenAI verification TXTs
+# merged ingress line → review a saved plan → `scripts/tofu-apply.sh <plan>` creates its CNAME. The
+# wrapper refuses the delete plan produced by removing an ingress; public-record removal is the
+# explicit break-glass hard checkpoint documented in runbooks/publish-service.md. Same derivation
+# shape as the apps Caddyfile → DNS. (Non-tunnel records — the `minki` ChatGPT custom domain, Google/OpenAI verification TXTs
 # — are external/manual and deliberately NOT managed here; the provider only touches declared records.)
 locals {
   cloudflared_config = file("${path.module}/../compose/cloudflared/config.yml")

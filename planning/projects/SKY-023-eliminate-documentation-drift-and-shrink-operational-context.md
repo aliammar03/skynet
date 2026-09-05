@@ -4,7 +4,7 @@ title: Eliminate documentation drift and shrink operational context
 status: in-progress
 horizon: short
 created: 2026-09-04
-updated: 2026-09-04
+updated: 2026-09-05
 phases: 4
 current_phase: 1
 tier_touched: [T1]
@@ -57,7 +57,7 @@ changes needed to prevent drift. **Non-goals:** infrastructure changes, new capa
 promotion, permission changes, or hand-editing generated outputs. **Rollback:** `git revert`.
 **Human actions:** PR review/merge only; no grants or credentials.
 
-### Phase 1 — reconcile truth before pruning  (~1–2h)   `[ ]` paused 2026-09-04
+### Phase 1 — reconcile truth before pruning  (~1–2h)   `[x]` complete 2026-09-05
 
 1. Create a temporary conflict matrix: claim, competing sources, runtime evidence, chosen authority.
 2. Resolve every contradiction named in §1, including:
@@ -141,3 +141,7 @@ criteria, then perform Phase close-out.
   OPNsense actuator availability, forward-auth status, and Authentik mutation ordering. The working
   tree is a checkpoint, not a phase close-out. Resume Phase 1 only. Evidence:
   `journal/2026/2026-09-04-session-sky-023-p1-truth-reconciliation.md`.
+- 2026-09-05 — Phase 1 complete on `phase/sky-023-p1`. Resolved the six final-review blockers,
+  added a failure test that distinguishes existing-guest snapshot rollback from non-guest recovery,
+  regenerated owned views, and passed the invariant, test, syntax, link, command-reference, and diff
+  gates. Evidence: `journal/2026/2026-09-05-session-sky-023-p1-close-out.md`.

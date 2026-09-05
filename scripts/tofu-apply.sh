@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# tofu-apply.sh — health-gated OpenTofu apply with snapshot-before-apply and automatic rollback
-# (SKY-018 P6). The highest-blast-radius actuator in the lab gets the dumb rollback ADR 0005 §3 wants:
+# tofu-apply.sh — saved-plan OpenTofu apply with automatic snapshot rollback for existing guests
+# (SKY-018 P6). The guest actuator gets the dumb rollback ADR 0005 §3 wants; non-guest resources
+# still receive the plan/delete/verification guards but have no automatic inverse:
 #
 #   1. Apply ONLY a SAVED plan (never re-plan at apply time — the reviewed diff is the one that runs).
 #   2. REFUSE any plan containing a `delete`/replace action, or touching a T3 excluded guest, OUTRIGHT.
@@ -10,8 +11,8 @@
 #      new-guest create: the planned VMID does not exist yet and therefore has no rollback snapshot.
 #   4. Apply the saved plan, then VERIFY deterministically (post-apply plan is clean; plus an optional
 #      external check). The verdict is an exit code, not the agent's opinion.
-#   5. On apply-or-verify failure, roll every snapshot back (scripts/pve-snapshot.sh) and exit non-zero.
-#      On success, prune the safety snapshots.
+#   5. On apply-or-verify failure, roll every guest snapshot back (scripts/pve-snapshot.sh) and exit
+#      non-zero. Non-guest changes require operator recovery. On success, prune safety snapshots.
 #
 # TIER: T2 — svc-ops!operate applies on the managed envelope and takes safety snapshots.
 # USAGE:
@@ -102,12 +103,12 @@ for row in "${guest_rows[@]:-}"; do
     exit 4
   fi
 done
-[ "${#TAKEN[@]}" -gt 0 ] && echo "==> snapshotted ${#TAKEN[@]} guest(s) as ${SNAP}" || echo "==> no in-pool guests touched — nothing to snapshot"
+[ "${#TAKEN[@]}" -gt 0 ] && echo "==> snapshotted ${#TAKEN[@]} guest(s) as ${SNAP}" || echo "==> no guests touched — non-guest changes have no automatic rollback"
 
 # 5. apply the SAVED plan; on failure, roll back.
 echo "==> applying saved plan ${PLAN}"
 if ! "${TOFU_BIN}" apply -auto-approve "${PLAN}"; then
-  echo "tofu-apply: apply FAILED — rolling back snapshots" >&2
+  echo "tofu-apply: apply FAILED — rolling back guest snapshots; non-guest changes need operator recovery" >&2
   rollback_all
   exit 5
 fi
@@ -120,7 +121,7 @@ if [ -n "${TOFU_APPLY_VERIFY:-}" ]; then
   eval "${TOFU_APPLY_VERIFY}" || verify_ok=0
 fi
 if [ "${verify_ok}" != 1 ]; then
-  echo "tofu-apply: verification FAILED — rolling back snapshots" >&2
+  echo "tofu-apply: verification FAILED — rolling back guest snapshots; non-guest changes need operator recovery" >&2
   rollback_all
   exit 6
 fi

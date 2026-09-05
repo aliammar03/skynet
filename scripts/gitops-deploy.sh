@@ -136,7 +136,8 @@ arc POST "/environments/${ENVID}/projects/${PROJ}/redeploy" >/dev/null || true
 # Config-file services read a bind-mounted config only at STARTUP, and a file-only change doesn't
 # alter the compose spec — so Arcane's redeploy leaves the running container untouched and the new
 # config is never loaded. Force a restart for those. (cloudflared has no --watch; Caddy hot-reloads
-# via --watch, so it's deliberately NOT here.) Otherwise every tunnel-config change is a silent
+# via --watch after Arcane syncs the tracked file, so it's deliberately NOT here. The nightly route
+# collector parses git only and does not prove that this live reload occurred.) Otherwise every tunnel-config change is a silent
 # two-step where the second step is easy to forget. See runbooks/publish-service.md Path C.
 case "${SVC}" in
   cloudflared)

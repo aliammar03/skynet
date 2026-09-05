@@ -121,7 +121,8 @@ set is the Proxmox half of the write blast radius (the SSH half is `ROLE_OPS_SSH
 [network](network.md)). **Two pools today — a count, not a law;** new pools join by PR to the
 constitution. Permanently unpooled: **VM 5001 (OPNsense)**, CT 635, CT 837, and Unraid VM 2020.
 The network token cannot reach 5001/635/837 at the envelope. Core's deliberate root-`/` operate ACL
-does reach Unraid 2020's VM envelope, while its guest-OS root remains T3; see the core exception above.
+can technically change or power Unraid 2020's VM envelope, although policy keeps it unpooled and
+forbids destructive use; its guest-OS root remains T3. See the core exception above.
 
 ## SSH access model — standing user + auto-expiring root
 

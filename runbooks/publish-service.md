@@ -85,8 +85,10 @@ deliberately, per host, and only for a service that already self-gates (see its 
    The **first** hit on a new hostname may briefly fail TLS while Caddy obtains the ACME cert
    (DNS-01, ~15–30s); retry. A `502` right after a deploy usually just means the upstream is still
    warming up.
-7. If red → revert by PR, re-run `scripts/gitops-deploy.sh caddy-apps`, then review/apply the
-   resulting saved plan so the derived DNS record is removed (once the token has record-delete).
+7. If red → revert the Caddyfile by PR and let Arcane reconcile. Removing the derived Technitium
+   record is a separate delete hard checkpoint: `scripts/tofu-apply.sh` refuses delete plans, and the
+   current zone token lacks record-delete. Do not bypass either guard; leave the now-unused record
+   visible until a compliant deletion path is approved.
 
 ---
 
@@ -111,38 +113,10 @@ the `caddy-apps-caddy-1` container (which has `curl`), and the token is fed on *
 `-K -` config, or `read`) so it never lands in any argv. `POST /api/v3/...` bodies below are that
 same call shape.
 
-1. **Create the proxy provider** (`forward_single`). It needs an `authorization_flow` +
-   `invalidation_flow`, but the scoped token **cannot list Flows** (they're T3) — so **copy the flow
-   UUIDs from an existing proxy provider** you *can* read:
-   ```
-   GET  /api/v3/providers/proxy/          # note authorization_flow + invalidation_flow of any entry
-   POST /api/v3/providers/proxy/
-        {"name":"<svc>","mode":"forward_single",
-         "external_host":"https://<svc>.aliammar.net",
-         "authorization_flow":"<uuid>","invalidation_flow":"<uuid>"}
-   ```
-2. **Create the application**, bound to the new provider (`pk` from step 1):
-   ```
-   POST /api/v3/core/applications/
-        {"name":"<Svc>","slug":"<svc>","provider":<pk>,
-         "meta_launch_url":"https://<svc>.aliammar.net"}
-   ```
-   (Add authorization **policy bindings** to this application if the service should be limited to
-   specific users/groups — that's the per-app win. Bindings are a separate T2 call.)
-3. **Bind the provider to the embedded outpost** — `PATCH` its `providers` list, **keeping the
-   existing entries** and appending the new `pk` (clobbering the list unbinds everything else):
-   ```
-   GET   /api/v3/outposts/instances/                       # find the embedded outpost pk + current providers
-   PATCH /api/v3/outposts/instances/<outpost-pk>/  {"providers":[<existing…>, <pk>]}
-   ```
-   The outpost picks the provider up in seconds. Sanity-check before touching Caddy — from the
-   `caddy-apps` container, the outpost auth endpoint should 302 to Authentik for your host:
-   ```
-   docker exec caddy-apps-caddy-1 curl -sI -H "Host: <svc>.aliammar.net" \
-     http://10.10.80.37:9000/outpost.goauthentik.io/auth/caddy   # expect 302 -> auth.aliammar.net
-   ```
-4. **Add the Caddyfile site** — the standard Authentik forward-auth snippet, pointing at the embedded
-   outpost. Two `reverse_proxy`: the outpost's own `/outpost.goauthentik.io/*` endpoints, then the app.
+1. **Propose the route before mutating Authentik.** On a branch, add the Caddyfile site below and
+   validate it as in Path A step 2. Open the PR and wait for Ali to merge it. The merged route fails
+   closed until its provider exists; do not create the Authentik provider/application from an
+   unmerged proposal.
    ```
    <svc>.aliammar.net {
        reverse_proxy /outpost.goauthentik.io/* 10.10.80.37:9000
@@ -154,8 +128,40 @@ same call shape.
        reverse_proxy <origin-ip>:<origin-port>
    }
    ```
-   Validate (Path A, step 2), **PR**, Ali merges, Caddy reloads on sync.
-5. **Verify** from a peer DMZ container: an unauthenticated hit is **302'd to Authentik**, not served:
+2. **Create the proxy provider** (`forward_single`) only after that merge. It needs an `authorization_flow` +
+   `invalidation_flow`, but the scoped token **cannot list Flows** (they're T3) — so **copy the flow
+   UUIDs from an existing proxy provider** you *can* read:
+   ```
+   GET  /api/v3/providers/proxy/          # note authorization_flow + invalidation_flow of any entry
+   POST /api/v3/providers/proxy/
+        {"name":"<svc>","mode":"forward_single",
+         "external_host":"https://<svc>.aliammar.net",
+         "authorization_flow":"<uuid>","invalidation_flow":"<uuid>"}
+   ```
+3. **Create the application**, bound to the new provider (`pk` from step 2):
+   ```
+   POST /api/v3/core/applications/
+        {"name":"<Svc>","slug":"<svc>","provider":<pk>,
+         "meta_launch_url":"https://<svc>.aliammar.net"}
+   ```
+   Authorization-policy changes are T3 and outside this runbook. The scoped token cannot alter the
+   policy spine; stop for a separate T3 ceremony if the application needs a new policy binding.
+4. **Bind the provider to the embedded outpost** — `PATCH` its `providers` list, **keeping the
+   existing entries** and appending the new `pk` (clobbering the list unbinds everything else):
+   ```
+   GET   /api/v3/outposts/instances/                       # find the embedded outpost pk + current providers
+   PATCH /api/v3/outposts/instances/<outpost-pk>/  {"providers":[<existing…>, <pk>]}
+   ```
+   The outpost picks the provider up in seconds. Sanity-check from the
+   `caddy-apps` container, the outpost auth endpoint should 302 to Authentik for your host:
+   ```
+   docker exec caddy-apps-caddy-1 curl -sI -H "Host: <svc>.aliammar.net" \
+     http://10.10.80.37:9000/outpost.goauthentik.io/auth/caddy   # expect 302 -> auth.aliammar.net
+   ```
+5. **Create the internal DNS record.** Follow Path A step 4 from the merged revision. This is a
+   supervised non-guest tofu write: the saved-plan/delete guards apply, but no automatic snapshot
+   rollback exists for DNS.
+6. **Verify** from a peer DMZ container: an unauthenticated hit is **302'd to Authentik**, not served:
    ```
    ssh svc-ops@10.10.100.15 "docker exec <some-dmz-container> \
      curl -sI --resolve <svc>.aliammar.net:443:10.10.100.35 https://<svc>.aliammar.net"
@@ -163,8 +169,10 @@ same call shape.
    ```
    Then in a browser: unauthenticated → Authentik login → after login → the service.
 
-**Rollback:** `git revert` the Caddyfile block (Arcane reconciles). The Authentik provider/application
-delete via the scoped token (`DELETE /api/v3/core/applications/<slug>/`, then the provider) or the UI.
+**Rollback:** revert the Caddyfile block by PR (Arcane reconciles). Authentik and DNS deletion are
+separate hard checkpoints; do not send their delete plans through `scripts/tofu-apply.sh`. Remove the
+application/provider with an explicitly approved scoped-token call (application first, then provider)
+and leave the Technitium record visible until its compliant delete path exists.
 
 ---
 
@@ -263,11 +271,11 @@ blocking them breaks logins. Verify the split: `/if/admin/` is `404` over the tu
 internal client; the public login page + `/if/flow/…` serve `200`. And ensure the Authentik account
 that page now exposes uses **MFA / a passkey** (the login is internet-reachable).
 
-**Rollback:** revert the `ingress` line by PR, then review/apply the resulting saved plan — dropping
-the ingress removes the derived CNAME — and restart the connector. For an *immediate*
-pull ahead of the revert, the break-glass path is `scripts/cf-dns-route.sh --delete <svc>.aliammar.net`
-(but re-apply tofu afterward so state matches, or tofu will want to recreate it). Public exposure is
-additive and per-host — removing it takes nothing away from the internal door.
+**Rollback:** revert the `ingress` line by PR and restart the connector. The resulting tofu plan is a
+delete, which `scripts/tofu-apply.sh` refuses; do not route it through the wrapper. Remove the public
+CNAME as an explicit hard checkpoint with `scripts/cf-dns-route.sh --delete <svc>.aliammar.net`, then
+run a read-only `tofu plan` to confirm the refreshed state, source, and Cloudflare all agree. Public
+exposure is additive and per-host — removing it takes nothing away from the internal door.
 
 ---
 
@@ -297,6 +305,6 @@ shapes show up here, both fixed on the **service**, not the Caddyfile:
 
 ### Own-auth vs "no gate at all"
 
-"Own-auth" means the origin has a **real login** (karakeep, aiostreams, marinara's basic-auth → `401`).
-A service with *no* login uses the already-proven Path B forward-auth pattern before public exposure.
-Calibre is the live reference; a plain no-auth route remains a deliberate internal-only choice.
+"Own-auth" means the origin has a **real login**; Obsidian/CouchDB is the proved public-path reference.
+A service with *no* login uses the already-proven Path B forward-auth pattern before public exposure;
+calibre is that live reference. A plain no-auth route remains a deliberate internal-only choice.

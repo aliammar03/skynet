@@ -7,7 +7,7 @@ tags: [skynet, generated, agent, context-map]
 # Skynet — Context Map
 
 **Always-loaded baseline:** `AGENTS.md` + `CLAUDE.md` ≈ **3567** tok — the contract; never in this list.
-**Cold-boot read:** `docs/generated/06-agent-digest.md` ≈ 1735 tok.
+**Cold-boot read:** `docs/generated/06-agent-digest.md` ≈ 1723 tok.
 
 Everything below is **on-demand**: nothing enters context until a trigger fires. Open a *file*, not a section.
 
@@ -25,7 +25,7 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 | `runbooks/nightly.md` | T1 read + PR | Run the nightly / nightly timer | 1133 | The report-only nightly maintenance run on both engine paths, and what it refreshes. |
 | `runbooks/provision-lxc.md` | T2 (reviewed saved-plan apply via the operator token, API-only — no node SSH; deploy-rs over SSH) | Set up / deploy a new LXC for X | 1164 | Author and review a NixOS pool-LXC declaration; new-CT apply is blocked pending a rollback-safe saved-plan executor. |
 | `runbooks/provision-vm.md` | T2 saved-plan clone/apply + T2+ root grant for hardening | Set up a VM for X, hardened, with restic | 1074 | Author and review a guest declaration; new-guest apply is blocked pending a rollback-safe saved-plan executor. |
-| `runbooks/publish-service.md` | T2 (PR-gated) | Publish or expose a service | 4743 | Publish a service through the apps Caddy front door: edit the Caddyfile then PR then deploy — own-auth (plain reverse_proxy) or forward-auth via Authentik (scoped-token provider+application); optionally also expose it to the internet via the Cloudflare Tunnel (Path C). |
+| `runbooks/publish-service.md` | T2 (PR-gated) | Publish or expose a service | 4899 | Publish a service through the apps Caddy front door: edit the Caddyfile then PR then deploy — own-auth (plain reverse_proxy) or forward-auth via Authentik (scoped-token provider+application); optionally also expose it to the internet via the Cloudflare Tunnel (Path C). |
 | `runbooks/recon.md` | **T1 read-only | Figure out why X is broken / what's going on with <host> | 970 | Start-here triage: take one T1 read-only host snapshot with scripts/recon.sh, reason over it, then branch to a diagnosis runbook. |
 | `runbooks/restore-service.md` | T2 + (if VM restore) T2 PBS token | Restore a service / recover from backup | 1116 | Restore a service or VM from restic/PBS — conversational and deterministic, executable verbatim. |
 | `runbooks/update-guests.md` | T2 snapshot + T2+ fleet root grant | Update all guests | 231 | Snapshot then update every guest under a fleet root grant. |
@@ -34,11 +34,11 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 
 | Path | ~tok | Summary |
 |---|--:|---|
-| `docs/design/access-and-trust.md` | 4552 | The trust tiers in full — every token, ACL, principal, and the auto-expiring SSH root grant Skynet can request but never mint. |
-| `docs/design/actuators.md` | 1731 | The L7 actuators and their rollback executors: what each write can undo, by whom, and how the rollback is decided deterministically. |
+| `docs/design/access-and-trust.md` | 4572 | The trust tiers in full — every token, ACL, principal, and the auto-expiring SSH root grant Skynet can request but never mint. |
+| `docs/design/actuators.md` | 1888 | The L7 actuators and their rollback executors: what each write can undo, by whom, and how the rollback is decided deterministically. |
 | `docs/design/disaster-recovery.md` | 926 | The survival kit and how each node-loss scenario is recovered; the step-by-step procedures live in runbooks/dr/. |
 | `docs/design/gitops-loop.md` | 1005 | How a service change becomes a running container via Arcane, with git-revert rollback and image pinning + Renovate. |
-| `docs/design/identity-and-proxy.md` | 3352 | The two front doors, split-horizon DNS, the forward_auth boundary that publishes apps without holding auth's keys (SKY-003), and the sanctioned public path via a Skynet-managed Cloudflare Tunnel (SKY-014). |
+| `docs/design/identity-and-proxy.md` | 3437 | The two front doors, split-horizon DNS, the forward_auth boundary that publishes apps without holding auth's keys (SKY-003), and the sanctioned public path via a Skynet-managed Cloudflare Tunnel (SKY-014). |
 | `docs/design/memory.md` | 2933 | How a stateless agent remembers: the four memory kinds, the episodic journal→digest, and the default-lean working-memory discipline. |
 | `docs/design/network.md` | 1713 | Where Skynet sits, how it's addressed on VLAN 90, and the firewall rules bounding its reach to exactly what it needs. |
 | `docs/design/observability.md` | 985 | How machine state becomes human-readable docs, and how the nightly run keeps the picture current. |
@@ -73,7 +73,7 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 |---|--:|---|
 | `docs/generated/00-network-map.md` | 441 | Network map |
 | `docs/generated/05-state-of-the-lab.md` | 1661 | State of the Lab |
-| `docs/generated/06-agent-digest.md` | 1735 | Agent Digest |
+| `docs/generated/06-agent-digest.md` | 1723 | Agent Digest |
 | `docs/generated/10-vlans.md` | 777 | VLANs |
 | `docs/generated/20-firewall.md` | 2185 | Firewall |
 | `docs/generated/50-network-gear.md` | 507 | Network gear (Omada estate) |
@@ -82,10 +82,10 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 
 ## Episodic memory — retrieve by topic, don't browse
 
-- `journal/` — 53 raw episodes, ≈ 65338 tok total. Retrieve by topic: `bin/recall <topic>` (SKY-010 P4) or `grep -ri "<topic>" journal/`; recent episodes are already in `06-agent-digest.md`. **Do not load the whole store.**
+- `journal/` — 54 raw episodes, ≈ 66508 tok total. Retrieve by topic: `bin/recall <topic>` (SKY-010 P4) or `grep -ri "<topic>" journal/`; recent episodes are already in `06-agent-digest.md`. **Do not load the whole store.**
 
 ---
-**On-demand corpus:** ≈ **59876** tok across 44 files — but you load a *row* (≈ tens of tok) to choose, then one file.
+**On-demand corpus:** ≈ **60282** tok across 44 files — but you load a *row* (≈ tens of tok) to choose, then one file.
 _A cache — regenerable from git via `render-context-map.sh`; never a source of truth._
 
 > [!note] Generated by `scripts/render-context-map.sh` from each loadable's frontmatter.
