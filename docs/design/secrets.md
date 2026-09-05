@@ -25,7 +25,7 @@ The age **private key must survive skynet-ops**: password manager + the printed 
 Without it, every `.env.sops` in git history is confetti. (See
 [disaster-recovery](disaster-recovery.md) for the full kit.)
 
-## Per-CT identities for pool NixOS LXCs (SKY-021 Option C)
+## Per-CT identities for pool NixOS LXCs
 
 A pool CT decrypts its own secrets with sops-nix at activation, so it needs an age key on the box.
 It does **not** get the lab master key (one popped CT would be the whole secret world), and it does
@@ -66,8 +66,6 @@ Arcane owns reconciliation and project lifecycle, while the deploy wrapper owns 
 - **Deploy or restore:** [`deploy-service.md`](../../runbooks/deploy-service.md) and
   [`restore-service.md`](../../runbooks/restore-service.md) invoke
   [`gitops-deploy.sh`](../../scripts/gitops-deploy.sh) to materialize and validate the service env.
-- **Legacy import:** [`envsync.sh`](../../scripts/envsync.sh) encrypts a legacy Arcane `project.env`.
-  Current GitOps projects do not use that file.
 
 This is layer **L1** of the [backup model](../backup-strategy.md). Secrets are sops-encrypted in git
 or stored as the agent-readable restrictive local files above. Plaintext never enters git.

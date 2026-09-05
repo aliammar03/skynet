@@ -6,9 +6,8 @@ that never move, plus an index into the spokes that carry the depth. It mirrors 
 home per rule. Governed by (and an extension point of) [`system-design.md`](system-design.md).
 
 Every rule in the spokes is tagged **[testable]** (a lint gate could assert it mechanically) or
-**[manual]** (holds by review). The tags exist so the parked convention lint gate
-(`planning/scratchpad/2026-08-17-lint-gate-convention-enforcement.md`) can lift them verbatim when
-it's revived.
+**[manual]** (holds by review). The tags distinguish rules that admit a deterministic gate from
+rules that require judgment.
 
 ## Invariants — the rules that never move
 

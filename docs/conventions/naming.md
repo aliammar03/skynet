@@ -18,19 +18,18 @@ Style-C gate) or **[manual]** (holds by review/judgement).
   all valid — and two forms are in use:
   - **Canonical, use for every new guest:** the VLAN written in full, then the octet.
     `2020` = VLAN 20 + .20 · `5001` = VLAN 50 + .01 · `9090` = VLAN 90 + .90 · `10015` = VLAN 100 + .15.
-  - **Legacy, still valid, do not renumber:** the VLAN with its trailing zero dropped.
+  - **Alternate, supported form:** the VLAN with its trailing zero dropped.
     `240` = VLAN 20 + .40 · `525` = VLAN 50 + .25 · `635` = VLAN 60 + .35 · `751` = VLAN 70 + .51 ·
     `837` = VLAN 80 + .37 · `1035` = VLAN 100 + .35.
 - **Parsing rule** `[testable]`: split the last two digits as the octet, then match the remaining
   prefix against the **declared VLAN set** in both forms. Exactly one match is required. A prefix
   matching none, or both, must be a **declared exception** in `invariants.json` with a `why`.
-  (`10xx` is the one genuinely ambiguous prefix — VLAN 10 canonical vs VLAN 100 legacy — which is why
+  (`10xx` is the one genuinely ambiguous prefix — VLAN 10 full vs VLAN 100 compact — which is why
   new guests use the canonical form.)
-- **Static addressing is the standard** — see below.
 - **Static addressing is the standard — every guest gets a static IP** `[manual]`, configured via
   cloud-init and reserved/excluded in OPNsense so nothing collides. The last octet matches the
-  VMID convention above. **DHCP is the exception**, not the rule — the reverse of the pre-2026-08-17
-  posture (see ADR [0001](../decisions/0001-static-ip-addressing.md)).
+  VMID convention above. **DHCP is the exception**, not the rule (see ADR
+  [0001](../decisions/0001-static-ip-addressing.md)).
   - *Why:* the fleet is small and long-lived; a predictable address per guest is worth more than
     DHCP's convenience, and it means no guest silently moves. The ops brain (10.10.90.90) is not
     special for *being* static anymore — only for being reserved so it survives a DHCP/OPNsense
@@ -98,7 +97,7 @@ key, not the identity.
   at all (`auth.aliammar.net` fronts `guest/authentik-identity-837`). The edge is read from the
   Caddyfile, never inferred.
 - **Vhosts come from Caddy, not DNS** `[manual]`. The apps Caddyfile is the source of truth for the
-  set of app hostnames; each vhost's internal `A` record is **derived from it** by tofu (SKY-008), so
+  set of app hostnames; each vhost's internal `A` record is **derived from it** by tofu, so
   DNS mirrors Caddy rather than the reverse — the record set is never authored independently.
 
 ### Services and addresses

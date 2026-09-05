@@ -36,8 +36,8 @@ missing evidence, not a different goal. Autonomy is earned per capability, never
 
 No irreversible action (`destroy`, data deletion, credential rotation, or T3 work) becomes
 unattended. The rationale and reversibility test are in
-[ADR 0005](decisions/0005-full-agent-control-as-terminal-goal.md); future promotions belong to
-[SKY-017](../planning/ideas/SKY-017-the-road-to-full-agent-control-verification-proving-ground-and-an-evidence-earned-ratchet.md).
+[ADR 0005](decisions/0005-full-agent-control-as-terminal-goal.md); future promotions are planned
+through the directive lifecycle.
 
 ## 2. Hard laws
 

@@ -48,17 +48,15 @@ discard the prepared deterministic work.
    than producing a report against an unknown base.
 2. **Refresh inventory** — `scripts/collect-all.sh` runs every idempotent, read-only collector;
    a failed collector is recorded while the remaining T1 collection continues. It never renders docs.
-3. **Legacy env import** — `scripts/envsync.sh` encrypts any legacy `project.env` it finds; current
-   GitOps services already use committed `.env.git` + `.env.sops`, so a missing file is expected.
-4. **Render factual docs** — `scripts/render-docs.sh` rewrites the factual `docs/generated/` pages.
-5. **Optional agent work** — when an engine is available, it may write the human narrative and
+3. **Render factual docs** — `scripts/render-docs.sh` rewrites the factual `docs/generated/` pages.
+4. **Optional agent work** — when an engine is available, it may write the human narrative and
    grant audit only. This stage cannot own the branch or PR lifecycle.
-6. **Journal then render routing pages** — the finalizer appends a raw journal session entry first,
+5. **Journal then render routing pages** — the finalizer appends a raw journal session entry first,
    then `scripts/render-digest.sh` regenerates the **agent cold-boot digest** `06-agent-digest.md`
    (recent decisions / open threads / recent episodes, from ADRs + the journal + the roadmap), and
    `scripts/render-context-map.sh` regenerates the **context map** `07-context-map.md` (what's
    loadable + its token cost). The current entry is therefore visible in both machine-facing pages.
-7. **Open a PR** — the deterministic finalizer stages generated evidence, commits, pushes, and opens
+6. **Open a PR** — the deterministic finalizer stages generated evidence, commits, pushes, and opens
    the PR on branch `inventory/<date>-<HHMM>` (the `HHMM` suffix lets same-day re-runs each
    get their own branch instead of colliding) with the diff + summary. **The engine never merges by
    hand.** The merge is decided afterward by the deterministic gate `scripts/nightly-automerge.sh`

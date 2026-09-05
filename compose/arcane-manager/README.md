@@ -1,9 +1,8 @@
 # arcane-manager — the Arcane GitOps controller
 
 This is **Arcane itself** — the tool that watches this repo's `compose/` and reconciles every *other*
-project onto the docker hosts (the deployment loop in AGENTS.md §4). It is captured here so it is a
-**declared entity** (SKY-018) and **rebuildable from git** (AGENTS.md §6), not an undocumented
-snowflake living only on the DMZ host.
+project onto the docker hosts (the deployment loop in AGENTS.md §4). It is captured here as a
+declared, rebuildable component rather than an undocumented host-local service.
 
 ## Two things make it different from every other project here
 
@@ -11,11 +10,9 @@ snowflake living only on the DMZ host.
    git-reconciles itself would restart mid-reconcile on its own updates. So it is deployed and
    updated **by hand** (break-glass), and this directory is its source of truth, not a sync target.
    Do not add it as an Arcane project.
-2. **Relocation pending — [[SKY-019]].** Today it runs *inside* `guest/docker-dmz-10015` (VLAN 100,
-   the DMZ) and manages that host through a local `docker.sock` — the management brain sitting in the
-   least-trusted VLAN. SKY-019 moves it to a **dedicated Management (VLAN 50) docker VM** (cloned from
-   the `9000` template), managing `docker-dmz` and any future docker host **remotely over unprivileged
-   SSH**. When that lands, the `ports:` binding, the `docker.sock` mount, and this note all change.
+2. **It runs on the managed host.** Arcane runs inside `guest/docker-dmz-10015` (VLAN 100) and
+   manages that host through a local `docker.sock`. Its host, socket mount, and port binding define
+   its current deployment boundary.
 
 ## Env layering (same as every project; assembled manually because it is not synced)
 
@@ -28,11 +25,10 @@ sops -d .env.sops >> .env        # needs the age key at /opt/skynet-ops/secrets/
 docker compose up -d
 ```
 
-`ENCRYPTION_KEY` is load-bearing: it encrypts Arcane's stored state under `/app/data`. Losing it
-means losing any credentials Arcane holds for remote environments — which is exactly what SKY-019
-introduces, so keep the sops copy authoritative.
+`ENCRYPTION_KEY` is load-bearing: it encrypts Arcane's stored state under `/app/data`. Keep the
+sops copy authoritative so a rebuild preserves stored credentials.
 
 ## Not captured on purpose
 
-The live `arcane.env` also carried `NVIDIA_*` / `ROCR_*` / `HIP_*` / `ONEAPI_*` / `LD_LIBRARY_PATH` —
-image-baked GPU/runtime defaults, not Arcane config. Excluded here; review at SKY-019.
+The runtime's GPU-library defaults (`NVIDIA_*`, `ROCR_*`, `HIP_*`, `ONEAPI_*`, and
+`LD_LIBRARY_PATH`) are image configuration, not Arcane configuration, and are excluded here.

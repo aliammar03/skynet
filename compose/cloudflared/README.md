@@ -16,13 +16,10 @@ TunnelID, TunnelSecret).
 
 The credential is a secret, so it never lives plaintext in git. Source of truth is
 `credentials.json.sops` (sops+age, this dir); the runtime copy is `0600` on the docker host,
-bind-mounted read-only. Steps, done once when the tunnel is created:
+bind-mounted read-only. To create or restore the tunnel credential:
 
-1. **Create/attach the tunnel.** The tunnel reuses the id
-   `7f4c50f9-cee6-40bb-ad5a-ef6c7f30ca56`; its credential was reconstructed into a `credentials.json`
-   from the original `--token-file`. (A fresh tunnel via `cloudflared tunnel create` works
-   identically.) The **Tunnel ID** is not secret — it's also the public CNAME target
-   `<id>.cfargotunnel.com`.
+1. **Create or attach the tunnel.** Store its credential as `credentials.json`. The **Tunnel ID** is
+   not secret — it is also the public CNAME target `<id>.cfargotunnel.com`.
 2. **Put the TunnelID** into [`config.yml`](config.yml) (`tunnel:`).
 3. **Encrypt for git/DR.** The `.sops` extension makes sops guess *binary*, and encrypting from a
    path that doesn't match the creation rule fails with "no matching creation rules" — so pass the
@@ -44,7 +41,7 @@ bind-mounted read-only. Steps, done once when the tunnel is created:
 
 ## Deploy
 
-**Live** on `vm-docker-dmz` — the old CT 1033 that previously ran the tunnel is retired. Publishing
-an app is one `ingress` line in [`config.yml`](config.yml) + a public DNS record, merged and
+The tunnel runs on `vm-docker-dmz`. Publishing an app is one `ingress` line in
+[`config.yml`](config.yml) + a public DNS record, merged and
 reconciled by Arcane. Rollback is `git revert` (Arcane converges back), or `docker compose down` for
 the break-glass path.
