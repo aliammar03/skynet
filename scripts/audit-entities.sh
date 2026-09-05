@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# audit-entities.sh — the L0 audit (SKY-018 P1). Derives every entity's ID + address from the
+# audit-entities.sh — derive every entity's ID + address from the
 #   convention, then classifies each against observed truth: matched / stale / running-unmapped /
 #   exception. The point is the LAST bucket — a *running* thing that no view knows about is a hole.
 # TIER: T1 — reads inventory/, invariants.json, lab.json, compose/. No network, no writes.
@@ -8,7 +8,7 @@
 #   Exit 1 = at least one RUNNING entity is neither mapped nor excepted (a real hole to resolve).
 #   Exit 2 = a required input is missing.
 # Proposals, not actions: the stale + undeclared lists are for a human/journal to triage. This
-# script never destroys, stops, or edits anything (naming.md, SKY-018 §Phase 1).
+# script never destroys, stops, or edits anything (naming.md).
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${REPO_DIR}"
@@ -40,7 +40,7 @@ mapfile -t FW_IPS < <(
 )
 is_mapped() { local ip="$1"; [ -n "${ip}" ] || return 1; printf '%s\n' "${FW_IPS[@]}" | grep -qxF "${ip}"; }
 
-# ── live PRESENCE: the OPNsense live read (SKY-020) gives who is actually up right now — ARP, plus an
+# ── live presence: the OPNsense live read gives who is actually up right now — ARP, plus an
 # ICMP ping of ARP-silent declared hosts. Observed presence the mirror's config can't. Used as a
 # LIVENESS ANNOTATION only (never a mapping source), so the 4th-law pass/fail is unchanged. Silent
 # when there's no presence data (opnsense.json absent).
@@ -173,7 +173,7 @@ while IFS= read -r n; do [ -n "${n}" ] && row "$(node_id "${n}")" "—" "—" "m
   < <(jq -r '.nodes[]? | select(.type=="node") | .node' inventory/proxmox-*.json 2>/dev/null | sort -u)
 echo
 
-# ── vhost class: the Caddy routes (SKY-018 P5). Each vhost resolves front door → backend entity; a
+# ── vhost class: Caddy routes. Each vhost resolves front door → backend entity; a
 #    backend that didn't resolve to an entity (host:<ip>) is drift worth seeing (informational).
 echo "== entity audit :: vhost (Caddy routes) =="
 if [ -r inventory/routes.json ] && [ "$(jq '.routes|length' inventory/routes.json 2>/dev/null || echo 0)" -gt 0 ]; then
@@ -192,7 +192,7 @@ else
 fi
 echo
 
-# ── net class: the Omada switch/AP estate (SKY-018 P4). INFORMATIONAL — a device the firewall's
+# ── net class: the Omada switch/AP estate. Informational — a device the firewall's
 #    INFRASTRUCTURE aliases don't list is drift worth surfacing, but not a CI-failing hole: net
 #    devices aren't guests, and the 4th law (check-invariants) governs guests + services only.
 echo "== entity audit :: net (Omada estate) =="

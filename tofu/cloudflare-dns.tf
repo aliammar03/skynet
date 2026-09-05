@@ -1,5 +1,5 @@
-# SKY-014 public path → tofu. The per-host tunnel CNAMEs in the PUBLIC aliammar.net zone (Cloudflare),
-# replacing the imperative scripts/cf-dns-route.sh upsert. T2, scoped Zone:DNS:Edit token.
+# OpenTofu declares per-host tunnel CNAMEs in the public aliammar.net zone. T2 uses the scoped
+# Zone:DNS:Edit token.
 #
 # SINGLE SOURCE OF TRUTH = the cloudflared ingress (compose/cloudflared/config.yml). Every `hostname:`
 # there is a published host, so its public CNAME → the tunnel is DERIVED, never hand-listed: add an

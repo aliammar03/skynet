@@ -7,7 +7,7 @@
 #     distills them in a THROWAWAY window, and returns just the conclusion to the main context.
 #     It never persists a summary (ADR 0002): the raw journal/docs stay the source of truth; the
 #     distillation lives for one query. The machine-neutral twin of a Claude subagent scout — any
-#     engine runs this; a Claude scout can call it internally. Leans on the SKY-010 P2 `tokens:` +
+#     engine runs this; a Claude scout can call it internally. Leans on the `tokens:` +
 #     `summary:` frontmatter for the cost/label columns.
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

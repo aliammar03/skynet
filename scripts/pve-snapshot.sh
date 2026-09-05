@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# pve-snapshot.sh — create / rollback / delete a Proxmox guest snapshot (SKY-018 P6).
+# pve-snapshot.sh — create / rollback / delete a Proxmox guest snapshot.
 # The dumb executor half of the tofu rollback: scripts/tofu-apply.sh snapshots an eligible existing
 # managed guest before an update and restores it only when the saved-plan apply itself fails.
 # This script is the actuator; the rollback DECISION lives in tofu-apply.sh (a deterministic verify),
@@ -74,7 +74,7 @@ case "${op}" in
     [ "${PVE_SNAPSHOT_VMSTATE:-1}" = 1 ] && [ "${kind}" = vm ] && vmstate_arg=(--data-urlencode "vmstate=1")
     upid="$(api POST "${base}/snapshot" --data-urlencode "snapname=${snap}" \
             "${vmstate_arg[@]}" \
-            --data-urlencode "description=SKY-018 P6 pre-tofu-apply safety snapshot" | jq -r '.data')"
+            --data-urlencode "description=pre-tofu-apply safety snapshot" | jq -r '.data')"
     wait_task "${upid}"
     ;;
   rollback)

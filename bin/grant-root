@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# grant-root — WORKSTATION-ONLY. Signs an auto-expiring root cert for the ops agent (plan §8).
+# grant-root — workstation-only. Signs an auto-expiring root cert for the ops agent.
 # This script is committed here so bootstrap-workstation.sh can install it to ~/bin/grant-root.
 # It MUST run on Ali's workstation, where the CA private key lives. It must NEVER run on the VM —
 # if the agent could sign its own cert, every trust tier in the plan would be decoration.
@@ -11,11 +11,9 @@
 #
 # PER-HOST CERTS: the signed cert is placed at ~/.ssh/certs/<host>-cert.pub on skynet-ops (not
 # the single ~/.ssh/id_ed25519-cert.pub). skynet-ops' ssh_config presents the right one per host
-# (a Host <host> stanza), so grants for different hosts NO LONGER clobber each other — issue several
+# (a Host <host> stanza), so grants for different hosts coexist — issue several
 # and they coexist until each expires on its own.
 #
-# STATUS: the per-host path and concurrent grants were validated during the A6 rehearsal recorded in
-# `docs/history/deployment-plan-v5.md`; legacy single-cert loading remains compatibility-only.
 set -euo pipefail
 
 HOST="${1:?host or 'all'}"; DUR="${2:-2h}"

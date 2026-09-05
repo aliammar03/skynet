@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# collect-certs.sh — TLS certificate inventory (SKY-018 P5) → inventory/certs.json.
+# collect-certs.sh — TLS certificate inventory → inventory/certs.json.
 # TIER: T1 — probes reachable TLS endpoints read-only (openssl s_client), records issuer / SANs /
 #   notAfter / days-left. No writes. Degrades per-endpoint (unreachable → recorded as such) and to an
 #   empty inventory if openssl is missing.

@@ -23,7 +23,7 @@
 # USAGE: scripts/gitops-deploy.sh <service> [--no-deploy] [--gate] [--revert-commit <sha>]
 #   <service>          a directory name under compose/ (e.g. aiostreams)
 #   --no-deploy        materialise .env + ensure the sync, but don't redeploy
-#   --gate             health-gate the deploy (SKY-018 P6): after deploy, deterministically probe
+#   --gate             health-gate the deploy: after deploy, deterministically probe
 #                      the service; if it isn't healthy in the window, report rollback required.
 #                      The gate never mutates or direct-pushes the authored checkout.
 #   --revert-commit    the commit --gate reverts on failure (default: the newest commit touching
@@ -172,7 +172,7 @@ if [ -n "${MISSING}" ]; then
   echo "${MISSING}" | sed 's/^/      /' >&2
 fi
 
-# --- health gate (SKY-018 P6, opt-in via --gate) ----------------------------
+# --- health gate (opt-in via --gate) -----------------------------------------
 # Deploy → probe → report rollback required on failure. The gate reuses the creds/ids resolved above
 # (exported so deploy-gate.sh's default probe doesn't re-resolve them); an operator explicitly runs
 # gitops-rollback.sh --prepare in an isolated worktree after the gate reports failure.

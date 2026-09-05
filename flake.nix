@@ -1,5 +1,5 @@
 {
-  description = "Skynet host definitions — declarative NixOS, piloted on vm-skynet-ops (SKY-007)";
+  description = "Skynet host definitions — declarative NixOS";
 
   # Rationale, layout, and the twin/cutover model live in nix/README.md + docs/system-design.md.
   inputs = {
@@ -53,9 +53,7 @@
         ];
       };
 
-      # SKY-021 — the throwaway proof CT (Phase 1). Unprivileged proxmox-lxc; the tarball output
-      # below is the CT template. Its deploy-rs node (below) proved magic-rollback + sops-nix work in
-      # a container (Phase 2); the real service host gets its own flake host + deploy node in Phase 3.
+      # NixOS LXC build target. The tarball output below is the CT template.
       nixosConfigurations.lxc-proof = nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = { inherit inputs; };
@@ -67,9 +65,8 @@
       packages.${system}.lxc-proof-tarball =
         self.nixosConfigurations.lxc-proof.config.system.build.tarball;
 
-      # SKY-021 P3 — adguard-core (CT 731), the first real pool CT off the Debian community-script
-      # path. Its AdGuard config lives in Nix (rendered via a sops template); day-2 is deploy-rs
-      # magic-rollback (P2); secrets via Option C (per-CT age key). sops-nix module wired in here.
+      # adguard-core (CT 731) is a NixOS LXC. Its AdGuard config is rendered from a sops template;
+      # deploy-rs supplies day-two rollback and the host has a per-CT age key.
       nixosConfigurations.lxc-adguard-core = nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = { inherit inputs; };
@@ -98,9 +95,8 @@
         };
       };
 
-      # SKY-021 P2 — the throwaway proof CT gets the SAME magic-rollback day-2 model, to answer the
-      # open question: does profile-switch + canary rollback work in a container (no bootloader)?
-      # sshUser=root here (the agent key is baked to root in lxc-base, not a separate svc-ops), so a
+      # The LXC deploy node uses the same magic-rollback day-two model. sshUser=root here (the agent
+      # key is baked to root in lxc-base, not a separate svc-ops), so a
       # config that kills SSH must self-heal within confirmTimeout instead of stranding the CT.
       deploy.nodes.lxc-proof = {
         hostname = "10.10.90.99";
@@ -113,7 +109,7 @@
         };
       };
 
-      # SKY-021 P3 — adguard-core (CT 731 @ 10.10.70.31) day-2 over deploy-rs. sshUser=root (the agent
+      # adguard-core (CT 731 @ 10.10.70.31) day-two over deploy-rs. sshUser=root (the agent
       # key is baked to root in lxc-base).
       deploy.nodes.lxc-adguard-core = {
         hostname = "10.10.70.31";

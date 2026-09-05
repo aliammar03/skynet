@@ -2,7 +2,7 @@
 # collect-proxmox-acl.sh — T1 snapshot of the OPERATE token's OWN effective permissions on a node →
 #   inventory/proxmox-<node>-acl.json. Read-only self-introspection: a token can always read its own
 #   /access/permissions, so this never needs more than the operate token already holds, and mutates
-#   nothing. Feeds the ACL-audit invariant (SKY-021): check-invariants.sh asserts this snapshot
+#   nothing. Feeds the ACL-audit invariant: check-invariants.sh asserts this snapshot
 #   carries none of the bright-line privileges and no network-node self-provisioning creep — so a
 #   silent widening of the agent's own Proxmox leash (a /vms grant on network, a Permissions.Modify
 #   anywhere) is caught by a NON-LLM gate, not by the agent remembering.

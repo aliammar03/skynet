@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gitops-rollback.sh — the L7 rollback executor for a Compose deploy (SKY-018 P6).
+# gitops-rollback.sh — rollback executor for a Compose deploy.
 #
 # The dumb executor ADR 0005 §3 requires: it reverts a deploy by `git revert`-ing the deploy commit
 # and letting Arcane reconcile the service back from git. It needs no agent judgement — it re-applies

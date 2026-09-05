@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# entity.sh — the L0 identity helper (SKY-018 P1). Sourceable: gives every thing the agent reasons
+# entity.sh — the identity helper. Sourceable: gives every thing the agent reasons
 #   about a stable `<class>/<key>` ID, and derives a guest's IP from its VMID (ADR 0001) and back.
 # TIER: T1 — pure functions over conventions + repo data. No network, no secrets, no writes.
 # USAGE:  source scripts/entity.sh   then call the functions below. Nothing runs on source.

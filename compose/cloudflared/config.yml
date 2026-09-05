@@ -6,7 +6,7 @@ credentials-file: /etc/cloudflared/credentials.json
 
 # First match wins; list MUST end with the catch-all.
 ingress:
-  # Pilot (SKY-014 P2): obsidian self-gates (CouchDB 401) + client-side E2E, so own-auth is enough.
+  # Obsidian self-gates (CouchDB 401) with client-side E2E, so own-auth is enough.
   - hostname: obsidian.aliammar.net
     service: https://10.10.100.35
     originRequest:
@@ -16,7 +16,7 @@ ingress:
     service: https://10.10.100.35
     originRequest:
       originServerName: karakeep.aliammar.net
-  # calibre — NO native login; gated by Authentik forward-auth (SKY-003 P3). Public exposure only
+  # calibre — no native login; gated by Authentik forward-auth. Public exposure only
   # works alongside auth.aliammar.net below: an unauthenticated request is 302'd to Authentik, so
   # the login host must resolve publicly too, or the redirect dead-ends.
   - hostname: calibre.aliammar.net

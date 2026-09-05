@@ -48,7 +48,7 @@ in
 {
   sops.age.keyFile = ageKey;
   sops.secrets = (builtins.listToAttrs (map mkSecret names)) // {
-    # aliammar's login/sudo password hash (SKY-007 1d). neededForUsers → decrypted to
+    # aliammar's login/sudo password hash. neededForUsers → decrypted to
     # /run/secrets-for-users BEFORE users exist (root-owned there, so no owner=), consumed as
     # users.users.aliammar.hashedPasswordFile. Lets Ali password-sudo to root; the agent has no
     # password so its keyless sudo stays blocked (wheelNeedsPassword). Hash set out-of-band by Ali.

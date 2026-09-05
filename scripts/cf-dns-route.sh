@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cf-dns-route.sh — upsert (or delete) a proxied public CNAME for a tunnel hostname (SKY-014).
+# cf-dns-route.sh — upsert (or delete) a proxied public CNAME for a tunnel hostname.
 # NB: the canonical create path is now TOFU — the tunnel CNAMEs are DERIVED from the cloudflared
 # ingress in tofu/cloudflare-dns.tf (publish = merge the ingress line → review a saved plan →
 # `scripts/tofu-apply.sh <planfile>`). This script is the BREAK-GLASS / immediate path. Its `--delete`
@@ -17,7 +17,7 @@
 #   CF_ZONE        the zone, i.e. aliammar.net
 #   TUNNEL_ID      the tunnel UUID (public), e.g. 7f4c50f9-cee6-40bb-ad5a-ef6c7f30ca56
 set -euo pipefail
-SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # for the dns-revert executor (SKY-018 P6)
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # for the dns-revert executor
 
 envfile="/opt/skynet-ops/secrets/cloudflare-dns.env"
 { test -r "${envfile}" 2>/dev/null || sudo -n test -r "${envfile}" 2>/dev/null; } || { echo "missing ${envfile} (0600) — mint the scoped token first" >&2; exit 1; }

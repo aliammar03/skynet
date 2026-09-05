@@ -119,7 +119,7 @@ render() {
     # shellcheck disable=SC2016  # %s are printf specifiers, not shell expansions — single quotes are correct
     for s in "${order[@]}"; do printf '\n## %s\n\n```\n%s```\n' "$s" "${sect[$s]}"; done
     # Routing: map observed signals to the matching diagnosis runbook, so recon points at the
-    # next step instead of leaving the reader to match the table (SKY-005 P2). Signals only fire
+    # next step instead of leaving the reader to match the table. Signals only fire
     # on what a host snapshot can actually see (crash-loop, disk/inode pressure, failed units,
     # backup units) — cert/DNS are symptom-driven, reached from their own triggers.
     local all='' s2; for s2 in "${order[@]}"; do all+="${sect[$s2]}"$'\n'; done

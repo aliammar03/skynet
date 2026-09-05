@@ -23,7 +23,7 @@ slugify() { echo "$1" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s
 # (mirrors the fix in bin/plan — a title like "VM/CT lifecycle" must not break the s///).
 sed_rep() { local s="$1"; s="${s//\\/\\\\}"; s="${s//&/\\&}"; printf '%s' "${s//\//\\/}"; }
 
-need() { [ -e "$1" ] || die "missing template $1 — is SKY-009 Phase 2 installed?"; }
+need() { [ -e "$1" ] || die "missing template $1"; }
 
 cmd_service() {
   local name="${1:?usage: new service <name>}" slug dest

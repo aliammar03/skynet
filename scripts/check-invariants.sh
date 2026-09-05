@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # check-invariants.sh — assert the machine-checkable hard laws (invariants.json) against observed
-#   inventory + the tracked tree; exit non-zero on any violation. → the deterministic gate (SKY-011)
+#   inventory + the tracked tree; exit non-zero on any violation.
 # TIER: T1 — reads repo files + runs read-only greps. No network, no secrets, no writes.
 # USAGE: check-invariants.sh   (run from anywhere; reads invariants.json + inventory/proxmox-*.json)
 #   The whole point (ADR 0003): a NON-LLM process consumes invariants.json, so the hard laws are
@@ -75,12 +75,12 @@ while IFS= read -r pat; do
 done < <(jq -r '.secret_patterns.patterns[].pattern' "${INV}")
 [ "${fail}" -eq "${before}" ] && ok "no plaintext secret patterns found in tracked files"
 
-# --- 4. Every running entity is mapped or a declared exception (SKY-018 L0) ---------------------
+# --- 4. Every running entity is mapped or a declared exception -------------------------------
 # The entity audit IS the checker for this law (one implementation, not two): it derives every
 # guest/service, joins against observed firewall/DNS/compose truth, and exits non-zero on a running
 # entity that is neither mapped nor a declared exception (invariants.json entity_conventions /
 # excluded_guests). Reuse it rather than re-implementing the join here.
-echo "== every running entity is mapped or a declared exception (SKY-018) =="
+echo "== every running entity is mapped or a declared exception =="
 before=${fail}
 if audit_out="$(./scripts/audit-entities.sh 2>&1)"; then
   ok "every running guest & service is mapped or a declared exception"
@@ -89,7 +89,7 @@ else
   printf '%s\n' "${audit_out}" | grep -E 'running-unmapped' | sed 's/^/        /' >&2
 fi
 
-# --- 5. Operate-token ACL never crosses the bright lines / self-provisions off-node (SKY-021) ----
+# --- 5. Operate-token ACL never crosses the bright lines / self-provisions off-node ------------
 # The checker for the /vms-root widening: read each node's collected operate-token ACL and assert
 # (1) NO forbidden privilege at any path (Permissions.Modify = self-leash rewrite; Sys.Modify/
 # PowerMgmt/Console = node root), (2) node-root VM allocation only on declared vms_root_nodes.
@@ -122,7 +122,7 @@ elif [ "${fail}" -eq "${before}" ]; then
   ok "operate token: no bright-line privilege anywhere; /vms-root only on declared node(s) [${vms_root_nodes[*]}]"
 fi
 
-# --- 6. Construction helpers stay within their declared build-time leash (SKY-022) --------------
+# --- 6. Construction helpers stay within their declared build-time leash -----------------------
 echo "== construction helper cap and sandboxes match the declared build-time leash =="
 before=${fail}
 declared_cap="$(jq -r '.construction.max_concurrent_threads_per_session' "${INV}")"

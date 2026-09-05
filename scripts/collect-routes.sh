@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# collect-routes.sh — L2 route inventory (SKY-018 P5). Static-parse the committed Caddyfiles under
+# collect-routes.sh — route inventory. Static-parse the committed Caddyfiles under
 #   compose/ into inventory/routes.json: vhost -> front door -> backend ENTITY -> auth mode.
 # TIER: T1 — reads compose/ (git), resolves backends via the compose ipv4_address map + entity.sh.
 #   No live access, no writes. The Caddyfile is the VHOST class's source of truth (it declares each

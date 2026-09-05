@@ -6,7 +6,7 @@
 #   bin/agent <lead|builder|mechanic|scout> "<prompt>" [--hard] [--cwd <dir>] [--dry-run]
 #     --hard      lead only: promote Terra → Sol for genuinely hard / cross-cutting work
 #     --cwd <dir> run the helper rooted at <dir> instead of the main checkout — for a git worktree,
-#                 so two writers get separate filesystem state (SKY-022 P4). Git is the isolation.
+#                 so two writers get separate filesystem state. Git is the isolation.
 #     --dry-run   print the resolved role/tier/model/sandbox + exact command, launch nothing
 #   Tier→model is env-overridable (the only knob): AGENT_MODEL_{SOL,TERRA,LUNA}. No secrets are read.
 #
@@ -74,7 +74,7 @@ if [ -n "${cwd}" ]; then
 fi
 cd "${workdir}"
 
-# tier → concrete model. Env override is the ONLY place model IDs live (SKY-022 §2·C).
+# tier → concrete model. Env override is the only place model IDs live.
 model_for_tier() { case "$1" in
   sol)   echo "${AGENT_MODEL_SOL:-gpt-5.6-sol}";;
   terra) echo "${AGENT_MODEL_TERRA:-gpt-5.6-terra}";;
@@ -84,7 +84,7 @@ model_for_tier() { case "$1" in
 # role → tier / reasoning effort / sandbox / approval. The one routing table in code (doctrine:
 # docs/conventions/construction.md). Scout is read-only by contract; writers stay workspace-scoped —
 # deliberately MORE restricted than the nightly's full bypass, because construction touches no prod.
-# Routing is benchmark-backed (SKY-022 P1). The Terra-vs-Luna axis IS the builder-vs-mechanic split:
+# Routing is benchmark-backed. The Terra-vs-Luna axis is the builder-vs-mechanic split:
 #   - lead reasons hardest (xhigh; high→xhigh moved perfect first runs 28%→89%). Terra, Sol if hard.
 #   - builder = novel bounded LOGIC → TERRA: it wins every coding bench (Terminal-Bench 87.4 vs 84.7,
 #     SWE-Bench Pro 63.4 vs 62.7), and a wrong builder costs a rework loop paid in expensive LEAD

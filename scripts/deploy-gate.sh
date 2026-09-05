@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# deploy-gate.sh — the deterministic health gate that DECIDES a Compose rollback (SKY-018 P6).
+# deploy-gate.sh — the deterministic health gate that decides a Compose rollback.
 #
 # ADR 0005 §3: the rollback must fire without the agent noticing. This script is that decider — a
 # dumb, deterministic probe of the just-deployed service. If the service is not healthy within the

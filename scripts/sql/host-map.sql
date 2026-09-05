@@ -1,4 +1,4 @@
--- host-map.sql — the canonical host map as a JOIN over entity keys (SKY-018 P3), replacing the old
+-- host-map.sql — the canonical host map as a JOIN over entity keys.
 -- jq/awk IP-priority ladder in render-docs.sh. One row per 10.10.0.0/16 IP, best label wins:
 --   guest (0) > DHCP reservation (1) > single-IP alias (2) > unique-target DNS (4) > role alias (3+n).
 -- A running guest IS the host, so it wins and carries its entity id; a DNS name that resolves to a

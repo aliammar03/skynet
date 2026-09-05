@@ -16,7 +16,7 @@
 	# HTTP/1.1 + HTTP/2 only — no HTTP/3. Chromium/Electron clients (Obsidian LiveSync)
 	# upgrade to h3 on the alt-svc hint, but QUIC/UDP-443 across the DMZ macvlan is
 	# unreliable → the browser reports ERR_SSL_PROTOCOL_ERROR (and noisy LiveSync CORS/2xx
-	# false-alarms). TCP h2 is plenty for these apps. (SKY-014 follow-up.)
+	# false-alarms). TCP h2 is plenty for these apps.
 	servers {
 		protocols h1 h2
 	}
@@ -53,11 +53,11 @@ obsidian.aliammar.net {
 
 # ===================================================================================
 # NO-AUTH services — NO gate of their own; reachable only from app-client VLANs (rule
-# 200), never the internet. SKY-003 P3 gated calibre with Authentik forward_auth (below);
+# 200), never the internet. Calibre uses Authentik forward_auth (below);
 # sillytavern is still proxied plain (network-segmentation-only) until it's converted too.
 # ===================================================================================
 
-# calibre — no native login. Gated by Authentik forward-auth (SKY-003 P3). Per-app
+# calibre — no native login. Gated by Authentik forward-auth. Per-app
 # proxy provider "calibre" (forward_single, external_host=https://calibre.aliammar.net)
 # is bound to the embedded outpost, served by the Authentik server itself at
 # 10.10.80.37:9000 (firewall rule 240). Authentik maps this vhost to that provider by
@@ -99,7 +99,7 @@ speed.aliammar.net {
 # Authentik admin (that stays T3).
 # ===================================================================================
 auth.aliammar.net {
-	# Published to the internet (SKY-014) so the calibre forward-auth redirect resolves for EXTERNAL
+	# Published to the internet so the calibre forward-auth redirect resolves for external
 	# users. Keep the admin surface internal-only: refuse Authentik's admin UI when the request comes
 	# in over the Cloudflare Tunnel — cloudflared connects to this proxy from 10.10.100.33, so a
 	# remote_ip of .33 means "arrived via the public tunnel". Login/OIDC/flow endpoints stay public
