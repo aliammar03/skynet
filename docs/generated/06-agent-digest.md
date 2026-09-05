@@ -42,22 +42,22 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 - Phase 1 remains T1 repository remediation. Provider-root/state separation for plan creation and a failure-tested automatic inverse for newly created guests remain future work; neither is claimed as A4-ready. — _2026-09-05 session          # session | incident | decision_
 - PR #185 needs normal human review, CI confirmation, and merge. The agent must not merge it. — _2026-09-05 session          # session | incident | decision_
+- PR #186 needs CI and human review. The agent does not merge authored changes. — _2026-09-05 session          # session | incident | decision_
 - Phase 3: split the publishing monolith and make all runbooks task-shaped. — _2026-09-05 session          # session | incident | decision_
 - The directive references `[[SKY-023-progress]]`, but no repository-backed progress-memory file exists. This raw close-out episode is the durable repo record for resumption. — _2026-09-05 session          # session | incident | decision_
 - Ali reviews and merges PR #185. Phase 2 starts only after that merge. — _2026-09-05 session          # session | incident | decision_
 - Human-review and merge the Phase 1 PR; the agent does not merge authored work. — _2026-09-05 session          # session | incident | decision_
 - Phase 2 may start only after Phase 1 merges. It owns constitution/spoke pruning and size targets; no Phase 2 pruning was performed here. — _2026-09-05 session          # session | incident | decision_
-- SKY-020 still owns the OPNsense provider, write credential, policy gate, apply, and rollback proof. — _2026-09-05 session          # session | incident | decision_
 
 ## 📓 Recent episodes
 
 - **2026-09-05** · session          # session | incident | decision · [[2026-09-05-session-sky-023-phase-1-audit-remediation|SKY-023 Phase 1 audit remediation]]
+- **2026-09-05** · session          # session | incident | decision · [[2026-09-05-session-sky-023-p2-secret-access-clarification|SKY-023 P2 secret-access clarification]]
 - **2026-09-05** · session          # session | incident | decision · [[2026-09-05-session-sky-023-p2-close-out|SKY-023 P2 close-out]]
 - **2026-09-05** · session          # session | incident | decision · [[2026-09-05-session-sky-023-p1-pr-integration|SKY-023 P1 PR integration]]
 - **2026-09-05** · session          # session | incident | decision · [[2026-09-05-session-sky-023-p1-close-out|SKY-023 P1 close-out]]
 - **2026-09-05** · session · [[2026-09-05-session-nightly-2026-09-05|nightly 2026-09-05]]
 - **2026-09-05** · decision          # session | incident | decision · [[2026-09-05-decision-sky-023-p1-create-blocker-correction|SKY-023 P1 create blocker correction]]
-- **2026-09-04** · session          # session | incident | decision · [[2026-09-04-session-sky-023-p1-truth-reconciliation|SKY-023 P1 truth reconciliation]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._

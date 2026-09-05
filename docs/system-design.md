@@ -50,9 +50,10 @@ unattended. The rationale and reversibility test are in
   the dials below, `AGENTS.md` §3/§6, `invariants.json`, or enforcing gates are human-merged forever.
 - **Root is grant-only.** The SSH CA private key stays on Ali's workstation; each host certificate
   expires by itself and its KeyID is harvested nightly.
-- **Secrets are encrypted in git or restrictive local files under `/opt/skynet-ops/secrets/`.**
-  The lab age key is the narrow `0640 root:users` exception so the agent can decrypt sops without
-  sudo. Plaintext never enters commits, logs, transcripts, or chat.
+- **Secrets are encrypted in git or agent-readable restrictive local files under
+  `/opt/skynet-ops/secrets/`.** Materialized files are `0400 aliammar`; the lab age key is
+  `0640 root:users`, so the agent decrypts sops without sudo. Plaintext never enters commits, logs,
+  transcripts, or chat.
 - **System rebuilds from git; payload restores from backup.** A system-class item recoverable only
   from backup is a bug.
 - **Generated state is machine-owned.** The agent does not hand-edit `inventory/` or

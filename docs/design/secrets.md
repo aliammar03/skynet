@@ -11,7 +11,8 @@ summary: "How Skynet holds secrets with sops+age and materializes GitOps service
 
 One age keypair on skynet-ops is the root of the secret world. Its private key is
 `/opt/skynet-ops/secrets/age.key` (`root:users`, `0640`) so the agent can decrypt sops without
-sudo. Other materialized secret files remain restrictive.
+sudo. sops-nix materializes service secret files as `0400 aliammar` under `/run/secrets/`, with the
+existing `/opt/skynet-ops/secrets/` paths linking to them. The agent reads both paths unprivileged.
 
 ```yaml
 # .sops.yaml
@@ -69,5 +70,4 @@ Arcane owns reconciliation and project lifecycle, while the deploy wrapper owns 
   Current GitOps projects do not use that file.
 
 This is layer **L1** of the [backup model](../backup-strategy.md). Secrets are sops-encrypted in git
-or stored as restrictive local files; the master age-key exception above is intentional. Plaintext
-never enters git.
+or stored as the agent-readable restrictive local files above. Plaintext never enters git.

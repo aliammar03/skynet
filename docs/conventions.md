@@ -16,9 +16,9 @@ These hold everywhere and don't get a "unless"; the spokes elaborate, never loos
 
 - **Never commit to `main` directly; the agent never merges its own PRs.** One branch per unit of
   work, one PR per change, `git revert` is the rollback. → [`conventions/git.md`](conventions/git.md)
-- **No plaintext secrets in git — ever.** Only sops-encrypted `*.env.sops`, or restrictive files
-  under `/opt/skynet-ops/secrets/`; the lab age key is `0640 root:users` so the agent can decrypt
-  sops without sudo. The pre-commit scan enforces it.
+- **No plaintext secrets in git — ever.** Only sops-encrypted `*.env.sops`, or agent-readable
+  restrictive files under `/opt/skynet-ops/secrets/` (`0400 aliammar`; lab age key
+  `0640 root:users`). The agent decrypts sops without sudo. The pre-commit scan enforces it.
   → [`conventions/compose.md`](conventions/compose.md), [`design/secrets.md`](design/secrets.md)
 - **Never hand-edit generated dirs** (`inventory/**`, `docs/generated/**`) — edit the collector or
   renderer. → [`conventions/layout.md`](conventions/layout.md)

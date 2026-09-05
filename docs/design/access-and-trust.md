@@ -16,9 +16,9 @@ summary: "The current credential, ACL, principal, and root-grant boundaries that
 | **T2+ Root** | Per-host OpenSSH user certificate | Ali signs; expires automatically |
 | **T3 Privileged** | Dormant `ROLE_OPS_PRIV_TARGETS` and per-session credentials | No standing route or credential |
 
-Secret material is sops-encrypted or restrictive below `/opt/skynet-ops/secrets/`. The master age
-key is `0640 root:users` so the agent can decrypt sops without sudo; details of environment
-materialization are in [secrets](secrets.md).
+Secret material is sops-encrypted or materialized as `0400 aliammar` below
+`/opt/skynet-ops/secrets/`. The master age key is `0640 root:users`; both are readable by the agent
+without sudo. Environment materialization is detailed in [secrets](secrets.md).
 
 ## Proxmox operate scope
 
