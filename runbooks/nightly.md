@@ -20,10 +20,12 @@ auto-approve list.
 
 ### Choose an execution path
 
-`bin/ops nightly` prefers the **LLM engine**, and **falls back to a deterministic script** if
-the engine can't run (missing/unauthed/errors) — so the nightly always produces a report.
+`bin/ops nightly` always runs one deterministic sequence. It may insert an **LLM engine** for the
+optional human narrative and root-grant audit; an unavailable or failed engine does not repeat or
+discard the prepared deterministic work.
 
-- **Engine order:** nightly tries **primary → fallback engine → deterministic script**. Set it
+- **Engine order:** nightly tries **primary → fallback engine** for the optional stage, then always
+  finalizes deterministically. Set it
   all in the timer's env file (`/home/ali/.config/skynet-ops/ops.env`, example:
   `scripts/systemd/ops.env.example`) — edits apply on the next run, no unit editing:
   - `OPS_ENGINE=codex|claude` — primary (default `codex`).
@@ -32,35 +34,32 @@ the engine can't run (missing/unauthed/errors) — so the nightly always produce
   - `OPS_CODEX_MODEL` / `OPS_CLAUDE_MODEL` — model per engine (unset = engine default).
   - `OPS_ENGINE_CMD` — full override of the primary command; `OPS_NIGHTLY_MODE=script` forces
     the deterministic path.
-- **Agent path:** the engine runs the pass below and additionally (re)writes the human-readable
-  narrative of `docs/generated/05-state-of-the-lab.md` and appends a raw journal session entry.
-- **Fallback path** (`scripts/nightly.sh`): reached when *every* configured engine fails/absent —
-  the same inventory refresh + render (incl. the agent digest `06-agent-digest.md`) + PR + a raw (LLM-free)
-  journal entry, minus the LLM-authored **narrative prose** and grant audit.
+- **Optional agent stage:** after deterministic preparation, the engine may harvest a live root-grant
+  audit and rewrite `docs/generated/05-state-of-the-lab.md`. It does not collect, render deterministic
+  pages, journal, commit, push, create a PR, or merge.
+- **Fallback:** if every configured engine fails or is absent, `scripts/nightly.sh --finalize` runs
+  against the already-prepared branch. It preserves that partial work, adds the LLM-free evidence,
+  and prepares the same PR.
 
 ### Run the shared maintenance sequence
 
-1. **Refresh inventory** — `bin/ops collect` (every collector idempotent, read-only; no creds
-   yet = exits 0 without writing).
-2. **Legacy env import** — `scripts/envsync.sh` encrypts any legacy `project.env` it finds; current
+1. **Prepare one branch** — `scripts/nightly.sh --prepare` requires a clean worktree, fetches the
+   latest `main`, then creates the timestamped nightly branch. A failed fetch stops safely rather
+   than producing a report against an unknown base.
+2. **Refresh inventory** — `scripts/collect-all.sh` runs every idempotent, read-only collector;
+   a failed collector is recorded while the remaining T1 collection continues. It never renders docs.
+3. **Legacy env import** — `scripts/envsync.sh` encrypts any legacy `project.env` it finds; current
    GitOps services already use committed `.env.git` + `.env.sops`, so a missing file is expected.
-3. **Render docs** — `scripts/render-docs.sh` rewrites the factual `docs/generated/` pages, then
-   `scripts/render-digest.sh` regenerates the **agent cold-boot digest** `06-agent-digest.md`
+4. **Render factual docs** — `scripts/render-docs.sh` rewrites the factual `docs/generated/` pages.
+5. **Optional agent work** — when an engine is available, it may write the human narrative and
+   grant audit only. This stage cannot own the branch or PR lifecycle.
+6. **Journal then render routing pages** — the finalizer appends a raw journal session entry first,
+   then `scripts/render-digest.sh` regenerates the **agent cold-boot digest** `06-agent-digest.md`
    (recent decisions / open threads / recent episodes, from ADRs + the journal + the roadmap), and
    `scripts/render-context-map.sh` regenerates the **context map** `07-context-map.md` (what's
-   loadable + its token cost). Both paths run all three; they are deterministic, machine-facing pages.
-4. **(agent only) Narrative** — rewrite `docs/generated/05-state-of-the-lab.md`: the *human*
-   state-of-the-lab — a beautifully formatted, honest read with agent commentary and *what changed
-   since last night* (diff vs `main`). Have personality; keep it accurate; never overclaim. (The
-   machine digest is a separate page, `06-agent-digest.md`, rendered in step 3 — don't hand-write it.)
-5. **(agent only) Root-grant audit** — if a grant is active, grep each host's sshd log for cert
-   KeyIDs (`grant+<host>+<ts>+by-ali`) → `inventory/grant-audit.json`. Skip if no root.
-6. **Journal the run** — append a **raw** episodic session entry to `journal/` (episodic memory;
-   [`journal/README.md`](../journal/README.md)). Agent path: `bin/new journal session "nightly
-   <date>"`, filled with concrete facts (what ran, what changed vs `main`, anomalies, and any
-   dead-ends under Graveyard). Fallback path: a minimal factual entry from the diff stat. **Raw,
-   append-only, summarized only at read time — never pre-digested.**
-7. **Open a PR** on branch `inventory/<date>-<HHMM>` (the `HHMM` suffix lets same-day re-runs each
+   loadable + its token cost). The current entry is therefore visible in both machine-facing pages.
+7. **Open a PR** — the deterministic finalizer stages generated evidence, commits, pushes, and opens
+   the PR on branch `inventory/<date>-<HHMM>` (the `HHMM` suffix lets same-day re-runs each
    get their own branch instead of colliding) with the diff + summary. **The engine never merges by
    hand.** The merge is decided afterward by the deterministic gate `scripts/nightly-automerge.sh`
    (both paths call it): generated-only diff **and** green CI → squash-merge; anything else → left
@@ -68,7 +67,8 @@ the engine can't run (missing/unauthed/errors) — so the nightly always produce
 
 ## Verify
 
-- Confirm the PR contains only the expected generated/encrypted paths, the deterministic merge gate reports its decision, and anomalies are visible in the report.
+- Confirm the PR contains only the expected generated/encrypted paths, the current raw journal entry
+  appears in the digest, the deterministic merge gate reports its decision, and anomalies are visible.
 
 ## Rollback
 

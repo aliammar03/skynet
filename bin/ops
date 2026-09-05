@@ -17,7 +17,7 @@ cd "${REPO_DIR}"
 #                     (default: the OTHER engine — so "prefer X, run Y as fallback" works OOTB;
 #                      set to 'none' to disable and go straight to the deterministic script)
 # OPS_ENGINE_CMD      full command override for the PRIMARY engine (custom flags)
-# nightly tries: primary engine → fallback engine → scripts/nightly.sh (deterministic).
+# nightly prepares/finalizes deterministically; primary → fallback engines are optional narrative/audit hooks.
 # Per-engine model is env-driven: OPS_CODEX_MODEL / OPS_CLAUDE_MODEL → each engine's --model
 # flag (unset = the engine's own default).
 engine_bin() { case "$1" in codex) echo codex;; claude) echo claude;; *) return 1;; esac; }
@@ -40,27 +40,9 @@ OPS_ENGINE_CMD="${OPS_ENGINE_CMD:-$(engine_cmd "${OPS_ENGINE}")}"
 OPS_ENGINE_BIN="$(engine_bin "${OPS_ENGINE}")"
 # ──────────────────────────────────────────────────────────────────────────────
 
-collect_all() {
-  echo "== refreshing inventory =="
-  ./scripts/collect-proxmox.sh core    || true
-  ./scripts/collect-proxmox.sh network || true
-  ./scripts/collect-proxmox-acl.sh core    || true   # operate-token ACL audit (SKY-021 bright-line gate)
-  ./scripts/collect-proxmox-acl.sh network || true
-  ./scripts/collect-pbs.sh             || true
-  ./scripts/collect-docker.sh docker-dmz || true
-  ./scripts/collect-dns.sh             || true
-  ./scripts/collect-opnsense.sh        || true   # live firewall inventory (canonical; writes firewall.json + opnsense.json)
-  ./scripts/collect-network-gear.sh    || true
-  ./scripts/collect-routes.sh          || true   # vhost routes from the Caddyfiles (L2, SKY-018 P5)
-  ./scripts/collect-certs.sh           || true   # TLS cert expiry inventory (L2, SKY-018 P5)
-  # collect-firewall.sh (mirror parse) is retired from the loop → DR/offline only; the live API is
-  # the collector now (ADR 0006). The skynet-opnsense config.xml mirror stays as the git-truth DR source.
-  ./scripts/render-docs.sh             || true
-}
-
 cmd="${1:-nightly}"; shift || true
 case "${cmd}" in
-  collect) collect_all ;;
+  collect) exec ./scripts/collect-all.sh ;;
   entities) exec ./scripts/audit-entities.sh ;;
   query)
     sql="${1:?usage: bin/ops query \"<sql>\"}"
@@ -80,9 +62,14 @@ case "${cmd}" in
     # of colliding on inventory/<date> — computed ONCE here and handed to both the engine and the
     # gate so they agree on the exact name.
     export OPS_NIGHTLY_BRANCH="inventory/$(date +%Y-%m-%d-%H%M)"
-    prompt="Run the nightly maintenance pass per runbooks/nightly.md. Report-only: refresh inventory (bin/ops collect), envsync, harvest the root-grant audit if a grant is active, then render docs (scripts/render-docs.sh) AND (re)write the human-readable narrative docs/generated/05-state-of-the-lab.md — a beautifully formatted, honest 'state of the lab' for HUMANS with agent commentary and what changed since last night (diff against main). Also run scripts/render-digest.sh to regenerate your own cold-boot page docs/generated/06-agent-digest.md (recent decisions / open threads / recent episodes, from ADRs + the journal + the roadmap) — that page is deterministic, so don't hand-write it. Likewise run scripts/render-context-map.sh to refresh docs/generated/07-context-map.md (what's loadable and what each artifact costs) — also deterministic. Also append a RAW episodic journal entry for tonight (bin/new journal session \"nightly \$(date +%F)\") per journal/README.md — concrete facts only (what ran, what changed vs main, any anomalies, and dead-ends in the Graveyard section); do NOT summarize at write time. Finally open a PR on branch ${OPS_NIGHTLY_BRANCH} (create it off the latest origin/main) with the summary. Take no T2 write or granted-root action unless it is on the AGENTS.md auto-approve list. Do NOT merge the PR yourself — leave it open; the deterministic gate (scripts/nightly-automerge.sh) decides the merge after you exit."
+    status_file="$(mktemp)"
+    trap 'rm -f "${status_file}"' EXIT
+    export OPS_NIGHTLY_STATUS_FILE="${status_file}"
+    ./scripts/nightly.sh --prepare
+    prompt="Run only the optional agent stage of the nightly pass described in runbooks/nightly.md. The deterministic sequence already owns the branch, collection, envsync, rendering, journal entry, digest/context refresh, commit, PR, and merge gate. Do not repeat or run any of those steps; do not commit, push, open a PR, or merge. Report-only: if a root grant is active, harvest its audit into inventory/grant-audit.json; then (re)write docs/generated/05-state-of-the-lab.md as an honest human narrative based on the prepared branch. Take no T2 write or granted-root action unless it is on the AGENTS.md auto-approve list. Exit non-zero if this optional work cannot complete; the deterministic finalizer will preserve partial work and finish the report."
     if [ "${OPS_NIGHTLY_MODE:-agent}" = agent ]; then
-      # ordered attempts: primary engine → fallback engine → deterministic script
+      # Ordered optional attempts: primary engine → fallback engine; the deterministic finalizer follows.
+      agent_ready=0
       order=("${OPS_ENGINE}")
       [ "${OPS_ENGINE_FALLBACK}" != none ] && [ "${OPS_ENGINE_FALLBACK}" != "${OPS_ENGINE}" ] && order+=("${OPS_ENGINE_FALLBACK}")
       for e in "${order[@]}"; do
@@ -90,17 +77,14 @@ case "${cmd}" in
         if ! command -v "${b}" >/dev/null 2>&1; then echo "engine '${e}' not installed — skipping" >&2; continue; fi
         if [ "${e}" = "${OPS_ENGINE}" ]; then c="${OPS_ENGINE_CMD}"; else c="$(engine_cmd "${e}")"; fi
         echo "== nightly via engine: ${e} (${c}) =="
-        # The LLM opens the PR but never merges. Afterward run the SAME dumb merge-gate the
-        # deterministic path uses (ADR 0004): generated-only + CI-green → squash-merge, else left
-        # open. The safety is code, not the engine's judgement. Fails closed on any error.
-        if ${c} "${prompt}"; then ./scripts/nightly-automerge.sh "${OPS_NIGHTLY_BRANCH}" || true; exit 0; fi
+        if ${c} "${prompt}"; then agent_ready=1; break; fi
         echo "engine '${e}' failed — trying next" >&2
       done
-      echo "all engines exhausted — deterministic fallback" >&2
+      [ "${agent_ready}" = 1 ] || echo "all engines exhausted — deterministic finalizer continues" >&2
     else
       echo "OPS_NIGHTLY_MODE=script — deterministic nightly" >&2
     fi
-    exec ./scripts/nightly.sh
+    ./scripts/nightly.sh --finalize
     ;;
   *) echo "unknown command: ${cmd}" >&2; exit 2 ;;
 esac

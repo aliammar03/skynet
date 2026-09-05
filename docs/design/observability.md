@@ -34,8 +34,9 @@ touches the CouchDB LiveSync vault. Configuration: [`obsidian-setup.md`](../obsi
 
 ## The nightly run
 
-[`nightly.md`](../../runbooks/nightly.md) defines the 03:30 `skynet-nightly.timer` flow: primary
-engine, fallback engine, then deterministic [`scripts/nightly.sh`](../../scripts/nightly.sh).
+[`nightly.md`](../../runbooks/nightly.md) defines the 03:30 `skynet-nightly.timer` flow:
+deterministic preparation and finalization in [`scripts/nightly.sh`](../../scripts/nightly.sh), with
+primary then fallback engines available only for the optional narrative and grant-audit stage.
 Engine and model selection are in `~/.config/skynet-ops/ops.env`.
 
 Report-only is a constitution dial: the nightly run *observes and proposes*, it does not act
