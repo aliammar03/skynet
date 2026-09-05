@@ -17,13 +17,13 @@ mv "${tmp}/agent-cert.pub" "${tmp}/.ssh/certs/db-cert.pub"
 
 HOME="${tmp}" bash "${REPO_DIR}/scripts/skynet-ops-ssh-certs.sh" >/dev/null
 cfg="${tmp}/.ssh/config"
-rg -q '^Host docker-dmz$' "${cfg}" && ok "docker grant has an exact Host stanza" || bad "docker Host stanza missing"
-rg -q '^Host db$' "${cfg}" && ok "database grant has an exact Host stanza" || bad "database Host stanza missing"
-! rg -q '^Match user root$' "${cfg}" && ok "no broad root Match offers every certificate" || bad "broad root Match remains"
+grep -q '^Host docker-dmz$' "${cfg}" && ok "docker grant has an exact Host stanza" || bad "docker Host stanza missing"
+grep -q '^Host db$' "${cfg}" && ok "database grant has an exact Host stanza" || bad "database Host stanza missing"
+! grep -q '^Match user root$' "${cfg}" && ok "no broad root Match offers every certificate" || bad "broad root Match remains"
 
 docker_block="$(awk '/^Host docker-dmz$/{on=1} /^Host / && $0 != "Host docker-dmz"{on=0} on{print}' "${cfg}")"
-printf '%s\n' "${docker_block}" | rg -q 'docker-dmz-cert\.pub' \
-  && ! printf '%s\n' "${docker_block}" | rg -q 'db-cert\.pub' \
+printf '%s\n' "${docker_block}" | grep -q 'docker-dmz-cert\.pub' \
+  && ! printf '%s\n' "${docker_block}" | grep -q 'db-cert\.pub' \
   && ok "docker alias offers only its own certificate" || bad "docker alias leaks another certificate"
 
 echo
