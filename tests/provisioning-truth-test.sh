@@ -18,6 +18,10 @@ printf '%s\n' "${native}" | grep -q 'lifecycle {' \
   && bad "native CT resource inherited lifecycle ignores" || ok "native CT day-two fields are not ignored"
 printf '%s\n' "${native}" | grep -q 'pool_id' \
   && bad "native core CT unexpectedly claims pool membership" || ok "native core CT is honestly unpooled"
+grep -Fq 'local:vztmpl/nixos-lxc-base-26.05.tar.xz' "${cts}" \
+  && ok "core CT declarations use the lxc-base template" || bad "lxc-base template reference missing"
+rg -n 'nixos-lxc-proof|lxc-proof' AGENTS.md README.md CLAUDE.md ca docs runbooks scripts bin tofu nix hosts compose flake.nix .codex .claude .github .githooks .gitignore invariants.json lab.json >/dev/null \
+  && bad "proof-era LXC identity remains in current authority" || ok "proof-era LXC identity is absent from current authority"
 
 grep -Fq 'PBS CT 240 is an existing' runbooks/provision-lxc.md \
   && ok "LXC runbook distinguishes PBS import from excluded guests" || bad "LXC runbook still calls PBS excluded"
