@@ -52,9 +52,10 @@ and a 700-word roadmap despite declaring itself a short constitution.
 
 ## 3. Plan
 
-**Scope:** authored design, runbooks, their indexes, always-loaded summaries, and small lint/render
-changes needed to prevent drift. **Non-goals:** infrastructure changes, new capabilities, autonomy
-promotion, permission changes, or hand-editing generated outputs. **Rollback:** `git revert`.
+**Scope:** authored design, runbooks, their indexes, always-loaded summaries, active planning/current
+code comments, and small lint/render changes needed to prevent drift. **Non-goals:** infrastructure
+changes, new capabilities, autonomy promotion, permission changes, editing journal/scratchpad/archive
+history to make it read like current truth, or hand-editing generated outputs. **Rollback:** `git revert`.
 **Human actions:** PR review/merge only; no grants or credentials.
 
 ### Phase 1 — reconcile truth before pruning  (~1–2h)   `[x]` complete 2026-09-05
@@ -84,7 +85,7 @@ test evidence; production runbooks contain no bare re-planning `tofu apply` path
 **Exit:** constitution is at least **40% smaller**; design corpus at least **30% smaller**; no
 `Planned expansion` sections remain in spokes; all removed load-bearing content has one reachable home.
 
-### Phase 3 — make runbooks task-shaped  (~1–2h)   `[ ]`
+### Phase 3 — make runbooks task-shaped + finish current-truth cleanup  (~1–2h)   `[ ]`
 
 1. Split `publish-service.md` into a small router plus internal-route, forward-auth, and public-tunnel
    procedures. A simple internal publish must not load unrelated Authentik/Cloudflare instructions.
@@ -94,9 +95,28 @@ test evidence; production runbooks contain no bare re-planning `tofu apply` path
    steps in leaf runbooks.
 4. Replace duplicated backup provisioning in `provision-vm.md` with a precise link to `backup.md`.
 5. Generate the runbook catalog from frontmatter, or make one existing generator own it.
+6. Do one **current-truth sweep** across active planning, runbooks, and live code/config comments after
+   SKY-008's archive:
+   - repair hard-coded links that still point at `planning/projects/SKY-008-*`; link the archive when
+     provenance is genuinely useful, otherwise point at the current owner/capability;
+   - remove stale current-tense `svc-tofu` instructions and retired `tofu-proxmox*.env` references from
+     operational surfaces; the current Proxmox tofu identity is `svc-ops@pve!operate` where applicable;
+   - strip historical directive narration such as “SKY-008 P3 introduced ...” from live `tofu/`,
+     `scripts/`, `nix/`, and runbook comments. Keep only present behavior, safety constraints, and
+     non-obvious operational gotchas. **Do not rewrite journals, scratchpads, or archived directives**;
+   - fix stale factual comments exposed by later work, including claims such as CT 240 being the only
+     managed LXC;
+   - move any `status: done` directive that still lives outside `planning/archive/` into the archive
+     (known example: SKY-022), then regenerate the roadmap with `bin/plan list`.
+
+**Boundary:** repo cleanup only. If a stale root-owned symlink or other live-host residue is discovered,
+record it as a separate operator cleanup; SKY-023 does not mutate infrastructure.
 
 **Exit:** runbook corpus at least **20% smaller**; each publish leaf loads at most **40%** of the old
-4,719-token monolith; every leaf remains independently executable.
+4,719-token monolith; every leaf remains independently executable; no active path points at SKY-008's
+former `projects/` location; current operational surfaces do not instruct agents to use retired
+`svc-tofu` credentials; live comments describe present behavior rather than project history; and no
+`status: done` directive remains outside `planning/archive/`.
 
 ### Phase 4 — make drift fail CI  (~1–2h)   `[ ]`
 
@@ -105,16 +125,24 @@ test evidence; production runbooks contain no bare re-planning `tofu apply` path
    - stale/missing token frontmatter;
    - manually divergent runbook-catalog metadata;
    - forbidden generated-output edits;
-   - links to missing files/scripts.
+   - links to missing files/scripts;
+   - active references to archived directive paths such as `planning/projects/SKY-008-*`;
+   - completed directives (`status: done`) living outside `planning/archive/`;
+   - retired credential/file names in **current-authority surfaces** (`AGENTS.md`, `README.md`, `docs/`,
+     `runbooks/`, `tofu/`, `scripts/`, `nix/`). Keep history-bearing trees (`journal/`,
+     `planning/scratchpad/`, `planning/archive/`) explicitly outside this stale-history gate.
 2. Encode stable duplicated facts in a machine-readable source or consistency test where generation is
-   practical; do not attempt to lint judgement-heavy prose.
+   practical; do not attempt to lint judgement-heavy prose. Prefer a small denylist/allowlist for
+   retired identities and paths over broad prose rules that would reject legitimate historical evidence.
 3. Run the full repo checks, regenerate only through owning scripts, and perform a cold-session review:
-   one reviewer finds the trust tier, deploy procedure, restore status, and publish path without loading
-   unrelated files.
+   one reviewer finds the trust tier, deploy procedure, restore status, publish path, and current tofu
+   identity without loading unrelated or historical files.
 4. Record before/after token totals and archive the conflict matrix as a journal session, not design prose.
 
-**Exit:** CI catches the failure classes that caused this cleanup; all links/checks pass; the PR reports
-token deltas and proves no invariant, authority boundary, rollback, or recovery step was lost.
+**Exit:** CI catches the failure classes that caused this cleanup, including stale archive paths,
+retired operational identities, and done-directive placement; all links/checks pass; the PR reports
+token deltas and proves no invariant, authority boundary, rollback, recovery step, or historical
+evidence was lost.
 
 ## 4. ▶ Execute prompt
 
@@ -161,3 +189,7 @@ criteria, then perform Phase close-out.
   removed roadmap, rehearsal, and procedure duplication in favor of directives, journal evidence,
   scripts, and runbooks. The master age-key exception is now explicit: `0640 root:users` permits
   unprivileged sops decryption. Evidence: `journal/2026/2026-09-05-session-sky-023-p2-close-out.md`.
+- 2026-09-05 — Post-SKY-008 housekeeping folded into the remaining work after Ali archived SKY-008:
+  P3 now owns current operational-reference/comment cleanup plus done-directive roadmap hygiene; P4
+  adds deterministic guards for archived paths, retired operational identities, and misplaced done
+  directives. Historical journal/scratchpad/archive evidence is intentionally left untouched.
