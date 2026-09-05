@@ -1,8 +1,13 @@
-{ pkgs, ... }:
 # aliammar's interactive shell — zsh + starship + zoxide/fzf/eza/bat, and a login that drops you in
-# the repo with a status board. Interactive ONLY: the nightly/timers and `ssh host <cmd>` run bash
-# scripts and never source this (zsh reads .zprofile/.zshrc for login/interactive shells only), so
-# the ops loop is unaffected. Icons/glyphs assume a Nerd Font in YOUR terminal — see the PR notes.
+# a landing dir with a status board. Interactive ONLY: the nightly/timers and `ssh host <cmd>` run
+# bash scripts and never source this (zsh reads .zprofile/.zshrc for login/interactive shells only),
+# so the ops loop is unaffected. Icons/glyphs assume a Nerd Font in YOUR terminal — see the PR notes.
+#
+# Parameterized so more than one host can share the exact same shell (SKY): `landingDir` is where an
+# interactive login lands, `motdSource` is the board script printed there. Defaults reproduce the ops
+# VM verbatim (import with `{ }`); lxc-athena passes its own landing dir + board.
+{ landingDir ? "$HOME/skynet", motdSource ? ./skynet-motd.sh }:
+{ pkgs, ... }:
 {
   home.sessionPath = [ "$HOME/.local/bin" ];
 
@@ -57,10 +62,10 @@
       ZSH_HIGHLIGHT_STYLES[path]='fg=#cad3f5'
       ZSH_HIGHLIGHT_STYLES[unknown-token]='fg=#ed8796'
     '';
-    # .zprofile — login shells only. Land in the repo and print the board.
+    # .zprofile — login shells only. Land in the configured dir and print the board.
     profileExtra = ''
       if [[ -o interactive ]]; then
-        cd ~/skynet 2>/dev/null || true
+        cd ${landingDir} 2>/dev/null || true
         [ -x ~/.local/bin/skynet-motd ] && ~/.local/bin/skynet-motd
       fi
     '';
@@ -96,7 +101,7 @@
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDaJEkEwSMl7iSgXeokZIKSVj4TgE4p8Bljx26LmrK0d svc-ops@vm-skynet-ops\n";
 
   home.file.".local/bin/skynet-motd" = {
-    source = ./skynet-motd.sh;
+    source = motdSource;
     executable = true;
   };
 }

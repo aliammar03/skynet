@@ -70,6 +70,27 @@
         ];
       };
 
+      # lxc-athena (CT 10030 @ 10.10.100.30, VLAN 100/DMZ) — the Obsidian vault librarian: a
+      # coding-agent box (nix/home/athena.nix) that curates Ali's vault. Same lean pool-CT spine as
+      # adguard, plus home-manager for the agent CLIs and sops-nix for the seeded gh token. No lab
+      # authority (see hosts/lxc-athena/default.nix). No sops-nix: the box holds no secrets (git/gh
+      # auth is interactive) — re-add it here if the vault ever needs one.
+      nixosConfigurations.lxc-athena = nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = { inherit inputs; };
+        modules = [
+          inputs.home-manager.nixosModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.backupFileExtension = "hm-bak";
+            home-manager.extraSpecialArgs = { inherit inputs; };
+            home-manager.users.aliammar = import ./nix/home/athena.nix;
+          }
+          ./hosts/lxc-athena
+        ];
+      };
+
       # deploy-rs day-2: magicRollback auto-reverts if it can't reconnect (~30s) — the decisive
       # feature for an LLM operator (a config that kills SSH self-heals instead of bricking).
       deploy.nodes.vm-skynet-ops = {
@@ -106,6 +127,18 @@
           user = "root";
           sshUser = "root";
           path = deploy-rs.lib.${system}.activate.nixos self.nixosConfigurations.lxc-adguard-core;
+          magicRollback = true;
+          autoRollback = true;
+        };
+      };
+
+      # lxc-athena day-2 over deploy-rs. sshUser=root (the agent key is baked to root in lxc-base).
+      deploy.nodes.lxc-athena = {
+        hostname = "10.10.100.30";
+        profiles.system = {
+          user = "root";
+          sshUser = "root";
+          path = deploy-rs.lib.${system}.activate.nixos self.nixosConfigurations.lxc-athena;
           magicRollback = true;
           autoRollback = true;
         };

@@ -27,6 +27,21 @@ locals {
       disk   = 8
       tags   = ["adblock", "nixos", "skynet"]
     }
+    # Obsidian vault librarian on the DMZ (VLAN 100): coding-agent box (Claude Code / Codex /
+    # opencode) that curates Ali's vault, with NO lab authority — it tends the vault, not the lab.
+    # VMID 10030 → 10.10.100.30 (canonical VMID↔IP law). MAC from the vlan/octet hex: 100=0x64, 30=0x1E.
+    "athena" = {
+      vmid   = 10030
+      node   = "server-proxmox-core"
+      vlan   = 100
+      octet  = 30
+      mac    = "BC:24:11:64:1E:00"
+      cores  = 4
+      memory = 8192
+      swap   = 2048
+      disk   = 64
+      tags   = ["obsidian", "nixos", "skynet"]
+    }
     # Migration candidates (SKY-021 follow-ups) — each becomes a one-block add here + a flake host:
     #   "technitium-core" = { vmid = 751, node = "server-proxmox-core", vlan = 70, octet = 51, mac = "…", … }
     #   "omada"           = { … }

@@ -1,8 +1,8 @@
 {
-  "collected": "2026-09-04T03:43:03+05:00",
+  "collected": "2026-09-05T03:42:17+05:00",
   "source": "opnsense-api (live, T1 read-only; user view)",
   "counts": {
-    "aliases": 39,
+    "aliases": 40,
     "rules": 27,
     "reservations": 1
   },
@@ -150,7 +150,7 @@
     {
       "name": "ROLE_ADMIN_TARGETS",
       "type": "host",
-      "content": "ROLE_PROXMOX_NODES\nROLE_INFRASTRUCTURE_SWITCHES\nROLE_INFRASTRUCTURE_APS\nROLE_INFRASTRUCTURE_FIREWALL\nROLE_DNS_RESOLVERS\nHOST_PROXY_APPS\nHOST_UNRAID\nHOST_AUTHENTIK\nHOST_PBS\nHOST_DOCKER_DMZ\nHOST_SKYNET_OPS\nHOST_OMADA",
+      "content": "ROLE_PROXMOX_NODES\nROLE_INFRASTRUCTURE_SWITCHES\nROLE_INFRASTRUCTURE_APS\nROLE_INFRASTRUCTURE_FIREWALL\nROLE_DNS_RESOLVERS\nHOST_PROXY_APPS\nHOST_UNRAID\nHOST_AUTHENTIK\nHOST_PBS\nHOST_DOCKER_DMZ\nHOST_SKYNET_OPS\nHOST_OMADA\nHOST_ATHENA",
       "description": "Nested set of approved infrastructure and service administration targets.",
       "enabled": "1"
     },
@@ -278,6 +278,13 @@
       "type": "host",
       "content": "10.10.50.25",
       "description": "Omada Control.",
+      "enabled": "1"
+    },
+    {
+      "name": "HOST_ATHENA",
+      "type": "host",
+      "content": "10.10.100.30",
+      "description": "athena — Obsidian vault librarian",
       "enabled": "1"
     }
   ],
@@ -513,12 +520,12 @@
     {
       "sequence": "390",
       "action": "pass",
-      "protocol": "ICMP",
+      "protocol": "any",
       "interface": "",
       "source_net": "HOST_SKYNET_OPS",
       "destination_net": "NET_SKYNET",
       "destination_port": "",
-      "description": "ops to ping all",
+      "description": "ops to all",
       "uuid": "1b895258-aaab-430f-9627-750e9a5f0bf7",
       "enabled": true
     },
