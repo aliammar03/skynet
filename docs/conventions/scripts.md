@@ -47,4 +47,4 @@ verification.
 - **`bin/`** = operator-facing entry points a human/agent invokes directly (`bin/plan`, `bin/ops`,
   `bin/grant-root`). `[manual]`
 - **`scripts/`** = the procedures those entry points and runbooks call (collectors, deploy,
-  backup, envsync). `[manual]`
+  backup). `[manual]`

@@ -51,7 +51,7 @@ set -a; source <(cat "${ARC_ENV}" 2>/dev/null || sudo -n cat "${ARC_ENV}"); set 
 : "${ARCANE_URL:?ARCANE_URL missing from ${ARC_ENV}}"
 : "${ARCANE_TOKEN:?ARCANE_TOKEN missing from ${ARC_ENV}}"
 ENVID="${ARCANE_ENV_ID:-0}"
-BRANCH="${GITOPS_BRANCH:-main}"   # override during migration to verify off a feature branch
+BRANCH="${GITOPS_BRANCH:-main}"   # override to verify a feature branch
 # Deploy identity = standing T2 svc-ops (NOT root). The docker host is the Arcane host in ARCANE_URL.
 DOCKER_HOST_NAME="$(printf '%s' "${ARCANE_URL}" | sed -E 's#^https?://([^:/]+).*#\1#')"
 SSH_HOST="svc-ops@${DOCKER_HOST_NAME}"

@@ -43,10 +43,6 @@ EOF
 printf 'collection\n' >>"${NIGHTLY_LOG}"
 [ "${FAIL_COLLECTION:-0}" = 1 ] && exit 1
 EOF
-  cat >"${TMP}/${name}/scripts/envsync.sh" <<'EOF'
-#!/usr/bin/env bash
-printf 'envsync\n' >>"${NIGHTLY_LOG}"
-EOF
   cat >"${TMP}/${name}/scripts/render-docs.sh" <<'EOF'
 #!/usr/bin/env bash
 printf 'render-docs\n' >>"${NIGHTLY_LOG}"
@@ -69,7 +65,7 @@ EOF
 #!/usr/bin/env bash
 printf 'merge-gate %s\n' "$*" >>"${NIGHTLY_LOG}"
 EOF
-  chmod +x "${TMP}/${name}/mock-bin/"* "${TMP}/${name}/scripts/"{collect-all,envsync,render-docs,render-digest,render-context-map,tofu-env,nightly-automerge}.sh
+  chmod +x "${TMP}/${name}/mock-bin/"* "${TMP}/${name}/scripts/"{collect-all,render-docs,render-digest,render-context-map,tofu-env,nightly-automerge}.sh
 }
 
 run_sequence() {
@@ -91,7 +87,7 @@ run_sequence() {
 fixture normal
 run_sequence normal
 log="${TMP}/normal/log"
-for step in collection envsync render-docs render-digest render-context-map; do
+for step in collection render-docs render-digest render-context-map; do
   count="$(grep -c "^${step}$" "${log}")"
   [ "${count}" = 1 ] && ok "${step} runs exactly once" || bad "${step} ran ${count} times"
 done

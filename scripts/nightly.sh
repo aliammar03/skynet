@@ -40,7 +40,6 @@ prepare() {
   git checkout -B "${BRANCH}" "origin/${DEFAULT_BRANCH}"
 
   step collection ./scripts/collect-all.sh
-  step envsync ./scripts/envsync.sh
   step render-docs ./scripts/render-docs.sh
 
   # Drift is evidence, not an actuator. An unavailable plan is recorded in the generated report.
@@ -65,7 +64,7 @@ write_journal() {
     printf -- '---\ndate: %s\ntime: %s\nkind: session\ntitle: nightly %s (deterministic sequence)\ntier_touched: [T1]\ngrants: []\nrefs: [runbooks/nightly.md, "%s"]\nthread_status: none\n---\n\n' \
       "${DATE}" "${TIME}" "${DATE}" "${BRANCH}"
     printf '# %s · session · nightly (deterministic sequence)\n\n' "${DATE}"
-    printf 'Report-only nightly ran collection, envsync, factual rendering, and drift evidence on `%s`.\nThe optional agent stage may add a narrative and root-grant audit before this finalization.\n\n' "${BRANCH}"
+    printf 'Report-only nightly ran collection, factual rendering, and drift evidence on `%s`.\nThe optional agent stage may add a narrative and root-grant audit before this finalization.\n\n' "${BRANCH}"
     printf '## What changed before the journal entry\n\n```\n%s\n```\n\n' "${diffstat:-no staged or unstaged generated changes}"
     printf '## Actions & outcomes\n\n- Deterministic maintenance sequence completed; the journal entry was written before the final digest and context-map renders.\n\n'
     printf '## Graveyard — tried & abandoned\n\n— nothing abandoned —\n\n'
@@ -97,7 +96,7 @@ finalize() {
   summary="$(git diff --stat "origin/${DEFAULT_BRANCH}...${BRANCH}" -- inventory docs/generated journal compose | tail -25)"
   pr_url="$(gh pr create --base "${DEFAULT_BRANCH}" --head "${BRANCH}" \
     --title "nightly ${BRANCH#inventory/}: report-only maintenance" \
-    --body "Automated report-only nightly: collection, envsync, deterministic renders, raw journal evidence, and drift report.\n\n\`\`\`\n${summary}\n\`\`\`\n\nThe merge gate may auto-merge only a generated-only, CI-green PR; otherwise this remains open for review." \
+    --body "Automated report-only nightly: collection, deterministic renders, raw journal evidence, and drift report.\n\n\`\`\`\n${summary}\n\`\`\`\n\nThe merge gate may auto-merge only a generated-only, CI-green PR; otherwise this remains open for review." \
     2>&1 | tail -1)" || pr_url=""
   case "${pr_url}" in
     https://*) echo "opened ${pr_url}"; ./scripts/nightly-automerge.sh "${pr_url}" || true ;;
