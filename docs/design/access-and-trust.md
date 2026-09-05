@@ -17,8 +17,9 @@ The constitution holds the tier table; this is what implements each one.
 OPNsense `config.xml` git mirror as the rebuild-from-git backstop. Never writes.
 
 **T2 Operate — standing, PR-gated changes.** Scoped write tokens on the `ops-managed` pools,
-unprivileged `svc-ops` SSH on workload hosts, a Technitium scoped token (Zones only), the Arcane
-API key. Backup/snapshot of ops-managed guests is T2 (non-destructive).
+unprivileged `svc-ops` SSH on workload hosts, a Technitium scoped token (Zones only), a scoped
+Authentik token for Applications/Providers, and the Arcane API key. Backup/snapshot of
+ops-managed guests is T2 (non-destructive).
 
 **T2+ Root grant — grant-only, self-expiring.** A signed SSH certificate opens a root window on
 one host; when it lapses, sshd refuses it. No standing root anywhere.
@@ -57,7 +58,8 @@ The operate token is privilege-separated, so its effective rights are **user ∩
 
 The block above is the **network-node** shape (pool-scoped). On the **core node only**, `OpsOperator`
 is broadened to the full provisioning set and bound at the ACL root `/`, so the agent self-provisions
-pool CTs (mint a new VMID without a human minting the shell) and owns core storage/SDN/pools day-2:
+core-managed guest envelopes (mint a new VMID without a human minting the shell) and owns core
+storage/SDN/pools day-2:
 
 ```bash
 # core only — full VM.* / Datastore.* / SDN.* / Pool.* + Sys.Audit; bright lines held out.
@@ -92,9 +94,12 @@ it authenticates with.
 `Sys.Modify/PowerMgmt/Console`** (node root), **no node SSH**.
 
 - **Core** — the full VM/Datastore/Pool/SDN operator set at `/` (the SKY-021 `/vms`-root broaden), so
-  the token can **mint new VMIDs** and fully manage pool guests. Consequence: Unraid VM 2020's envelope
-  is reachable (stop/destroy possible at the VM level) but it stays **unpooled + guest-OS-root T3** — a
-  behavioral + audited line, the posture SKY-021 accepted.
+  the token can **mint new VMIDs** and manage core guest envelopes. Service CTs 731 (adguard), 751
+  (technitium), and native-created 10030 (athena) are currently **unpooled**; their envelope
+  management follows this core ACL rather than pool membership. Unraid VM 2020's envelope is
+  technically reachable, but automated and OpenTofu paths must not target it: any power/config
+  action is a human hard checkpoint, it stays **unpooled + guest-OS-root T3**, and it is never
+  destroyed by the agent.
 - **Network** — **pool-scoped, no `/vms`-root**: `OpsOperator` on `/pool/ops-managed` + `/storage/local`,
   plus (SKY-024) `Datastore.AllocateSpace`/`SDN.Use` on `/storage/local-lvm` + `/sdn/zones/localnetwork`.
   It manages *existing* pool guests but **cannot mint a new VMID or touch the T3 guests** (OPNsense 5001,
@@ -114,15 +119,16 @@ Load-bearing rules:
   not granted); base images land in `local`'s `import` store out-of-band (rare, human/root) and tofu
   references the present volume. bpg's SSH block stays unconfigured (SKY-024).
 
-## Pool membership = the blast-radius dial
+## Pool membership and core guest envelopes
 
-Joining a guest to an `ops-managed` pool *is* the act of handing the agent T2 over it. The pool
-set is the Proxmox half of the write blast radius (the SSH half is `ROLE_OPS_SSH_TARGETS`, see
-[network](network.md)). **Two pools today — a count, not a law;** new pools join by PR to the
-constitution. Permanently unpooled: **VM 5001 (OPNsense)**, CT 635, CT 837, and Unraid VM 2020.
-The network token cannot reach 5001/635/837 at the envelope. Core's deliberate root-`/` operate ACL
-can technically change or power Unraid 2020's VM envelope, although policy keeps it unpooled and
-forbids destructive use; its guest-OS root remains T3. See the core exception above.
+Joining a guest to an `ops-managed` pool *is* the normal act of handing the agent T2 over it. The
+pool set is the Proxmox half of the write blast radius (the SSH half is `ROLE_OPS_SSH_TARGETS`, see
+[network](network.md)). **Two node-local pool bindings today — a count, not a law;** new pools join
+by PR to the constitution. Core's root-`/` ACL is a separate, deliberate envelope boundary for
+the currently unpooled service CTs 731, 751, and 10030; do not describe those guests as pool
+members. Permanently excluded from automated envelope operations: **VM 5001 (OPNsense), CT 635,
+CT 837, and Unraid VM 2020.** The core token can technically reach Unraid's envelope, but any
+power/config action is a human hard checkpoint and its guest OS remains T3.
 
 ## SSH access model — standing user + auto-expiring root
 
@@ -149,15 +155,18 @@ mkdir -p ~/.skynet-ca && ssh-keygen -t ed25519 -f ~/.skynet-ca/ops_ca -C "skynet
 
 `scripts/onboard-host.sh` runs once per managed host — installs CA trust, the principal mapping,
 and an sshd snippet (`TrustedUserCAKeys`, `AuthorizedPrincipalsFile`, `PermitRootLogin
-prohibit-password`). The `ubuntu-2404-skynet` golden template bakes this in, so new guests are
-born onboarded.
+prohibit-password`). The Ubuntu 24.04 template is only a cloud-image clone source; it does not bake
+CA trust or `svc-ops`. A new VM must first receive a temporary cloud-init bootstrap key, then Ali or
+the operator runs `scripts/onboard-host.sh` as root with the CA/service public keys before normal
+standing or expiring access is used.
 
 ### The grant — Ali's entire job
 
 `bin/grant-root <host|all> [duration=2h]` on the workstation fetches the agent's pubkey, signs a
 cert with principal `ops-root-<host>` valid for the window, and pushes it back. Per-host certs
-land in `~/.ssh/certs/<host>-cert.pub` with a `Match user root` ssh_config block, so
-**multiple host grants coexist**. Alias `gr='~/skynet/bin/grant-root'` makes it `gr docker-dmz 1h`.
+land in `~/.ssh/certs/<host>-cert.pub` with a matching `Host <host>` ssh_config stanza, so
+**multiple host grants coexist** without offering the wrong certificates. Alias
+`gr='~/bin/grant-root'` makes it `gr docker-dmz 1h`.
 
 **How it plays out:** the agent tries T2 first; if root is genuinely needed it stops and prints
 the exact `gr …` line; Ali types it in a second pane (~2s); the agent polls

@@ -70,7 +70,7 @@ while :; do
   sleep "${INTERVAL}"
 done
 
-echo "==> deploy-gate: ${SVC} UNHEALTHY after ${TIMEOUT}s (${reason:-no reason}) — triggering rollback" >&2
+echo "==> deploy-gate: ${SVC} UNHEALTHY after ${TIMEOUT}s (${reason:-no reason}) — reporting rollback required" >&2
 "${GITOPS_ROLLBACK}" "${SVC}" "${COMMIT}"
-echo "==> deploy-gate: ${SVC} rolled back to pre-deploy state" >&2
+echo "==> deploy-gate: ${SVC} rollback reported; no git mutation performed" >&2
 exit 1

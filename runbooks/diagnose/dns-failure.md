@@ -59,7 +59,8 @@ merge. From the merged revision, save and show the exact plan; apply it only aft
 eval "$(scripts/tofu-env.sh)"
 tofu -chdir=tofu plan -out=/tmp/dns-fix.tfplan
 tofu -chdir=tofu show -no-color /tmp/dns-fix.tfplan
-scripts/tofu-apply.sh /tmp/dns-fix.tfplan
+# Internal Technitium-only plan: TOFU_APPLY_SCOPE=technitium-dns scripts/tofu-apply.sh /tmp/dns-fix.tfplan
+# Public Cloudflare-only plan:    TOFU_APPLY_SCOPE=cloudflare-dns scripts/tofu-apply.sh /tmp/dns-fix.tfplan
 ```
 
 - **Internal `aliammar.net` records are tofu-managed (SKY-008).** The declarative source of truth is

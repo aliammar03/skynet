@@ -20,7 +20,7 @@ included — from a laptop and a phone hotspot.
 | GitHub `skynet` | Operational truth (compose, runbooks, inventory, docs) | — |
 | GitHub `skynet-opnsense` | Auto-pushed `config.xml` — firewall/router truth that survives the router | — |
 | Arcane | GitOps reconciler for docker compose projects (host 10.10.100.15) | T2 |
-| Proxmox core / network | Hypervisors; `ops-managed` pools are the write blast radius | T1 read / T2 pool |
+| Proxmox core / network | Hypervisors; `ops-managed` pools plus the core-node managed guest-envelope exception are the write boundary | T1 read / T2 managed envelope |
 | PBS (10.10.20.40) | Guest backups, client-side encrypted | T1 / T2 |
 | Technitium (10.10.70.50/.51) | Split-horizon DNS; zones editable at T2 | T2 zones |
 | OPNsense | Router/firewall/DHCP — read/diagnostics live at T1; non-leash aliases/rules approved for T2 but SKY-020 implementation is pending; node/admin/reboot/self-leash T3 | T1 live / T2 config pending / T3 privileged |
@@ -35,8 +35,9 @@ included — from a laptop and a phone hotspot.
 - **Legacy env import:** `envsync.sh` encrypts a host `project.env` when one exists; GitOps projects
   use committed `.env.git` + `.env.sops` and do not depend on `project.env`.
 - **OpenTofu:** authored source PR → human merge → reviewed saved plan →
-  `scripts/tofu-apply.sh <planfile>`; no production bare apply. New-guest creates run as supervised
-  T2 actions with explicit approval; they have no automatic rollback and are not A4-eligible.
+  `TOFU_APPLY_SCOPE=proxmox-core scripts/tofu-apply.sh <planfile>`; no production bare apply.
+  New-guest creates run as supervised T2 actions with explicit approval; they have no automatic
+  rollback and are not A4-eligible. The wrapper refuses delete/replace plans.
 - **App-data backup:** nightly restic of `/opt/docker/appdata` → rclone → Google Drive.
 - **Guest backup:** vzdump → PBS → nightly `rclone sync` of the datastore → Google Drive.
 - **Docs:** `render-docs.sh` turns `inventory/*.json` + firewall config into `docs/generated/` (Obsidian).

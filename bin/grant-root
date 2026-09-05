@@ -11,7 +11,7 @@
 #
 # PER-HOST CERTS: the signed cert is placed at ~/.ssh/certs/<host>-cert.pub on skynet-ops (not
 # the single ~/.ssh/id_ed25519-cert.pub). skynet-ops' ssh_config presents the right one per host
-# (Match user root), so grants for different hosts NO LONGER clobber each other — issue several
+# (a Host <host> stanza), so grants for different hosts NO LONGER clobber each other — issue several
 # and they coexist until each expires on its own.
 #
 # STATUS: the per-host path and concurrent grants were validated during the A6 rehearsal recorded in

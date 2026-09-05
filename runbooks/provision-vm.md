@@ -20,11 +20,14 @@ trigger: "Set up a VM for X, hardened, with restic"
 1. **Plan first** (system-design §9): name, VLAN/IP per convention (VMID = VLAN + last octet),
    resources, purpose, rollback. Get one-word approval.
 2. **Declare the guest in `tofu/`.** Add a `proxmox_virtual_environment_vm` resource that **clones the
-   base template** `ubuntu-2404-base` (VMID 9000, `tofu/template-ubuntu-2404.tf` — CA trust + `svc-ops`
-   baked in → born onboarded) into the `ops-managed` pool, and set VLAN/IP/hostname/SSH-key through the
+   base template** `ubuntu-2404-base` (VMID 9000, `tofu/template-ubuntu-2404.tf`) into the
+   `ops-managed` pool, and set VLAN/IP/hostname plus a temporary bootstrap SSH key through the
    **API-native `initialization` (cloud-init) block** — **never** the SSH-snippet/`proxmox_virtual_environment_file`
-   path (that is a standing node-SSH dependency, forbidden). **Never** add an excluded guest (OPNsense
-   5001, CT 635/837, VM 2020) to any pool. An LXC uses `proxmox_virtual_environment_container`; to bring
+   path (that is a standing node-SSH dependency, forbidden). The base template contains only the
+   Ubuntu cloud image; it does **not** bake CA trust or `svc-ops`. Use the bootstrap key for the first
+   login, run `scripts/onboard-host.sh` as root with the CA/service public keys, then use the
+   auto-expiring root grant for hardening. **Never** add an excluded guest (OPNsense 5001, CT 635/837,
+   VM 2020) to any pool. An LXC uses `proxmox_virtual_environment_container`; to bring
    an *existing* container under management, use the zero-drift import recipe in `tofu/lxc-pbs.tf`.
 3. **Propose the source.** Open a PR containing the tofu declaration and a speculative plan output;
    Ali reviews and merges the authored change. Do not apply from the unmerged branch.
@@ -34,7 +37,7 @@ trigger: "Set up a VM for X, hardened, with restic"
    tofu -chdir=tofu plan -out=/tmp/provision-<newhost>.tfplan
    tofu -chdir=tofu show -no-color /tmp/provision-<newhost>.tfplan
    # STOP: Ali explicitly approves this exact create plan.
-   scripts/tofu-apply.sh /tmp/provision-<newhost>.tfplan
+   TOFU_APPLY_SCOPE=proxmox-core scripts/tofu-apply.sh /tmp/provision-<newhost>.tfplan
    ```
    Verify running-state via the read API (`/cluster/resources`). If apply or verification fails,
    stop: the wrapper does not auto-destroy a partial create. Do **not** use the guest agent for

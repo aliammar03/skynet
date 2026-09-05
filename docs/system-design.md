@@ -128,11 +128,12 @@ can be moved openly rather than eroded quietly. **Widening any of them is a PR t
   - **Core-node exception (SKY-021).** On the **core** node only, the operate token holds its
     `OpsOperator` role at the ACL root `/` — **full ownership of guests, storage, network, and pools**
     (the complete `VM.*` / `Datastore.*` / `SDN.*` / `Pool.*` set + `Sys.Audit`), across every core
-    guest and new VMIDs. This buys agent **self-provisioning of pool CTs** (mint a new VMID without a
+    guest and new VMIDs. This buys agent **self-provisioning of core-managed guests** (mint a new VMID without a
     human minting the shell) plus day-2 ownership of core storage and SDN. It widens core's blast
     radius past pool membership: it now reaches Unraid VM 2020 (see the pool-dial note) and the two
     hand-built service CTs 731 (adguard-core) / 751 (technitium-core, the **secondary** resolver —
-    redundant, loss survivable) — both SKY-021 migration targets.
+    redundant, loss survivable) — both SKY-021 migration targets. These service CTs, plus native-created
+    athena 10030, are currently unpooled; their core-node envelope ACL is the management boundary.
     **Two bright lines are held out** even here, and machine-enforced by the ACL-audit
     (`invariants.json` `operate_token_scope` + `check-invariants.sh`): **no `Permissions.Modify`**
     (the agent can never rewrite its own leash) and **no `Sys.Modify` / `Sys.PowerMgmt` /
@@ -176,9 +177,9 @@ principal — lives in [access-and-trust](design/access-and-trust.md); this is t
 | Tier | Scope | Mechanism | Standing? |
 |---|---|---|---|
 | **T1 Read** | Both Proxmox nodes, PBS, Docker hosts, DNS, the **Omada network controller**, **OPNsense (read-only)** | Read-only API tokens; scoped OPNsense read-only API + mirrored `config.xml` | Always |
-| **T2 Operate** | `ops-managed` pools (both nodes), Docker hosts via Arcane + unprivileged SSH, Technitium zones, Cloudflare **DNS records** (`aliammar.net` zone); **backup/snapshot** and supervised OpenTofu create/update of managed guests; approved **OPNsense firewall config** boundary (aliases/rules + non-destructive maintenance, minus self-leash; implementation pending) | Scoped write tokens, `svc-ops` SSH, the `svc-ops!operate` API token (guest lifecycle + snapshot/backup; SKY-024 retired the separate svc-tofu), Technitium scoped token, Arcane API key, Cloudflare scoped `DNS:Edit` token; OPNsense write mechanism pending SKY-020 | Yes where implemented — changes PR-gated |
+| **T2 Operate** | `ops-managed` pools (both nodes), core-managed guest envelopes, Docker hosts via Arcane + unprivileged SSH, Technitium zones, scoped Authentik Applications/Providers, Cloudflare **DNS records** (`aliammar.net` zone); **backup/snapshot** and supervised OpenTofu create/update of managed guests; approved **OPNsense firewall config** boundary (aliases/rules + non-destructive maintenance, minus self-leash; implementation pending) | Scoped write tokens, `svc-ops` SSH, the `svc-ops!operate` API token (guest lifecycle + snapshot/backup; SKY-024 retired the separate svc-tofu), Technitium scoped token, scoped Authentik token, Arcane API key, Cloudflare scoped `DNS:Edit` token; OPNsense write mechanism pending SKY-020 | Yes where implemented — changes PR-gated |
 | **T2+ Root grant** | Root shell on workload hosts (diagnose, harden, provision, OS updates) | SSH user-CA certificate, per-host principal, **auto-expiring** | Grant only; expires itself |
-| **T3 Privileged** | OPNsense *node root / account / cert admin / reboot / self-leash rules*, Management Caddy, Authentik, Proxmox node root, Unraid root, Technitium *server settings*, Cloudflare *account / Access / tunnel config / zone settings* | Dormant alias `ROLE_OPS_PRIV_TARGETS` + per-session credentials | **Never standing** |
+| **T3 Privileged** | OPNsense *node root / account / cert admin / reboot / self-leash rules*, Management Caddy, Authentik administration, Proxmox node root, Unraid root, Technitium *server settings*, Cloudflare *account / Access / tunnel config / zone settings* | Dormant alias `ROLE_OPS_PRIV_TARGETS` + per-session credentials | **Never standing** |
 
 - **Technitium is T2 for Zones view/modify only** — no Settings/Administration/DHCP. Server
   settings are T3.
@@ -214,9 +215,10 @@ principal — lives in [access-and-trust](design/access-and-trust.md); this is t
   stopped by the agent (T3); the network node's operate token is **pool-scoped (no `/vms`)**, so it
   cannot reach these at the envelope at all (SKY-024 retired the config-only svc-tofu role).
   On the **core node**, the dial is superseded by the operate token's root-`/` grant above
-  (SKY-021 — full guests/storage/network/pools): **Unraid VM 2020 is now agent-reachable at the VM
-  envelope** (create/config/power — not guest OS root, still T3). The self-leash set (5001/635/837) is
-  on the network node and stays T3. See [access-and-trust](design/access-and-trust.md).
+  (SKY-021 — full guests/storage/network/pools): **Unraid VM 2020 is technically reachable at the VM
+  envelope**, but automated and OpenTofu paths must not target it; any power/config action is a human
+  hard checkpoint, and guest OS root remains T3. The self-leash set (5001/635/837) is on the network
+  node and stays T3. See [access-and-trust](design/access-and-trust.md).
 
 ## 4. The agent-agnostic contract
 
@@ -242,8 +244,8 @@ expansion has an admission procedure and a home spoke:
 |---|---|---|
 | **A new service** | `compose/<svc>/` → the [GitOps loop](design/gitops-loop.md); catalog it in `planning/services/` | gitops-loop |
 | **A new managed host** | Onboard to the CA (`onboard-host.sh`), decide pool membership (= its tier), land it in `inventory/` + `ROLE_OPS_SSH_TARGETS` | [access-and-trust](design/access-and-trust.md), [network](design/network.md) |
-| **A host's OS + config, declaratively** | Define it as a reviewed **NixOS flake** (`hosts/` + `nix/modules/`), `nix build` gated in CI. Proven on the ops **VM** (SKY-007) and on a pool **LXC** (SKY-021: adguard-core). **NixOS is the default for a new pool-able CT** (deploy-rs day-2, Option C per-CT sops key); Debian stays only for T3-excluded/appliance CTs the agent can't own | [`nix/README.md`](../nix/README.md), SKY-007, SKY-021 |
-| **A managed guest, declaratively** | Declare it in `tofu/` as an OpenTofu resource; merge the source PR, review the exact saved plan, then run `scripts/tofu-apply.sh`. Creates are supervised T2 without automatic rollback; `destroy` is a separate hard checkpoint the wrapper refuses. The `svc-ops!operate` token has **no node root or SSH** (SKY-008/024) | [access-and-trust](design/access-and-trust.md), SKY-008 |
+| **A host's OS + config, declaratively** | Define it as a reviewed **NixOS flake** (`hosts/` + `nix/modules/`), `nix build` gated in CI. Proven on the ops **VM** (SKY-007) and on a core-managed **LXC** (SKY-021: adguard-core). **NixOS is the default for a new pool-able/core-managed CT** (deploy-rs day-2, Option C per-CT sops key); Debian stays only for T3-excluded/appliance CTs the agent can't own | [`nix/README.md`](../nix/README.md), SKY-007, SKY-021 |
+| **A managed guest, declaratively** | Declare it in `tofu/` as an OpenTofu resource; merge the source PR, review the exact saved plan, then set `TOFU_APPLY_SCOPE` to `proxmox-core` or `proxmox-network` and run `scripts/tofu-apply.sh <planfile>`. Creates are supervised T2 without automatic rollback; `destroy` is a separate hard checkpoint the wrapper refuses. The `svc-ops!operate` token has **no node root or SSH** (SKY-008/024) | [access-and-trust](design/access-and-trust.md), SKY-008 |
 | **A new `ops-managed` pool** | Widen the blast-radius **dial** by PR here, then create the pool with the operate ACLs | [access-and-trust](design/access-and-trust.md) |
 | **A new VLAN / segment** | Firewall aliases + rules, DNS zones, then hosts | [network](design/network.md) |
 | **A new capability / trust boundary** | PR here (tier assignment) + a step on the autonomy ratchet in `AGENTS.md` | this file |
@@ -296,8 +298,11 @@ directives** — this section names the horizon and hands off.
   bright lines stay off even this token: **no `Permissions.Modify`, no `Sys.*` node root, no node SSH**
   — API-native only (bpg needs SSH only for snippets/idmap/local-file imports, which our shape doesn't
   use). For create and update writes, the authored PR is human-merged, `tofu plan -out` creates the
-  exact review artifact, and `scripts/tofu-apply.sh` applies it after approval. Existing-guest updates
-  get snapshot rollback; creates do not. `destroy` remains a separate hard checkpoint.
+  exact review artifact, and `TOFU_APPLY_SCOPE=<one actuator> scripts/tofu-apply.sh` applies it after
+  approval; mixed plan scopes are refused. Existing-guest updates snapshot before apply; a failed
+  apply restores snapshot and pre-apply state, while post-apply verification uncertainty retains the
+  snapshot for operator recovery. Creates do not have rollback. `destroy` remains a separate hard
+  checkpoint.
   State local on the ops VM, PBKDF2-encrypted (passphrase in sops). Tofu makes the box exist; NixOS
   (SKY-007) defines what's on it. See [access-and-trust](design/access-and-trust.md).
 - **A secrets vault beyond sops+age** — an external backend (Vault / Infisical-class) if the

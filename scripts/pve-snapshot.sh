@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # pve-snapshot.sh — create / rollback / delete a Proxmox guest snapshot (SKY-018 P6).
-# The dumb executor half of the tofu rollback: scripts/tofu-apply.sh snapshots every in-pool guest a
-# saved plan touches BEFORE applying, and rolls those snapshots back if the apply fails verification.
+# The dumb executor half of the tofu rollback: scripts/tofu-apply.sh snapshots an eligible existing
+# managed guest before an update and restores it only when the saved-plan apply itself fails.
 # This script is the actuator; the rollback DECISION lives in tofu-apply.sh (a deterministic verify),
 # never in the agent.
 #
-# TIER: T2 — VM.Snapshot / VM.Snapshot.Rollback on the ops-managed pool via the svc-ops OPERATE token
-# (non-destructive; access-and-trust.md). Rollback restores a just-taken point-in-time — it does NOT
-# delete a guest, so it never crosses the destroy/T3 checkpoint.
+# TIER: T2 — VM.Snapshot / VM.Snapshot.Rollback on an eligible managed guest via the svc-ops OPERATE
+# token. This helper refuses every constitutionally excluded guest even when the core token could
+# technically reach its envelope. Rollback restores a just-taken point-in-time — it does NOT delete a
+# guest, so it never crosses the destroy/T3 checkpoint.
 #
 # Auth: /opt/skynet-ops/secrets/proxmox-<core|network>.env for PVE_HOST + PVE_CACERT, and the OPERATE
 # token PVE_TOKEN_OPERATE (`svc-ops@pve!operate=…`, already sops-managed alongside the readonly
@@ -24,11 +25,19 @@ set -euo pipefail
 op="${1:?usage: pve-snapshot.sh create|rollback|delete <node_name> <vm|lxc> <vmid> <snapname>}"
 node="${2:?node_name}"; kind="${3:?vm|lxc}"; vmid="${4:?vmid}"; snap="${5:?snapname}"
 case "${kind}" in vm|lxc) : ;; *) echo "pve-snapshot: kind must be vm|lxc, got ${kind}" >&2; exit 2;; esac
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+invariants="${repo_root}/invariants.json"
+command -v jq >/dev/null || { echo "pve-snapshot: jq is required" >&2; exit 1; }
+if jq -e --argjson v "${vmid}" '.excluded_guests.guests[] | select(.vmid == $v)' "${invariants}" >/dev/null; then
+  echo "pve-snapshot: REFUSED — ${vmid} is constitutionally excluded from this automated helper" >&2
+  exit 3
+fi
 epath="qemu"; [ "${kind}" = lxc ] && epath="lxc"
 
 # node_name → secret suffix (server-proxmox-core → core, server-proxmox-network → network)
 suffix="${node##*-}"
-secret_file="/opt/skynet-ops/secrets/proxmox-${suffix}.env"
+secret_dir="${PVE_SECRET_DIR:-/opt/skynet-ops/secrets}"
+secret_file="${secret_dir}/proxmox-${suffix}.env"
 { test -r "${secret_file}" 2>/dev/null || sudo -n test -f "${secret_file}" 2>/dev/null; } || { echo "pve-snapshot: no ${secret_file}" >&2; exit 1; }
 # shellcheck disable=SC1090
 eval "$(cat "${secret_file}" 2>/dev/null || sudo -n cat "${secret_file}")"
@@ -59,10 +68,10 @@ wait_task() {
 case "${op}" in
   create)
     echo "==> snapshot ${kind} ${vmid} @ ${node}: ${snap}"
-    # PVE_SNAPSHOT_VMSTATE=1 includes RAM (vmstate) so a rollback resumes the running guest in place
-    # instead of a stop/start — heavier (writes RAM to disk), only meaningful for a running VM.
+    # VM snapshots include RAM by default so a rollback resumes a running guest in place instead of a
+    # stop/start. It is heavier (writes RAM to disk), but matches the documented rollback semantics.
     vmstate_arg=()
-    [ "${PVE_SNAPSHOT_VMSTATE:-0}" = 1 ] && [ "${kind}" = vm ] && vmstate_arg=(--data-urlencode "vmstate=1")
+    [ "${PVE_SNAPSHOT_VMSTATE:-1}" = 1 ] && [ "${kind}" = vm ] && vmstate_arg=(--data-urlencode "vmstate=1")
     upid="$(api POST "${base}/snapshot" --data-urlencode "snapname=${snap}" \
             "${vmstate_arg[@]}" \
             --data-urlencode "description=SKY-018 P6 pre-tofu-apply safety snapshot" | jq -r '.data')"

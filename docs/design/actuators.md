@@ -28,11 +28,11 @@ that failed. Two consequences shape everything here:
 
 | Actuator | Write path | Rollback executor | Decision (deterministic) | Independent-of-agent | Tested in failure |
 |---|---|---|---|---|---|
-| **Compose deploy** | `gitops-deploy.sh --gate` (Arcane GitOps) | `gitops-rollback.sh` — `git revert` the deploy commit → push → Arcane reconciles | `deploy-gate.sh` — every project container Running, not Restarting, healthy-or-none within the window | ✅ git + Arcane's dumb reconciler | `tests/compose-rollback-test.sh` · 2026-09-03 |
-| **OpenTofu existing-guest update** | `tofu-apply.sh <saved-plan>` | snapshot-before-apply → `pve-snapshot.sh rollback` on failure | post-apply `tofu plan -detailed-exitcode` must be clean (+ optional verify hook) | ✅ Proxmox snapshot rollback (operate token) | `tests/tofu-rollback-test.sh` · 2026-09-03 |
+| **Compose deploy** | `gitops-deploy.sh --gate` (Arcane GitOps) | `gitops-rollback.sh` — reports failure by default; explicit `--prepare` creates a revert in an isolated review branch | `deploy-gate.sh` — every project container Running, not Restarting, healthy-or-none within the window | ❌ authored revert requires explicit operator preparation and human merge | `tests/compose-rollback-test.sh` · 2026-09-05 |
+| **OpenTofu existing-guest update** | `tofu-apply.sh <saved-plan>` | snapshot-before-apply; an API apply failure may roll back, while a post-apply verification/dirty-plan failure preserves the snapshot and escalates operator recovery | post-apply `tofu plan -detailed-exitcode` + verification must be clean | ❌ partial safety only; not A4-eligible | `tests/tofu-rollback-test.sh` |
 | OpenTofu guest create (supervised T2 only) | `tofu-apply.sh <saved-plan>` after explicit approval | **none** — no pre-change guest exists; never auto-destroy a partial create | post-apply plan is checked, but failure needs operator recovery | ❌ | guarded behavior: `tests/tofu-rollback-test.sh` |
 | OpenTofu non-guest create/update (including DNS) | `tofu-apply.sh <saved-plan>` (supervised only) | **none** — the wrapper has no non-guest snapshot/inverse | post-apply plan is checked, but a failure still needs operator recovery | ❌ | ❌ |
-| **DNS write** | `cf-dns-route.sh` (Cloudflare break-glass) | `dns-revert.sh undo` — replays the recorded **inverse** command | replay of a captured inverse (create⇒delete, update/delete⇒re-publish) | ✅ dumb replayer, re-runs a logged command | `tests/dns-revert-test.sh` · 2026-09-01 |
+| **DNS write** | `cf-dns-route.sh` (Cloudflare break-glass) | `dns-revert.sh undo` — replays a durably recorded **full-record inverse** | inverse captured before mutation; create⇒absent, update/delete⇒restore prior fields | ✅ dumb replayer; writer fails closed if inverse logging fails | `tests/dns-revert-test.sh` · 2026-09-05 |
 | deploy-rs (host cfg) | `nixos-rebuild`/deploy-rs | deploy-rs **magic-rollback** (built-in) | activation health check → auto-revert | ✅ platform | pre-existing (ADR 0005 ✅) |
 | OPNsense config (planned, not live) | pending SKY-020 | planned OPNsense validate-and-restore path | not implemented | — | ❌ |
 
@@ -58,30 +58,33 @@ Beyond the failure-injection harnesses, these ran against live infrastructure:
   reverted the disk (marker gone), then snapshot pruned. The task-status check also correctly caught
   Proxmox refusing to snapshot the **template** VM 9000 — so a plan touching a template makes
   `tofu-apply.sh` **fail closed**, as designed.
-- **Compose auto-revert (full)** — deliberately broke `librespeed` (a stateless service) with a
-  crash-looping entrypoint on a throwaway branch and ran `gitops-deploy.sh --gate`: the gate detected
-  the unhealthy deploy, `gitops-rollback.sh` git-reverted the break, and Arcane redeployed the reverted
-  compose — librespeed auto-recovered to healthy and serving, **no human step**. This live rehearsal
-  surfaced three bugs a stubbed harness could not: a transient Arcane sync 500 that aborted the deploy
-  before the gate; a `set -e` trap in the healthcheck-coverage block that skipped the gate; and a
-  rollback that only *nudged* the sync without a redeploy, so a crash-looping service stayed down after
-  the revert landed in git. All three fixed (sync retry, `|| true` guard, force-redeploy on rollback).
+- **Compose health gate (live rehearsal)** — a throwaway `librespeed` crash-loop proved the gate can
+  detect an unhealthy deploy. The earlier direct-push recovery path was retired because authored
+  reverts must stay human-merged; the current gate reports failure and an operator may explicitly
+  prepare an isolated review branch.
 
 Notes on the snapshot rollback: it uses **vmstate** (`PVE_SNAPSHOT_VMSTATE=1`) for a running guest so
 the rollback resumes in place instead of a stop/start outage — heavier (writes RAM to disk) but
 seamless. A rollback still reverts *every* disk write in the snapshot window, so for a live DB host it
-is a real data-loss event for that window; `tofu-apply.sh` keeps it bounded by snapshotting
-immediately before the apply and rolling back immediately on failure.
+is a real data-loss event for that window; `tofu-apply.sh` keeps the recovery point bounded by
+snapshotting immediately before the apply. Apply/API failures can roll back; verification failures
+preserve the snapshot and require operator recovery.
 
 ## Notes that are load-bearing
 
-- **Saved plan only.** `tofu-apply.sh` applies the exact plan file that was reviewed (`tofu plan -out`);
-  it never re-plans at apply time, so the diff that ran is the diff that was seen.
+- **Saved plan and one actuator only.** `tofu-apply.sh` applies the exact plan file (`tofu plan -out`)
+  and rejects a mixed/mismatched `TOFU_APPLY_SCOPE`; it never re-plans at apply time. Human merge and
+  exact-plan approval remain explicit operator checkpoints—the wrapper cannot authenticate who gave
+  that approval or prove the plan was created from a merged revision.
 - **Fail closed for updates.** If `tofu-apply.sh` cannot snapshot an existing guest being updated
-  (e.g. an NFS-backed LXC that cannot be snapshotted), it refuses to apply. Creates are separately
-  classified as supervised actions with no automatic rollback.
+  (e.g. an NFS-backed LXC that cannot be snapshotted), it refuses to apply. A provider/API apply
+  failure may use the preserved snapshot rollback path; a post-apply verification or dirty-plan
+  failure keeps the snapshot for operator inspection and recovery. Creates are separately classified
+  as supervised actions with no automatic rollback.
 - **The compose gate probes the service's own declared endpoint** (the compose healthcheck the skynet
-  service standard already requires), so the gate adds a *decision*, not a new contract.
+  service standard already requires), so the gate adds a *decision*, not a new contract. On failure it
+  reports rollback required without mutating the deploy checkout; an operator may explicitly prepare
+  an isolated review branch, and authored changes remain human-merge gated.
 - **Non-guest writes are not snapshot-rolled back.** `tofu-apply.sh` still enforces the saved plan,
   delete guard, and post-apply check for DNS, but it has no automatic inverse for those resources.
   They remain supervised below A4 until a failure-tested rollback exists.

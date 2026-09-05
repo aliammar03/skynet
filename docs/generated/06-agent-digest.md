@@ -28,8 +28,8 @@ follow a link for the full story; distill episodes at read time, never in this f
 - **SKY-008** (projects · active · 3/3) — OpenTofu provisioning layer: VM and CT lifecycle plus DNS
 - **SKY-018** (projects · in-progress · 6/12) — Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain
 - **SKY-020** (projects · in-progress · 1/6) — Firewall-as-code — OPNsense config to T2 via OpenTofu
-- **SKY-023** (projects · in-progress · 1/4) — Eliminate documentation drift and shrink operational context
-- **SKY-024** (projects · in-progress · 3/6) — tofu declares all pool guests — API-driven CT/VM lifecycle, no node SSH
+- **SKY-023** (projects · in-progress · 2/4) — Eliminate documentation drift and shrink operational context
+- **SKY-024** (projects · in-progress · 4/6) — tofu declares managed core guests — API-driven CT/VM lifecycle, no node SSH
 - **SKY-002** (ideas · draft) — Ongoing backup strategy for CT 240 (PBS host)
 - **SKY-004** (ideas · draft) — Reactive operations: event-driven layer + drift-as-signal
 - **SKY-012** (ideas · draft) — Runbooks as executable capabilities
@@ -40,24 +40,24 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 **Loose ends from recent episodes** (the journal's own open-thread bullets, verbatim):
 
+- Phase 1 remains T1 repository remediation. Provider-root/state separation for plan creation and a failure-tested automatic inverse for newly created guests remain future work; neither is claimed as A4-ready. — _2026-09-05 session          # session | incident | decision_
+- PR #185 needs normal human review, CI confirmation, and merge. The agent must not merge it. — _2026-09-05 session          # session | incident | decision_
 - Ali reviews and merges PR #185. Phase 2 starts only after that merge. — _2026-09-05 session          # session | incident | decision_
 - Human-review and merge the Phase 1 PR; the agent does not merge authored work. — _2026-09-05 session          # session | incident | decision_
 - Phase 2 may start only after Phase 1 merges. It owns constitution/spoke pruning and size targets; no Phase 2 pruning was performed here. — _2026-09-05 session          # session | incident | decision_
 - SKY-020 still owns the OPNsense provider, write credential, policy gate, apply, and rollback proof. — _2026-09-05 session          # session | incident | decision_
 - Design failure-tested rollback executors for non-guest tofu writes and new-guest creates before either capability can reach A4; add live-Caddy-versus-git drift detection separately. — _2026-09-05 session          # session | incident | decision_
 - Confirm that the 12 newest PBS snapshots acquire `verify_state: ok`; CT 10030 is a new backup group and the other 11 latest snapshots were already unverified in the `origin/main` baseline. — _2026-09-05 session_
-- Exercise an end-to-end restore; this run read backup metadata only. — _2026-09-05 session_
-- Decide whether missing `project.env` for `aiometadata` and `aiostreams` is intentional and whether `scripts/envsync.sh` should exit 1 after those skips. — _2026-09-05 session_
 
 ## 📓 Recent episodes
 
+- **2026-09-05** · session          # session | incident | decision · [[2026-09-05-session-sky-023-phase-1-audit-remediation|SKY-023 Phase 1 audit remediation]]
 - **2026-09-05** · session          # session | incident | decision · [[2026-09-05-session-sky-023-p1-pr-integration|SKY-023 P1 PR integration]]
 - **2026-09-05** · session          # session | incident | decision · [[2026-09-05-session-sky-023-p1-close-out|SKY-023 P1 close-out]]
 - **2026-09-05** · session · [[2026-09-05-session-nightly-2026-09-05|nightly 2026-09-05]]
 - **2026-09-05** · decision          # session | incident | decision · [[2026-09-05-decision-sky-023-p1-create-blocker-correction|SKY-023 P1 create blocker correction]]
 - **2026-09-04** · session          # session | incident | decision · [[2026-09-04-session-sky-023-p1-truth-reconciliation|SKY-023 P1 truth reconciliation]]
 - **2026-09-04** · session · [[2026-09-04-session-sky-022-p6-proactive-cost-aware-delegation|SKY-022 P6 — proactive cost-aware delegation]]
-- **2026-09-04** · session · [[2026-09-04-session-sky-022-p5-five-run-foreman-dogfood|SKY-022 P5 — five-run foreman dogfood]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._

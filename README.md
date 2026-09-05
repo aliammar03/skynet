@@ -85,8 +85,9 @@ the lab is either PR-gated or requires a credential a human hands over for a few
 > the map. If they ever disagree, **the design wins.**
 
 OPNsense VM 5001 and CTs 635/837 are read-only at the guest envelope and never join a managed pool.
-Unraid VM 2020 also remains unpooled and its guest OS is T3, but the core-node operate ACL can manage
-its VM envelope. The constitution documents that deliberate core exception.
+Unraid VM 2020 also remains unpooled and its guest OS is T3. The core-node operate ACL can technically
+reach its VM envelope, but automated/OpenTofu paths must not target it; power/config is a human hard
+checkpoint. The constitution documents that deliberate core exception.
 
 ---
 

@@ -11,9 +11,10 @@
 #      saved-plan action and is never represented as automatically rollback-safe/A4.
 #   4. Apply the saved plan, then VERIFY deterministically (post-apply plan is clean; plus an optional
 #      external check). The verdict is an exit code, not the agent's opinion.
-#   5. On apply-or-verify failure, roll every guest snapshot back (scripts/pve-snapshot.sh) and exit
-#      non-zero. Created guests and non-guest changes require operator recovery. On success, prune
-#      safety snapshots.
+#   5. On apply failure, restore every existing-guest snapshot and the pre-apply OpenTofu state. A
+#      post-apply verification failure preserves the snapshots and stops for operator recovery: an
+#      unavailable verifier is not permission to discard guest writes. Created guests and non-guest
+#      changes always require operator recovery. On success, prune safety snapshots.
 #
 # TIER: T2 — svc-ops!operate applies on the managed envelope and takes safety snapshots.
 # USAGE:
@@ -21,7 +22,8 @@
 # ENV (optional; the failure-case test injects through these):
 #   TOFU_BIN         tofu binary (default: tofu)               TOFU_DIR   tofu root (default: repo tofu/)
 #   PVE_SNAPSHOT     snapshot helper (default: scripts/pve-snapshot.sh)
-#   TOFU_APPLY_VERIFY  extra verify command; non-zero ⇒ rollback (default: post-apply plan must be clean)
+#   TOFU_APPLY_VERIFY  extra verify command; non-zero retains snapshots for operator recovery
+#   TOFU_APPLY_SCOPE  required one-actuator scope: proxmox-core|proxmox-network|technitium-dns|cloudflare-dns
 #   TOFU_APPLY_SKIP_ENV=1  skip sourcing tofu-env.sh (creds already in env / test)
 set -euo pipefail
 PLAN="${1:?usage: tofu-apply.sh <planfile>  (a plan saved via: tofu plan -out <planfile>)}"
@@ -33,16 +35,44 @@ INVARIANTS="${REPO_ROOT}/invariants.json"
 GUEST_TYPES='proxmox_virtual_environment_vm proxmox_virtual_environment_container'
 
 [ -f "${PLAN}" ] || { echo "tofu-apply: saved plan '${PLAN}' not found — create it with 'tofu plan -out ${PLAN}'" >&2; exit 1; }
+PLAN="$(cd "$(dirname "${PLAN}")" && pwd)/$(basename "${PLAN}")"
 command -v jq >/dev/null || { echo "tofu-apply: jq required" >&2; exit 1; }
 
 cd "${TOFU_DIR}"
 if [ "${TOFU_APPLY_SKIP_ENV:-0}" != 1 ]; then
-  eval "$("${REPO_ROOT}/scripts/tofu-env.sh")"
+  # A saved plan needs only the encrypted-state passphrase to be inspected. Load the one matching
+  # actuator credential after its scope is proven below, rather than every standing T2 secret.
+  eval "$("${REPO_ROOT}/scripts/tofu-env.sh" state)"
 fi
 
 # --- inspect the SAVED plan (never re-plan) -------------------------------------------------------
 PLAN_JSON="$("${TOFU_BIN}" show -json "${PLAN}")"
 excluded="$(jq -r '.excluded_guests.guests[].vmid' "${INVARIANTS}" | tr '\n' ' ')"
+
+# A saved plan can carry unrelated drift from this legacy shared tofu root. Require the operator to
+# name one actuator and reject a mixed or mismatched plan before it reaches apply.
+scope="${TOFU_APPLY_SCOPE:-}"
+case "${scope}" in proxmox-core|proxmox-network|technitium-dns|cloudflare-dns) : ;;
+  *) echo "tofu-apply: TOFU_APPLY_SCOPE is required (proxmox-core|proxmox-network|technitium-dns|cloudflare-dns)" >&2; exit 2;; esac
+mapfile -t plan_scopes < <(printf '%s' "${PLAN_JSON}" | jq -r '
+  [.resource_changes[]?
+   | select(.change.actions | any(. != "no-op"))
+   | if .type == "proxmox_virtual_environment_vm" or .type == "proxmox_virtual_environment_container" then
+       ((.change.after // .change.before).node_name
+        | if . == "server-proxmox-core" then "proxmox-core"
+          elif . == "server-proxmox-network" then "proxmox-network"
+          else "unknown-proxmox" end)
+     elif .type == "technitium_record" then "technitium-dns"
+     elif .type == "cloudflare_dns_record" then "cloudflare-dns"
+     else "unknown" end]
+  | unique[]')
+if [ "${#plan_scopes[@]}" -ne 1 ] || [ "${plan_scopes[0]:-}" != "${scope}" ]; then
+  echo "tofu-apply: REFUSED — saved plan scope [${plan_scopes[*]:-no changes}] does not exactly match TOFU_APPLY_SCOPE=${scope}" >&2
+  exit 2
+fi
+if [ "${TOFU_APPLY_SKIP_ENV:-0}" != 1 ]; then
+  eval "$("${REPO_ROOT}/scripts/tofu-env.sh" "${scope}")"
+fi
 
 # 1. destroy/delete guard — any delete (incl. replace = delete+create) is a hard checkpoint, refused.
 deletes="$(printf '%s' "${PLAN_JSON}" | jq -r '
@@ -73,14 +103,21 @@ done
 
 SNAP="sky018-p6-preapply-$(date +%Y%m%d-%H%M%S)"
 declare -a TAKEN=()   # "kind vmid node" for each snapshot successfully taken
+STATE_BACKUP="$(mktemp)"
+STATE_BACKUP_TAKEN=0
+trap 'rm -f "${STATE_BACKUP}"' EXIT
 
 rollback_all() {
-  local r kind vmid node
+  local r kind vmid node failed=0
   for r in "${TAKEN[@]:-}"; do
     [ -n "${r}" ] || continue
     read -r kind vmid node <<< "${r}"
-    "${PVE_SNAPSHOT}" rollback "${node}" "${kind}" "${vmid}" "${SNAP}" || echo "tofu-apply: rollback of ${vmid} FAILED — manual recovery needed" >&2
+    if ! "${PVE_SNAPSHOT}" rollback "${node}" "${kind}" "${vmid}" "${SNAP}"; then
+      echo "tofu-apply: rollback of ${vmid} FAILED — manual recovery needed" >&2
+      failed=1
+    fi
   done
+  return "${failed}"
 }
 prune_all() {
   local r kind vmid node
@@ -89,6 +126,18 @@ prune_all() {
     read -r kind vmid node <<< "${r}"
     "${PVE_SNAPSHOT}" delete "${node}" "${kind}" "${vmid}" "${SNAP}" || true
   done
+}
+restore_state() {
+  [ "${STATE_BACKUP_TAKEN}" = 1 ] || return 0
+  # Apply increments the local-state serial; restoring the pre-apply snapshot therefore requires an
+  # explicit state-only force push after the matching Proxmox rollback.
+  "${TOFU_BIN}" state push -force "${STATE_BACKUP}" \
+    || { echo "tofu-apply: OpenTofu state restore FAILED — manual recovery needed" >&2; return 1; }
+}
+recover_apply_failure() {
+  # Never restore old state when a guest rollback failed: that would hide the real remote state.
+  rollback_all || return 1
+  restore_state
 }
 
 # 4. snapshot every existing-guest UPDATE first. Creates are explicit supervised actions: no
@@ -100,6 +149,14 @@ for row in "${guest_rows[@]:-}"; do
   if [ "${action}" = create ]; then
     create_count=$((create_count + 1))
     continue
+  fi
+  if [ "${STATE_BACKUP_TAKEN}" = 0 ]; then
+    if "${TOFU_BIN}" state pull > "${STATE_BACKUP}"; then
+      STATE_BACKUP_TAKEN=1
+    else
+      echo "tofu-apply: could not capture OpenTofu state before an existing-guest update — refusing to apply." >&2
+      exit 4
+    fi
   fi
   if "${PVE_SNAPSHOT}" create "${node}" "${kind}" "${vmid}" "${SNAP}"; then
     TAKEN+=("${kind} ${vmid} ${node}")
@@ -116,21 +173,29 @@ done
 # 5. apply the SAVED plan; on failure, roll back.
 echo "==> applying saved plan ${PLAN}"
 if ! "${TOFU_BIN}" apply -auto-approve "${PLAN}"; then
-  echo "tofu-apply: apply FAILED — rolling back existing-guest snapshots; created guests and non-guest changes need operator recovery" >&2
-  rollback_all
+  echo "tofu-apply: apply FAILED — restoring existing-guest snapshots and OpenTofu state; created guests and non-guest changes need operator recovery" >&2
+  if ! recover_apply_failure; then
+    echo "tofu-apply: recovery FAILED — hard checkpoint; manual recovery required" >&2
+    exit 7
+  fi
   exit 5
 fi
 
-# 6. verify deterministically: post-apply plan must be clean (exit 0); optional extra check.
+# 6. verify deterministically: post-apply plan must be clean (exit 0). Do not auto-rollback after a
+# successful apply: a dirty plan or unavailable verifier needs operator judgement, and snapshots stay.
 echo "==> verifying (post-apply plan must be clean)"
-verify_ok=1
-"${TOFU_BIN}" plan -detailed-exitcode -no-color >/dev/null 2>&1 || verify_ok=0
-if [ -n "${TOFU_APPLY_VERIFY:-}" ]; then
-  eval "${TOFU_APPLY_VERIFY}" || verify_ok=0
+verify_rc=0
+"${TOFU_BIN}" plan -detailed-exitcode -no-color >/dev/null 2>&1 || verify_rc=$?
+if [ "${verify_rc}" -ne 0 ]; then
+  if [ "${verify_rc}" -eq 2 ]; then
+    echo "tofu-apply: verification found remaining drift — snapshots retained; operator recovery required" >&2
+    exit 6
+  fi
+  echo "tofu-apply: verification unavailable (tofu plan exit ${verify_rc}) — snapshots retained; operator recovery required" >&2
+  exit 7
 fi
-if [ "${verify_ok}" != 1 ]; then
-  echo "tofu-apply: verification FAILED — rolling back existing-guest snapshots; created guests and non-guest changes need operator recovery" >&2
-  rollback_all
+if [ -n "${TOFU_APPLY_VERIFY:-}" ] && ! eval "${TOFU_APPLY_VERIFY}"; then
+  echo "tofu-apply: external verification FAILED — snapshots retained; operator recovery required" >&2
   exit 6
 fi
 

@@ -67,7 +67,7 @@ deliberately, per host, and only for a service that already self-gates (see its 
    eval "$(scripts/tofu-env.sh)"
    tofu -chdir=tofu plan -out=/tmp/publish-<svc>.tfplan
    tofu -chdir=tofu show -no-color /tmp/publish-<svc>.tfplan  # expect only the derived A record
-   scripts/tofu-apply.sh /tmp/publish-<svc>.tfplan            # only after explicit approval
+   TOFU_APPLY_SCOPE=technitium-dns scripts/tofu-apply.sh /tmp/publish-<svc>.tfplan  # only after explicit approval
    ```
    (This step is what makes `<svc>.aliammar.net` resolve internally — there is no wildcard fallback, so
    don't skip it.)
@@ -221,7 +221,7 @@ is public *only* with an `ingress` rule **and** a public CNAME):
    eval "$(scripts/tofu-env.sh)"
    tofu -chdir=tofu plan -out=/tmp/public-<svc>.tfplan
    tofu -chdir=tofu show -no-color /tmp/public-<svc>.tfplan  # expect only the derived CNAME
-   scripts/tofu-apply.sh /tmp/public-<svc>.tfplan            # only after explicit approval
+   TOFU_APPLY_SCOPE=cloudflare-dns scripts/tofu-apply.sh /tmp/public-<svc>.tfplan  # only after explicit approval
    ```
    (This is the *public* record on Cloudflare's authoritative DNS — separate from Technitium's internal
    split-DNS, which keeps steering internal clients straight to the Caddy. Break-glass without tofu:

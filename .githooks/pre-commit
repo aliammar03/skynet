@@ -12,6 +12,8 @@
 #                          helper's declared .codex/ sandbox match invariants.json (format-follows-enforcement).
 #   6. agent-test        — bin/agent resolves each role to the right tier/model/effort/sandbox (SKY-022 P4).
 #   7. gitignore-test    — the disposable .agent/ checkpoint dir stays gitignored (SKY-022 P3 invariant).
+#   8. rollback/provisioning regressions — current executor, snapshot, certificate-selection, and
+#      declared-guest truth stays covered locally as well as in CI.
 # Bypass a false positive with:  git commit --no-verify  (CI re-runs every gate regardless).
 set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
@@ -21,7 +23,10 @@ bash "${ROOT}/tests/entity-test.sh"
 bash "${ROOT}/tests/digest-test.sh"
 bash "${ROOT}/tests/dns-revert-test.sh"
 bash "${ROOT}/tests/compose-rollback-test.sh"
+bash "${ROOT}/tests/cert-selector-test.sh"
 bash "${ROOT}/tests/tofu-rollback-test.sh"
+bash "${ROOT}/tests/pve-snapshot-test.sh"
+bash "${ROOT}/tests/provisioning-truth-test.sh"
 bash "${ROOT}/tests/collect-pbs-test.sh"
 bash "${ROOT}/tests/construction-test.sh"
 bash "${ROOT}/tests/agent-test.sh"

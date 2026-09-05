@@ -6,7 +6,7 @@ horizon: short
 created: 2026-09-04
 updated: 2026-09-05
 phases: 4
-current_phase: 1
+current_phase: 2
 tier_touched: [T1]
 related:
   - docs/system-design.md
@@ -151,3 +151,8 @@ criteria, then perform Phase close-out.
 - 2026-09-05 — Corrected the Phase 1 overreach before merge: supervised T2 guest creates are allowed
   through the exact saved-plan wrapper; only A4 promotion remains blocked pending automatic rollback.
   Evidence: `journal/2026/2026-09-05-decision-sky-023-p1-create-blocker-correction.md`.
+- 2026-09-05 — Re-audited and remediated the delegated-review blockers before close-out: authored
+  Compose reverts are now report/prepare-only, Cloudflare inverses preserve complete records, saved-plan
+  recovery fails closed, native core CTs are no longer described as pool members, and host root certs
+  select one matching certificate. Evidence:
+  `journal/2026/2026-09-05-session-sky-023-phase-1-audit-remediation.md`.

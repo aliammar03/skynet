@@ -28,10 +28,11 @@ edit compose/<svc>/ → branch → PR → Ali merges
 
 - **One Arcane Git Sync per project dir**, auto-sync on; Arcane's own auto-update polling **off**
   for git-synced projects (one reconciler, one truth).
-- **Rollback = `git revert`** — Arcane converges back. SSH + `docker context` is the break-glass
-  path when Arcane itself is the patient. A **health-gated** deploy (`gitops-deploy.sh --gate`) makes
-  that revert *automatic* on a failed health probe — the executor + deterministic decider live in the
-  [actuators](actuators.md) spoke.
+- **Rollback = `git revert`** — a health-gated deploy reports the deterministic failure without
+  mutating its checkout. An operator can explicitly run `gitops-rollback.sh --prepare` to create the
+  inverse in an isolated review branch; after human review/merge, Arcane converges back. SSH +
+  `docker context` is the break-glass path when Arcane itself is the patient. The executor +
+  deterministic decider live in the [actuators](actuators.md) spoke.
 - **Env materialization** belongs to `gitops-deploy.sh`: committed `.env.git` + decrypted
   `.env.sops` → effective `0600` `.env`. Arcane GitOps does not merge `project.env`; every service
   consumes the wrapper-built file through `env_file: .env`.
