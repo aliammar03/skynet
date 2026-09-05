@@ -40,17 +40,17 @@ follow a link for the full story; distill episodes at read time, never in this f
 **Explicit durable follow-ups:**
 
 - _none explicitly open._
-- _65 historical episode(s) have unclassified follow-ups; status unknown, not promoted as current work._
+- _66 historical episode(s) have unclassified follow-ups; status unknown, not promoted as current work._
 
 ## 📓 Recent episodes
 
+- **2026-09-05** · session · [[2026-09-05-session-sky-023-p3-nightly-sequence|SKY-023 P3 nightly sequence consolidation]]
 - **2026-09-05** · session · [[2026-09-05-session-sky-023-p3-digest-resolution|SKY-023 P3 digest resolution]]
 - **2026-09-05** · session · [[2026-09-05-session-sky-023-phase-1-audit-remediation|SKY-023 Phase 1 audit remediation]]
 - **2026-09-05** · session · [[2026-09-05-session-sky-023-p3-runbook-contract-publish-split|SKY-023 P3 runbook contract and publish split]]
 - **2026-09-05** · session · [[2026-09-05-session-sky-023-p3-merge-gate-checkpoint|SKY-023 P3 merge-gate checkpoint]]
 - **2026-09-05** · session · [[2026-09-05-session-sky-023-p3-current-truth-sweep|SKY-023 P3 current-truth sweep]]
 - **2026-09-05** · session · [[2026-09-05-session-sky-023-p2-secret-access-clarification|SKY-023 P2 secret-access clarification]]
-- **2026-09-05** · session · [[2026-09-05-session-sky-023-p2-close-out|SKY-023 P2 close-out]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._

@@ -39,10 +39,10 @@ The nightly may **self-merge the PR it just opened**, but only when *both* hold:
 2. **Green CI** — `gh pr checks --watch` blocks until every check completes and passes; a red or
    never-arriving check → left open.
 
-Enforced in the shared dumb gate `scripts/nightly-automerge.sh`, called by **both** nightly paths —
-the deterministic `scripts/nightly.sh` and the agent path (`bin/ops nightly`, after the LLM opens the
-PR; the LLM never merges by hand). Keeping the decision in one path-filter-plus-`gh pr checks`
-executor is the point: it never depends on the engine's judgement. Guarded by `OPS_NIGHTLY_AUTOMERGE`
+Enforced in the shared dumb gate `scripts/nightly-automerge.sh`, called by the deterministic
+`scripts/nightly.sh` finalizer. `bin/ops nightly` may invoke an agent only for optional narrative and
+grant-audit work; it never owns the PR or merge lifecycle. Keeping the decision in one
+path-filter-plus-`gh pr checks` executor is the point: it never depends on the engine's judgement. Guarded by `OPS_NIGHTLY_AUTOMERGE`
 (default on; `=0` disables without a code change or revert). The dial position moves in
 `docs/system-design.md` §2b and the change is registered as the first entry on the `AGENTS.md` §3
 auto-approve list.

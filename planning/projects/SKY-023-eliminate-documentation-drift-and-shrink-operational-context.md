@@ -284,3 +284,11 @@ criteria, then perform Phase close-out.
   append-only history. This is not Phase completion: deterministic nightly consolidation and the
   substantive corpus-reduction exit target remain open. Evidence:
   `journal/2026/2026-09-05-session-sky-023-p3-digest-resolution.md`.
+
+- 2026-09-05 — Phase 3 nightly-sequence checkpoint prepared on
+  `fix/sky-023-p3-nightly-sequence` after PR #193 merged. One deterministic prepare/finalize
+  sequence now owns collection, envsync, renders, journal evidence, PR preparation, and the merge
+  gate; engines are optional narrative/grant-audit hooks and cannot make fallback repeat prepared
+  work. Mocked order/failure regressions cover the sequence. This is not Phase completion: Obsidian
+  artifact hygiene, substantive runbook/policy reduction, and the remaining exit targets are open.
+  Evidence: `journal/2026/2026-09-05-session-sky-023-p3-nightly-sequence.md`.

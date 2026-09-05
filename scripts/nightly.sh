@@ -1,127 +1,114 @@
 #!/usr/bin/env bash
-# nightly.sh — deterministic report-only nightly pass (runbooks/nightly.md, A5).
-# Runs on vm-skynet-ops. Serves two roles:
-#   1. the FALLBACK when the LLM engine can't run (see bin/ops nightly), and
-#   2. a standalone report-only pass for anyone who prefers no-LLM.
-# It is pure scripts: refresh inventory (T1), envsync, render docs, then open a PR with the
-# diff. It NEVER makes a T2 write or granted-root change. It self-merges ONLY its own
-# generated-only PR, and only when CI is green — the merge-gate carve-out (system-design §2b);
-# it never self-merges an authored change. Off-switch: OPS_NIGHTLY_AUTOMERGE=0 (=dry to rehearse).
-#
-# What it deliberately can't do (needs an LLM or a root grant): the narrative PROSE of
-# docs/generated/05-state-of-the-lab.md (LLM) and the root-grant audit harvest (root). Both
-# are left to the agent-driven nightly; this pass leaves the existing 05 narrative prose in place
-# but DOES regenerate the deterministic agent digest 06-agent-digest.md (scripts/render-digest.sh).
+# nightly.sh — deterministic report-only maintenance sequence → one reviewable nightly PR.
+# TIER: T1 read + generated-only PR. USAGE: nightly.sh [--prepare|--finalize] (bin/ops owns optional agent work).
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${REPO_DIR}"
 
+mode="${1:-run}"
+case "${mode}" in run|--prepare|--finalize) ;; *) echo "usage: nightly.sh [--prepare|--finalize]" >&2; exit 2;; esac
+
 DATE="$(date +%Y-%m-%d)"
-# Timestamped branch (date + HHMM) so re-runs in one day don't collide on inventory/<date>.
-# Reuse OPS_NIGHTLY_BRANCH if the caller (bin/ops) already picked one, so both agree.
+TIME="$(date +%T)"
 BRANCH="${OPS_NIGHTLY_BRANCH:-inventory/$(date +%Y-%m-%d-%H%M)}"
 DEFAULT_BRANCH="${OPS_DEFAULT_BRANCH:-main}"
+STATUS_FILE="${OPS_NIGHTLY_STATUS_FILE:-$(mktemp)}"
+own_status_file=0
+[ -n "${OPS_NIGHTLY_STATUS_FILE:-}" ] || own_status_file=1
+[ -e "${STATUS_FILE}" ] || : >"${STATUS_FILE}"
+cleanup() { [ "${own_status_file}" = 1 ] && rm -f "${STATUS_FILE}"; }
+trap cleanup EXIT
 
-echo "== nightly (deterministic) ${DATE} =="
+record_failure() {
+  printf '%s\n' "$1" >>"${STATUS_FILE}"
+  printf 'nightly: %s failed; continuing report-only sequence\n' "$1" >&2
+}
 
-# Stay on a fresh branch off the latest main so nightlies don't pile on each other.
-git fetch origin "${DEFAULT_BRANCH}" --quiet || true
-git checkout -B "${BRANCH}" "origin/${DEFAULT_BRANCH}" 2>/dev/null || git checkout -B "${BRANCH}"
+step() {
+  local name="$1"; shift
+  "$@" || record_failure "${name}"
+}
 
-# 1. refresh inventory (each collector is idempotent + read-only; no creds = exit 0)
-./bin/ops collect || true
+prepare() {
+  # A nightly starts only from a clean tree. This prevents a reset-to-main from discarding a
+  # human's work; after this point the finalizer never resets or re-runs completed mutations.
+  git diff --quiet && git diff --cached --quiet || {
+    echo 'nightly: dirty worktree; refusing to prepare a generated branch' >&2
+    exit 3
+  }
+  git fetch origin "${DEFAULT_BRANCH}" --quiet
+  git checkout -B "${BRANCH}" "origin/${DEFAULT_BRANCH}"
 
-# 2. envsync — import any legacy project.env → .env.sops and STAGE it. Current GitOps projects
-#    are already repo-driven and normally have no project.env. envsync no longer commits; nightly owns the single commit below so an
-#    env-only night can't strand an unpushed .env.sops on a discarded branch.
-./scripts/envsync.sh || true
+  step collection ./scripts/collect-all.sh
+  step envsync ./scripts/envsync.sh
+  step render-docs ./scripts/render-docs.sh
 
-# 3. render the Obsidian docs from fresh inventory
-./scripts/render-docs.sh || true
+  # Drift is evidence, not an actuator. An unavailable plan is recorded in the generated report.
+  {
+    if drift="$(cd "${REPO_DIR}/tofu" && eval "$(../scripts/tofu-env.sh)" && tofu plan -no-color 2>/dev/null)"; then
+      printf '%s\n' "${drift}" | grep -E '^(No changes\.|Plan: |  # .* will be )' || printf 'No changes.\n'
+    else
+      printf 'tofu drift: plan unavailable this run (tofu env/secrets or API unreachable)\n'
+      record_failure tofu-drift
+    fi
+  } > inventory/tofu-drift.txt 2>/dev/null || record_failure tofu-drift-report
+}
 
-# 3b. regenerate the agent cold-boot digest 06-agent-digest.md (recent decisions / open threads /
-#     recent episodes). Deterministic + read-only sources, so it runs even on this LLM-free path —
-#     the digest POINTERS stay current even when the human 05 narrative goes stale.
-./scripts/render-digest.sh || true
+write_journal() {
+  local jdir jentry n diffstat failures
+  jdir="journal/${DATE%%-*}"; mkdir -p "${jdir}"
+  jentry="${jdir}/${DATE}-session-nightly.md"; n=2
+  while [ -e "${jentry}" ]; do jentry="${jdir}/${DATE}-session-nightly-${n}.md"; n=$((n+1)); done
+  diffstat="$({ git diff --stat; git diff --cached --stat; } | tail -30)"
+  failures="$(sed 's/^/- /' "${STATUS_FILE}")"
+  {
+    printf -- '---\ndate: %s\ntime: %s\nkind: session\ntitle: nightly %s (deterministic sequence)\ntier_touched: [T1]\ngrants: []\nrefs: [runbooks/nightly.md, "%s"]\nthread_status: none\n---\n\n' \
+      "${DATE}" "${TIME}" "${DATE}" "${BRANCH}"
+    printf '# %s · session · nightly (deterministic sequence)\n\n' "${DATE}"
+    printf 'Report-only nightly ran collection, envsync, factual rendering, and drift evidence on `%s`.\nThe optional agent stage may add a narrative and root-grant audit before this finalization.\n\n' "${BRANCH}"
+    printf '## What changed before the journal entry\n\n```\n%s\n```\n\n' "${diffstat:-no staged or unstaged generated changes}"
+    printf '## Actions & outcomes\n\n- Deterministic maintenance sequence completed; the journal entry was written before the final digest and context-map renders.\n\n'
+    printf '## Graveyard — tried & abandoned\n\n— nothing abandoned —\n\n'
+    printf '## Follow-ups / open threads\n\n'
+    if [ -n "${failures}" ]; then
+      printf '## Anomalies\n\n%s\n' "${failures}"
+    else
+      printf '— none —\n'
+    fi
+  } >"${jentry}"
+}
 
-# 3c. regenerate the context map 07-context-map.md (what's loadable + what it costs). Deterministic
-#     and read-only, so it stays fresh on this LLM-free path too — the default-lean routing index.
-./scripts/render-context-map.sh || true
+finalize() {
+  # The journal is intentionally before these two renders so the cold-boot digest includes this
+  # run and the context map reflects the new episodic-store size.
+  write_journal
+  step render-digest ./scripts/render-digest.sh
+  step render-context-map ./scripts/render-context-map.sh
 
-# 3d. tofu DRIFT (report-only). A read-only `tofu plan` over the declared guests + DNS surfaces any
-#     hand-edit / out-of-band change in the nightly PR — the payoff of a declared source of truth
-#     (SKY-008). It NEVER applies. Written as stable text (just the action lines + the Plan:/No-changes
-#     summary, no timestamps) so a clean night adds no spurious churn. Non-fatal: if the tofu env/
-#     secrets or the Proxmox/Technitium APIs aren't reachable this run, it records that and moves on.
-{
-  if drift="$(cd "${REPO_DIR}/tofu" && eval "$(../scripts/tofu-env.sh)" && tofu plan -no-color 2>/dev/null)"; then
-    printf '%s\n' "${drift}" | grep -E '^(No changes\.|Plan: |  # .* will be )' || printf 'No changes.\n'
-  else
-    printf 'tofu drift: plan unavailable this run (tofu env/secrets or API unreachable)\n'
+  git add -A inventory docs/generated journal
+  if git diff --cached --quiet; then
+    echo 'nightly: no generated evidence to commit' >&2
+    exit 4
   fi
-} > inventory/tofu-drift.txt 2>/dev/null || true
+  git commit -m "nightly ${DATE}: report-only maintenance sequence"
+  git push -u origin "${BRANCH}"
 
-# 4. decide if there's anything to report. Stage inventory/docs; envsync already staged any
-#    changed compose/*/.env.sops, and this check folds all of it into one commit.
-git add -A inventory docs/generated 2>/dev/null || true
-if git diff --cached --quiet; then
-  echo "no inventory/doc/env changes tonight — nothing to report"
-  git checkout "${DEFAULT_BRANCH}" --quiet 2>/dev/null || true
-  exit 0
-fi
+  local summary pr_url
+  summary="$(git diff --stat "origin/${DEFAULT_BRANCH}...${BRANCH}" -- inventory docs/generated journal compose | tail -25)"
+  pr_url="$(gh pr create --base "${DEFAULT_BRANCH}" --head "${BRANCH}" \
+    --title "nightly ${BRANCH#inventory/}: report-only maintenance" \
+    --body "Automated report-only nightly: collection, envsync, deterministic renders, raw journal evidence, and drift report.\n\n\`\`\`\n${summary}\n\`\`\`\n\nThe merge gate may auto-merge only a generated-only, CI-green PR; otherwise this remains open for review." \
+    2>&1 | tail -1)" || pr_url=""
+  case "${pr_url}" in
+    https://*) echo "opened ${pr_url}"; ./scripts/nightly-automerge.sh "${pr_url}" || true ;;
+    *) echo "nightly: PR create failed; prepared branch preserved: ${pr_url}" >&2; exit 5 ;;
+  esac
+}
 
-# 5. episodic memory: append a RAW journal session entry for tonight (journal/README.md). The
-#    deterministic path writes only concrete facts — the diff stat, no LLM narrative — which is
-#    exactly right: raw episodes, summarized at read time, never at write time. Uniquify the
-#    filename if a second run lands the same day (episodes are append-only, never overwritten).
-JDIR="journal/${DATE%%-*}"; mkdir -p "${JDIR}"
-JENTRY="${JDIR}/${DATE}-session-nightly.md"; n=2
-while [ -e "${JENTRY}" ]; do JENTRY="${JDIR}/${DATE}-session-nightly-${n}.md"; n=$((n+1)); done
-DIFFSTAT="$(git diff --cached --stat | tail -30)"
-{
-  printf -- '---\ndate: %s\nkind: session\ntitle: nightly %s (deterministic)\ntier_touched: [T1]\ngrants: []\nrefs: [runbooks/nightly.md, "%s"]\n---\n\n' \
-    "${DATE}" "${DATE}" "${BRANCH}"
-  printf '# %s · session · nightly (deterministic path)\n\n' "${DATE}"
-  printf 'Report-only nightly ran the deterministic fallback (no LLM this run): `bin/ops collect`\n(T1 read-only), `envsync`, `render-docs`. Raw — no narrative, no `05-state-of-the-lab.md`,\nno grant audit (those need the agent path).\n\n'
-  printf '## What changed (staged this run)\n\n```\n%s\n```\n\n' "${DIFFSTAT}"
-  printf '## Graveyard — tried & abandoned\n\n— nothing abandoned (a clean deterministic pass) —\n\n'
-  printf '## Follow-ups / open threads\n\n- Agent-path nightly would add the narrative + grant audit this raw entry omits.\n'
-} > "${JENTRY}"
-git add "${JENTRY}"
-
-git commit -q -m "nightly ${DATE}: inventory + docs + encrypted env refresh + journal (report-only)"
-git push -u origin "${BRANCH}" --quiet
-
-# 6. Auto-merge — the merge-gate carve-out (docs/system-design.md §2b, ADR 0004), enforced by the
-#    shared dumb gate scripts/nightly-automerge.sh (also called by the agent path in bin/ops nightly).
-#    It merges the nightly's OWN PR ONLY when every changed path is generated/encrypted AND CI is
-#    green — one stray authored path or a red/pending check leaves it open for a human. No branch
-#    protection backstops this (private repo, free plan), so that gate IS the safety. Off-switch:
-#    OPS_NIGHTLY_AUTOMERGE=0; OPS_NIGHTLY_AUTOMERGE=dry rehearses the decision without CI or merging.
-
-# Summarise the diff for the PR body (inventory, docs, and any re-encrypted env layer).
-summary="$(git diff --stat "origin/${DEFAULT_BRANCH}...${BRANCH}" -- inventory docs/generated compose | tail -25)"
-PR_URL="$(gh pr create --base "${DEFAULT_BRANCH}" --head "${BRANCH}" \
-  --title "nightly ${BRANCH#inventory/}: inventory + docs (report-only)" \
-  --body "Automated report-only nightly (deterministic path — no LLM this run).
-
-Refreshed inventory (T1 collectors), envsync, and re-rendered \`docs/generated/\`.
-
-\`\`\`
-${summary}
-\`\`\`
-
-Generated-only, so this **auto-merges once CI is green** (merge-gate dial §2b; off-switch
-\`OPS_NIGHTLY_AUTOMERGE=0\`). Not done by this path: the narrative \`05-state-of-the-lab.md\`
-(agent-authored) and the root-grant audit (needs a grant). 🤖 nightly" \
-  2>&1 | tail -1)" || PR_URL=""
-
-# Back to the default branch before merge/cleanup so --delete-branch can drop the local branch too.
-git checkout "${DEFAULT_BRANCH}" --quiet 2>/dev/null || true
-
-case "${PR_URL}" in
-  https://*) echo "opened ${PR_URL}"; ./scripts/nightly-automerge.sh "${PR_URL}" ;;
-  *)         echo "PR create skipped/failed (check gh auth): ${PR_URL}" ;;
+case "${mode}" in
+  run)       prepare; finalize ;;
+  --prepare) prepare ;;
+  --finalize) finalize ;;
 esac
 
-echo "nightly (deterministic) complete"
+echo 'nightly (deterministic) complete'
