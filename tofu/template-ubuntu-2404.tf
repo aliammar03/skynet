@@ -1,6 +1,8 @@
-# SKY-008 — permanent Ubuntu 24.04 base cloud-init template (T2, svc-tofu). Clone source for guests.
+# SKY-008 — permanent Ubuntu 24.04 base cloud-init template (T2, svc-ops!operate). Clone source for guests.
 # Base image is placed in local's `import` store out-of-band (URL download needs Sys.Modify/T3); this
-# builds the template from the present volume. Trust/onboarding layers go on clones via cloud-init.
+# builds the template from the present volume. It contains no Skynet CA trust or svc-ops account:
+# clones receive a temporary cloud-init bootstrap key, then scripts/onboard-host.sh installs the
+# standing user and auto-expiring CA trust.
 resource "proxmox_virtual_environment_vm" "ubuntu_2404_base" {
   node_name   = "server-proxmox-core"
   vm_id       = 9000

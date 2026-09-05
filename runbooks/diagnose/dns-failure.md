@@ -52,17 +52,28 @@ Host aliases + DHCP reservations + zone records are merged into the generated ho
 
 A record change is a **T2, PR-gated** operation.
 
+Fix the declarative source on a branch, attach the speculative plan to the PR, and wait for Ali to
+merge. From the merged revision, save and show the exact plan; apply it only after approval:
+
+```bash
+eval "$(scripts/tofu-env.sh)"
+tofu -chdir=tofu plan -out=/tmp/dns-fix.tfplan
+tofu -chdir=tofu show -no-color /tmp/dns-fix.tfplan
+# Internal Technitium-only plan: TOFU_APPLY_SCOPE=technitium-dns scripts/tofu-apply.sh /tmp/dns-fix.tfplan
+# Public Cloudflare-only plan:    TOFU_APPLY_SCOPE=cloudflare-dns scripts/tofu-apply.sh /tmp/dns-fix.tfplan
+```
+
 - **Internal `aliammar.net` records are tofu-managed (SKY-008).** The declarative source of truth is
   `tofu/dns-aliammar-net.tf` — the app-service records are *derived from the apps Caddyfile*, the admin
-  vanity names are an explicit map. So a missing/wrong internal record is fixed in **git via tofu**
-  (`eval "$(scripts/tofu-env.sh)"; cd tofu && tofu plan && tofu apply`), not a hand-run token call —
+  vanity names are an explicit map. So a missing/wrong internal record is fixed in **git via the
+  saved-plan path above**, not a hand-run token call —
   the scoped Technitium token is what tofu authenticates with under the hood.
   ⚠ **Caveat:** that token can *add/modify* but **not delete** records yet — removing a stale record
   needs the record-delete grant (or a manual Technitium-UI delete). The DNSSEC-signed resolver zone
   `tdns.home.aliammar.net` is **not** yet tofu-managed (provider read bug) — edit it via the UI/token.
 - **Public `aliammar.net` records are also tofu-managed (SKY-014).** The tunnel CNAMEs live in
   `tofu/cloudflare-dns.tf`, *derived from the cloudflared ingress* (`compose/cloudflared/config.yml`) —
-  fix via **tofu** (same `eval "$(scripts/tofu-env.sh)"; cd tofu && tofu plan && tofu apply`). Break-glass
+  fix through the same saved-plan path. Break-glass
   for an immediate change: `scripts/cf-dns-route.sh` (scoped Cloudflare `DNS:Edit` token).
 
 Record the fix so the generated host map stays truthful. Anything that reaches for Technitium

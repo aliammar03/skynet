@@ -42,8 +42,14 @@ jobs:
         run: bash tests/dns-revert-test.sh
       - name: compose-rollback-test
         run: bash tests/compose-rollback-test.sh
+      - name: cert-selector-test
+        run: bash tests/cert-selector-test.sh
       - name: tofu-rollback-test
         run: bash tests/tofu-rollback-test.sh
+      - name: pve-snapshot-test
+        run: bash tests/pve-snapshot-test.sh
+      - name: provisioning-truth-test
+        run: bash tests/provisioning-truth-test.sh
       - name: collect-pbs-test
         run: bash tests/collect-pbs-test.sh
       # SKY-022 P2: the construction doctrine's [testable] claims are machine-checked, not just prose

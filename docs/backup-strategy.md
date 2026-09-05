@@ -21,7 +21,7 @@ one layer is survivable because the others overlap.
 | **L2** | firewall / router config | os-git-backup | GitHub (`skynet-opnsense`) | private repo | ✅ |
 | **L3** | container app data | **restic** | **rclone → Google Drive** | restic AES-256 | ✅ live (docker-dmz) |
 | **L4** | VMs + LXCs (both nodes) | vzdump → **PBS** | PBS datastore (Unraid) | PBS client-side | ✅ |
-| **L5** | PBS datastore off-site copy | **rclone sync** | **Google Drive** | already encrypted | ⚠️ upload live, **restore untested** |
+| **L5** | PBS datastore off-site copy | **rclone sync** | **Google Drive** | already encrypted | ✅ targeted Drive→PBS archive recovery proven; full core-loss drill pending |
 
 Out of scope by design: **bulk media** (an Unraid concern; 2 TB of cloud won't hold it).
 
@@ -86,7 +86,8 @@ its logical size — read it from PBS's GC log, never from `df` (see runbook).
   `gitops-deploy.sh` redeploy. Witnessed end-to-end on aiometadata (mongo + SQLite).
 - **A guest:** a PBS restore into `ops-managed` (T2). Fast while PBS is alive.
 - **PBS itself gone (core node dead):** pull the datastore back from Drive (L5), stand PBS up,
-  restore guests. **This round-trip is UNTESTED** — scheduled as an A6 drill.
+  restore guests. The Drive→scratch-PBS data path and CT 101 archive reconstruction were proven on
+  2026-08-16; rebuilding PBS and booting a guest in a full core-node-loss drill remain untested.
 - **The whole lab / network node:** `runbooks/dr/` — the router config survives the router
   (L2), truth survives on GitHub (L0/L1), and skynet-ops is stateless. Rebuild from a laptop.
 
@@ -111,8 +112,10 @@ Verify the kit quarterly (Judgement Day checklist). See `runbooks/dr/survival-ki
 - **App data has one off-site medium.** L3 is Drive-only; a second target (or an occasional
   local restic copy) would make app data a true 3-2-1.
 - **L5 has no independent off-site versioning** (mirror, not additive) — see the warning above.
-- **PBS→Drive restore is untested** — prove it in A6 before relying on it in anger.
+- **Full core-loss recovery is not live-drilled.** The targeted L5 archive recovery is proven, but
+  rebuilding PBS, attaching the recovered datastore, and booting the restored guest still need one
+  end-to-end disaster exercise.
 - **Google OAuth (full-drive scope) sits on each backing-up host.** Acceptable per the plan's
   per-host restic design, but a scoped/service-account credential would shrink blast radius.
-- **One root grant at a time** (single cert file) makes multi-host backup work sequential —
-  an A5 follow-up (per-host cert filenames).
+- Root grants use per-host cert files under `~/.ssh/certs/`; multiple host grants coexist and expire
+  independently. The legacy single-cert path is compatibility-only.

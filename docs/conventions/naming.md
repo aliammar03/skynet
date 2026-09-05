@@ -35,9 +35,10 @@ Style-C gate) or **[manual]** (holds by review/judgement).
     DHCP's convenience, and it means no guest silently moves. The ops brain (10.10.90.90) is not
     special for *being* static anymore — only for being reserved so it survives a DHCP/OPNsense
     outage and can drive `runbooks/dr/DR-network-node.md`.
-- **VM 5001 (OPNsense), CT 635, CT 837, Unraid VM 2020 never join a pool** `[manual]` — visible
-  under T1, never touched (T3). This is a blast-radius law, restated here because it rides on the
-  addressing scheme.
+- **VM 5001 (OPNsense), CT 635, CT 837, Unraid VM 2020 never join a pool** `[manual]`. The network
+  guests are envelope-unreachable to the operate token. Core's ACL can reach Unraid 2020's VM
+  envelope, but it remains unpooled/never-destroyed and its guest OS root stays T3. This is a
+  blast-radius law, restated here because it rides on the addressing scheme.
 
 ## Hostnames
 

@@ -38,7 +38,7 @@ grep -R image compose/<svc>/                            # pinned image in git
 | lastSync old / never | Git Sync paused, or wrong branch tracked | check the sync is enabled and tracks `main` |
 | synced OK, image not applied | compose invalid, or image pull failed | `docker` events/logs on the host; the pin exists? |
 | synced, container up, still wrong | **drift** — a manual change on the host | reconcile it back into `compose/` (it's an orphan) |
-| env-dependent failure | `.env` layering — `.env.git` + `project.env` → effective `.env` | [secrets](../../docs/design/secrets.md); is `.env.sops` decrypting? |
+| env-dependent failure | wrapper materialization — `.env.git` + decrypted `.env.sops` → effective `.env` | [secrets](../../docs/design/secrets.md); did `gitops-deploy.sh` write it? |
 | PR "merged" but not on `main` | merged to the wrong base / not merged | fix the merge; Arcane only tracks `main` |
 
 ## 3. Fix declaratively

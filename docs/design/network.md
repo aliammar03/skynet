@@ -86,7 +86,7 @@ point in the constitution.
 ## The apps-ingress rails (realized — SKY-003)
 
 The reverse-proxy edge is no longer hypothetical: the firewall was already staged for it, and
-directive [SKY-003](../../planning/projects/SKY-003-apps-reverse-proxy-authentik-sso-ingress.md)
+directive [SKY-003](../../planning/archive/SKY-003-apps-reverse-proxy-authentik-sso-ingress.md)
 lands the proxy onto these rails. The tier decision (apps door T2, Management door T3) and the
 routing map live in the [identity-and-proxy](identity-and-proxy.md) spoke; the network layer is:
 
@@ -96,19 +96,20 @@ routing map live in the [identity-and-proxy](identity-and-proxy.md) spoke; the n
 | `HOST_AUTHENTIK` | `10.10.80.37` · VLAN 80 Identity | forward-auth outpost target |
 | Rule **200** | `NET_APP_CLIENTS` → `HOST_PROXY_APPS:PORT_WEB` | app clients reach *only* the proxy |
 | Rule **240** | `HOST_PROXY_APPS` → `HOST_AUTHENTIK:PORT_AUTHENTIK` | proxy → Authentik (forward-auth) |
-| Rule **250** | `HOST_PROXY_APPS` → `ROLE_APP_ORIGINS:PORT_APP_BACKENDS` | proxy → app origins (currently `:8080`) |
+| Rule **250** | `HOST_PROXY_APPS` → `ROLE_APP_ORIGINS:PORT_APP_BACKENDS` | proxy → each declared app origin/port |
 | Rule **830** | `Caddy → :53` (authoritative DNS) | **not widened for the apps proxy** — it validates ACME over the Cloudflare API on 443 (rule 810), not `:53` |
 
-SKY-003 Phase 4 reconciles `ROLE_APP_ORIGINS` / `PORT_APP_BACKENDS` to the origins actually proxied
-(karakeep-web listens on **3000**, not 8080 — a least-privilege fix), and audits SSH exposure of
-`10.10.100.15:22`.
+`ROLE_APP_ORIGINS` / `PORT_APP_BACKENDS` are reconciled to the origins actually proxied, including
+karakeep on port 3000. The apps-ingress rails and SSH exposure were verified by SKY-003 Phase 4.
+
+## Omada read reachability (realized — SKY-018 P4)
+
+The T1 network-gear collector reaches `HOST_OMADA` (`10.10.50.25`) through
+`ROLE_OPS_API_TARGETS` on the controller HTTPS port carried by rule 360. The credential is read-only;
+controller administration remains T3. Current device evidence is rendered in
+[`../generated/50-network-gear.md`](../generated/50-network-gear.md).
 
 ## Planned expansion
 
 - **New VLAN / segment.** Admitted via new aliases + rules here, then DNS zones, then hosts — never
   by widening an existing role alias to mean two things.
-- **Omada controller read reachability (SKY-018 P4).** The T1 network-gear collector needs to reach
-  the Omada controller (`HOST_OMADA`, `10.10.50.25`, VLAN 50). Admitted by adding it to
-  `ROLE_OPS_API_TARGETS` and its HTTPS management port to `PORT_OPS_API`, so existing rule 360 carries
-  it — no new rule. Read-only reach; the credential and the T1/T3 split live in
-  [access-and-trust](access-and-trust.md).

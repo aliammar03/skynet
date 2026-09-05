@@ -28,19 +28,21 @@ edit compose/<svc>/ → branch → PR → Ali merges
 
 - **One Arcane Git Sync per project dir**, auto-sync on; Arcane's own auto-update polling **off**
   for git-synced projects (one reconciler, one truth).
-- **Rollback = `git revert`** — Arcane converges back. SSH + `docker context` is the break-glass
-  path when Arcane itself is the patient. A **health-gated** deploy (`gitops-deploy.sh --gate`) makes
-  that revert *automatic* on a failed health probe — the executor + deterministic decider live in the
-  [actuators](actuators.md) spoke.
-- **Env layering** is Arcane-native (`.env.git` + `project.env` → effective `.env`); the
-  secret-bearing `project.env` is what [secrets](secrets.md) encrypts. Every service needs
-  `env_file: .env`.
+- **Rollback = `git revert`** — a health-gated deploy reports the deterministic failure without
+  mutating its checkout. An operator can explicitly run `gitops-rollback.sh --prepare` to create the
+  inverse in an isolated review branch; after human review/merge, Arcane converges back. SSH +
+  `docker context` is the break-glass path when Arcane itself is the patient. The executor +
+  deterministic decider live in the [actuators](actuators.md) spoke.
+- **Env materialization** belongs to `gitops-deploy.sh`: committed `.env.git` + decrypted
+  `.env.sops` → effective `0600` `.env`. Arcane GitOps does not merge `project.env`; every service
+  consumes the wrapper-built file through `env_file: .env`.
 - Auto-sync **only redeploys projects already running** — a stopped project updates on its next
   manual start (matters during maintenance windows).
 
 Restore is conversational and made deterministic by `runbooks/restore-service.md` — pause sync →
-stop stack → `restic restore` the dated snapshot → `sops -d` the matching `.env.sops` from that
-commit → resume sync → health check → report. (See [backup-strategy](../backup-strategy.md).)
+stop stack → `restic restore` the dated snapshot → select the matching `.env.git`/`.env.sops`
+revision → `gitops-deploy.sh` materializes and deploys it → resume sync → verify. (See
+[backup-strategy](../backup-strategy.md).)
 
 ## Image pinning & updates
 

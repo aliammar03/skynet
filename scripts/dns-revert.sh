@@ -35,10 +35,22 @@ case "${cmd}" in
     # eaten by jq's own option parser (caught by a live run — cf-dns-route's delete inverse starts
     # with --delete). Encode each token as a JSON string, then slurp into an array.
     undo_json="$(printf '%s\n' "$@" | jq -R . | jq -sc .)"
-    jq -cn --arg ts "$(date -Iseconds)" --arg a "${actuator}" --arg t "${target}" \
+    line="$(jq -cn --arg ts "$(date -Iseconds)" --arg a "${actuator}" --arg t "${target}" \
        --arg p "${prior}" --argjson undo "${undo_json}" \
-       '{ts:$ts, actuator:$a, target:$t, prior:$p, reverted:false, undo:$undo}' \
-      >> "${LOG}"
+       '{ts:$ts, actuator:$a, target:$t, prior:$p, reverted:false, undo:$undo}')" || {
+      echo "dns-revert: could not encode inverse" >&2; exit 1;
+    }
+    # The writer must not proceed until the inverse line is on durable storage. A failed append or
+    # flush is an actionable error, not a warning: the caller is required to fail closed before its
+    # Cloudflare mutation.
+    printf '%s\n' "${line}" >> "${LOG}" || {
+      echo "dns-revert: could not persist inverse to ${LOG}" >&2; exit 1;
+    }
+    if command -v sync >/dev/null 2>&1; then
+      sync -d "${LOG}" 2>/dev/null || sync "${LOG}" 2>/dev/null || {
+        echo "dns-revert: could not flush inverse log ${LOG}" >&2; exit 1;
+      }
+    fi
     echo "dns-revert: recorded undo for ${actuator} ${target}"
     ;;
   list)
@@ -65,9 +77,20 @@ case "${cmd}" in
     # this write — else every revert spawns a fresh pending entry and the log never settles (a live
     # run caught this: undo cf-dns-route --delete was recording a re-publish inverse in turn).
     ( cd "${REPO_DIR}" && DNS_REVERT_REPLAYING=1 "${undo[@]}" )
-    # mark that entry reverted (rewrite the log with the flag flipped at $idx)
-    tmp="$(mktemp)"; jq -c --argjson i "${idx}" 'to_entries[] | if .key==$i then .value + {reverted:true} else .value end' \
-      < <(jq -s '.' "${LOG}") > "${tmp}" 2>/dev/null && { cat "${tmp}" > "${LOG}" 2>/dev/null || sudo -n cp "${tmp}" "${LOG}"; }
+    # Mark the entry reverted only after the replay completed. If this durable write fails, stop
+    # loudly: claiming success would leave the same inverse eligible for a second, unsafe replay.
+    tmp="$(mktemp)"
+    if ! jq -c --argjson i "${idx}" 'to_entries[] | if .key==$i then .value + {reverted:true} else .value end' \
+      < <(jq -s '.' "${LOG}") > "${tmp}" 2>/dev/null; then
+      rm -f "${tmp}"
+      echo "dns-revert: could not encode reverted state for ${tgt}" >&2
+      exit 1
+    fi
+    if ! { cat "${tmp}" > "${LOG}" 2>/dev/null || sudo -n cp "${tmp}" "${LOG}"; }; then
+      rm -f "${tmp}"
+      echo "dns-revert: inverse replay succeeded but could not mark it reverted — manual log recovery required" >&2
+      exit 1
+    fi
     rm -f "${tmp}"
     echo "dns-revert: reverted ${tgt}"
     ;;

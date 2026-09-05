@@ -7,15 +7,18 @@ trigger: "Core node is dead"
 
 Core dies carrying PBS, so the off-site copy on Google Drive (L5) is the way back in.
 
-> ✅ **This path is PROVEN as of 2026-08-16 (A5.5).** An earlier A6 drill caught the off-site
+> ✅ **The L5 data path is proven as of 2026-08-16 (A5.5); the full core-loss sequence is not.**
+> A targeted recovery caught the off-site
 > copy ~46% incomplete — the nightly `skynet-pbs-gdrive.service` was TERM-killed at
 > `TimeoutStartSec=6h` every night before finishing, and nothing verified completion, so it
 > looked healthy for weeks (the A4 "upload proven" claim was a dry-run *scope* estimate, not a
 > completion check). Fixed in **PR #24**: unit timeout 6h→20h, seed unthrottled, and an
 > `rclone check --one-way` completion guard that fails the job loudly if the copy is incomplete.
 > After a full re-seed the guard passed clean (**0 differences, 39,513 files**) and the CT 101
-> restore drill went green — **184/184** chunks pulled from Drive, `root.pxar` rebuilt
-> byte-identical to the live datastore. The nightly guard now keeps this honest going forward.
+> archive reconstruction went green — **184/184** chunks pulled from Drive into a scratch PBS
+> datastore, `root.pxar` rebuilt byte-identical. Rebuilding PBS, attaching the recovered datastore,
+> and booting a guest after actual core loss still need a live drill. The nightly guard keeps mirror
+> completeness honest meanwhile.
 
 ## Steps
 

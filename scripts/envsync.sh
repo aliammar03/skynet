@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# envsync.sh — back up each project's secret env layer into git, encrypted (docs/design/secrets.md)
+# envsync.sh — import legacy Arcane project.env layers into encrypted git (docs/design/secrets.md)
 # TIER: T2 (unprivileged svc-ops SSH read of project.env) + local sops encrypt.
 # USAGE: envsync.sh            # nightly; STAGES compose/<svc>/.env.sops on change (caller commits).
-#   Reads project.env (Arcane's override layer — the only env not reproducible from the repo)
-#   over SSH from the docker host, sops-encrypts it, commits if changed.
+#   Current GitOps projects are already reproducible from .env.git + .env.sops and normally have no
+#   project.env. When a legacy/non-GitOps project has one, read it over SSH and stage its encryption.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

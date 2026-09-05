@@ -49,9 +49,9 @@ The docker-dmz restic repo is `rclone:gdrive:Skynet/Backups/restic/docker-dmz`
 1. T2 PBS token → list snapshots → **PBS restore** into `ops-managed`.
 2. Boot → verify. (Never restore an excluded guest without an explicit T3 grant.)
 
-> **Off-site (L5) restore is UNTESTED** as of A4. If PBS itself is gone, first pull the
-> datastore back from `gdrive:Skynet/Backups/pbs` per `runbooks/dr/DR-core-node.md`, then
-> restore normally. That gdrive→PBS round-trip has not yet been drilled — do it in A6.
+> **L5 proof is scoped.** The Drive→scratch-PBS path and CT 101 archive reconstruction were proven
+> on 2026-08-16. A full core-node-loss exercise — rebuild PBS, attach the recovered datastore, restore,
+> and boot a guest — has not been live-drilled. Follow `runbooks/dr/DR-core-node.md` when PBS is gone.
 
 ## "What can we restore right now?"
 

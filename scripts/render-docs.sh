@@ -295,7 +295,7 @@ done
     echo
     unlist="$(j '[.datastores[]?.groups[]? | select(.verify_state==null) | "\(.ns)/\(.backup_type)/\(.backup_id)"] | join(", ")' "${inv}/pbs.json")"
     [ -n "${unlist}" ] && { echo "> [!note] Unverified (latest snapshot): ${unlist}"; echo; }
-    echo "_\`unraid\` is NFS-backed on Unraid; the L5 job mirrors it to \`gdrive:Skynet/Backups/pbs\` (PBS-encrypted + deduped). Restore proof still needs an exercised restore drill._"
+    echo "_\`unraid\` is NFS-backed on Unraid; L5 mirrors it to \`gdrive:Skynet/Backups/pbs\` (PBS-encrypted + deduped). Targeted Drive→PBS archive recovery is proven; the full core-loss rebuild/boot sequence still needs a drill._"
   else
     echo "> [!note] PBS not collected this pass — \`inventory/pbs.json\` absent (token idle or PBS unreachable)."
   fi

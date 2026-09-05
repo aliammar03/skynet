@@ -1,12 +1,12 @@
 ---
 id: SKY-024
-title: tofu declares all pool guests — API-driven CT/VM lifecycle, no node SSH
+title: tofu declares managed core guests — API-driven CT/VM lifecycle, no node SSH
 status: in-progress
 horizon: short
 created: 2026-09-04
-updated: 2026-09-04
+updated: 2026-09-05
 phases: 6
-current_phase: 3
+current_phase: 4
 tier_touched: [T2, T3]   # T3: consolidating the agent's Proxmox identity (tofu → operate token) +
                          # a network-node pveum → the plan MUST PR docs/system-design.md.
 related:
@@ -18,9 +18,9 @@ related:
   - "[[SKY-024-progress]]"
 ---
 
-# SKY-024 · tofu declares all pool guests — API-driven CT/VM lifecycle, no node SSH
+# SKY-024 · tofu declares managed core guests — API-driven CT/VM lifecycle, no node SSH
 
-> One-line pitch: make "deploy a new LXC" a **`tofu apply` + `deploy`**, not a hand-rolled Proxmox
+> One-line pitch: make "deploy a new LXC" a **reviewed saved-plan wrapper + `deploy`**, not a hand-rolled Proxmox
 > API curl — by letting OpenTofu declare the guest *envelope* (create-from-template, network, MAC)
 > via the **API alone**, keeping the no-standing-node-SSH invariant intact.
 
@@ -32,15 +32,15 @@ a `POST /nodes/<node>/lxc` curl (create + MAC pin), repeated it through a stale-
 gremlin bite). SKY-008 stood up the tofu layer but has only ever **imported** one CT (240, zero-drift);
 it has never **created** a guest. So provisioning is the one part of the loop that isn't declarative.
 
-Goal: tofu owns the guest envelope for pool guests, so a new one = **a resource block + a flake host +
-a PR**, with `tofu plan` as the reviewable diff and the MAC pinned declaratively.
+Goal: tofu owns the guest envelope for managed core guests, so a new one = **a resource block + a
+flake host + a PR**, with `tofu plan` as the reviewable diff and the MAC pinned declaratively.
 
 ## 2. Brainstorm — decisions
 
 - **Transport — API-only, NO node SSH (CHOSEN).** bpg needs its `ssh{}` block *only* for snippet /
   cloud-init uploads, **local-file** disk imports (`source_file.path`), and container `idmap` — the bpg
   docs state SSH is **not** required for "creating, modifying, or deleting VMs and Containers" or
-  "managing storage, networks, pools." Our NixOS pool guests use **none** of the SSH-only features:
+  "managing storage, networks, pools." Our NixOS managed guests use **none** of the SSH-only features:
   they boot from an already-uploaded vztmpl, get their network via the API, and nix owns the inside —
   the exact path SKY-021 proved works with the token alone. Enabling bpg SSH would hand tofu a
   **standing node-root** channel — a Judgement-Day invariant violation (§6) and the very thing the
@@ -61,28 +61,35 @@ a PR**, with `tofu plan` as the reviewable diff and the MAC pinned declaratively
   node SSH** (node root by another name; the API does everything our shape needs — see transport
   decision). These are human-merged-forever; the agent never proposes granting them. The operate token
   already holds this posture (bright lines absent), so consolidation adds nothing here.
-- **Ownership split — tofu the envelope, nix the inside (CHOSEN).** `tofu apply` makes the CT exist
-  (API) → `ct-age-identity.sh inject` the Option C key → `deploy .#lxc-<name>` activates the config.
+- **Ownership split — tofu the envelope, nix the inside (CHOSEN).** The explicitly approved
+  saved-plan wrapper makes the CT exist (API) → `ct-age-identity.sh inject` the Option C key →
+  `deploy .#lxc-<name>` activates the config.
   tofu has no SSH and does not touch the guest OS — the SKY-007/008 "tofu makes the box, nix defines
   it" pairing, kept exactly.
 - **Template handling (CHOSEN).** The NixOS base vztmpl stays **built by nix + uploaded via the API**
   upload endpoint (as SKY-021 does), referenced by tofu as `template_file_id`. bpg's `download_file`
   (URL-based, API) is the alternative but we host no URL — deferred.
-- **Fleet scope (CHOSEN).** Pool guests only. The T3-excluded set (PBS 240, Caddy 635, technitium-
-  network 837, OPNsense 5001, Unraid 2020) is **never fresh-created** by tofu — 240 stays import-only,
-  the rest stay hand-managed. Start with pool CTs (adguard-core the reference), then generalize to VMs.
+- **Fleet scope (CHOSEN).** Core-managed guests only. Service CTs 731 (adguard), 751 (technitium),
+  and 10030 (athena) are currently unpooled but their envelopes are managed by the core-node ACL.
+  PBS 240 is an existing `ops-managed` import, not an excluded guest. The permanently excluded set
+  (CT 635, CT 837, OPNsense VM 5001, and Unraid VM 2020) is not fresh-created by tofu and remains
+  outside automated envelope paths.
 
 ## 3. The plan
-- **Scope / non-goals.** In: API-only tofu *create* of pool CTs (then VMs), MAC pinned in code, the
-  `svc-tofu` create grant + its constitution note, and a `new pool guest = block + flake host + PR`
+- **Scope / non-goals.** In: API-only tofu *create* of core-managed guests, MAC pinned in code, the
+  `svc-tofu` create grant + its constitution note, and a `new managed guest = block + flake host + PR`
   runbook. Out: node SSH for tofu (explicitly rejected above); migrating the T3-excluded guests;
   the nix/deploy-rs half (unchanged — SKY-007/021 own it).
 - **Hosts & tiers touched.** T2/T3: consolidating the agent's Proxmox identity (tofu → operate token,
   retire svc-tofu) is a trust-model change → **PR `docs/system-design.md`**. No new `pveum` on core
-  (operate already holds the create set). T2: tofu-create/destroy pool guests via API.
-- **Rollback posture.** Each phase proves on a **throwaway** CT (tofu `destroy` = rollback). The
-  adguard-core migration is an **import** (read-only, zero live mutation — the SKY-008 240 recipe), so
-  it can't disrupt the running guest. `git revert` backs out any resource block or the token repoint.
+  (operate already holds the create set). T2: saved-plan wrapper creates/updates managed guests;
+  the wrapper refuses destroy/replace plans.
+- **Rollback posture.** A new create has no automatic rollback and a partial failure needs operator
+  recovery. Existing-guest update snapshots are retained for recovery, but post-apply verification
+  failures do not trigger an automatic destructive rollback. The adguard-core migration is an
+  **import** (read-only, zero live mutation — the SKY-008 240 recipe), so it can't disrupt the running
+  guest. `git revert` backs out any resource block or the token repoint; cleanup remains a separate
+  human hard checkpoint.
 - **Grants / human actions.** No `pveum` needed on core. ⚠ Ali confirms the identity consolidation
   (which token tofu runs as) via the constitution PR; optionally deactivates the retired svc-tofu token.
 
@@ -97,12 +104,14 @@ Steps:
    network via `initialization.ip_config` or still needs `ostype`.
 3. `ct-age-identity.sh inject` + `deploy .#<throwaway>` → verify it activates. Nail down the
    `ignore_changes` set bpg needs for a live NixOS CT (reuse/trim the 240 recipe).
-4. `tofu destroy` the throwaway. **PR `docs/system-design.md`**: record the **one-operator-token**
+4. Remove the throwaway only through a separately approved human hard checkpoint; the current
+   saved-plan wrapper refuses destroy/replace. **PR `docs/system-design.md`**: record the **one-operator-token**
    consolidation (tofu = operate; svc-tofu retired; the three bright lines stay off, human-merged-
    forever) + extend the ACL-audit gate to assert the operate token's tofu use holds the bright lines.
 
-Exit criteria: tofu runs as the one operator token; a CT created **entirely by `tofu apply`** (API-only,
-no SSH), specialized by deploy-rs, with a clean re-`plan`; the consolidation is in the constitution and
+Exit criteria: tofu runs as the one operator token; a CT created entirely by the reviewed
+**saved-plan wrapper** (API-only, no SSH), specialized by deploy-rs, with a clean re-`plan`; the
+consolidation is in the constitution and
 machine-audited.
 Grants / human actions: ⚠ Ali confirms the consolidation via the constitution PR (no pveum).
 
@@ -111,20 +120,21 @@ Steps:
 1. Author `tofu/lxc-adguard-core.tf` and **import** the live CT 731 (zero-drift, the 240 recipe) —
    MAC pinned in code, so a future reprovision can't churn ARP.
 2. Prove `tofu plan` is clean against the running guest (no diff, no replacement).
-3. Write the runbook: **new pool CT = a container block + a `hosts/lxc-<name>/` flake host + PR →
-   `tofu apply` + `deploy`** (fold into `runbooks/` + the SKY-021 close-out).
+3. Write the runbook: **new core-managed CT = a container block + a `hosts/lxc-<name>/` flake host
+   + PR → reviewed saved plan + `TOFU_APPLY_SCOPE=proxmox-core scripts/tofu-apply.sh` + `deploy`**
+   (fold into `runbooks/` + the SKY-021 close-out). The wrapper refuses destroy/replace plans.
 
 Exit criteria: adguard-core's envelope is tofu-declared with a clean plan; the end-to-end runbook is
 documented and reproducible.
 
 ### Phase 3 — generalize (module + VMs)  (~1–2h)   `[x]` DONE (2026-09-04)
 Steps:
-1. Extract a small `for_each` module so a new pool guest is a **data entry** (name/vlan/octet/resources)
+1. Extract a small `for_each` module so a new managed guest is a **data entry** (name/vlan/octet/resources)
    — VMID derived by the naming law, MAC pinned, wired to its flake host.
 2. Bring the existing pool VM(s) (docker-dmz) under the same declaration where it adds value.
 3. Note the remaining migration candidates (technitium-core, omada, authentik) as one-block adds.
 
-Exit criteria: a new pool guest is a single data entry + flake host + PR; the pattern covers CTs and VMs.
+Exit criteria: a new managed guest is a single data entry + flake host + PR; the pattern covers CTs and VMs.
 
 ---
 *Phases 4–6 migrate the remaining pool services onto the P1–P3 machinery — each the SKY-021
@@ -133,7 +143,7 @@ adguard-core pattern: author `hosts/lxc-<name>/` (service config in Nix + sops-n
 keep the old CT **stopped** as rollback, PR + close-out. They flip the new-CT default from theory to
 fleet. Ordered by fit-certainty and stakes.*
 
-### Phase 4 — technitium-core (751) → NixOS pool CT  (~1–2h)   `[ ]` not started
+### Phase 4 — technitium-core (751) → NixOS core-managed CT  (~1–2h)   `[ ]` not started
 The DNS clients actually use (unlike the adguard leftover) — so a **real** cutover. Core node, VLAN 70
 `.51`, VMID 751. Steps:
 1. **First:** confirm the resolver redundancy — sequence the cutover so clients keep DNS through the
@@ -143,8 +153,10 @@ The DNS clients actually use (unlike the adguard leftover) — so a **real** cut
    `technitium-dns-server` package/module; if config isn't cleanly declarative, decide the model
    (persist the config dir + seed zones via the Technitium API/tofu, vs. a full declarative port).
    Zones stay T2 (the Technitium zones token); *server settings* are T3.
-3. Option C secret (admin), `pool_cts` entry (pinned MAC = its existing MAC). Provision → inject →
-   deploy → verify resolution + zones from a client.
+3. Option C secret (admin), `native_core_cts` entry (pinned MAC = its existing MAC). Author and
+   merge the source, save/show the plan, then run `TOFU_APPLY_SCOPE=proxmox-core
+   scripts/tofu-apply.sh <saved-plan>` after explicit approval. Provision → inject → deploy →
+   verify resolution + zones from a client. The wrapper refuses destroy/replace plans.
 4. Cut over; keep old 751 **stopped** as rollback. ⚠ real DNS — hard checkpoint. PR + close-out.
 
 Exit criteria: technitium-core runs NixOS, clients resolve through it, zones intact; old CT stopped.
@@ -152,11 +164,12 @@ Exit criteria: technitium-core runs NixOS, clients resolve through it, zones int
 ### Phase 5 — omada (525) → evaluate fit, then migrate  (~1–2h)   `[ ]` not started
 The Omada controller (VLAN 50 `.25`, VMID 525) manages the switch/AP estate (losing it drops
 *management*, not the network). Steps:
-1. **Fit check first (⚠ decision):** Omada is a Java app often shipped as Docker — and pool CTs are
+1. **Fit check first (⚠ decision):** Omada is a Java app often shipped as Docker — and managed CTs are
    **unprivileged, no Docker-in-CT**. Check nixpkgs for a native `tplink-omada-controller` service. If
    it only runs under Docker → checkpoint to Ali: keep it Debian, run it on the DMZ Docker host, or a
    privileged-CT exception. Don't force it into the NixOS-LXC pattern.
-2. If a native service fits: author the host + Option C + `pool_cts` entry; snapshot; provision; deploy;
+2. If a native service fits: author the host + Option C + `native_core_cts` entry; use the merged,
+   explicitly approved saved-plan wrapper for provisioning (never a bare apply or destroy); deploy;
    re-adopt/verify the estate; keep old stopped. PR + close-out.
 
 Exit criteria: a recorded verdict — omada on NixOS (if it fits) or a logged decision on its alternative.
@@ -170,9 +183,10 @@ Exit criteria: a recorded verdict — omada on NixOS (if it fits) or a logged de
    hand-managed.
 2. **⚠ Fit check:** authentik is a **multi-service** app (server + worker + postgres + redis), normally
    Docker-compose — which does **not** fit an unprivileged single-CT NixOS host. If it doesn't fit,
-   record that it stays on the Docker host / Debian, not a pool CT.
-3. Only if both gates pass: author the host + secrets + `pool_cts` entry (⚠ network-node new VMID needs
-   a human) + cutover.
+   record that it stays on the Docker host / Debian, not a managed CT.
+3. Only if both gates pass: author the host + secrets + `native_core_cts` entry (⚠ network-node new
+   VMID needs a human) + cutover through the explicitly approved saved-plan wrapper. The wrapper
+   refuses destroy/replace plans.
 
 Exit criteria: a recorded decision — authentik migrated, or a logged won't-do with the reason (T3 or fit).
 
@@ -242,3 +256,8 @@ Follow AGENTS.md as above.
   of which our NixOS pool guests use. So "tofu declares all" needs an API create grant for `svc-tofu`,
   **not** node SSH. Sources: bpg docs (docs/index.md — SSH requirements), corroborated by the
   community LXC modules.
+- 2026-09-05 — truth correction: live inventory shows CT 731, CT 751, and CT 10030 are unpooled
+  core guests; PBS CT 240 is the existing `ops-managed` import. Current provisioning text now
+  uses the core envelope boundary, separates imported-adguard compatibility ignores from native
+  guest declarations, requires `TOFU_APPLY_SCOPE=proxmox-core` with the saved-plan wrapper, and
+  forbids automated/OpenTofu targeting of Unraid VM 2020 despite technical envelope reachability.

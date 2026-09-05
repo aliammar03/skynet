@@ -1,12 +1,12 @@
 ---
 id: SKY-023
 title: Eliminate documentation drift and shrink operational context
-status: draft
+status: in-progress
 horizon: short
 created: 2026-09-04
-updated: 2026-09-04
+updated: 2026-09-05
 phases: 4
-current_phase: 0
+current_phase: 2
 tier_touched: [T1]
 related:
   - docs/system-design.md
@@ -57,7 +57,7 @@ changes needed to prevent drift. **Non-goals:** infrastructure changes, new capa
 promotion, permission changes, or hand-editing generated outputs. **Rollback:** `git revert`.
 **Human actions:** PR review/merge only; no grants or credentials.
 
-### Phase 1 — reconcile truth before pruning  (~1–2h)   `[ ]`
+### Phase 1 — reconcile truth before pruning  (~1–2h)   `[x]` complete 2026-09-05
 
 1. Create a temporary conflict matrix: claim, competing sources, runtime evidence, chosen authority.
 2. Resolve every contradiction named in §1, including:
@@ -136,3 +136,23 @@ criteria, then perform Phase close-out.
 ## 6. Status log
 
 - 2026-09-04 — minted from a repository-wide design/runbook redundancy audit; draft idea, not scheduled.
+- 2026-09-04 — Phase 1 paused on `phase/sky-023-p1` after delegated final review found remaining
+  contradictions in DNS deletion rollback, non-guest OpenTofu rollback, live Caddy drift detection,
+  OPNsense actuator availability, forward-auth status, and Authentik mutation ordering. The working
+  tree is a checkpoint, not a phase close-out. Resume Phase 1 only. Evidence:
+  `journal/2026/2026-09-04-session-sky-023-p1-truth-reconciliation.md`.
+- 2026-09-05 — Phase 1 complete in [PR #185](https://github.com/aliammar03/skynet/pull/185) on
+  `phase/sky-023-p1`. Resolved the six final-review blockers,
+  added a failure test that distinguishes existing-guest snapshot rollback from non-guest recovery,
+  regenerated owned views, and passed the invariant, test, syntax, link, command-reference, and diff
+  gates. The PR is merge-clean and CI-green after integrating current `main`. Evidence:
+  `journal/2026/2026-09-05-session-sky-023-p1-close-out.md` and
+  `journal/2026/2026-09-05-session-sky-023-p1-pr-integration.md`.
+- 2026-09-05 — Corrected the Phase 1 overreach before merge: supervised T2 guest creates are allowed
+  through the exact saved-plan wrapper; only A4 promotion remains blocked pending automatic rollback.
+  Evidence: `journal/2026/2026-09-05-decision-sky-023-p1-create-blocker-correction.md`.
+- 2026-09-05 — Re-audited and remediated the delegated-review blockers before close-out: authored
+  Compose reverts are now report/prepare-only, Cloudflare inverses preserve complete records, saved-plan
+  recovery fails closed, native core CTs are no longer described as pool members, and host root certs
+  select one matching certificate. Evidence:
+  `journal/2026/2026-09-05-session-sky-023-phase-1-audit-remediation.md`.

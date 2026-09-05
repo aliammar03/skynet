@@ -36,17 +36,24 @@ failure case, and performed by something dumber than you.
 | Tier | Scope | Mechanism | Standing? |
 |---|---|---|---|
 | **T1 Read** | Both Proxmox nodes, PBS, Docker hosts, DNS, firewall state (**OPNsense read-only API + git mirror**), Omada controller | Read-only API tokens; scoped OPNsense read + mirrored config.xml | Always |
-| **T2 Operate** | `ops-managed` pools on both nodes, Docker hosts via Arcane + unprivileged SSH, Technitium zones, Cloudflare DNS records (`aliammar.net`), **OPNsense firewall config** (aliases/rules) via OpenTofu — minus the self-leash set | Scoped write tokens, `svc-ops` SSH, Technitium scoped token, Arcane API key, Cloudflare scoped `DNS:Edit` token, OPNsense tofu-write API key | Yes — changes PR-gated |
+| **T2 Operate** | `ops-managed` pools on both nodes, core-managed guest envelopes, Docker hosts via Arcane + unprivileged SSH, Technitium zones, scoped Authentik Applications/Providers, Cloudflare DNS records (`aliammar.net`), approved **OPNsense firewall config** (aliases/rules) boundary — minus the self-leash set | Scoped write tokens, `svc-ops` SSH, Technitium scoped token, scoped Authentik token, Arcane API key, Cloudflare scoped `DNS:Edit` token; OPNsense write mechanism pending SKY-020 | Yes where implemented — changes PR-gated |
 | **T2+ Root grant** | Root shell on workload hosts (diagnose, harden, provision, OS updates) | SSH user-CA certificate, per-host principal, auto-expiring | Grant only; expires by itself |
-| **T3 Privileged** | OPNsense *node root / account / cert admin / reboot / self-leash rules*, Management Caddy, Authentik, Proxmox node root, Unraid root, Technitium *server settings*, Cloudflare *account / Access / tunnel config / zone settings* | Dormant alias `ROLE_OPS_PRIV_TARGETS` + per-session credentials | **Never standing** |
+| **T3 Privileged** | OPNsense *node root / account / cert admin / reboot / self-leash rules*, Management Caddy, Authentik administration (flows/policies/users/settings/keys), Proxmox node root, Unraid root, Technitium *server settings*, Cloudflare *account / Access / tunnel config / zone settings* | Dormant alias `ROLE_OPS_PRIV_TARGETS` + per-session credentials | **Never standing** |
 
 - Technitium is T2 for **Zones view/modify only** — no Settings/Administration/DHCP. Server settings are T3.
+- Authentik is T2 only for scoped Applications/Providers CRUD and binding an existing outpost;
+  flows, policies, users, groups, system settings, outpost tokens, and signing keys remain T3.
+- OPNsense aliases/rules are an **approved T2 boundary, not a live actuator yet**: SKY-020 has shipped
+  T1 read only; its provider, write credential, policy gate, and first apply are still pending. Until
+  they land, the agent has no OPNsense write path. This is implementation status, not a tier change.
 - Cloudflare is T2 for **DNS records in `aliammar.net` only** (scoped `DNS:Edit` token, `0600` at `/opt/skynet-ops/secrets/cloudflare-dns.env`) — the account, Access policies, tunnel config, and zone settings are T3. Same shape as the Technitium split; publishing still needs the `ingress` PR human-merged.
-- Pool membership is the blast-radius dial. **VM 5001 (OPNsense) never joins any pool.**
-  Same exclusion for CT 635, CT 837, Unraid VM 2020. You see them (T1); never pool, destroy, or stop
-  them (T3). (SKY-024: tofu runs as the `svc-ops!operate` token now. On the **network** node it's
-  pool-scoped — no `/vms` — so 5001/635/837 are unreachable at the envelope; on **core** the `/vms`-root
-  grant makes Unraid 2020's envelope reachable, but it stays unpooled + guest-OS-root T3.)
+- Pool membership is the normal blast-radius dial. **VM 5001 (OPNsense), CT 635, CT 837, and Unraid
+  VM 2020 never join a pool.** The network token is pool-scoped, so 5001/635/837 are unreachable at
+  the envelope. Core service CTs 731, 751, and 10030 are currently unpooled but their envelopes are
+  managed by the core root-`/` ACL. Core can technically reach Unraid's VM envelope, but automated
+  and OpenTofu paths must not target it: power/config is a human hard checkpoint, it remains
+  unpooled, is never destroyed by the agent, and guest-OS root stays T3. (SKY-021/024; the
+  constitution owns this exception.)
 - Root on workload hosts exists **only** inside a certificate validity window. The CA
   private key lives on Ali's workstation — you **cannot** mint your own access. You request; Ali types.
 
@@ -98,10 +105,20 @@ edit compose/<svc>/ → branch → PR → Ali merges
 ```
 
 - Rollback = `git revert`; Arcane converges back. SSH + `docker context` is the break-glass path.
-- **Loop mechanics** — one Git Sync per project, env layering (`.env.git` + the secret-bearing
-  `project.env` → effective `.env`), image pinning — live in
+- **Loop mechanics** — one Git Sync per project, `gitops-deploy.sh` materializing effective `.env`
+  from `.env.git` + decrypted `.env.sops`, image pinning — live in
   [gitops-loop](docs/design/gitops-loop.md) + [secrets](docs/design/secrets.md). Load them when you
   touch a deploy, not before.
+- **Every production OpenTofu write uses the saved-plan executor.** Author the source change and get
+  its PR human-merged; create `tofu plan -out <planfile>` from that approved revision; show the exact
+  saved plan for approval; then run `TOFU_APPLY_SCOPE=<one actuator> scripts/tofu-apply.sh <planfile>`.
+  The wrapper rejects mixed scope (`proxmox-core`, `proxmox-network`, `technitium-dns`, or
+  `cloudflare-dns`) plans. Never use a bare, re-planning `tofu apply` path. Delete/replace remains a
+  hard checkpoint and the wrapper refuses it. A new-guest
+  create is allowed as an explicitly approved, supervised T2 saved-plan action; because no pre-change
+  guest exists to snapshot, it has no automatic rollback and cannot reach A4. A failed partial create
+  needs operator recovery and is never auto-destroyed. The merged-source and human-approval checks are
+  operator procedures; the wrapper proves the saved artifact and scope, not the human identity.
 - **Procedures beyond this loop** live as engine-neutral runbooks, catalogued with tier + trigger in
   [`runbooks/README.md`](runbooks/README.md) (and the context map). Read one when a task or a
   `SKY-###` execute prompt calls for it; they stay out of the always-loaded context by design.

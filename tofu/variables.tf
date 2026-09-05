@@ -4,7 +4,7 @@ variable "proxmox_endpoint" {
 }
 
 variable "proxmox_api_token" {
-  description = "svc-tofu@pve!operate=<secret> — pool-scoped, privilege-separated"
+  description = "svc-ops@pve!operate=<secret> on core — root-ACL broadened, bright lines enforced"
   type        = string
   sensitive   = true
 }
@@ -22,7 +22,7 @@ variable "proxmox_endpoint_network" {
 }
 
 variable "proxmox_api_token_network" {
-  description = "svc-tofu@pve!operate=<secret> on the network node — pool-scoped, privilege-separated"
+  description = "svc-ops@pve!operate=<secret> on the network node — pool-scoped, privilege-separated"
   type        = string
   sensitive   = true
 }

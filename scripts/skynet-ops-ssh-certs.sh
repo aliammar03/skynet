@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# skynet-ops-ssh-certs.sh — runs ON vm-skynet-ops. Regenerates the "Match user root" block in
-# ~/.ssh/config from the per-host certs in ~/.ssh/certs/*.pub (+ the legacy single cert), so
-# `ssh root@<host>` presents the RIGHT cert and multiple host grants coexist (access-and-trust.md — SSH user-CA).
+# skynet-ops-ssh-certs.sh — runs ON vm-skynet-ops. Regenerates host-specific ssh_config
+# entries from ~/.ssh/certs/*-cert.pub, so `ssh root@<host>` presents only that host's cert
+# and multiple grants coexist (access-and-trust.md — SSH user-CA).
 #
 # grant-root calls this after placing a cert; it's idempotent, so re-running is safe. It scopes
-# the certs to root logins only (Match user root), leaving svc-ops (T1) connections untouched.
+# the certs to their named hosts only, leaving svc-ops (T1) connections untouched.
 set -euo pipefail
 cfg="${HOME}/.ssh/config"; certs="${HOME}/.ssh/certs"
 S="# >>> skynet-ops root certs (managed by scripts/skynet-ops-ssh-certs.sh — do not edit inside)"
@@ -22,9 +22,6 @@ awk -v s="${S}" -v e="${E}" '
 n=0
 {
   echo "${S}"
-  echo "Match user root"
-  echo "    IdentityFile ~/.ssh/id_ed25519"
-  if [ -f "${HOME}/.ssh/id_ed25519-cert.pub" ]; then echo "    CertificateFile ~/.ssh/id_ed25519-cert.pub"; n=$((n+1)); fi
   for c in "${certs}"/*-cert.pub; do
     [ -e "${c}" ] || continue
     # Prune certs whose validity window has already closed: they'd be refused by sshd anyway,
@@ -35,8 +32,20 @@ n=0
     if [ "${exp}" -ne 0 ] && [ "${exp}" -lt "$(date +%s)" ]; then
       rm -f "${c}"; echo "pruned expired cert $(basename "${c}")" >&2; continue
     fi
-    echo "    CertificateFile ~/.ssh/certs/$(basename "${c}")"; n=$((n+1))
+    host="$(basename "${c}" -cert.pub)"
+    # A fleet-wide grant is the one safe exception to host-specific selection. All other
+    # grants must be selected by the exact SSH host alias; offering every cert can exhaust
+    # MaxAuthTries before the matching certificate is attempted.
+    if [ "${host}" = "all" ]; then
+      echo "Host *"
+    else
+      echo "Host ${host}"
+    fi
+    echo "    User root"
+    echo "    IdentityFile ~/.ssh/id_ed25519"
+    echo "    CertificateFile ~/.ssh/certs/$(basename "${c}")"
+    n=$((n+1))
   done
   echo "${E}"
 } >> "${cfg}"
-echo "refreshed ${cfg}: ${n} root cert file(s) presented for 'ssh root@<host>'"
+echo "refreshed ${cfg}: ${n} host-scoped root cert file(s)"

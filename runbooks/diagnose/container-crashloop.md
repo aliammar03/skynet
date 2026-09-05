@@ -37,9 +37,9 @@ ssh svc-ops@<docker-host> docker inspect --format '{{json .State.Health}}' <svc>
 | `unhealthy`, app "up" | healthcheck command wrong, or a dependency (DB) not ready | run the healthcheck cmd by hand; check the depended-on container |
 | Env/secret missing at boot | `.env` layering broke | see below |
 
-**Env / secret layering** (the usual silent cause): the effective `.env` is `.env.git` **+** the
-secret-bearing `project.env` → merged. A missing key means the `.env.sops` didn't decrypt or a key was
-dropped. Confirm the effective env and the sops layer — details in
+**Env / secret materialization** (the usual silent cause): `gitops-deploy.sh` builds the effective
+`.env` from `.env.git` **+** decrypted `.env.sops`. A missing key means decryption/materialization
+failed or the key was omitted from git. Confirm both source layers and the effective file — details in
 [gitops-loop](../../docs/design/gitops-loop.md) + [secrets](../../docs/design/secrets.md).
 
 ## 3. Fix declaratively

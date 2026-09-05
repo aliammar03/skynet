@@ -24,9 +24,8 @@
 #   <service>          a directory name under compose/ (e.g. aiostreams)
 #   --no-deploy        materialise .env + ensure the sync, but don't redeploy
 #   --gate             health-gate the deploy (SKY-018 P6): after deploy, deterministically probe
-#                      the service; if it isn't healthy in the window, auto-revert the deploy commit
-#                      and let Arcane reconcile back. The rollback DECISION is scripts/deploy-gate.sh
-#                      (a container-state check), not the agent — see ADR 0005 §3.
+#                      the service; if it isn't healthy in the window, report rollback required.
+#                      The gate never mutates or direct-pushes the authored checkout.
 #   --revert-commit    the commit --gate reverts on failure (default: the newest commit touching
 #                      compose/<service>/, i.e. this deploy's change)
 set -euo pipefail
@@ -136,7 +135,8 @@ arc POST "/environments/${ENVID}/projects/${PROJ}/redeploy" >/dev/null || true
 # Config-file services read a bind-mounted config only at STARTUP, and a file-only change doesn't
 # alter the compose spec — so Arcane's redeploy leaves the running container untouched and the new
 # config is never loaded. Force a restart for those. (cloudflared has no --watch; Caddy hot-reloads
-# via --watch, so it's deliberately NOT here.) Otherwise every tunnel-config change is a silent
+# via --watch after Arcane syncs the tracked file, so it's deliberately NOT here. The nightly route
+# collector parses git only and does not prove that this live reload occurred.) Otherwise every tunnel-config change is a silent
 # two-step where the second step is easy to forget. See runbooks/publish-service.md Path C.
 case "${SVC}" in
   cloudflared)
@@ -173,8 +173,9 @@ if [ -n "${MISSING}" ]; then
 fi
 
 # --- health gate (SKY-018 P6, opt-in via --gate) ----------------------------
-# Deploy → probe → auto-revert on failure. The gate reuses the creds/ids resolved above (exported so
-# deploy-gate.sh's default probe doesn't re-resolve them) and reverts the deploy commit if unhealthy.
+# Deploy → probe → report rollback required on failure. The gate reuses the creds/ids resolved above
+# (exported so deploy-gate.sh's default probe doesn't re-resolve them); an operator explicitly runs
+# gitops-rollback.sh --prepare in an isolated worktree after the gate reports failure.
 if [ "${GATE}" = 1 ]; then
   [ -n "${REVERT_COMMIT}" ] || REVERT_COMMIT="$(git -C "${REPO_ROOT}" log -1 --format=%H -- "compose/${SVC}/")"
   [ -n "${REVERT_COMMIT}" ] || { echo "==> ${SVC}: --gate: no commit touches compose/${SVC}/ — nothing to revert to" >&2; exit 1; }
