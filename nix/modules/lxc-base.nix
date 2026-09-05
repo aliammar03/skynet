@@ -1,5 +1,5 @@
 { modulesPath, lib, pkgs, ... }:
-# Container baseline for pool-able NixOS LXCs (SKY-021). The VM baseline (base.nix) assumes a kernel,
+# Container baseline for pool-able NixOS LXCs. The VM baseline (base.nix) assumes a kernel,
 # a bootloader and a disk; a container has none, so this is a separate, leaner spine. The upstream
 # proxmox-lxc module already bakes in the historically-broken fixes (boot.isContainer, the
 # register-nix-paths profile that lets `nixos-rebuild` find a "system" profile, and the getty@tty1
@@ -15,7 +15,7 @@ in
   imports = [ (modulesPath + "/virtualisation/proxmox-lxc.nix") ];
 
   # Unprivileged CT with proxmox owning the network (systemd-networkd picks up the pct-set config).
-  # privileged stays off by contract (SKY-021 decision) — no Docker-in-CT; the DMZ Docker host is a VM.
+  # Privileged stays off by contract — no Docker-in-CT; the DMZ Docker host is a VM.
   proxmoxLXC = {
     privileged = false;
     manageNetwork = false; # proxmox/pct owns eth0 addressing (static-first lab, set at pct create)

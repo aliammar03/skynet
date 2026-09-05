@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# dns-revert.sh — the L7 rollback executor for DNS writes (SKY-018 P6).
+# dns-revert.sh — rollback executor for DNS writes.
 # Every DNS write (cf-dns-route.sh, and any future Technitium write) records its INVERSE command here
 # BEFORE/AFTER it changes anything; this script replays that inverse to undo the write. The executor
 # is a DUMB replayer (ADR 0005 §3): it re-runs a captured command, needs no agent judgement, and works

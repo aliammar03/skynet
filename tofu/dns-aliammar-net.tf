@@ -35,8 +35,7 @@ resource "technitium_record" "aliammar_net" {
 
 # ---------------------------------------------------------------------------------------------------
 # App service records — the published apps served by the apps Caddy (10.10.100.35). Every app vhost
-# gets an EXPLICIT A record → the apps Caddy — these replaced the retired `*.aliammar.net` wildcard
-# (each resolves to the same IP the wildcard used to hand out).
+# gets an explicit A record → the apps Caddy.
 #
 # SINGLE SOURCE OF TRUTH = the apps Caddyfile (compose/caddy-apps/Caddyfile). The record set is
 # DERIVED from it, never hand-listed: every site-address line ("<host>.aliammar.net {") becomes a

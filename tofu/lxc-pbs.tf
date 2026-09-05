@@ -1,7 +1,6 @@
 # Declarative import of existing ops-managed CT 240 (lxc-proxmox-backup-server).
-# Core node, running, ops-managed pool. This proves the zero-drift IMPORT technique (import is
-# read-only — no live mutation) that SKY-018 P11 (import in-pool guests) and SKY-020 (OPNsense
-# provider) both reuse. bpg cannot read some fields back from a live container, so those are pinned
+# Core node, running, ops-managed pool. Import is read-only — no live mutation. bpg cannot read
+# some fields back from a live container, so those are pinned
 # under ignore_changes (see the per-field notes) — the point is a clean `plan`, not re-declaring
 # every byte a community-script set.
 resource "proxmox_virtual_environment_container" "pbs" {
@@ -78,7 +77,7 @@ resource "proxmox_virtual_environment_container" "pbs" {
       initialization,   # pct-set network (ip/hostname) isn't round-tripped by bpg on import
       pool_id,          # bpg does NOT read pool membership back on import → declaring it would
       # force replacement forever. Pool membership is the blast-radius dial, asserted/verified
-      # out-of-band (entity layer, SKY-018); tofu here manages the guest, not its pool binding.
+      # out-of-band; tofu here manages the guest, not its pool binding.
       vm_id, # import populates `id` (="240") but not the vm_id attribute → a state-only phantom +
       # Terraform-level operation timeouts (how long tofu waits) — schema defaults, never sent to
       # PVE, absent from imported state → phantom + with no live meaning. (timeout_start is

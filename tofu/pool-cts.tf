@@ -1,9 +1,9 @@
-# SKY-024 P3 — core-managed NixOS CTs as DATA. A new container is one entry in one of the maps
+# Core-managed NixOS CTs are declared as data. A new container is one entry in one of the maps
 # below + a `hosts/lxc-<name>/` flake host + a merged PR → explicitly approved saved plan →
 # supervised `scripts/tofu-apply.sh` create. These live core service CTs are intentionally
 # unpooled; the core-node operate ACL manages their envelopes. A create has no automatic rollback
 # and stays below A4; never auto-destroy a partial failure. Then: envelope (API-only) → Option C key
-# inject → `deploy .#lxc-<name>` (inside). tofu owns the envelope, nix owns the inside (SKY-021/024).
+# inject → `deploy .#lxc-<name>` (inside). tofu owns the envelope and Nix owns the inside.
 # See runbooks/provision-lxc.md.
 #
 # Each entry:
@@ -11,11 +11,11 @@
 #           enforces it. Core self-provisions new VMIDs; a NEW network-node CT needs a human (that node
 #           is pool-scoped — OPNsense lives there). NEVER add a T3-excluded guest here.
 #   vlan/octet — the address is 10.10.<vlan>.<octet>/24, gateway 10.10.<vlan>.1.
-#   mac   — REQUIRED and pinned in code, so a reprovision reuses it and never churns the gateway ARP
-#           (the SKY-021 lesson). New guest? pick BC:24:11:XX:YY:00 from the vlan/octet hex, or any free
+#   mac   — REQUIRED and pinned in code, so a reprovision reuses it and never churns the gateway ARP.
+#           New guest? pick BC:24:11:XX:YY:00 from the vlan/octet hex, or any free
 #           unicast MAC. An imported guest keeps its existing MAC (adguard-core below).
 locals {
-  # Imported state keeps the historical pool_ct resource address. The live guest is unpooled;
+  # Imported state keeps the existing pool_ct resource address. The live guest is unpooled;
   # its pool binding is audited from Proxmox inventory, not managed by this imported declaration.
   imported_core_cts = {
     "adguard-core" = {
@@ -50,10 +50,6 @@ locals {
       disk   = 64
       tags   = ["obsidian", "nixos", "skynet"]
     }
-    # Migration candidates (SKY-021 follow-ups) — each becomes a one-block add here + a flake host:
-    #   "technitium-core" = { vmid = 751, node = "server-proxmox-core", vlan = 70, octet = 51, mac = "…", … }
-    #   "omada"           = { … }
-    #   "authentik"       = { … }   # (837 is T3 today — graduates only if it leaves the excluded set)
   }
 }
 
@@ -191,9 +187,7 @@ resource "proxmox_virtual_environment_container" "core_ct" {
   }
 }
 
-# adguard-core was a standalone resource (P2); it retains the historical `pool_ct` state address.
-# `moved` tells tofu to rename it in state — no destroy/recreate of the live CT. Athena was created
-# under the original shared map and receives the same state-only move into the native resource.
+# These `moved` blocks preserve state addresses without destroying or recreating live CTs.
 moved {
   from = proxmox_virtual_environment_container.adguard_core
   to   = proxmox_virtual_environment_container.pool_ct["adguard-core"]

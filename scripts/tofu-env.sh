@@ -11,7 +11,7 @@
 #          /opt/skynet-ops/secrets/cloudflare-dns.env        (T2 Zone:DNS:Edit token for public DNS)
 #   Optional scope: state|proxmox-core|proxmox-network|technitium-dns|cloudflare-dns|all (default).
 #   A saved-plan apply loads only its declared actuator credentials after first loading `state` to
-#   decrypt and inspect the plan. Plan creation from the legacy combined root still uses `all`.
+#   decrypt and inspect the plan. Plan creation uses `all`.
 #   Builds a combined CA bundle (both nodes' + Technitium's pinned certs) and points SSL_CERT_FILE
 #   at it, so the technitium provider (which offers no cacert arg) verifies its self-signed cert.
 set -euo pipefail

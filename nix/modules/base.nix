@@ -24,8 +24,7 @@
 
   nixpkgs.config.allowUnfree = true; # claude-code / antigravity are unfree (see nix/home/aliammar.nix)
 
-  # Nix owns the ops toolchain. The agent CLIs are now Nix packages too, owned by home-manager
-  # (nix/home/aliammar.nix, from nixpkgs-unstable) — no longer npm-global.
+  # Nix owns the ops toolchain. Home Manager installs agent CLIs from nixpkgs-unstable.
   environment.systemPackages = with pkgs; [
     git
     gh
@@ -34,7 +33,7 @@
     rclone
     restic
     jq
-    sqlite # SKY-018 P3: the rebuildable inventory.db join cache (scripts/build-db.sh)
+    sqlite # rebuildable inventory.db join cache (scripts/build-db.sh)
     curl
     rsync
     docker-compose
@@ -45,8 +44,7 @@
     netcat # reachability probes in a few scripts
     opentofu
 
-    # Network diagnostics — the agent operates DNS/firewall/VLAN infra (SKY-005 recon/diagnosis,
-    # SKY-020/021), so dig & friends are standing tools, not one-off `nix run`s.
+    # Network diagnostics are standing tools because the agent operates DNS, firewall, and VLAN infra.
     dnsutils # dig, nslookup
     ldns # drill (DNSSEC-aware dig alternative)
     mtr # traceroute+ping combined path diagnosis

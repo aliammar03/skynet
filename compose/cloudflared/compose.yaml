@@ -1,6 +1,6 @@
 name: cloudflared
 
-# Skynet-managed Cloudflare Tunnel connector (SKY-014). Outbound-only; forwards every public
+# Skynet-managed Cloudflare Tunnel connector. Outbound-only; forwards every public
 # hostname to the apps Caddy (https://10.10.100.35). Ingress lives in config.yml. Why locally-managed
 # (not token), credential bootstrap, distroless notes: compose/cloudflared/README.md.
 x-arcane:

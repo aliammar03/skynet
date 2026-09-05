@@ -2,7 +2,7 @@ name: obsidian-livesync
 
 # Obsidian Self-hosted LiveSync backend — a single CouchDB node the vault syncs to.
 # Published at obsidian.aliammar.net (own-auth: CouchDB's own admin login).
-# See runbooks/deploy-service.md and planning/projects/SKY-013-*.md.
+# See runbooks/deploy-service.md.
 
 x-arcane:
   tags:

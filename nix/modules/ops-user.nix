@@ -1,6 +1,6 @@
 { pkgs, config, ... }:
 # The ops operator (aliammar) + the T2 SSH principal (svc-ops), and the narrowed sudo that is
-# SKY-007's thesis: collapse the ops VM's *standing passwordless root* into a reviewed diff.
+# The ops VM has no standing passwordless root; privileged access is a reviewed diff.
 let
   # The ops agent's SSH key (lives on the current ops box). Baked so the agent reaches the twin
   # as aliammar (operate) and svc-ops (deploy-rs).
@@ -19,7 +19,7 @@ in
     isNormalUser = true;
     description = "Skynet ops agent + operator";
     shell = pkgs.zsh; # interactive login shell (config in nix/home/shell.nix); svc-ops stays bash
-    # docker-group ≈ root (SKY-003 caveat) — a known trade-off kept for now so the ops
+    # docker-group ≈ root — a known trade-off kept so the ops
     # scripts run unchanged; tightening it belongs to a later hardening phase. "wheel" is
     # retained for password-gated escalation only (blanket NOPASSWD is removed below).
     extraGroups = [ "docker" "wheel" ];

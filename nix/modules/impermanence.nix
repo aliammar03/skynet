@@ -3,7 +3,7 @@
 # Only /nix (the store) and the paths declared below (kept on the /nix partition under /nix/persist)
 # survive. Anything not persisted or declared by the flake evaporates on reboot — drift is impossible.
 #
-# Piloted while the old ops VM (9090) is a live fallback (SKY-007 1d). Persist-list reviewed by Ali;
+# Persist-list reviewed by Ali;
 # /var/log is kept (Ali's call). ~/.npm-global is NOT persisted — the agent CLIs are Nix now.
 {
   # Ephemeral root in RAM. /nix + /boot are real (disko); everything else here is bind-mounted back.

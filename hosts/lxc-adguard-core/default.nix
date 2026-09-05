@@ -1,5 +1,5 @@
 { config, lib, pkgs, ... }:
-# SKY-021 P3 — adguard-core (CT 731) as a git-reconstructable NixOS LXC. First real pool CT off the
+# adguard-core (CT 731) as a git-reconstructable NixOS LXC.
 # Debian community-script path: the AdGuard config now lives in Nix (the new surface vs the ops VM,
 # where Arcane owned service config). Day-2 = in-place deploy-rs magic-rollback (P2). Secrets via
 # Option C (per-CT age key, injected at provision — scripts/ct-age-identity.sh + docs/design/secrets.md).

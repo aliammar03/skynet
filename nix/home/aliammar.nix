@@ -89,7 +89,7 @@ in
     # Match Claude's acceptEdits + Bash allow posture: the aliammar OS account is the security wall,
     # so the interactive lead may read/write/run anything that account can. This also keeps Nix,
     # normal git work, branch pushes, and `gh pr create` prompt-free. The two real checkpoints live
-    # in skynet.rules below. SKY-022 helpers remain bounded because bin/agent passes an explicit
+    # in skynet.rules below. Helpers remain bounded because bin/agent passes an explicit
     # per-role --sandbox, overriding this interactive-lead default.
     settings = {
       model = "gpt-5.6-sol";

@@ -19,7 +19,7 @@ pveum acl modify / --users svc-ops@pve --roles PVEAuditor
 echo "==> pool ops-managed (idempotent)"
 pveum pool list 2>/dev/null | grep -q 'ops-managed' || pveum pool add ops-managed
 
-# Node-aware scope (SKY-021). The two nodes are standalone PVE instances with separate ACL DBs, so
+# Node-aware scope. The two nodes are standalone PVE instances with separate ACL DBs, so
 # each runs its own OpsOperator. NETWORK = pool-scoped (the original shape). CORE = full ownership of
 # guests/storage/network/pools, bound at / (agent self-provisions pool CTs) — with the bright lines
 # held out: NO Permissions.Modify (self-leash rewrite) and NO Sys.Modify/PowerMgmt/Console (node root).
@@ -55,7 +55,7 @@ echo "==> operate ACL: OpsOperator on /pool/ops-managed (token created above)"
 pveum acl modify /pool/ops-managed --users svc-ops@pve --roles OpsOperator
 pveum acl modify /pool/ops-managed --tokens 'svc-ops@pve!operate' --roles OpsOperator
 # Pool.Audit on the pool path — /pools/<id> membership isn't visible from PVEAuditor at / alone.
-# Lets collect-proxmox.sh capture pool membership for the SKY-011 invariants gate. Read-only.
+# Lets collect-proxmox.sh capture pool membership for the invariants gate. Read-only.
 pveum acl modify /pool/ops-managed --users svc-ops@pve --roles PVEAuditor
 # Backup target: vzdump needs Datastore.AllocateSpace on the storage it writes to. 'local' is
 # the on-node backup target for ops-managed guests that can't be snapshotted (e.g. the PBS CT,
@@ -64,7 +64,7 @@ pveum acl modify /storage/local --users svc-ops@pve --roles OpsOperator
 pveum acl modify /storage/local --tokens 'svc-ops@pve!operate' --roles OpsOperator
 
 if [ "${IS_CORE}" -eq 1 ]; then
-  # CORE broaden (SKY-021): bind OpsOperator at / for BOTH user and token (privsep intersection) —
+  # Core broaden: bind OpsOperator at / for both user and token (privsep intersection) —
   # full guests/storage/network/pools across the node + self-provisioning of new VMIDs. This
   # supersedes the pool/storage bindings above on core (they stay as harmless documentation of the
   # base scope). The bright lines are held by OpsOperator NOT carrying them (see role privs above);

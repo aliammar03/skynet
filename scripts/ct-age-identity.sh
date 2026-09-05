@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ct-age-identity.sh — per-CT age identity for pool NixOS LXCs (SKY-021 P3, "Option C").
+# ct-age-identity.sh — per-CT age identity for pool NixOS LXCs.
 #
 # THE PROBLEM this solves. A pool CT decrypts its own service secrets with sops-nix at activation,
 # so it needs an age *private* key on the box. Using the CT's ephemeral ssh host key (what P2 proved)

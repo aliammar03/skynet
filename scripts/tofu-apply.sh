@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# tofu-apply.sh — saved-plan OpenTofu apply with automatic snapshot rollback for existing guests
-# (SKY-018 P6). The guest actuator gets the dumb rollback ADR 0005 §3 wants; non-guest resources
+# tofu-apply.sh — saved-plan OpenTofu apply with automatic snapshot rollback for existing guests.
+# The guest actuator gets automatic rollback; non-guest resources
 # still receive the plan/delete/verification guards but have no automatic inverse:
 #
 #   1. Apply ONLY a SAVED plan (never re-plan at apply time — the reviewed diff is the one that runs).
@@ -49,7 +49,7 @@ fi
 PLAN_JSON="$("${TOFU_BIN}" show -json "${PLAN}")"
 excluded="$(jq -r '.excluded_guests.guests[].vmid' "${INVARIANTS}" | tr '\n' ' ')"
 
-# A saved plan can carry unrelated drift from this legacy shared tofu root. Require the operator to
+# A saved plan can carry unrelated drift from the shared tofu root. Require the operator to
 # name one actuator and reject a mixed or mismatched plan before it reaches apply.
 scope="${TOFU_APPLY_SCOPE:-}"
 case "${scope}" in proxmox-core|proxmox-network|technitium-dns|cloudflare-dns) : ;;
@@ -101,7 +101,7 @@ for row in "${guest_rows[@]:-}"; do
     echo "tofu-apply: REFUSED — plan touches T3 excluded guest ${vmid}; stop for its privileged path." >&2; exit 3;; esac
 done
 
-SNAP="sky018-p6-preapply-$(date +%Y%m%d-%H%M%S)"
+SNAP="pre-tofu-apply-$(date +%Y%m%d-%H%M%S)"
 declare -a TAKEN=()   # "kind vmid node" for each snapshot successfully taken
 STATE_BACKUP="$(mktemp)"
 STATE_BACKUP_TAKEN=0

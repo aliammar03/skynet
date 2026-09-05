@@ -16,7 +16,7 @@ rm -f "${gen}/40-hosts/"*.md   # node pages are regenerated fresh each run (avoi
 j() { jq -r "$@" 2>/dev/null; }          # quiet jq
 has() { [ -s "$1" ]; }                     # file exists + non-empty
 
-# VLAN display names are AUTHORED judgment, so they live in lab.json (SKY-018 P2), not in this
+# VLAN display names are authored judgment, so they live in lab.json, not in this
 # renderer (ADR 0003). Load the map once; unknown VLANs render as "VLAN N".
 lab="${REPO_DIR}/lab.json"
 declare -A VLAN_NAME
@@ -41,9 +41,9 @@ if [ "${have_data}" -eq 0 ]; then
   echo "no inventory JSON yet — collectors have not run. Nothing to render." >&2; exit 0
 fi
 
-# ── host facts — via the rebuildable SQLite join cache (SKY-018 P3) ────────────
-# The join that used to be a hand-rolled jq/awk IP-priority ladder here is now SQL keyed on the
-# ENTITY id (scripts/sql/host-map.sql over .cache/inventory.db). build-db.sh rebuilds the cache from
+# ── host facts — via the rebuildable SQLite join cache ────────────────────────
+# The SQL join is keyed on the entity ID (scripts/sql/host-map.sql over .cache/inventory.db).
+# build-db.sh rebuilds the cache from
 # inventory/*.json each run; git stays truth, the DB is throwaway (gitignored). A running guest wins
 # its IP and carries its entity id; a DNS name that resolves to a lab.json front door is a vhost, not
 # a host (rendered in 30-services). Degrades gracefully if sqlite3 is absent (pre-nixos-rebuild).
@@ -91,7 +91,7 @@ fi
       echo
       echo "| IP | Host / alias | Entity | Source | Notes |"
       echo "|----|--------------|--------|--------|-------|"
-      # cols: ip name source entity note — a guest now carries its entity id (SKY-018 P3)
+      # cols: ip name source entity note — guests carry their entity IDs
       awk -F'\t' -v v="${v}" '{split($1,a,"."); if(a[3]==v) printf "| %s | %s | %s | %s | %s |\n", $1, $2, ($4==""?"—":"`"$4"`"), $3, $5}' "${hosts_tsv}"
       echo
     done
@@ -126,7 +126,7 @@ fi
     echo
     src="$(j '.source' "${fw}")"
     echo "_Source: ${src:-config mirror} (L2). $(j '.counts|to_entries|map(.key+"="+(.value|tostring))|join(", ")' "${fw}")._"
-    # Live state the config can't give — firmware currency + how many neighbours answered ARP (SKY-020).
+    # Live state the config cannot give — firmware currency and ARP neighbour count.
     if has "${inv}/opnsense.json"; then
       echo
       echo "**Live state** (OPNsense API): firmware \`$(j '.firmware.status' "${inv}/opnsense.json")\` · $(j '.counts.arp' "${inv}/opnsense.json") ARP neighbours · $(j '.counts.interfaces' "${inv}/opnsense.json") interfaces · declared-host presence $(j '.counts.live' "${inv}/opnsense.json") live / $(j '.counts.silent' "${inv}/opnsense.json") no-response (ARP+ICMP) — collected $(j '.collected' "${inv}/opnsense.json")."
@@ -186,7 +186,7 @@ done
     echo "> [!warning] No DNS inventory — run \`collect-dns.sh\`."
   fi
   # Reverse-proxy vhosts: DNS names whose target is a declared front-door alias (lab.json) — a proxy
-  # that fans out to many backends, NOT a host (SKY-015 fix, now with a real key behind it — P3).
+  # that fans out to many backends, not a host.
   if [ "${have_db}" -eq 1 ]; then
     echo
     echo "## Reverse-proxy vhosts — front door, not a host"
@@ -196,7 +196,7 @@ done
     ${SQLITE3} "${db}" -cmd ".mode tabs" ".read ${REPO_DIR}/scripts/sql/vhosts.sql" 2>/dev/null \
       | awk -F'\t' '{printf "| %s | `%s` ⚠ | %s |\n", $1, $2, $3}'
   fi
-  # Route resolution chain (SKY-018 P5): vanity name → front door → REAL backend entity → auth mode,
+  # Route resolution chain: vanity name → front door → backend entity → auth mode,
   # from the Caddyfile parse. Answers "where does this actually go" with no manual Caddyfile reading.
   if has "${inv}/routes.json"; then
     echo
@@ -207,7 +207,7 @@ done
     j '.routes[]? | [ .vhost, .front_door, .backend, .backend_entity, .auth ] | @tsv' "${inv}/routes.json" \
       | awk -F'\t' '{printf "| %s | `%s` | `%s` | `%s` | %s |\n", $1,$2,$3,$4,$5}'
   fi
-  # Certificate expiry (SKY-018 P5), soonest first — so an approaching expiry is visible at a glance.
+  # Certificate expiry, soonest first — so an approaching expiry is visible at a glance.
   if has "${inv}/certs.json"; then
     echo
     echo "## Certificate expiry (soonest first)"
@@ -313,7 +313,7 @@ done
   foot
 } > "${gen}/90-backup-status.md"
 
-# ── 50 — network gear (Omada estate, SKY-018 P4) ──────────────────────────────
+# ── 50 — network gear (Omada estate) ─────────────────────────────────────────
 ng="${inv}/network-gear.json"
 {
   fm "Network gear (Omada estate)" netgear
@@ -346,7 +346,7 @@ ng="${inv}/network-gear.json"
     done < <(j '.devices[]? | select(.ports!=null) | "\(.entity_id)\t\(.name)"' "${ng}")
 
     # firewall reconciliation — the estate the firewall RESERVES vs what the controller SEES.
-    # This is the drift SKY-018 exists to surface: reserved-but-absent slots, and seen-but-unreserved
+    # Surface reserved-but-absent slots and seen-but-unreserved
     # devices (an AP the INFRASTRUCTURE aliases don't list).
     if has "${fw}"; then
       fw_ips="$(j '.aliases[]? | select(.name=="ROLE_INFRASTRUCTURE_SWITCHES" or .name=="ROLE_INFRASTRUCTURE_APS")

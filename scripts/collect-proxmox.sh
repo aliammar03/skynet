@@ -24,7 +24,7 @@ api() { curl -sSf --max-time 15 --cacert "${PVE_CACERT}" -H "Authorization: PVEA
 
 # Pool membership: /pools lists poolids, but only /pools/{id} carries the member list —
 # and reading it needs Pool.Audit ON that pool path (svc-ops@pve, PVEAuditor at /pool/<id>).
-# The invariants gate (SKY-011) needs membership to assert excluded guests never join a pool.
+# The invariants gate needs membership to assert excluded guests never join a pool.
 # Fetch each pool's detail and project members to STABLE identity fields (the volatile stats
 # already live in `resources`). Degrade to members:null — never [] — when a pool can't be
 # audited, so the gate can tell "unknown" (grant missing) apart from "empty" (genuinely no members).
@@ -43,9 +43,9 @@ pools="$(api pools | jq -r '.data[].poolid' | while IFS= read -r pid; do
            pool_detail "${pid}"
          done | jq -s '.')"
 
-# Backup jobs (vzdump schedule, /cluster/backup) + the most recent vzdump RESULT per node — the
-# "are backups even configured, and did the last one pass?" signal the inventory used to be blind
-# to. Read-only (PVEAuditor covers both endpoints). Degrade to null (never []) so a token/endpoint
+# Backup jobs (vzdump schedule, /cluster/backup) + the most recent vzdump result per node provide
+# the backup-configuration and last-result signal. Read-only (PVEAuditor covers both endpoints).
+# Degrade to null (never []) so a token/endpoint
 # gap reads as "unknown", not a false "no backup jobs". starttime stays raw epoch (UTC) — the
 # renderer formats it to PKT — so the JSON carries truth, not a tz-flavoured string.
 backup_jobs="$(api cluster/backup 2>/dev/null \

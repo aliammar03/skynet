@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # build-db.sh — load inventory/*.json into a REBUILDABLE SQLite cache (.cache/inventory.db) so the
 #   renderer and the agent can JOIN over entity keys instead of hand-rolling fuzzy IP joins in
-#   jq/awk (SKY-018 P3, ADR 0003). Git stays truth; this DB is a throwaway cache (gitignored),
+#   jq/awk. Git stays truth; this DB is a throwaway cache (gitignored),
 #   rebuilt from scratch each run — losing it costs one render.
 # TIER: T1 — reads inventory/ + lab.json + derives guest IPs via entity.sh. No network, no writes
 #   outside .cache/.
@@ -101,7 +101,7 @@ if has "${lab}"; then
   jq -r '.vlans.list[]? | [.vlan, .name, .slug] | @tsv' "${lab}" | load vlans
 fi
 
-# ── network gear (Omada estate, SKY-018 P4) → one row per device + one per switch port ───────────
+# ── network gear (Omada estate) → one row per device + one per switch port ───────────────────────
 ng="${inv}/network-gear.json"
 if has "${ng}"; then
   jq -r '.devices[]? | [.entity_id, .type, .name, .model, .mac, .ip, .firmware,
@@ -111,7 +111,7 @@ if has "${ng}"; then
            | [$e, .port, (.name//""), (.profile//""), (.link//0), (.poe//0)] | @tsv' "${ng}" | load netports
 fi
 
-# ── live OPNsense ARP neighbours (SKY-020: the live read gives observed PRESENCE the mirror can't) ─
+# ── live OPNsense ARP neighbours (the live read gives observed presence the mirror cannot) ────────
 # A genuinely new observed-truth source: which IP↔MAC is actually up right now, per interface. Lets
 # the agent join intent (firewall aliases) against reality (who answered ARP). Keyed on IP.
 opn="${inv}/opnsense.json"
@@ -119,7 +119,7 @@ if has "${opn}"; then
   jq -r '.arp[]? | [.ip, .mac, (.hostname//""), (.intf//""), (.manufacturer//""), (if .permanent then 1 else 0 end)] | @tsv' "${opn}" | load arp
 fi
 
-# ── vhost routes + TLS certs (SKY-018 P5) ────────────────────────────────────────────────────────
+# ── vhost routes + TLS certs ────────────────────────────────────────────────────────────────────
 rts="${inv}/routes.json"
 if has "${rts}"; then
   jq -r '.routes[]? | [.vhost, (.front_door//""), (.backend//""), (.backend_entity//""), (.auth//"")] | @tsv' "${rts}" | load routes

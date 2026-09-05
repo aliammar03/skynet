@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # collect-opnsense.sh — T1 live read of OPNsense via its API → the CANONICAL firewall inventory.
 # Writes TWO files:
-#   inventory/firewall/firewall.json  — CONFIG (aliases/rules/reservations), the USER view, in the
-#     schema the mirror parser used to emit, but now LIVE-sourced. This REPLACES the os-git-backup
-#     mirror parse (scripts/collect-firewall.sh) as the inventory source — no more push lag.
+#   inventory/firewall/firewall.json  — configuration aliases, rules, and reservations from the live
+#     API, filtered to the user view.
 #   inventory/opnsense.json           — LIVE STATE the mirror can't give (firmware, ARP, interfaces).
 # The git mirror (skynet-opnsense config.xml) is retained as the DR / rebuild-from-git source (§2a),
 # not parsed for inventory. Read-only: the svc-skynet-recon key carries "System: Deny config write",

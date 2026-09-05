@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # render-context-map.sh — generate docs/generated/07-context-map.md, the agent's "what can I load
-# and what does it cost" index (SKY-010 P3). The twin of render-digest.sh: a fresh session reads the
+# and what does it cost" index. The twin of render-digest.sh: a fresh session reads the
 # tiny always-loaded baseline, then reads THIS map to route — one row per on-demand artifact (path ·
 # tier · trigger · ~tokens · summary) — and opens only the exact file it needs, instead of loading a
 # whole prose catalog to choose. It's the digest doctrine extended from "what happened" to "what's
@@ -84,7 +84,7 @@ mkdir -p "$(dirname "${PAGE}")"
   jn=$(find journal -name '*.md' -not -name 'README.md' 2>/dev/null | wc -l | tr -d ' ')
   jt=$( { find journal -name '*.md' -not -name 'README.md' -exec cat {} + 2>/dev/null || true; } | wc -c)
   printf -- '## Episodic memory — retrieve by topic, don'"'"'t browse\n\n'
-  printf -- '- `journal/` — %s raw episodes, ≈ %s tok total. Retrieve by topic: `bin/recall <topic>` (SKY-010 P4) or `grep -ri "<topic>" journal/`; recent episodes are already in `06-agent-digest.md`. **Do not load the whole store.**\n\n' "$jn" "$(( jt / 4 ))"
+  printf -- '- `journal/` — %s raw episodes, ≈ %s tok total. Retrieve by topic: `bin/recall <topic>` or `grep -ri "<topic>" journal/`; recent episodes are already in `06-agent-digest.md`. **Do not load the whole store.**\n\n' "$jn" "$(( jt / 4 ))"
 
   # totals over the on-demand corpus (everything listed above except the episodic store)
   total=0

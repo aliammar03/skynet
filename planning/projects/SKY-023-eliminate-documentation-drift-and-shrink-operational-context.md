@@ -6,7 +6,7 @@ horizon: short
 created: 2026-09-04
 updated: 2026-09-06
 phases: 9
-current_phase: 6
+current_phase: 7
 tier_touched: [T1]
 related:
   - AGENTS.md
@@ -166,7 +166,7 @@ verified" if that distinction still affects decisions.
 - no old guest/topology anecdote is required to understand a current rule;
 - all removed load-bearing facts still have one current authoritative home.
 
-### Phase 6 — temporal-hygiene purge: code, config, OpenTofu, Nix  (~1–2h)  `[ ]`
+### Phase 6 — temporal-hygiene purge: code, config, OpenTofu, Nix  (~1–2h)  `[x]` complete 2026-09-06
 
 Sweep live code/config comments and user-visible runtime strings across `scripts/`, `bin/`, `tofu/`,
 `nix/`, `hosts/`, `flake.nix`, `.sops.yaml`, and compose/config files.

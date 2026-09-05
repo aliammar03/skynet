@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # render-digest.sh — generate docs/generated/06-agent-digest.md, the agent's cold-boot digest.
 # USAGE: render-digest.sh
-#   The AGENT-facing companion to the human narrative 05-state-of-the-lab.md (SKY-006 P2). A fresh
+#   The agent-facing companion to the human narrative 05-state-of-the-lab.md. A fresh
 #   session reads THIS page first to orient: the settled decisions it shouldn't relitigate, the
 #   threads still open, and the most recent episodes. It pulls FACTS and POINTERS — recent ADRs,
 #   open SKY-### directives, recent journal episodes and the open-thread bullets those episodes
 #   already carry — and it deliberately does NOT summarize journal episodes: raw episodes are
-#   summarized at READ time by a human/agent, never mechanically (the SKY-006 rule).
+#   summarized at read time by a human/agent, never mechanically.
 #   docs/generated/ is MACHINE-OWNED — edit THIS renderer, never its output. Read-only sources,
 #   idempotent, and CONTENT-STABLE (no per-run timestamp) so it diffs only on real change.
 set -euo pipefail
