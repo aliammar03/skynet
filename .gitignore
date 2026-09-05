@@ -27,3 +27,8 @@ result-*
 # SKY-018 P3: the SQLite join cache is REBUILT from inventory/ at render time — git stays truth,
 # the DB is a throwaway cache (same rule as a future semantic index). Never committed.
 .cache/
+
+# Obsidian local session state and installed plugin payloads. Shared vault settings in .obsidian/
+# stay tracked; plugins are installed locally from Community Plugins (docs/obsidian-setup.md).
+.obsidian/workspace*.json
+.obsidian/plugins/
