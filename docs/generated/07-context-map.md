@@ -6,8 +6,8 @@ tags: [skynet, generated, agent, context-map]
 
 # Skynet — Context Map
 
-**Always-loaded baseline:** `AGENTS.md` + `CLAUDE.md` ≈ **3567** tok — the contract; never in this list.
-**Cold-boot read:** `docs/generated/06-agent-digest.md` ≈ 1510 tok.
+**Always-loaded baseline:** `AGENTS.md` + `CLAUDE.md` ≈ **3589** tok — the contract; never in this list.
+**Cold-boot read:** `docs/generated/06-agent-digest.md` ≈ 1504 tok.
 
 Everything below is **on-demand**: nothing enters context until a trigger fires. Open a *file*, not a section.
 
@@ -23,8 +23,8 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 | `runbooks/dr/pci-passthrough.md` |  | NIC passthrough for OPNsense | 626 | Re-establish NIC passthrough for VM 5001 (OPNsense) after a rebuild. |
 | `runbooks/dr/survival-kit.md` |  |  | 337 | What lives on paper and in the password manager, outside Skynet, to bootstrap recovery. |
 | `runbooks/nightly.md` | T1 read + PR | Run the nightly / nightly timer | 1133 | The report-only nightly maintenance run on both engine paths, and what it refreshes. |
-| `runbooks/provision-lxc.md` | T2 (reviewed saved-plan apply via the operator token, API-only — no node SSH; deploy-rs over SSH) | Set up / deploy a new LXC for X | 1164 | Author and review a NixOS pool-LXC declaration; new-CT apply is blocked pending a rollback-safe saved-plan executor. |
-| `runbooks/provision-vm.md` | T2 saved-plan clone/apply + T2+ root grant for hardening | Set up a VM for X, hardened, with restic | 1074 | Author and review a guest declaration; new-guest apply is blocked pending a rollback-safe saved-plan executor. |
+| `runbooks/provision-lxc.md` | T2 (reviewed saved-plan apply via the operator token, API-only — no node SSH; deploy-rs over SSH) | Set up / deploy a new LXC for X | 1188 | Provision a NixOS pool LXC from merged source and an explicitly approved saved plan; creates are supervised T2 without automatic rollback. |
+| `runbooks/provision-vm.md` | T2 saved-plan clone/apply + T2+ root grant for hardening | Set up a VM for X, hardened, with restic | 1059 | Provision a VM from merged source and an explicitly approved saved plan; creates are supervised T2 without automatic rollback. |
 | `runbooks/publish-service.md` | T2 (PR-gated) | Publish or expose a service | 4899 | Publish a service through the apps Caddy front door: edit the Caddyfile then PR then deploy — own-auth (plain reverse_proxy) or forward-auth via Authentik (scoped-token provider+application); optionally also expose it to the internet via the Cloudflare Tunnel (Path C). |
 | `runbooks/recon.md` | **T1 read-only | Figure out why X is broken / what's going on with <host> | 970 | Start-here triage: take one T1 read-only host snapshot with scripts/recon.sh, reason over it, then branch to a diagnosis runbook. |
 | `runbooks/restore-service.md` | T2 + (if VM restore) T2 PBS token | Restore a service / recover from backup | 1116 | Restore a service or VM from restic/PBS — conversational and deterministic, executable verbatim. |
@@ -35,7 +35,7 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 | Path | ~tok | Summary |
 |---|--:|---|
 | `docs/design/access-and-trust.md` | 4572 | The trust tiers in full — every token, ACL, principal, and the auto-expiring SSH root grant Skynet can request but never mint. |
-| `docs/design/actuators.md` | 1888 | The L7 actuators and their rollback executors: what each write can undo, by whom, and how the rollback is decided deterministically. |
+| `docs/design/actuators.md` | 1989 | The L7 actuators and their rollback executors: what each write can undo, by whom, and how the rollback is decided deterministically. |
 | `docs/design/disaster-recovery.md` | 926 | The survival kit and how each node-loss scenario is recovered; the step-by-step procedures live in runbooks/dr/. |
 | `docs/design/gitops-loop.md` | 1005 | How a service change becomes a running container via Arcane, with git-revert rollback and image pinning + Renovate. |
 | `docs/design/identity-and-proxy.md` | 3437 | The two front doors, split-horizon DNS, the forward_auth boundary that publishes apps without holding auth's keys (SKY-003), and the sanctioned public path via a Skynet-managed Cloudflare Tunnel (SKY-014). |
@@ -64,7 +64,7 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 | `compose/README.md` | 1519 | The compose/ service catalog and the Arcane GitOps deployment loop every project follows. |
 | `journal/README.md` | 1029 | The episodic journal format — session/incident/decision records, the Graveyard, and the write-raw/read-summarize rule. |
 | `planning/README.md` | 1587 | Where future work lives as SKY-### directives: the scratchpad→ideas→backlog→projects→archive lifecycle, bin/plan, and the roadmap. |
-| `runbooks/README.md` | 1608 | Catalog of engine-neutral procedures any agent can execute, each tagged by tier and trigger — the routing menu. |
+| `runbooks/README.md` | 1601 | Catalog of engine-neutral procedures any agent can execute, each tagged by tier and trigger — the routing menu. |
 | `templates/README.md` | 395 | The golden templates (compose, script, runbook, ADR, journal) that bin/new stamps so new artifacts inherit the house style. |
 
 ## Generated views — `docs/generated/` (machine-owned; edit the renderer, not these)
@@ -73,7 +73,7 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 |---|--:|---|
 | `docs/generated/00-network-map.md` | 449 | Network map |
 | `docs/generated/05-state-of-the-lab.md` | 1581 | State of the Lab |
-| `docs/generated/06-agent-digest.md` | 1510 | Agent Digest |
+| `docs/generated/06-agent-digest.md` | 1504 | Agent Digest |
 | `docs/generated/10-vlans.md` | 794 | VLANs |
 | `docs/generated/20-firewall.md` | 2206 | Firewall |
 | `docs/generated/50-network-gear.md` | 507 | Network gear (Omada estate) |
@@ -82,10 +82,10 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 
 ## Episodic memory — retrieve by topic, don't browse
 
-- `journal/` — 56 raw episodes, ≈ 68439 tok total. Retrieve by topic: `bin/recall <topic>` (SKY-010 P4) or `grep -ri "<topic>" journal/`; recent episodes are already in `06-agent-digest.md`. **Do not load the whole store.**
+- `journal/` — 57 raw episodes, ≈ 69305 tok total. Retrieve by topic: `bin/recall <topic>` (SKY-010 P4) or `grep -ri "<topic>" journal/`; recent episodes are already in `06-agent-digest.md`. **Do not load the whole store.**
 
 ---
-**On-demand corpus:** ≈ **60038** tok across 44 files — but you load a *row* (≈ tens of tok) to choose, then one file.
+**On-demand corpus:** ≈ **60135** tok across 44 files — but you load a *row* (≈ tens of tok) to choose, then one file.
 _A cache — regenerable from git via `render-context-map.sh`; never a source of truth._
 
 > [!note] Generated by `scripts/render-context-map.sh` from each loadable's frontmatter.

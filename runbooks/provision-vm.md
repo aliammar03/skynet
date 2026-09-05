@@ -1,5 +1,5 @@
 ---
-summary: "Author and review a guest declaration; new-guest apply is blocked pending a rollback-safe saved-plan executor."
+summary: "Provision a VM from merged source and an explicitly approved saved plan; creates are supervised T2 without automatic rollback."
 trigger: "Set up a VM for X, hardened, with restic"
 ---
 
@@ -11,9 +11,9 @@ trigger: "Set up a VM for X, hardened, with restic"
 > Provisioning is declarative now (SKY-008) — a guest is a `proxmox_virtual_environment_*` resource
 > with a real `plan`-before-apply diff, not a hand-run clone. The imperative path is retired.
 
-> [!warning] **New-guest apply is currently blocked.** `scripts/tofu-apply.sh` snapshots every touched
-> guest before applying; a new VMID does not exist yet, so it fails closed. Do not bypass the wrapper.
-> Continue through review, then stop before apply until a rollback-safe create path is implemented.
+> [!warning] **Create is supervised, not automatically reversible.** A new VMID has no pre-change
+> snapshot. `scripts/tofu-apply.sh` applies the exact approved plan but never auto-destroys a partial
+> create. Inspect failures and request separate approval before any cleanup; this path stays below A4.
 
 ## Steps
 
@@ -28,17 +28,17 @@ trigger: "Set up a VM for X, hardened, with restic"
    an *existing* container under management, use the zero-drift import recipe in `tofu/lxc-pbs.tf`.
 3. **Propose the source.** Open a PR containing the tofu declaration and a speculative plan output;
    Ali reviews and merges the authored change. Do not apply from the unmerged branch.
-4. **Save and review the merged revision; do not apply yet.**
+4. **Save, review, and apply the merged revision.**
    ```
    eval "$(scripts/tofu-env.sh)"
    tofu -chdir=tofu plan -out=/tmp/provision-<newhost>.tfplan
    tofu -chdir=tofu show -no-color /tmp/provision-<newhost>.tfplan
-   # STOP: the production executor currently rejects new-guest creates; do not bypass it.
+   # STOP: Ali explicitly approves this exact create plan.
+   scripts/tofu-apply.sh /tmp/provision-<newhost>.tfplan
    ```
-   Once a rollback-safe create executor is implemented and proven, it must consume this exact saved
-   plan after approval. The remaining steps apply only after that blocker is removed and the box
-   exists. Verify running-state via the read API (`/cluster/resources`),
-   **not** the guest agent (the token omits `VM.GuestAgent.Audit` by design; keep `agent { enabled = false }`).
+   Verify running-state via the read API (`/cluster/resources`). If apply or verification fails,
+   stop: the wrapper does not auto-destroy a partial create. Do **not** use the guest agent for
+   verification because the token omits `VM.GuestAgent.Audit`; keep `agent { enabled = false }`.
 5. **Request the grant:** print `bin/grant-root <newhost> 2h` (narrowest host, shortest duration).
    Wait for the cert to land (poll `~/.ssh/certs/<newhost>-cert.pub`, validate with `ssh-keygen -L`).
 6. **Harden as root** (inside the window):

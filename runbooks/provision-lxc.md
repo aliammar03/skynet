@@ -1,5 +1,5 @@
 ---
-summary: "Author and review a NixOS pool-LXC declaration; new-CT apply is blocked pending a rollback-safe saved-plan executor."
+summary: "Provision a NixOS pool LXC from merged source and an explicitly approved saved plan; creates are supervised T2 without automatic rollback."
 trigger: "Set up / deploy a new LXC for X"
 ---
 
@@ -15,9 +15,9 @@ trigger: "Set up / deploy a new LXC for X"
 > reference host is
 > [`hosts/lxc-adguard-core/`](../hosts/lxc-adguard-core/).
 
-> [!warning] **New-CT apply is currently blocked.** `scripts/tofu-apply.sh` requires a pre-apply
-> snapshot of every touched guest; a new VMID cannot supply one. Do not bypass the wrapper. Author and
-> review the declaration, then stop before apply until a rollback-safe create path is implemented.
+> [!warning] **Create is supervised, not automatically reversible.** A new VMID has no pre-change
+> snapshot. `scripts/tofu-apply.sh` applies the exact approved plan but never auto-destroys a partial
+> create. Inspect failures and request separate approval before any cleanup; this path stays below A4.
 
 ## Steps
 
@@ -44,16 +44,17 @@ trigger: "Set up / deploy a new LXC for X"
    needs a human (⚠ — that node is pool-scoped by design; OPNsense lives there). **Never** add an
    excluded guest (OPNsense 5001, CT 635/837, VM 2020, PBS 240) to `pool_cts`.
 
-5. **PR and save the reviewed plan; do not apply yet.** Open a PR with the flake/tofu declarations
+5. **PR, save, and apply the reviewed plan.** Open a PR with the flake/tofu declarations
    and speculative plan output; Ali merges. From that merged revision, save and show the exact plan:
    ```
    eval "$(scripts/tofu-env.sh)"
    tofu -chdir=tofu plan -out=/tmp/provision-lxc-<name>.tfplan
    tofu -chdir=tofu show -no-color /tmp/provision-lxc-<name>.tfplan
-   # STOP: the production executor currently rejects new-guest creates; do not bypass it.
+   # STOP: Ali explicitly approves this exact create plan.
+   scripts/tofu-apply.sh /tmp/provision-lxc-<name>.tfplan
    ```
-   Once a rollback-safe create executor is implemented and proven, it must consume that approved
-   saved plan. Only then continue:
+   Verify the new CT is running through `/cluster/resources`. If apply or verification fails, stop:
+   the wrapper does not auto-destroy a partial create. After a clean create, continue:
    ```
    scripts/ct-age-identity.sh inject lxc-<name> root@<ip>   # if it has secrets, BEFORE the first deploy
    nix run github:serokell/deploy-rs -- .#lxc-<name>        # first activation; magic-rollback protects you

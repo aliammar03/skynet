@@ -6,13 +6,14 @@
 #   1. Apply ONLY a SAVED plan (never re-plan at apply time — the reviewed diff is the one that runs).
 #   2. REFUSE any plan containing a `delete`/replace action, or touching a T3 excluded guest, OUTRIGHT.
 #      destroy stays a hard checkpoint at every autonomy level — this wrapper never performs one.
-#   3. Snapshot every in-pool guest the plan touches BEFORE applying. Fail closed: a guest that can't
-#      be snapshotted means no guaranteed rollback → refuse to apply. This deliberately blocks a
-#      new-guest create: the planned VMID does not exist yet and therefore has no rollback snapshot.
+#   3. Snapshot every existing guest UPDATE before applying. Fail closed if an update cannot be
+#      snapshotted. A guest CREATE has no pre-change object, so it runs only as a supervised T2
+#      saved-plan action and is never represented as automatically rollback-safe/A4.
 #   4. Apply the saved plan, then VERIFY deterministically (post-apply plan is clean; plus an optional
 #      external check). The verdict is an exit code, not the agent's opinion.
 #   5. On apply-or-verify failure, roll every guest snapshot back (scripts/pve-snapshot.sh) and exit
-#      non-zero. Non-guest changes require operator recovery. On success, prune safety snapshots.
+#      non-zero. Created guests and non-guest changes require operator recovery. On success, prune
+#      safety snapshots.
 #
 # TIER: T2 — svc-ops!operate applies on the managed envelope and takes safety snapshots.
 # USAGE:
@@ -53,22 +54,21 @@ if [ -n "${deletes}" ]; then
   exit 3
 fi
 
-# 2. collect guests the plan changes (create/update, not no-op) → (kind vmid node) triples.
-# A create reaches the snapshot preflight below and fails closed because the VMID does not exist.
+# 2. collect guests the plan changes (create/update, not no-op) → (action kind vmid node) rows.
 mapfile -t guest_rows < <(printf '%s' "${PLAN_JSON}" | jq -r --arg types "${GUEST_TYPES}" '
   ($types | split(" ")) as $gt
   | .resource_changes[]?
   | select(.type as $t | $gt | index($t))
   | select(.change.actions | (index("create") or index("update")))
   | (.change.after // .change.before) as $v
-  | "\(if .type=="proxmox_virtual_environment_container" then "lxc" else "vm" end)\t\($v.vm_id)\t\($v.node_name)"')
+  | "\(if (.change.actions | index("create")) then "create" else "update" end)\t\(if .type=="proxmox_virtual_environment_container" then "lxc" else "vm" end)\t\($v.vm_id)\t\($v.node_name)"')
 
 # 3. excluded-guest guard — this wrapper never auto-touches a T3 guest (run those by hand).
 for row in "${guest_rows[@]:-}"; do
   [ -n "${row}" ] || continue
-  vmid="$(printf '%s' "${row}" | cut -f2)"
+  vmid="$(printf '%s' "${row}" | cut -f3)"
   case " ${excluded} " in *" ${vmid} "*)
-    echo "tofu-apply: REFUSED — plan touches T3 excluded guest ${vmid}; run this apply manually." >&2; exit 3;; esac
+    echo "tofu-apply: REFUSED — plan touches T3 excluded guest ${vmid}; stop for its privileged path." >&2; exit 3;; esac
 done
 
 SNAP="sky018-p6-preapply-$(date +%Y%m%d-%H%M%S)"
@@ -91,10 +91,16 @@ prune_all() {
   done
 }
 
-# 4. snapshot every touched guest FIRST (fail closed: no snapshot ⇒ no apply).
+# 4. snapshot every existing-guest UPDATE first. Creates are explicit supervised actions: no
+# pre-change guest exists to snapshot, so failure can require operator cleanup.
+create_count=0
 for row in "${guest_rows[@]:-}"; do
   [ -n "${row}" ] || continue
-  read -r kind vmid node <<< "$(printf '%s' "${row}")"
+  read -r action kind vmid node <<< "$(printf '%s' "${row}")"
+  if [ "${action}" = create ]; then
+    create_count=$((create_count + 1))
+    continue
+  fi
   if "${PVE_SNAPSHOT}" create "${node}" "${kind}" "${vmid}" "${SNAP}"; then
     TAKEN+=("${kind} ${vmid} ${node}")
   else
@@ -103,12 +109,14 @@ for row in "${guest_rows[@]:-}"; do
     exit 4
   fi
 done
-[ "${#TAKEN[@]}" -gt 0 ] && echo "==> snapshotted ${#TAKEN[@]} guest(s) as ${SNAP}" || echo "==> no guests touched — non-guest changes have no automatic rollback"
+[ "${#TAKEN[@]}" -gt 0 ] && echo "==> snapshotted ${#TAKEN[@]} existing guest(s) as ${SNAP}"
+[ "${create_count}" -gt 0 ] && echo "==> supervised guest create(s): ${create_count} — no automatic rollback; explicit approval required"
+[ "${#TAKEN[@]}" -eq 0 ] && [ "${create_count}" -eq 0 ] && echo "==> no guests touched — non-guest changes have no automatic rollback"
 
 # 5. apply the SAVED plan; on failure, roll back.
 echo "==> applying saved plan ${PLAN}"
 if ! "${TOFU_BIN}" apply -auto-approve "${PLAN}"; then
-  echo "tofu-apply: apply FAILED — rolling back guest snapshots; non-guest changes need operator recovery" >&2
+  echo "tofu-apply: apply FAILED — rolling back existing-guest snapshots; created guests and non-guest changes need operator recovery" >&2
   rollback_all
   exit 5
 fi
@@ -121,7 +129,7 @@ if [ -n "${TOFU_APPLY_VERIFY:-}" ]; then
   eval "${TOFU_APPLY_VERIFY}" || verify_ok=0
 fi
 if [ "${verify_ok}" != 1 ]; then
-  echo "tofu-apply: verification FAILED — rolling back guest snapshots; non-guest changes need operator recovery" >&2
+  echo "tofu-apply: verification FAILED — rolling back existing-guest snapshots; created guests and non-guest changes need operator recovery" >&2
   rollback_all
   exit 6
 fi

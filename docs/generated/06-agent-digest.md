@@ -54,10 +54,10 @@ follow a link for the full story; distill episodes at read time, never in this f
 - **2026-09-05** · session          # session | incident | decision · [[2026-09-05-session-sky-023-p1-pr-integration|SKY-023 P1 PR integration]]
 - **2026-09-05** · session          # session | incident | decision · [[2026-09-05-session-sky-023-p1-close-out|SKY-023 P1 close-out]]
 - **2026-09-05** · session · [[2026-09-05-session-nightly-2026-09-05|nightly 2026-09-05]]
+- **2026-09-05** · decision          # session | incident | decision · [[2026-09-05-decision-sky-023-p1-create-blocker-correction|SKY-023 P1 create blocker correction]]
 - **2026-09-04** · session          # session | incident | decision · [[2026-09-04-session-sky-023-p1-truth-reconciliation|SKY-023 P1 truth reconciliation]]
 - **2026-09-04** · session · [[2026-09-04-session-sky-022-p6-proactive-cost-aware-delegation|SKY-022 P6 — proactive cost-aware delegation]]
 - **2026-09-04** · session · [[2026-09-04-session-sky-022-p5-five-run-foreman-dogfood|SKY-022 P5 — five-run foreman dogfood]]
-- **2026-09-04** · session          # session | incident | decision · [[2026-09-04-session-sky-022-p4-parallel-worktree-writers-conflict|SKY-022 P4 — parallel worktree writers + conflict]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._

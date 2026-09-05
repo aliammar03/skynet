@@ -108,9 +108,10 @@ edit compose/<svc>/ → branch → PR → Ali merges
 - **Every production OpenTofu write uses the saved-plan executor.** Author the source change and get
   its PR human-merged; create `tofu plan -out <planfile>` from that approved revision; show the exact
   saved plan for approval; then run `scripts/tofu-apply.sh <planfile>`. Never use a bare, re-planning
-  `tofu apply` path. Delete/replace remains a hard checkpoint and the wrapper refuses it. New-guest
-  creates are currently blocked: the wrapper cannot snapshot a guest that does not exist, and must
-  not be bypassed until a compliant create rollback is designed and tested.
+  `tofu apply` path. Delete/replace remains a hard checkpoint and the wrapper refuses it. A new-guest
+  create is allowed as an explicitly approved, supervised T2 saved-plan action; because no pre-change
+  guest exists to snapshot, it has no automatic rollback and cannot reach A4. A failed partial create
+  needs operator recovery and is never auto-destroyed.
 - **Procedures beyond this loop** live as engine-neutral runbooks, catalogued with tier + trigger in
   [`runbooks/README.md`](runbooks/README.md) (and the context map). Read one when a task or a
   `SKY-###` execute prompt calls for it; they stay out of the always-loaded context by design.

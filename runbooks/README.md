@@ -39,8 +39,8 @@ with its own **Tier** and (where relevant) **Trigger** line; the summaries below
 
 | Runbook | Tier | What it does |
 |---|---|---|
-| [`provision-vm.md`](provision-vm.md) | T2 saved-plan apply + T2+ root grant | **Blocked at apply:** declarations remain reviewable, but the safe wrapper cannot snapshot a new VMID; do not bypass it pending a create rollback design. |
-| [`provision-lxc.md`](provision-lxc.md) | T2 saved-plan apply (API-only) + deploy-rs | **Blocked at apply:** the safe wrapper fails closed for new CTs because no pre-change snapshot can exist; author/review only for now. |
+| [`provision-vm.md`](provision-vm.md) | supervised T2 saved-plan create + T2+ root grant | Provision a new VM after source merge and exact-plan approval; creates have no automatic rollback and stay below A4. |
+| [`provision-lxc.md`](provision-lxc.md) | supervised T2 saved-plan create (API-only) + deploy-rs | Provision a NixOS pool LXC from one data entry; a partial create needs operator recovery and is never auto-destroyed. |
 
 ## Build & collaboration
 

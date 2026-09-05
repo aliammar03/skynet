@@ -30,6 +30,7 @@ that failed. Two consequences shape everything here:
 |---|---|---|---|---|---|
 | **Compose deploy** | `gitops-deploy.sh --gate` (Arcane GitOps) | `gitops-rollback.sh` — `git revert` the deploy commit → push → Arcane reconciles | `deploy-gate.sh` — every project container Running, not Restarting, healthy-or-none within the window | ✅ git + Arcane's dumb reconciler | `tests/compose-rollback-test.sh` · 2026-09-03 |
 | **OpenTofu existing-guest update** | `tofu-apply.sh <saved-plan>` | snapshot-before-apply → `pve-snapshot.sh rollback` on failure | post-apply `tofu plan -detailed-exitcode` must be clean (+ optional verify hook) | ✅ Proxmox snapshot rollback (operate token) | `tests/tofu-rollback-test.sh` · 2026-09-03 |
+| OpenTofu guest create (supervised T2 only) | `tofu-apply.sh <saved-plan>` after explicit approval | **none** — no pre-change guest exists; never auto-destroy a partial create | post-apply plan is checked, but failure needs operator recovery | ❌ | guarded behavior: `tests/tofu-rollback-test.sh` |
 | OpenTofu non-guest create/update (including DNS) | `tofu-apply.sh <saved-plan>` (supervised only) | **none** — the wrapper has no non-guest snapshot/inverse | post-apply plan is checked, but a failure still needs operator recovery | ❌ | ❌ |
 | **DNS write** | `cf-dns-route.sh` (Cloudflare break-glass) | `dns-revert.sh undo` — replays the recorded **inverse** command | replay of a captured inverse (create⇒delete, update/delete⇒re-publish) | ✅ dumb replayer, re-runs a logged command | `tests/dns-revert-test.sh` · 2026-09-01 |
 | deploy-rs (host cfg) | `nixos-rebuild`/deploy-rs | deploy-rs **magic-rollback** (built-in) | activation health check → auto-revert | ✅ platform | pre-existing (ADR 0005 ✅) |
@@ -39,9 +40,10 @@ that failed. Two consequences shape everything here:
 `delete`/replace action or touching a T3 excluded guest (5001, 635, 837, 2020) — those are human-run,
 permanently ([Judgement Day §6](../system-design.md)).
 
-**New-guest create is not in the registry either.** The wrapper includes creates in its pre-snapshot
-set, so a new VMID fails closed before apply. There is no pre-change guest to roll back to; production
-create stays blocked until a separate executor meets the same failure-tested rollback standard.
+**New-guest create is a supervised T2 action.** The wrapper recognizes a create and
+does not attempt the impossible pre-snapshot. The exact saved plan still requires explicit approval,
+and a failed partial create needs operator recovery. Without an automatic, failure-tested rollback,
+this actuator cannot graduate to A4.
 
 ### Live validation (2026-09-03)
 
@@ -75,8 +77,9 @@ immediately before the apply and rolling back immediately on failure.
 
 - **Saved plan only.** `tofu-apply.sh` applies the exact plan file that was reviewed (`tofu plan -out`);
   it never re-plans at apply time, so the diff that ran is the diff that was seen.
-- **Fail closed.** If `tofu-apply.sh` cannot snapshot a touched guest (e.g. an NFS-backed LXC that
-  can't be snapshotted), it refuses to apply — no rollback point means no change.
+- **Fail closed for updates.** If `tofu-apply.sh` cannot snapshot an existing guest being updated
+  (e.g. an NFS-backed LXC that cannot be snapshotted), it refuses to apply. Creates are separately
+  classified as supervised actions with no automatic rollback.
 - **The compose gate probes the service's own declared endpoint** (the compose healthcheck the skynet
   service standard already requires), so the gate adds a *decision*, not a new contract.
 - **Non-guest writes are not snapshot-rolled back.** `tofu-apply.sh` still enforces the saved plan,

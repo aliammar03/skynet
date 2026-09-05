@@ -35,8 +35,8 @@ included — from a laptop and a phone hotspot.
 - **Legacy env import:** `envsync.sh` encrypts a host `project.env` when one exists; GitOps projects
   use committed `.env.git` + `.env.sops` and do not depend on `project.env`.
 - **OpenTofu:** authored source PR → human merge → reviewed saved plan →
-  `scripts/tofu-apply.sh <planfile>`; no production bare apply. New-guest creates currently fail
-  closed pending a rollback design because there is no pre-change guest to snapshot.
+  `scripts/tofu-apply.sh <planfile>`; no production bare apply. New-guest creates run as supervised
+  T2 actions with explicit approval; they have no automatic rollback and are not A4-eligible.
 - **App-data backup:** nightly restic of `/opt/docker/appdata` → rclone → Google Drive.
 - **Guest backup:** vzdump → PBS → nightly `rclone sync` of the datastore → Google Drive.
 - **Docs:** `render-docs.sh` turns `inventory/*.json` + firewall config into `docs/generated/` (Obsidian).

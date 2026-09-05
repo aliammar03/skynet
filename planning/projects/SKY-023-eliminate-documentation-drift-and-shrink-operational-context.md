@@ -148,3 +148,6 @@ criteria, then perform Phase close-out.
   gates. The PR is merge-clean and CI-green after integrating current `main`. Evidence:
   `journal/2026/2026-09-05-session-sky-023-p1-close-out.md` and
   `journal/2026/2026-09-05-session-sky-023-p1-pr-integration.md`.
+- 2026-09-05 — Corrected the Phase 1 overreach before merge: supervised T2 guest creates are allowed
+  through the exact saved-plan wrapper; only A4 promotion remains blocked pending automatic rollback.
+  Evidence: `journal/2026/2026-09-05-decision-sky-023-p1-create-blocker-correction.md`.

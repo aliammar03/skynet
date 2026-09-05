@@ -1,7 +1,7 @@
 # SKY-024 P3 — pool NixOS CTs as DATA. A new container is one entry in `pool_cts` below + a
-# `hosts/lxc-<name>/` flake host + a merged PR → reviewed saved plan. Fresh creates are currently
-# blocked because `scripts/tofu-apply.sh` cannot snapshot a not-yet-existing VMID; do not bypass it.
-# After a compliant create executor lands: envelope (API-only) → Option C key inject →
+# `hosts/lxc-<name>/` flake host + a merged PR → explicitly approved saved plan → supervised
+# `scripts/tofu-apply.sh` create. A create has no automatic rollback and stays below A4; never
+# auto-destroy a partial failure. Then: envelope (API-only) → Option C key inject →
 # `deploy .#lxc-<name>` (inside). tofu owns the envelope, nix owns the inside (SKY-021/024). See
 # runbooks/provision-lxc.md.
 #
