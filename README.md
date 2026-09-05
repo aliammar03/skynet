@@ -142,6 +142,7 @@ The full checklist is in [`AGENTS.md §6`](AGENTS.md).
 ```bash
 bin/ops nightly          # the report-only maintenance pass (also runs on a systemd timer)
 bin/ops collect          # refresh machine inventory (T1, read-only)
+bin/ops hygiene          # local-only repository hygiene and context-budget report (T1)
 bin/grant-root <host> 2h # human mints an auto-expiring root cert for the agent
 bin/plan idea "…"        # capture future work as a Skynet Directive
 ```

@@ -71,3 +71,5 @@ jobs:
         run: bash tests/documentation-drift-test.sh
       - name: temporal-hygiene-test
         run: bash tests/temporal-hygiene-test.sh
+      - name: hygiene-test
+        run: bash tests/hygiene-test.sh
