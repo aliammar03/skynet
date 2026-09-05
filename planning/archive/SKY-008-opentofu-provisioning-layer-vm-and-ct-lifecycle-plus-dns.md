@@ -1,10 +1,10 @@
 ---
 id: SKY-008
 title: OpenTofu provisioning layer: VM and CT lifecycle plus DNS
-status: active
+status: done
 horizon: long
 created: 2026-08-17
-updated: 2026-09-02
+updated: 2026-09-05
 phases: 3
 current_phase: 3
 tier_touched: [T2, T2+]   # a new scoped provisioning token + creating/destroying guests moves the
@@ -178,3 +178,5 @@ Follow AGENTS.md as above.
   for_each; `zone` omitted → inferred, else phantom `+ zone` diff). `plan` = No changes across VMs +
   LXC + DNS. Provider url must OMIT `/api` (client prepends it). Deferred `tdns.home.aliammar.net`
   stays signed (TLSA/DANE depends on it) until kevynb releases. Same branch/PR #143.
+- 2026-09-05 — Archived as done. Superseded operationally by SKY-024; residual DNS coverage
+  transferred to SKY-018 P11. Do not revive the obsolete `svc-tofu` model from this directive.
