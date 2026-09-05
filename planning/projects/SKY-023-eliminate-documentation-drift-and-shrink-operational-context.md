@@ -53,7 +53,8 @@ and a 700-word roadmap despite declaring itself a short constitution.
 ## 3. Plan
 
 **Scope:** authored design, runbooks, their indexes, always-loaded summaries, active planning/current
-code comments, and small lint/render changes needed to prevent drift. **Non-goals:** infrastructure
+code comments, digest resolution, nightly workflow consolidation, editor-artifact hygiene, and narrow
+merge-gate/lint/render fixes needed to enforce existing policy and prevent drift. **Non-goals:** infrastructure
 changes, new capabilities, autonomy promotion, permission changes, editing journal/scratchpad/archive
 history to make it read like current truth, or hand-editing generated outputs. **Rollback:** `git revert`.
 **Human actions:** PR review/merge only; no grants or credentials.
@@ -85,7 +86,27 @@ test evidence; production runbooks contain no bare re-planning `tofu apply` path
 **Exit:** constitution is at least **40% smaller**; design corpus at least **30% smaller**; no
 `Planned expansion` sections remain in spokes; all removed load-bearing content has one reachable home.
 
-### Phase 3 — make runbooks task-shaped + finish current-truth cleanup  (~1–2h)   `[ ]`
+### Phase 3 — fix the merge gate, then prune operational context   `[ ]`
+
+Execute in bounded ~1–2h checkpoint batches: merge-gate repair first, documentation/editor cleanup
+second, digest/nightly consolidation third. Record the completed batch and exact next step at each
+checkpoint; keep Phase 3 open until all exit criteria pass. The gate repair is a separately reviewable,
+human-merged fix PR under this phase and must land before cosmetic cleanup proceeds.
+
+**Safety prerequisite — enforce the existing nightly merge contract:**
+
+- In `scripts/nightly-automerge.sh`, separate successful PR file-list retrieval from path filtering.
+  The current `gh pr diff ... | grep ... || true` treats a failed fetch as an empty allowed diff.
+  Any retrieval failure, incomplete/empty response, or ambiguous PR identity must leave the PR open.
+- Resolve only the nightly's exact PR/branch; do not fall back to an unrelated latest same-day PR.
+  Validate the existing allowed paths and CI against the same head commit, then require that expected
+  head when merging. If the head changes, stop or repeat all validation against the new head.
+- Add mocked failure tests with this repair (do not defer them to Phase 4): file-list/API failure,
+  empty file list, disallowed authored path, wrong PR identity, failed/pending/missing checks, and
+  a changed head must never call merge; a matching allowed, CI-green head can merge. No live merge
+  is part of the test. Preserve the current allowlist, off-switch, and human-merge authority.
+
+**Documentation and context cleanup:**
 
 1. Split `publish-service.md` into a small router plus internal-route, forward-auth, and public-tunnel
    procedures. A simple internal publish must not load unrelated Authentik/Cloudflare instructions.
@@ -109,6 +130,28 @@ test evidence; production runbooks contain no bare re-planning `tofu apply` path
    - move any `status: done` directive that still lives outside `planning/archive/` into the archive
      (known example: SKY-022), then regenerate the roadmap with `bin/plan list`.
 
+7. Prune repeated policy in `AGENTS.md` and `README.md`: retain the compact always-loaded operating
+   contract and load-bearing safety constraints; link detailed exceptions to their authoritative
+   homes. Correct blanket "never self-merge" claims to agree with the existing generated-only nightly
+   exception. Report before/after word or token counts and verify that no trust boundary changed.
+8. Repair `scripts/render-digest.sh` so current work comes from directive status and explicit durable
+   resolution records, not verbatim historical follow-ups presented as still open. Preserve append-only
+   journal evidence; do not infer resolution solely from a guest being absent from inventory. Include
+   PR #185/#186 (both merged at review) and completed phase dependencies as regression examples;
+   unresolved items remain visible, and unavailable status is unknown rather than resolved. Parse
+   frontmatter correctly so inline template comments do not leak into the digest; use explicit time
+   metadata for same-day chronology rather than reverse filename order. Regenerate via the renderer.
+9. Consolidate `bin/ops nightly` and `scripts/nightly.sh` around one deterministic maintenance
+   sequence owning collection, envsync, rendering, and PR preparation. Keep agent analysis/narrative
+   optional, and preserve report-only behavior, grant-audit requirements, engine fallback, and the
+   existing merge gate. Remove duplicate renders (including the render already inside `collect`),
+   include the current journal entry in the final digest, and ensure fallback cannot repeat completed
+   mutation steps or discard partial work. Use mocked commands to verify order and failure behavior.
+10. Stop tracking personal Obsidian workspace state and bundled plugin binaries unless a documented
+    offline/rebuild requirement needs them. Keep shared vault settings, record the plugin/version
+    installation path in `docs/obsidian-setup.md`, and add narrow ignore rules. Verify fresh setup
+    remains reproducible; do not delete users' installed local plugins or rewrite git history.
+
 **Boundary:** repo cleanup only. If a stale root-owned symlink or other live-host residue is discovered,
 record it as a separate operator cleanup; SKY-023 does not mutate infrastructure.
 
@@ -116,7 +159,10 @@ record it as a separate operator cleanup; SKY-023 does not mutate infrastructure
 4,719-token monolith; every leaf remains independently executable; no active path points at SKY-008's
 former `projects/` location; current operational surfaces do not instruct agents to use retired
 `svc-tofu` credentials; live comments describe present behavior rather than project history; and no
-`status: done` directive remains outside `planning/archive/`.
+`status: done` directive remains outside `planning/archive/`. The merge gate fails closed and merges
+only the validated head; the digest does not revive resolved PRs/phases or hide unknown work; one
+nightly sequence owns each deterministic step; repeated policy agrees with the constitution; and
+editor artifacts are removed from tracking or retained with a documented rebuild justification.
 
 ### Phase 4 — make drift fail CI  (~1–2h)   `[ ]`
 
@@ -131,16 +177,22 @@ former `projects/` location; current operational surfaces do not instruct agents
    - retired credential/file names in **current-authority surfaces** (`AGENTS.md`, `README.md`, `docs/`,
      `runbooks/`, `tofu/`, `scripts/`, `nix/`). Keep history-bearing trees (`journal/`,
      `planning/scratchpad/`, `planning/archive/`) explicitly outside this stale-history gate.
-2. Encode stable duplicated facts in a machine-readable source or consistency test where generation is
+2. Wire the Phase 3 merge-gate, digest-resolution, and nightly-sequence regression tests into CI.
+   Exercise both agent-enabled and deterministic/fallback paths without credentials or network writes;
+   verify unknown/error states remain visible, render ordering includes the current episode, and no
+   failed allowlist lookup or changed head can reach merge. Add narrow checks for ignored editor
+   artifacts and contradictory merge-policy summaries where deterministic checks are practical.
+3. Encode stable duplicated facts in a machine-readable source or consistency test where generation is
    practical; do not attempt to lint judgement-heavy prose. Prefer a small denylist/allowlist for
    retired identities and paths over broad prose rules that would reject legitimate historical evidence.
-3. Run the full repo checks, regenerate only through owning scripts, and perform a cold-session review:
+4. Run the full repo checks, regenerate only through owning scripts, and perform a cold-session review:
    one reviewer finds the trust tier, deploy procedure, restore status, publish path, and current tofu
    identity without loading unrelated or historical files.
-4. Record before/after token totals and archive the conflict matrix as a journal session, not design prose.
+5. Record before/after token totals and archive the conflict matrix as a journal session, not design prose.
 
 **Exit:** CI catches the failure classes that caused this cleanup, including stale archive paths,
-retired operational identities, and done-directive placement; all links/checks pass; the PR reports
+retired operational identities, done-directive placement, stale digest resolutions, duplicate nightly
+steps, and merge-gate failures; all links/checks pass; the PR reports
 token deltas and proves no invariant, authority boundary, rollback, recovery step, or historical
 evidence was lost.
 
@@ -193,3 +245,9 @@ criteria, then perform Phase close-out.
   P3 now owns current operational-reference/comment cleanup plus done-directive roadmap hygiene; P4
   adds deterministic guards for archived paths, retired operational identities, and misplaced done
   directives. Historical journal/scratchpad/archive evidence is intentionally left untouched.
+
+- 2026-09-05 — Folded the quick repository review at `27e03ef` into remaining Phase 3/4 work:
+  fail-closed nightly merge validation first; then digest resolution, repeated-policy pruning,
+  the existing publish split, one deterministic nightly sequence, and Obsidian artifact hygiene.
+  Phase 4 owns ongoing regression enforcement. This is a planning update only; implementation
+  and phase completion are not claimed, and the existing trust/merge boundaries are unchanged.
