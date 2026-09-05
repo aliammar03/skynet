@@ -36,7 +36,7 @@ failure case, and performed by something dumber than you.
 | Tier | Scope | Mechanism | Standing? |
 |---|---|---|---|
 | **T1 Read** | Both Proxmox nodes, PBS, Docker hosts, DNS, firewall state (**OPNsense read-only API + git mirror**), Omada controller | Read-only API tokens; scoped OPNsense read + mirrored config.xml | Always |
-| **T2 Operate** | `ops-managed` pools on both nodes, core-managed guest envelopes, Docker hosts via Arcane + unprivileged SSH, Technitium zones, scoped Authentik Applications/Providers, Cloudflare DNS records (`aliammar.net`), approved **OPNsense firewall config** (aliases/rules) boundary — minus the self-leash set | Scoped write tokens, `svc-ops` SSH, Technitium scoped token, scoped Authentik token, Arcane API key, Cloudflare scoped `DNS:Edit` token; OPNsense write mechanism pending SKY-020 | Yes where implemented — changes PR-gated |
+| **T2 Operate** | `ops-managed` pools on both nodes, core-managed guest envelopes, Docker hosts via Arcane + unprivileged SSH, Technitium zones, scoped Authentik Applications/Providers, Cloudflare DNS records (`aliammar.net`), approved **OPNsense firewall config** (aliases/rules) boundary — minus the self-leash set | Scoped write tokens, `svc-ops` SSH, agent-readable materialized secret files, Technitium scoped token, scoped Authentik token, Arcane API key, Cloudflare scoped `DNS:Edit` token; OPNsense write mechanism pending SKY-020 | Yes where implemented — changes PR-gated |
 | **T2+ Root grant** | Root shell on workload hosts (diagnose, harden, provision, OS updates) | SSH user-CA certificate, per-host principal, auto-expiring | Grant only; expires by itself |
 | **T3 Privileged** | OPNsense *node root / account / cert admin / reboot / self-leash rules*, Management Caddy, Authentik administration (flows/policies/users/settings/keys), Proxmox node root, Unraid root, Technitium *server settings*, Cloudflare *account / Access / tunnel config / zone settings* | Dormant alias `ROLE_OPS_PRIV_TARGETS` + per-session credentials | **Never standing** |
 
@@ -46,7 +46,10 @@ failure case, and performed by something dumber than you.
 - OPNsense aliases/rules are an **approved T2 boundary, not a live actuator yet**: SKY-020 has shipped
   T1 read only; its provider, write credential, policy gate, and first apply are still pending. Until
   they land, the agent has no OPNsense write path. This is implementation status, not a tier change.
-- Cloudflare is T2 for **DNS records in `aliammar.net` only** (scoped `DNS:Edit` token, `0600` at `/opt/skynet-ops/secrets/cloudflare-dns.env`) — the account, Access policies, tunnel config, and zone settings are T3. Same shape as the Technitium split; publishing still needs the `ingress` PR human-merged.
+- Cloudflare is T2 for **DNS records in `aliammar.net` only** (scoped `DNS:Edit` token,
+  materialized `0400` for `aliammar` at `/opt/skynet-ops/secrets/cloudflare-dns.env`) — the account,
+  Access policies, tunnel config, and zone settings are T3. Same shape as the Technitium split;
+  publishing still needs the `ingress` PR human-merged.
 - Pool membership is the normal blast-radius dial. **VM 5001 (OPNsense), CT 635, CT 837, and Unraid
   VM 2020 never join a pool.** The network token is pool-scoped, so 5001/635/837 are unreachable at
   the envelope. Core service CTs 731, 751, and 10030 are currently unpooled but their envelopes are
@@ -173,8 +176,9 @@ one. A directive touching **T2+/T3** or a blast-radius boundary must also PR `do
   (The merge gate is a version-controlled dial set by `docs/system-design.md` — **human-merge
   today**, with **one** carve-out (§2b): the nightly auto-merges its own **generated-only** PRs
   when CI is green. The agent never self-merges an **authored** change.)
-- Secrets: sops-encrypted in git **or** 0600 under `/opt/skynet-ops/secrets/` — never
-  plaintext in commits, transcripts, or chat.
+- Secrets: sops-encrypted in git **or** agent-readable restrictive local files under
+  `/opt/skynet-ops/secrets/` — never plaintext in commits, transcripts, or chat. Materialized files
+  are `0400 aliammar`; the lab age key is `0640 root:users`, so the agent decrypts sops without sudo.
 - Nightly = report-only outside the version-controlled auto-approve list. Each promotion is a
   step on the A0–A5 ladder, paid for with evidence; from **A4** a capability needs a rollback that is
   automatic, tested in failure, and run by a dumb executor. Irreversible actions (`destroy`, data

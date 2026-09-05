@@ -6,8 +6,8 @@ tags: [skynet, generated, agent, context-map]
 
 # Skynet — Context Map
 
-**Always-loaded baseline:** `AGENTS.md` + `CLAUDE.md` ≈ **3781** tok — the contract; never in this list.
-**Cold-boot read:** `docs/generated/06-agent-digest.md` ≈ 1554 tok.
+**Always-loaded baseline:** `AGENTS.md` + `CLAUDE.md` ≈ **3839** tok — the contract; never in this list.
+**Cold-boot read:** `docs/generated/06-agent-digest.md` ≈ 1531 tok.
 
 Everything below is **on-demand**: nothing enters context until a trigger fires. Open a *file*, not a section.
 
@@ -34,15 +34,15 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 
 | Path | ~tok | Summary |
 |---|--:|---|
-| `docs/design/access-and-trust.md` | 4738 | The trust tiers in full — every token, ACL, principal, and the auto-expiring SSH root grant Skynet can request but never mint. |
-| `docs/design/actuators.md` | 2078 | The L7 actuators and their rollback executors: what each write can undo, by whom, and how the rollback is decided deterministically. |
-| `docs/design/disaster-recovery.md` | 926 | The survival kit and how each node-loss scenario is recovered; the step-by-step procedures live in runbooks/dr/. |
-| `docs/design/gitops-loop.md` | 1034 | How a service change becomes a running container via Arcane, with git-revert rollback and image pinning + Renovate. |
-| `docs/design/identity-and-proxy.md` | 3437 | The two front doors, split-horizon DNS, the forward_auth boundary that publishes apps without holding auth's keys (SKY-003), and the sanctioned public path via a Skynet-managed Cloudflare Tunnel (SKY-014). |
-| `docs/design/memory.md` | 2933 | How a stateless agent remembers: the four memory kinds, the episodic journal→digest, and the default-lean working-memory discipline. |
-| `docs/design/network.md` | 1713 | Where Skynet sits, how it's addressed on VLAN 90, and the firewall rules bounding its reach to exactly what it needs. |
-| `docs/design/observability.md` | 985 | How machine state becomes human-readable docs, and how the nightly run keeps the picture current. |
-| `docs/design/secrets.md` | 1109 | How Skynet holds secrets with sops+age and materializes GitOps service env from .env.git plus .env.sops. |
+| `docs/design/access-and-trust.md` | 1192 | The current credential, ACL, principal, and root-grant boundaries that implement Skynet's trust tiers. |
+| `docs/design/actuators.md` | 585 | The current write actuators, deterministic rollback paths, and A4 eligibility of each capability. |
+| `docs/design/disaster-recovery.md` | 601 | The survival kit and how each node-loss scenario is recovered; the step-by-step procedures live in runbooks/dr/. |
+| `docs/design/gitops-loop.md` | 682 | How a service change becomes a running container via Arcane, with git-revert rollback and image pinning + Renovate. |
+| `docs/design/identity-and-proxy.md` | 882 | The current two-door proxy, split-DNS, Authentik boundary, and Cloudflare Tunnel public path. |
+| `docs/design/memory.md` | 511 | How Skynet keeps portable semantic, procedural, episodic, and working memory without overloading a fresh agent. |
+| `docs/design/network.md` | 1559 | Where Skynet sits, how it's addressed on VLAN 90, and the firewall rules bounding its reach to exactly what it needs. |
+| `docs/design/observability.md` | 737 | How machine state becomes human-readable docs, and how the nightly run keeps the picture current. |
+| `docs/design/secrets.md` | 964 | How Skynet holds secrets with sops+age and materializes GitOps service env from .env.git plus .env.sops. |
 
 ## Conventions — `docs/conventions/`
 
@@ -73,7 +73,7 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 |---|--:|---|
 | `docs/generated/00-network-map.md` | 449 | Network map |
 | `docs/generated/05-state-of-the-lab.md` | 1581 | State of the Lab |
-| `docs/generated/06-agent-digest.md` | 1554 | Agent Digest |
+| `docs/generated/06-agent-digest.md` | 1531 | Agent Digest |
 | `docs/generated/10-vlans.md` | 794 | VLANs |
 | `docs/generated/20-firewall.md` | 2206 | Firewall |
 | `docs/generated/50-network-gear.md` | 507 | Network gear (Omada estate) |
@@ -82,10 +82,10 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 
 ## Episodic memory — retrieve by topic, don't browse
 
-- `journal/` — 58 raw episodes, ≈ 70420 tok total. Retrieve by topic: `bin/recall <topic>` (SKY-010 P4) or `grep -ri "<topic>" journal/`; recent episodes are already in `06-agent-digest.md`. **Do not load the whole store.**
+- `journal/` — 60 raw episodes, ≈ 72014 tok total. Retrieve by topic: `bin/recall <topic>` (SKY-010 P4) or `grep -ri "<topic>" journal/`; recent episodes are already in `06-agent-digest.md`. **Do not load the whole store.**
 
 ---
-**On-demand corpus:** ≈ **60620** tok across 44 files — but you load a *row* (≈ tens of tok) to choose, then one file.
+**On-demand corpus:** ≈ **49357** tok across 44 files — but you load a *row* (≈ tens of tok) to choose, then one file.
 _A cache — regenerable from git via `render-context-map.sh`; never a source of truth._
 
 > [!note] Generated by `scripts/render-context-map.sh` from each loadable's frontmatter.

@@ -12,7 +12,7 @@ cd "${REPO_DIR}"
 # Docker host that stores Arcane project dirs. Override via env for other hosts.
 DOCKER_HOST_SSH="${DOCKER_HOST_SSH:-svc-ops@10.10.100.15}"
 ARCANE_PROJECTS_DIR="${ARCANE_PROJECTS_DIR:-/opt/docker/arcane-projects}"
-# sops decryption (change-detection) needs the age private key (root:root 0600).
+# sops decryption (change-detection) uses the age private key (root:users 0640).
 export SOPS_AGE_KEY_FILE="${SOPS_AGE_KEY_FILE:-/opt/skynet-ops/secrets/age.key}"
 
 command -v sops >/dev/null || { echo "sops not installed" >&2; exit 1; }

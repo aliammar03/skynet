@@ -6,7 +6,7 @@ horizon: short
 created: 2026-09-04
 updated: 2026-09-05
 phases: 4
-current_phase: 2
+current_phase: 3
 tier_touched: [T1]
 related:
   - docs/system-design.md
@@ -70,7 +70,7 @@ promotion, permission changes, or hand-editing generated outputs. **Rollback:** 
 **Exit:** no known conflicting operational instruction remains; each resolution cites its runtime or
 test evidence; production runbooks contain no bare re-planning `tofu apply` path.
 
-### Phase 2 — restore the documentation ownership model  (~1–2h)   `[ ]`
+### Phase 2 — restore the documentation ownership model  (~1–2h)   `[x]` complete 2026-09-05
 
 1. Reduce `docs/system-design.md` to authority, hard laws, versioned dials, autonomy ladder, agent
    contract, and extension/spoke index. Merge duplicate self-leash rules; replace growth prose with
@@ -156,3 +156,8 @@ criteria, then perform Phase close-out.
   recovery fails closed, native core CTs are no longer described as pool members, and host root certs
   select one matching certificate. Evidence:
   `journal/2026/2026-09-05-session-sky-023-phase-1-audit-remediation.md`.
+- 2026-09-05 — Phase 2 complete on `phase/sky-023-p2`: reduced the constitution from 4,244 to
+  1,047 words and the design corpus from 14,830 to 5,201 words; made every spoke current-state only;
+  removed roadmap, rehearsal, and procedure duplication in favor of directives, journal evidence,
+  scripts, and runbooks. The master age-key exception is now explicit: `0640 root:users` permits
+  unprivileged sops decryption. Evidence: `journal/2026/2026-09-05-session-sky-023-p2-close-out.md`.

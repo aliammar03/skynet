@@ -17,7 +17,7 @@
   environment.persistence."/nix/persist" = {
     hideMounts = true;
     directories = [
-      "/opt/skynet-ops" # age.key (root 0600), certs, mirror — the bootstrap secret + T1 mirror
+      "/opt/skynet-ops" # age.key (root:users 0640), certs, mirror — bootstrap secret + T1 mirror
       "/home/aliammar" # repo checkout, gh auth, ops.env, known_hosts
       "/var/lib/docker" # docker daemon data
       "/var/lib/nixos" # uid/gid allocation stability across rebuilds

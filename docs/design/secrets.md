@@ -5,16 +5,14 @@ summary: "How Skynet holds secrets with sops+age and materializes GitOps service
 # Spoke · Secrets
 
 > How Skynet holds secrets so Google never sees plaintext and the repo can hold encrypted history
-> safely. Governed by [`../system-design.md`](../system-design.md). Sourced from plan §5 (sops+age)
-> and §4 (env layering).
+> safely. Governed by [`../system-design.md`](../system-design.md).
 
 ## The master secret
 
-One age keypair on skynet-ops is the root of the secret world:
-
-```bash
-age-keygen -o /opt/skynet-ops/secrets/age.key      # root:users 0640
-```
+One age keypair on skynet-ops is the root of the secret world. Its private key is
+`/opt/skynet-ops/secrets/age.key` (`root:users`, `0640`) so the agent can decrypt sops without
+sudo. sops-nix materializes service secret files as `0400 aliammar` under `/run/secrets/`, with the
+existing `/opt/skynet-ops/secrets/` paths linking to them. The agent reads both paths unprivileged.
 
 ```yaml
 # .sops.yaml
@@ -41,12 +39,12 @@ lab master key ──decrypts──▶ per-CT age key ──decrypts──▶ th
                              COMMITTED, injected at provision)
 ```
 
-- Mint once with [`scripts/ct-age-identity.sh`](../../scripts/ct-age-identity.sh) `new <host>` →
-  `secrets/<host>-age.pub` (recipient) + `secrets/<host>-age.key.sops` (lab-encrypted private key).
+- [`ct-age-identity.sh`](../../scripts/ct-age-identity.sh) creates the recipient
+  `secrets/<host>-age.pub` and lab-encrypted private key `secrets/<host>-age.key.sops`.
 - `.sops.yaml` routes `secrets/<host>/*.sops` to **both** recipients (CT reads at activation; ops/Ali
   always can too) and `secrets/*-age.key.sops` to the **lab key only**.
-- At (re)provision, before the first deploy: `ct-age-identity.sh inject <host> root@<ct-ip>` streams
-  the decrypted key to `/var/lib/sops-nix/age.key` (0400 root) — no plaintext on the ops disk.
+- LXC provision injects the decrypted identity to `/var/lib/sops-nix/age.key` (`0400 root`) before
+  its first deploy; use [`provision-lxc.md`](../../runbooks/provision-lxc.md).
 - **Recreate re-injects the same identity**, so committed ciphertext stays valid — no re-encryption,
   no master key on the CT. Blast radius of a popped CT = that CT's secrets, not the lab.
 
@@ -63,26 +61,13 @@ source is in git:
 Decryption happens on vm-skynet-ops; plaintext crosses only the SSH stream into the project file.
 Arcane owns reconciliation and project lifecycle, while the deploy wrapper owns env materialization.
 
-## The two directions
+## Operations
 
-- **Repo → host (normal deploy/restore).** `scripts/gitops-deploy.sh <svc>` combines the approved
-  `.env.git` and `.env.sops`, writes the effective `.env`, redeploys, and checks health.
-- **Legacy host → repo import.** `envsync.sh` encrypts `project.env` when a legacy/non-GitOps Arcane
-  project still has one. Current GitOps projects do not require that file; its absence is expected,
-  not a missing secret backup.
+- **Deploy or restore:** [`deploy-service.md`](../../runbooks/deploy-service.md) and
+  [`restore-service.md`](../../runbooks/restore-service.md) invoke
+  [`gitops-deploy.sh`](../../scripts/gitops-deploy.sh) to materialize and validate the service env.
+- **Legacy import:** [`envsync.sh`](../../scripts/envsync.sh) encrypts a legacy Arcane `project.env`.
+  Current GitOps projects do not use that file.
 
-This is layer **L1** of the [backup model](../backup-strategy.md).
-
-## Planned expansion — a vault beyond sops+age
-
-sops+age is right for today's service count: file-level, git-native, one keypair, zero running
-infrastructure. If the fleet outgrows it (many services, rotation needs, dynamic secrets, non-file
-consumers), the migration path is an **external secrets backend** (Vault / Infisical / OpenBao):
-
-- keep `.env` as the container injection point, so services do not change;
-- move the *source of truth* from `.env.sops` in git to the backend, with the deploy wrapper writing
-  the materialized `.env`;
-- the backend itself becomes a tiered target — likely T3 for its administration, an operate-level
-  token for read/lease, decided in [access-and-trust](access-and-trust.md).
-
-Until then, the hard law stands: **sops-in-git or 0600, never plaintext.**
+This is layer **L1** of the [backup model](../backup-strategy.md). Secrets are sops-encrypted in git
+or stored as the agent-readable restrictive local files above. Plaintext never enters git.
