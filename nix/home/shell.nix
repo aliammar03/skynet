@@ -3,9 +3,9 @@
 # bash scripts and never source this (zsh reads .zprofile/.zshrc for login/interactive shells only),
 # so the ops loop is unaffected. Icons/glyphs assume a Nerd Font in YOUR terminal — see the PR notes.
 #
-# Parameterized so more than one host can share the exact same shell (SKY): `landingDir` is where an
-# interactive login lands, `motdSource` is the board script printed there. Defaults reproduce the ops
-# VM verbatim (import with `{ }`); lxc-athena passes its own landing dir + board.
+# Parameterized (`landingDir` = where an interactive login lands, `motdSource` = the board script) so
+# it's reusable; the ops VM imports it with `{ }` (defaults below). athena keeps its own vendored copy
+# in aliammar03/athena, so this file serves only the ops VM today.
 { landingDir ? "$HOME/skynet", motdSource ? ./skynet-motd.sh }:
 { pkgs, ... }:
 {

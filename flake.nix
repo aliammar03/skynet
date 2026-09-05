@@ -24,6 +24,15 @@
       url = "github:serokell/deploy-rs";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # lxc-athena's own repo (private) — pinned for break-glass deploy only; the box's day-2 lives
+    # THERE (in-place rebuild), not here. flake.lock records the exact rev; fetching needs a GitHub
+    # token (the ops account has read access). follows dedupe the shared inputs in our lock.
+    athena = {
+      url = "github:aliammar03/athena";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.home-manager.follows = "home-manager";
+      inputs.deploy-rs.follows = "deploy-rs";
+    };
   };
 
   outputs =
@@ -70,26 +79,11 @@
         ];
       };
 
-      # lxc-athena (CT 10030 @ 10.10.100.30, VLAN 100/DMZ) — the Obsidian vault librarian: a
-      # coding-agent box (nix/home/athena.nix) that curates Ali's vault. Same lean pool-CT spine as
-      # adguard, plus home-manager for the agent CLIs and sops-nix for the seeded gh token. No lab
-      # authority (see hosts/lxc-athena/default.nix). No sops-nix: the box holds no secrets (git/gh
-      # auth is interactive) — re-add it here if the vault ever needs one.
-      nixosConfigurations.lxc-athena = nixpkgs.lib.nixosSystem {
-        inherit system;
-        specialArgs = { inherit inputs; };
-        modules = [
-          inputs.home-manager.nixosModules.home-manager
-          {
-            home-manager.useGlobalPkgs = true;
-            home-manager.useUserPackages = true;
-            home-manager.backupFileExtension = "hm-bak";
-            home-manager.extraSpecialArgs = { inherit inputs; };
-            home-manager.users.aliammar = import ./nix/home/athena.nix;
-          }
-          ./hosts/lxc-athena
-        ];
-      };
+      # lxc-athena's INSIDE is owned by its own repo (aliammar03/athena, the `athena` input above) —
+      # Ali edits it in place on the box and rebuilds from ~/athena (ATH-000). Skynet keeps only the
+      # ENVELOPE: the tofu CT (tofu/pool-cts.tf) + the HOST_ATHENA firewall mapping. The break-glass
+      # deploy node below tracks the pinned athena input; bump it with `nix flake lock --update-input
+      # athena` (needs a GitHub token for the private repo — the ops account has read access).
 
       # deploy-rs day-2: magicRollback auto-reverts if it can't reconnect (~30s) — the decisive
       # feature for an LLM operator (a config that kills SSH self-heals instead of bricking).
@@ -132,13 +126,15 @@
         };
       };
 
-      # lxc-athena day-2 over deploy-rs. sshUser=root (the agent key is baked to root in lxc-base).
+      # lxc-athena BREAK-GLASS only — builds the athena repo's own config (the `athena` input), not a
+      # skynet-owned one. Use if an in-place `rebuild` on the box severs SSH; magic-rollback protects
+      # it. Everyday day-2 is `nixos-rebuild switch --flake ~/athena#lxc-athena` on the box itself.
       deploy.nodes.lxc-athena = {
         hostname = "10.10.100.30";
         profiles.system = {
           user = "root";
           sshUser = "root";
-          path = deploy-rs.lib.${system}.activate.nixos self.nixosConfigurations.lxc-athena;
+          path = deploy-rs.lib.${system}.activate.nixos inputs.athena.nixosConfigurations.lxc-athena;
           magicRollback = true;
           autoRollback = true;
         };
