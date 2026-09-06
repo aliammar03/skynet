@@ -110,7 +110,7 @@ For every phase: implement → relevant checks → PR → Ali merges → review 
 A fresh Astra Medium reviewer reports **accept**, **fix before continuing**, or **blocked**. Fixes get a bounded PR and
 another review. Only after acceptance flesh out the next phase with exact files, interfaces, worker
 packets, commands/checks, grants if any, and exit criteria. Do not roll into dependent implementation
-just because a worker or CI says done. Ali can paste the review prompt below in a fresh session here.
+just because a worker or CI says done. Ali can use the reusable review prompt in §8 in a fresh session.
 Architecture checkpoints **G1–G6** additionally reconsider the remaining roadmap and prune unnecessary work.
 
 | Phase | Execution lead | Bounded outcome / main surface | Depends on; exit evidence |
@@ -234,28 +234,18 @@ tracker or repeated copies of the plan. Implementation-complete/review-pending i
 
 ## 8. Execute / review / continue prompts
 
-**Start:**
+Use the [phase handoff workflow](../prompts/README.md): two reusable prompts with standard GitHub
+PR bodies. Select the execution model from the current packet; use a new Astra Medium task for
+merged-result review. The review/planning PR must be human-merged before its next or fix packet runs.
+
+**Start or continue in the packet's execution model:**
 ```text
-Resolve SKY-025 with bin/plan show SKY-025. Read it and AGENTS.md; use bin/plan start SKY-025 if needed.
-As Astra Medium, execute only the detailed Phase 1, using at most two scoped Luna workers.
-Follow its checks and open its PR. Do not self-merge or start Phase 2. Report the review handoff.
+Read planning/prompts/execute.md and execute the next authorized SKY-025 packet.
 ```
 
-**After Ali merges a phase:**
+**After Ali merges implementation, in a fresh Astra Medium task:**
 ```text
-As a fresh Astra Medium reviewer, review SKY-025 Phase <N> at merged commit <SHA> against its exit criteria and disposition map.
-Inspect implementation and tests, not just the prior report. Return accept / fix / blocked with
-concrete evidence. If fixes are needed, scope their PR and stop. If accepted, update progress and
-flesh out only the next 1–2h phase with exact files/interfaces, Luna packets, checks and live boundaries.
-At a G checkpoint, prune/reorder the remaining roadmap from results. Do not implement the next phase.
-```
-
-**Continue after the next packet is reviewed:**
-```text
-Continue SKY-025 at its next detailed, approved phase using its table's execution model/effort and
-scoped Luna workers. Confirm the selected model matches the packet; do not silently substitute.
-Load only the directive, map and relevant files. If the next phase is still outline-only, stop for
-its review/expansion. Execute its bounded scope, verify, open a PR and hand back for merge/review.
+Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
 ```
 
 ## 9. Status
