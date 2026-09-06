@@ -100,8 +100,10 @@ never a bare apply; create is supervised and destroy is refused. See
 
 ## 5. Operator contract and extension index
 
-Skynet is agent-agnostic: any operator that can read markdown and run bash follows `AGENTS.md`,
-uses scripts as capabilities, and runbooks as procedures. The runtime engine is replaceable.
+Skynet is agent-agnostic: any operator that can read markdown and invoke the versioned capabilities
+follows `AGENTS.md` and uses runbooks as procedures. Capability contracts define scope, inputs,
+outcomes, verification, and recovery independently of implementation language. The runtime engine is
+replaceable; changing its implementation does not change trust tiers or merge authority.
 
 | Change | Authoritative home |
 |---|---|

@@ -1,203 +1,254 @@
 ---
 id: SKY-025
-title: Make operational outcomes verifiable and prune misleading guidance
+title: Rebuild the Skynet engine in Python
 status: draft
-horizon: short
+horizon: long
 created: 2026-09-06
 updated: 2026-09-06
-phases: 8
+phases: 24
 current_phase: 0
 tier_touched: [T1, T2, T2+, T3]
 related:
   - docs/system-design.md
-  - docs/design/actuators.md
-  - docs/design/disaster-recovery.md
-  - docs/backup-strategy.md
-  - docs/conventions/docs.md
-  - scripts/deploy-gate.sh
-  - scripts/tofu-apply.sh
-  - scripts/backup-restic.sh
-  - scripts/provision-restic.sh
-  - runbooks/restore-service.md
-  - runbooks/update-guests.md
-  - planning/ideas/SKY-012-runbooks-as-executable-capabilities.md
+  - AGENTS.md
+  - docs/conventions/construction.md
+  - planning/README.md
   - "[[SKY-025-progress]]"
 ---
 
-# SKY-025 · Make operational outcomes verifiable and prune misleading guidance
+# SKY-025 · Rebuild the Skynet engine in Python
 
-> Repair false-success and recovery gaps first; keep procedures compact, current, and backed by meaningful failure tests.
+> One small Python operations application; fewer moving parts, trustworthy outcomes, easy automation.
 
-## 1. Review findings
+## 1. Mandate and boundaries
 
-**Baseline:** `main` at `749f08ae0b43b9b94651dfaf1e12bb94738725ba`, reviewed 2026-09-06.
-Review covered the constitution/conventions, operational scripts, runbooks, CI tests, and relevant
-Tofu/Nix declarations. This is source review plus local stub experiments, not a production health
-attestation. All 19 existing `tests/*-test.sh` scripts returned 0; SQLite-dependent entity checks
-were explicitly skipped because sqlite3 is unavailable. Nix/OpenTofu binaries are unavailable here,
-so no flake/provider evaluation or live plan was performed. Existing green tests do not cover the
-boundary failures reproduced below. No production commands, credentials, deployments, restores,
-or merges were performed.
+Rework the whole repository around a Python engine: commands, collectors, verification, execution,
+backups, recovery, planning utilities, tests, agent configuration, doctrine, runbooks, templates,
+packaging, and schedules. Every live surface is reviewed; not every file needs rewriting.
 
-**Assessment:** the architecture makes sense: one constitution, declared infrastructure, scoped saved
-plans, GitOps services, and human-merged authored changes. Runbooks are much easier to navigate.
-The weak point is outcome verification: several scripts accept missing evidence or hide failure,
-while some recovery procedures are too abbreviated or contradict their executors. More orchestration
-or another documentation framework would not fix those defects.
+Ali accepts Skynet/service downtime throughout. Replace components directly; temporary breakage is
+acceptable and must be recorded. No rolling deployment, dual production engines, compatibility
+framework, or availability-preserving migration. Retain a shell shim only for a demonstrated external
+caller or rescue requirement, with an owner and removal condition.
 
-### High priority — fix before trusting automated verdicts
+Downtime does not authorize loss of payload, backup deletion, secret exposure, or wider privileges.
+Keep data/keys/state recoverable, preserve a human recovery path outside the ops VM, and retain existing
+T2/T2+/T3 boundaries and human merges. This PR plans the overhaul; it does not stop services.
+Routine scoped downtime needs no repeated permission once a phase's live plan is authorized.
 
-| ID | Finding and evidence | Required correction |
+**Keep the right languages/tools:** Python for procedural logic; Nix for hosts/packages/timers;
+OpenTofu for resource declarations; Compose/Caddy for services/routes; SQL for useful queries;
+Markdown for decisions and procedures. Keep Git, SSH, sops, restic, rclone, PBS, and deploy-rs as tools.
+Do not translate declarative configuration into imperative Python or rebuild those tools.
+
+**YAGNI:** one package, one CLI, ordinary functions/modules, synchronous execution first. Add bounded
+concurrency only for measured independent I/O. No daemon, web UI, app server, scheduler, queue, plugin
+system, generic workflow/rollback framework, distributed locks, new database, or new agent framework.
+Reuse systemd and native subagents. JSON evidence/files and an existing SQLite cache suffice.
+Shared helpers need real callers. Dependencies need a concrete job; stdlib first, not stdlib at all costs.
+
+## 2. Target shape and engineering rules
+
+`src/skynet/` holds a thin CLI, clients, collectors, workflows, renderers, and small shared helpers;
+`tests/` holds behavioral tests/fixtures; `pyproject.toml` defines the package. Exact boundaries and
+CLI names are settled by the first working slice, not an elaborate upfront schema.
+
+- Expose coherent `skynet collect|verify|deploy|backup|restore|tofu|nightly|doctor|plan` commands as needed.
+  Help documents arguments; runbooks document decisions and recovery. Humans and agents use the same CLI.
+- Define explicit success/failure/unavailable/skipped/recovery-required results, meaningful exit codes,
+  and optional JSON. Unknown/empty/stale is never healthy. Keep output contracts small and tested.
+- Validate external data; use argument arrays, explicit timeouts, checked results, and redacted errors.
+  Retry reads selectively. A timed-out write may have succeeded: reconcile before retrying.
+- A write records target, source/plan identity, completed steps, verification, and needed recovery.
+  Use a local lock only where overlap can corrupt state. No blind restart of interrupted writes.
+- Preserve scoped credentials, TLS verification, excluded guests, saved-plan checks, and grant boundaries.
+  Python modules are not security boundaries. Existing auto-merge authority never expands by translation.
+- Package the runtime/dependencies with Nix; use one reproducible development/production dependency
+  story. No production pip/npm installation, model-ID guessing, or competing package owners.
+- Test real decisions with fake external boundaries. Use recorded response fixtures, temporary files,
+  and disposable targets; do not mock away the operation being verified. Type-check and lint in CI.
+  Port useful old assertions; delete implementation-mirroring tests instead of recreating them.
+- Update a component's callers, tests, runbooks, and doctrine with its replacement. Current docs state
+  implemented behavior only; evidence/history belongs in journal/git, future work in this directive.
+
+## 3. Astra/Luna construction contract
+
+**Lead: Astra Medium. Workers: Luna**, using the existing native tooling and at most two active workers,
+one level deep. These user-selected roles override the old Terra/Sol routing for this overhaul.
+Phase 1 aligns checked-in routing and tests; verify actual model identifiers in the installed harness,
+never silently substitute a different model. If unavailable, mark routing blocked and ask Ali to
+select an available identifier or update the harness. Luna medium for inspection, high for scoped implementation
+unless the lead has reason to use less. Unclear or consequential decisions stay with Astra.
+
+Astra owns interfaces, decomposition, recovery/policy logic, integration, review, and PRs. Delegate
+bounded work proactively when it saves effort; do tiny jobs locally. Luna gets only:
+
+`Goal | allowed files | interface/inputs | acceptance checks | exclusions`.
+
+Workers do not redesign, spawn helpers, commit/push/merge, handle secrets, or touch production.
+Use non-overlapping files; separate worktrees only when concurrent edits need them. Return:
+`changed files | checks/results | unresolved issues`. Astra inspects the diff and reruns relevant checks.
+No full-repo dumps or transcript handoffs; load this directive, current phase, and relevant files only.
+
+## 4. Rolling plan and review gates
+
+**Each numbered phase is 1–2 hours of implementation**, excluding waiting for merge. Split an oversized
+phase into lettered slices before work; each slice gets its own PR/review. The table is a route map,
+not permission to execute unspecified work. Only Phase 1 is fleshed out now.
+
+For every phase: implement → relevant checks → PR → Ali merges → review the actual merged result.
+The reviewer reports **accept**, **fix before continuing**, or **blocked**. Fixes get a bounded PR and
+another review. Only after acceptance flesh out the next phase with exact files, interfaces, worker
+packets, commands/checks, grants if any, and exit criteria. Do not roll into dependent implementation
+just because a worker or CI says done. Ali can paste the review prompt below in a fresh session here.
+Architecture checkpoints **G1–G6** additionally reconsider the remaining roadmap and prune unnecessary work.
+
+| Phase | Bounded outcome / main surface | Depends on; exit evidence |
 |---|---|---|
-| F1 | `scripts/deploy-gate.sh:48–56` accepts an empty container result as healthy. Because the probe is called in an `if`, its SSH failure is not stopped by `set -e`; an empty failed result also passes. **Reproduced:** Arcane stub reports running; SSH returns either empty success or exit 255; the real gate returns 0 and prints healthy in both cases. `tests/compose-rollback-test.sh` injects an entire probe, so it never exercises this defect. | Explicitly check transport/parse status, require the expected nonempty container set, validate every container, and bound individual probe calls. Test the real default probe with only external commands stubbed. |
-| F2 | `scripts/gitops-deploy.sh` ignores redeploy failure (`|| true`), treats the status polling timeout as a report, and makes the health gate opt-in. `runbooks/deploy-service.md` invokes the ungated default and describes it as health-checking. The environment comes from the local checkout while Arcane independently pulls a branch, so source revisions can differ. `--no-deploy` still creates/enables an auto-sync or calls `/sync`. | Make normal deployment return success only for a verified revision and healthy expected service set. Propagate API/restart failures. Define and prove `--no-deploy` semantics, reconcile the exact approved source before environment materialization, and preserve prior environment on write failure. Keep supervised branch verification explicit. |
-| F3 | `scripts/tofu-apply.sh:130–177` allows creates and updates together within one node scope. On apply failure it rolls back existing guests, then force-pushes the **whole** pre-apply state although created guests are expressly left for operator recovery. **Reproduced:** a core update+create fixture reaches `state push -force` after failed apply. This can erase state tracking for a successful/partial create. | Prefer refusing mixed create/update plans before any mutation. Never restore whole state unless every changed resource has a verified inverse. Preserve protected recovery evidence and lock/serial information; test actual state-push arguments, mixed actions, and failed recovery. |
-| F4 | `scripts/provision-restic.sh:98` ends repository detection/initialization with `|| true`; its timer command can also hide enable failure behind later output. **Reproduced:** both `restic cat config` and `restic init` fail, but the exact initialization expression exits 0. `scripts/backup-restic.sh` silently skips missing selected paths; Docker list failure in process substitution and suppressed inspect failure can omit protected volumes while backing up appdata successfully. | Distinguish absent repository from unreadable/unauthenticated repository. Abort setup on initialization/timer failure. Fail an established backup when required paths or protected-volume discovery are unavailable; verify selection completeness before retention/prune. |
+| 1 | Repo disposition, minimal Python doctrine, Astra/Luna routing, overlap decisions | Current main; complete surface map + checked agent config. **G1** |
+| 2 | Installable Python CLI, Nix package/dev environment, test/lint/type-check CI | 1; packaged help + one command work in clean environment |
+| 3 | First vertical slice: Proxmox read collection → validated inventory → readable summary | 2; real default path handles success, timeout, malformed and absent data. **G2** |
+| 4 | Remaining core/network Proxmox and ACL collection; shared client only where useful | 3; both node shapes + existing invariants preserved |
+| 5 | PBS and Docker inventory | 4; backup/container signals and unavailable/stale cases verified |
+| 6 | DNS and OPNsense/firewall read collection | 5; scoped reads, TLS, response validation, no write creep |
+| 7 | Omada, certs, routes, recon | 6; live/static provenance and vantage explicit; fixtures cover parsers |
+| 8 | Entity derivation/audit, SQLite cache and queries | 7; identity exceptions preserved, stale inputs cannot look fresh |
+| 9 | Docs/digest/context/catalog rendering; journal/recall helpers | 8; deterministic views and usable cold-start context. **G3** |
+| 10 | Python deployment health and reachability verification | 9; SSH failure, empty/partial sets and wrong revision fail |
+| 11 | Arcane deploy/env/sync sequence and reviewed rollback preparation | 10; exact source, atomic env, failures/flags truthful |
+| 12 | Publishing: Caddy routes, Authentik scoped operations, DNS coordination | 11; internal/public/auth paths verified from correct vantage |
+| 13 | Saved-plan parsing, scope/action/exclusion policy in Python | 12; mixed create/update refused, protected targets refused before writes |
+| 14 | Snapshot/apply/task completion, partial failure and recovery evidence | 13; failed rollback cannot erase state; interrupted writes stop safely. **G4** |
+| 15 | Restic setup, target selection, consistency method, local scheduling | 14; init/auth/timer/path/volume failure cannot report success |
+| 16 | PBS off-site transfer preflight and retention semantics | 15; wrong/missing/empty source never deletes backups; stable source proven |
+| 17 | Service restore and guest/core/network recovery procedures | 16; isolated data restore + correct config/ownership; T3 explicitly labelled. **G5** |
+| 18 | Provision/onboard VM/LXC, pins, age identity and workstation grant tooling | 17; API/deploy/bootstrap paths agree, keys stay human-held where required |
+| 19 | OS-aware guest updates and required host-local backup/rescue packaging | 18; NixOS/Debian paths distinct; rollback failure stops affected workflow |
+| 20 | Nightly collect/report/evidence/PR and exact-PR auto-merge gate | 19; one sequence, bounded engine attempts, no repeated writes, authority unchanged |
+| 21 | Planning/scaffolding, repository hygiene and invariant gates; CI unification | 20; metadata/links/tests agree; meaningful gates replace shell doctrine |
+| 22 | Whole-repo prune: docs, agent shims/config, templates, Nix/Tofu/Compose callers, obsolete scripts | 21; disposition map has no unresolved live caller or duplicate implementation |
+| 23 | Install/restart the Python engine and intended services; staged operational acceptance | 22; packaged CLI, schedules, collection and one approved write work. **G6** |
+| 24 | Cold-start/recovery rehearsal, final fixes and archive | 23; final acceptance below; honest residual limitations |
 
-### Medium priority — make recovery and maintenance executable as written
+Phases 12, 17, and 18 are especially likely to need lettered slices after inspection. Shared clients
+may move earlier when a real consumer needs them. Preserve dependency order, not arbitrary numbering.
+Do not add a new live OPNsense writer or finish unrelated fleet migrations under this overhaul.
 
-| ID | Finding and evidence | Required correction |
+## 5. Phase 1 — ready to execute (~1–2h)
+
+**Goal:** make the rebuild's boundaries concrete and remove instructions that force Bash or wrong models.
+**Scope:** T1 repo work only. No service shutdown, production credentials, or implementation rewrite.
+
+1. Rebase work on current main; read the constitution, AGENTS, conventions, CLI/config, schedules,
+   and active directives. Record baseline SHA. Confirm no overhaul phase has already landed.
+2. Create one compact `planning/sky-025-map.md` disposition table, grouped by subsystem. Account for
+   tracked executable/config/docs/test families and remote-installed scripts. Columns:
+   `surface | migrate/retain/delete | replacement/owner | callers | phase | verified/blocked`.
+   Enumerate files once with git; inspect timers, hooks, Nix activation, Docker/SSH callers, templates,
+   workstation utilities, generated outputs, and rescue paths. Record known ignored/local runtime
+   state and install locations by metadata only; do not read secrets. Unknown remote state is a blocker
+   for its deployment phase. Literal-reference orphan search is advisory only.
+3. Resolve duplicate ownership with SKY-005/006/012/015/016/017/018/020/023/024: this overhaul owns
+   engine replacement and its existing correctness findings; preserve unrelated feature/migration
+   work. Add short cross-links/dependency notes where needed; do not falsely complete those directives.
+4. Align `AGENTS.md`, constitution/operator contract, relevant conventions, `.codex/`, `.claude/`,
+   `bin/agent`, and routing tests to Astra Medium + scoped Luna workers and language-neutral capability
+   rules. Prefer changing existing config over adding another launcher. Strip benchmark/provenance
+   narration. Keep trust/gates intact; describe Bash as current where it still runs, Python as the
+   chosen new-code convention, and the transition only in planning.
+5. Record proposed CLI/package boundaries and external output contracts in the map, at most a few
+   paragraphs. Decide which generated formats must survive and which may be regenerated; no blanket
+   backwards compatibility. Preserve journal and key/state recovery locations.
+6. Land the map, contract/config changes, and Phase 1 evidence in one PR. After merge, stop for G1;
+   the reviewer accepts/amends boundaries and then writes the executable Phase 2 work packet.
+
+**Worker packets:** Luna A inventories executable/caller families read-only; Luna B checks doctrine,
+config/test contradictions and directive overlap read-only. Astra integrates the map and owns any
+policy/config edits. If editing is delegated, supply exact file ownership and accepted wording first.
+
+**Checks:** model-routing dry-runs/tests, helper-cap/sandbox assertions, invariant/secret checks,
+planning metadata/links, and diff review. Do not disable a safety check to make language changes pass;
+update an obsolete shell-only expectation with an equivalent behavioral check.
+
+**Exit:** all tracked families have a disposition; external installs/callers and unknowns are visible;
+Astra/Luna routing resolves as intended; no privilege widening; no future capability claimed live;
+Phase 2 remains unimplemented. Unknown remote state is recorded, not guessed.
+
+## 6. Carry forward the original review as acceptance cases
+
+Source review baseline `749f08a`; merged original directive #207. The full original findings remain
+in git. All 19 shell suites returned 0, with SQLite checks skipped; local stubs still reproduced F1,
+F3, and masked initialization in F4. No live/Nix/Tofu verification was claimed.
+
+| Finding | Must prove in replacement | Owner phases |
 |---|---|---|
-| F5 | `runbooks/restore-service.md` restores directly onto `/` and checks out only `.env.sops`, then invokes a deploy script that pulls/syncs the current branch. It supplies no staging/clean-target procedure, ownership checks, or consistent configuration revision. `backup-restic.sh` takes hot filesystem copies of database volumes; there is no implemented dump/quiesce hook despite the runbook recommending one. | Define recovery by service, data snapshot, and complete compatible configuration revision. Restore into staging first; preserve the pre-restore target and verify ownership/application consistency. Specify a tested dump/quiesce strategy for protected databases. Coordinate paused sync, reviewed configuration changes, environment materialization, and resume. |
-| F6 | `runbooks/update-guests.md` applies `apt full-upgrade` to every eligible guest although `hosts/` contains NixOS systems. It filters by pool exclusion rather than the full declared managed scope, and says continue after failure without distinguishing failed rollback. `runbooks/dr/DR-core-node.md` labels hypervisor/core recovery T2+ although node root and Unraid recovery are T3 in the constitution. Guest restore is reduced to 'with the PBS token ... restore', without the destination Proxmox/storage authority. | Select host OS and declared ownership first; give Debian and NixOS their correct reviewed update paths. Stop on failed rollback. Correct per-step recovery tiers, destination authority, and storage/network prerequisites; link shared policy. |
-| F7 | `scripts/backup-pbs-gdrive.sh` runs `rclone sync` against a path without verifying the expected datastore/mount identity or coordinating backup/GC activity; its unit only orders after network readiness. An unexpectedly empty source directory can propagate deletion to the mirror. A size-only check against that same source does not prove a recoverable PBS archive. The docs acknowledge full core-loss recovery is unverified. | Verify source identity/readiness before sync, add a deletion guard, coordinate a stable source, and distinguish transfer completeness from restore integrity. Prove recovery into a separate target before strengthening any DR claim. Preserve existing backups throughout. |
-| F8 | Several collectors (`collect-proxmox.sh`, `collect-dns.sh`, `collect-docker.sh`) return 0 when credentials/context are absent; `collect-all.sh` then prints OK and old inventory can remain. Proxmox's final JSON writes directly to the destination. | Use explicit success/skipped/unavailable/stale results, timestamps, and atomic validated replacement. A required failed collection must not appear fresh or healthy; optional unconfigured sources should be clearly skipped. Test consumer behavior as well as collector exits. |
-| F9 | `scripts/update-clis.sh` globally installs npm CLIs and asks two LLMs for model IDs. `flake.nix` and `nix/home/aliammar.nix` declare the actual CLIs from Nix; `ops.env` is also Home Manager-owned. The weekly unit in `nix/modules/timers.nix` still runs this competing updater. | Remove the npm/self-query update path and its timer, or reduce it to a read-only version report with one declared owner. Update actual CLI packages through the pinned Nix workflow; do not treat generated model-name guesses as an authoritative registry or edit Home Manager output. |
+| F1 false healthy on SSH failure/empty containers | Transport, required set and health independently checked | 3, 10 |
+| F2 ignored deploy errors / mixed revisions / misleading no-deploy | Consistent revision/env; failed API or timeout nonzero; flags match behavior | 11–12 |
+| F3 whole-state restore after mixed guest create/update | Refuse mixed actions; retain partial resource tracking; verified recovery only | 13–14 |
+| F4 hidden backup init/timer/target failures | Required selection complete; auth/init/timer failures stop honestly | 15 |
+| F5 hot DB backup and inconsistent restore revision | Tested dump/quiesce method; staged restore preserves prior data/config | 15, 17 |
+| F6 apt-only fleet / wrong DR authority | OS-aware actions; failed rollback stop; correct destination access/T3 | 17–19 |
+| F7 empty-source destructive PBS mirror | Source identity/stability and deletion guard; copy integrity ≠ restore proof | 16–17 |
+| F8 stale/missing collectors reported OK | Validated atomic outputs, explicit freshness/unavailability | 3–9 |
+| F9 npm updater competes with Nix | One package/config owner; remove updater/timer and model-self-query | 2, 20–22 |
+| F10 incident narratives evade hygiene | Remove named old-timeout/A6/token-budget stories; semantic review | 1, 21–22 |
+| F11 repeated rules, stale rollback/metadata/phase claims | One authority per rule; truthful help/runbooks/frontmatter | 1, 21–24 |
 
-### Pruning and maintenance debt
+## 7. Pause, recovery, and completion
 
-| ID | Evidence | Prune/improve |
-|---|---|---|
-| F10 | `scripts/backup-pbs-gdrive.sh:23–41` and `scripts/systemd/skynet-pbs-gdrive.service` retain the old six-hour timeout, chunk-shard/46% incident, and A6 story. `docs/conventions/docs.md` narrates the old token frontmatter gate; `collect-pbs.sh` and `collect-opnsense.sh` describe old implementations. These phrases evade the current temporal regex. | Delete those narratives from live files, keeping only present constraints and operational rationale. Keep history in journal/git. Add a few demonstrated regression cases and require semantic review; do not build an expanding ban-list of ordinary words. |
-| F11 | Deploy standards are repeated in `runbooks/deploy-service.md`, compose conventions, and script headers. Rollback headers still suggest automatic mutation where the executor now only reports or prepares a PR. `planning/TEMPLATE.md` and `docs/conventions/metadata.md` disagree on status/horizon vocabulary; SKY-023 says phase 10/10 but remains in-progress with an unchecked phase and stale execute prompt. | Link standards once; describe actual executor behavior and supported flags. Reconcile metadata with the parser. Reconcile SKY-023 close-out against evidence before archiving; do not pretend incomplete live evidence exists. |
+Build in a checkout not consumed by live timers/reconcilers. Before editing or installing into their
+active checkout, or beginning the first live phase, agree affected targets; capture protected data/state recovery points and
+verify the workstation can rebuild/reach the system without the ops engine. Record the survival-kit
+reference, access check, and concrete recovery command/test in the map without secret contents. Record and pause only
+schedulers/reconcilers that could race the work; do not stop the active construction workstation or
+remove its only access path. Services may remain off across phase reviews. Track what's stopped and
+restore intended schedules at acceptance, not blindly every timer found on disk. Before G5 closes,
+name the bounded acceptance targets in the map: required services, backup jobs, representative approved
+write and isolated restore target. Phase 23 verifies that set; it does not expand into new lab projects.
 
-**Keep:** scoped apply/delete/excluded-guest guards, human merge ownership, useful diagnosis and DR
-runbooks, current provider import exceptions, catalog/context renderers, and historical evidence.
-Do not delete a script merely because a literal-reference search calls it an orphan; check timers,
-remote installation, manual and recovery callers first. Do not reintroduce token-frontmatter stamping.
+Code rollback uses git/Nix releases; interrupted infrastructure/data writes require recorded recovery,
+not a blind git revert. No requirement to keep the old engine operational or maintain parallel engines.
+Live root/T3/destructive actions still need their existing scoped grant/checkpoint.
 
-## 2. Decisions and ownership
+**Done means:** the disposition map is closed; Python owns useful procedural logic; retained shell
+has a concrete rescue/bootstrap reason; one CLI/package/config owner; tests exercise real failure
+boundaries; relevant Nix/Tofu/Compose checks pass in a capable environment; docs match installed commands;
+all F1–F11 cases have evidence or explicitly accepted limitations; no duplicate engines or dead schedules;
+intended services/backups are restored; a cold operator can diagnose and recover from git + survival kit.
+An unperformed destructive/full-core drill stays explicitly unverified, not silently waived as passed.
 
-- **CHOSEN:** targeted correctness fixes with failure tests at external boundaries. Reject a new
-  general capability/orchestration framework: the existing Bash/runbook structure is sufficient.
-- **CHOSEN:** reject mixed guest create/update plans first. Resource-specific recovery can follow
-  only if a real workflow requires it and failure evidence supports it.
-- **CHOSEN:** Nix owns installed agent CLIs; remove competing imperative maintenance.
-- **CHOSEN:** this directive owns the concrete defects above. SKY-016 retains broader ingress
-  verification/scaffolding; SKY-012 retains optional capability extraction; SKY-018 retains its
-  reconciliation roadmap; SKY-024 retains fleet migration. Cross-link completed fixes there rather
-  than implementing them twice. Leave SKY-023 history intact and reconcile its close-out separately.
+**Close each phase:** PR with result/checks/limitations → Ali merge → independent review → update this
+file (`current_phase` = accepted phases, date/status), map and roadmap; journal raw evidence. Keep
+`SKY-025-progress` as a compact pointer when memory is available, never required to resume. No extra
+tracker or repeated copies of the plan. Implementation-complete/review-pending is not accepted/done.
 
-## 3. Plan
+## 8. Execute / review / continue prompts
 
-Eight phases, each approximately 1–2 hours; split any phase that exceeds that size. Implementation
-PRs are separate from this planning PR. No autonomy promotion, new credentials, trust expansion,
-or live operation is authorized by minting this directive.
-
-Repo work is T1. Later deploy/snapshot actions are supervised T2, workload-root backup/restore work
-is T2+, and hypervisor/Unraid recovery is T3. Phase 6 must include the constitution in its PR because
-it corrects T3 recovery instructions; retain its existing authority and boundaries. Every live phase
-needs a stated target, recovery path, and the normal approval/grant. Credential handling, destructive
-actions, T3 operations, and failed rollback remain **hard checkpoints**. Repo rollback is a reviewed
-`git revert`; data recovery always preserves a separate pre-change copy.
-
-### Phase 1 — Deploy verdicts and source consistency `[ ]`
-
-Fix F1/F2 in the existing deploy path. Make transport errors, absent/partial containers, unhealthy
-containers, missing required healthchecks, failed redeploy, and timeout nonzero. Match expected
-service/image/config revision; materialize environment atomically from the reviewed revision.
-Correct default/`--gate`/`--no-deploy` behavior and runbook/header claims without adding a bypass.
-**Exit:** boundary-stub tests exercise the real probe and deploy sequence; no false success in the
-reported cases, no secret output, and no false no-deploy promise. Live check, if needed: scoped T2.
-
-### Phase 2 — Saved-plan recovery state `[ ]`
-
-Fix F3. Refuse mixed create/update before snapshot/apply; explicitly check validated action shapes,
-IDs, state recovery eligibility, and command failures. Preserve a restrictive recovery artifact on
-recovery failure. Define concurrency/locking so restoration cannot overwrite unrelated newer state.
-**Exit:** update-only recovery remains covered; create-only preserves its operator-recovery behavior;
-mixed actions cause no mutation; a failed snapshot rollback never force-restores state. Do not run
-live failure injection on production guests.
-
-### Phase 3 — Trustworthy backup outcomes `[ ]`
-
-Fix F4. Validate repository readiness, required selection, timer activation, and Docker enumeration.
-Do not regenerate a lost password for an existing repository or claim provisioned after failure.
-**Exit:** auth/network/init/timer/path/list/inspect failure fixtures all produce honest failure;
-healthy fixtures include every intended protected path. Deploy only under the required host grant.
-
-### Phase 4 — Consistent service recovery `[ ]`
-
-Fix F5 for one representative protected database/service, then document the reusable pattern.
-Define backup consistency, staged restore, preserved destination, ownership, compatible source
-revision, paused reconciliation, and application-level verification. Do not imply a hook exists
-until implemented. Avoid a generic restore framework.
-**Exit:** isolated fixture/disposable-target recovery proves the chosen pattern and a failed restore
-preserves the prior target. Live restore or destructive cleanup is a separate explicit checkpoint.
-
-### Phase 5 — Safe PBS mirror source `[ ]`
-
-Fix F7 in the source preflight and unit/procedure. Check datastore identity/mount, stable source,
-and deletion guard before sync. Document mirror limitations once in backup policy.
-**Exit:** missing/wrong/empty-source and concurrent-maintenance simulations never reach destructive
-sync; valid-source copy and post-copy checks are distinguished from PBS restore verification.
-Remote installation requires its grant; no production mirror deletion as a test.
-
-### Phase 6 — Fleet and disaster runbook correctness `[ ]`
-
-Fix F6. Route updates by OS and managed declaration, including unpooled core guests where allowed;
-keep excluded guests excluded. Specify rollback-failure stop behavior. Correct core DR tiers and
-PBS restore destination permissions; align with git-first system reconstruction and payload restore.
-**Exit:** a cold walkthrough identifies exact host/tool/authority for each step, and no NixOS guest
-is sent through apt. Include `docs/system-design.md` in the PR with existing boundaries unchanged.
-Full core-loss live drill remains an explicit T3 checkpoint, never claimed from a prose walkthrough.
-
-### Phase 7 — Honest collection and one CLI owner `[ ]`
-
-Fix F8/F9. Publish explicit unavailable/stale/optional-skip evidence; validate and atomically replace
-collector outputs. Remove the competing CLI updater and timer after checking callers; use the
-existing Nix package-update process. Test required failure and optional absence separately.
-**Exit:** consumers cannot label stale inputs fresh/OK; no npm update or model-self-query scheduler
-remains, and Home Manager configuration has one writer.
-
-### Phase 8 — Prune and reconcile `[ ]`
-
-Fix F10/F11. Remove the named narratives and stale rollback promises, link duplicate standards,
-reconcile metadata and completed directive placement, and cross-link ownership with SKY-012/016/018/024.
-Use focused hygiene fixtures plus a semantic pass; preserve actionable limitations and real import
-compatibility. Keep a compact PR deletion rationale for any removed executable and its former callers.
-**Exit:** runbooks are executable as written, all findings have code/test evidence or an explicit
-blocked dependency, catalogs are regenerated, relevant local/CI checks pass, and production claims
-are limited to actual recorded exercises. No new formatting-budget machinery.
-
-## 4. ▶ Execute prompt
-
+**Start:**
 ```text
-Read planning/ideas/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md.
-Use bin/plan start SKY-025, then execute Phase 1 only from its new planning/projects path.
-Follow AGENTS.md. Recheck the cited defect on current main before changing it. Use tests that stub
-external commands rather than replacing the behavior under test. Do not merge authored PRs or run
-production failure injection. Stop at the listed grant/T3/destructive checkpoints. Finish with the
-phase close-out below.
+Resolve SKY-025 with bin/plan show SKY-025. Read it and AGENTS.md; use bin/plan start SKY-025 if needed.
+As Astra Medium, execute only the detailed Phase 1, using at most two scoped Luna workers.
+Follow its checks and open its PR. Do not self-merge or start Phase 2. Report the review handoff.
 ```
 
-## 5. Phase close-out
-
-- Open one reviewable PR with the defect, resulting behavior, test evidence, and remaining limitations.
-- Journal raw evidence; refresh `SKY-025-progress` memory and its pointer when available.
-- Set the phase checkbox, `current_phase`, and `updated` consistently; regenerate `bin/plan list`.
-- On final completion set `status: done` and archive with `bin/plan archive SKY-025`.
-
-**Continue prompt:**
-
+**After Ali merges a phase:**
 ```text
-Continue SKY-025 at the next incomplete phase. Resolve its current path with bin/plan show SKY-025.
-Read that phase, its findings, and [[SKY-025-progress]]. Recheck current main, follow AGENTS.md,
-respect the listed checkpoints, and close out with a PR and evidence. Do not self-merge.
+Review SKY-025 Phase <N> at merged commit <SHA> against its exit criteria and disposition map.
+Inspect implementation and tests, not just the prior report. Return accept / fix / blocked with
+concrete evidence. If fixes are needed, scope their PR and stop. If accepted, update progress and
+flesh out only the next 1–2h phase with exact files/interfaces, Luna packets, checks and live boundaries.
+At a G checkpoint, prune/reorder the remaining roadmap from results. Do not implement the next phase.
 ```
 
-## 6. Status log
+**Continue after the next packet is reviewed:**
+```text
+Continue SKY-025 at its next detailed, approved phase using Astra Medium and scoped Luna workers.
+Load only the directive, map and relevant files. If the next phase is still outline-only, stop for
+its review/expansion. Execute its bounded scope, verify, open a PR and hand back for merge/review.
+```
 
-- 2026-09-06 — Minted from source review at `749f08a`; local boundary stubs reproduced false-positive
-  deployment health, unsafe whole-state restoration for mixed guest actions, and masked restic init
-  failure. Planning only; implementation and live recovery evidence remain pending.
+## 9. Status
+
+- 2026-09-06 — Original correctness directive merged in #207; no implementation phases completed.
+- 2026-09-06 — Reworked by Ali's instruction into a Python engine/repository overhaul, 24 provisional
+  phases with rolling elaboration, Astra Medium/Luna construction, and accepted service downtime.
