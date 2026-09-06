@@ -71,24 +71,34 @@ CLI names are settled by the first working slice, not an elaborate upfront schem
 - Update a component's callers, tests, runbooks, and doctrine with its replacement. Current docs state
   implemented behavior only; evidence/history belongs in journal/git, future work in this directive.
 
-## 3. Astra/Luna construction contract
+## 3. Phase-specific leads and Luna workers
 
-**Lead: Astra Medium. Workers: Luna**, using the existing native tooling and at most two active workers,
-one level deep. These user-selected roles override the old Terra/Sol routing for this overhaul.
-Phase 1 aligns checked-in routing and tests; verify actual model identifiers in the installed harness,
-never silently substitute a different model. If unavailable, mark routing blocked and ask Ali to
-select an available identifier or update the harness. Luna medium for inspection, high for scoped implementation
-unless the lead has reason to use less. Unclear or consequential decisions stay with Astra.
+**Execution lead:** use the model/effort in the phase table. **Merged-result review and next-phase
+planning:** a fresh Astra Medium session for every phase, including phases implemented by Astra.
+These are workload-based starting recommendations, not benchmark equivalences. Phase review may
+change the next recommendation from observed results; record the reason in that phase's work packet.
 
-Astra owns interfaces, decomposition, recovery/policy logic, integration, review, and PRs. Delegate
-bounded work proactively when it saves effort; do tiny jobs locally. Luna gets only:
+Terra High is the default implementation lead. Sol Low handles the defined rendering/documentation
+passes. Astra Medium owns foundational design and consequential recovery/policy work. If a Terra/Sol
+phase exposes unresolved architecture, privilege, or recovery decisions, stop that decision and hand
+it to Astra Medium; do not spend repeated worker retries guessing. No automatic model router.
 
-`Goal | allowed files | interface/inputs | acceptance checks | exclusions`.
+**Workers: Luna**, native tooling, at most two active workers, one level deep. Luna Medium for
+inspection; Luna High for scoped implementation. These phase roles replace the old fixed Terra/Sol
+routing and the overhaul's Astra-only execution rule. Phase 1 aligns config, launcher and tests.
+Verify actual identifiers in the installed harness; never silently substitute. If unavailable,
+mark routing blocked and ask Ali to select an available identifier or update the harness.
+
+The execution lead owns decomposition, integration, verification and PRs within the approved packet.
+Astra owns cross-phase interfaces, unresolved recovery/policy decisions, independent acceptance and
+next-phase definition. Delegate bounded work proactively when worthwhile; do tiny jobs locally.
+Luna gets only: `Goal | allowed files | interface/inputs | acceptance checks | exclusions`.
 
 Workers do not redesign, spawn helpers, commit/push/merge, handle secrets, or touch production.
 Use non-overlapping files; separate worktrees only when concurrent edits need them. Return:
-`changed files | checks/results | unresolved issues`. Astra inspects the diff and reruns relevant checks.
-No full-repo dumps or transcript handoffs; load this directive, current phase, and relevant files only.
+`changed files | checks/results | unresolved issues`. The execution lead inspects the diff and
+reruns relevant checks; a worker's completion is not phase acceptance. No full-repo dumps or
+transcript handoffs; load this directive, current phase, and relevant files only.
 
 ## 4. Rolling plan and review gates
 
@@ -97,38 +107,38 @@ phase into lettered slices before work; each slice gets its own PR/review. The t
 not permission to execute unspecified work. Only Phase 1 is fleshed out now.
 
 For every phase: implement → relevant checks → PR → Ali merges → review the actual merged result.
-The reviewer reports **accept**, **fix before continuing**, or **blocked**. Fixes get a bounded PR and
+A fresh Astra Medium reviewer reports **accept**, **fix before continuing**, or **blocked**. Fixes get a bounded PR and
 another review. Only after acceptance flesh out the next phase with exact files, interfaces, worker
 packets, commands/checks, grants if any, and exit criteria. Do not roll into dependent implementation
 just because a worker or CI says done. Ali can paste the review prompt below in a fresh session here.
 Architecture checkpoints **G1–G6** additionally reconsider the remaining roadmap and prune unnecessary work.
 
-| Phase | Bounded outcome / main surface | Depends on; exit evidence |
-|---|---|---|
-| 1 | Repo disposition, minimal Python doctrine, Astra/Luna routing, overlap decisions | Current main; complete surface map + checked agent config. **G1** |
-| 2 | Installable Python CLI, Nix package/dev environment, test/lint/type-check CI | 1; packaged help + one command work in clean environment |
-| 3 | First vertical slice: Proxmox read collection → validated inventory → readable summary | 2; real default path handles success, timeout, malformed and absent data. **G2** |
-| 4 | Remaining core/network Proxmox and ACL collection; shared client only where useful | 3; both node shapes + existing invariants preserved |
-| 5 | PBS and Docker inventory | 4; backup/container signals and unavailable/stale cases verified |
-| 6 | DNS and OPNsense/firewall read collection | 5; scoped reads, TLS, response validation, no write creep |
-| 7 | Omada, certs, routes, recon | 6; live/static provenance and vantage explicit; fixtures cover parsers |
-| 8 | Entity derivation/audit, SQLite cache and queries | 7; identity exceptions preserved, stale inputs cannot look fresh |
-| 9 | Docs/digest/context/catalog rendering; journal/recall helpers | 8; deterministic views and usable cold-start context. **G3** |
-| 10 | Python deployment health and reachability verification | 9; SSH failure, empty/partial sets and wrong revision fail |
-| 11 | Arcane deploy/env/sync sequence and reviewed rollback preparation | 10; exact source, atomic env, failures/flags truthful |
-| 12 | Publishing: Caddy routes, Authentik scoped operations, DNS coordination | 11; internal/public/auth paths verified from correct vantage |
-| 13 | Saved-plan parsing, scope/action/exclusion policy in Python | 12; mixed create/update refused, protected targets refused before writes |
-| 14 | Snapshot/apply/task completion, partial failure and recovery evidence | 13; failed rollback cannot erase state; interrupted writes stop safely. **G4** |
-| 15 | Restic setup, target selection, consistency method, local scheduling | 14; init/auth/timer/path/volume failure cannot report success |
-| 16 | PBS off-site transfer preflight and retention semantics | 15; wrong/missing/empty source never deletes backups; stable source proven |
-| 17 | Service restore and guest/core/network recovery procedures | 16; isolated data restore + correct config/ownership; T3 explicitly labelled. **G5** |
-| 18 | Provision/onboard VM/LXC, pins, age identity and workstation grant tooling | 17; API/deploy/bootstrap paths agree, keys stay human-held where required |
-| 19 | OS-aware guest updates and required host-local backup/rescue packaging | 18; NixOS/Debian paths distinct; rollback failure stops affected workflow |
-| 20 | Nightly collect/report/evidence/PR and exact-PR auto-merge gate | 19; one sequence, bounded engine attempts, no repeated writes, authority unchanged |
-| 21 | Planning/scaffolding, repository hygiene and invariant gates; CI unification | 20; metadata/links/tests agree; meaningful gates replace shell doctrine |
-| 22 | Whole-repo prune: docs, agent shims/config, templates, Nix/Tofu/Compose callers, obsolete scripts | 21; disposition map has no unresolved live caller or duplicate implementation |
-| 23 | Install/restart the Python engine and intended services; staged operational acceptance | 22; packaged CLI, schedules, collection and one approved write work. **G6** |
-| 24 | Cold-start/recovery rehearsal, final fixes and archive | 23; final acceptance below; honest residual limitations |
+| Phase | Execution lead | Bounded outcome / main surface | Depends on; exit evidence |
+|---|---|---|---|
+| 1 | Astra Medium | Repo disposition, minimal Python doctrine, phase-specific lead/Luna routing, overlap decisions | Current main; complete surface map + checked agent config. **G1** |
+| 2 | Terra High | Installable Python CLI, Nix package/dev environment, test/lint/type-check CI | 1; packaged help + one command work in clean environment |
+| 3 | Astra Medium | First vertical slice: Proxmox read collection → validated inventory → readable summary | 2; real default path handles success, timeout, malformed and absent data. **G2** |
+| 4 | Terra High | Remaining core/network Proxmox and ACL collection; shared client only where useful | 3; both node shapes + existing invariants preserved |
+| 5 | Terra High | PBS and Docker inventory | 4; backup/container signals and unavailable/stale cases verified |
+| 6 | Terra High | DNS and OPNsense/firewall read collection | 5; scoped reads, TLS, response validation, no write creep |
+| 7 | Terra High | Omada, certs, routes, recon | 6; live/static provenance and vantage explicit; fixtures cover parsers |
+| 8 | Terra High | Entity derivation/audit, SQLite cache and queries | 7; identity exceptions preserved, stale inputs cannot look fresh |
+| 9 | Sol Low | Docs/digest/context/catalog rendering; journal/recall helpers | 8; deterministic views and usable cold-start context. **G3** |
+| 10 | Terra High | Python deployment health and reachability verification | 9; SSH failure, empty/partial sets and wrong revision fail |
+| 11 | Terra High | Arcane deploy/env/sync sequence and reviewed rollback preparation | 10; exact source, atomic env, failures/flags truthful |
+| 12 | Terra High | Publishing: Caddy routes, Authentik scoped operations, DNS coordination | 11; internal/public/auth paths verified from correct vantage |
+| 13 | Astra Medium | Saved-plan parsing, scope/action/exclusion policy in Python | 12; mixed create/update refused, protected targets refused before writes |
+| 14 | Astra Medium | Snapshot/apply/task completion, partial failure and recovery evidence | 13; failed rollback cannot erase state; interrupted writes stop safely. **G4** |
+| 15 | Terra High | Restic setup, target selection, consistency method, local scheduling | 14; init/auth/timer/path/volume failure cannot report success |
+| 16 | Terra High | PBS off-site transfer preflight and retention semantics | 15; wrong/missing/empty source never deletes backups; stable source proven |
+| 17 | Astra Medium | Service restore and guest/core/network recovery procedures | 16; isolated data restore + correct config/ownership; T3 explicitly labelled. **G5** |
+| 18 | Astra Medium | Provision/onboard VM/LXC, pins, age identity and workstation grant tooling | 17; API/deploy/bootstrap paths agree, keys stay human-held where required |
+| 19 | Terra High | OS-aware guest updates and required host-local backup/rescue packaging | 18; NixOS/Debian paths distinct; rollback failure stops affected workflow |
+| 20 | Astra Medium | Nightly collect/report/evidence/PR and exact-PR auto-merge gate | 19; one sequence, bounded engine attempts, no repeated writes, authority unchanged |
+| 21 | Terra High | Planning/scaffolding, repository hygiene and invariant gates; CI unification | 20; metadata/links/tests agree; meaningful gates replace shell doctrine |
+| 22 | Sol Low | Whole-repo prune: docs, agent shims/config, templates, Nix/Tofu/Compose callers, obsolete scripts | 21; disposition map has no unresolved live caller or duplicate implementation |
+| 23 | Terra High | Install/restart the Python engine and intended services; staged operational acceptance | 22; packaged CLI, schedules, collection and one approved write work. **G6** |
+| 24 | Astra Medium | Cold-start/recovery rehearsal, final fixes and archive | 23; final acceptance below; honest residual limitations |
 
 Phases 12, 17, and 18 are especially likely to need lettered slices after inspection. Shared clients
 may move earlier when a real consumer needs them. Preserve dependency order, not arbitrary numbering.
@@ -152,7 +162,7 @@ Do not add a new live OPNsense writer or finish unrelated fleet migrations under
    engine replacement and its existing correctness findings; preserve unrelated feature/migration
    work. Add short cross-links/dependency notes where needed; do not falsely complete those directives.
 4. Align `AGENTS.md`, constitution/operator contract, relevant conventions, `.codex/`, `.claude/`,
-   `bin/agent`, and routing tests to Astra Medium + scoped Luna workers and language-neutral capability
+   `bin/agent`, and routing tests to phase-specific execution leads + Astra review + Luna workers and language-neutral capability
    rules. Prefer changing existing config over adding another launcher. Strip benchmark/provenance
    narration. Keep trust/gates intact; describe Bash as current where it still runs, Python as the
    chosen new-code convention, and the transition only in planning.
@@ -171,7 +181,7 @@ planning metadata/links, and diff review. Do not disable a safety check to make 
 update an obsolete shell-only expectation with an equivalent behavioral check.
 
 **Exit:** all tracked families have a disposition; external installs/callers and unknowns are visible;
-Astra/Luna routing resolves as intended; no privilege widening; no future capability claimed live;
+All recommended lead/worker model-effort combinations resolve as intended; no privilege widening; no future capability claimed live;
 Phase 2 remains unimplemented. Unknown remote state is recorded, not guessed.
 
 ## 6. Carry forward the original review as acceptance cases
@@ -233,7 +243,7 @@ Follow its checks and open its PR. Do not self-merge or start Phase 2. Report th
 
 **After Ali merges a phase:**
 ```text
-Review SKY-025 Phase <N> at merged commit <SHA> against its exit criteria and disposition map.
+As a fresh Astra Medium reviewer, review SKY-025 Phase <N> at merged commit <SHA> against its exit criteria and disposition map.
 Inspect implementation and tests, not just the prior report. Return accept / fix / blocked with
 concrete evidence. If fixes are needed, scope their PR and stop. If accepted, update progress and
 flesh out only the next 1–2h phase with exact files/interfaces, Luna packets, checks and live boundaries.
@@ -242,7 +252,8 @@ At a G checkpoint, prune/reorder the remaining roadmap from results. Do not impl
 
 **Continue after the next packet is reviewed:**
 ```text
-Continue SKY-025 at its next detailed, approved phase using Astra Medium and scoped Luna workers.
+Continue SKY-025 at its next detailed, approved phase using its table's execution model/effort and
+scoped Luna workers. Confirm the selected model matches the packet; do not silently substitute.
 Load only the directive, map and relevant files. If the next phase is still outline-only, stop for
 its review/expansion. Execute its bounded scope, verify, open a PR and hand back for merge/review.
 ```
@@ -252,3 +263,7 @@ its review/expansion. Execute its bounded scope, verify, open a PR and hand back
 - 2026-09-06 — Original correctness directive merged in #207; no implementation phases completed.
 - 2026-09-06 — Reworked by Ali's instruction into a Python engine/repository overhaul, 24 provisional
   phases with rolling elaboration, Astra Medium/Luna construction, and accepted service downtime.
+
+- 2026-09-06 — Assigned execution leads per phase: Terra High by default, Sol Low for defined prose/
+  rendering passes, Astra Medium for foundations and consequential logic; fresh Astra Medium reviews
+  every merged phase and defines the next packet. Luna workers remain scoped.
