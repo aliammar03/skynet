@@ -315,20 +315,19 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
 
 ## 9. Status
 
-- 2026-09-07 — **P3a collector implemented / packet incomplete.** Isolated branch
+- 2026-09-07 — **P3a implementation complete / review pending.** Isolated branch
   `phase/sky-025-p3a`, base `f21442c44d34baf71e01ca8938ea1305c82242f6`, implements the
   explicit-output core collector, literal credential parser, verified GET-only transport,
   endpoint/field validation and atomic publication. Synthetic CLI tests cover transport/data
   failures and retained evidence; Nix carries the collector suite through source and installed
   package checks. Consumer projections and unchanged live boundaries are recorded in the map.
   No lab call, production credential read, activation or default-caller change occurred.
-  The required pre-commit gate fails the current-authority context budget: 171,518 estimated
-  tokens exceeds 170,000. Its other gates and separate Python/package checks pass. No budget
-  override, gate change or unrelated pruning is included. A bounded follow-up packet must
-  select at least 6,075 bytes of pruning (plus headroom) or explicitly reconsider that budget;
-  do not compress readable code to disguise its cost. Accepted progress remains 2/24; P3b
-  and G2 remain pending. Raw commands, build/test corrections and limits are in the
-  [P3a journal](../../journal/2026/2026-09-07-session-sky-025-p3a-isolated-core-collector.md).
+  Ali explicitly authorized raising the current-authority context budget to 200,000;
+  `scripts/hygiene.sh` carries that default and the full pre-commit gate passes. The 6,500
+  always-loaded limit is unchanged. Python/package checks pass. Accepted progress remains
+  2/24; P3b and G2 remain pending independent review. Raw commands, build/test corrections
+  and limits are in the [P3a journal](../../journal/2026/2026-09-07-session-sky-025-p3a-isolated-core-collector.md)
+  and [budget approval episode](../../journal/2026/2026-09-07-session-sky-025-p3a-context-budget-approval.md).
 
 - 2026-09-07 — **P2 ACCEPT.** Reviewed [implementation PR #213](https://github.com/aliammar03/skynet/pull/213),
   merged into main at `17db700c22cb17ad219655674eada344c215029a`; final main reviewed is that SHA.

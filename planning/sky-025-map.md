@@ -142,7 +142,7 @@ P3/G2 acceptance still requires P3b's default-caller integration and freshness h
 It did not install or activate a runtime, replace an existing command, or clear an external live/recovery
 blocker. External live/recovery blockers above remain in force.
 
-## Phase 3a implementation (packet incomplete)
+## Phase 3a implementation (review pending)
 
 `skynet collect proxmox core --output <file> [--credentials-file <file>] [--json]` is built
 in `/tmp/skynet-sky-025-p3a`, from remote-main base
@@ -162,6 +162,5 @@ All collector tests exercise the actual CLI and collector with only HTTPS and lo
 boundaries substituted. Nix package checks run the suite against both source and installed
 modules; outside-checkout console tests unset `PYTHONPATH` and use missing synthetic credentials.
 No live response parity, real remote handshake, host activation or recovery drill is claimed.
-The required hook fails only the current-authority context budget (171,518 estimated tokens,
-limit 170,000). The packet cannot be accepted until scoped pruning or an explicit policy
-decision clears that exit; no gate/budget override is part of this implementation.
+The required hook passes with Ali's explicitly authorized 200,000-token current-authority
+budget; the always-loaded budget remains 6,500. Independent acceptance is pending.

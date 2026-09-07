@@ -40,6 +40,7 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 **Explicit durable follow-ups:**
 
+- After Ali merges PR #215, start a fresh Astra Medium session: Read planning/prompts/review.md and review SKY-025 implementation PR https://github.com/aliammar03/skynet/pull/215. P3b remains unreleased. The earlier budget-pruning follow-up is satisfied by Ali's approval. — _2026-09-07 session_
 - Resolve the current-authority budget with a bounded authorized follow-up before P3a can be accepted; at least 6,075 bytes plus headroom need removal, or an explicit budget policy decision. After Ali merges implementation, use a fresh Astra Medium task with planning/prompts/review.md. P3a is incomplete, accepted progress remains 2/24, and P3b's default-caller/freshness packet is not released. No real remote TLS/API parity, recovery rehearsal, host activation or live data freshness was verified here. — _2026-09-07 session_
 - After Ali merges this review/planning PR, execute SKY-025 P3a in a fresh Astra Medium session using planning/prompts/execute.md. P3b and the map's live/recovery evidence remain unreleased. P2's merge/review prerequisite from the earlier journal is now satisfied; that episode stays append-only. — _2026-09-07 session_
 - Ali merges the authored P2 implementation PR, then a fresh Astra Medium session reviews that merged result with `planning/prompts/review.md`; P3 is not authorized before that acceptance. — _2026-09-07 session_
@@ -50,13 +51,13 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 ## 📓 Recent episodes
 
+- **2026-09-07** · session · [[2026-09-07-session-sky-025-p3a-context-budget-approval|SKY-025 P3a context budget approval]]
 - **2026-09-07** · session · [[2026-09-07-session-sky-025-p3a-isolated-core-collector|SKY-025 P3a isolated core collector]]
 - **2026-09-07** · session · [[2026-09-07-session-sky-025-p2-independent-review|SKY-025 P2 independent review]]
 - **2026-09-07** · session · [[2026-09-07-session-sky-025-p2-package-local-cli|SKY-025 P2 package local CLI]]
 - **2026-09-07** · session · [[2026-09-07-session-sky-025-p1-independent-review|SKY-025 P1 independent review]]
 - **2026-09-07** · session · [[2026-09-07-session-sky-025-p1-repository-map-and-routing|SKY-025 P1 repository map and routing]]
 - **2026-09-06** · session · [[2026-09-06-session-sky-025-phase-handoffs|Add SKY-025 execute and review handoffs]]
-- **2026-09-06** · session · [[2026-09-06-session-sky-023-phase-10-lxc-base-template-upload|SKY-023 Phase 10 lxc-base template upload]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._
