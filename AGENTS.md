@@ -101,6 +101,12 @@ the auto-approve list below one at a time, by PR. Even the leash is version-cont
 
 ## 4. The deployment loop (Arcane-driven)
 
+**Review evidence budget:** For repository reviews, start with the diff, callers, contracts, and
+relevant tests. Model names or Codex configuration changes alone do not trigger documentation
+research. Verify routing through installed harness metadata and dry-runs. Consult external
+documentation only to resolve a specific unanswered question; state that question first and fetch
+only the relevant section. Keep tool output bounded and avoid rereading inspected material.
+
 Construction follows [the delegation convention](docs/conventions/construction.md): the active
 packet selects its execution lead, a fresh Astra Medium session reviews the merged result, and
 bounded Luna workers assist within the existing two-helper limit. New procedural code follows

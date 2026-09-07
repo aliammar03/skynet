@@ -6,7 +6,7 @@ horizon: long
 created: 2026-09-06
 updated: 2026-09-07
 phases: 24
-current_phase: 0
+current_phase: 1
 tier_touched: [T1, T2, T2+, T3]
 related:
   - docs/system-design.md
@@ -104,7 +104,7 @@ transcript handoffs; load this directive, current phase, and relevant files only
 
 **Each numbered phase is 1–2 hours of implementation**, excluding waiting for merge. Split an oversized
 phase into lettered slices before work; each slice gets its own PR/review. The table is a route map,
-not permission to execute unspecified work. Only Phase 1 is fleshed out now.
+not permission to execute unspecified work. Section 5 holds the sole current executable packet.
 
 For every phase: implement → relevant checks → PR → Ali merges → review the actual merged result.
 A fresh Astra Medium reviewer reports **accept**, **fix before continuing**, or **blocked**. Fixes get a bounded PR and
@@ -144,45 +144,82 @@ Phases 12, 17, and 18 are especially likely to need lettered slices after inspec
 may move earlier when a real consumer needs them. Preserve dependency order, not arbitrary numbering.
 Do not add a new live OPNsense writer or finish unrelated fleet migrations under this overhaul.
 
-## 5. Phase 1 — ready to execute (~1–2h)
+## 5. Phase 2 — package the local CLI (~1–2h)
 
-**Goal:** make the rebuild's boundaries concrete and remove instructions that force Bash or wrong models.
-**Scope:** T1 repo work only. No service shutdown, production credentials, or implementation rewrite.
+**Release gate:** execute only after Ali merges this review/planning PR. P1 is accepted in §9.
+Reviewed starting revision: `3373fc887296cb6b32064d867f814c75266fedc5`; start from current remote main
+containing this packet and inspect intervening changes to its surfaces.
+**Lead:** Terra High (`gpt-5.6-terra`, high), unchanged from the phase table.
+**Goal:** one installable Python application, one local runtime command, and reproducible checks.
 
-1. Rebase work on current main; read the constitution, AGENTS, conventions, CLI/config, schedules,
-   and active directives. Record baseline SHA. Confirm no overhaul phase has already landed.
-2. Create one compact `planning/sky-025-map.md` disposition table, grouped by subsystem. Account for
-   tracked executable/config/docs/test families and remote-installed scripts. Columns:
-   `surface | migrate/retain/delete | replacement/owner | callers | phase | verified/blocked`.
-   Enumerate files once with git; inspect timers, hooks, Nix activation, Docker/SSH callers, templates,
-   workstation utilities, generated outputs, and rescue paths. Record known ignored/local runtime
-   state and install locations by metadata only; do not read secrets. Unknown remote state is a blocker
-   for its deployment phase. Literal-reference orphan search is advisory only.
-3. Resolve duplicate ownership with SKY-005/006/012/015/016/017/018/020/023/024: this overhaul owns
-   engine replacement and its existing correctness findings; preserve unrelated feature/migration
-   work. Add short cross-links/dependency notes where needed; do not falsely complete those directives.
-4. Align `AGENTS.md`, constitution/operator contract, relevant conventions, `.codex/`, `.claude/`,
-   `bin/agent`, and routing tests to phase-specific execution leads + Astra review + Luna workers and language-neutral capability
-   rules. Prefer changing existing config over adding another launcher. Strip benchmark/provenance
-   narration. Keep trust/gates intact; describe Bash as current where it still runs, Python as the
-   chosen new-code convention, and the transition only in planning.
-5. Record proposed CLI/package boundaries and external output contracts in the map, at most a few
-   paragraphs. Decide which generated formats must survive and which may be regenerated; no blanket
-   backwards compatibility. Preserve journal and key/state recovery locations.
-6. Land the map, contract/config changes, and Phase 1 evidence in one PR. After merge, stop for G1;
-   the reviewer accepts/amends boundaries and then writes the executable Phase 2 work packet.
+**Exact surfaces:** new `pyproject.toml`, `src/skynet/__init__.py`, `src/skynet/__main__.py`,
+`src/skynet/cli.py`, `src/skynet/doctor.py`, `tests/test_cli.py`, `nix/packages/skynet.nix`;
+existing `flake.nix`, `.github/workflows/checks.yml`, `.github/workflows/nix.yml`,
+`.githooks/pre-commit`, `.gitignore`, `nix/README.md`, and the layout table in
+`docs/conventions/layout.md`. Update this directive/map and append a phase journal for evidence;
+regenerate the roadmap/digest/context map only through their existing tools. `flake.lock` changes
+require a concrete dependency need; no unrelated input refresh.
 
-**Worker packets:** Luna A inventories executable/caller families read-only; Luna B checks doctrine,
-config/test contradictions and directive overlap read-only. Astra integrates the map and owns any
-policy/config edits. If editing is delegated, supply exact file ownership and accepted wording first.
+**Interfaces and work:**
 
-**Checks:** model-routing dry-runs/tests, helper-cap/sandbox assertions, invariant/secret checks,
-planning metadata/links, and diff review. Do not disable a safety check to make language changes pass;
-update an obsolete shell-only expectation with an equivalent behavioral check.
+1. Define a setuptools package with a `skynet` console entry point and `python -m skynet` using
+   the same `main(argv) -> int`. Use stdlib `argparse`; no runtime third-party dependencies are
+   needed for this packet. Keep version metadata in one authored location.
+2. Expose `--help`, `--version`, and `doctor [--json]`. Doctor reports only the executing Python
+   runtime and installed application version; explicitly label its scope `runtime`. It must not
+   imply lab/service health, inspect credentials, query hosts, or create repo/runtime files.
+   JSON is one object on stdout with `outcome: "success"`, `scope: "runtime"`, `version`, and
+   `python_version`; human output reports the same facts. Help/version/valid doctor exit 0;
+   missing or invalid commands/options exit 2 with a useful stderr diagnostic. No placeholder
+   command families or generic result/error hierarchy. P3 defines external-data outcomes when used.
+3. Export `packages.x86_64-linux.skynet`, `apps.x86_64-linux.skynet`,
+   `devShells.x86_64-linux.default`, and `checks.x86_64-linux.skynet` alongside existing outputs.
+   Use the locked stable nixpkgs Python/package set for runtime, setuptools, pytest, Ruff and mypy.
+   The dev shell supports source tests without pip installs; the built CLI works outside the repo
+   without source PYTHONPATH or a development environment. Filter package sources to the required
+   package/test metadata; do not copy inventory, state, secrets or the whole repository into it.
+4. Add behavior tests for both entry points, help/version, runtime JSON/human agreement, and invalid
+   arguments. Run packaged smoke checks in Nix's build/check environment outside the source cwd.
+   Configure Ruff and mypy for the Python surface only. Reuse these checks in CI, preserving existing
+   shell and Nix gates; ensure Python/package changes trigger the new package job without requiring
+   unrelated host builds on every Python-only edit. Preserve deploy-rs checks when extending outputs.
+   Add the same Python checks to the existing local hook when Python files/package configuration
+   are staged; a missing required tool must report an actionable failure, not silently skip.
+5. Document the implemented build/dev/check commands and runtime-only doctor scope in `nix/README.md`;
+   update the layout table. Record package validation and any unavailable evidence in the phase PR.
 
-**Exit:** all tracked families have a disposition; external installs/callers and unknowns are visible;
-All recommended lead/worker model-effort combinations resolve as intended; no privilege widening; no future capability claimed live;
-Phase 2 remains unimplemented. Unknown remote state is recorded, not guessed.
+**Exclusions and live boundaries:** T1 construction in an isolated checkout only. No Nix activation,
+installation into an active profile, timer/service changes, production calls, credentials, or grants.
+No collector port, `bin/ops` replacement, inventory schema change, automatic router, new workflow,
+or migration of old test suites. Existing CLI updater/timer/config removal is owned together by
+P20–22, not P2. Build outputs are disposable; source rollback is a git revert. Existing live recovery
+blockers in the map remain prerequisites for the first live packet.
+
+**Optional Luna packet:** after Terra fixes the CLI contract above, Luna High may own only
+`tests/test_cli.py`: goal = CLI behavior tests; inputs = that contract; checks = pytest for that
+file; exclusions = package/CLI/Nix edits, network, secrets, production, helpers, commits/push.
+Terra owns all integration and runs the packaged smoke checks independently.
+
+**Checks and expected results:**
+
+- `nix build --no-write-lock-file --no-link --print-out-paths .#skynet` → built package path.
+  From a temporary directory, run that path's `bin/skynet --help`, `--version`, `doctor`, and
+  `doctor --json` with PYTHONPATH unset → valid output/exit 0; an unknown command → exit 2.
+- `nix develop --no-write-lock-file -c pytest -q` → behavioral tests pass.
+- `nix develop --no-write-lock-file -c ruff check src tests/test_cli.py` and
+  `nix develop --no-write-lock-file -c mypy src/skynet` → no errors.
+- `nix build --no-write-lock-file --no-link .#checks.x86_64-linux.skynet` → package smoke,
+  tests, lint and type checks pass; `nix flake check --no-write-lock-file --no-build` → existing
+  and new output evaluation succeeds. Report private-input/access failures explicitly.
+- `.githooks/pre-commit` with the package changes staged, plus `git diff --cached --check` →
+  existing gates and required Python checks pass. Inspect CI triggers and source filtering.
+
+**Exit criteria:** (1) packaged help and doctor run outside the checkout without dev dependencies;
+(2) CLI/JSON/exit behavior passes behavioral tests; (3) Nix owns runtime and development tools,
+CI and the local hook enforce required checks, existing gates still pass; (4) docs describe only
+implemented commands and runtime scope; (5) no live configuration, authority or production data
+changed. Missing package/build evidence is an unfinished exit, not a waiver. Stop for fresh Astra
+Medium merged-result review; do not implement P3 or increment accepted progress.
 
 ## 6. Carry forward the original review as acceptance cases
 
@@ -200,7 +237,7 @@ F3, and masked initialization in F4. No live/Nix/Tofu verification was claimed.
 | F6 apt-only fleet / wrong DR authority | OS-aware actions; failed rollback stop; correct destination access/T3 | 17–19 |
 | F7 empty-source destructive PBS mirror | Source identity/stability and deletion guard; copy integrity ≠ restore proof | 16–17 |
 | F8 stale/missing collectors reported OK | Validated atomic outputs, explicit freshness/unavailability | 3–9 |
-| F9 npm updater competes with Nix | One package/config owner; remove updater/timer and model-self-query | 2, 20–22 |
+| F9 npm updater competes with Nix | One package/config owner; remove updater/timer and model-self-query | 20–22 |
 | F10 incident narratives evade hygiene | Remove named old-timeout/A6/token-budget stories; semantic review | 1, 21–22 |
 | F11 repeated rules, stale rollback/metadata/phase claims | One authority per rule; truthful help/runbooks/frontmatter | 1, 21–24 |
 
@@ -250,13 +287,30 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
 
 ## 9. Status
 
-- 2026-09-07 — Phase 1 implementation prepared from main `670f06cfa75ca95a9eac7fdb1d3eb3544272ff1a`
-  in isolated worktree `/tmp/skynet-sky-025-p1`, branch `phase/sky-025-p1`. See the
-  [disposition map](../sky-025-map.md) and
-  [raw phase evidence](../../journal/2026/2026-09-07-session-sky-025-p1-repository-map-and-routing.md).
-  Implementation/review-pending; `current_phase: 0` means no phase accepted. No production changes.
-  After human merge, use the fresh Astra Medium [review prompt](../prompts/review.md) for G1;
-  Phase 2 has no executable packet yet and must not start.
+- 2026-09-07 — **P1 ACCEPT / G1.** Reviewed [implementation PR #211](https://github.com/aliammar03/skynet/pull/211),
+  merged into main at `3373fc887296cb6b32064d867f814c75266fedc5`; final main reviewed is the same SHA.
+  Complete phase diff starts at `670f06cfa75ca95a9eac7fdb1d3eb3544272ff1a`; no intervening commits
+  or supplied fix PRs. Fresh review session metadata: `gpt-6-astra`, medium.
+
+  | P1 exit | Verdict and independent evidence |
+  |---|---|
+  | All tracked families have a disposition | ACCEPT — baseline 398 paths match grouped counts; source/caller review covers hooks, Nix, templates, service assets, rescue and ownership notes. |
+  | External installs/callers and unknowns visible | ACCEPT — map names remote and recovery blockers; local systemd metadata confirms both timers consume the main checkout. No remote absence inferred. |
+  | Recommended model/effort combinations resolve | ACCEPT — installed Codex 0.153.4 catalog supports all five combinations; agent tests 82/82, including native parity and invalid combinations. Dry-runs do not claim all models were remotely executed. |
+  | No privilege widening | ACCEPT — constitution/trust diff inspected; invariants pass, construction tests 8/8, worker cap/sandboxes and production gates retained. |
+  | No future capability claimed live | ACCEPT — doctrine explicitly distinguishes new Python convention from installed Bash; documentation/temporal/surface/hygiene checks pass. |
+  | P2 remains unimplemented; unknown state recorded | ACCEPT — no package, runtime, host or schedule implementation changed in #211; map blocks later live work on named evidence. |
+
+  Findings: none requiring P1 repair. Roadmap, digest and context map regenerate identically at the
+  reviewed SHA. No Nix/Tofu apply, remote backup/Arcane verification, recovery drill, or live
+  Terra/Sol/Luna High invocation was performed or required for this repository-only phase.
+  [Raw review evidence](../../journal/2026/2026-09-07-session-sky-025-p1-independent-review.md).
+
+  **G1 decisions:** accept the compact package/output boundaries and adjacent ownership map. Keep
+  dependency order and provisional 24 phases; no evidence yet justifies collapsing later failure/
+  recovery work. Bound P2 to package/dev/CI and one runtime-only command. Move F9 updater removal
+  wholly to P20–22 so its script, timer and configuration owner change together. P3 settles external
+  data contracts. Only §5 is actionable after this planning PR's human merge; Terra High is retained.
 
 - 2026-09-06 — Original correctness directive merged in #207; no implementation phases completed.
 - 2026-09-06 — Reworked by Ali's instruction into a Python engine/repository overhaul, 24 provisional
