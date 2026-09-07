@@ -19,6 +19,9 @@ related:
 
 # SKY-005 · Imperative ops discipline: recon toolkit, diagnosis library, lab bench
 
+> **2026-09-07 ownership:** Existing recon implementation replacement belongs to SKY-025 P7; this directive keeps diagnosis practice and the deferred lab bench.
+> See the [SKY-025 disposition map](../sky-025-map.md#adjacent-directive-ownership). This note does not complete any phase.
+
 > Make the *imperative* side of Skynet — exploration, diagnosis, fixing — a real discipline instead
 > of improvised root grants, and enforce the principle **diagnose imperatively, fix declaratively.**
 

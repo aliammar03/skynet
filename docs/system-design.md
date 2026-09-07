@@ -105,6 +105,12 @@ follows `AGENTS.md` and uses runbooks as procedures. Capability contracts define
 outcomes, verification, and recovery independently of implementation language. The runtime engine is
 replaceable; changing its implementation does not change trust tiers or merge authority.
 
+New procedural capabilities use Python under the [capability convention](conventions/scripts.md);
+the installed commands and schedules still use Bash. Nix, OpenTofu, Compose, and Caddy retain their
+declarative roles. Construction follows [the delegation convention](conventions/construction.md):
+phase-specific execution leads, independent Astra Medium review, and bounded Luna workers. A
+construction role or language change confers no production authority.
+
 | Change | Authoritative home |
 |---|---|
 | Service deploy or publish | [GitOps loop](design/gitops-loop.md), `runbooks/` |

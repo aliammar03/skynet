@@ -3,12 +3,12 @@
 # TIER: T1 — build-time only. Helpers get NO production authority (no secrets/tokens/T2/T3); the
 #   sandbox (writers=workspace-write, scout=read-only) is the boundary. Doctrine: docs/conventions/construction.md.
 # USAGE:
-#   bin/agent <lead|builder|mechanic|scout> "<prompt>" [--hard] [--cwd <dir>] [--dry-run]
-#     --hard      lead only: promote Terra → Sol for genuinely hard / cross-cutting work
+#   bin/agent <lead|review|builder|mechanic|scout> "<prompt>" [--tier astra|terra|sol] [--cwd <dir>] [--dry-run]
+#     --tier      lead only: use the execution tier named in the authorized phase packet
 #     --cwd <dir> run the helper rooted at <dir> instead of the main checkout — for a git worktree,
 #                 so two writers get separate filesystem state. Git is the isolation.
 #     --dry-run   print the resolved role/tier/model/sandbox + exact command, launch nothing
-#   Tier→model is env-overridable (the only knob): AGENT_MODEL_{SOL,TERRA,LUNA}. No secrets are read.
+#   Tier→model is env-overridable: AGENT_MODEL_{ASTRA,SOL,TERRA,LUNA}. No secrets are read.
 #
 # This is the STANDALONE mirror of the native in-session delegation in .codex/agents/*.toml. When a
 # job fits native Codex subagents, prefer those (they enforce the ≤2-helper cap). One delegation
@@ -19,16 +19,16 @@ REPO_DIR="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
 die() { echo "agent: $*" >&2; exit 1; }
 
-role="${1:?usage: bin/agent <lead|builder|mechanic|scout> \"<prompt>\" [--hard] [--cwd <dir>] [--dry-run]}"
-prompt="${2:?usage: bin/agent <role> \"<prompt>\" [--hard] [--cwd <dir>] [--dry-run]}"
+role="${1:?usage: bin/agent <lead|review|builder|mechanic|scout> \"<prompt>\" [--tier astra|terra|sol] [--cwd <dir>] [--dry-run]}"
+prompt="${2:?usage: bin/agent <role> \"<prompt>\" [--tier astra|terra|sol] [--cwd <dir>] [--dry-run]}"
 shift 2 || true
 
-hard=0; dry=0; cwd=""
+requested_tier=""; dry=0; cwd=""
 while [ $# -gt 0 ]; do case "$1" in
-  --hard)    hard=1;;
+  --tier)    requested_tier="${2:?--tier needs astra|terra|sol}"; shift;;
   --dry-run) dry=1;;
   --cwd)     cwd="${2:?--cwd needs a directory}"; shift;;
-  *) die "unknown flag '$1' (--hard | --cwd <dir> | --dry-run)";;
+  *) die "unknown flag '$1' (--tier astra|terra|sol | --cwd <dir> | --dry-run)";;
 esac; shift; done
 
 # Root the run at a registered worktree if --cwd was given, else the main checkout. Git is the only
@@ -76,6 +76,7 @@ cd "${workdir}"
 
 # tier → concrete model. Env override is the only place model IDs live.
 model_for_tier() { case "$1" in
+  astra) echo "${AGENT_MODEL_ASTRA:-gpt-6-astra}";;
   sol)   echo "${AGENT_MODEL_SOL:-gpt-5.6-sol}";;
   terra) echo "${AGENT_MODEL_TERRA:-gpt-5.6-terra}";;
   luna)  echo "${AGENT_MODEL_LUNA:-gpt-5.6-luna}";;
@@ -84,22 +85,24 @@ model_for_tier() { case "$1" in
 # role → tier / reasoning effort / sandbox / approval. The one routing table in code (doctrine:
 # docs/conventions/construction.md). Scout is read-only by contract; writers stay workspace-scoped —
 # deliberately MORE restricted than the nightly's full bypass, because construction touches no prod.
-# Routing is benchmark-backed. The Terra-vs-Luna axis is the builder-vs-mechanic split:
-#   - lead reasons hardest (xhigh; high→xhigh moved perfect first runs 28%→89%). Terra, Sol if hard.
-#   - builder = novel bounded LOGIC → TERRA: it wins every coding bench (Terminal-Bench 87.4 vs 84.7,
-#     SWE-Bench Pro 63.4 vs 62.7), and a wrong builder costs a rework loop paid in expensive LEAD
-#     tokens — that dwarfs Luna's ~2.5x/token saving on a small component.
-#   - mechanic = high-VOLUME deterministic edits with airtight checks → LUNA high: exactly where
-#     scaling dominates per-call cost and objective checks make a premium model pointless.
-#   - scout = read-only search → Luna medium.
+# Execution leads select the packet's tier; review runs in a fresh Astra session.
+# Workers implement a bounded packet at Luna high or inspect at Luna medium.
 case "${role}" in
-  lead)     tier=terra; [ "${hard}" = 1 ] && tier=sol; effort=xhigh;  sandbox=workspace-write;;
-  builder)  tier=terra;                       effort=high;   sandbox=workspace-write;;
+  lead)
+    tier="${requested_tier:-terra}"; sandbox=workspace-write
+    case "${tier}" in
+      astra) effort=medium;;
+      terra) effort=high;;
+      sol) effort=low;;
+      *) die "lead tier must be astra|terra|sol";;
+    esac;;
+  review)   tier=astra;                       effort=medium; sandbox=workspace-write;;
+  builder)  tier=luna;                        effort=high;   sandbox=workspace-write;;
   mechanic) tier=luna;                        effort=high;   sandbox=workspace-write;;
   scout)    tier=luna;                        effort=medium; sandbox=read-only;;
-  *) die "unknown role '${role}' (lead|builder|mechanic|scout)";;
+  *) die "unknown role '${role}' (lead|review|builder|mechanic|scout)";;
 esac
-[ "${hard}" = 1 ] && [ "${role}" != lead ] && die "--hard is lead-only (promotes Terra→Sol)"
+[ -n "${requested_tier}" ] && [ "${role}" != lead ] && die "--tier is lead-only"
 
 model="$(model_for_tier "${tier}")"
 

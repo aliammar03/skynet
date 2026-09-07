@@ -1,190 +1,99 @@
 ---
-summary: "The construction delegation contract: one accountable lead hands bounded, independent, verifiable work to at most two helpers, one level deep, native tooling first — and no helper ever gains production authority."
+summary: "Phase-specific execution leads, independent Astra review, and at most two bounded Luna workers."
 ---
 
-# Spoke · Construction delegation (lead + bounded helpers)
+# Spoke · Construction delegation
 
-> One capable **lead** owns a construction task end to end. It may hand narrow jobs to a small bench
-> of **helpers**, integrate the result, and stay understandable enough that Ali can reason about the
-> whole thing from memory. This is a **build-time** pattern only — production operation stays behind
-> the trust model and `bin/ops`. Governed by [`../conventions.md`](../conventions.md).
+> One accountable lead integrates bounded workers and owns the authored PR.
+> Governed by [`../conventions.md`](../conventions.md); production authority stays with the trust tiers.
 
-Tags: **[testable]** = a lint/config gate could assert it; **[manual]** = holds by review.
+Tags: **[testable]** = a deterministic gate can assert it; **[manual]** = requires review.
 
-## A lead proactively earns delegation
+## Execution and review
 
-One capable lead always owns the task end to end. For **substantial construction work**, it
-proactively looks for BIV (Bounded, Independent, Verifiable) chunks and hands each suitable one to
-the cheapest reliable role; Ali does not need to ask for helpers. Tiny work stays with the lead when
-coordinating a helper costs more than doing the work. A bigger fan-out is not the goal.
+The active directive's authorized packet selects the execution lead and effort. `[manual]`
 
-## Roles → GPT-5.6 tier
+| Work | Model | Effort | Responsibility |
+|---|---|---|---|
+| Foundational design, consequential policy or recovery | `gpt-6-astra` | medium | Execution lead |
+| Bounded implementation | `gpt-5.6-terra` | high | Default execution lead |
+| Defined rendering/documentation passes | `gpt-5.6-sol` | low | Execution lead |
+| Independent merged-result review and next packet | `gpt-6-astra` | medium | Fresh review session |
+| Builder or mechanic | `gpt-5.6-luna` | high | Scoped implementation worker |
+| Scout | `gpt-5.6-luna` | medium | Read-only inspection worker |
 
-Roles are the stable contract; the model behind a role is configuration and swaps freely.
+Verify exact identifiers and supported efforts in the installed harness. Do not guess identifiers or
+silently substitute models. If unavailable, report routing blocked and ask Ali to select an available
+identifier or update the harness. `[manual]` Model routing does not switch the invoking session.
 
-| Role | Owns | Tier (GPT-5.6) | Effort | Writes? |
-|---|---|---|---|---:|
-| **Lead** | Intent, architecture, decomposition, integration, verification, the PR | **Terra** (→ **Sol** for genuinely hard / cross-cutting work) | **xhigh** | yes |
-| **Builder** | One bounded component behind a clear interface | **Terra** | **high** | yes |
-| **Mechanic** | Repetitive edits — fixtures, renames, formatting, routine docs | **Luna** | **high** | yes |
-| **Scout** | Search / compare / investigate, returns a concise report | **Luna** | **medium** | **no** |
+Terra/Sol leads refer unresolved architecture, privilege, or recovery decisions to Astra Medium.
+The lead owns decomposition, integration, verification, and PRs. A worker reports only its scoped
+result. Merged-result review runs in a **fresh session**, never as the implementing lead's helper.
+The reviewer reports accept, fix before continuing, or blocked and defines the next authorized
+packet. Human merge and directive-specific review gates still apply. `[manual]`
 
-Sol is the flagship (hardest problems), Terra the balanced workhorse, Luna the fast/cheap tier for
-repeatable objective-check work. **Route by uncertainty and consequence, not prompt length** — and
-the Terra↔Luna choice *is* the Builder↔Mechanic split:
+## Bounded delegation
 
-- The **lead** carries the uncertainty and consequence, so it reasons hardest — **xhigh** — because
-  reasoning effort, *not* tool access, is what buys first-try reliability (raising a planning turn
-  high→xhigh moved perfect first runs 28%→89% for +9–29% cost). Terra by default; **Sol** for
-  architecture / cross-cutting / ambiguous work. Only Sol supports **`max`** — reserve it for a
-  genuinely brutal hard-lead task.
-- **Builder → Terra.** Novel bounded *logic* is where correctness margin matters: Terra wins every
-  coding benchmark (Terminal-Bench 87.4 vs 84.7, SWE-Bench Pro 63.4 vs 62.7, Coding-Agent-Index 77.4
-  vs 74.6) and is the documented pick for coding-agent / CI loops. The saving from Luna on one small
-  component is ~2.5×/token on a *tiny* base; a wrong builder costs a rework loop paid in **expensive
-  lead** tokens, which dwarfs it. Escalate to xhigh only if corrective prompts prove costly.
-- **Mechanic → Luna.** High-*volume*, deterministic edits with airtight objective checks are exactly
-  where Luna's economics + steep effort curve win: scaling — not per-call cost — dominates, and
-  strong checks make a premium model pointless. Run it at **high** (Luna is cheap enough that high is
-  affordable across many edits). Read-only **Scout → Luna medium**.
-- **The operational tell (practitioner-reported):** Luna suffers *context rot* as context fills and
-  *over-codes on vague specs* — so it shines only on a tightly-specified, low-context job. That is the
-  Mechanic's and Scout's profile, not the Builder's. If a "Builder" subtask is really a fully-spelled,
-  low-context transform, Luna fits; if it needs judgement or carries surrounding-code context, keep it
-  on Terra. The BIV **B**ound has to be *tight* before a job drops a tier.
+For substantial construction, proactively delegate work only when it is **Bounded**, **Independent**,
+and **Verifiable**. Keep ambiguous architecture and tightly coupled decisions with the lead; do tiny
+jobs locally. `[manual]`
 
-The lead is **accountable for the whole result**; a helper can report only *"my delegated subtask is
-complete,"* never *"the phase is complete."* `[manual]`
+- At most **two active workers**, one level deep: `Ali → lead → worker`. Workers never spawn
+  helpers. The cap is `[testable]`; the one-level instruction remains `[manual]`.
+- Give each worker only `Goal | allowed files | interface/inputs | acceptance checks | exclusions`.
+  Use non-overlapping file ownership and tell writers they share the repo and must preserve others'
+  changes. `[manual]`
+- Workers do not redesign, commit, push, merge, handle secrets, or touch production. A worker stops
+  and reports ambiguity instead of widening its packet. `[manual]`
+- Return `changed files | checks/results | unresolved issues`. The lead inspects the complete diff
+  and reruns relevant checks; worker completion is not phase acceptance. `[manual]`
 
-## The lead's playbook (quick reference)
+## Native tooling and standalone launcher
 
-The 30-second version of everything below — what to reach for, when.
+Use native subagents when available. [`.codex/agents/`](../../.codex/agents/) defines builder and
+mechanic workers with `workspace-write` and scouts with `read-only`. The roles describe task shape;
+both writing roles use Luna High. `[testable]`
 
-1. **Assess substantial construction for delegation.** Proactively scan it for BIV chunks and delegate
-   each chunk whose cognitive-load or elapsed-time saving exceeds its coordination cost. Keep tiny
-   work with the lead when coordination exceeds execution; Ali need not request delegation.
-2. **Gate every hand-off through BIV** — Bounded, Independent, Verifiable. If you can't state success
-   in a sentence, or you'd have to babysit it, or you can't cheaply check it: keep it, or send it back
-   to Ali. Ambiguity is never delegated.
-3. **Pick the role by task *shape*, then read the tier off it:**
+[`.codex/config.toml`](../../.codex/config.toml) sets
+`agents.max_concurrent_threads_per_session = 2`. The cap and role sandboxes are checked against
+[`invariants.json`](../../invariants.json) by `scripts/check-invariants.sh`. No worker may use
+`danger-full-access`. The sandbox is a filesystem boundary; it is not evidence of production
+authorization or a substitute for withholding credentials. `[testable/manual]`
 
-   | The subtask is… | Role | Tier · effort | Writes |
-   |---|---|---|---|
-   | architecture / cross-cutting / ambiguous — the hard core | *(keep it)* / hard-lead | Terra→**Sol** · xhigh (Sol-only `max` if brutal) | — |
-   | **novel bounded logic** behind an interface, with tests | **Builder** | **Terra · high** | workspace |
-   | **fully-specified, low-context** repetitive edit / rename / fixture | **Mechanic** | **Luna · high** | workspace |
-   | **read-only** search / compare / investigate | **Scout** | **Luna · medium** | none |
-   | "make it better" / "decide what to build" / vague | **don't delegate** | — | — |
+The existing [`bin/agent`](../../bin/agent) mirrors the routing table for standalone sessions:
 
-4. **The tier tell:** Terra unless the job is *tightly specified and low-context* — then Luna. Luna
-   context-rots and over-codes on vague specs, so a loose "Builder" chunk stays Terra; a Builder is
-   cheap to run but a *wrong* one costs a rework loop in expensive lead time. When unsure, spend the
-   Terra token, not the rework.
-5. **Invoke** — native in-session (preferred): ask Codex to spawn the `builder`/`mechanic`/`scout`
-   agent (defs in `.codex/agents/`, cap = 2). Standalone or to preview: `bin/agent <role> "<prompt>"
-   [--hard] [--dry-run]` — always `--dry-run` first to see the resolved model/effort/sandbox.
-6. **Write a real helper prompt:** state the scope surface, the expected output, the write allowance,
-   and the exact verification (which tests/gates). A helper with a vague prompt is your bug, not its.
-7. **Integrate + own it:** you inspect the returned work, run the gates yourself, and land the PR.
-   The helper's "done" is a claim to verify, never a merge signal — and you never self-merge (§ trust
-   boundary).
+```bash
+bin/agent lead "<authorized packet>" --tier astra --dry-run
+bin/agent lead "<authorized packet>" --tier terra --dry-run
+bin/agent lead "<authorized packet>" --tier sol --dry-run
+bin/agent review "<merged-result review packet>" --dry-run
+bin/agent scout "<bounded inspection>" --dry-run
+bin/agent builder "<bounded implementation>" --dry-run
+bin/agent mechanic "<specified edits>" --dry-run
+```
 
-## Delegation depth = one
+Preview with `--dry-run`, then omit that flag to launch. Lead defaults to Terra High; `--tier` is
+lead-only and the packet overrides the default. Review uses a writable construction checkout so it
+can author the review/planning PR, with no production authority. `AGENT_MODEL_ASTRA`,
+`AGENT_MODEL_TERRA`, `AGENT_MODEL_SOL`, and `AGENT_MODEL_LUNA` are explicit identifier overrides;
+the operator must verify availability before launch. `tests/agent-test.sh` checks the resolutions
+and invalid combinations. A dry-run proves argument construction, not remote model execution.
 
-- **Allowed:** `Ali → lead → helper`. `[manual]`
-- **Never:** `Ali → lead → helper → helper → …`. One level keeps context ownership and failure
-  diagnosis obvious. `[testable]`
-- **At most two active helpers.** `[testable]` Raise the cap only after real work proves two is
-  constraining — not on aesthetics.
+## Isolation and continuity
 
-## Delegate only what passes the BIV test
+Use an isolated checkout when live timers/reconcilers consume the main checkout. Otherwise worktrees
+are optional and useful when concurrent edits need separate filesystem state. `--cwd` accepts only
+an exact registered Skynet worktree root; arbitrary directories and subdirectories are refused.
+Workers edit; the lead commits. `[testable/manual]`
 
-A subtask is delegatable only when it is:
+For work crossing sessions, keep a compact ignored `.agent/CHECKPOINT.md` with `Goal`, `Done`,
+`Current`, `Decisions`, `Dead ends`, `Verified`, and `Next`. Write it at a meaningful milestone or
+handoff. Move durable evidence to its authoritative home and remove the disposable checkpoint at
+completion. Do not use transcripts or a second tracker as the handoff. `[manual]`
 
-1. **Bounded** — success can be stated in one sentence;
-2. **Independent** — it needs no constant back-and-forth with the lead;
-3. **Verifiable** — the lead can cheaply inspect or test the result. `[manual]`
+## Trust and complexity
 
-Good: *"Find every call site assuming the old entity ID; report file + function."* ·
-*"Update these fixtures to schema v2; touch no production code."* ·
-*"Implement parser X behind this interface and run tests A/B."*
-
-Bad: *"Figure out the architecture."* · *"Make this subsystem better."* · *"Decide what to build."*
-Ambiguity stays with the lead or goes back to Ali.
-
-## Native tooling first
-
-Use Codex's own subagent support — do not build a scheduler around it. `[manual]`
-
-- Project-scoped agent definitions live in [`.codex/agents/`](../../.codex/agents/) (`builder.toml`,
-  `mechanic.toml`, `scout.toml`); each names its own `model`, `model_reasoning_effort`, and
-  `sandbox_mode`. The lead is the invoking session, not a definition file.
-- [`.codex/config.toml`](../../.codex/config.toml) sets `[agents]
-  max_concurrent_threads_per_session = 2` — the two-helper cap enforced by the platform, not by
-  vigilance. `[testable]`
-- The **scout** definition pins `sandbox_mode = "read-only"` — its no-write contract is mechanical,
-  not a promise. `[testable]`
-- Those two `[testable]` facts (plus every helper's declared sandbox, and a ban on
-  `danger-full-access`) are asserted by [`scripts/check-invariants.sh`](../../scripts/check-invariants.sh)
-  against [`invariants.json`](../../invariants.json)'s `construction` section — the gate that turns
-  this doctrine into a checker, not just prose ([ADR 0003](../decisions/0003-ambiguity-layering-and-format-follows-enforcement.md)).
-  One-level depth stays `[manual]`: Codex exposes no config knob for "a helper cannot spawn a helper."
-- For a helper run as its own process (or to preview a launch), [`bin/agent`](../../bin/agent)
-  resolves `role → tier → model` and prints the resolution under `--dry-run`. It is the standalone
-  mirror of the same routing table above; if native in-session delegation expresses the job, prefer
-  it.
-
-## Isolation, continuity, review
-
-- **Worktrees by exception.** `[manual]` A read-only scout needs none; a single writing helper inside
-  a lead-managed session usually needs none. Reach for `git worktree` only when two independent
-  writers genuinely need separate filesystem state. Git is the isolation mechanism; use no worktree
-  manager. Place a helper in a worktree with `bin/agent <role> "<prompt>" --cwd <worktree>`.
-  `bin/agent` fails closed unless `<worktree>` is an exact registered worktree root belonging to this
-  repository; a plain directory, unrelated checkout, or worktree subdirectory is outside the
-  construction leash.
-  **Helpers write; the lead commits.** A `workspace-write` sandbox rooted at a worktree cannot write
-  that worktree's git metadata (it lives under the *main* repo's `.git/worktrees/<name>/`, outside the
-  sandbox), so a helper physically cannot commit there — which is the cleaner trust story: the helper
-  produces a bounded working-tree diff, and the lead commits it on the writer's branch and integrates
-  the branches with plain git (a conflict in a shared registry is resolved by the lead, not an
-  orchestration layer).
-- **Continuity is a checkpoint, not a memory system.** `[manual]` For a task likely to cross a
-  session/context boundary, the lead keeps a compact `.agent/CHECKPOINT.md` (gitignored, disposable —
-  it is working memory, never truth). A cold lead must be able to resume from **only** `AGENTS.md` +
-  the named `SKY-###` phase + this file + `git status`/`git diff` — no old transcript. Keep it to
-  these fields, one or two lines each:
-
-  ```text
-  Goal        — the task in one sentence
-  Done        — milestones already landed (with commit shas if committed)
-  Current     — the working state right now
-  Decisions   — choices made that must not be relitigated
-  Dead ends   — tried-and-abandoned, so the cold lead won't re-walk them
-  Verified    — gates that passed / still to run
-  Next        — the exact next step, concrete enough to act on cold
-  ```
-
-  Write it at a **meaningful milestone, a handoff / context reset, a blocker, or before intentionally
-  ending a long session** — *not* after every command. On completion, move durable facts to their
-  real home (directive / docs / ADR / journal / git) and **delete** the checkpoint.
-- **Review lives outside the helper family.** `[manual]` A helper never reviews the lead that
-  instructed it. Normal changes ride existing tests/gates + human merge; consequential ones may get a
-  fresh cold Sol review, sensitive cross-provider ones a Claude review. Deterministic gates outrank
-  every model opinion.
-
-## The trust boundary — construction never gains production authority
-
-- A construction helper **never** receives production credentials, a standing token, or a T3 grant.
-  `[manual]` Its blast radius is the repo working tree plus whatever least-privilege sandbox its role
-  declares (writers `workspace-write`, scout `read-only`).
-- Parallelism at build time must **never** become a second production-control path. Production
-  operation stays behind the trust tiers and `bin/ops`. `[manual]`
-- Authored work still lands as a **PR the agent never self-merges** — delegation changes who *drafts*
-  a change, never who *merges* it. `[manual]` → [`git.md`](git.md)
-
-## Complexity must be earned
-
-Skynet ships **no** queue, scheduler, workflow database, event ledger, DAG engine,
-heartbeat, worker lease, retry framework, or automatic-merge machinery. If repeated dogfooding
-exposes a concrete failure mode, automate *that* failure mode specifically — nothing sooner.
+Construction never grants production authority: no production credentials, root grants, or T2/T3
+actions go to workers. Authored PRs remain human-merged. See [`git.md`](git.md) and the constitution.
+Keep native tooling and ordinary Git; add no scheduler, queue, workflow database, retry framework,
+automatic model router, or automatic session/merge machinery. `[manual]`

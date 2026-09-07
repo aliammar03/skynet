@@ -35,8 +35,8 @@ Tags: **[testable]** = a lint gate could assert it; **[manual]** = holds by revi
 
 - **A service** (`compose/<svc>/`) `[testable]`: `compose.yaml` + `.env.git`, plus `.env.sops`
   iff it has secrets. Rules in [`compose.md`](compose.md).
-- **A script** (`scripts/*.sh`, `bin/*`) `[testable]`: shebang + `set -euo pipefail` + header
-  block. Rules in [`scripts.md`](scripts.md).
+- **A Bash script** (`scripts/*.sh`, existing Bash `bin/*`) `[testable]`: shebang + `set -euo pipefail`
+  + header block. New procedural code and capability contracts follow [`scripts.md`](scripts.md).
 - **A runbook** (`runbooks/*.md`) `[testable]`: opens with a **Tier** line (and a **Trigger** line
   where relevant), and is listed in `runbooks/README.md`. Rules in [`docs.md`](docs.md).
 - **An ADR** (`docs/decisions/NNNN-*.md`) `[testable]`: Status / Date header + Context / Decision /
@@ -46,8 +46,9 @@ Tags: **[testable]** = a lint gate could assert it; **[manual]** = holds by revi
 
 ## Scaffolding — new artifacts are born conforming
 
-Don't hand-write a new artifact from scratch — **stamp it from its golden template** so it inherits
-the doctrine automatically:
+Use the available golden template for a matching artifact. The Bash script template is for retained
+shell needs; it does not require new procedural logic to use Bash. New Python modules follow
+[`scripts.md`](scripts.md).
 
 | Command | Creates | From template |
 |---|---|---|
@@ -61,9 +62,8 @@ the doctrine automatically:
 **All golden templates live in one folder, [`templates/`](../../templates/)** `[manual]` — not
 scattered beside the artifacts they stamp. Each is the **single source** its generator reads:
 change a convention once in the template and every future artifact is born with it. The templates
-embed the P1 rules verbatim, so a fresh skeleton is doctrine-conforming before you touch it (fill
-the `TODO`s). (`bin/plan`'s directive template stays `planning/TEMPLATE.md` — it predates `bin/new`
-and `bin/plan` owns its own lifecycle.)
+carry their artifact's rules (fill the `TODO`s). `bin/plan` owns its lifecycle template at
+`planning/TEMPLATE.md`.
 
 ## Generated — never hand-edit `[testable]`
 

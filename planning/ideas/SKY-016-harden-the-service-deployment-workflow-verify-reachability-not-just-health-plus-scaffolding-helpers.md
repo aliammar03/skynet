@@ -23,6 +23,9 @@ related:
 
 # SKY-016 · Harden the service-deployment workflow: verify reachability not just health, plus scaffolding helpers
 
+> **2026-09-07 ownership:** SKY-025 P10–12 owns engine replacement and existing health/reachability defects. Additional deployment features here must consume its accepted verifier.
+> See the [SKY-025 disposition map](../sky-025-map.md#adjacent-directive-ownership). This note does not complete any phase.
+
 > Close the gap between "the deploy said (healthy)" and "the service actually works," and delete the
 > manual toil (digest, IP, secret-read) that every new service currently re-incurs.
 

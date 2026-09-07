@@ -1,10 +1,10 @@
 ---
 id: SKY-025
 title: Rebuild the Skynet engine in Python
-status: draft
+status: in-progress
 horizon: long
 created: 2026-09-06
-updated: 2026-09-06
+updated: 2026-09-07
 phases: 24
 current_phase: 0
 tier_touched: [T1, T2, T2+, T3]
@@ -249,6 +249,14 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
 ```
 
 ## 9. Status
+
+- 2026-09-07 — Phase 1 implementation prepared from main `670f06cfa75ca95a9eac7fdb1d3eb3544272ff1a`
+  in isolated worktree `/tmp/skynet-sky-025-p1`, branch `phase/sky-025-p1`. See the
+  [disposition map](../sky-025-map.md) and
+  [raw phase evidence](../../journal/2026/2026-09-07-session-sky-025-p1-repository-map-and-routing.md).
+  Implementation/review-pending; `current_phase: 0` means no phase accepted. No production changes.
+  After human merge, use the fresh Astra Medium [review prompt](../prompts/review.md) for G1;
+  Phase 2 has no executable packet yet and must not start.
 
 - 2026-09-06 — Original correctness directive merged in #207; no implementation phases completed.
 - 2026-09-06 — Reworked by Ali's instruction into a Python engine/repository overhaul, 24 provisional

@@ -41,8 +41,8 @@ Rules `[manual]`:
 
 ## Runbooks (`runbooks/`)
 
-- **Engine-neutral markdown + bash** `[manual]` — no vendor skill/command format. Any agent that
-  reads a file and runs bash executes them.
+- **Engine-neutral markdown + installed CLI commands** `[manual]` — no vendor skill/command format.
+  Document scope, inputs, outcomes, verification, and recovery independently of implementation language.
 - **Use compact frontmatter:** `summary`, `tier`, `executor`, and `rollback`; add `trigger` where the
   runbook has a natural spoken cue `[testable]`. Its prose `Tier`/`Trigger` lines are the human twins.
 - **Use the fixed task shape:** `Preconditions` → `Steps` → `Verify` → `Rollback` → `Evidence`
@@ -75,10 +75,7 @@ the [default-lean discipline](../design/memory.md).
 - **`summary` is the source; the map shows it.** A loadable *without* a `summary:` falls back to its
   first `# heading` in the map — so nothing is invisible, but an authored line is better.
 - **Load cost is computed at render time, not stored.** `scripts/render-context-map.sh` derives the
-  `~tokens` column itself (content bytes ÷ 4) when it builds the map, so the figure is always fresh and
-  no `tokens:` line has to be maintained in each file. (An earlier `tokens:` frontmatter + a
-  `budget-frontmatter` lint gate did this by hand-stamping every doc; the renderer already has the
-  number.)
+  `~tokens` column itself (content bytes ÷ 4) when it builds the map. Do not maintain a `tokens:` line.
 
 ## README-as-catalog `[manual]`
 

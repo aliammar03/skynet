@@ -20,6 +20,9 @@ related:
 
 # SKY-024 · tofu declares managed core guests — API-driven CT/VM lifecycle, no node SSH
 
+> **2026-09-07 ownership:** This directive keeps guest declarations, fleet migration and supervised adoption. SKY-025 replaces executor/provisioning tooling while preserving merged-source, saved-plan, grant and exclusion boundaries.
+> See the [SKY-025 disposition map](../sky-025-map.md#adjacent-directive-ownership). This note does not complete any phase.
+
 > One-line pitch: make "deploy a new LXC" a **reviewed saved-plan wrapper + `deploy`**, not a hand-rolled Proxmox
 > API curl — by letting OpenTofu declare the guest *envelope* (create-from-template, network, MAC)
 > via the **API alone**, keeping the no-standing-node-SSH invariant intact.

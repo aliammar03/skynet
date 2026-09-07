@@ -27,7 +27,9 @@ follow a link for the full story; distill episodes at read time, never in this f
 - **SKY-006** (projects · in-progress · 2/3) — Agent episodic memory: journal + retrieval
 - **SKY-018** (projects · in-progress · 6/12) — Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain
 - **SKY-020** (projects · in-progress · 1/6) — Firewall-as-code — OPNsense config to T2 via OpenTofu
+- **SKY-023** (projects · in-progress · 10/10) — Eliminate documentation drift and shrink operational context
 - **SKY-024** (projects · in-progress · 4/6) — tofu declares managed core guests — API-driven CT/VM lifecycle, no node SSH
+- **SKY-025** (projects · in-progress · 0/24) — Rebuild the Skynet engine in Python
 - **SKY-002** (ideas · draft) — Ongoing backup strategy for CT 240 (PBS host)
 - **SKY-004** (ideas · draft) — Reactive operations: event-driven layer + drift-as-signal
 - **SKY-012** (ideas · draft) — Runbooks as executable capabilities
@@ -38,18 +40,19 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 **Explicit durable follow-ups:**
 
-- _none explicitly open._
-- _68 historical episode(s) have unclassified follow-ups; status unknown, not promoted as current work._
+- Human merge of the Phase 1 implementation PR, then fresh Astra Medium G1 review. Keep accepted progress at 0 until that reviewer accepts; only its human-merged next packet releases Phase 2. — _2026-09-07 session_
+- Map explicitly blocks affected live phases on Arcane commands/revisions, remote host-local backup installs/units/OS, and independent workstation/kit/state/payload recovery checks. Unknown remote state is not evidence that callers are absent. Nothing is stopped to restore in P1. — _2026-09-07 session_
+- _75 historical episode(s) have unclassified follow-ups; status unknown, not promoted as current work._
 
 ## 📓 Recent episodes
 
-- **2026-09-06** · session · [[2026-09-06-session-sky-023-phase-3-and-4-close-out|SKY-023 phase 3 and 4 close-out]]
-- **2026-09-05** · session · [[2026-09-05-session-sky-023-p3-obsidian-artifact-hygiene|SKY-023 P3 Obsidian artifact hygiene]]
-- **2026-09-05** · session · [[2026-09-05-session-sky-023-p3-nightly-sequence|SKY-023 P3 nightly sequence consolidation]]
-- **2026-09-05** · session · [[2026-09-05-session-sky-023-p3-digest-resolution|SKY-023 P3 digest resolution]]
-- **2026-09-05** · session · [[2026-09-05-session-sky-023-phase-1-audit-remediation|SKY-023 Phase 1 audit remediation]]
-- **2026-09-05** · session · [[2026-09-05-session-sky-023-p3-runbook-contract-publish-split|SKY-023 P3 runbook contract and publish split]]
-- **2026-09-05** · session · [[2026-09-05-session-sky-023-p3-merge-gate-checkpoint|SKY-023 P3 merge-gate checkpoint]]
+- **2026-09-07** · session · [[2026-09-07-session-sky-025-p1-repository-map-and-routing|SKY-025 P1 repository map and routing]]
+- **2026-09-06** · session · [[2026-09-06-session-sky-025-phase-handoffs|Add SKY-025 execute and review handoffs]]
+- **2026-09-06** · session · [[2026-09-06-session-sky-023-phase-10-lxc-base-template-upload|SKY-023 Phase 10 lxc-base template upload]]
+- **2026-09-06** · session · [[2026-09-06-session-sky-023-phase-10-t1-classifier-and-base-build-checkpoint|SKY-023 Phase 10 T1 classifier and base build checkpoint]]
+- **2026-09-06** · session · [[2026-09-06-session-sky-023-phase-9-hygiene-close-out|SKY-023 Phase 9 hygiene close-out]]
+- **2026-09-06** · session · [[2026-09-06-session-sky-023-phase-8-temporal-hygiene-gate-close-out|SKY-023 Phase 8 temporal-hygiene gate close-out]]
+- **2026-09-06** · session · [[2026-09-06-session-sky-023-phase-7-compatibility-audit-close-out|SKY-023 Phase 7 compatibility audit close-out]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._

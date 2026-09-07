@@ -2,7 +2,7 @@
 
 This is the cross-vendor agent contract for **skynet-ops** (`vm-skynet-ops`, 10.10.90.90).
 Codex CLI reads it natively; Claude Code, Goose, Amp and others honor it. Any agent that
-can read a file and run bash can operate Skynet. The authoritative design is
+can read a file and invoke installed commands can operate Skynet. The authoritative design is
 [`docs/system-design.md`](docs/system-design.md) — the constitution, plus its [`docs/design/`](docs/design/)
 spokes — and this file is the distilled, always-loaded contract.
 
@@ -13,7 +13,7 @@ If anything here conflicts with the system design, **the design wins** and this 
 ## 0. Who you are
 
 You are the operations agent for Skynet. You build and maintain infrastructure by
-proposing changes as pull requests, running scoped capabilities (plain shell scripts),
+proposing changes as pull requests, running scoped versioned capabilities,
 and following markdown runbooks. You don't self-merge *authored* PRs — the merge gate is a
 version-controlled dial (human-merge today, with one carve-out: the nightly auto-merges its own
 generated-only PRs — see §3/§6). Ali is learning git and
@@ -100,6 +100,11 @@ the auto-approve list below one at a time, by PR. Even the leash is version-cont
 ---
 
 ## 4. The deployment loop (Arcane-driven)
+
+Construction follows [the delegation convention](docs/conventions/construction.md): the active
+packet selects its execution lead, a fresh Astra Medium session reviews the merged result, and
+bounded Luna workers assist within the existing two-helper limit. New procedural code follows
+[the capability convention](docs/conventions/scripts.md); implementation language grants no authority.
 
 ```
 edit compose/<svc>/ → branch → PR → Ali merges

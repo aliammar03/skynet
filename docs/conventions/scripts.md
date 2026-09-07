@@ -1,15 +1,32 @@
 ---
-summary: "The house style for every executable in scripts/ and bin/: same shape, fails safe, and declares the tier it runs at."
+summary: "Capability contracts, Python procedural code, existing Bash entry points, and verified TLS."
 ---
 
-# Spoke · Scripts (`scripts/`, `bin/`)
+# Spoke · Capabilities and procedural code
 
-> Every executable in the repo looks the same, fails safe, and says what tier it runs at.
+> Every capability declares its scope, fails honestly, and provides verification and recovery.
 > Governed by [`../conventions.md`](../conventions.md).
 
 Tags: **[testable]** = a lint gate could assert it; **[manual]** = holds by review.
 
-## Every script
+## Language and capability contract
+
+- **New procedural logic uses Python** `[manual]`: one `src/skynet/` package and thin CLI,
+  ordinary functions, synchronous execution first. Nix, OpenTofu, Compose/Caddy, SQL, and Markdown
+  keep their declarative or documentation roles. Use existing Git, SSH, sops, restic, rclone, and PBS tools.
+- **Scope, inputs, outcomes, verification, and recovery are explicit** `[manual]`. Missing, malformed,
+  empty, stale, or unavailable evidence cannot establish health. Report success, failure, unavailable,
+  skipped, or recovery-required with meaningful exit codes; JSON output must preserve those distinctions.
+- **External boundaries fail safely** `[manual]`: validate responses, use argument arrays and timeouts,
+  check subprocess results, redact errors, and preserve TLS verification. Reconcile an uncertain write
+  before retrying. Record target, source/plan identity, completed steps, and required recovery.
+- **Keep the package small** `[manual]`: stdlib first; dependencies and shared helpers need concrete
+  callers. Nix owns runtime/dependencies; no production pip/npm installs. Test behavioral decisions
+  with fake external boundaries; lint/type-check Python in CI when the package is introduced.
+- **Shell requires a concrete caller or rescue/bootstrap need** `[manual]`. Record its owner and
+  removal condition in planning. Existing Bash commands remain the installed implementation.
+
+## Existing Bash scripts
 
 - **Shebang `#!/usr/bin/env bash`** `[testable]` — bash, not `sh`.
 - **`set -euo pipefail`** as the first executable line `[testable]`. Fail on error, unset var, or

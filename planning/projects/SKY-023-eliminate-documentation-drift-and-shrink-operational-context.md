@@ -34,6 +34,9 @@ related:
 
 # SKY-023 · Eliminate documentation drift and shrink operational context
 
+> **2026-09-07 ownership:** This directive keeps its open P10 classifier/residue and LXC identity close-out. SKY-025 removes conflicting guidance it touches and owns engine-related pruning, preserving the hygiene gates; it does not accept P10 or PR #203.
+> See the [SKY-025 disposition map](../sky-025-map.md#adjacent-directive-ownership). This note does not complete any phase.
+
 > Keep Skynet's live repository surface current, lean, and boring. History lives in history-bearing
 > surfaces; current files describe only the system that exists now and the instructions needed to
 > operate it safely.

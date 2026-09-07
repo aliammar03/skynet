@@ -22,6 +22,9 @@ related:
 
 # SKY-017 · The road to full agent control: verification, proving ground, and an evidence-earned ratchet
 
+> **2026-09-07 ownership:** This directive keeps proving ground, promotions, budgets and circuit breakers. SKY-025 replaces existing executors without changing autonomy; consume the accepted Python implementation.
+> See the [SKY-025 disposition map](../sky-025-map.md#adjacent-directive-ownership). This note does not complete any phase.
+
 > Build the machinery that *buys* autonomy. The leash is on because the agent is unproven — so
 > construct the thing that proves it: a place to rehearse, a way to verify, a second opinion, and a
 > track record that turns promotion into a measurement instead of a feeling.

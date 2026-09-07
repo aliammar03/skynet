@@ -20,6 +20,9 @@ related:
 
 # SKY-006 · Agent episodic memory: journal + retrieval
 
+> **2026-09-07 ownership:** Existing digest/recall/journal tooling replacement belongs to SKY-025 P9; this directive keeps optional semantic retrieval. Preserve the raw journal and avoid a competing writer.
+> See the [SKY-025 disposition map](../sky-025-map.md#adjacent-directive-ownership). This note does not complete any phase.
+
 > Close Skynet's memory gap. The agent has strong *semantic* and *procedural* memory but weak
 > *episodic* memory — it can't cheaply reconstruct how the lab got here or what was already tried.
 > Git stores everything; the missing piece is **retrieval**.
