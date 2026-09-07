@@ -139,17 +139,19 @@ G1 accepted PR #211 at `3373fc887296cb6b32064d867f814c75266fedc5`; the directive
 exit evidence. P2's isolated package build, source-filter boundary, runtime-only doctor, and Nix-owned
 checks are independently accepted; §5 of the directive releases only P3a, led by Astra Medium.
 P3/G2 acceptance still requires P3b's default-caller integration and freshness handling.
+Independent review covers the full numbered phase after both slices; P3a has no separate review gate.
 It did not install or activate a runtime, replace an existing command, or clear an external live/recovery
 blocker. External live/recovery blockers above remain in force.
 
-## Phase 3a implementation (review pending)
+## Phase 3a implementation (complete; Phase 3 in progress)
 
 `skynet collect proxmox core --output <file> [--credentials-file <file>] [--json]` is built
 in `/tmp/skynet-sky-025-p3a`, from remote-main base
 `f21442c44d34baf71e01ca8938ea1305c82242f6` (packet/review PR #214). It has no default
 output destination and has not read production credentials or contacted a lab endpoint.
 The shell collector, `collect-all.sh`, `bin/ops`, timers and host profiles remain unchanged.
-P3b's caller/freshness integration and P3/G2 acceptance remain unreleased.
+P3b's caller/freshness integration remains to be detailed and implemented within P3's boundaries;
+P3/G2 acceptance follows completion of both slices.
 
 | Consumer | Preserved snapshot contract / synthetic evidence |
 |---|---|
@@ -163,4 +165,4 @@ boundaries substituted. Nix package checks run the suite against both source and
 modules; outside-checkout console tests unset `PYTHONPATH` and use missing synthetic credentials.
 No live response parity, real remote handshake, host activation or recovery drill is claimed.
 The required hook passes with Ali's explicitly authorized 200,000-token current-authority
-budget; the always-loaded budget remains 6,500. Independent acceptance is pending.
+budget; the always-loaded budget remains 6,500. Full-phase acceptance awaits P3b implementation.

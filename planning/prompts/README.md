@@ -1,5 +1,5 @@
 ---
-summary: "Manual SKY-025 session handoffs: execute one packet, then independently review its merged result."
+summary: "SKY-025 handoffs: execute bounded packets, independently review complete numbered phases."
 ---
 
 # Phase handoffs
@@ -18,7 +18,9 @@ conversation. Git records the handoff, so chat transcripts and optional memory a
 1. After this workflow PR merges, start Phase 1 with the execute invocation below. Its detailed
    packet in the merged directive is the initial authorization; no preceding review PR is needed.
 2. Review the implementation PR and merge it yourself when ready.
-3. Start a fresh Astra Medium task with the review invocation and implementation PR URL.
+3. If that PR completes only a slice, continue execution within the same numbered phase; the
+   execution lead details the remaining packet before work. Once the whole phase is implemented
+   and its PRs are merged, start a fresh Astra Medium review with all phase implementation PR URLs.
 4. Merge the resulting review/planning PR. ACCEPT releases its next packet; FIX releases only its
    fix packet; BLOCKED releases no implementation until the recorded blocker is resolved and reviewed.
 5. Execute that packet in a new task. After a fix PR merges, review the original phase again with

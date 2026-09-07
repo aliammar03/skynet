@@ -103,7 +103,10 @@ transcript handoffs; load this directive, current phase, and relevant files only
 ## 4. Rolling plan and review gates
 
 **Each numbered phase is 1–2 hours of implementation**, excluding waiting for merge. Split an oversized
-phase into lettered slices before work; each slice gets its own PR/review. The table is a route map,
+phase into lettered implementation slices before work. Slices may have separate PRs, but independent
+review and acceptance apply to the complete numbered phase, never to individual slices.
+The execution lead details remaining slices within that phase's scope; no intermediate reviewer
+releases them. Existing human merge and live/grant boundaries still apply. The table is a route map,
 not permission to execute unspecified work. Section 5 holds the sole current executable packet.
 
 For every phase: implement → relevant checks → PR → Ali merges → review the actual merged result.
@@ -156,7 +159,8 @@ and reports collection outcomes truthfully, exercised through the actual command
 **Slice decision:** separate P3a's collector/data contract from P3b's default-caller integration.
 Replacing a live caller also needs package availability, freshness handling by existing consumers,
 and the map's unresolved live/recovery evidence. Combining those decisions with the first client is
-larger than one packet. P3b is a roadmap reservation only; its packet is released after P3a review.
+larger than one packet. The execution lead must detail P3b's packet before implementing it;
+P3a does not require an independent review to continue within P3.
 P3/G2 is not complete until the integrated default path is independently accepted.
 
 **Exact surfaces:** `src/skynet/cli.py`; new `src/skynet/proxmox.py`,
@@ -237,7 +241,7 @@ Astra owns CLI/client/integration, inspects fixtures, and reruns all checks.
 **Boundaries and exclusions:** T1 construction only in an isolated checkout, with synthetic
 credentials/responses and temporary outputs. No lab API calls, credential inspection, activation,
 profile installation, service/timer change, root grant, or production data writes. Existing shell
-callers remain the sole live path while this uninstalled slice is reviewed; no compatibility shim
+callers remain the sole live path during this isolated construction slice; no compatibility shim
 or second production engine is introduced. No shell collector deletion until P3b/P4 account for
 core/network callers. Source rollback is git revert; build/test artifacts are disposable.
 The map's live/recovery blockers must be resolved before any later live transition.
@@ -246,8 +250,9 @@ The map's live/recovery blockers must be resolved before any later live transiti
 contract; (2) validation, timeouts, TLS/redaction and atomic failure behavior pass independent tests;
 (3) snapshot field compatibility and Nix/CI/hook coverage are demonstrated; (4) no live caller,
 credential, authority or operational data changed. Missing live evidence is explicitly outside this
-slice, not proof of P3/G2 completion. Stop for fresh Astra Medium merged-result review; do not
-increment accepted numbered progress or execute P3b.
+slice, not proof of P3/G2 completion. Record P3a complete and continue P3 by detailing P3b's
+integration/freshness packet, retaining its live/recovery boundaries. Do not increment accepted
+numbered progress. Request fresh Astra Medium merged-result review only after all P3 slices finish.
 
 ## 6. Carry forward the original review as acceptance cases
 
@@ -315,7 +320,7 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
 
 ## 9. Status
 
-- 2026-09-07 — **P3a implementation complete / review pending.** Isolated branch
+- 2026-09-07 — **P3a implementation complete / P3 in progress.** Isolated branch
   `phase/sky-025-p3a`, base `f21442c44d34baf71e01ca8938ea1305c82242f6`, implements the
   explicit-output core collector, literal credential parser, verified GET-only transport,
   endpoint/field validation and atomic publication. Synthetic CLI tests cover transport/data
@@ -325,7 +330,9 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
   Ali explicitly authorized raising the current-authority context budget to 200,000;
   `scripts/hygiene.sh` carries that default and the full pre-commit gate passes. The 6,500
   always-loaded limit is unchanged. Python/package checks pass. Accepted progress remains
-  2/24; P3b and G2 remain pending independent review. Raw commands, build/test corrections
+  2/24; P3b implementation remains, followed by one full P3/G2 review. Ali clarified that
+  independent review is for full numbered phases, not their implementation slices.
+  Raw commands, build/test corrections
   and limits are in the [P3a journal](../../journal/2026/2026-09-07-session-sky-025-p3a-isolated-core-collector.md)
   and [budget approval episode](../../journal/2026/2026-09-07-session-sky-025-p3a-context-budget-approval.md).
 
