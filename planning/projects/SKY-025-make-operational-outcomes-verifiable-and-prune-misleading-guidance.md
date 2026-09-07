@@ -6,7 +6,7 @@ horizon: long
 created: 2026-09-06
 updated: 2026-09-07
 phases: 24
-current_phase: 1
+current_phase: 2
 tier_touched: [T1, T2, T2+, T3]
 related:
   - docs/system-design.md
@@ -117,7 +117,7 @@ Architecture checkpoints **G1–G6** additionally reconsider the remaining roadm
 |---|---|---|---|
 | 1 | Astra Medium | Repo disposition, minimal Python doctrine, phase-specific lead/Luna routing, overlap decisions | Current main; complete surface map + checked agent config. **G1** |
 | 2 | Terra High | Installable Python CLI, Nix package/dev environment, test/lint/type-check CI | 1; packaged help + one command work in clean environment |
-| 3 | Astra Medium | First vertical slice: Proxmox read collection → validated inventory → readable summary | 2; real default path handles success, timeout, malformed and absent data. **G2** |
+| 3 | Astra Medium | P3a core collector in isolation; P3b default-caller integration and freshness | 2; complete vertical slice/default path handles success, timeout, malformed and absent data. **G2** after both slices |
 | 4 | Terra High | Remaining core/network Proxmox and ACL collection; shared client only where useful | 3; both node shapes + existing invariants preserved |
 | 5 | Terra High | PBS and Docker inventory | 4; backup/container signals and unavailable/stale cases verified |
 | 6 | Terra High | DNS and OPNsense/firewall read collection | 5; scoped reads, TLS, response validation, no write creep |
@@ -144,82 +144,110 @@ Phases 12, 17, and 18 are especially likely to need lettered slices after inspec
 may move earlier when a real consumer needs them. Preserve dependency order, not arbitrary numbering.
 Do not add a new live OPNsense writer or finish unrelated fleet migrations under this overhaul.
 
-## 5. Phase 2 — package the local CLI (~1–2h)
+## 5. Phase 3a — core Proxmox collector in isolation (~1–2h)
 
-**Release gate:** execute only after Ali merges this review/planning PR. P1 is accepted in §9.
-Reviewed starting revision: `3373fc887296cb6b32064d867f814c75266fedc5`; start from current remote main
-containing this packet and inspect intervening changes to its surfaces.
-**Lead:** Terra High (`gpt-5.6-terra`, high), unchanged from the phase table.
-**Goal:** one installable Python application, one local runtime command, and reproducible checks.
+**Release gate:** execute after Ali merges this review/planning PR. P2 is accepted in §9.
+Reviewed starting revision: `17db700c22cb17ad219655674eada344c215029a`; start from current
+remote main containing this packet and inspect intervening changes.
+**Lead:** Astra Medium (`gpt-6-astra`, medium), as recommended for P3's external-data contract.
+**Goal:** a packaged core-node read collector that validates a complete snapshot, writes it atomically,
+and reports collection outcomes truthfully, exercised through the actual command using fake boundaries.
 
-**Exact surfaces:** new `pyproject.toml`, `src/skynet/__init__.py`, `src/skynet/__main__.py`,
-`src/skynet/cli.py`, `src/skynet/doctor.py`, `tests/test_cli.py`, `nix/packages/skynet.nix`;
-existing `flake.nix`, `.github/workflows/checks.yml`, `.github/workflows/nix.yml`,
-`.githooks/pre-commit`, `.gitignore`, `nix/README.md`, and the layout table in
-`docs/conventions/layout.md`. Update this directive/map and append a phase journal for evidence;
-regenerate the roadmap/digest/context map only through their existing tools. `flake.lock` changes
-require a concrete dependency need; no unrelated input refresh.
+**Slice decision:** separate P3a's collector/data contract from P3b's default-caller integration.
+Replacing a live caller also needs package availability, freshness handling by existing consumers,
+and the map's unresolved live/recovery evidence. Combining those decisions with the first client is
+larger than one packet. P3b is a roadmap reservation only; its packet is released after P3a review.
+P3/G2 is not complete until the integrated default path is independently accepted.
+
+**Exact surfaces:** `src/skynet/cli.py`; new `src/skynet/proxmox.py`,
+`tests/test_proxmox.py`, and synthetic `tests/fixtures/proxmox/**`; existing
+`tests/test_cli.py`, `nix/packages/skynet.nix`, `flake.nix`,
+`.github/workflows/checks.yml`, `.githooks/pre-commit`, and `nix/README.md` as required
+to include the new tests/fixtures and checks. Update this directive/map and append a raw journal;
+regenerate roadmap/digest/context only with their tools. No dependency or lock refresh expected.
+
+**Read contracts before implementation:** `scripts/collect-proxmox.sh`,
+`scripts/collect-all.sh`, `bin/ops`, `scripts/check-invariants.sh`,
+`scripts/build-db.sh`, `scripts/sql/host-map.sql`, `scripts/render-docs.sh`,
+`docs/conventions/scripts.md`, and `docs/design/observability.md`. Inspect only relevant
+inventory schema/field shapes; never fetch or copy live credential material into fixtures.
 
 **Interfaces and work:**
 
-1. Define a setuptools package with a `skynet` console entry point and `python -m skynet` using
-   the same `main(argv) -> int`. Use stdlib `argparse`; no runtime third-party dependencies are
-   needed for this packet. Keep version metadata in one authored location.
-2. Expose `--help`, `--version`, and `doctor [--json]`. Doctor reports only the executing Python
-   runtime and installed application version; explicitly label its scope `runtime`. It must not
-   imply lab/service health, inspect credentials, query hosts, or create repo/runtime files.
-   JSON is one object on stdout with `outcome: "success"`, `scope: "runtime"`, `version`, and
-   `python_version`; human output reports the same facts. Help/version/valid doctor exit 0;
-   missing or invalid commands/options exit 2 with a useful stderr diagnostic. No placeholder
-   command families or generic result/error hierarchy. P3 defines external-data outcomes when used.
-3. Export `packages.x86_64-linux.skynet`, `apps.x86_64-linux.skynet`,
-   `devShells.x86_64-linux.default`, and `checks.x86_64-linux.skynet` alongside existing outputs.
-   Use the locked stable nixpkgs Python/package set for runtime, setuptools, pytest, Ruff and mypy.
-   The dev shell supports source tests without pip installs; the built CLI works outside the repo
-   without source PYTHONPATH or a development environment. Filter package sources to the required
-   package/test metadata; do not copy inventory, state, secrets or the whole repository into it.
-4. Add behavior tests for both entry points, help/version, runtime JSON/human agreement, and invalid
-   arguments. Run packaged smoke checks in Nix's build/check environment outside the source cwd.
-   Configure Ruff and mypy for the Python surface only. Reuse these checks in CI, preserving existing
-   shell and Nix gates; ensure Python/package changes trigger the new package job without requiring
-   unrelated host builds on every Python-only edit. Preserve deploy-rs checks when extending outputs.
-   Add the same Python checks to the existing local hook when Python files/package configuration
-   are staged; a missing required tool must report an actionable failure, not silently skip.
-5. Document the implemented build/dev/check commands and runtime-only doctor scope in `nix/README.md`;
-   update the layout table. Record package validation and any unavailable evidence in the phase PR.
+1. Add `skynet collect proxmox core --output <file> [--json]`. Output is required in this
+   construction slice so execution cannot silently choose the operational checkout. Help explains
+   that the command collects observations, not service-health verification. Keep doctor unchanged.
+   Network-node collection, ACLs and all-collector orchestration remain outside this slice.
+2. Implement synchronous GET-only HTTPS reads for the existing core snapshot: nodes,
+   cluster/resources, pool list and each pool's members, cluster/backup, and per-node recent vzdump
+   tasks. Use stdlib HTTPS with verified CA/hostname and explicit bounded timeouts; reject redirects
+   rather than forward the Authorization header to another destination. Encode path/query components.
+   Keep the client and collector ordinary functions in one module until another caller needs a split.
+3. Use the existing `PVE_HOST`, `PVE_TOKEN`, `PVE_CACERT` credential contract with a narrow
+   non-executing assignment parser for the existing env-file format. Default source is
+   `/opt/skynet-ops/secrets/proxmox-core.env`; permit an explicit `--credentials-file` for
+   synthetic test files. Do not source/eval shell, invoke sudo, accept arbitrary shell expressions,
+   print token values, dump response bodies in diagnostics, or disable TLS. Missing/unreadable
+   credentials or CA fail nonzero with a redacted reason. No production secrets are read in P3a.
+4. Preserve `node`, `collected`, `nodes`, `resources`, `pools`, `backup_jobs`,
+   `backup_last` and their consumer-required field types. Validate the API envelope and entries,
+   not just JSON syntax. Missing/null required data and empty nodes/resources cannot satisfy a
+   successful core snapshot. Empty pool/job lists can be legitimate observations; never turn a
+   failed read into an empty list. Preserve stable pool member identities and nullable backup fields.
+   In this slice, any required endpoint failure prevents publication of a new snapshot.
+5. Assemble and validate before writing a temporary sibling and atomically replacing the requested
+   output. On timeout, malformed data, absent evidence or local write failure, preserve the prior file
+   byte-for-byte and its collection time; remove temporary residue. Report that the requested refresh
+   failed and any retained snapshot is previous evidence. P3b must address consumers that ignore
+   freshness before routing the live default path here.
+6. Human output gives target, outcome, destination and concise node/guest/pool counts on success;
+   JSON is one stdout object with `outcome`, `target`, `output`, and success timestamp/counts
+   or a redacted failure reason. Success exits 0, usage errors 2, unavailable remote/config evidence
+   3, malformed data/local publication failure 1. Human and JSON must agree; no generic outcome
+   class hierarchy, retries, locks, status database, or extra metadata files.
+7. Extend Nix source filtering to precisely include the new module/tests/synthetic fixtures; carry
+   all behavioral tests through source and packaged checks. Extend lint/hook/CI selection to the
+   new Python tests. Document the implemented command, explicit output, and failure semantics;
+   do not claim the nightly or installed host now uses Python.
 
-**Exclusions and live boundaries:** T1 construction in an isolated checkout only. No Nix activation,
-installation into an active profile, timer/service changes, production calls, credentials, or grants.
-No collector port, `bin/ops` replacement, inventory schema change, automatic router, new workflow,
-or migration of old test suites. Existing CLI updater/timer/config removal is owned together by
-P20–22, not P2. Build outputs are disposable; source rollback is a git revert. Existing live recovery
-blockers in the map remain prerequisites for the first live packet.
-
-**Optional Luna packet:** after Terra fixes the CLI contract above, Luna High may own only
-`tests/test_cli.py`: goal = CLI behavior tests; inputs = that contract; checks = pytest for that
-file; exclusions = package/CLI/Nix edits, network, secrets, production, helpers, commits/push.
-Terra owns all integration and runs the packaged smoke checks independently.
+**Optional scoped Luna assignment:** after Astra fixes interfaces, Luna High may own only
+`tests/test_proxmox.py` and `tests/fixtures/proxmox/**`: exercise real parsing/collection/publication
+through fake HTTP boundaries and temporary files. Test success, timeout, TLS refusal, HTTP failure,
+malformed envelopes/entries, missing credentials, empty required data, and publication failure.
+No production access, secrets, module/Nix edits, helper spawning, commits or pushes.
+Astra owns CLI/client/integration, inspects fixtures, and reruns all checks.
 
 **Checks and expected results:**
 
-- `nix build --no-write-lock-file --no-link --print-out-paths .#skynet` → built package path.
-  From a temporary directory, run that path's `bin/skynet --help`, `--version`, `doctor`, and
-  `doctor --json` with PYTHONPATH unset → valid output/exit 0; an unknown command → exit 2.
-- `nix develop --no-write-lock-file -c pytest -q` → behavioral tests pass.
-- `nix develop --no-write-lock-file -c ruff check src tests/test_cli.py` and
-  `nix develop --no-write-lock-file -c mypy src/skynet` → no errors.
-- `nix build --no-write-lock-file --no-link .#checks.x86_64-linux.skynet` → package smoke,
-  tests, lint and type checks pass; `nix flake check --no-write-lock-file --no-build` → existing
-  and new output evaluation succeeds. Report private-input/access failures explicitly.
-- `.githooks/pre-commit` with the package changes staged, plus `git diff --cached --check` →
-  existing gates and required Python checks pass. Inspect CI triggers and source filtering.
+- `nix develop --no-write-lock-file -c pytest -q` → doctor regressions and collector tests pass.
+  Tests drive the actual CLI entry function/default collector path, replacing only the external
+  transport boundary; no fixture-only CLI mode or mocked collector. Include an outside-checkout
+  packaged invocation with missing synthetic credentials → redacted JSON/nonzero/no output file.
+- Prove endpoint failure after earlier successful reads leaves a pre-existing output unchanged;
+  prove an output-replacement failure also preserves it. Assert no success timestamp on failed
+  refresh, no token in either output stream, and no redirect/TLS-verification downgrade.
+- `nix develop --no-write-lock-file -c ruff check src tests/test_*.py` and
+  `nix develop --no-write-lock-file -c mypy src/skynet` → clean.
+- `nix build --no-write-lock-file --no-link .#checks.x86_64-linux.skynet` and
+  `nix flake check --no-write-lock-file --no-build` → package and existing output checks pass.
+  `.githooks/pre-commit` with Python changes staged and `git diff --cached --check` → pass.
+- Compare a successful synthetic snapshot with the existing consumers' projections and document
+  preserved fields; inspect the diff to confirm no default caller, live inventory or host changed.
 
-**Exit criteria:** (1) packaged help and doctor run outside the checkout without dev dependencies;
-(2) CLI/JSON/exit behavior passes behavioral tests; (3) Nix owns runtime and development tools,
-CI and the local hook enforce required checks, existing gates still pass; (4) docs describe only
-implemented commands and runtime scope; (5) no live configuration, authority or production data
-changed. Missing package/build evidence is an unfinished exit, not a waiver. Stop for fresh Astra
-Medium merged-result review; do not implement P3 or increment accepted progress.
+**Boundaries and exclusions:** T1 construction only in an isolated checkout, with synthetic
+credentials/responses and temporary outputs. No lab API calls, credential inspection, activation,
+profile installation, service/timer change, root grant, or production data writes. Existing shell
+callers remain the sole live path while this uninstalled slice is reviewed; no compatibility shim
+or second production engine is introduced. No shell collector deletion until P3b/P4 account for
+core/network callers. Source rollback is git revert; build/test artifacts are disposable.
+The map's live/recovery blockers must be resolved before any later live transition.
+
+**Exit criteria:** (1) packaged core CLI and readable/JSON collection summaries implement the stated
+contract; (2) validation, timeouts, TLS/redaction and atomic failure behavior pass independent tests;
+(3) snapshot field compatibility and Nix/CI/hook coverage are demonstrated; (4) no live caller,
+credential, authority or operational data changed. Missing live evidence is explicitly outside this
+slice, not proof of P3/G2 completion. Stop for fresh Astra Medium merged-result review; do not
+increment accepted numbered progress or execute P3b.
 
 ## 6. Carry forward the original review as acceptance cases
 
@@ -286,6 +314,29 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
 ```
 
 ## 9. Status
+
+- 2026-09-07 — **P2 ACCEPT.** Reviewed [implementation PR #213](https://github.com/aliammar03/skynet/pull/213),
+  merged into main at `17db700c22cb17ad219655674eada344c215029a`; final main reviewed is that SHA.
+  Packet baseline `3373fc887296cb6b32064d867f814c75266fedc5`; intervening #212
+  (`cdac8f98a3ea6f4326034b428be67df283e7ac3f`) supplies the P2 packet and review-evidence
+  doctrine, with no package implementation. No supplied fix PRs or post-implementation commits.
+  Fresh session metadata confirms `gpt-6-astra`, medium; installed catalog and review dry-run agree.
+
+  | P2 exit | Verdict and independent evidence |
+  |---|---|
+  | Packaged help/doctor outside checkout | ACCEPT — Nix package/check outputs build; help/version/human and JSON doctor run in a temporary cwd with PYTHONPATH unset, version 0.1.0/Python 3.13.15; invalid command exits 2. |
+  | CLI/JSON/exit behavior | ACCEPT — 10 behavioral tests pass across module/console runners; human and JSON agree, missing/invalid arguments fail. |
+  | Nix ownership and enforced checks | ACCEPT — pytest, Ruff, mypy, packaged checks and flake evaluation pass; source filter contains only pyproject, four modules and CLI tests. Hook checks and CI triggers inspected; deploy-rs outputs retained. |
+  | Accurate documentation | ACCEPT — nix/README documents implemented build/dev/check commands and runtime-only scope; layout points to package ownership. |
+  | No live/authority/data changes | ACCEPT — complete phase diff contains construction, planning and generated context only; no host activation, credential, timer, service or collector changes. |
+
+  Findings: none requiring P2 repair. Nix host-closure CI was pending when inspected; full host
+  build/activation is not claimed. Flake evaluation passed with system-rename, app-meta and custom
+  deploy-output warnings. No live calls or recovery drill were required/performed.
+  [Raw independent evidence](../../journal/2026/2026-09-07-session-sky-025-p2-independent-review.md).
+  Accepted numbered progress is 2/24. Release only §5 P3a with Astra Medium. P3b and G2 remain
+  pending; the split bounds foundational code separately from default-caller/live prerequisites.
+  No other roadmap reordering or autonomy change; P2 is not an architecture checkpoint.
 
 - 2026-09-07 — **P2 implementation complete / review pending.** From isolated branch
   `phase/sky-025-p2` at base `cdac8f98a3ea6f4326034b428be67df283e7ac3f`, added the source-filtered

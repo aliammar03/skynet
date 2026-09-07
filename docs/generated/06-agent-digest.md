@@ -29,7 +29,7 @@ follow a link for the full story; distill episodes at read time, never in this f
 - **SKY-020** (projects · in-progress · 1/6) — Firewall-as-code — OPNsense config to T2 via OpenTofu
 - **SKY-023** (projects · in-progress · 10/10) — Eliminate documentation drift and shrink operational context
 - **SKY-024** (projects · in-progress · 4/6) — tofu declares managed core guests — API-driven CT/VM lifecycle, no node SSH
-- **SKY-025** (projects · in-progress · 1/24) — Rebuild the Skynet engine in Python
+- **SKY-025** (projects · in-progress · 2/24) — Rebuild the Skynet engine in Python
 - **SKY-002** (ideas · draft) — Ongoing backup strategy for CT 240 (PBS host)
 - **SKY-004** (ideas · draft) — Reactive operations: event-driven layer + drift-as-signal
 - **SKY-012** (ideas · draft) — Runbooks as executable capabilities
@@ -40,6 +40,7 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 **Explicit durable follow-ups:**
 
+- After Ali merges this review/planning PR, execute SKY-025 P3a in a fresh Astra Medium session using planning/prompts/execute.md. P3b and the map's live/recovery evidence remain unreleased. P2's merge/review prerequisite from the earlier journal is now satisfied; that episode stays append-only. — _2026-09-07 session_
 - Ali merges the authored P2 implementation PR, then a fresh Astra Medium session reviews that merged result with `planning/prompts/review.md`; P3 is not authorized before that acceptance. — _2026-09-07 session_
 - After Ali merges the review/planning PR, execute SKY-025 P2 in a fresh Terra High task with `planning/prompts/execute.md`. P1's earlier journal merge/review prerequisite is satisfied by this review; historical entry remains append-only. The map's live/recovery blockers remain open. — _2026-09-07 session_
 - Human merge of the Phase 1 implementation PR, then fresh Astra Medium G1 review. Keep accepted progress at 0 until that reviewer accepts; only its human-merged next packet releases Phase 2. — _2026-09-07 session_
@@ -48,13 +49,13 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 ## 📓 Recent episodes
 
+- **2026-09-07** · session · [[2026-09-07-session-sky-025-p2-independent-review|SKY-025 P2 independent review]]
 - **2026-09-07** · session · [[2026-09-07-session-sky-025-p2-package-local-cli|SKY-025 P2 package local CLI]]
 - **2026-09-07** · session · [[2026-09-07-session-sky-025-p1-independent-review|SKY-025 P1 independent review]]
 - **2026-09-07** · session · [[2026-09-07-session-sky-025-p1-repository-map-and-routing|SKY-025 P1 repository map and routing]]
 - **2026-09-06** · session · [[2026-09-06-session-sky-025-phase-handoffs|Add SKY-025 execute and review handoffs]]
 - **2026-09-06** · session · [[2026-09-06-session-sky-023-phase-10-lxc-base-template-upload|SKY-023 Phase 10 lxc-base template upload]]
 - **2026-09-06** · session · [[2026-09-06-session-sky-023-phase-10-t1-classifier-and-base-build-checkpoint|SKY-023 Phase 10 T1 classifier and base build checkpoint]]
-- **2026-09-06** · session · [[2026-09-06-session-sky-023-phase-9-hygiene-close-out|SKY-023 Phase 9 hygiene close-out]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._
