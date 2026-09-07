@@ -287,6 +287,17 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
 
 ## 9. Status
 
+- 2026-09-07 — **P2 implementation complete / review pending.** From isolated branch
+  `phase/sky-025-p2` at base `cdac8f98a3ea6f4326034b428be67df283e7ac3f`, added the source-filtered
+  Nix `skynet` package, its `python -m skynet` and console entry points, runtime-only `doctor`,
+  behavioral tests, Nix development/check outputs, CI, and staged-hook enforcement. The package
+  passes outside-checkout help/version/doctor smoke with `PYTHONPATH` unset; behavioral tests,
+  Ruff, mypy, packaged checks, and `nix flake check --no-build` pass. Nix was not activated and no
+  host, credential, timer, service, collector, or production data was touched. `current_phase: 1`
+  remains correct until a fresh Astra Medium reviewer accepts the merged implementation. Raw command
+  evidence and the corrected package-check test split are in the
+  [P2 journal](../../journal/2026/2026-09-07-session-sky-025-p2-package-local-cli.md).
+
 - 2026-09-07 — **P1 ACCEPT / G1.** Reviewed [implementation PR #211](https://github.com/aliammar03/skynet/pull/211),
   merged into main at `3373fc887296cb6b32064d867f814c75266fedc5`; final main reviewed is the same SHA.
   Complete phase diff starts at `670f06cfa75ca95a9eac7fdb1d3eb3544272ff1a`; no intervening commits

@@ -25,7 +25,32 @@ nix/home/
   aliammar.nix               the operator's home: git identity, agent CLIs (+ mcp-nixos), ops.env
   shell.nix                  zsh + starship + tooling + the login landing board
   docker.nix                 the docker-dmz remote context for collect-docker.sh
+nix/packages/
+  skynet.nix                 the source-filtered Skynet Python application package
 ```
+
+## Skynet Python runtime
+
+The local `skynet` command is a Nix-owned Python package. It currently exposes only a runtime
+diagnostic; it does not inspect services, credentials, repository state, or lab health.
+
+```bash
+# source development tools, with no pip installation
+nix develop --no-write-lock-file
+pytest -q
+ruff check src tests/test_cli.py
+mypy src/skynet
+
+# build the installable command and run it from anywhere
+nix build --no-write-lock-file --no-link .#skynet
+nix run --no-write-lock-file .#skynet -- doctor --json
+
+# run all packaged behavioral, lint, type, and outside-checkout smoke checks
+nix build --no-write-lock-file --no-link .#checks.x86_64-linux.skynet
+```
+
+`skynet doctor [--json]` reports the executing package version and Python runtime with
+`scope: runtime`. It is not a lab or service health check.
 
 ## The decisions baked in
 

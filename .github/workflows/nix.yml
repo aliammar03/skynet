@@ -1,14 +1,14 @@
 name: nix
 
-# Every PR that touches the flake builds the ops-VM system closure. Unlike checks.yml (read-only, no network), this job
-# fetches nixpkgs and builds a closure — so it lives in its own workflow, keeping the
-# deterministic gates' no-network promise intact.
+# Every PR that touches the flake builds the ops-VM system closure. Python source-only checks stay
+# in checks.yml, so a package edit does not force an unrelated host build. Unlike checks.yml's
+# shell gates, this workflow fetches nixpkgs and builds a closure.
 on:
   pull_request:
-    paths: [flake.nix, flake.lock, "hosts/**", "nix/**", .github/workflows/nix.yml]
+    paths: [flake.nix, flake.lock, "hosts/**", "nix/modules/**", "nix/home/**", .github/workflows/nix.yml]
   push:
     branches: [main]
-    paths: [flake.nix, flake.lock, "hosts/**", "nix/**"]
+    paths: [flake.nix, flake.lock, "hosts/**", "nix/modules/**", "nix/home/**"]
 
 jobs:
   build:

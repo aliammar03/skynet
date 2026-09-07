@@ -6,8 +6,9 @@ summary: "SKY-025 subsystem dispositions, external callers, output contracts, an
 
 Owned by [the directive](projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md).
 Baseline: `670f06cfa75ca95a9eac7fdb1d3eb3544272ff1a` (remote main, 2026-09-07).
-Phase 1 is accepted at G1; see the directive's status and sole current P2 packet. This map describes planned replacements;
-it does not claim that Python is installed. The baseline's 398 tracked paths were enumerated with
+Phase 1 is accepted at G1; Phase 2 is implementation-complete and review-pending. Its local package
+is built only in the isolated checkout and is not installed or activated on any lab host. This map
+describes planned replacements; it does not claim that Python is installed. The baseline's 398 tracked paths were enumerated with
 `git ls-files`; the grouped families below cover them. `scripts/` names are relative to that directory.
 **Verified** means source/caller inspection, not a successful production operation. **Blocked** names
 a later phase's missing live evidence. No blanket shell compatibility or duplicate production engine.
@@ -135,5 +136,7 @@ was consulted for explicit model/effort and agent configuration. Existing helper
 settings remain unchanged. Final check commands/results and raw inspection corrections are in the
 [phase journal](../journal/2026/2026-09-07-session-sky-025-p1-repository-map-and-routing.md).
 G1 accepted PR #211 at `3373fc887296cb6b32064d867f814c75266fedc5`; the directive records independent
-exit evidence and the P2 package/dev/CI packet. P2 remains unimplemented and requires human merge of
-the review/planning PR before execution. External live/recovery blockers above remain in force.
+exit evidence and the P2 package/dev/CI packet. P2's isolated package build, source-filter boundary,
+runtime-only doctor, and Nix-owned checks are implementation-complete and await independent review.
+It did not install or activate a runtime, replace an existing command, or clear an external live/recovery
+blocker. External live/recovery blockers above remain in force.

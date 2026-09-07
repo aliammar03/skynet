@@ -27,6 +27,15 @@ result-*
 # The SQLite join cache is rebuilt from inventory/ at render time; git remains the source of truth.
 .cache/
 
+# Python build and checking artifacts are disposable; Nix owns development dependencies.
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+
 # Obsidian local session state and installed plugin payloads. Shared vault settings in .obsidian/
 # stay tracked; plugins are installed locally from Community Plugins (docs/obsidian-setup.md).
 .obsidian/workspace*.json

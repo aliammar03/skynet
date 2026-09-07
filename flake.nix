@@ -45,6 +45,8 @@
     { self, nixpkgs, disko, sops-nix, deploy-rs, ... }@inputs:
     let
       system = "x86_64-linux";
+      pkgs = import nixpkgs { inherit system; };
+      skynet = pkgs.callPackage ./nix/packages/skynet.nix { };
     in
     {
       nixosConfigurations.vm-skynet-ops = nixpkgs.lib.nixosSystem {
@@ -68,8 +70,25 @@
 
       # `nix build .#lxc-base-tarball` produces the Proxmox CT template tarball.
       # (local:vztmpl/). The proxmox-lxc module exposes it as system.build.tarball.
-      packages.${system}.lxc-base-tarball =
-        self.nixosConfigurations.lxc-base.config.system.build.tarball;
+      packages.${system} = {
+        lxc-base-tarball = self.nixosConfigurations.lxc-base.config.system.build.tarball;
+        inherit skynet;
+      };
+
+      apps.${system}.skynet = {
+        type = "app";
+        program = "${skynet}/bin/skynet";
+      };
+
+      devShells.${system}.default = pkgs.mkShell {
+        packages = [
+          skynet
+          pkgs.python3
+          pkgs.python3Packages.pytest
+          pkgs.ruff
+          pkgs.mypy
+        ];
+      };
 
       # adguard-core (CT 731) is a NixOS LXC. Its AdGuard config is rendered from a sops template;
       # deploy-rs supplies day-two rollback and the host has a per-CT age key.
@@ -128,6 +147,24 @@
       };
 
       # `nix flake check` runs deploy-rs's own schema checks over the node definitions.
-      checks.${system} = deploy-rs.lib.${system}.deployChecks self.deploy;
+      checks.${system} = (deploy-rs.lib.${system}.deployChecks self.deploy) // {
+        skynet = pkgs.runCommand "skynet-checks" {
+          nativeBuildInputs = [ skynet pkgs.python3Packages.pytest ];
+        } ''
+          outside="$(mktemp -d)"
+          cd "$outside"
+          unset PYTHONPATH
+          skynet --help >/dev/null
+          skynet --version >/dev/null
+          skynet doctor >/dev/null
+          skynet doctor --json >/dev/null
+          if skynet collect >/dev/null 2>&1; then
+            echo "unknown command unexpectedly succeeded" >&2
+            exit 1
+          fi
+          SKYNET_ENTRYPOINT=console pytest -q ${skynet.source}/tests/test_cli.py
+          touch "$out"
+        '';
+      };
     };
 }
