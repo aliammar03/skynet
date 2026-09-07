@@ -6,7 +6,7 @@ summary: "SKY-025 subsystem dispositions, external callers, output contracts, an
 
 Owned by [the directive](projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md).
 Baseline: `670f06cfa75ca95a9eac7fdb1d3eb3544272ff1a` (remote main, 2026-09-07).
-Phase 1 is implementation/review-pending, not G1 acceptance. This map describes planned replacements;
+Phase 1 is accepted at G1; see the directive's status and sole current P2 packet. This map describes planned replacements;
 it does not claim that Python is installed. The baseline's 398 tracked paths were enumerated with
 `git ls-files`; the grouped families below cover them. `scripts/` names are relative to that directory.
 **Verified** means source/caller inspection, not a successful production operation. **Blocked** names
@@ -38,7 +38,7 @@ Enumeration counts: root files 10; `.claude` 1, `.codex` 4, `.githooks` 1, `.git
 | `pin-cert.sh`, `ct-age-identity.sh`, `onboard-host.sh`, `skynet-ops-ssh-certs.sh` | migrate | Python access/onboarding validation; Nix trust config retained | manual onboarding, provisioning and certificate workflows | 18–19 | Verified source; human custody and grant boundary retained |
 | `bootstrap-workstation.sh`, `bootstrap-proxmox.sh`; `bin/grant-root` | retain, review shell necessity | Human bootstrap/rescue outside ops runtime | workstation installs `~/bin/grant-root`; node bootstrap by human | 18, 22, 24 | External bootstrap caller verified in source; workstation install/access blocked. Retain only standalone recovery need; remove shell if independently packaged replacement passes rescue test |
 | `nightly.sh`, `nightly-automerge.sh` | migrate | One Python nightly/report/PR sequence, same exact-PR merge gate | bin/ops nightly, ops timer | 20 | Source verified; no expansion of generated-only authority |
-| `update-clis.sh` | delete | Nix package ownership, explicit configuration | weekly skynet-cli-update timer | 2, 20–22 | Installed timer verified locally; removal must update Nix unit and local config ownership together |
+| `update-clis.sh` | delete | Nix package ownership, explicit configuration | weekly skynet-cli-update timer | 20–22 | Installed timer verified locally; removal must update Nix unit and local config ownership together; P2 only packages the new runtime |
 | `scripts/systemd/ops.env.example` | retain/adapt | Explicit engine/operator settings only | Nix nightly unit, operator bootstrap | 20–22 | Source verified; don't preserve npm/model-self-query output |
 | `check-invariants.sh`, `secret-scan.sh`, `repo-surface.sh`, `hygiene.sh` | migrate | Python deterministic gates with equivalent behavioral enforcement | hook, CI, nightly, bin/ops hygiene | 21 | Verified callers; no safety gate disabled during replacement |
 | `bin/new`, `bin/plan`; `templates/**`, `planning/TEMPLATE.md` | migrate executables; retain/adapt templates | Python scaffolding/planning helpers | operators, directive/journal lifecycle | 9, 21 | Verified Bash script template is for shell needs, not mandatory new Python logic |
@@ -134,4 +134,6 @@ The [official configuration reference](https://learn.chatgpt.com/docs/config-fil
 was consulted for explicit model/effort and agent configuration. Existing helper cap and sandbox
 settings remain unchanged. Final check commands/results and raw inspection corrections are in the
 [phase journal](../journal/2026/2026-09-07-session-sky-025-p1-repository-map-and-routing.md).
-After human merge, stop for independent G1 review; P2 remains unimplemented and unplanned in detail.
+G1 accepted PR #211 at `3373fc887296cb6b32064d867f814c75266fedc5`; the directive records independent
+exit evidence and the P2 package/dev/CI packet. P2 remains unimplemented and requires human merge of
+the review/planning PR before execution. External live/recovery blockers above remain in force.
