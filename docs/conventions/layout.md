@@ -25,6 +25,7 @@ Tags: **[testable]** = a lint gate could assert it; **[manual]** = holds by revi
 | `compose/<svc>/` | One dir per service (the GitOps loop) | ops |
 | `scripts/*.sh` | Procedures runbooks/entry-points call | ops |
 | `bin/*` | Operator-facing entry points (`plan`, `new`, `ops`, `grant-root`, `agent`) | ops |
+| `src/skynet/`, `pyproject.toml`, `nix/packages/skynet.nix` | Installable Python operations application, package metadata, and source-filtered Nix build | ops |
 | `.codex/config.toml`, `.codex/agents/*.toml` | Native Codex construction-helper definitions — build-time only, no production authority | doctrine |
 | `runbooks/*.md`, `runbooks/dr/*.md` | Engine-neutral procedures, catalogued in `runbooks/README.md` | ops |
 | `templates/` | The golden templates `bin/new` stamps from — one folder, all kinds | doctrine |

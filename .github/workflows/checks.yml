@@ -67,3 +67,21 @@ jobs:
         run: bash tests/repo-surface-test.sh
       - name: hygiene-test
         run: bash tests/hygiene-test.sh
+
+  python:
+    name: Python package (Nix)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+      - name: behavioral tests
+        run: nix develop --no-write-lock-file -c pytest -q
+      - name: lint
+        run: nix develop --no-write-lock-file -c ruff check src tests/test_cli.py
+      - name: type check
+        run: nix develop --no-write-lock-file -c mypy src/skynet
+      - name: packaged checks
+        run: nix build --no-write-lock-file --no-link .#checks.x86_64-linux.skynet
