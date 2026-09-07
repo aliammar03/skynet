@@ -24,6 +24,9 @@ related:
 
 # SKY-018 · Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain
 
+> **2026-09-07 ownership:** This directive keeps eight-layer semantics and unbuilt reconciliation features. SKY-025 owns replacement of existing substrate/checker/executor code and its correctness findings; dependent features must use the accepted Python interfaces.
+> See the [SKY-025 disposition map](../sky-025-map.md#adjacent-directive-ownership). This note does not complete any phase.
+
 > Make the substrate fit to be autonomous. Every layer gets a **writer and a checker**, every fact
 > gets **one home**, and the tools the options research settled — conftest/Rego, `tofu test`, a
 > health-gated deploy wrapper, SQLite-as-cache, the journal as a replay log — land where they belong.

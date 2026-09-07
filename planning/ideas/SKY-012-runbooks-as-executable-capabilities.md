@@ -24,6 +24,9 @@ related:
 
 # SKY-012 · Runbooks as executable capabilities
 
+> **2026-09-07 ownership:** SKY-025 replaces existing executors and carries their capability contracts into Python. This directive keeps additional executable-runbook features; no generic workflow framework is authorized by the overhaul.
+> See the [SKY-025 disposition map](../sky-025-map.md#adjacent-directive-ownership). This note does not complete any phase.
+
 > Promote the **deterministic** half of each runbook from *prose the agent reads and interprets* to
 > *a capability the agent runs*. Cuts procedural read-cost (the way SKY-010 cut retrieval-cost) and
 > removes interpretation latitude from steps that never needed judgement — leaving the runbook as a

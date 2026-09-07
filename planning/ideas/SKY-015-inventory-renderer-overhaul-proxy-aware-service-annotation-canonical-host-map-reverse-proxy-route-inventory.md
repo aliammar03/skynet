@@ -19,6 +19,9 @@ related:
 
 # SKY-015 · Inventory renderer overhaul: proxy-aware service annotation, canonical host map, reverse-proxy route inventory
 
+> **2026-09-07 ownership:** The existing SKY-018 supersession/close-out decision still applies. SKY-025 P8–9 replaces implemented entity/rendering code; do not start a duplicate renderer implementation here.
+> See the [SKY-025 disposition map](../sky-025-map.md#adjacent-directive-ownership). This note does not complete any phase.
+
 > Make `docs/generated/` tell the truth about the **proxy layer**, so no reader — agent or human —
 > ever mistakes a reverse-proxy front-door record for a host's real address.
 

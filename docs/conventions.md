@@ -40,12 +40,12 @@ These hold everywhere and don't get a "unless"; the spokes elaborate, never loos
 |---|---|
 | [naming](conventions/naming.md) | VMID/IP scheme, static addressing, hostnames, **entity IDs + VLAN slugs**, slugs, branch names |
 | [layout](conventions/layout.md) | Repo map; required files per artifact type; generated dirs |
-| [scripts](conventions/scripts.md) | Bash header/flags, `REPO_DIR` idiom, TLS pinning, `bin/` vs `scripts/` |
+| [scripts](conventions/scripts.md) | Language-neutral contracts, Python procedural code, existing Bash style, TLS pinning |
 | [compose](conventions/compose.md) | The skynet way: pinned digests, env layering, healthchecks, volumes, tags |
 | [git](conventions/git.md) | Branch grammar, PR discipline, commit subjects, what never commits |
 | [docs](conventions/docs.md) | Hub-and-spoke pattern, ADR & runbook format, README-as-catalog |
 | [metadata](conventions/metadata.md) | Directive/service frontmatter schemas, compose label/tag namespaces |
-| [construction](conventions/construction.md) | Lead/Builder/Mechanic/Scout roles, BIV delegation test, tier routing, native Codex subagents, build-time trust boundary |
+| [construction](conventions/construction.md) | Phase execution leads, independent Astra review, bounded Luna workers, build-time trust boundary |
 
 **Adding a convention:** put the rule in the right spoke (or add a spoke), tag it
 [testable]/[manual], and — if it's load-bearing — surface a one-liner in the invariants above. A

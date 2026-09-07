@@ -17,16 +17,17 @@ rollback: "git revert accepted repository changes"
 ## Steps
 
 1. **Assess for BIV work.** For substantial construction, proactively delegate only a chunk that is **Bounded** (one-sentence outcome), **Independent** (no continual decisions), and **Verifiable** (cheap inspection/test). Keep ambiguous architecture or tightly coupled work with the lead; do not create parallelism for its own sake.
-2. **Choose the smallest suitable role.** Keep the cross-cutting core with the lead; use a Builder for novel bounded code with tests, a Mechanic for fully specified repetitive edits, and a Scout for read-only investigation. Keep at most two helpers active and one delegation level.
+2. **Use the authorized packet's execution lead.** Use Luna High for bounded Builder/Mechanic work and Luna Medium for read-only Scout work. Keep at most two helpers active and one delegation level. Unresolved architecture/recovery/policy decisions go to Astra Medium.
 3. **Write the hand-off.** State the exact files/dirs, deliverable, write allowance (including “do not commit/push”), and verification commands. Tell every writer that other agents share the repo and they must preserve concurrent edits.
 4. **Launch deliberately.** In a Codex lead session, use native bounded helpers. Other engines can use the equivalent:
    ```bash
-   bin/agent <scout|builder|mechanic|lead> "<scoped prompt>" --dry-run
-   bin/agent <scout|builder|mechanic|lead> "<scoped prompt>"
+   bin/agent scout "<scoped prompt>" --dry-run
+   bin/agent scout "<scoped prompt>"
+   bin/agent lead "<authorized packet>" --tier astra --dry-run
    ```
    `--cwd` is permitted only for an exact registered Skynet worktree. A helper report is not a merge signal.
 5. **Integrate.** Re-read cited evidence, inspect each full writer diff, run the declared tests yourself, and make any necessary integration edits. The lead owns the resulting PR.
-6. **Preserve continuity.** For a job crossing sessions, keep the compact ignored `.agent/CHECKPOINT.md`; delete it after durable facts move to their actual home.
+6. **Preserve continuity.** For a job crossing sessions, keep the compact ignored `.agent/CHECKPOINT.md`; delete it after durable facts move to their actual home. After human merge, use a fresh Astra Medium session for independent review and next-packet planning as required by the directive.
 
 ## Verify
 

@@ -35,7 +35,7 @@ assert_resolution() {
   shift 6
   local out got resolution
   out="$(
-    unset AGENT_MODEL_SOL AGENT_MODEL_TERRA AGENT_MODEL_LUNA
+    unset AGENT_MODEL_ASTRA AGENT_MODEL_SOL AGENT_MODEL_TERRA AGENT_MODEL_LUNA
     bin/agent "${role}" "noop" "$@" --dry-run 2>&1
   )"
   got=$?
@@ -49,15 +49,34 @@ assert_resolution() {
 }
 
 echo "== bin/agent: role resolution (dry-run only) =="
-assert_resolution "lead"     lead     terra gpt-5.6-terra xhigh  workspace-write
-assert_resolution "builder"  builder  terra gpt-5.6-terra high   workspace-write
+assert_resolution "lead"     lead     terra gpt-5.6-terra high   workspace-write
+assert_resolution "builder"  builder  luna  gpt-5.6-luna  high   workspace-write
 assert_resolution "mechanic" mechanic luna  gpt-5.6-luna  high   workspace-write
 assert_resolution "scout"    scout    luna  gpt-5.6-luna  medium read-only
-assert_resolution "lead --hard" lead sol gpt-5.6-sol xhigh workspace-write --hard
+assert_resolution "Astra lead" lead astra gpt-6-astra medium workspace-write --tier astra
+assert_resolution "Terra lead" lead terra gpt-5.6-terra high workspace-write --tier terra
+assert_resolution "Sol lead" lead sol gpt-5.6-sol low workspace-write --tier sol
+assert_resolution "review" review astra gpt-6-astra medium workspace-write
 
 echo "== bin/agent: invalid role options =="
 rc "builder --hard fails (lead-only)" 1 bin/agent builder noop --hard --dry-run
 rc "unknown role fails" 1 bin/agent foo noop --dry-run
+rc "lead unknown tier fails" 1 bin/agent lead noop --tier unknown --dry-run
+rc "lead Luna tier fails" 1 bin/agent lead noop --tier luna --dry-run
+rc "worker cannot override tier" 1 bin/agent builder noop --tier astra --dry-run
+rc "review cannot override tier" 1 bin/agent review noop --tier terra --dry-run
+rc "missing tier fails" 1 bin/agent lead noop --tier
+rc "obsolete hard flag fails" 1 bin/agent lead noop --hard --dry-run
+
+echo "== bin/agent: explicit model override and native worker parity =="
+override_out="$(AGENT_MODEL_ASTRA=verified-astra bin/agent review noop --dry-run 2>&1)"
+assert_contains "explicit override is visible" "${override_out}" "model=verified-astra"
+for native_role in builder mechanic scout; do
+  native_model="$(sed -n 's/^model = "\([^"]*\)"/\1/p' ".codex/agents/${native_role}.toml")"
+  native_effort="$(sed -n 's/^model_reasoning_effort = "\([^"]*\)"/\1/p' ".codex/agents/${native_role}.toml")"
+  native_sandbox="$(sed -n 's/^sandbox_mode = "\([^"]*\)"/\1/p' ".codex/agents/${native_role}.toml")"
+  assert_resolution "native ${native_role} parity" "${native_role}" luna "${native_model}" "${native_effort}" "${native_sandbox}"
+done
 
 echo "== bin/agent: --cwd validation and rendering =="
 agent_cwd="$(mktemp -d)"
