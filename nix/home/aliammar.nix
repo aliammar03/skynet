@@ -11,6 +11,12 @@ let
     inherit (pkgs) system;
     config.allowUnfree = true;
   };
+  # Codex only: a pinned nixpkgs master rev carrying a newer codex than the unstable channel has
+  # promoted. Everything else rides `unstable`. Temporary — drop with the input once the channel
+  # catches up (see flake.nix nixpkgs-codex).
+  codexPkgs = import inputs.nixpkgs-codex {
+    inherit (pkgs) system;
+  };
 in
 {
   imports = [
@@ -84,7 +90,7 @@ in
   };
   programs.codex = {
     enable = true;
-    package = unstable.codex;
+    package = codexPkgs.codex;
     enableMcpIntegration = true;
     # Match Claude's acceptEdits + Bash allow posture: the aliammar OS account is the security wall,
     # so the interactive lead may read/write/run anything that account can. This also keeps Nix,
