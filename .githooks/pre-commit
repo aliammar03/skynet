@@ -41,7 +41,7 @@ bash "${ROOT}/tests/hygiene-test.sh"
 python_changed=0
 while IFS= read -r -d '' staged_path; do
   case "${staged_path}" in
-    pyproject.toml|src/*.py|src/**/*.py|tests/test_cli.py|nix/packages/skynet.nix|flake.nix)
+    pyproject.toml|src/*.py|src/**/*.py|tests/test_*.py|tests/fixtures/proxmox/*|nix/packages/skynet.nix|flake.nix)
       python_changed=1
       ;;
   esac
@@ -53,6 +53,6 @@ if [ "${python_changed}" -eq 1 ]; then
     exit 1
   }
   nix develop --no-write-lock-file -c pytest -q
-  nix develop --no-write-lock-file -c ruff check src tests/test_cli.py
+  nix develop --no-write-lock-file -c ruff check src tests/test_*.py
   nix develop --no-write-lock-file -c mypy src/skynet
 fi

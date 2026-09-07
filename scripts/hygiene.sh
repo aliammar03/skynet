@@ -10,7 +10,7 @@ source scripts/repo-surface.sh
 BASE_REF="${1:-${HYGIENE_BASE_REF:-}}"
 [ "$#" -le 1 ] || { echo "usage: bin/ops hygiene [baseline-ref]" >&2; exit 2; }
 MAX_ALWAYS_LOADED_TOKENS="${MAX_ALWAYS_LOADED_TOKENS:-6500}"
-MAX_CURRENT_AUTHORITY_TOKENS="${MAX_CURRENT_AUTHORITY_TOKENS:-170000}"
+MAX_CURRENT_AUTHORITY_TOKENS="${MAX_CURRENT_AUTHORITY_TOKENS:-200000}"
 
 always_loaded_path() {
   case "$1" in AGENTS.md|README.md|CLAUDE.md) return 0;; *) return 1;; esac

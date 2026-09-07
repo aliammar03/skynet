@@ -1,0 +1,23 @@
+{
+  "data": {
+    "comment": null,
+    "members": [
+      {
+        "id": "qemu/10015",
+        "type": "qemu",
+        "vmid": 10015,
+        "node": "server core/1",
+        "uptime": 99,
+        "status": "running"
+      },
+      {
+        "id": "lxc/731",
+        "type": "lxc",
+        "vmid": 731,
+        "node": "server core/1",
+        "uptime": 88,
+        "status": "running"
+      }
+    ]
+  }
+}

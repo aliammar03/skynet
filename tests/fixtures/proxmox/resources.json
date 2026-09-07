@@ -1,0 +1,27 @@
+{
+  "data": [
+    {
+      "id": "qemu/10015",
+      "type": "qemu",
+      "vmid": 10015,
+      "node": "server core/1",
+      "name": "vm-docker-dmz",
+      "status": "running"
+    },
+    {
+      "id": "lxc/731",
+      "type": "lxc",
+      "vmid": 731,
+      "node": "server core/1",
+      "name": "lxc-adguard-core",
+      "status": "running"
+    },
+    {
+      "id": "storage/server core/1/local",
+      "type": "storage",
+      "storage": "local",
+      "node": "server core/1",
+      "status": "available"
+    }
+  ]
+}

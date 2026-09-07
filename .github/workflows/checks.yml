@@ -80,7 +80,7 @@ jobs:
       - name: behavioral tests
         run: nix develop --no-write-lock-file -c pytest -q
       - name: lint
-        run: nix develop --no-write-lock-file -c ruff check src tests/test_cli.py
+        run: nix develop --no-write-lock-file -c ruff check src tests/test_*.py
       - name: type check
         run: nix develop --no-write-lock-file -c mypy src/skynet
       - name: packaged checks

@@ -101,3 +101,23 @@ def test_invalid_commands_and_options_fail_with_a_diagnostic(run: Run, arguments
 
     assert result.returncode == 2
     assert result.stderr.strip()
+
+
+def test_collect_missing_credentials_outside_checkout(run: Run, tmp_path: Path) -> None:
+    output = tmp_path / "snapshot.json"
+    result = run("collect", "proxmox", "core", "--output", str(output),
+                 "--credentials-file", str(tmp_path / "missing-synthetic-config"), "--json")
+    assert result.returncode == 3
+    report = json.loads(result.stdout)
+    assert report["outcome"] == "unavailable"
+    assert report["target"] == "proxmox-core"
+    assert report["output"] == str(output)
+    assert "collected" not in report
+    assert not output.exists()
+    assert not result.stderr
+
+
+def test_collect_requires_explicit_output(run: Run) -> None:
+    result = run("collect", "proxmox", "core")
+    assert result.returncode == 2
+    assert "--output" in result.stderr

@@ -141,3 +141,26 @@ checks are independently accepted; §5 of the directive releases only P3a, led b
 P3/G2 acceptance still requires P3b's default-caller integration and freshness handling.
 It did not install or activate a runtime, replace an existing command, or clear an external live/recovery
 blocker. External live/recovery blockers above remain in force.
+
+## Phase 3a implementation (review pending)
+
+`skynet collect proxmox core --output <file> [--credentials-file <file>] [--json]` is built
+in `/tmp/skynet-sky-025-p3a`, from remote-main base
+`f21442c44d34baf71e01ca8938ea1305c82242f6` (packet/review PR #214). It has no default
+output destination and has not read production credentials or contacted a lab endpoint.
+The shell collector, `collect-all.sh`, `bin/ops`, timers and host profiles remain unchanged.
+P3b's caller/freshness integration and P3/G2 acceptance remain unreleased.
+
+| Consumer | Preserved snapshot contract / synthetic evidence |
+|---|---|
+| `check-invariants.sh` | Node-typed `nodes[].node`; pool IDs and stable member `id/type/vmid/node` (integer guest VMIDs). Null/unreadable members fail the refresh instead of becoming an empty pool. |
+| `build-db.sh`, `sql/host-map.sql` | Original node/resource objects; guest `vmid/name/status/template/pool` types, optional template/pool defaults, and node identity continue to feed the existing guest table and host-map join. |
+| `render-docs.sh` | Resource `vmid/name/type/status/pool`, pool IDs, nullable backup job fields, integer `enabled/all`, string VMID selection, and per-node integer-epoch/null `starttime` plus string/null `status`. Tests compare synthetic projections and exact stable members. |
+| CLI / explicit file consumer | Success 0 with collection time/counts; unavailable 3; malformed/publication failure 1; usage 2. Failed refresh reports previous evidence and leaves the old bytes/timestamp intact. No freshness-blind consumer is routed to this collector. |
+
+All collector tests exercise the actual CLI and collector with only HTTPS and local failure
+boundaries substituted. Nix package checks run the suite against both source and installed
+modules; outside-checkout console tests unset `PYTHONPATH` and use missing synthetic credentials.
+No live response parity, real remote handshake, host activation or recovery drill is claimed.
+The required hook passes with Ali's explicitly authorized 200,000-token current-authority
+budget; the always-loaded budget remains 6,500. Independent acceptance is pending.
