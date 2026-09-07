@@ -154,15 +154,17 @@
           outside="$(mktemp -d)"
           cd "$outside"
           unset PYTHONPATH
+          export SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
           skynet --help >/dev/null
           skynet --version >/dev/null
           skynet doctor >/dev/null
           skynet doctor --json >/dev/null
           if skynet collect >/dev/null 2>&1; then
-            echo "unknown command unexpectedly succeeded" >&2
+            echo "incomplete collect command unexpectedly succeeded" >&2
             exit 1
           fi
-          SKYNET_ENTRYPOINT=console pytest -q ${skynet.source}/tests/test_cli.py
+          PYTHONPATH=${skynet}/${pkgs.python3.sitePackages} SKYNET_ENTRYPOINT=console \
+            pytest -q ${skynet.source}/tests
           touch "$out"
         '';
       };

@@ -1,0 +1,10 @@
+{
+  "data": [
+    {
+      "type": "node",
+      "id": "node/server core/1",
+      "node": "server core/1",
+      "status": "online"
+    }
+  ]
+}

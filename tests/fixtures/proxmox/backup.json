@@ -1,0 +1,15 @@
+{
+  "data": [
+    {
+      "id": "backup-example",
+      "schedule": "03:30",
+      "storage": "pbs-unraid",
+      "enabled": 1,
+      "all": 1,
+      "vmid": null,
+      "pool": null,
+      "mode": "snapshot",
+      "node": null
+    }
+  ]
+}

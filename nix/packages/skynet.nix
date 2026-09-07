@@ -1,4 +1,4 @@
-{ lib, python3Packages }:
+{ lib, python3Packages, cacert }:
 let
   root = ../..;
   metadata = builtins.fromTOML (builtins.readFile (root + "/pyproject.toml"));
@@ -8,6 +8,8 @@ let
       (root + "/pyproject.toml")
       (root + "/src")
       (root + "/tests/test_cli.py")
+      (root + "/tests/test_proxmox.py")
+      (root + "/tests/fixtures/proxmox")
     ];
   };
 in
@@ -22,8 +24,9 @@ python3Packages.buildPythonApplication {
 
   checkPhase = ''
     runHook preCheck
-    SKYNET_ENTRYPOINT=module pytest -q tests/test_cli.py
-    ruff check src tests/test_cli.py
+    export SSL_CERT_FILE=${cacert}/etc/ssl/certs/ca-bundle.crt
+    SKYNET_ENTRYPOINT=module pytest -q tests
+    ruff check src tests/test_*.py
     mypy src/skynet
     runHook postCheck
   '';

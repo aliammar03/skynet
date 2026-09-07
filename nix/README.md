@@ -31,14 +31,15 @@ nix/packages/
 
 ## Skynet Python runtime
 
-The local `skynet` command is a Nix-owned Python package. It currently exposes only a runtime
-diagnostic; it does not inspect services, credentials, repository state, or lab health.
+The `skynet` command is a Nix-owned Python package exposing a local runtime diagnostic and
+an explicit-output core Proxmox observation collector. The host's installed shell collectors
+and nightly remain the operational path; building this package does not activate it.
 
 ```bash
 # source development tools, with no pip installation
 nix develop --no-write-lock-file
 pytest -q
-ruff check src tests/test_cli.py
+ruff check src tests/test_*.py
 mypy src/skynet
 
 # build the installable command and run it from anywhere
@@ -51,6 +52,21 @@ nix build --no-write-lock-file --no-link .#checks.x86_64-linux.skynet
 
 `skynet doctor [--json]` reports the executing package version and Python runtime with
 `scope: runtime`. It is not a lab or service health check.
+
+`skynet collect proxmox core --output <file> [--credentials-file <file>] [--json]` reads
+core nodes, resources, pools/members, backup jobs and recent vzdump tasks over verified HTTPS.
+The default credential file is `/opt/skynet-ops/secrets/proxmox-core.env`; it accepts only
+literal `PVE_HOST`, `PVE_TOKEN`, and `PVE_CACERT` assignments (one per line, optional quotes
+and comments). Shell expressions, duplicate/unknown assignments and redirects are refused.
+Requests use a 15-second socket timeout and the specified CA with hostname verification.
+
+The collector publishes atomically to the explicit destination after every required read and
+validation succeeds. Failure retains any previous snapshot and its timestamp; consumers must treat it as
+previous evidence. Collection success describes observations, not service or backup health.
+JSON reports `outcome`, `target`, `output`, and either `collected`/`counts` or a redacted `reason`.
+Exit codes: 0 success, 2 usage error, 3 unavailable credentials/CA/remote evidence, 1 malformed
+data or local publication failure. Empty nodes/resources fail; empty pools/jobs/tasks are valid
+observations, with absent backup results represented by null fields.
 
 ## The decisions baked in
 
