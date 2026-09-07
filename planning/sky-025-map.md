@@ -6,7 +6,7 @@ summary: "SKY-025 subsystem dispositions, external callers, output contracts, an
 
 Owned by [the directive](projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md).
 Baseline: `670f06cfa75ca95a9eac7fdb1d3eb3544272ff1a` (remote main, 2026-09-07).
-Phase 1 is accepted at G1; Phase 2 is implementation-complete and review-pending. Its local package
+Phase 1 is accepted at G1; Phase 2 is accepted at `17db700c22cb17ad219655674eada344c215029a`. Its local package
 is built only in the isolated checkout and is not installed or activated on any lab host. This map
 describes planned replacements; it does not claim that Python is installed. The baseline's 398 tracked paths were enumerated with
 `git ls-files`; the grouped families below cover them. `scripts/` names are relative to that directory.
@@ -23,7 +23,7 @@ Enumeration counts: root files 10; `.claude` 1, `.codex` 4, `.githooks` 1, `.git
 | Surface | migrate/retain/delete | Replacement/owner | Callers | Phase | verified/blocked |
 |---|---|---|---|---|---|
 | `bin/ops`; `collect-all.sh` | migrate | Thin `skynet` dispatch and explicit workflow results | Humans, runbooks, nightly | 2–9, 20 | Verified dispatch and Nix timer references |
-| `collect-proxmox.sh`, `collect-proxmox-acl.sh` | migrate | Python read collectors; node-specific validation | collect-all, inventory gates/renderers | 3–4 | Verified both node/ACL families; live behavior untested |
+| `collect-proxmox.sh`, `collect-proxmox-acl.sh` | migrate | Python read collectors; node-specific validation | collect-all, inventory gates/renderers | 3–4 | P3a builds isolated core collector; P3b owns default-caller/freshness integration; network/ACL remain P4. Live behavior untested |
 | `collect-pbs.sh`, `collect-docker.sh` | migrate | Python PBS/Docker collectors | collect-all, backup/container views | 5 | Verified current callers; preserve unavailable states |
 | `collect-dns.sh`, `collect-opnsense.sh`, `collect-firewall.sh` | migrate | Python DNS/live OPNsense collection and offline mirror parsing | collect-all, firewall/DNS views; ADR 0006 offline recovery | 6 | Verified live/offline distinction; no new OPNsense writer |
 | `collect-network-gear.sh`, `collect-certs.sh`, `collect-routes.sh`, `recon.sh` | migrate | Python observations with provenance and vantage | collect-all, recon/diagnosis runbooks | 7 | Verified callers; static declarations cannot imply live discovery |
@@ -136,7 +136,8 @@ was consulted for explicit model/effort and agent configuration. Existing helper
 settings remain unchanged. Final check commands/results and raw inspection corrections are in the
 [phase journal](../journal/2026/2026-09-07-session-sky-025-p1-repository-map-and-routing.md).
 G1 accepted PR #211 at `3373fc887296cb6b32064d867f814c75266fedc5`; the directive records independent
-exit evidence and the P2 package/dev/CI packet. P2's isolated package build, source-filter boundary,
-runtime-only doctor, and Nix-owned checks are implementation-complete and await independent review.
+exit evidence. P2's isolated package build, source-filter boundary, runtime-only doctor, and Nix-owned
+checks are independently accepted; §5 of the directive releases only P3a, led by Astra Medium.
+P3/G2 acceptance still requires P3b's default-caller integration and freshness handling.
 It did not install or activate a runtime, replace an existing command, or clear an external live/recovery
 blocker. External live/recovery blockers above remain in force.
