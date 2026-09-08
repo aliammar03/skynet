@@ -166,7 +166,15 @@ No live response parity, real remote handshake, host activation or recovery dril
 The required hook passes with Ali's explicitly authorized 200,000-token current-authority
 budget; the always-loaded budget remains 6,500. Full-phase acceptance covers P3a and P3b.
 
-## Phase 3b implementation (full P3 review pending)
+## Phase 3b implementation and full P3 review
+
+**2026-09-08 combined review disposition: FIX / G2 open.** Both #215 and #216 are merged;
+reviewed main is `8e6c8502ba7c9ce8e9d39fe9bd6d5fd5a45a36df`. Accepted progress remains
+2/24. The directive's §5 contains the only actionable packet, repairing initial-marker failure
+visibility to default consumers (R1) and subprocess-descendant cleanup before releasing the
+collection lock (R2). Prior implementation evidence below is retained with these qualifications:
+ordinary status can still accept old success after initial marker failure, and the current
+timeout bounds the immediate process only. No P4 or live transition is released.
 
 Base `05b6326c46506b1c936fbaae724a083d8a218954` includes merged P3a PR #215. Ali explicitly
 requested P3b and full-numbered-phase reviews. The workflow correction travels in this PR because
