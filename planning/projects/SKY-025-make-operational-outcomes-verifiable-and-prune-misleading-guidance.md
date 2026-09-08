@@ -157,171 +157,82 @@ Phases 12, 17, and 18 are especially likely to need lettered slices after inspec
 may move earlier when a real consumer needs them. Preserve dependency order, not arbitrary numbering.
 Do not add a new live OPNsense writer or finish unrelated fleet migrations under this overhaul.
 
-## 5. Phase 3 implementation packets
+## 5. Phase 3 fixes — freshness refusal and subprocess lifetime (~1–2h)
 
-### P3a — complete: core Proxmox collector in isolation
+**Release gate:** execute only after Ali merges this review/planning PR. Full P3/G2 is FIX
+in §9; accepted progress remains 2/24. Review base:
+`8e6c8502ba7c9ce8e9d39fe9bd6d5fd5a45a36df`. Start from current remote main containing
+this packet and inspect intervening changes. The completed P3a/P3b packets remain in git at
+that revision; this is the sole actionable packet.
 
-**Release gate:** execute after Ali merges this review/planning PR. P2 is accepted in §9.
-Reviewed starting revision: `17db700c22cb17ad219655674eada344c215029a`; start from current
-remote main containing this packet and inspect intervening changes.
-**Lead:** Astra Medium (`gpt-6-astra`, medium), as recommended for P3's external-data contract.
-**Goal:** a packaged core-node read collector that validates a complete snapshot, writes it atomically,
-and reports collection outcomes truthfully, exercised through the actual command using fake boundaries.
+**Lead:** Astra Medium (`gpt-6-astra`, medium), retaining P3's recommendation because
+failure evidence and process lifetime are foundational contracts.
+**Goal:** close R1/R2 without migrating another collector or expanding production authority.
 
-**Slice decision:** separate P3a's collector/data contract from P3b's default-caller integration.
-Replacing a live caller also needs package availability, freshness handling by existing consumers,
-and the map's unresolved live/recovery evidence. Combining those decisions with the first client is
-larger than one packet. The execution lead must detail P3b's packet before implementing it;
-P3a does not require an independent review to continue within P3.
-P3/G2 is not complete until the integrated default path is independently accepted.
-
-**Exact surfaces:** `src/skynet/cli.py`; new `src/skynet/proxmox.py`,
-`tests/test_proxmox.py`, and synthetic `tests/fixtures/proxmox/**`; existing
-`tests/test_cli.py`, `nix/packages/skynet.nix`, `flake.nix`,
-`.github/workflows/checks.yml`, `.githooks/pre-commit`, and `nix/README.md` as required
-to include the new tests/fixtures and checks. Update this directive/map and append a raw journal;
-regenerate roadmap/digest/context only with their tools. No dependency or lock refresh expected.
-
-**Read contracts before implementation:** `scripts/collect-proxmox.sh`,
-`scripts/collect-all.sh`, `bin/ops`, `scripts/check-invariants.sh`,
-`scripts/build-db.sh`, `scripts/sql/host-map.sql`, `scripts/render-docs.sh`,
-`docs/conventions/scripts.md`, and `docs/design/observability.md`. Inspect only relevant
-inventory schema/field shapes; never fetch or copy live credential material into fixtures.
+**Exact surfaces:** `src/skynet/collection.py`, `tests/test_collection.py`;
+`src/skynet/{cli,proxmox}.py`, `bin/ops`, `scripts/{collect-all,render-docs,nightly}.sh`
+only where the repaired evidence interface needs caller changes;
+`nix/packages/skynet.nix` only if additional behavioral fixture files need packaging;
+`nix/README.md`, `docs/design/observability.md`, `runbooks/nightly.md`;
+this directive/map and a new raw journal. Use existing generators for routing views.
 
 **Interfaces and work:**
 
-1. Add `skynet collect proxmox core --output <file> [--json]`. Output is required in this
-   construction slice so execution cannot silently choose the operational checkout. Help explains
-   that the command collects observations, not service-health verification. Keep doctor unchanged.
-   Network-node collection, ACLs and all-collector orchestration remain outside this slice.
-2. Implement synchronous GET-only HTTPS reads for the existing core snapshot: nodes,
-   cluster/resources, pool list and each pool's members, cluster/backup, and per-node recent vzdump
-   tasks. Use stdlib HTTPS with verified CA/hostname and explicit bounded timeouts; reject redirects
-   rather than forward the Authorization header to another destination. Encode path/query components.
-   Keep the client and collector ordinary functions in one module until another caller needs a split.
-3. Use the existing `PVE_HOST`, `PVE_TOKEN`, `PVE_CACERT` credential contract with a narrow
-   non-executing assignment parser for the existing env-file format. Default source is
-   `/opt/skynet-ops/secrets/proxmox-core.env`; permit an explicit `--credentials-file` for
-   synthetic test files. Do not source/eval shell, invoke sudo, accept arbitrary shell expressions,
-   print token values, dump response bodies in diagnostics, or disable TLS. Missing/unreadable
-   credentials or CA fail nonzero with a redacted reason. No production secrets are read in P3a.
-4. Preserve `node`, `collected`, `nodes`, `resources`, `pools`, `backup_jobs`,
-   `backup_last` and their consumer-required field types. Validate the API envelope and entries,
-   not just JSON syntax. Missing/null required data and empty nodes/resources cannot satisfy a
-   successful core snapshot. Empty pool/job lists can be legitimate observations; never turn a
-   failed read into an empty list. Preserve stable pool member identities and nullable backup fields.
-   In this slice, any required endpoint failure prevents publication of a new snapshot.
-5. Assemble and validate before writing a temporary sibling and atomically replacing the requested
-   output. On timeout, malformed data, absent evidence or local write failure, preserve the prior file
-   byte-for-byte and its collection time; remove temporary residue. Report that the requested refresh
-   failed and any retained snapshot is previous evidence. P3b must address consumers that ignore
-   freshness before routing the live default path here.
-6. Human output gives target, outcome, destination and concise node/guest/pool counts on success;
-   JSON is one stdout object with `outcome`, `target`, `output`, and success timestamp/counts
-   or a redacted failure reason. Success exits 0, usage errors 2, unavailable remote/config evidence
-   3, malformed data/local publication failure 1. Human and JSON must agree; no generic outcome
-   class hierarchy, retries, locks, status database, or extra metadata files.
-7. Extend Nix source filtering to precisely include the new module/tests/synthetic fixtures; carry
-   all behavioral tests through source and packaged checks. Extend lint/hook/CI selection to the
-   new Python tests. Document the implemented command, explicit output, and failure semantics;
-   do not claim the nightly or installed host now uses Python.
+1. **R1: refuse previous success after failed initial evidence publication.** With a successful
+   snapshot/marker already present, a failed initial marker replacement currently returns failure
+   but leaves ordinary `collect-status` successful. Nightly's `--since` protects its own pass;
+   standalone default query/entity/render consumers do not supply that cutoff. Make failed
+   refresh setup leave a durable unavailable state detectable by those consumers without requiring
+   the caller to remember a timestamp. Preserve snapshot bytes and prevent remote reads on failed
+   setup. Keep the evidence mechanism small; do not add a status database or generic workflow.
+   Define any irrecoverable inability to persist failure explicitly and fail closed at consumers.
+2. **R2: bound the whole subprocess lifetime.** A shell reader's descendants must stop before
+   timeout handling advances to the next reader or releases the collection lock. Use an isolated
+   process group/session with bounded cleanup and reaping on timeout/interruption. Never signal
+   the caller's group or unrelated processes. Preserve redaction, one invocation per remaining
+   reader, sequential operation, truthful nonzero outcomes and continuation after a cleaned-up
+   read failure. If cleanup cannot be established, stop the workflow and report that condition.
+3. Keep existing core snapshot validation, atomic retention, verified TLS, explicit-output CLI
+   and hash/time matching. Preserve the 36-hour observation ceiling and the nightly same-pass
+   check. Do not turn other collectors' process success into validated freshness or health.
 
-**Optional scoped Luna assignment:** after Astra fixes interfaces, Luna High may own only
-`tests/test_proxmox.py` and `tests/fixtures/proxmox/**`: exercise real parsing/collection/publication
-through fake HTTP boundaries and temporary files. Test success, timeout, TLS refusal, HTTP failure,
-malformed envelopes/entries, missing credentials, empty required data, and publication failure.
-No production access, secrets, module/Nix edits, helper spawning, commits or pushes.
-Astra owns CLI/client/integration, inspects fixtures, and reruns all checks.
+**Optional scoped Luna assignment:** after Astra fixes the interfaces, Luna High may own only
+`tests/test_collection.py`: behavioral regressions for R1/R2 using fake HTTPS and temporary
+local subprocesses. Include a real descendant that would write after the deadline; do not replace
+`subprocess.run` with an exception as the sole timeout proof. No production credentials, remote
+calls, module edits, commits, pushes or helpers. Astra integrates and independently reruns checks.
 
 **Checks and expected results:**
 
-- `nix develop --no-write-lock-file -c pytest -q` → doctor regressions and collector tests pass.
-  Tests drive the actual CLI entry function/default collector path, replacing only the external
-  transport boundary; no fixture-only CLI mode or mocked collector. Include an outside-checkout
-  packaged invocation with missing synthetic credentials → redacted JSON/nonzero/no output file.
-- Prove endpoint failure after earlier successful reads leaves a pre-existing output unchanged;
-  prove an output-replacement failure also preserves it. Assert no success timestamp on failed
-  refresh, no token in either output stream, and no redirect/TLS-verification downgrade.
-- `nix develop --no-write-lock-file -c ruff check src tests/test_*.py` and
+- `nix develop --no-write-lock-file -c pytest -q` → existing 87 cases plus meaningful repairs
+  pass. After a successful synthetic default refresh, inject initial-marker replacement failure:
+  collection fails, makes no remote reads, retains snapshot bytes, and ordinary status plus default
+  query/entity/render callers refuse without `--since`; rendering changes no factual pages.
+  A later complete refresh restores usability.
+- Real temporary shell/child timeout and interruption tests → no child survives to write after
+  the command returns or after the next reader starts; cleanup is bounded and the collection
+  lock is released only after cleanup. Confirm a subsequent collection can run, redacted
+  diagnostics, and remaining readers run once after a safely cleaned-up timeout.
+- `nix develop --no-write-lock-file -c ruff check src tests/test_*.py`;
   `nix develop --no-write-lock-file -c mypy src/skynet` → clean.
-- `nix build --no-write-lock-file --no-link .#checks.x86_64-linux.skynet` and
-  `nix flake check --no-write-lock-file --no-build` → package and existing output checks pass.
-  `.githooks/pre-commit` with Python changes staged and `git diff --cached --check` → pass.
-- Compare a successful synthetic snapshot with the existing consumers' projections and document
-  preserved fields; inspect the diff to confirm no default caller, live inventory or host changed.
+- `nix build --no-write-lock-file --no-link .#checks.x86_64-linux.skynet`;
+  `nix flake check --no-write-lock-file --no-build` → pass source/installed coverage and
+  evaluation. Exercise offline launcher doctor and unavailable-status behavior.
+- Full `.githooks/pre-commit` with affected implementation paths staged and
+  `git diff --cached --check` → pass. Keep Ali's documentation-gate pause; do not count
+  its unrun suites as passing or weaken a safety gate.
 
-**Boundaries and exclusions:** T1 construction only in an isolated checkout, with synthetic
-credentials/responses and temporary outputs. No lab API calls, credential inspection, activation,
-profile installation, service/timer change, root grant, or production data writes. Existing shell
-callers remain the sole live path during this isolated construction slice; no compatibility shim
-or second production engine is introduced. No shell collector deletion until P3b/P4 account for
-core/network callers. Source rollback is git revert; build/test artifacts are disposable.
-The map's live/recovery blockers must be resolved before any later live transition.
+**Boundaries/exclusions:** isolated T1 construction, synthetic credentials/HTTPS and disposable
+local outputs/processes only. No lab API, secret inspection, service/timer/profile/host change,
+live collection, grant, activation or protected data/state change. No P4, broad subprocess
+framework, legacy collector rewrite, dependency refresh or autonomy promotion. Source rollback
+is git revert; live/recovery prerequisites in the map remain unmet and outside this fix packet.
 
-**Exit criteria:** (1) packaged core CLI and readable/JSON collection summaries implement the stated
-contract; (2) validation, timeouts, TLS/redaction and atomic failure behavior pass independent tests;
-(3) snapshot field compatibility and Nix/CI/hook coverage are demonstrated; (4) no live caller,
-credential, authority or operational data changed. Missing live evidence is explicitly outside this
-slice, not proof of P3/G2 completion. Record P3a complete and continue P3 by detailing P3b's
-integration/freshness packet, retaining its live/recovery boundaries. Do not increment accepted
-numbered progress. Request fresh Astra Medium merged-result review only after all P3 slices finish.
-
-### P3b — current: default collection and freshness (~1–2h)
-
-**Authorization:** Ali explicitly requested continuing P3b after clarifying that independent
-review covers full numbered phases. P3a implementation #215 is merged at current-main base
-`05b6326c46506b1c936fbaae724a083d8a218954`. Astra Medium details and executes this same-phase
-packet; no intermediate review release is required. Worktree `/tmp/skynet-sky-025-p3b`.
-
-**Goal:** route the existing default collection through the packaged core collector and prevent
-failed/stale core observations from supporting default current-state reports, queries or audits.
-
-**Exact surfaces:** `src/skynet/{cli,collection}.py`, `tests/test_collection.py`, existing CLI
-tests, `tests/entity-test.sh` historical-snapshot assertion and synthetic Proxmox fixtures;
-`bin/skynet` (Nix launcher), `bin/ops`,
-`scripts/{collect-all,collect-proxmox,render-docs,build-db,audit-entities,check-invariants,nightly}.sh`;
-`nix/packages/skynet.nix`, `flake.nix`, hook/CI test selection as needed;
-`nix/README.md`, `runbooks/nightly.md`, observability docs; this directive/map and raw journal.
-Retain historical snapshot checks in CI; do not label them current live-state verification.
-
-**Interfaces/work:**
-1. A thin `bin/skynet` launcher executes the Nix package from the exact checkout with offline,
-   lock-preserving Nix evaluation. No profile installation, host activation, source Python fallback
-   or new package owner. Missing package/build prerequisites fail nonzero.
-2. `skynet collect all --repo <checkout> [--credentials-file <synthetic/core file>] [--json]`
-   runs the real Python core collector then the unchanged remaining shell collectors, sequentially.
-   `collect-all.sh` becomes a forwarding caller; the old Proxmox shell path handles network only.
-   The isolated `collect proxmox core --output` command remains available with its P3a contract.
-3. Before core collection, atomically record an unavailable/in-progress result in
-   `inventory/collection-core.json`; after success record the exact snapshot SHA256, timestamp and
-   success. A crash, failure or mismatched publication never validates the prior file as refreshed.
-   Preserve the core snapshot on failed refresh. Report every subprocess exit honestly, continue
-   remaining reads, bound subprocess timeouts, and never print their raw output or secrets.
-   A nonblocking local `.cache/collection.lock` bounds overlap of snapshot/result publication.
-4. `skynet collect-status --repo <checkout> [--json]` validates the recorded core success,
-   snapshot hash and timestamp, with a 36-hour age ceiling (nightly cadence plus scheduling margin).
-   Missing, failed, corrupt, mismatched, future or stale evidence exits nonzero with a redacted reason.
-   Default `bin/ops query|entities` and factual rendering require this check. Rendering refuses
-   before changing files; it cannot reuse a stale SQLite cache after a failed rebuild.
-   Direct repository invariant/entity/SQLite checks explicitly describe historical snapshots,
-   preserving deterministic CI without pretending historical observations are live.
-5. Tests drive actual CLI/default collection with fake HTTPS and temporary script boundaries;
-   cover success, late failure, timeout, malformed/missing data, interruption marker, hash mismatch,
-   stale/future time, retained bytes and missing launch prerequisites. No fixture-only CLI mode.
-
-**Checks/exits:** `nix develop --no-write-lock-file -c pytest -q`, Ruff on `src tests/test_*.py`,
-mypy on `src/skynet`, packaged Nix checks, flake no-build evaluation, full pre-commit and staged
-diff checks pass. Demonstrate source/installed entry points and offline launcher behavior.
-Inspect all affected callers and record exact commands/results and unverified live evidence.
-
-**Live boundaries:** construction only, synthetic credentials/responses and temporary outputs.
-No lab API, credential inspection, profile installation, service/timer/root/host change or live
-inventory write. Before the first live transition, the map's workstation/state/recovery evidence
-must be supplied and the package built from the approved revision; a human merge does not prove
-those prerequisites. Do not activate the transition or claim live G2 evidence from construction tests.
-Source rollback is git revert; new evidence/cache files are local observations, never actuators.
-**Close-out:** P3a+P3b receive one full P3/G2 review after their merged implementation. Leave any
-unmet live exit explicit, keep accepted progress 2/24, and do not implement P4.
+**Exit criteria:** R1 refuses failed setup across all default consumers; R2 prevents descendant
+work after timeout/interruption; complete P3's CLI/data/TLS/atomic/caller/package regressions pass;
+docs describe actual behavior and preserve live limitations. After the fix PR merges, request one
+fresh Astra Medium review of **all P3** (#215, #216 and the fix PR), not an isolated repair review.
+Do not increment accepted progress or implement P4.
 
 ## 6. Carry forward the original review as acceptance cases
 
@@ -389,6 +300,40 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
 ```
 
 ## 9. Status
+
+- 2026-09-08 — **P3 FIX / G2 remains open.** One combined review covers
+  [#215](https://github.com/aliammar03/skynet/pull/215), merged at
+  `05b6326c46506b1c936fbaae724a083d8a218954`, and
+  [#216](https://github.com/aliammar03/skynet/pull/216), merged at
+  `8e6c8502ba7c9ce8e9d39fe9bd6d5fd5a45a36df`. Final main reviewed is the latter SHA.
+  Packet starting revision `17db700c22cb17ad219655674eada344c215029a`;
+  intervening #214 (`f21442c44d34baf71e01ca8938ea1305c82242f6`) supplies the accepted
+  P2 review and P3 packet, with no implementation. No post-#216 changes at review.
+  Fresh session metadata, installed catalog and review dry-run confirm Astra Medium.
+
+  | Full P3 exit | Verdict and independent evidence |
+  |---|---|
+  | Packaged core CLI, human/JSON outcomes | ACCEPT — 87 behavioral cases pass; installed package check builds; offline launcher doctor returns runtime JSON, absent status exits 3. |
+  | Core validation, TLS/redaction, retained snapshot on endpoint/publication failure | ACCEPT — actual CLI/fake HTTPS tests cover success, timeout, malformed/null/absent data, CA/redirect refusal, late failure and atomic retention. |
+  | Consumer field compatibility, Nix/CI/hook coverage | ACCEPT — node/resource/pool/job/task projections inspected; pytest, Ruff, mypy, package and flake checks pass; historical invariant/entity coverage retained. |
+  | Default caller integration and failed/stale evidence refusal | FIX R1 — initial marker replacement failure after a successful default run leaves ordinary status at exit 0. Nightly's since cutoff protects only its own pass; ordinary query/entity/render gates still accept the prior marker. |
+  | Bounded remaining-reader execution and overlap protection | FIX R2 — real shell/child probe times out and returns failure, then its surviving child writes inventory after collection returned and released its lock. |
+  | No live credential, authority, host or operational-data changes | ACCEPT — combined source diff and isolated checks show no activation or production collection; no real API/TLS parity or recovery rehearsal claimed. |
+
+  **Findings:** R1 (P2) at `src/skynet/collection.py:59`, consumed by
+  `bin/ops:48`, `bin/ops:54` and `scripts/render-docs.sh:9`; R2 (P2) at
+  `src/skynet/collection.py:74`. Concrete probe setup/results and independent commands are in the
+  [review journal](../../journal/2026/2026-09-08-session-sky-025-p3-independent-review.md).
+  Both PRs' GitHub checks are green; that does not discharge these missing failure cases.
+
+  **G2 decisions:** keep the small synchronous package and explicit observation/freshness contract.
+  Repair those contracts before extending collection; release only §5's Astra Medium fix packet.
+  Accepted progress remains **2/24**, P4 is unreleased, and G2 acceptance awaits full-phase
+  re-review. No roadmap reorder is justified before these repairs. P4–7 retain their collector
+  ownership; do not add a generic process/workflow framework. Live API parity and independent
+  workstation/state/payload recovery remain unverified prerequisites for the first live transition,
+  not results implied by construction tests. Preserve Ali's temporary documentation-gate pause
+  and P24 restoration requirement.
 
 - 2026-09-08 — **P3a + P3b implementation complete / full P3-G2 review pending.** P3b starts
   from `05b6326c46506b1c936fbaae724a083d8a218954` (merged #215) in an isolated worktree.
