@@ -15,6 +15,8 @@ auto-approve list.
 ## Preconditions
 
 - Keep the configured engine and fallback in the timer environment; the job remains report-only outside the versioned auto-approve list.
+- Build `nix build --no-write-lock-file --no-link .#skynet` from the approved checkout before
+  the first run; the `bin/skynet` launcher uses offline Nix and never installs a profile.
 
 ## Steps
 
@@ -46,9 +48,14 @@ discard the prepared deterministic work.
 1. **Prepare one branch** — `scripts/nightly.sh --prepare` requires a clean worktree, fetches the
    latest `main`, then creates the timestamped nightly branch. A failed fetch stops safely rather
    than producing a report against an unknown base.
-2. **Refresh inventory** — `scripts/collect-all.sh` runs every idempotent, read-only collector;
-   a failed collector is recorded while the remaining T1 collection continues. It never renders docs.
-3. **Render factual docs** — `scripts/render-docs.sh` rewrites the factual `docs/generated/` pages.
+2. **Refresh inventory** — `scripts/collect-all.sh` forwards to packaged `skynet collect all`.
+   The core Proxmox collector validates and atomically publishes observations plus a matching
+   `inventory/collection-core.json` result; the remaining shell readers report process exits.
+   A failed core read retains its previous snapshot and records unavailable/failed evidence,
+   while remaining T1 reads continue. It never renders docs.
+3. **Render factual docs** — `scripts/render-docs.sh` requires matching core refresh evidence
+   from this pass, within a 36-hour age ceiling. Failure leaves factual pages unchanged and
+   records a render failure. A failed SQLite rebuild cannot supply an old cache to new pages.
 4. **Optional agent work** — when an engine is available, it may write the human narrative and
    grant audit only. This stage cannot own the branch or PR lifecycle.
 5. **Journal then render routing pages** — the finalizer appends a raw journal session entry first,
@@ -67,6 +74,9 @@ discard the prepared deterministic work.
 
 - Confirm the PR contains only the expected generated/encrypted paths, the current raw journal entry
   appears in the digest, the deterministic merge gate reports its decision, and anomalies are visible.
+- Check `inventory/collection-core.json` before interpreting core observations. The optional
+  narrative must label retained snapshots/pages as previous evidence when that refresh failed.
+  Core freshness checks do not establish freshness or service health for the remaining shell readers.
 
 ## Rollback
 

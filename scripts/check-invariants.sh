@@ -5,6 +5,7 @@
 # USAGE: check-invariants.sh   (run from anywhere; reads invariants.json + inventory/proxmox-*.json)
 #   The whole point (ADR 0003): a NON-LLM process consumes invariants.json, so the hard laws are
 #   enforced by this script, not by the agent remembering. Wired into .githooks/ + CI.
+#   This repository gate checks stored observations, not current live-state freshness.
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${REPO_DIR}"

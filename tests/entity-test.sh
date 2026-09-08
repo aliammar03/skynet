@@ -81,7 +81,8 @@ tmpl9000="$(jq -r '.resources[]? | select(.vmid==9000) | .template' inventory/pr
 eq "VMID 9000 carries template=1 in inventory" "${tmpl9000}" "1"
 # capture first: the audit legitimately exits non-zero while holes exist, and pipefail would
 # otherwise mask grep's result with the audit's exit code.
-audit_out="$(bin/ops entities 2>/dev/null || true)"
+# Exercise classification of the stored snapshot; default caller freshness has separate tests.
+audit_out="$(scripts/audit-entities.sh 2>/dev/null || true)"
 if printf '%s\n' "${audit_out}" | grep -qE 'ubuntu-2404-base.*template'; then
   ok "audit buckets the 9000 template as 'template', not 'stale'"
 else

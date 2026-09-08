@@ -4,7 +4,7 @@ title: Rebuild the Skynet engine in Python
 status: in-progress
 horizon: long
 created: 2026-09-06
-updated: 2026-09-07
+updated: 2026-09-08
 phases: 24
 current_phase: 2
 tier_touched: [T1, T2, T2+, T3]
@@ -102,8 +102,21 @@ transcript handoffs; load this directive, current phase, and relevant files only
 
 ## 4. Rolling plan and review gates
 
+**Temporary documentation-gate pause (Ali, 2026-09-08):** during this directive,
+`obsidian-hygiene-test.sh`, `documentation-drift-test.sh`, `temporal-hygiene-test.sh`,
+`repo-surface-test.sh`, and `hygiene-test.sh` are manual, not automatic pre-commit/CI blockers.
+Their scripts remain available; skipped automatic checks are not reported as passing.
+Behavioral tests, Python lint/type/package checks, secret scanning, privilege/pool invariants,
+construction limits, rollback/provisioning and nightly merge-safety tests remain enforced.
+P21–22 adapt or retire obsolete documentation checks; P24 must restore maintained documentation,
+style and context-budget checks in hook and CI before marking the directive complete/archived.
+Retirement of an obsolete assertion needs an explicit recorded disposition, not a silent waiver.
+
 **Each numbered phase is 1–2 hours of implementation**, excluding waiting for merge. Split an oversized
-phase into lettered slices before work; each slice gets its own PR/review. The table is a route map,
+phase into lettered implementation slices before work. Slices may have separate PRs, but independent
+review and acceptance apply to the complete numbered phase, never to individual slices.
+The execution lead details remaining slices within that phase's scope; no intermediate reviewer
+releases them. Existing human merge and live/grant boundaries still apply. The table is a route map,
 not permission to execute unspecified work. Section 5 holds the sole current executable packet.
 
 For every phase: implement → relevant checks → PR → Ali merges → review the actual merged result.
@@ -138,13 +151,15 @@ Architecture checkpoints **G1–G6** additionally reconsider the remaining roadm
 | 21 | Terra High | Planning/scaffolding, repository hygiene and invariant gates; CI unification | 20; metadata/links/tests agree; meaningful gates replace shell doctrine |
 | 22 | Sol Low | Whole-repo prune: docs, agent shims/config, templates, Nix/Tofu/Compose callers, obsolete scripts | 21; disposition map has no unresolved live caller or duplicate implementation |
 | 23 | Terra High | Install/restart the Python engine and intended services; staged operational acceptance | 22; packaged CLI, schedules, collection and one approved write work. **G6** |
-| 24 | Astra Medium | Cold-start/recovery rehearsal, final fixes and archive | 23; final acceptance below; honest residual limitations |
+| 24 | Astra Medium | Cold-start/recovery rehearsal, final fixes and archive | 23; final acceptance below; restore maintained documentation/style/context gates; honest residual limitations |
 
 Phases 12, 17, and 18 are especially likely to need lettered slices after inspection. Shared clients
 may move earlier when a real consumer needs them. Preserve dependency order, not arbitrary numbering.
 Do not add a new live OPNsense writer or finish unrelated fleet migrations under this overhaul.
 
-## 5. Phase 3a — core Proxmox collector in isolation (~1–2h)
+## 5. Phase 3 implementation packets
+
+### P3a — complete: core Proxmox collector in isolation
 
 **Release gate:** execute after Ali merges this review/planning PR. P2 is accepted in §9.
 Reviewed starting revision: `17db700c22cb17ad219655674eada344c215029a`; start from current
@@ -156,7 +171,8 @@ and reports collection outcomes truthfully, exercised through the actual command
 **Slice decision:** separate P3a's collector/data contract from P3b's default-caller integration.
 Replacing a live caller also needs package availability, freshness handling by existing consumers,
 and the map's unresolved live/recovery evidence. Combining those decisions with the first client is
-larger than one packet. P3b is a roadmap reservation only; its packet is released after P3a review.
+larger than one packet. The execution lead must detail P3b's packet before implementing it;
+P3a does not require an independent review to continue within P3.
 P3/G2 is not complete until the integrated default path is independently accepted.
 
 **Exact surfaces:** `src/skynet/cli.py`; new `src/skynet/proxmox.py`,
@@ -237,7 +253,7 @@ Astra owns CLI/client/integration, inspects fixtures, and reruns all checks.
 **Boundaries and exclusions:** T1 construction only in an isolated checkout, with synthetic
 credentials/responses and temporary outputs. No lab API calls, credential inspection, activation,
 profile installation, service/timer change, root grant, or production data writes. Existing shell
-callers remain the sole live path while this uninstalled slice is reviewed; no compatibility shim
+callers remain the sole live path during this isolated construction slice; no compatibility shim
 or second production engine is introduced. No shell collector deletion until P3b/P4 account for
 core/network callers. Source rollback is git revert; build/test artifacts are disposable.
 The map's live/recovery blockers must be resolved before any later live transition.
@@ -246,8 +262,66 @@ The map's live/recovery blockers must be resolved before any later live transiti
 contract; (2) validation, timeouts, TLS/redaction and atomic failure behavior pass independent tests;
 (3) snapshot field compatibility and Nix/CI/hook coverage are demonstrated; (4) no live caller,
 credential, authority or operational data changed. Missing live evidence is explicitly outside this
-slice, not proof of P3/G2 completion. Stop for fresh Astra Medium merged-result review; do not
-increment accepted numbered progress or execute P3b.
+slice, not proof of P3/G2 completion. Record P3a complete and continue P3 by detailing P3b's
+integration/freshness packet, retaining its live/recovery boundaries. Do not increment accepted
+numbered progress. Request fresh Astra Medium merged-result review only after all P3 slices finish.
+
+### P3b — current: default collection and freshness (~1–2h)
+
+**Authorization:** Ali explicitly requested continuing P3b after clarifying that independent
+review covers full numbered phases. P3a implementation #215 is merged at current-main base
+`05b6326c46506b1c936fbaae724a083d8a218954`. Astra Medium details and executes this same-phase
+packet; no intermediate review release is required. Worktree `/tmp/skynet-sky-025-p3b`.
+
+**Goal:** route the existing default collection through the packaged core collector and prevent
+failed/stale core observations from supporting default current-state reports, queries or audits.
+
+**Exact surfaces:** `src/skynet/{cli,collection}.py`, `tests/test_collection.py`, existing CLI
+tests, `tests/entity-test.sh` historical-snapshot assertion and synthetic Proxmox fixtures;
+`bin/skynet` (Nix launcher), `bin/ops`,
+`scripts/{collect-all,collect-proxmox,render-docs,build-db,audit-entities,check-invariants,nightly}.sh`;
+`nix/packages/skynet.nix`, `flake.nix`, hook/CI test selection as needed;
+`nix/README.md`, `runbooks/nightly.md`, observability docs; this directive/map and raw journal.
+Retain historical snapshot checks in CI; do not label them current live-state verification.
+
+**Interfaces/work:**
+1. A thin `bin/skynet` launcher executes the Nix package from the exact checkout with offline,
+   lock-preserving Nix evaluation. No profile installation, host activation, source Python fallback
+   or new package owner. Missing package/build prerequisites fail nonzero.
+2. `skynet collect all --repo <checkout> [--credentials-file <synthetic/core file>] [--json]`
+   runs the real Python core collector then the unchanged remaining shell collectors, sequentially.
+   `collect-all.sh` becomes a forwarding caller; the old Proxmox shell path handles network only.
+   The isolated `collect proxmox core --output` command remains available with its P3a contract.
+3. Before core collection, atomically record an unavailable/in-progress result in
+   `inventory/collection-core.json`; after success record the exact snapshot SHA256, timestamp and
+   success. A crash, failure or mismatched publication never validates the prior file as refreshed.
+   Preserve the core snapshot on failed refresh. Report every subprocess exit honestly, continue
+   remaining reads, bound subprocess timeouts, and never print their raw output or secrets.
+   A nonblocking local `.cache/collection.lock` bounds overlap of snapshot/result publication.
+4. `skynet collect-status --repo <checkout> [--json]` validates the recorded core success,
+   snapshot hash and timestamp, with a 36-hour age ceiling (nightly cadence plus scheduling margin).
+   Missing, failed, corrupt, mismatched, future or stale evidence exits nonzero with a redacted reason.
+   Default `bin/ops query|entities` and factual rendering require this check. Rendering refuses
+   before changing files; it cannot reuse a stale SQLite cache after a failed rebuild.
+   Direct repository invariant/entity/SQLite checks explicitly describe historical snapshots,
+   preserving deterministic CI without pretending historical observations are live.
+5. Tests drive actual CLI/default collection with fake HTTPS and temporary script boundaries;
+   cover success, late failure, timeout, malformed/missing data, interruption marker, hash mismatch,
+   stale/future time, retained bytes and missing launch prerequisites. No fixture-only CLI mode.
+
+**Checks/exits:** `nix develop --no-write-lock-file -c pytest -q`, Ruff on `src tests/test_*.py`,
+mypy on `src/skynet`, packaged Nix checks, flake no-build evaluation, full pre-commit and staged
+diff checks pass. Demonstrate source/installed entry points and offline launcher behavior.
+Inspect all affected callers and record exact commands/results and unverified live evidence.
+
+**Live boundaries:** construction only, synthetic credentials/responses and temporary outputs.
+No lab API, credential inspection, profile installation, service/timer/root/host change or live
+inventory write. Before the first live transition, the map's workstation/state/recovery evidence
+must be supplied and the package built from the approved revision; a human merge does not prove
+those prerequisites. Do not activate the transition or claim live G2 evidence from construction tests.
+Source rollback is git revert; new evidence/cache files are local observations, never actuators.
+**Close-out:** P3a+P3b receive one full P3/G2 review after their merged implementation. Leave any
+unmet live exit explicit, keep accepted progress 2/24, and do not implement P4.
 
 ## 6. Carry forward the original review as acceptance cases
 
@@ -289,7 +363,8 @@ Live root/T3/destructive actions still need their existing scoped grant/checkpoi
 has a concrete rescue/bootstrap reason; one CLI/package/config owner; tests exercise real failure
 boundaries; relevant Nix/Tofu/Compose checks pass in a capable environment; docs match installed commands;
 all F1–F11 cases have evidence or explicitly accepted limitations; no duplicate engines or dead schedules;
-intended services/backups are restored; a cold operator can diagnose and recover from git + survival kit.
+intended services/backups are restored; maintained documentation/style/context checks are again
+automatic in hook and CI; a cold operator can diagnose and recover from git + survival kit.
 An unperformed destructive/full-core drill stays explicitly unverified, not silently waived as passed.
 
 **Close each phase:** PR with result/checks/limitations → Ali merge → independent review → update this
@@ -315,7 +390,18 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
 
 ## 9. Status
 
-- 2026-09-07 — **P3a implementation complete / review pending.** Isolated branch
+- 2026-09-08 — **P3a + P3b implementation complete / full P3-G2 review pending.** P3b starts
+  from `05b6326c46506b1c936fbaae724a083d8a218954` (merged #215) in an isolated worktree.
+  Default collection uses the Nix package; matching hash/time/result evidence guards default
+  core consumers and prevents stale-cache rendering. Synthetic default-path tests, installed
+  package checks and offline launcher checks pass. Accepted progress remains 2/24; review
+  covers #215 plus the P3b implementation PR together, and does not release P4 automatically.
+  Ali's same-phase review correction and temporary documentation-gate pause are included.
+  Production API parity and the map's live/recovery prerequisites remain unverified; no
+  production credentials, collection, activation or service/timer changes were performed.
+  [Raw P3b evidence](../../journal/2026/2026-09-08-session-sky-025-p3b-default-collection-and-freshness.md).
+
+- 2026-09-07 — **P3a implementation complete / P3 in progress.** Isolated branch
   `phase/sky-025-p3a`, base `f21442c44d34baf71e01ca8938ea1305c82242f6`, implements the
   explicit-output core collector, literal credential parser, verified GET-only transport,
   endpoint/field validation and atomic publication. Synthetic CLI tests cover transport/data
@@ -325,7 +411,9 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
   Ali explicitly authorized raising the current-authority context budget to 200,000;
   `scripts/hygiene.sh` carries that default and the full pre-commit gate passes. The 6,500
   always-loaded limit is unchanged. Python/package checks pass. Accepted progress remains
-  2/24; P3b and G2 remain pending independent review. Raw commands, build/test corrections
+  2/24; P3b implementation remains, followed by one full P3/G2 review. Ali clarified that
+  independent review is for full numbered phases, not their implementation slices.
+  Raw commands, build/test corrections
   and limits are in the [P3a journal](../../journal/2026/2026-09-07-session-sky-025-p3a-isolated-core-collector.md)
   and [budget approval episode](../../journal/2026/2026-09-07-session-sky-025-p3a-context-budget-approval.md).
 

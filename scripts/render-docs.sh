@@ -6,6 +6,7 @@
 #   Every collector that has not run yet degrades gracefully (its section says "pending").
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+"${REPO_DIR}/bin/skynet" collect-status --repo "${REPO_DIR}" >&2 || exit $?
 inv="${REPO_DIR}/inventory"
 gen="${REPO_DIR}/docs/generated"
 fw="${inv}/firewall/firewall.json"
@@ -53,8 +54,7 @@ SQLITE3="${SQLITE3:-sqlite3}"
 db="${REPO_DIR}/.cache/inventory.db"
 have_db=0
 if ${SQLITE3} --version >/dev/null 2>&1; then
-  "${REPO_DIR}/scripts/build-db.sh" >/dev/null 2>&1 || true
-  if [ -s "${db}" ]; then
+  if "${REPO_DIR}/scripts/build-db.sh" >/dev/null 2>&1 && [ -s "${db}" ]; then
     ${SQLITE3} "${db}" -cmd ".mode tabs" ".read ${REPO_DIR}/scripts/sql/host-map.sql" 2>/dev/null \
       | sort -t. -k3,3n -k4,4n > "${hosts_tsv}" && have_db=1
   fi
@@ -145,6 +145,8 @@ render_node() { # <label> <json>
   {
     fm "Host — ${node}" hosts
     echo "## Node \`${node}\`"
+    echo
+    echo "_Snapshot collected: $(j '.collected // "unknown"' "${jf}"). Observations, not service-health verification._"
     echo
     local pools; pools="$(j '[.pools[]?.poolid]|join(", ")' "${jf}")"
     [ -n "${pools}" ] && echo "- **Pools:** ${pools}"
@@ -258,7 +260,7 @@ done
   done
   if [ -n "${bjrows}" ]; then
     case "${worst}" in
-      ok)      echo "> [!success] 🟢 Backup jobs healthy — every vzdump job enabled and its last run returned OK." ;;
+      ok)      echo "> [!success] 🟢 Recorded backup jobs enabled; the recorded last vzdump results were OK." ;;
       unknown) echo "> [!note] ⚪ Backup jobs configured, but the last-run result could not be confirmed this pass." ;;
       *)       echo "> [!warning] 🔴 A backup job is disabled or its last run did not return OK — see the table." ;;
     esac

@@ -164,7 +164,7 @@
             exit 1
           fi
           PYTHONPATH=${skynet}/${pkgs.python3.sitePackages} SKYNET_ENTRYPOINT=console \
-            pytest -q ${skynet.source}/tests
+            pytest -q -o cache_dir="$outside/.pytest_cache" ${skynet.source}/tests
           touch "$out"
         '';
       };

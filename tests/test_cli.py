@@ -121,3 +121,10 @@ def test_collect_requires_explicit_output(run: Run) -> None:
     result = run("collect", "proxmox", "core")
     assert result.returncode == 2
     assert "--output" in result.stderr
+
+
+def test_missing_refresh_evidence_outside_checkout(run: Run, tmp_path: Path) -> None:
+    result = run("collect-status", "--repo", str(tmp_path), "--json")
+    assert result.returncode == 3
+    assert json.loads(result.stdout)["outcome"] == "unavailable"
+    assert not result.stderr

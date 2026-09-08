@@ -4,7 +4,8 @@
 #   exception. The point is the LAST bucket — a *running* thing that no view knows about is a hole.
 # TIER: T1 — reads inventory/, invariants.json, lab.json, compose/. No network, no writes.
 # USAGE:  bin/ops entities            (or: scripts/audit-entities.sh)
-#   Exit 0 = every running entity is mapped or a declared exception.
+#   Exit 0 = every entity recorded as running is mapped or a declared exception.
+#   Direct invocation audits historical snapshots; bin/ops entities checks core freshness.
 #   Exit 1 = at least one RUNNING entity is neither mapped nor excepted (a real hole to resolve).
 #   Exit 2 = a required input is missing.
 # Proposals, not actions: the stale + undeclared lists are for a human/journal to triage. This

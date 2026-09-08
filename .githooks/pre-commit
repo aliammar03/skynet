@@ -28,20 +28,17 @@ bash "${ROOT}/tests/collect-pbs-test.sh"
 bash "${ROOT}/tests/construction-test.sh"
 bash "${ROOT}/tests/agent-test.sh"
 bash "${ROOT}/tests/gitignore-test.sh"
-bash "${ROOT}/tests/obsidian-hygiene-test.sh"
 bash "${ROOT}/tests/nightly-automerge-test.sh"
 bash "${ROOT}/tests/nightly-sequence-test.sh"
-bash "${ROOT}/tests/documentation-drift-test.sh"
-bash "${ROOT}/tests/temporal-hygiene-test.sh"
-bash "${ROOT}/tests/repo-surface-test.sh"
-bash "${ROOT}/tests/hygiene-test.sh"
+# Documentation/style/context checks are manual during the repository overhaul.
+# Their maintained replacements must return to automatic enforcement before completion.
 
 # The Python package is checked only when a staged path can affect it. Nix owns all of these tools;
 # a missing Nix installation is a failure, never a silent skipped check.
 python_changed=0
 while IFS= read -r -d '' staged_path; do
   case "${staged_path}" in
-    pyproject.toml|src/*.py|src/**/*.py|tests/test_*.py|tests/fixtures/proxmox/*|nix/packages/skynet.nix|flake.nix)
+    pyproject.toml|src/*.py|src/**/*.py|tests/test_*.py|tests/fixtures/proxmox/*|nix/packages/skynet.nix|flake.nix|bin/skynet|bin/ops|scripts/collect-all.sh|scripts/collect-proxmox.sh|scripts/render-docs.sh)
       python_changed=1
       ;;
   esac

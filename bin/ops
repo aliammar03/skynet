@@ -43,11 +43,15 @@ OPS_ENGINE_BIN="$(engine_bin "${OPS_ENGINE}")"
 
 cmd="${1:-nightly}"; shift || true
 case "${cmd}" in
-  collect) exec ./scripts/collect-all.sh ;;
-  entities) exec ./scripts/audit-entities.sh ;;
+  collect) exec ./scripts/collect-all.sh "$@" ;;
+  entities)
+    ./bin/skynet collect-status --repo "${REPO_DIR}" || exit $?
+    exec ./scripts/audit-entities.sh
+    ;;
   hygiene) exec ./scripts/hygiene.sh "$@" ;;
   query)
     sql="${1:?usage: bin/ops query \"<sql>\"}"
+    ./bin/skynet collect-status --repo "${REPO_DIR}" >&2 || exit $?
     SQLITE3="${SQLITE3:-sqlite3}"
     ${SQLITE3} --version >/dev/null 2>&1 || { echo "sqlite3 not installed — run nixos-rebuild" >&2; exit 3; }
     ./scripts/build-db.sh >/dev/null || exit $?    # rebuild the cache from inventory/ so answers are current

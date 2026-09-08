@@ -9,7 +9,13 @@ let
       (root + "/src")
       (root + "/tests/test_cli.py")
       (root + "/tests/test_proxmox.py")
+      (root + "/tests/test_collection.py")
       (root + "/tests/fixtures/proxmox")
+      (root + "/bin/ops")
+      (root + "/bin/skynet")
+      (root + "/scripts/collect-all.sh")
+      (root + "/scripts/collect-proxmox.sh")
+      (root + "/scripts/render-docs.sh")
     ];
   };
 in

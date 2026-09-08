@@ -6,7 +6,8 @@ summary: "Independently review a merged SKY-025 phase and publish only its verdi
 
 > Independent review prompt for the [phase handoff workflow](README.md). Follow the active SKY-025 directive.
 
-As a fresh Astra Medium session, review the supplied SKY-025 implementation PR and any fix PRs.
+As a fresh Astra Medium session, review the complete numbered SKY-025 phase, including all its
+implementation slice PRs and any fix PRs. Do not run independent acceptance reviews of slices.
 
 1. Read AGENTS.md, planning/README.md, the active SKY-025 directive found by ID, its packet and
    disposition map if present. Confirm the selected model/effort. Use repository evidence rather
@@ -14,6 +15,8 @@ As a fresh Astra Medium session, review the supplied SKY-025 implementation PR a
 2. Verify through GitHub that every supplied implementation/fix PR merged into main. Record their
    URLs and actual merge SHAs, plus the current main SHA. If unmerged, stop with the missing
    prerequisite; do not accept a branch result as a merged phase.
+   Confirm every slice of the numbered phase is implemented; otherwise return the same-phase
+   execution continuation without issuing a phase verdict or releasing the next phase.
 3. Inspect the complete phase and fix diffs against the packet's starting revision, and the actual
    implementation on current main. Account for intervening commits affecting these surfaces.
    Check callers, failure handling, doctrine/runbooks and scope, not merely the PR summary.
@@ -34,7 +37,8 @@ As a fresh Astra Medium session, review the supplied SKY-025 implementation PR a
 6. Each released packet specifies goal, exact files/surfaces, interfaces, exclusions, recommended
    execution model/effort, optional scoped Luna assignments, check commands and expected results,
    live/grant boundaries, and exit criteria. Use the phase table's recommendation unless evidence
-   warrants a change; record the reason. Split oversized work into reviewed lettered slices.
+   warrants a change; record the reason. Split oversized work into implementation slices;
+   the execution lead details the remaining slices and review covers the whole numbered phase.
 7. Before publishing, recheck main. If it moved, inspect relevant changes and refresh affected
    checks/packet assumptions; record the final reviewed SHA. Commit, push, and open a planning PR
    to main. Do not implement repairs or the next phase, and never merge your PR.
