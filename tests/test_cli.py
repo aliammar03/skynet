@@ -10,6 +10,9 @@ from pathlib import Path
 
 import pytest
 
+from skynet.cli import build_parser
+from skynet.proxmox import DEFAULT_CREDENTIALS
+
 ROOT = Path(__file__).parents[1]
 Run = Callable[..., subprocess.CompletedProcess[str]]
 
@@ -117,6 +120,15 @@ def test_collect_missing_credentials_outside_checkout(run: Run, tmp_path: Path) 
     assert not result.stderr
 
 
+@pytest.mark.parametrize("target", ["core", "network"])
+def test_collect_targets_use_their_own_default_credential_paths(target: str, tmp_path: Path) -> None:
+    """Inspect parser defaults; executing them could use an installed live credential file."""
+    arguments = build_parser().parse_args(
+        ["collect", "proxmox", target, "--output", str(tmp_path / f"{target}.json")]
+    )
+    assert arguments.credentials_file == DEFAULT_CREDENTIALS[target]
+
+
 def test_collect_requires_explicit_output(run: Run) -> None:
     result = run("collect", "proxmox", "core")
     assert result.returncode == 2
@@ -126,5 +138,7 @@ def test_collect_requires_explicit_output(run: Run) -> None:
 def test_missing_refresh_evidence_outside_checkout(run: Run, tmp_path: Path) -> None:
     result = run("collect-status", "--repo", str(tmp_path), "--json")
     assert result.returncode == 3
-    assert json.loads(result.stdout)["outcome"] == "unavailable"
+    report = json.loads(result.stdout)
+    assert report["target"] == "proxmox"
+    assert report["outcome"] == "unavailable"
     assert not result.stderr

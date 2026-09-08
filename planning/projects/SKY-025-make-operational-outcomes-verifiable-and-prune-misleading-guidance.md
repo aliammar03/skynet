@@ -295,6 +295,28 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
 
 ## 9. Status
 
+- 2026-09-08 — **P4a slice complete / P4 in progress.** From isolated
+  remote-main base `d2bbedc649e2b4226a2f1b1721a35febbb6148cd`, P4a adds the explicit network
+  Proxmox collector with its target default credential path, existing literal parser and read-only
+  TLS transport. `collect all` runs core and network once with one durable receipt, separate
+  hash/time markers, and paired status enforcement for default query/entity/render/nightly callers.
+  A failed network refresh or late marker preserves its snapshot yet makes default consumers
+  unavailable; remaining scoped readers continue. The retained Proxmox shell entry is a thin
+  packaged-command forwarder; ACL shell readers remain unchanged. Synthetic fixtures cover the
+  network node shape, protected guests 5001/635/837, empty pools, distinct read/operate tokens,
+  failed refresh retention and later recovery. No live credentials, endpoints, activation, timers,
+  services, root, pool or ACL action occurred. Source rollback is `git revert`; workstation/state/
+  payload recovery and live API parity remain unverified. Local Nix/package/hook checks are recorded
+  in the raw journal, including the corrected fake-only default-path tests after an accidental
+  T1 observation during validation. Accepted progress remains **3/24**; P4a is complete and P4
+  remains in progress pending its human merge, P4b, and one full P4 review.
+
+  **P4b continuation after this PR is human-merged:** inspect only the two retained ACL readers,
+  then migrate their operate-token snapshots and paired default freshness markers without changing
+  observation credentials, ACL permissions, pool invariants, or any live boundary. Run the scoped
+  offline checks, update the same map/journal, and open the second P4 PR; do not request an
+  independent review until both P4 slices are merged.
+
 - 2026-09-08 — **P3 ACCEPT / G2 closed with the credential repair in this PR.** Reviewed
   [#215](https://github.com/aliammar03/skynet/pull/215), merge
   `05b6326c46506b1c936fbaae724a083d8a218954`;

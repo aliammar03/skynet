@@ -1,0 +1,10 @@
+{
+  "data": [
+    {
+      "type": "node",
+      "id": "node/network-node",
+      "node": "network-node",
+      "status": "online"
+    }
+  ]
+}

@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from test_proxmox import FakeConnection, TOKEN
+from test_proxmox import FakeConnection, NETWORK_TOKEN, network_endpoint_data, TOKEN
 from skynet.cli import main
 from skynet import collection
 
@@ -36,9 +36,14 @@ def repo(tmp_path: Path) -> Path:
     return path
 
 
-def run(repo: Path, credentials: Path, capsys: pytest.CaptureFixture[str]) -> tuple[int, dict]:
+def run(
+    repo: Path, credentials: Path, capsys: pytest.CaptureFixture[str],
+    network_credentials: Path | None = None,
+) -> tuple[int, dict]:
+    network_credentials = credentials if network_credentials is None else network_credentials
     code = main(["collect", "all", "--repo", str(repo),
-                 "--credentials-file", str(credentials), "--json"])
+                 "--credentials-file", str(credentials),
+                 "--network-credentials-file", str(network_credentials), "--json"])
     captured = capsys.readouterr()
     assert TOKEN not in captured.out + captured.err
     return code, json.loads(captured.out)
@@ -51,16 +56,58 @@ def status(repo: Path, capsys: pytest.CaptureFixture[str], *extra: str) -> int:
     return code
 
 
+def network_credentials(path: Path, credentials: Path) -> Path:
+    network = path / "proxmox-network.env"
+    network.write_text(credentials.read_text().replace(TOKEN, NETWORK_TOKEN))
+    return network
+
+
 def test_default_collection_records_matching_evidence_and_runs_remaining_once(
     repo: Path, credentials: Path, transport: type[FakeConnection], capsys: pytest.CaptureFixture[str],
 ) -> None:
-    code, report = run(repo, credentials, capsys)
+    transport.responses_by_token = dict([
+        (TOKEN, transport.responses), (NETWORK_TOKEN, network_endpoint_data()),
+    ])
+    code, report = run(repo, credentials, capsys, network_credentials(repo, credentials))
     assert code == 0 and report["outcome"] == "success"
     assert len(report["collectors"]) == 11
     assert (repo / "calls").read_text().splitlines() == [row[1] for row in collection.REMAINING]
     evidence = json.loads((repo / "inventory/collection-core.json").read_text())
     assert evidence["sha256"] == hashlib.sha256(
         (repo / "inventory/proxmox-core.json").read_bytes()).hexdigest()
+    assert status(repo, capsys) == 0
+    network_evidence = json.loads((repo / "inventory/collection-network.json").read_text())
+    assert network_evidence["attempted"] == evidence["attempted"]
+    assert network_evidence["sha256"] == hashlib.sha256(
+        (repo / "inventory/proxmox-network.json").read_bytes()).hexdigest()
+    network_snapshot = json.loads((repo / "inventory/proxmox-network.json").read_text())
+    assert network_snapshot["pools"] == []
+    assert [guest["vmid"] for guest in network_snapshot["resources"]] == [5001, 635, 837]
+
+
+def test_failed_network_refresh_invalidates_paired_status_and_retains_network_snapshot(
+    repo: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert run(repo, credentials, capsys)[0] == 0
+    previous = (repo / "inventory/proxmox-network.json").read_bytes()
+    from skynet import proxmox
+    real_collect = proxmox.collect
+
+    def unavailable_network(target: str, *args: object, **kwargs: object) -> int:
+        if target == "network":
+            stream = kwargs["stdout"]
+            stream.write(json.dumps({"target": "proxmox-network", "outcome": "unavailable",
+                                     "reason": "synthetic network timeout"}))
+            return 3
+        return real_collect(target, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(proxmox, "collect", unavailable_network)
+    assert run(repo, credentials, capsys)[0] == 3
+    assert (repo / "inventory/proxmox-network.json").read_bytes() == previous
+    assert status(repo, capsys) == 3
+    monkeypatch.setattr(proxmox, "collect", real_collect)
+    assert run(repo, credentials, capsys)[0] == 0
     assert status(repo, capsys) == 0
 
 
@@ -77,7 +124,7 @@ def test_failed_core_refresh_retains_snapshot_but_invalidates_freshness_and_cont
     assert run(repo, credentials, capsys)[0] != 0
     assert output.read_bytes() == previous
     assert status(repo, capsys) == 3
-    assert len((repo / "calls").read_text().splitlines()) == 20
+    assert len((repo / "calls").read_text().splitlines()) == 2 * len(collection.REMAINING)
 
 
 def test_interrupted_refresh_leaves_incomplete_marker(
@@ -238,7 +285,7 @@ def test_remaining_timeout_kills_descendants_before_next_reader_and_releases_loc
     code, report = run(repo, credentials, capsys)
     assert time.monotonic() - started < 5
     assert code == 1
-    assert report["collectors"][1]["outcome"] == "failure"
+    assert report["collectors"][2]["outcome"] == "failure"
     assert ready.exists()
     assert not destination.exists()
     assert not (repo / "survivor-at-next").exists()
@@ -252,7 +299,7 @@ def test_remaining_timeout_kills_descendants_before_next_reader_and_releases_loc
     # A second complete attempt proves timeout cleanup happened before lock release.
     before_requests = len(transport.instances)
     assert run(repo, credentials, capsys)[0] == 1
-    assert len(transport.instances) == before_requests + 6
+    assert len(transport.instances) == before_requests + 12
     assert (repo / "calls").read_text().splitlines() == [row[1] for row in remaining] * 2
     assert status(repo, capsys) == 0  # core success is independent of other readers' exits
 
@@ -273,7 +320,8 @@ def test_signal_interrupts_reader_and_reaps_child(
         "proxmox.http.client.HTTPSConnection = FakeConnection\n"
         f"collection.REMAINING = (('slow', {reader.name!r}),)\n"
         f"args = ['collect', 'all', '--repo', {str(repo)!r}, "
-        f"'--credentials-file', {str(credentials)!r}, '--json']\n"
+        f"'--credentials-file', {str(credentials)!r}, "
+        f"'--network-credentials-file', {str(credentials)!r}, '--json']\n"
         "try: sys.exit(main(args))\nexcept KeyboardInterrupt: sys.exit(130)\n"
     )
     process = subprocess.Popen([sys.executable, str(runner)], stdout=subprocess.PIPE,
@@ -354,7 +402,7 @@ def test_interrupted_reader_is_cleaned_and_lock_is_released(
     monkeypatch.setattr(collection, "REMAINING", remaining)
     before_requests = len(transport.instances)
     assert run(repo, credentials, capsys)[0] == 0
-    assert len(transport.instances) == before_requests + 6
+    assert len(transport.instances) == before_requests + 12
 
 
 def test_cleanup_failure_quarantines_receipt_and_stops_remaining_readers(
@@ -411,7 +459,7 @@ def test_failed_success_marker_publication_keeps_evidence_unavailable(
 
     def fail_final_marker(source: str, destination: Path) -> None:
         nonlocal marker_writes
-        if destination.name == "collection-core.json":
+        if destination.name == "collection-network.json":
             marker_writes += 1
             if marker_writes == 2:
                 raise OSError(TOKEN)
@@ -420,6 +468,7 @@ def test_failed_success_marker_publication_keeps_evidence_unavailable(
     monkeypatch.setattr(proxmox.os, "replace", fail_final_marker)
     assert run(repo, credentials, capsys)[0] == 1
     assert (repo / "inventory/proxmox-core.json").exists()
+    assert (repo / "inventory/proxmox-network.json").exists()
     assert status(repo, capsys) == 3
     assert not list((repo / "inventory").glob(".*"))
 
@@ -519,7 +568,8 @@ def test_bin_ops_collection_reaches_real_cli_and_core_collector(
     )
     launcher.chmod(0o755)
     result = subprocess.run(
-        ["bash", str(repo / "bin/ops"), "collect", "--credentials-file", str(credentials), "--json"],
+        ["bash", str(repo / "bin/ops"), "collect", "--credentials-file", str(credentials),
+         "--network-credentials-file", str(credentials), "--json"],
         env=os.environ | {"PATH": f"{fake_bin}:{os.environ['PATH']}"},
         capture_output=True, text=True, check=False,
     )

@@ -1,4 +1,4 @@
-"""T1 core observations: verified GETs, validated snapshot, atomic local publication.
+"""T1 Proxmox observations: verified GETs, validated snapshot, atomic local publication.
 
 Credentials are literal assignments, never shell code. Collection success says nothing
 about guest/service health. A failed refresh leaves the requested destination unchanged.
@@ -15,7 +15,10 @@ from pathlib import Path
 from typing import Any, TextIO
 from urllib.parse import quote, urlencode
 
-DEFAULT_CREDENTIALS = Path("/opt/skynet-ops/secrets/proxmox-core.env")
+DEFAULT_CREDENTIALS = {
+    "core": Path("/opt/skynet-ops/secrets/proxmox-core.env"),
+    "network": Path("/opt/skynet-ops/secrets/proxmox-network.env"),
+}
 TIMEOUT = 15
 
 
@@ -125,7 +128,7 @@ def unique(rows: list[dict[str, Any]], field: str) -> None:
         raise CollectionError("duplicate API identity")
 
 
-def snapshot(host: str, token: str, context: ssl.SSLContext) -> dict[str, Any]:
+def snapshot(target: str, host: str, token: str, context: ssl.SSLContext) -> dict[str, Any]:
     """Require every endpoint; preserve consumer fields, project volatile pool details."""
     def api(path: str) -> Any:
         return get(host, token, context, path)
@@ -200,7 +203,7 @@ def snapshot(host: str, token: str, context: ssl.SSLContext) -> dict[str, Any]:
         latest = max(completed, key=lambda task: task["starttime"], default={})
         last.append({"node": node["node"], "starttime": latest.get("starttime"),
                      "status": latest.get("status")})
-    return {"node": "core", "collected": datetime.now(UTC).isoformat(timespec="seconds"),
+    return {"node": target, "collected": datetime.now(UTC).isoformat(timespec="seconds"),
             "nodes": nodes, "resources": resources, "pools": pools,
             "backup_jobs": [{key: job.get(key) for key in job_keys} for job in jobs],
             "backup_last": last}
@@ -230,10 +233,12 @@ def publish(output: Path, data: dict[str, Any]) -> None:
                 raise CollectionError("local temporary cleanup failed") from None
 
 
-def collect(output: Path, credentials_file: Path, *, json_output: bool, stdout: TextIO) -> int:
-    report: dict[str, Any] = {"target": "proxmox-core", "output": str(output)}
+def collect(target: str, output: Path, credentials_file: Path, *, json_output: bool,
+            stdout: TextIO) -> int:
+    """Collect one validated Proxmox node shape with its read-only token."""
+    report: dict[str, Any] = {"target": f"proxmox-{target}", "output": str(output)}
     try:
-        data = snapshot(*credentials(credentials_file))
+        data = snapshot(target, *credentials(credentials_file))
         publish(output, data)
     except CollectionError as error:
         report.update(outcome="unavailable" if error.code == 3 else "failure",

@@ -22,8 +22,8 @@ Enumeration counts: root files 10; `.claude` 1, `.codex` 4, `.githooks` 1, `.git
 
 | Surface | migrate/retain/delete | Replacement/owner | Callers | Phase | verified/blocked |
 |---|---|---|---|---|---|
-| `bin/ops`; `collect-all.sh` | migrate | Thin `skynet` dispatch and explicit workflow results | Humans, runbooks, nightly | 2–9, 20 | P3b routes default collection through the Nix package; core refresh evidence guards default queries/audits/rendering. Remaining orchestration stays P20 |
-| `collect-proxmox.sh`, `collect-proxmox-acl.sh` | migrate | Python read collectors; node-specific validation | collect-all, inventory gates/renderers | 3–4 | P3a builds isolated core collector; P3b owns default-caller/freshness integration; network/ACL remain P4. Live behavior untested |
+| `bin/ops`; `collect-all.sh` | migrate | Thin `skynet` dispatch and explicit workflow results | Humans, runbooks, nightly | 2–9, 20 | P4a routes core and network observations through the Nix package; paired refresh evidence guards default queries/audits/rendering. Remaining orchestration stays P20 |
+| `collect-proxmox.sh`, `collect-proxmox-acl.sh` | migrate | Python read collectors; node-specific validation | collect-all, inventory gates/renderers | 3–4 | P4a leaves `collect-proxmox.sh` as a packaged-command forwarder and removes its shell API/parser. Both ACL readers remain P4b. Live behavior untested |
 | `collect-pbs.sh`, `collect-docker.sh` | migrate | Python PBS/Docker collectors | collect-all, backup/container views | 5 | Verified current callers; preserve unavailable states |
 | `collect-dns.sh`, `collect-opnsense.sh`, `collect-firewall.sh` | migrate | Python DNS/live OPNsense collection and offline mirror parsing | collect-all, firewall/DNS views; ADR 0006 offline recovery | 6 | Verified live/offline distinction; no new OPNsense writer |
 | `collect-network-gear.sh`, `collect-certs.sh`, `collect-routes.sh`, `recon.sh` | migrate | Python observations with provenance and vantage | collect-all, recon/diagnosis runbooks | 7 | Verified callers; static declarations cannot imply live discovery |
@@ -239,3 +239,27 @@ Ali additionally requested an end-of-work review and next-phase packet. The dire
 a draft P4a network-observation packet plus bounded P4b ACL ownership; it is not released and
 does not implement either slice. Full P3/G2 acceptance still covers #215, #216 and this fix after
 merge. Accepted progress remains 2/24. All existing live/recovery blockers remain unchanged.
+
+## Phase 4a implementation (slice complete; P4 in progress)
+
+From remote-main base `d2bbedc649e2b4226a2f1b1721a35febbb6148cd`, P4a adds
+`skynet collect proxmox network --output <file> [--credentials-file <file>] [--json]` with the
+network default credential path and the established literal-assignment/read-token/TLS contract.
+The synthetic network fixture has a distinct node shape, protected guests 5001/635/837, and an
+observed empty pool list. The operate token remains optional, redacted, and unused for observations.
+
+`collect all` now records one durable attempt receipt and runs core then network once before the
+remaining shell readers. It publishes separate `collection-core.json` and
+`collection-network.json` markers, each bound to that receipt and its own snapshot hash/time.
+`collect-status`, query/entity and factual-render callers require both successful observations
+within 36 hours and honor the nightly same-pass cutoff. A failed network read or final marker
+publication retains its snapshot but makes default consumers unavailable; subsequent scoped readers
+continue. `collect-proxmox.sh` is only the retained operator/runbook forwarding entry. ACL readers,
+operate-token ACL introspection, and their freshness markers remain P4b.
+
+Construction used fake HTTPS, synthetic credentials and disposable paths after the default-path
+test was repaired: its initial form unexpectedly selected installed credentials and performed a
+T1 observation during validation; the incident is recorded in the raw journal. No T2/T2+/T3
+action, host/profile, timer, service, root, pool or ACL action occurred. The map's workstation,
+state and payload recovery blockers remain unchanged. Source rollback is `git revert`. P4b and
+P4 review wait for the required human merge of this P4a PR.
