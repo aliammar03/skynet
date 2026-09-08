@@ -168,6 +168,15 @@ budget; the always-loaded budget remains 6,500. Full-phase acceptance covers P3a
 
 ## Phase 3b implementation and full P3 review
 
+**Current disposition, 2026-09-08: P3/G2 ACCEPT including the tested credential repair.**
+The directive's newest §9 entry supersedes the earlier FIX/pending records below. Ali authorized
+the reviewer to repair the simple shared-credential incompatibility and release P4 without another
+review round. Accepted progress is 3/24; §5 releases P4a after human merge of this fix/packet PR.
+The parser accepts optional `PVE_TOKEN_OPERATE` but observation requests still use only `PVE_TOKEN`.
+P4 reuses that contract, migrates network observations then both ACL snapshots, and adds their
+freshness evidence without treating other shell process exits as validated health.
+Live/recovery blockers above remain in force.
+
 **2026-09-08 combined review disposition: FIX / G2 open.** Both #215 and #216 are merged;
 reviewed main is `8e6c8502ba7c9ce8e9d39fe9bd6d5fd5a45a36df`. Accepted progress remains
 2/24. The directive's §5 contains the only actionable packet, repairing initial-marker failure
