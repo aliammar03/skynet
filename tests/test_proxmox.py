@@ -113,9 +113,42 @@ def credentials(tmp_path: Path) -> Path:
         "# synthetic test credentials\n"
         "PVE_HOST='pve.example.test'\n"
         f"PVE_TOKEN=\"{TOKEN}\" # token\n"
+        "PVE_TOKEN_OPERATE='synthetic-operate-token'\n"
         f"PVE_CACERT={cafile}\n"
     )
     return path
+
+
+def test_shared_credentials_keep_operate_optional_and_never_substitute_it(
+    tmp_path: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    shared = credentials.read_text()
+    assert collect(tmp_path, credentials, capsys)[0] == 0
+    credentials.write_text(shared.replace("PVE_TOKEN_OPERATE='synthetic-operate-token'\n", ""))
+    assert collect(tmp_path, credentials, capsys)[0] == 0
+    credentials.write_text("\n".join(line for line in shared.splitlines()
+                                     if not line.startswith("PVE_TOKEN=")))
+    before = len(transport.instances)
+    assert collect(tmp_path, credentials, capsys)[0] == 3
+    assert len(transport.instances) == before
+
+
+@pytest.mark.parametrize("assignment", [
+    "PVE_TOKEN_OPERATE=duplicate", "PVE_TOKEN_OPERATE=$(invalid)",
+    "PVE_TOKEN_OPERATE=", "UNSUPPORTED=synthetic-operate-token",
+])
+def test_shared_credential_invalid_assignments_remain_refused(
+    tmp_path: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str], assignment: str,
+) -> None:
+    contents = credentials.read_text()
+    if assignment != "PVE_TOKEN_OPERATE=duplicate":
+        contents = contents.replace("PVE_TOKEN_OPERATE='synthetic-operate-token'\n", "")
+    credentials.write_text(contents + assignment + "\n")
+    code, _, stdout, stderr = collect(tmp_path, credentials, capsys, json_output=True)
+    assert code == 3 and not transport.instances
+    assert "synthetic-operate-token" not in stdout + stderr
 
 
 def collect(
@@ -139,6 +172,7 @@ def collect(
         args.append("--json")
     code = main(args)
     captured = capsys.readouterr()
+    assert "synthetic-operate-token" not in captured.out + captured.err
     report = json.loads(captured.out) if json_output and captured.out.strip() else None
     return code, report, captured.out, captured.err
 

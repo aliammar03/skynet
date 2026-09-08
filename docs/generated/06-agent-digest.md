@@ -29,7 +29,7 @@ follow a link for the full story; distill episodes at read time, never in this f
 - **SKY-020** (projects · in-progress · 1/6) — Firewall-as-code — OPNsense config to T2 via OpenTofu
 - **SKY-023** (projects · in-progress · 10/10) — Eliminate documentation drift and shrink operational context
 - **SKY-024** (projects · in-progress · 4/6) — tofu declares managed core guests — API-driven CT/VM lifecycle, no node SSH
-- **SKY-025** (projects · in-progress · 2/24) — Rebuild the Skynet engine in Python
+- **SKY-025** (projects · in-progress · 3/24) — Rebuild the Skynet engine in Python
 - **SKY-002** (ideas · draft) — Ongoing backup strategy for CT 240 (PBS host)
 - **SKY-004** (ideas · draft) — Reactive operations: event-driven layer + drift-as-signal
 - **SKY-012** (ideas · draft) — Runbooks as executable capabilities
@@ -40,24 +40,24 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 **Explicit durable follow-ups:**
 
+- After Ali merges this credential-fix/P4 packet PR, execute SKY-025 §5 Phase 4a with Terra High via planning/prompts/execute.md. No additional P3 review round is required; accepted progress is 3/24. — _2026-09-08 session_
+- Independent workstation/state/payload recovery and live API/TLS parity remain unverified before a live transition. The five paused documentation suites remain unrun and must return as maintained checks by P24. — _2026-09-08 session_
 - After Ali merges the P3 fix PR, use a fresh Astra Medium session to review all P3 implementation (#215, #216 and this fix) via `planning/prompts/review.md`. Review the draft P4a/P4b boundaries before releasing the next packet. Accepted progress remains 2/24 until acceptance. — _2026-09-08 session_
 - Independent workstation/state/payload recovery, live API/TLS parity and activation remain unverified and outside this packet. No grant or live transition is released. — _2026-09-08 session_
 - Ali's five paused documentation/style/context suites were not run or counted as passing; their maintained replacements must return to hook/CI by P24. — _2026-09-08 session_
 - After Ali merges this planning PR, start a fresh Astra Medium task: Read planning/prompts/execute.md and execute SKY-025 Phase 3 fixes from §5. Then review all P3 implementation (#215, #216 and the merged fix PR) together. P4 stays unreleased and accepted progress remains 2/24. — _2026-09-08 session_
 - Before any live transition, supply the map's independent workstation/state/payload recovery evidence. No live grant or activation is released by this repair packet. — _2026-09-08 session_
 - After Ali merges P3b, one fresh Astra Medium review must cover all P3 implementation: #215 and the P3b PR. P4 is not authorized; accepted progress remains 2/24. — _2026-09-08 session_
-- Before using the merged default path live, the map's independent workstation/state/payload recovery evidence remains required and unverified. No production API parity, recovery drill, credentials, profile install, root grant, host activation or timer/service change is claimed. — _2026-09-08 session_
-- Restore maintained documentation/style/context checks in hook and CI before completing SKY-025; obsolete checks need an explicit disposition. The user-authorized pause is temporary. — _2026-09-08 session_
 
 ## 📓 Recent episodes
 
+- **2026-09-08** · session · [[2026-09-08-session-sky-025-p3-combined-re-review|SKY-025 P3 combined re-review]]
 - **2026-09-08** · session · [[2026-09-08-session-sky-025-p3-freshness-and-process-fixes|SKY-025 P3 freshness and process fixes]]
 - **2026-09-08** · session · [[2026-09-08-session-sky-025-p3-independent-review|SKY-025 P3 independent review]]
 - **2026-09-08** · session · [[2026-09-08-session-sky-025-p3b-default-collection-and-freshness|SKY-025 P3b default collection and freshness]]
 - **2026-09-07** · session · [[2026-09-07-session-sky-025-full-phase-review-boundary|SKY-025 full phase review boundary]]
 - **2026-09-07** · session · [[2026-09-07-session-sky-025-p3a-context-budget-approval|SKY-025 P3a context budget approval]]
 - **2026-09-07** · session · [[2026-09-07-session-sky-025-p3a-isolated-core-collector|SKY-025 P3a isolated core collector]]
-- **2026-09-07** · session · [[2026-09-07-session-sky-025-p2-independent-review|SKY-025 P2 independent review]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._

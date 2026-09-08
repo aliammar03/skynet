@@ -58,8 +58,10 @@ nix build --no-write-lock-file --no-link .#checks.x86_64-linux.skynet
 `skynet collect proxmox core --output <file> [--credentials-file <file>] [--json]` reads
 core nodes, resources, pools/members, backup jobs and recent vzdump tasks over verified HTTPS.
 The default credential file is `/opt/skynet-ops/secrets/proxmox-core.env`; it accepts only
-literal `PVE_HOST`, `PVE_TOKEN`, and `PVE_CACERT` assignments (one per line, optional quotes
-and comments). Shell expressions, duplicate/unknown assignments and redirects are refused.
+literal `PVE_HOST`, `PVE_TOKEN`, and `PVE_CACERT` assignments plus optional `PVE_TOKEN_OPERATE`
+(one per line, optional quotes and comments). Observation requests use only `PVE_TOKEN`;
+the shared operate assignment is never a fallback. Shell expressions, duplicate/unknown
+assignments and redirects are refused.
 Requests use a 15-second socket timeout and the specified CA with hostname verification.
 
 The collector publishes atomically to the explicit destination after every required read and
@@ -86,6 +88,8 @@ Each runs sequentially in an isolated Linux process group with a 120-second dead
 advancing or releasing the lock, collection kills remaining group members and reaps descendants,
 including on interruption or an early leader exit. Cleanup has a five-second deadline; unconfirmed
 cleanup stops collection with `recovery-required` and blocks further collections via the receipt.
+Readers must remain in that process group; programs that daemonize or create another session
+are outside this runner's cleanup contract.
 After operator verification that the reader processes are gone, clear that receipt under the
 collection lock and run a complete refresh. Do not delete the lock file while a process holds it.
 

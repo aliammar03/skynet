@@ -6,7 +6,7 @@ horizon: long
 created: 2026-09-06
 updated: 2026-09-08
 phases: 24
-current_phase: 2
+current_phase: 3
 tier_touched: [T1, T2, T2+, T3]
 related:
   - docs/system-design.md
@@ -157,90 +157,12 @@ Phases 12, 17, and 18 are especially likely to need lettered slices after inspec
 may move earlier when a real consumer needs them. Preserve dependency order, not arbitrary numbering.
 Do not add a new live OPNsense writer or finish unrelated fleet migrations under this overhaul.
 
-## 5. Phase 3 fixes — freshness refusal and subprocess lifetime (~1–2h)
+## 5. Phase 4a — network observations (~1–2h)
 
-**Release gate:** execute only after Ali merges this review/planning PR. Full P3/G2 is FIX
-in §9; accepted progress remains 2/24. Review base:
-`8e6c8502ba7c9ce8e9d39fe9bd6d5fd5a45a36df`. Start from current remote main containing
-this packet and inspect intervening changes. The completed P3a/P3b packets remain in git at
-that revision; this is the sole actionable packet.
-
-**Lead:** Astra Medium (`gpt-6-astra`, medium), retaining P3's recommendation because
-failure evidence and process lifetime are foundational contracts.
-**Goal:** close R1/R2 without migrating another collector or expanding production authority.
-
-**Exact surfaces:** `src/skynet/collection.py`, `tests/test_collection.py`;
-`src/skynet/{cli,proxmox}.py`, `bin/ops`, `scripts/{collect-all,render-docs,nightly}.sh`
-only where the repaired evidence interface needs caller changes;
-`nix/packages/skynet.nix` only if additional behavioral fixture files need packaging;
-`nix/README.md`, `docs/design/observability.md`, `runbooks/nightly.md`;
-this directive/map and a new raw journal. Use existing generators for routing views.
-
-**Interfaces and work:**
-
-1. **R1: refuse previous success after failed initial evidence publication.** With a successful
-   snapshot/marker already present, a failed initial marker replacement currently returns failure
-   but leaves ordinary `collect-status` successful. Nightly's `--since` protects its own pass;
-   standalone default query/entity/render consumers do not supply that cutoff. Make failed
-   refresh setup leave a durable unavailable state detectable by those consumers without requiring
-   the caller to remember a timestamp. Preserve snapshot bytes and prevent remote reads on failed
-   setup. Keep the evidence mechanism small; do not add a status database or generic workflow.
-   Define any irrecoverable inability to persist failure explicitly and fail closed at consumers.
-2. **R2: bound the whole subprocess lifetime.** A shell reader's descendants must stop before
-   timeout handling advances to the next reader or releases the collection lock. Use an isolated
-   process group/session with bounded cleanup and reaping on timeout/interruption. Never signal
-   the caller's group or unrelated processes. Preserve redaction, one invocation per remaining
-   reader, sequential operation, truthful nonzero outcomes and continuation after a cleaned-up
-   read failure. If cleanup cannot be established, stop the workflow and report that condition.
-3. Keep existing core snapshot validation, atomic retention, verified TLS, explicit-output CLI
-   and hash/time matching. Preserve the 36-hour observation ceiling and the nightly same-pass
-   check. Do not turn other collectors' process success into validated freshness or health.
-
-**Optional scoped Luna assignment:** after Astra fixes the interfaces, Luna High may own only
-`tests/test_collection.py`: behavioral regressions for R1/R2 using fake HTTPS and temporary
-local subprocesses. Include a real descendant that would write after the deadline; do not replace
-`subprocess.run` with an exception as the sole timeout proof. No production credentials, remote
-calls, module edits, commits, pushes or helpers. Astra integrates and independently reruns checks.
-
-**Checks and expected results:**
-
-- `nix develop --no-write-lock-file -c pytest -q` → existing 87 cases plus meaningful repairs
-  pass. After a successful synthetic default refresh, inject initial-marker replacement failure:
-  collection fails, makes no remote reads, retains snapshot bytes, and ordinary status plus default
-  query/entity/render callers refuse without `--since`; rendering changes no factual pages.
-  A later complete refresh restores usability.
-- Real temporary shell/child timeout and interruption tests → no child survives to write after
-  the command returns or after the next reader starts; cleanup is bounded and the collection
-  lock is released only after cleanup. Confirm a subsequent collection can run, redacted
-  diagnostics, and remaining readers run once after a safely cleaned-up timeout.
-- `nix develop --no-write-lock-file -c ruff check src tests/test_*.py`;
-  `nix develop --no-write-lock-file -c mypy src/skynet` → clean.
-- `nix build --no-write-lock-file --no-link .#checks.x86_64-linux.skynet`;
-  `nix flake check --no-write-lock-file --no-build` → pass source/installed coverage and
-  evaluation. Exercise offline launcher doctor and unavailable-status behavior.
-- Full `.githooks/pre-commit` with affected implementation paths staged and
-  `git diff --cached --check` → pass. Keep Ali's documentation-gate pause; do not count
-  its unrun suites as passing or weaken a safety gate.
-
-**Boundaries/exclusions:** isolated T1 construction, synthetic credentials/HTTPS and disposable
-local outputs/processes only. No lab API, secret inspection, service/timer/profile/host change,
-live collection, grant, activation or protected data/state change. No P4, broad subprocess
-framework, legacy collector rewrite, dependency refresh or autonomy promotion. Source rollback
-is git revert; live/recovery prerequisites in the map remain unmet and outside this fix packet.
-
-**Exit criteria:** R1 refuses failed setup across all default consumers; R2 prevents descendant
-work after timeout/interruption; complete P3's CLI/data/TLS/atomic/caller/package regressions pass;
-docs describe actual behavior and preserve live limitations. After the fix PR merges, request one
-fresh Astra Medium review of **all P3** (#215, #216 and the fix PR), not an isolated repair review.
-Do not increment accepted progress or implement P4.
-
-### Draft next packet — Phase 4a: network observations (~1–2h; not released)
-
-**Requested by Ali, 2026-09-08:** author the next phase packet alongside the P3 fix and review
-the work before publishing. This is a reviewable draft, not P3 acceptance or permission to run P4.
-The fresh merged-result reviewer must review #215, #216 and the fix together, close G2, and
-confirm/adapt this packet before release. Accepted progress remains 2/24. Section 5's P3 fixes
-remain the sole executable packet until that gate is met.
+**Release gate:** execute after Ali merges this credential-fix/P4 packet PR. Full P3/G2
+acceptance in §9 includes the corrected branch result. Ali explicitly authorized fixing simple
+review findings here and releasing P4 without another review round on 2026-09-08.
+Accepted progress is 3/24; P4 has not been implemented. Human merge and live/grant gates remain.
 
 **Lead:** Terra High (`gpt-5.6-terra`, high), retaining the phase-table recommendation. Reuse
 P3's established transport, validation and evidence contracts. Refer unresolved recovery or
@@ -264,9 +186,9 @@ and a raw journal. Regenerate routing views through existing generators.
    paths. Preserve existing core arguments/exit codes and the network snapshot's `node: network`,
    filename and consumer fields. Reuse ordinary functions in `proxmox.py`; add no client framework.
    Make fixtures distinguish the node shapes, protected network guests and empty-vs-unavailable pools.
-2. Parse only literal supported credential assignments. The same declared env file also supplies
-   `PVE_TOKEN_OPERATE` to ACL collection: permit this known optional assignment without using it
-   for observations, rejecting duplicate/malformed/unknown assignments and shell syntax. Test token
+2. Reuse the accepted literal credential parser, including optional `PVE_TOKEN_OPERATE`
+   without using it for observations. Preserve duplicate/malformed/unknown assignment and
+   shell syntax refusal. Extend token
    selection/redaction with distinct synthetic read and operate values. Do not inspect live files
    or relax verified TLS, hostname, GET-only, redirect or timeout behavior.
 3. Run network through Python once per default pass; remove its row from the shell-reader list.
@@ -372,6 +294,33 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
 ```
 
 ## 9. Status
+
+- 2026-09-08 — **P3 ACCEPT / G2 closed with the credential repair in this PR.** Reviewed
+  [#215](https://github.com/aliammar03/skynet/pull/215), merge
+  `05b6326c46506b1c936fbaae724a083d8a218954`;
+  [#216](https://github.com/aliammar03/skynet/pull/216), merge
+  `8e6c8502ba7c9ce8e9d39fe9bd6d5fd5a45a36df`; and
+  [#218](https://github.com/aliammar03/skynet/pull/218), merge/main reviewed
+  `1a08ebc6845f7e75ef29f2a4c3930ca07b9b1d2a`, against P3 base
+  `17db700c22cb17ad219655674eada344c215029a`. #214 and #217 supply intervening
+  planning changes. The merged base still rejected the shared operate-token assignment;
+  Ali authorized its simple repair and P4 release without another review round. Acceptance
+  includes this tested repair; it is not a claim that the unrepaired main passed.
+
+  | Full P3 exit | Evidence / disposition |
+  |---|---|
+  | CLI/data/TLS/atomic retention | ACCEPT — 99 behavioral cases pass; actual CLI with fake HTTPS covers malformed/absent/timeout/redirect/CA failures and retained bytes/times. |
+  | Default caller and freshness failure handling | ACCEPT — R1 regression refuses ordinary status/query/entity/render after initial-marker failure, makes no reads, preserves pages and recovers after a complete refresh. |
+  | Sequential readers, overlap and bounded cleanup | ACCEPT — real timeout, SIGINT/SIGTERM and early-leader-exit tests reap group descendants before continuation/lock release; failed cleanup quarantines the receipt. Scope is existing foreground readers, not arbitrary daemonizing programs. |
+  | Existing credential/caller compatibility | ACCEPT with repair — shared read/operate assignments accepted, only read token used, operate never substitutes for missing read token; duplicate/expression/unknown refusal and redaction retained. |
+  | Packaging and repository integration | ACCEPT — source/installed Nix check, Ruff, mypy, flake evaluation, offline doctor/unavailable status and full hook pass; existing consumer field projections and safety suites retained. |
+  | Authority and live boundaries | ACCEPT for isolated construction — no production credentials, API, activation, timer, host or protected-data changes. Live TLS/API parity and independent workstation/state/payload recovery remain unverified. |
+
+  **G2 decisions:** retain synchronous ordinary functions and the receipt/hash/time contract.
+  Accept 3/24 and release only §5 P4a with Terra High after human merge. Confirm the network/ACL
+  slice boundary; move shared credential compatibility into P3 (fixed here), so P4 reuses it.
+  No broader framework or roadmap reorder is needed. Preserve the five paused documentation
+  suites and P24 restoration requirement. [Raw evidence](../../journal/2026/2026-09-08-session-sky-025-p3-combined-re-review.md).
 
 - 2026-09-08 — **P3 R1/R2 fixes implemented / full P3-G2 re-review pending.** Isolated
   branch `fix/sky-025-p3` starts at `89a1dee3f497df7c8609c8639298f4d3db66d505` (merged

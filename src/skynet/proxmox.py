@@ -28,7 +28,7 @@ class CollectionError(Exception):
 
 
 def credentials(path: Path) -> tuple[str, str, ssl.SSLContext]:
-    """Read only the three required literal assignments and construct verified TLS."""
+    """Parse shared literal credentials, selecting only the read token for HTTPS."""
     try:
         contents = path.read_text(encoding="utf-8")
     except (OSError, UnicodeError, ValueError):
@@ -38,7 +38,7 @@ def credentials(path: Path) -> tuple[str, str, ssl.SSLContext]:
         if not line.strip() or line.lstrip().startswith("#"):
             continue
         match = re.fullmatch(
-            r"\s*(PVE_HOST|PVE_TOKEN|PVE_CACERT)=(?:'([^']*)'|\"([^\"]*)\"|([^\s'\"]+))"
+            r"\s*(PVE_HOST|PVE_TOKEN|PVE_CACERT|PVE_TOKEN_OPERATE)=(?:'([^']*)'|\"([^\"]*)\"|([^\s'\"]+))"
             r"\s*(?:#.*)?", line,
         )
         if not match:
@@ -48,7 +48,7 @@ def credentials(path: Path) -> tuple[str, str, ssl.SSLContext]:
         if key in values or not value or any(c in value for c in "`$\\;|&<>()\r\n\x00"):
             raise CollectionError("invalid credential assignments", 3)
         values[key] = value
-    if set(values) != {"PVE_HOST", "PVE_TOKEN", "PVE_CACERT"}:
+    if not {"PVE_HOST", "PVE_TOKEN", "PVE_CACERT"} <= values.keys():
         raise CollectionError("required credentials missing", 3)
     # The contract is a host, not a URL, port override, or userinfo destination.
     if not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?", values["PVE_HOST"]):
