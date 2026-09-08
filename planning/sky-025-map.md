@@ -261,5 +261,11 @@ Construction used fake HTTPS, synthetic credentials and disposable paths after t
 test was repaired: its initial form unexpectedly selected installed credentials and performed a
 T1 observation during validation; the incident is recorded in the raw journal. No T2/T2+/T3
 action, host/profile, timer, service, root, pool or ACL action occurred. The map's workstation,
-state and payload recovery blockers remain unchanged. Source rollback is `git revert`. P4b and
-P4 review wait for the required human merge of this P4a PR.
+state and payload recovery blockers remain unchanged. Source rollback is `git revert`.
+
+## Phase 4b implementation (slice complete; P4 review pending)
+
+P4b replaces `collect-proxmox-acl.sh` parsing and curl with Python operate-token self-observations.
+`collect all` records core/network ACL snapshots and markers under the same receipt as node
+observations; default consumers require all four. No ACL privilege, pool or live boundary changed.
+The retained ACL script forwards only. After this PR's human merge, review P4a and P4b together.

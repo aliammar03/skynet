@@ -16,8 +16,6 @@ from typing import Any, TextIO
 from skynet import proxmox
 
 REMAINING = (
-    ("proxmox-acl-core", "collect-proxmox-acl.sh", "core"),
-    ("proxmox-acl-network", "collect-proxmox-acl.sh", "network"),
     ("pbs", "collect-pbs.sh"),
     ("docker-dmz", "collect-docker.sh", "docker-dmz"),
     ("dns", "collect-dns.sh"),
@@ -29,6 +27,10 @@ REMAINING = (
 PROXMOX_NODES = (
     ("core", "proxmox-core.json", "collection-core.json"),
     ("network", "proxmox-network.json", "collection-network.json"),
+)
+PROXMOX_ACLS = (
+    ("core", "proxmox-core-acl.json", "collection-core-acl.json"),
+    ("network", "proxmox-network-acl.json", "collection-network-acl.json"),
 )
 READER_TIMEOUT = 120.0
 CLEANUP_TIMEOUT = 5.0
@@ -174,6 +176,31 @@ def collect_all(repo: Path, credentials_file: Path, network_credentials_file: Pa
                     code = 1
                 elif node_code and code == 0:
                     code = node_code
+            for target, snapshot_name, marker_name in PROXMOX_ACLS:
+                output = repo / "inventory" / snapshot_name
+                status = repo / "inventory" / marker_name
+                marker = {
+                    "target": f"proxmox-{target}-acl", "outcome": "unavailable", "attempted": attempted,
+                    "reason": "refresh incomplete; retained snapshot is previous evidence",
+                }
+                proxmox.publish(status, marker)
+                stream = io.StringIO()
+                acl_code = proxmox.collect_acl(target, output, credential_files[target],
+                                               json_output=True, stdout=stream)
+                acl = json.loads(stream.getvalue())
+                marker.update(outcome=acl["outcome"])
+                if acl_code == 0:
+                    marker.pop("reason")
+                    marker.update(collected=acl["collected"],
+                                  sha256=hashlib.sha256(output.read_bytes()).hexdigest())
+                else:
+                    marker["reason"] = acl["reason"]
+                proxmox.publish(status, marker)
+                report["collectors"].append(acl)
+                if acl_code == 1:
+                    code = 1
+                elif acl_code and code == 0:
+                    code = acl_code
             for name, script, *args in REMAINING:
                 try:
                     exit_code = run_reader([str(repo / "scripts" / script), *args], repo)
@@ -225,22 +252,27 @@ def proxmox_status(repo: Path, *, since: str | None, json_output: bool, stdout: 
             # Reaffirm only the existing receipt; status can never establish a new attempt.
             receipt_write(lock, attempted_receipt)
             observations = [
-                (target, json.loads((repo / "inventory" / marker_name).read_bytes()),
+                (f"proxmox-{target}", target, json.loads((repo / "inventory" / marker_name).read_bytes()),
                  (repo / "inventory" / snapshot_name).read_bytes())
                 for target, snapshot_name, marker_name in PROXMOX_NODES
+            ] + [
+                (f"proxmox-{target}-acl", f"server-proxmox-{target}",
+                 json.loads((repo / "inventory" / marker_name).read_bytes()),
+                 (repo / "inventory" / snapshot_name).read_bytes())
+                for target, snapshot_name, marker_name in PROXMOX_ACLS
             ]
         now = datetime.now(UTC)
         collected_values: dict[str, str] = {}
-        for target, evidence, raw in observations:
+        for evidence_target, node, evidence, raw in observations:
             snapshot = json.loads(raw)
             if not isinstance(evidence, dict) or not isinstance(snapshot, dict):
                 raise ValueError
             collected = timestamp(snapshot.get("collected"))
             attempted = timestamp(evidence.get("attempted"))
             valid = (
-                evidence.get("target") == f"proxmox-{target}" and evidence.get("outcome") == "success"
+                evidence.get("target") == evidence_target and evidence.get("outcome") == "success"
                 and attempted_receipt == evidence.get("attempted")
-                and snapshot.get("node") == target
+                and snapshot.get("node") == node
                 and evidence.get("collected") == snapshot.get("collected")
                 and evidence.get("sha256") == hashlib.sha256(raw).hexdigest()
                 and now - timedelta(hours=36) <= collected <= now
@@ -250,7 +282,7 @@ def proxmox_status(repo: Path, *, since: str | None, json_output: bool, stdout: 
             )
             if not valid:
                 raise ValueError
-            collected_values[target] = snapshot["collected"]
+            collected_values[evidence_target] = snapshot["collected"]
     except (OSError, ValueError, TypeError, OverflowError):
         report["reason"] = (
             "Proxmox refresh evidence missing, failed, mismatched or stale; "

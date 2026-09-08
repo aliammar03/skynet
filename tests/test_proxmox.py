@@ -24,6 +24,7 @@ import skynet.proxmox as proxmox  # noqa: E402
 FIXTURES = Path(__file__).parent / "fixtures" / "proxmox"
 TOKEN = "svc-ops@pve!readonly=synthetic-core-read-token"
 NETWORK_TOKEN = "svc-ops@pve!readonly=synthetic-network-read-token"
+OPERATE_TOKEN = "svc-ops@pve!operate=synthetic-core-operate-token"
 NETWORK_OPERATE_TOKEN = "svc-ops@pve!operate=synthetic-network-operate-token"
 
 
@@ -40,6 +41,7 @@ def endpoint_data() -> dict[str, Any]:
         "/api2/json/pools": fixture("pools.json"),
         f"/api2/json/pools/{quote(pool, safe='')}": fixture("pool-detail.json"),
         "/api2/json/cluster/backup": fixture("backup.json"),
+        "/api2/json/access/permissions": {"data": {"/pool/ops-managed": {"VM.Audit": 1}}},
         (
             f"/api2/json/nodes/{quote(node, safe='')}/tasks"
             "?typefilter=vzdump&limit=5"
@@ -54,6 +56,7 @@ def network_endpoint_data() -> dict[str, Any]:
         "/api2/json/cluster/resources": fixture("network-resources.json"),
         "/api2/json/pools": fixture("network-pools.json"),
         "/api2/json/cluster/backup": fixture("network-backup.json"),
+        "/api2/json/access/permissions": {"data": {"/pool/ops-managed": {"VM.Audit": 1}}},
         (
             f"/api2/json/nodes/{quote(node, safe='')}/tasks"
             "?typefilter=vzdump&limit=5"
@@ -97,6 +100,8 @@ class FakeConnection:
         assert headers in (
             {"Authorization": f"PVEAPIToken={TOKEN}"},
             {"Authorization": f"PVEAPIToken={NETWORK_TOKEN}"},
+            {"Authorization": f"PVEAPIToken={OPERATE_TOKEN}"},
+            {"Authorization": f"PVEAPIToken={NETWORK_OPERATE_TOKEN}"},
         )
         self.requests.append((method, path, headers))
 
@@ -136,7 +141,7 @@ def credentials(tmp_path: Path) -> Path:
         "# synthetic test credentials\n"
         "PVE_HOST='pve.example.test'\n"
         f"PVE_TOKEN=\"{TOKEN}\" # token\n"
-        "PVE_TOKEN_OPERATE='synthetic-operate-token'\n"
+        f"PVE_TOKEN_OPERATE='{OPERATE_TOKEN}'\n"
         f"PVE_CACERT={cafile}\n"
     )
     return path
@@ -148,7 +153,7 @@ def test_shared_credentials_keep_operate_optional_and_never_substitute_it(
 ) -> None:
     shared = credentials.read_text()
     assert collect(tmp_path, credentials, capsys)[0] == 0
-    credentials.write_text(shared.replace("PVE_TOKEN_OPERATE='synthetic-operate-token'\n", ""))
+    credentials.write_text(shared.replace(f"PVE_TOKEN_OPERATE='{OPERATE_TOKEN}'\n", ""))
     assert collect(tmp_path, credentials, capsys)[0] == 0
     credentials.write_text("\n".join(line for line in shared.splitlines()
                                      if not line.startswith("PVE_TOKEN=")))
@@ -167,7 +172,7 @@ def test_shared_credential_invalid_assignments_remain_refused(
 ) -> None:
     contents = credentials.read_text()
     if assignment != "PVE_TOKEN_OPERATE=duplicate":
-        contents = contents.replace("PVE_TOKEN_OPERATE='synthetic-operate-token'\n", "")
+        contents = contents.replace(f"PVE_TOKEN_OPERATE='{OPERATE_TOKEN}'\n", "")
     credentials.write_text(contents + assignment + "\n")
     code, _, stdout, stderr = collect(tmp_path, credentials, capsys, json_output=True)
     assert code == 3 and not transport.instances
@@ -229,6 +234,22 @@ def test_network_target_uses_its_read_token_and_preserves_protected_guest_projec
     assert guests == [(5001, "qemu"), (635, "lxc"), (837, "lxc")]
     requests = [request for connection in transport.instances for request in connection.requests]
     assert all(request[2]["Authorization"] == f"PVEAPIToken={NETWORK_TOKEN}" for request in requests)
+
+
+def test_acl_target_selects_only_operate_token_and_validates_permissions(
+    tmp_path: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    output = tmp_path / "acl.json"
+    code = main(["collect", "proxmox-acl", "core", "--output", str(output),
+                 "--credentials-file", str(credentials), "--json"])
+    report = json.loads(capsys.readouterr().out)
+    assert code == 0 and report["target"] == "proxmox-core-acl"
+    snapshot = json.loads(output.read_text())
+    assert snapshot["node"] == "server-proxmox-core"
+    assert snapshot["permissions"] == {"/pool/ops-managed": {"VM.Audit": 1}}
+    assert all(request[2]["Authorization"] == f"PVEAPIToken={OPERATE_TOKEN}"
+               for connection in transport.instances for request in connection.requests)
 
 
 def test_success_human_summary_and_snapshot_projection(
