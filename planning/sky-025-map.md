@@ -22,7 +22,7 @@ Enumeration counts: root files 10; `.claude` 1, `.codex` 4, `.githooks` 1, `.git
 
 | Surface | migrate/retain/delete | Replacement/owner | Callers | Phase | verified/blocked |
 |---|---|---|---|---|---|
-| `bin/ops`; `collect-all.sh` | migrate | Thin `skynet` dispatch and explicit workflow results | Humans, runbooks, nightly | 2–9, 20 | Verified dispatch and Nix timer references |
+| `bin/ops`; `collect-all.sh` | migrate | Thin `skynet` dispatch and explicit workflow results | Humans, runbooks, nightly | 2–9, 20 | P3b routes default collection through the Nix package; core refresh evidence guards default queries/audits/rendering. Remaining orchestration stays P20 |
 | `collect-proxmox.sh`, `collect-proxmox-acl.sh` | migrate | Python read collectors; node-specific validation | collect-all, inventory gates/renderers | 3–4 | P3a builds isolated core collector; P3b owns default-caller/freshness integration; network/ACL remain P4. Live behavior untested |
 | `collect-pbs.sh`, `collect-docker.sh` | migrate | Python PBS/Docker collectors | collect-all, backup/container views | 5 | Verified current callers; preserve unavailable states |
 | `collect-dns.sh`, `collect-opnsense.sh`, `collect-firewall.sh` | migrate | Python DNS/live OPNsense collection and offline mirror parsing | collect-all, firewall/DNS views; ADR 0006 offline recovery | 6 | Verified live/offline distinction; no new OPNsense writer |
@@ -137,7 +137,7 @@ settings remain unchanged. Final check commands/results and raw inspection corre
 [phase journal](../journal/2026/2026-09-07-session-sky-025-p1-repository-map-and-routing.md).
 G1 accepted PR #211 at `3373fc887296cb6b32064d867f814c75266fedc5`; the directive records independent
 exit evidence. P2's isolated package build, source-filter boundary, runtime-only doctor, and Nix-owned
-checks are independently accepted; §5 of the directive releases only P3a, led by Astra Medium.
+checks are independently accepted; §5 of the directive records P3a and the same-phase P3b continuation.
 P3/G2 acceptance still requires P3b's default-caller integration and freshness handling.
 Independent review covers the full numbered phase after both slices; P3a has no separate review gate.
 It did not install or activate a runtime, replace an existing command, or clear an external live/recovery
@@ -149,9 +149,8 @@ blocker. External live/recovery blockers above remain in force.
 in `/tmp/skynet-sky-025-p3a`, from remote-main base
 `f21442c44d34baf71e01ca8938ea1305c82242f6` (packet/review PR #214). It has no default
 output destination and has not read production credentials or contacted a lab endpoint.
-The shell collector, `collect-all.sh`, `bin/ops`, timers and host profiles remain unchanged.
-P3b's caller/freshness integration remains to be detailed and implemented within P3's boundaries;
-P3/G2 acceptance follows completion of both slices.
+At P3a close-out the shell caller, `collect-all.sh`, `bin/ops`, timers and host profiles were unchanged.
+P3b's integration is described below; P3/G2 acceptance covers both slices together.
 
 | Consumer | Preserved snapshot contract / synthetic evidence |
 |---|---|
@@ -165,4 +164,37 @@ boundaries substituted. Nix package checks run the suite against both source and
 modules; outside-checkout console tests unset `PYTHONPATH` and use missing synthetic credentials.
 No live response parity, real remote handshake, host activation or recovery drill is claimed.
 The required hook passes with Ali's explicitly authorized 200,000-token current-authority
-budget; the always-loaded budget remains 6,500. Full-phase acceptance awaits P3b implementation.
+budget; the always-loaded budget remains 6,500. Full-phase acceptance covers P3a and P3b.
+
+## Phase 3b implementation (full P3 review pending)
+
+Base `05b6326c46506b1c936fbaae724a083d8a218954` includes merged P3a PR #215. Ali explicitly
+requested P3b and full-numbered-phase reviews. The workflow correction travels in this PR because
+#215 merged before that correction was published. Accepted progress remains 2/24.
+
+`bin/ops collect` → `collect-all.sh` → `bin/skynet` → `skynet collect all --repo` is the default
+source path. The launcher uses offline Nix on tracked Git source, not ignored files or source-Python
+fallback. No profile installation or NixOS activation is needed for this launcher. Actual offline
+doctor and missing-evidence status invocations were checked locally without reading credentials.
+`collect-proxmox.sh core` forwards to the isolated Python collector; its remaining shell code is
+network-only, retained until P4. Other shell collectors remain owned by P4–7 and expose process
+status, not the new core validation contract.
+
+| Consumer | Core freshness behavior |
+|---|---|
+| `collect all` | Nonblocking local collection lock; unavailable marker before reads; success marker binds exact snapshot hash/time. Failed/incomplete marker never validates old evidence. |
+| `bin/ops query`, `bin/ops entities` | Require matching successful core evidence within 36 hours before querying/auditing. Other input freshness is not established. |
+| `render-docs.sh`, nightly | Refuse before publication if core evidence fails. Nightly requires an attempt from this pass, including when marker setup itself fails. Never reuse a prior SQLite cache after rebuild failure. |
+| Direct invariant/entity/SQLite scripts | Historical-snapshot checks retained for deterministic CI; not a live-freshness gate. Tests still verify template identity and protected pool membership. |
+
+The two core files are not an atomic pair: publish unavailable first, then snapshot, then success
+with its hash. A crash or final-marker failure leaves evidence unavailable; mismatched hashes fail.
+If initial marker publication fails, no remote reads start and the caller gets failure; the nightly
+attempt cutoff prevents that failure from satisfying this pass with an earlier success.
+The isolated core command intentionally does not issue default refresh evidence.
+
+No production collection, credentials, timer/service, host activation, state/payload or root action
+was performed. The source path becomes effective when used from the merged checkout; the map's
+workstation/recovery prerequisites remain unverified before that live transition. Offline package
+availability is proven locally, not live API parity or independent recovery. P3/G2 review must
+assess those explicit limits; P4 remains unauthorized until full-phase acceptance.

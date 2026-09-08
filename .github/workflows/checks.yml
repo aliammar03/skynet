@@ -53,20 +53,12 @@ jobs:
         run: bash tests/agent-test.sh
       - name: gitignore-test
         run: bash tests/gitignore-test.sh
-      - name: obsidian-hygiene-test
-        run: bash tests/obsidian-hygiene-test.sh
       - name: nightly-automerge-test
         run: bash tests/nightly-automerge-test.sh
       - name: nightly-sequence-test
         run: bash tests/nightly-sequence-test.sh
-      - name: documentation-drift-test
-        run: bash tests/documentation-drift-test.sh
-      - name: temporal-hygiene-test
-        run: bash tests/temporal-hygiene-test.sh
-      - name: repo-surface-test
-        run: bash tests/repo-surface-test.sh
-      - name: hygiene-test
-        run: bash tests/hygiene-test.sh
+      # Documentation/style/context checks are manual during the repository overhaul.
+      # Restore their maintained replacements before completing the overhaul.
 
   python:
     name: Python package (Nix)

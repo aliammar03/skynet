@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# skynet — run the Nix-owned package from this checkout for existing shell callers.
+# TIER: command-dependent; launcher grants no authority. USAGE: bin/skynet <CLI arguments>
+# Retained for bin/ops and shell consumers; remove when their packaged callers own launch.
+set -euo pipefail
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+exec nix run --offline --no-write-lock-file "git+file://${REPO_DIR}#skynet" -- "$@"

@@ -31,9 +31,11 @@ nix/packages/
 
 ## Skynet Python runtime
 
-The `skynet` command is a Nix-owned Python package exposing a local runtime diagnostic and
-an explicit-output core Proxmox observation collector. The host's installed shell collectors
-and nightly remain the operational path; building this package does not activate it.
+The `skynet` command is a Nix-owned Python package exposing a runtime diagnostic, core Proxmox
+observations, default collection and core freshness checks. `bin/skynet` launches the package
+from the checkout's tracked Git source using offline, lock-preserving Nix evaluation. It never
+falls back to source Python or installs a profile. Build the package and cache its dependencies
+before using default callers; a missing Nix/build prerequisite fails the command.
 
 ```bash
 # source development tools, with no pip installation
@@ -67,6 +69,24 @@ JSON reports `outcome`, `target`, `output`, and either `collected`/`counts` or a
 Exit codes: 0 success, 2 usage error, 3 unavailable credentials/CA/remote evidence, 1 malformed
 data or local publication failure. Empty nodes/resources fail; empty pools/jobs/tasks are valid
 observations, with absent backup results represented by null fields.
+
+`bin/ops collect` forwards to `skynet collect all --repo <checkout>`, running the Python core
+collector and the remaining shell readers once each. Core refresh evidence lives in
+`inventory/collection-core.json`: an incomplete marker precedes reads, and success records
+the exact snapshot hash/time. A local nonblocking lock prevents overlapping collections.
+After marker publication, failures preserve the snapshot but invalidate its refresh evidence.
+Marker setup failure stops before reads; nightly's same-pass cutoff rejects prior success.
+Other readers report their
+process exits; they do not yet provide the Python core collector's validated evidence contract.
+
+`skynet collect-status --repo <checkout> [--since <timestamp>] [--json]` requires matching
+successful core evidence no older than 36 hours, with timezone-aware timestamps. Missing,
+failed, future, stale or mismatched evidence exits 3. Default factual rendering and
+`bin/ops query|entities` require this check. Nightly sets `SKYNET_COLLECTION_SINCE` so a prior
+success cannot satisfy the current pass. Direct repository invariant/entity/SQLite scripts
+operate on historical snapshots for deterministic CI; they do not establish live freshness.
+The explicit-output core collector is isolated: use `collect all` to establish default refresh
+evidence after an isolated collection changes the snapshot.
 
 ## The decisions baked in
 

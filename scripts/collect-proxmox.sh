@@ -7,6 +7,14 @@
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 node="${1:?usage: collect-proxmox.sh <core|network>}"
+case "${node}" in
+  core)
+    exec "${REPO_DIR}/bin/skynet" collect proxmox core \
+      --output "${REPO_DIR}/inventory/proxmox-core.json"
+    ;;
+  network) ;;
+  *) echo 'usage: collect-proxmox.sh <core|network>' >&2; exit 2 ;;
+esac
 secret_file="/opt/skynet-ops/secrets/proxmox-${node}.env"
 
 if ! { test -e "${secret_file}" 2>/dev/null || sudo -n test -f "${secret_file}" 2>/dev/null; }; then

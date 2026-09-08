@@ -39,6 +39,7 @@ prepare() {
   git fetch origin "${DEFAULT_BRANCH}" --quiet
   git checkout -B "${BRANCH}" "origin/${DEFAULT_BRANCH}"
 
+  export SKYNET_COLLECTION_SINCE="$(date --iso-8601=ns)"
   step collection ./scripts/collect-all.sh
   step render-docs ./scripts/render-docs.sh
 

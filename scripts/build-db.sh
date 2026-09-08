@@ -7,6 +7,7 @@
 #   outside .cache/.
 # USAGE: build-db.sh            # (re)build .cache/inventory.db
 #   Override the binary for testing:  SQLITE3="nix shell nixpkgs#sqlite -c sqlite3" build-db.sh
+#   Direct invocation builds a historical snapshot cache; bin/ops query checks core freshness.
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${REPO_DIR}"

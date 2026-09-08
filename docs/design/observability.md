@@ -26,8 +26,11 @@ hand-maintained:
 ```
 
 `inventory/` and `docs/generated/` are **machine-owned — never hand-edited** (a constitution
-invariant). The docs cannot drift from reality because they're re-rendered after each inventory
-refresh.
+invariant). Default rendering requires matching successful core collection evidence no older than
+36 hours; the nightly additionally requires an attempt from its current pass. A failed core refresh
+leaves the snapshot and prior pages intact and records a failure, rather than refreshing their
+presentation. Other collectors retain their existing evidence limitations. Collection timestamps
+describe observations, not live service-health verification.
 
 Obsidian sync uses a `skynet` clone (optionally sparse-checking out `docs/generated/`) and never
 touches the CouchDB LiveSync vault. Configuration: [`obsidian-setup.md`](../obsidian-setup.md).
