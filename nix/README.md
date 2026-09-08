@@ -96,7 +96,8 @@ After operator verification that the reader processes are gone, clear that recei
 collection lock and run a complete refresh. Do not delete the lock file while a process holds it.
 
 `skynet collect-status --repo <checkout> [--since <timestamp>] [--json]` requires matching
-successful core and network evidence no older than 36 hours, with timezone-aware timestamps.
+successful core and network observations and operate-token ACL evidence no older than 36 hours,
+with timezone-aware timestamps.
 Missing, failed, future, stale or mismatched evidence exits 3. Default factual rendering and
 `bin/ops query|entities` require this check. Nightly sets `SKYNET_COLLECTION_SINCE` so a prior
 success cannot satisfy the current pass. Direct repository invariant/entity/SQLite scripts

@@ -10,7 +10,7 @@ from typing import NoReturn
 from skynet import installed_version
 from skynet.collection import collect_all, proxmox_status
 from skynet.doctor import write_report
-from skynet.proxmox import DEFAULT_CREDENTIALS, collect
+from skynet.proxmox import DEFAULT_CREDENTIALS, collect, collect_acl
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -51,6 +51,15 @@ def build_parser() -> argparse.ArgumentParser:
                           help="literal PVE_HOST/PVE_TOKEN/PVE_CACERT assignments")
         node.add_argument("--json", action="store_true", dest="json_output",
                           help="write one collection outcome object as JSON")
+    acl = sources.add_parser("proxmox-acl", help="collect Proxmox operate-token ACL observations")
+    acl_targets = acl.add_subparsers(dest="target", required=True)
+    for target in ("core", "network"):
+        node = acl_targets.add_parser(target, help=f"collect {target} operate-token permissions")
+        node.add_argument("--output", type=Path, required=True,
+                          help="explicit ACL snapshot destination; publish only on complete success")
+        node.add_argument("--credentials-file", type=Path, default=DEFAULT_CREDENTIALS[target],
+                          help="literal PVE_HOST/PVE_TOKEN_OPERATE/PVE_CACERT assignments")
+        node.add_argument("--json", action="store_true", dest="json_output")
     status = commands.add_parser("collect-status", help="require fresh successful Proxmox observations")
     status.add_argument("--repo", type=Path, required=True)
     status.add_argument("--since", default=os.environ.get("SKYNET_COLLECTION_SINCE"),
@@ -70,8 +79,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             return collect_all(arguments.repo, arguments.credentials_file,
                                arguments.network_credentials_file,
                                json_output=arguments.json_output, stdout=sys.stdout)
-        return collect(arguments.target, arguments.output, arguments.credentials_file,
-                       json_output=arguments.json_output, stdout=sys.stdout)
+        function = collect_acl if arguments.source == "proxmox-acl" else collect
+        return function(arguments.target, arguments.output, arguments.credentials_file,
+                        json_output=arguments.json_output, stdout=sys.stdout)
     if arguments.command == "collect-status":
         return proxmox_status(arguments.repo, since=arguments.since,
                               json_output=arguments.json_output, stdout=sys.stdout)

@@ -13,7 +13,8 @@ from pathlib import Path
 
 import pytest
 
-from test_proxmox import FakeConnection, NETWORK_TOKEN, network_endpoint_data, TOKEN
+from test_proxmox import (FakeConnection, NETWORK_OPERATE_TOKEN, NETWORK_TOKEN, OPERATE_TOKEN,
+                          network_endpoint_data, TOKEN)
 from skynet.cli import main
 from skynet import collection
 
@@ -66,7 +67,8 @@ def test_default_collection_records_matching_evidence_and_runs_remaining_once(
     repo: Path, credentials: Path, transport: type[FakeConnection], capsys: pytest.CaptureFixture[str],
 ) -> None:
     transport.responses_by_token = dict([
-        (TOKEN, transport.responses), (NETWORK_TOKEN, network_endpoint_data()),
+        (TOKEN, transport.responses), (OPERATE_TOKEN, transport.responses),
+        (NETWORK_TOKEN, network_endpoint_data()), (NETWORK_OPERATE_TOKEN, network_endpoint_data()),
     ])
     code, report = run(repo, credentials, capsys, network_credentials(repo, credentials))
     assert code == 0 and report["outcome"] == "success"
@@ -109,6 +111,28 @@ def test_failed_network_refresh_invalidates_paired_status_and_retains_network_sn
     monkeypatch.setattr(proxmox, "collect", real_collect)
     assert run(repo, credentials, capsys)[0] == 0
     assert status(repo, capsys) == 0
+
+
+def test_failed_acl_refresh_invalidates_status_and_retains_acl_snapshot(
+    repo: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert run(repo, credentials, capsys)[0] == 0
+    previous = (repo / "inventory/proxmox-network-acl.json").read_bytes()
+    from skynet import proxmox
+    real_collect_acl = proxmox.collect_acl
+
+    def unavailable_acl(target: str, *args: object, **kwargs: object) -> int:
+        if target == "network":
+            kwargs["stdout"].write(json.dumps({"target": "proxmox-network-acl", "outcome": "unavailable",
+                                                "reason": "synthetic ACL timeout"}))
+            return 3
+        return real_collect_acl(target, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(proxmox, "collect_acl", unavailable_acl)
+    assert run(repo, credentials, capsys)[0] == 3
+    assert (repo / "inventory/proxmox-network-acl.json").read_bytes() == previous
+    assert status(repo, capsys) == 3
 
 
 @pytest.mark.parametrize("failure", [TimeoutError(TOKEN), {"data": None}, {"data": [{}]}])
@@ -285,7 +309,7 @@ def test_remaining_timeout_kills_descendants_before_next_reader_and_releases_loc
     code, report = run(repo, credentials, capsys)
     assert time.monotonic() - started < 5
     assert code == 1
-    assert report["collectors"][2]["outcome"] == "failure"
+    assert next(item for item in report["collectors"] if item["target"] == "slow")["outcome"] == "failure"
     assert ready.exists()
     assert not destination.exists()
     assert not (repo / "survivor-at-next").exists()
@@ -299,7 +323,7 @@ def test_remaining_timeout_kills_descendants_before_next_reader_and_releases_loc
     # A second complete attempt proves timeout cleanup happened before lock release.
     before_requests = len(transport.instances)
     assert run(repo, credentials, capsys)[0] == 1
-    assert len(transport.instances) == before_requests + 12
+    assert len(transport.instances) == before_requests + 14
     assert (repo / "calls").read_text().splitlines() == [row[1] for row in remaining] * 2
     assert status(repo, capsys) == 0  # core success is independent of other readers' exits
 
@@ -402,7 +426,7 @@ def test_interrupted_reader_is_cleaned_and_lock_is_released(
     monkeypatch.setattr(collection, "REMAINING", remaining)
     before_requests = len(transport.instances)
     assert run(repo, credentials, capsys)[0] == 0
-    assert len(transport.instances) == before_requests + 12
+    assert len(transport.instances) == before_requests + 14
 
 
 def test_cleanup_failure_quarantines_receipt_and_stops_remaining_readers(

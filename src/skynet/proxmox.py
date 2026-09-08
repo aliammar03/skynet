@@ -30,8 +30,8 @@ class CollectionError(Exception):
         self.code = code
 
 
-def credentials(path: Path) -> tuple[str, str, ssl.SSLContext]:
-    """Parse shared literal credentials, selecting only the read token for HTTPS."""
+def credentials(path: Path, token_name: str = "PVE_TOKEN") -> tuple[str, str, ssl.SSLContext]:
+    """Parse literal credentials and select exactly one declared token for HTTPS."""
     try:
         contents = path.read_text(encoding="utf-8")
     except (OSError, UnicodeError, ValueError):
@@ -51,18 +51,18 @@ def credentials(path: Path) -> tuple[str, str, ssl.SSLContext]:
         if key in values or not value or any(c in value for c in "`$\\;|&<>()\r\n\x00"):
             raise CollectionError("invalid credential assignments", 3)
         values[key] = value
-    if not {"PVE_HOST", "PVE_TOKEN", "PVE_CACERT"} <= values.keys():
+    if not {"PVE_HOST", "PVE_CACERT", token_name} <= values.keys():
         raise CollectionError("required credentials missing", 3)
     # The contract is a host, not a URL, port override, or userinfo destination.
     if not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?", values["PVE_HOST"]):
         raise CollectionError("invalid credential host", 3)
-    if any(ord(c) < 33 or ord(c) > 126 for c in values["PVE_TOKEN"]):
+    if any(ord(c) < 33 or ord(c) > 126 for c in values[token_name]):
         raise CollectionError("invalid credential token", 3)
     try:
         context = ssl.create_default_context(cafile=values["PVE_CACERT"])
     except (OSError, ValueError):
         raise CollectionError("CA unavailable or invalid", 3) from None
-    return values["PVE_HOST"], values["PVE_TOKEN"], context
+    return values["PVE_HOST"], values[token_name], context
 
 
 def get(host: str, token: str, context: ssl.SSLContext, path: str) -> Any:
@@ -260,4 +260,47 @@ def collect(target: str, output: Path, credentials_file: Path, *, json_output: b
         else:
             print(f"collected: {report['collected']}; " + ", ".join(
                 f"{key}: {value}" for key, value in report["counts"].items()), file=stdout)
+    return code
+
+
+def acl_snapshot(target: str, host: str, token: str, context: ssl.SSLContext) -> dict[str, Any]:
+    """Collect one operate token's own effective permissions, never an ACL configuration."""
+    permissions = get(host, token, context, "access/permissions")
+    if not isinstance(permissions, dict) or not permissions:
+        raise CollectionError("missing or malformed permissions")
+    for path, grants in permissions.items():
+        if not isinstance(path, str) or not path.startswith("/") or not isinstance(grants, dict):
+            raise CollectionError("missing or malformed permissions")
+        if any(not isinstance(name, str) or type(value) is not int or value not in (0, 1)
+               for name, value in grants.items()):
+            raise CollectionError("missing or malformed permissions")
+    token_id, separator, _ = token.partition("=")
+    if not separator or not token_id:
+        raise CollectionError("invalid operate token", 3)
+    return {"node": f"server-proxmox-{target}", "token": token_id,
+            "collected": datetime.now(UTC).isoformat(timespec="seconds"),
+            "permissions": permissions}
+
+
+def collect_acl(target: str, output: Path, credentials_file: Path, *, json_output: bool,
+                stdout: TextIO) -> int:
+    """Collect one validated operate-token ACL observation without exposing its token."""
+    report: dict[str, Any] = {"target": f"proxmox-{target}-acl", "output": str(output)}
+    try:
+        data = acl_snapshot(target, *credentials(credentials_file, "PVE_TOKEN_OPERATE"))
+        publish(output, data)
+    except CollectionError as error:
+        report.update(outcome="unavailable" if error.code == 3 else "failure",
+                      reason=f"{error}; refresh failed; any retained snapshot is previous evidence")
+        code = error.code
+    else:
+        report.update(outcome="success", collected=data["collected"],
+                      counts={"paths": len(data["permissions"])})
+        code = 0
+    if json_output:
+        print(json.dumps(report), file=stdout)
+    else:
+        print(f"{report['target']}: {report['outcome']} → {report['output']}", file=stdout)
+        if code:
+            print(report["reason"], file=stdout)
     return code

@@ -228,6 +228,22 @@ checks and removal of their shell implementation; no privilege grant or invarian
 Commit/push and open `SKY-025 P4: collect network observations in Python`; do not merge.
 After Ali merges, continue the bounded P4b packet. Review all P4 slices together before P5.
 
+## 5b. Phase 4b — operate-token ACL snapshots (~1–2h)
+
+**Release gate:** P4a PR #220 is merged at `67e1471987eb14f2f209db0d6ee4bed57386bd1f`; this is
+the remaining P4 slice, not a new numbered phase. **Lead:** Terra High (`gpt-5.6-terra`, high).
+
+**Goal/interfaces:** replace both ACL shell readers with `collect proxmox-acl <core|network> --output`.
+Select only `PVE_TOKEN_OPERATE`, validate the `/access/permissions` path-to-`{privilege: 0|1}`
+shape, record a safe token ID, and atomically retain the existing ACL schema. Default collection
+publishes paired ACL markers under the one durable receipt; status requires all four Proxmox markers.
+
+**Boundaries/checks:** fake HTTPS, synthetic credentials and disposable outputs only; no real
+credential/endpoint, ACL/pool change, grant, root or activation. Cover operate selection/redaction,
+malformed permissions, failed ACL retention/status refusal and recovery. Run the P4a checks. Rollback
+is git revert. Open `SKY-025 P4: collect operate-token ACL snapshots in Python`; do not merge.
+After Ali merges, request one fresh Astra Medium review for both P4 PRs before P5.
+
 ## 6. Carry forward the original review as acceptance cases
 
 Source review baseline `749f08a`; merged original directive #207. The full original findings remain

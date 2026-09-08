@@ -40,6 +40,7 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 **Explicit durable follow-ups:**
 
+- Run full checks, regenerate digest/context, commit/push/open the P4b PR. After Ali merges it, request one fresh Astra Medium review covering both P4 slices before P5. — _2026-09-08 session_
 - After this P4a PR is human-merged, execute only P4b: both ACL snapshots, operate-token self-introspection, paired ACL freshness and removal of their shell implementation; then obtain one fresh Astra Medium review for all of P4. — _2026-09-08 session_
 - The map's live API parity, independent workstation access, state/payload recovery, and first live transition prerequisites remain unverified. — _2026-09-08 session_
 - After Ali merges this credential-fix/P4 packet PR, execute SKY-025 §5 Phase 4a with Terra High via planning/prompts/execute.md. No additional P3 review round is required; accepted progress is 3/24. — _2026-09-08 session_
@@ -47,17 +48,16 @@ follow a link for the full story; distill episodes at read time, never in this f
 - After Ali merges the P3 fix PR, use a fresh Astra Medium session to review all P3 implementation (#215, #216 and this fix) via `planning/prompts/review.md`. Review the draft P4a/P4b boundaries before releasing the next packet. Accepted progress remains 2/24 until acceptance. — _2026-09-08 session_
 - Independent workstation/state/payload recovery, live API/TLS parity and activation remain unverified and outside this packet. No grant or live transition is released. — _2026-09-08 session_
 - Ali's five paused documentation/style/context suites were not run or counted as passing; their maintained replacements must return to hook/CI by P24. — _2026-09-08 session_
-- After Ali merges this planning PR, start a fresh Astra Medium task: Read planning/prompts/execute.md and execute SKY-025 Phase 3 fixes from §5. Then review all P3 implementation (#215, #216 and the merged fix PR) together. P4 stays unreleased and accepted progress remains 2/24. — _2026-09-08 session_
 
 ## 📓 Recent episodes
 
+- **2026-09-08** · session · [[2026-09-08-session-sky-025-p4b-operate-token-acl-snapshots|SKY-025 P4b operate-token ACL snapshots]]
 - **2026-09-08** · incident · [[2026-09-08-incident-sky-025-p4a-default-path-test-scope-breach|SKY-025 P4a default-path test scope breach]]
 - **2026-09-08** · session · [[2026-09-08-session-sky-025-p4a-network-observations|SKY-025 P4a network observations]]
 - **2026-09-08** · session · [[2026-09-08-session-sky-025-p3-combined-re-review|SKY-025 P3 combined re-review]]
 - **2026-09-08** · session · [[2026-09-08-session-sky-025-p3-freshness-and-process-fixes|SKY-025 P3 freshness and process fixes]]
 - **2026-09-08** · session · [[2026-09-08-session-sky-025-p3-independent-review|SKY-025 P3 independent review]]
 - **2026-09-08** · session · [[2026-09-08-session-sky-025-p3b-default-collection-and-freshness|SKY-025 P3b default collection and freshness]]
-- **2026-09-07** · session · [[2026-09-07-session-sky-025-full-phase-review-boundary|SKY-025 full phase review boundary]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._
