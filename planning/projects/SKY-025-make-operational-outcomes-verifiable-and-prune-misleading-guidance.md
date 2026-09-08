@@ -234,6 +234,78 @@ docs describe actual behavior and preserve live limitations. After the fix PR me
 fresh Astra Medium review of **all P3** (#215, #216 and the fix PR), not an isolated repair review.
 Do not increment accepted progress or implement P4.
 
+### Draft next packet — Phase 4a: network observations (~1–2h; not released)
+
+**Requested by Ali, 2026-09-08:** author the next phase packet alongside the P3 fix and review
+the work before publishing. This is a reviewable draft, not P3 acceptance or permission to run P4.
+The fresh merged-result reviewer must review #215, #216 and the fix together, close G2, and
+confirm/adapt this packet before release. Accepted progress remains 2/24. Section 5's P3 fixes
+remain the sole executable packet until that gate is met.
+
+**Lead:** Terra High (`gpt-5.6-terra`, high), retaining the phase-table recommendation. Reuse
+P3's established transport, validation and evidence contracts. Refer unresolved recovery or
+privilege decisions to Astra Medium. P4 is split into **P4a network observations** and
+**P4b both operate-token ACL snapshots** to bound caller/freshness integration. The execution
+lead details P4b within that scope after P4a; independent acceptance covers all P4 together.
+
+**Goal:** the default collection obtains validated core and network Proxmox observations in
+Python; default consumers refuse either missing/failed/stale node observation.
+
+**Exact surfaces:** `src/skynet/{cli,proxmox,collection}.py`,
+`tests/test_{cli,proxmox,collection}.py`, `tests/fixtures/proxmox/`,
+`scripts/collect-proxmox.sh`, `nix/packages/skynet.nix` only for fixture packaging;
+`bin/ops`, `scripts/{collect-all,render-docs,nightly}.sh` only as required by the status interface;
+`nix/README.md`, `docs/design/observability.md`, `runbooks/nightly.md`, this directive/map,
+and a raw journal. Regenerate routing views through existing generators.
+
+**Interfaces and implementation:**
+
+1. Extend `collect proxmox <core|network> --output <file>` with target-specific default credential
+   paths. Preserve existing core arguments/exit codes and the network snapshot's `node: network`,
+   filename and consumer fields. Reuse ordinary functions in `proxmox.py`; add no client framework.
+   Make fixtures distinguish the node shapes, protected network guests and empty-vs-unavailable pools.
+2. Parse only literal supported credential assignments. The same declared env file also supplies
+   `PVE_TOKEN_OPERATE` to ACL collection: permit this known optional assignment without using it
+   for observations, rejecting duplicate/malformed/unknown assignments and shell syntax. Test token
+   selection/redaction with distinct synthetic read and operate values. Do not inspect live files
+   or relax verified TLS, hostname, GET-only, redirect or timeout behavior.
+3. Run network through Python once per default pass; remove its row from the shell-reader list.
+   Extend the small per-node marker checks to network, binding both markers to the one durable
+   collection attempt and exact snapshot hash/time. Publish incomplete evidence before each read;
+   failed reads preserve that node's bytes, report nonzero and allow remaining scoped reads.
+   `collect-status` and default query/entity/render consumers must require both nodes, including
+   the 36-hour ceiling and nightly same-pass cutoff. A missing network marker refuses old network
+   data. Keep explicit-output collection separate from default evidence.
+4. Retain `collect-proxmox.sh` only as a thin packaged-command forwarding entry for its existing
+   operator/runbook references; remove its shell API/parsing implementation. ACL shell readers
+   remain until P4b. Record caller/removal ownership in the map. Do not turn ACL or other reader
+   process exits into validated freshness, and preserve the P3 receipt/process regressions.
+
+**Optional Luna High packet:** once target/evidence interfaces are fixed, assign only the Proxmox
+test file and synthetic fixture additions, with explicit non-overlapping ownership. Acceptance:
+both target shapes and read-token selection, timeout/TLS/malformed/late-publication refusal,
+and retained bytes. No module changes, production calls/credentials, commits, pushes or helpers.
+
+**Checks/exits:** `nix develop --no-write-lock-file -c pytest -q` must cover both actual CLI
+targets, default one-invocation routing, failed network refresh refusing ordinary consumers and
+preserving factual pages, later successful recovery, and unchanged protected-guest/pool field
+projections. Run `ruff check src tests/test_*.py` and `mypy src/skynet` through the same Nix shell;
+build `.#checks.x86_64-linux.skynet`, evaluate `nix flake check --no-write-lock-file --no-build`,
+exercise offline launcher doctor and unavailable status, then run the full staged pre-commit hook
+and `git diff --cached --check`. Preserve Ali's documentation-check pause and its P24 restoration.
+Report source/installed results and unverified checks explicitly.
+
+**Boundaries:** isolated construction with fake HTTPS, synthetic credentials and disposable
+outputs only. No real node read, credentials, pool/ACL change, host/profile activation, root,
+service/timer change or dependency update. Source rollback is git revert. Independent workstation,
+state and payload recovery evidence in the map remains required before any live transition.
+P4b owns operate-token self-introspection, permission-shape validation, both ACL default freshness
+checks and removal of their shell implementation; no privilege grant or invariant weakening.
+
+**Close-out:** P4a complete means **slice complete / P4 in progress**, not phase review-pending.
+Commit/push and open `SKY-025 P4: collect network observations in Python`; do not merge.
+After Ali merges, continue the bounded P4b packet. Review all P4 slices together before P5.
+
 ## 6. Carry forward the original review as acceptance cases
 
 Source review baseline `749f08a`; merged original directive #207. The full original findings remain
@@ -300,6 +372,22 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
 ```
 
 ## 9. Status
+
+- 2026-09-08 — **P3 R1/R2 fixes implemented / full P3-G2 re-review pending.** Isolated
+  branch `fix/sky-025-p3` starts at `89a1dee3f497df7c8609c8639298f4d3db66d505` (merged
+  repair packet #217). A durable local attempt receipt invalidates prior success even when
+  initial marker replacement fails. Status tests writable receipt durability and preserves
+  existing snapshot hash/time, 36-hour and nightly-cutoff rules. Reader process groups are
+  killed/reaped under the collection lock on timeout, interruption and early leader exit;
+  unconfirmed cleanup stops/quarantines further collection.
+  Lead self-review and regressions cover ordinary default-consumer refusal, later recovery,
+  actual descendants/signals, lock lifetime and redaction. Full pytest: 94 passed; installed
+  package: 86 passed; Ruff, mypy, flake evaluation, offline launcher and staged hook pass.
+  [Raw repair evidence](../../journal/2026/2026-09-08-session-sky-025-p3-freshness-and-process-fixes.md)
+  records failed checks/corrections and the worker checkout repair. Ali also requested the next
+  phase packet; §5 contains a **draft** P4a/P4b split, pending the fresh merged-result review of
+  #215, #216 and this fix. No independent acceptance or P4 implementation is claimed; accepted
+  progress stays **2/24**. Live/recovery prerequisites remain unmet and outside this packet.
 
 - 2026-09-08 — **P3 FIX / G2 remains open.** One combined review covers
   [#215](https://github.com/aliammar03/skynet/pull/215), merged at

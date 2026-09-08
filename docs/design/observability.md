@@ -27,10 +27,15 @@ hand-maintained:
 
 `inventory/` and `docs/generated/` are **machine-owned — never hand-edited** (a constitution
 invariant). Default rendering requires matching successful core collection evidence no older than
-36 hours; the nightly additionally requires an attempt from its current pass. A failed core refresh
+36 hours and a matching local attempt receipt; the nightly additionally requires an attempt from
+its current pass. Missing or unwritable receipt storage is unavailable. A failed core refresh
 leaves the snapshot and prior pages intact and records a failure, rather than refreshing their
 presentation. Other collectors retain their existing evidence limitations. Collection timestamps
 describe observations, not live service-health verification.
+Failed initial marker publication also invalidates previous success for default queries and
+rendering. Remaining reader processes are stopped and reaped before collection advances; uncertain
+cleanup blocks another collection pending local process recovery. The package's
+[evidence and process contract](../../nix/README.md) defines storage and recovery behavior.
 
 Obsidian sync uses a `skynet` clone (optionally sparse-checking out `docs/generated/`) and never
 touches the CouchDB LiveSync vault. Configuration: [`obsidian-setup.md`](../obsidian-setup.md).

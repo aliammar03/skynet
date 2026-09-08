@@ -173,8 +173,9 @@ reviewed main is `8e6c8502ba7c9ce8e9d39fe9bd6d5fd5a45a36df`. Accepted progress r
 2/24. The directive's §5 contains the only actionable packet, repairing initial-marker failure
 visibility to default consumers (R1) and subprocess-descendant cleanup before releasing the
 collection lock (R2). Prior implementation evidence below is retained with these qualifications:
-ordinary status can still accept old success after initial marker failure, and the current
-timeout bounds the immediate process only. No P4 or live transition is released.
+the reviewed revision's ordinary status accepted old success after initial marker failure, and
+its timeout bounded the immediate process only. The repair implementation below awaits merged
+full-phase review. No P4 or live transition is released.
 
 Base `05b6326c46506b1c936fbaae724a083d8a218954` includes merged P3a PR #215. Ali explicitly
 requested P3b and full-numbered-phase reviews. The workflow correction travels in this PR because
@@ -195,10 +196,11 @@ status, not the new core validation contract.
 | `render-docs.sh`, nightly | Refuse before publication if core evidence fails. Nightly requires an attempt from this pass, including when marker setup itself fails. Never reuse a prior SQLite cache after rebuild failure. |
 | Direct invariant/entity/SQLite scripts | Historical-snapshot checks retained for deterministic CI; not a live-freshness gate. Tests still verify template identity and protected pool membership. |
 
-The two core files are not an atomic pair: publish unavailable first, then snapshot, then success
-with its hash. A crash or final-marker failure leaves evidence unavailable; mismatched hashes fail.
-If initial marker publication fails, no remote reads start and the caller gets failure; the nightly
-attempt cutoff prevents that failure from satisfying this pass with an earlier success.
+The core files are not an atomic pair: record the attempt receipt, publish unavailable, then
+snapshot, then success with its hash. A crash or final-marker failure leaves evidence unavailable;
+mismatched receipts/hashes fail. If initial marker publication fails, no remote reads start and
+the changed receipt prevents ordinary consumers from accepting the preceding success. Nightly
+retains its additional attempt cutoff.
 The isolated core command intentionally does not issue default refresh evidence.
 
 No production collection, credentials, timer/service, host activation, state/payload or root action
@@ -206,3 +208,25 @@ was performed. The source path becomes effective when used from the merged check
 workstation/recovery prerequisites remain unverified before that live transition. Offline package
 availability is proven locally, not live API parity or independent recovery. P3/G2 review must
 assess those explicit limits; P4 remains unauthorized until full-phase acceptance.
+
+## Phase 3 fix implementation (awaiting full-phase review)
+
+Base `89a1dee3f497df7c8609c8639298f4d3db66d505` contains merged review/repair packet #217
+and accepted P2. Isolated worktree: `/tmp/skynet-sky-025-p3-fix`, branch `fix/sky-025-p3`.
+The lock file holds a durable attempted timestamp; it is invalidated in place before a marker
+replacement can fail. Ordinary status requires that receipt, matching marker/snapshot hashes
+and times, and writable durable receipt storage. It cannot create successful refresh evidence.
+The local receipt is intentionally not portable through Git: a fresh clone requires a full
+collection before default consumers can claim current observations.
+
+Remaining readers use isolated Linux process groups and temporary subreaper ownership. Timeout,
+interruption and early leader exit all clean up/reap group descendants before continuing.
+Unconfirmed cleanup records `recovery-required`, stops the pass and refuses another collection
+until operator process recovery. No generic subprocess framework or new dependency was added.
+Storage failure that prevents any durable record remains explicitly indeterminate; consumers
+probe receipt durability and refuse while it cannot be established.
+
+Ali additionally requested an end-of-work review and next-phase packet. The directive contains
+a draft P4a network-observation packet plus bounded P4b ACL ownership; it is not released and
+does not implement either slice. Full P3/G2 acceptance still covers #215, #216 and this fix after
+merge. Accepted progress remains 2/24. All existing live/recovery blockers remain unchanged.
