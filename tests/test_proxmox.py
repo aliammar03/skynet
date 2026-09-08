@@ -22,7 +22,9 @@ import skynet.proxmox as proxmox  # noqa: E402
 
 
 FIXTURES = Path(__file__).parent / "fixtures" / "proxmox"
-TOKEN = "svc-ops@pve!readonly=synthetic-token"
+TOKEN = "svc-ops@pve!readonly=synthetic-core-read-token"
+NETWORK_TOKEN = "svc-ops@pve!readonly=synthetic-network-read-token"
+NETWORK_OPERATE_TOKEN = "svc-ops@pve!operate=synthetic-network-operate-token"
 
 
 def fixture(name: str) -> Any:
@@ -45,6 +47,20 @@ def endpoint_data() -> dict[str, Any]:
     }
 
 
+def network_endpoint_data() -> dict[str, Any]:
+    node = "network-node"
+    return {
+        "/api2/json/nodes": fixture("network-nodes.json"),
+        "/api2/json/cluster/resources": fixture("network-resources.json"),
+        "/api2/json/pools": fixture("network-pools.json"),
+        "/api2/json/cluster/backup": fixture("network-backup.json"),
+        (
+            f"/api2/json/nodes/{quote(node, safe='')}/tasks"
+            "?typefilter=vzdump&limit=5"
+        ): fixture("network-tasks.json"),
+    }
+
+
 class FakeResponse:
     def __init__(self, payload: Any, status: int = 200, headers: dict[str, str] | None = None):
         self.status = status
@@ -63,6 +79,7 @@ class FakeResponse:
 class FakeConnection:
     instances: list["FakeConnection"] = []
     responses: dict[str, Any] = {}
+    responses_by_token: dict[str, dict[str, Any]] | None = None
     contexts: list[ssl.SSLContext | None] = []
 
     def __init__(self, host: str, port: int, *, context: ssl.SSLContext | None, timeout: int):
@@ -77,12 +94,17 @@ class FakeConnection:
 
     def request(self, method: str, path: str, *, headers: dict[str, str]) -> None:
         assert method == "GET"
-        assert headers == {"Authorization": f"PVEAPIToken={TOKEN}"}
+        assert headers in (
+            {"Authorization": f"PVEAPIToken={TOKEN}"},
+            {"Authorization": f"PVEAPIToken={NETWORK_TOKEN}"},
+        )
         self.requests.append((method, path, headers))
 
     def getresponse(self) -> FakeResponse:
         path = self.requests[-1][1]
-        response = self.responses[path]
+        token = self.requests[-1][2]["Authorization"].removeprefix("PVEAPIToken=")
+        responses = self.responses_by_token.get(token, self.responses) if self.responses_by_token else self.responses
+        response = responses[path]
         if isinstance(response, BaseException):
             raise response
         if callable(response):
@@ -99,6 +121,7 @@ class FakeConnection:
 def transport(monkeypatch: pytest.MonkeyPatch) -> type[FakeConnection]:
     FakeConnection.instances = []
     FakeConnection.responses = endpoint_data()
+    FakeConnection.responses_by_token = None
     FakeConnection.contexts = []
     monkeypatch.setattr(proxmox.http.client, "HTTPSConnection", FakeConnection)
     return FakeConnection
@@ -156,13 +179,14 @@ def collect(
     credentials: Path,
     capsys: pytest.CaptureFixture[str],
     *,
+    target: str = "core",
     json_output: bool = False,
 ) -> tuple[int, dict[str, Any] | None, str, str]:
     output = tmp_path / "snapshot.json"
     args = [
         "collect",
         "proxmox",
-        "core",
+        target,
         "--output",
         str(output),
         "--credentials-file",
@@ -175,6 +199,36 @@ def collect(
     assert "synthetic-operate-token" not in captured.out + captured.err
     report = json.loads(captured.out) if json_output and captured.out.strip() else None
     return code, report, captured.out, captured.err
+
+
+def test_network_target_uses_its_read_token_and_preserves_protected_guest_projection(
+    tmp_path: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    network_credentials = tmp_path / "proxmox-network.env"
+    network_credentials.write_text(
+        "PVE_HOST=pve.example.test\n"
+        f"PVE_TOKEN='{NETWORK_TOKEN}'\n"
+        f"PVE_TOKEN_OPERATE='{NETWORK_OPERATE_TOKEN}'\n"
+        f"PVE_CACERT={ssl.get_default_verify_paths().cafile}\n"
+    )
+    transport.responses = network_endpoint_data()
+
+    code, report, stdout, stderr = collect(
+        tmp_path, network_credentials, capsys, target="network", json_output=True,
+    )
+
+    assert code == 0 and stderr == ""
+    assert report is not None and report["target"] == "proxmox-network"
+    assert NETWORK_TOKEN not in stdout and NETWORK_OPERATE_TOKEN not in stdout
+    snapshot = json.loads((tmp_path / "snapshot.json").read_text())
+    assert snapshot["node"] == "network"
+    assert snapshot["pools"] == []  # observed empty, not unavailable pool membership
+    guests = [(entry["vmid"], entry["type"]) for entry in snapshot["resources"]
+              if entry["type"] in {"qemu", "lxc"}]
+    assert guests == [(5001, "qemu"), (635, "lxc"), (837, "lxc")]
+    requests = [request for connection in transport.instances for request in connection.requests]
+    assert all(request[2]["Authorization"] == f"PVEAPIToken={NETWORK_TOKEN}" for request in requests)
 
 
 def test_success_human_summary_and_snapshot_projection(

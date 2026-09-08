@@ -1,0 +1,28 @@
+{
+  "data": [
+    {
+      "id": "qemu/5001",
+      "type": "qemu",
+      "vmid": 5001,
+      "node": "network-node",
+      "name": "vm-opnsense",
+      "status": "running"
+    },
+    {
+      "id": "lxc/635",
+      "type": "lxc",
+      "vmid": 635,
+      "node": "network-node",
+      "name": "lxc-technitium",
+      "status": "running"
+    },
+    {
+      "id": "lxc/837",
+      "type": "lxc",
+      "vmid": 837,
+      "node": "network-node",
+      "name": "lxc-authentik",
+      "status": "running"
+    }
+  ]
+}

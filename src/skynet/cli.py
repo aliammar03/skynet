@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import NoReturn
 
 from skynet import installed_version
-from skynet.collection import collect_all, core_status
+from skynet.collection import collect_all, proxmox_status
 from skynet.doctor import write_report
 from skynet.proxmox import DEFAULT_CREDENTIALS, collect
 
@@ -32,22 +32,26 @@ def build_parser() -> argparse.ArgumentParser:
     sources = collection.add_subparsers(dest="source", required=True)
     all_sources = sources.add_parser("all", help="refresh inventory with per-collector outcomes")
     all_sources.add_argument("--repo", type=Path, required=True)
-    all_sources.add_argument("--credentials-file", type=Path, default=DEFAULT_CREDENTIALS,
+    all_sources.add_argument("--credentials-file", type=Path, default=DEFAULT_CREDENTIALS["core"],
                              help="core Proxmox credential assignments")
+    all_sources.add_argument("--network-credentials-file", type=Path,
+                             default=DEFAULT_CREDENTIALS["network"],
+                             help="network Proxmox credential assignments")
     all_sources.add_argument("--json", action="store_true", dest="json_output")
     proxmox = sources.add_parser("proxmox", help="collect Proxmox observations")
     targets = proxmox.add_subparsers(dest="target", required=True)
-    core = targets.add_parser(
-        "core", help="collect core-node observations, not service health",
-        description="Collect core-node observations; this does not verify service health.",
-    )
-    core.add_argument("--output", type=Path, required=True,
-                      help="explicit snapshot destination; publish only on complete success")
-    core.add_argument("--credentials-file", type=Path, default=DEFAULT_CREDENTIALS,
-                      help="literal PVE_HOST/PVE_TOKEN/PVE_CACERT assignments")
-    core.add_argument("--json", action="store_true", dest="json_output",
-                      help="write one collection outcome object as JSON")
-    status = commands.add_parser("collect-status", help="require fresh successful core observations")
+    for target in ("core", "network"):
+        node = targets.add_parser(
+            target, help=f"collect {target}-node observations, not service health",
+            description=f"Collect {target}-node observations; this does not verify service health.",
+        )
+        node.add_argument("--output", type=Path, required=True,
+                          help="explicit snapshot destination; publish only on complete success")
+        node.add_argument("--credentials-file", type=Path, default=DEFAULT_CREDENTIALS[target],
+                          help="literal PVE_HOST/PVE_TOKEN/PVE_CACERT assignments")
+        node.add_argument("--json", action="store_true", dest="json_output",
+                          help="write one collection outcome object as JSON")
+    status = commands.add_parser("collect-status", help="require fresh successful Proxmox observations")
     status.add_argument("--repo", type=Path, required=True)
     status.add_argument("--since", default=os.environ.get("SKYNET_COLLECTION_SINCE"),
                         help="require an attempt at or after this timezone-aware timestamp")
@@ -64,12 +68,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     if arguments.command == "collect":
         if arguments.source == "all":
             return collect_all(arguments.repo, arguments.credentials_file,
+                               arguments.network_credentials_file,
                                json_output=arguments.json_output, stdout=sys.stdout)
-        return collect(arguments.output, arguments.credentials_file,
+        return collect(arguments.target, arguments.output, arguments.credentials_file,
                        json_output=arguments.json_output, stdout=sys.stdout)
     if arguments.command == "collect-status":
-        return core_status(arguments.repo, since=arguments.since,
-                           json_output=arguments.json_output, stdout=sys.stdout)
+        return proxmox_status(arguments.repo, since=arguments.since,
+                              json_output=arguments.json_output, stdout=sys.stdout)
     return _unreachable_command(arguments.command)
 
 

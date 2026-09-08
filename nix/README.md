@@ -31,8 +31,8 @@ nix/packages/
 
 ## Skynet Python runtime
 
-The `skynet` command is a Nix-owned Python package exposing a runtime diagnostic, core Proxmox
-observations, default collection and core freshness checks. `bin/skynet` launches the package
+The `skynet` command is a Nix-owned Python package exposing a runtime diagnostic, core and network
+Proxmox observations, default collection and paired Proxmox freshness checks. `bin/skynet` launches the package
 from the checkout's tracked Git source using offline, lock-preserving Nix evaluation. It never
 falls back to source Python or installs a profile. Build the package and cache its dependencies
 before using default callers; a missing Nix/build prerequisite fails the command.
@@ -55,9 +55,10 @@ nix build --no-write-lock-file --no-link .#checks.x86_64-linux.skynet
 `skynet doctor [--json]` reports the executing package version and Python runtime with
 `scope: runtime`. It is not a lab or service health check.
 
-`skynet collect proxmox core --output <file> [--credentials-file <file>] [--json]` reads
-core nodes, resources, pools/members, backup jobs and recent vzdump tasks over verified HTTPS.
-The default credential file is `/opt/skynet-ops/secrets/proxmox-core.env`; it accepts only
+`skynet collect proxmox <core|network> --output <file> [--credentials-file <file>] [--json]` reads
+nodes, resources, pools/members, backup jobs and recent vzdump tasks over verified HTTPS. Default
+credential files are `/opt/skynet-ops/secrets/proxmox-core.env` and
+`/opt/skynet-ops/secrets/proxmox-network.env`; each accepts only
 literal `PVE_HOST`, `PVE_TOKEN`, and `PVE_CACERT` assignments plus optional `PVE_TOKEN_OPERATE`
 (one per line, optional quotes and comments). Observation requests use only `PVE_TOKEN`;
 the shared operate assignment is never a fallback. Shell expressions, duplicate/unknown
@@ -72,12 +73,13 @@ Exit codes: 0 success, 2 usage error, 3 unavailable credentials/CA/remote eviden
 data or local publication failure. Empty nodes/resources fail; empty pools/jobs/tasks are valid
 observations, with absent backup results represented by null fields.
 
-`bin/ops collect` forwards to `skynet collect all --repo <checkout>`, running the Python core
-collector and the remaining shell readers once each. Core refresh evidence lives in
-`inventory/collection-core.json`: an incomplete marker precedes reads, and success records
-the exact snapshot hash/time. The nonblocking `.cache/collection.lock` also stores a durable
-attempt receipt before marker publication. Status requires the receipt to match the marker,
-so failed marker setup stops before reads and invalidates previous success without a cutoff.
+`bin/ops collect` forwards to `skynet collect all --repo <checkout>`, running the Python core and
+network collectors once each before the remaining shell readers. Refresh evidence lives in
+`inventory/collection-core.json` and `inventory/collection-network.json`: an incomplete marker
+precedes each node read, and success records that snapshot's exact hash/time. The nonblocking
+`.cache/collection.lock` stores one durable attempt receipt before marker publication. Status
+requires that receipt to match both markers, so failed marker setup stops before that node's read
+and invalidates either node's previous success without a cutoff.
 Missing receipts require a complete refresh. Status briefly locks and durably reaffirms the
 existing receipt; storage that cannot persist invalidation is unavailable even if old evidence
 is readable. An inability to persist any failure cannot leave a durable diagnosis: repair storage
@@ -94,13 +96,13 @@ After operator verification that the reader processes are gone, clear that recei
 collection lock and run a complete refresh. Do not delete the lock file while a process holds it.
 
 `skynet collect-status --repo <checkout> [--since <timestamp>] [--json]` requires matching
-successful core evidence no older than 36 hours, with timezone-aware timestamps. Missing,
-failed, future, stale or mismatched evidence exits 3. Default factual rendering and
+successful core and network evidence no older than 36 hours, with timezone-aware timestamps.
+Missing, failed, future, stale or mismatched evidence exits 3. Default factual rendering and
 `bin/ops query|entities` require this check. Nightly sets `SKYNET_COLLECTION_SINCE` so a prior
 success cannot satisfy the current pass. Direct repository invariant/entity/SQLite scripts
 operate on historical snapshots for deterministic CI; they do not establish live freshness.
-The explicit-output core collector is isolated: use `collect all` to establish default refresh
-evidence after an isolated collection changes the snapshot.
+Explicit-output collectors are isolated: use `collect all` to establish default refresh evidence
+after an isolated collection changes either snapshot.
 
 ## The decisions baked in
 

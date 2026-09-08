@@ -49,15 +49,15 @@ discard the prepared deterministic work.
    latest `main`, then creates the timestamped nightly branch. A failed fetch stops safely rather
    than producing a report against an unknown base.
 2. **Refresh inventory** — `scripts/collect-all.sh` forwards to packaged `skynet collect all`.
-   The core Proxmox collector validates and atomically publishes observations plus a matching
-   `inventory/collection-core.json` result; the remaining shell readers report process exits.
-   A failed core read retains its previous snapshot and records unavailable/failed evidence,
+   The core and network Proxmox collectors validate and atomically publish observations plus matching
+   `inventory/collection-core.json` and `inventory/collection-network.json` results; the remaining
+   shell readers report process exits. A failed node read retains its previous snapshot and records unavailable/failed evidence,
    while remaining T1 reads continue. Initial evidence setup failure invalidates prior success
    through the local attempt receipt and stops before reads. Each remaining reader's process
    group is stopped and reaped before continuing after a timeout; unconfirmed cleanup stops the
    workflow with `recovery-required`. See the [package contract](../nix/README.md) for local
    storage/process recovery. Collection never renders docs.
-3. **Render factual docs** — `scripts/render-docs.sh` requires matching core refresh evidence
+3. **Render factual docs** — `scripts/render-docs.sh` requires matching core and network refresh evidence
    from this pass, within a 36-hour age ceiling. Failure leaves factual pages unchanged and
    records a render failure. A failed SQLite rebuild cannot supply an old cache to new pages.
 4. **Optional agent work** — when an engine is available, it may write the human narrative and
@@ -78,10 +78,10 @@ discard the prepared deterministic work.
 
 - Confirm the PR contains only the expected generated/encrypted paths, the current raw journal entry
   appears in the digest, the deterministic merge gate reports its decision, and anomalies are visible.
-- Run `bin/skynet collect-status --repo .` before interpreting core observations; a marker alone
-  cannot establish freshness without its matching durable local receipt. The optional
+- Run `bin/skynet collect-status --repo .` before interpreting core or network observations; markers
+  alone cannot establish freshness without their matching durable local receipt. The optional
   narrative must label retained snapshots/pages as previous evidence when that refresh failed.
-  Core freshness checks do not establish freshness or service health for the remaining shell readers.
+  Proxmox freshness checks do not establish freshness or service health for the remaining shell readers.
 
 ## Rollback
 

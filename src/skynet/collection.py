@@ -1,4 +1,4 @@
-"""Default collection and core evidence freshness for current-state consumers."""
+"""Default collection and paired Proxmox evidence freshness for current-state consumers."""
 
 import ctypes
 import fcntl
@@ -16,7 +16,6 @@ from typing import Any, TextIO
 from skynet import proxmox
 
 REMAINING = (
-    ("proxmox-network", "collect-proxmox.sh", "network"),
     ("proxmox-acl-core", "collect-proxmox-acl.sh", "core"),
     ("proxmox-acl-network", "collect-proxmox-acl.sh", "network"),
     ("pbs", "collect-pbs.sh"),
@@ -26,6 +25,10 @@ REMAINING = (
     ("network-gear", "collect-network-gear.sh"),
     ("routes", "collect-routes.sh"),
     ("certs", "collect-certs.sh"),
+)
+PROXMOX_NODES = (
+    ("core", "proxmox-core.json", "collection-core.json"),
+    ("network", "proxmox-network.json", "collection-network.json"),
 )
 READER_TIMEOUT = 120.0
 CLEANUP_TIMEOUT = 5.0
@@ -120,15 +123,16 @@ def emit(report: dict[str, Any], json_output: bool, stdout: TextIO) -> None:
         if "reason" in report:
             print(report["reason"], file=stdout)
         if "collected" in report:
-            print(f"core observations collected: {report['collected']}", file=stdout)
+            print(f"Proxmox observations collected: {report['collected']}", file=stdout)
         for result in report.get("collectors", []):
             print(f"{result['target']}: {result['outcome']}", file=stdout)
             if "reason" in result:
                 print(result["reason"], file=stdout)
 
 
-def collect_all(repo: Path, credentials_file: Path, *, json_output: bool, stdout: TextIO) -> int:
-    """Collect core in Python, retaining shell readers until their owning phases."""
+def collect_all(repo: Path, credentials_file: Path, network_credentials_file: Path, *,
+                json_output: bool, stdout: TextIO) -> int:
+    """Collect both Proxmox node shapes before retaining the remaining shell readers."""
     report: dict[str, Any] = {"target": "collection", "outcome": "failure", "collectors": []}
     try:
         repo = repo.resolve()
@@ -139,27 +143,37 @@ def collect_all(repo: Path, credentials_file: Path, *, json_output: bool, stdout
             lock.seek(0)
             if lock.read() == "recovery-required":
                 raise CleanupError
-            output = repo / "inventory/proxmox-core.json"
-            status = repo / "inventory/collection-core.json"
-            marker: dict[str, Any] = {
-                "target": "proxmox-core", "outcome": "unavailable",
-                "attempted": datetime.now(UTC).isoformat(timespec="microseconds"),
-                "reason": "refresh incomplete; retained snapshot is previous evidence",
-            }
-            receipt_write(lock, marker["attempted"])
-            proxmox.publish(status, marker)
-            stream = io.StringIO()
-            code = proxmox.collect(output, credentials_file, json_output=True, stdout=stream)
-            core = json.loads(stream.getvalue())
-            marker.update(outcome=core["outcome"])
-            if code == 0:
-                marker.pop("reason")
-                marker.update(collected=core["collected"],
-                              sha256=hashlib.sha256(output.read_bytes()).hexdigest())
-            else:
-                marker["reason"] = core["reason"]
-            proxmox.publish(status, marker)
-            report["collectors"].append(core)
+            attempted = datetime.now(UTC).isoformat(timespec="microseconds")
+            receipt_write(lock, attempted)
+            code = 0
+            credential_files = {"core": credentials_file, "network": network_credentials_file}
+            for target, snapshot_name, marker_name in PROXMOX_NODES:
+                output = repo / "inventory" / snapshot_name
+                status = repo / "inventory" / marker_name
+                marker: dict[str, Any] = {
+                    "target": f"proxmox-{target}", "outcome": "unavailable", "attempted": attempted,
+                    "reason": "refresh incomplete; retained snapshot is previous evidence",
+                }
+                # A marker is durable before this node's read; a new receipt invalidates either
+                # node's preceding success if publication fails before the next marker exists.
+                proxmox.publish(status, marker)
+                stream = io.StringIO()
+                node_code = proxmox.collect(target, output, credential_files[target],
+                                            json_output=True, stdout=stream)
+                node = json.loads(stream.getvalue())
+                marker.update(outcome=node["outcome"])
+                if node_code == 0:
+                    marker.pop("reason")
+                    marker.update(collected=node["collected"],
+                                  sha256=hashlib.sha256(output.read_bytes()).hexdigest())
+                else:
+                    marker["reason"] = node["reason"]
+                proxmox.publish(status, marker)
+                report["collectors"].append(node)
+                if node_code == 1:
+                    code = 1
+                elif node_code and code == 0:
+                    code = node_code
             for name, script, *args in REMAINING:
                 try:
                     exit_code = run_reader([str(repo / "scripts" / script), *args], repo)
@@ -199,9 +213,9 @@ def timestamp(value: Any) -> datetime:
     return instant
 
 
-def core_status(repo: Path, *, since: str | None, json_output: bool, stdout: TextIO) -> int:
-    """Require a matching successful core refresh no more than 36 hours old."""
-    report: dict[str, Any] = {"target": "proxmox-core", "outcome": "unavailable"}
+def proxmox_status(repo: Path, *, since: str | None, json_output: bool, stdout: TextIO) -> int:
+    """Require paired successful Proxmox observations no more than 36 hours old."""
+    report: dict[str, Any] = {"target": "proxmox", "outcome": "unavailable"}
     try:
         with (repo / ".cache/collection.lock").open("r+") as lock:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -210,35 +224,41 @@ def core_status(repo: Path, *, since: str | None, json_output: bool, stdout: Tex
             # Refuse storage that cannot persist invalidation, even if old evidence is readable.
             # Reaffirm only the existing receipt; status can never establish a new attempt.
             receipt_write(lock, attempted_receipt)
-            evidence = json.loads((repo / "inventory/collection-core.json").read_bytes())
-            raw = (repo / "inventory/proxmox-core.json").read_bytes()
-        snapshot = json.loads(raw)
-        if not isinstance(evidence, dict) or not isinstance(snapshot, dict):
-            raise ValueError
+            observations = [
+                (target, json.loads((repo / "inventory" / marker_name).read_bytes()),
+                 (repo / "inventory" / snapshot_name).read_bytes())
+                for target, snapshot_name, marker_name in PROXMOX_NODES
+            ]
         now = datetime.now(UTC)
-        collected = timestamp(snapshot.get("collected"))
-        attempted = timestamp(evidence.get("attempted"))
-        valid = (
-            evidence.get("target") == "proxmox-core" and evidence.get("outcome") == "success"
-            and attempted_receipt == evidence.get("attempted")
-            and snapshot.get("node") == "core"
-            and evidence.get("collected") == snapshot.get("collected")
-            and evidence.get("sha256") == hashlib.sha256(raw).hexdigest()
-            and now - timedelta(hours=36) <= collected <= now
-            and attempted <= now
-            and collected - timedelta(hours=1) <= attempted <= collected + timedelta(seconds=1)
-            and (since is None or attempted >= timestamp(since))
-        )
-        if not valid:
-            raise ValueError
+        collected_values: dict[str, str] = {}
+        for target, evidence, raw in observations:
+            snapshot = json.loads(raw)
+            if not isinstance(evidence, dict) or not isinstance(snapshot, dict):
+                raise ValueError
+            collected = timestamp(snapshot.get("collected"))
+            attempted = timestamp(evidence.get("attempted"))
+            valid = (
+                evidence.get("target") == f"proxmox-{target}" and evidence.get("outcome") == "success"
+                and attempted_receipt == evidence.get("attempted")
+                and snapshot.get("node") == target
+                and evidence.get("collected") == snapshot.get("collected")
+                and evidence.get("sha256") == hashlib.sha256(raw).hexdigest()
+                and now - timedelta(hours=36) <= collected <= now
+                and attempted <= now
+                and collected - timedelta(hours=1) <= attempted <= collected + timedelta(seconds=1)
+                and (since is None or attempted >= timestamp(since))
+            )
+            if not valid:
+                raise ValueError
+            collected_values[target] = snapshot["collected"]
     except (OSError, ValueError, TypeError, OverflowError):
         report["reason"] = (
-            "core refresh evidence missing, failed, mismatched or stale; "
+            "Proxmox refresh evidence missing, failed, mismatched or stale; "
             "retained files are historical observations"
         )
         code = 3
     else:
-        report.update(outcome="success", collected=snapshot["collected"])
+        report.update(outcome="success", collected=collected_values)
         code = 0
     emit(report, json_output, stdout)
     return code
