@@ -6,6 +6,10 @@ summary: "SKY-025 subsystem dispositions, external callers, output contracts, an
 
 Owned by [the directive](projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md).
 Baseline: `670f06cfa75ca95a9eac7fdb1d3eb3544272ff1a` (remote main, 2026-09-07).
+Current accepted progress: **P4 / 4 of 24**, reviewed at
+`29b3af942968953a470c9f6d7a06a5c29ca3f8ec` on 2026-09-09. The directive's §5 releases only
+P5a PBS, followed by same-phase Docker continuation and one complete P5 review. Earlier phase
+evidence below is historical; the latest directive verdict owns current acceptance.
 Phase 1 is accepted at G1; Phase 2 is accepted at `17db700c22cb17ad219655674eada344c215029a`. Its local package
 is built only in the isolated checkout and is not installed or activated on any lab host. This map
 describes planned replacements; it does not claim that Python is installed. The baseline's 398 tracked paths were enumerated with
@@ -269,3 +273,19 @@ P4b replaces `collect-proxmox-acl.sh` parsing and curl with Python operate-token
 `collect all` records core/network ACL snapshots and markers under the same receipt as node
 observations; default consumers require all four. No ACL privilege, pool or live boundary changed.
 The retained ACL script forwards only. After this PR's human merge, review P4a and P4b together.
+
+## Phase 4 independent acceptance
+
+Both #220 and #221 are merged and accepted together; the directive records exact merge SHAs,
+exit verdicts and the review journal. Independent checks passed: 105 maintained Python cases,
+32 disposable failure probes, source/installed package checks, lint/types and the staged hook.
+The two shell entries remain only for documented operator callers, with P22 owning removal.
+
+Ali additionally authorized live reads during this review. All four packaged collectors succeeded
+with configured credentials/TLS into `/tmp/skynet-p4-live-read.W4brpC`: core 8 guests/1 pool,
+network 6 guests/1 pool, ACL path counts 18 and 2. Protected guests 2020/5001/635/837 are unpooled;
+ACL projections against the existing forbidden-privilege/root-allocation policy pass. This verifies
+these four endpoint shapes and TLS paths, not other APIs or restore/service health. No repository
+inventory refresh, host activation, timer/service change, grant or production write occurred.
+Independent workstation access, state/payload recovery and other live-transition prerequisites
+remain open.

@@ -4,9 +4,9 @@ title: Rebuild the Skynet engine in Python
 status: in-progress
 horizon: long
 created: 2026-09-06
-updated: 2026-09-08
+updated: 2026-09-09
 phases: 24
-current_phase: 3
+current_phase: 4
 tier_touched: [T1, T2, T2+, T3]
 related:
   - docs/system-design.md
@@ -157,92 +157,94 @@ Phases 12, 17, and 18 are especially likely to need lettered slices after inspec
 may move earlier when a real consumer needs them. Preserve dependency order, not arbitrary numbering.
 Do not add a new live OPNsense writer or finish unrelated fleet migrations under this overhaul.
 
-## 5. Phase 4a — network observations (~1–2h)
+## 5. Phase 5a — PBS inventory (~1–2h)
 
-**Release gate:** execute after Ali merges this credential-fix/P4 packet PR. Full P3/G2
-acceptance in §9 includes the corrected branch result. Ali explicitly authorized fixing simple
-review findings here and releasing P4 without another review round on 2026-09-08.
-Accepted progress is 3/24; P4 has not been implemented. Human merge and live/grant gates remain.
+**Release gate:** execute after Ali merges this P4 ACCEPT planning PR. Accepted progress is
+4/24; §9 records the complete review of #220 and #221 at
+`29b3af942968953a470c9f6d7a06a5c29ca3f8ec`. P4 packets are preserved in git.
+**Lead:** Terra High (`gpt-5.6-terra`, high), retaining the phase-table recommendation.
 
-**Lead:** Terra High (`gpt-5.6-terra`, high), retaining the phase-table recommendation. Reuse
-P3's established transport, validation and evidence contracts. Refer unresolved recovery or
-privilege decisions to Astra Medium. P4 is split into **P4a network observations** and
-**P4b both operate-token ACL snapshots** to bound caller/freshness integration. The execution
-lead details P4b within that scope after P4a; independent acceptance covers all P4 together.
+**Goal:** replace PBS shell collection and its default freshness integration with validated,
+atomic Python observations. P5 is split into **P5a PBS** and **P5b Docker** because PBS TLS
+pinning and Docker subprocess handling have distinct failure boundaries. The execution lead
+details P5b after P5a within the continuation below; review all P5 slices together before P6.
 
-**Goal:** the default collection obtains validated core and network Proxmox observations in
-Python; default consumers refuse either missing/failed/stale node observation.
+**Exact surfaces:** new `src/skynet/pbs.py`, `src/skynet/{cli,collection,proxmox}.py`
+(the Proxmox module only for a shared helper with real callers), `tests/test_{pbs,cli,collection}.py`,
+`tests/fixtures/pbs/`, `scripts/collect-pbs.sh`, `tests/collect-pbs-test.sh`,
+`nix/packages/skynet.nix`, `flake.nix`, `.github/workflows/checks.yml`,
+`.githooks/pre-commit`; `bin/ops`, `scripts/{collect-all,render-docs,nightly}.sh`
+only where the evidence/caller contract requires it; `nix/README.md`,
+`docs/design/observability.md`, `runbooks/nightly.md`, this directive/map and a raw journal.
+Regenerate roadmap/digest/context with their generators.
 
-**Exact surfaces:** `src/skynet/{cli,proxmox,collection}.py`,
-`tests/test_{cli,proxmox,collection}.py`, `tests/fixtures/proxmox/`,
-`scripts/collect-proxmox.sh`, `nix/packages/skynet.nix` only for fixture packaging;
-`bin/ops`, `scripts/{collect-all,render-docs,nightly}.sh` only as required by the status interface;
-`nix/README.md`, `docs/design/observability.md`, `runbooks/nightly.md`, this directive/map,
-and a raw journal. Regenerate routing views through existing generators.
+**Interfaces and decisions:**
 
-**Interfaces and implementation:**
+1. Add `skynet collect pbs --output <file> [--credentials-file <file>] [--json]`.
+   Preserve `inventory/pbs.json`'s host/collected/datastores, status usage and per-group
+   identity/count/latest-time/verification fields consumed by the backup renderer.
+   Translate the existing namespace/group projection; do not infer verified from a missing
+   verification value or confuse zero snapshots with unavailable data.
+2. Parse literal PBS assignments without eval/sudo, using the configured default
+   `/opt/skynet-ops/secrets/pbs.env`. Preserve `PBS_HOST/TOKEN/PORT/CACERT/FINGERPRINT/SNI`
+   compatibility and the existing optional defaults from the shell source. Preserve the
+   PBS colon token separator and accepted equals-separator normalization. Redact external
+   exceptions and never print the secret. Do not read live files to design the parser.
+3. Preserve CA-file and fingerprint trust modes, hostname/SNI verification with the separate
+   connection address, the existing pin fallback and verified GET-only/no-redirect behavior.
+   A bootstrap certificate is usable only after its configured fingerprint matches; never
+   silently trust an observed certificate. TLS mismatch, missing CA, timeout and malformed
+   data fail nonzero. Use ordinary functions, explicit deadlines and argument arrays where
+   an existing tool is required. No new HTTP framework, insecure mode or dependency update.
+4. Require complete validated datastore status and snapshot responses before atomic replacement.
+   Empty successful snapshot lists are valid no-backup observations; a missing/null/failed
+   endpoint is unavailable, not zero. A failed refresh retains previous bytes. Preserve each
+   group's latest verification state and make failed/unverified/unknown distinguishable.
+   Fix the touched renderer's null-to-zero fallbacks where they would claim healthy backup
+   evidence; no renderer redesign or backup/restore operation.
+5. Remove PBS from `REMAINING`; run it exactly once under the existing collection lock and
+   durable attempt receipt. Add a PBS marker bound to snapshot hash/time and the same 36-hour/
+   nightly cutoff. Default status/query/entity/render require PBS as well as all four accepted
+   Proxmox markers. Failed PBS reads permit remaining readers but refuse fresh overall evidence.
+   Preserve marker-publication, reader cleanup and receipt regressions. Retain the PBS shell
+   entry only as a thin forwarding shim for its documented callers, owned by P22 for removal.
+6. Port useful shell assertions to Python and retire the replaced shell test from hook/CI in
+   the same slice. Include new modules, fixtures, tests and retained shim in source/installed
+   package checks and staged-path/CI triggers. Keep unrelated safety checks enforced.
 
-1. Extend `collect proxmox <core|network> --output <file>` with target-specific default credential
-   paths. Preserve existing core arguments/exit codes and the network snapshot's `node: network`,
-   filename and consumer fields. Reuse ordinary functions in `proxmox.py`; add no client framework.
-   Make fixtures distinguish the node shapes, protected network guests and empty-vs-unavailable pools.
-2. Reuse the accepted literal credential parser, including optional `PVE_TOKEN_OPERATE`
-   without using it for observations. Preserve duplicate/malformed/unknown assignment and
-   shell syntax refusal. Extend token
-   selection/redaction with distinct synthetic read and operate values. Do not inspect live files
-   or relax verified TLS, hostname, GET-only, redirect or timeout behavior.
-3. Run network through Python once per default pass; remove its row from the shell-reader list.
-   Extend the small per-node marker checks to network, binding both markers to the one durable
-   collection attempt and exact snapshot hash/time. Publish incomplete evidence before each read;
-   failed reads preserve that node's bytes, report nonzero and allow remaining scoped reads.
-   `collect-status` and default query/entity/render consumers must require both nodes, including
-   the 36-hour ceiling and nightly same-pass cutoff. A missing network marker refuses old network
-   data. Keep explicit-output collection separate from default evidence.
-4. Retain `collect-proxmox.sh` only as a thin packaged-command forwarding entry for its existing
-   operator/runbook references; remove its shell API/parsing implementation. ACL shell readers
-   remain until P4b. Record caller/removal ownership in the map. Do not turn ACL or other reader
-   process exits into validated freshness, and preserve the P3 receipt/process regressions.
+**Optional Luna High assignment:** after the lead settles the PBS data/TLS interface, delegate
+only `tests/test_pbs.py` and synthetic PBS fixtures: group projection, malformed/unavailable
+responses, TLS refusal and retained bytes. No production, module edits, secrets, commits or helpers.
+The lead owns integration/freshness tests and reviews the complete result.
 
-**Optional Luna High packet:** once target/evidence interfaces are fixed, assign only the Proxmox
-test file and synthetic fixture additions, with explicit non-overlapping ownership. Acceptance:
-both target shapes and read-token selection, timeout/TLS/malformed/late-publication refusal,
-and retained bytes. No module changes, production calls/credentials, commits, pushes or helpers.
+**Checks/exits:** all must pass before closing P5a:
+- `nix develop --no-write-lock-file -c pytest -q`: actual CLI/fake HTTPS covers both trust
+  modes and SNI, missing credentials, malformed/null/timeout/partial datastore failure,
+  empty valid groups, verification states, atomic retention and recovery; default PBS
+  failure refuses ordinary consumers and preserves factual pages.
+- `nix develop --no-write-lock-file -c ruff check src tests/test_*.py` and
+  `nix develop --no-write-lock-file -c mypy src/skynet`: clean.
+- `nix build --no-write-lock-file --no-link .#checks.x86_64-linux.skynet` and
+  `nix flake check --no-write-lock-file --no-build`: source/installed checks pass.
+- Offline `bin/skynet doctor --json` succeeds; `collect-status` on a disposable repo
+  without evidence exits 3. Full staged hook and `git diff --cached --check` pass.
+  Keep the five paused documentation suites explicitly unrun and their P24 restoration.
 
-**Checks/exits:** `nix develop --no-write-lock-file -c pytest -q` must cover both actual CLI
-targets, default one-invocation routing, failed network refresh refusing ordinary consumers and
-preserving factual pages, later successful recovery, and unchanged protected-guest/pool field
-projections. Run `ruff check src tests/test_*.py` and `mypy src/skynet` through the same Nix shell;
-build `.#checks.x86_64-linux.skynet`, evaluate `nix flake check --no-write-lock-file --no-build`,
-exercise offline launcher doctor and unavailable status, then run the full staged pre-commit hook
-and `git diff --cached --check`. Preserve Ali's documentation-check pause and its P24 restoration.
-Report source/installed results and unverified checks explicitly.
+**Boundaries:** isolated construction, synthetic credentials/transports and disposable outputs.
+No live PBS/Docker reads are released by this packet; the P4 live-read authorization was scoped
+to that review. No root/grant, activation, timer/service, trust/pin/credential change, backup,
+restore, prune or payload/state write. Source rollback is git revert. Independent workstation,
+state/payload recovery and untested endpoint parity remain prerequisites for live transitions.
 
-**Boundaries:** isolated construction with fake HTTPS, synthetic credentials and disposable
-outputs only. No real node read, credentials, pool/ACL change, host/profile activation, root,
-service/timer change or dependency update. Source rollback is git revert. Independent workstation,
-state and payload recovery evidence in the map remains required before any live transition.
-P4b owns operate-token self-introspection, permission-shape validation, both ACL default freshness
-checks and removal of their shell implementation; no privilege grant or invariant weakening.
-
-**Close-out:** P4a complete means **slice complete / P4 in progress**, not phase review-pending.
-Commit/push and open `SKY-025 P4: collect network observations in Python`; do not merge.
-After Ali merges, continue the bounded P4b packet. Review all P4 slices together before P5.
-
-## 5b. Phase 4b — operate-token ACL snapshots (~1–2h)
-
-**Release gate:** P4a PR #220 is merged at `67e1471987eb14f2f209db0d6ee4bed57386bd1f`; this is
-the remaining P4 slice, not a new numbered phase. **Lead:** Terra High (`gpt-5.6-terra`, high).
-
-**Goal/interfaces:** replace both ACL shell readers with `collect proxmox-acl <core|network> --output`.
-Select only `PVE_TOKEN_OPERATE`, validate the `/access/permissions` path-to-`{privilege: 0|1}`
-shape, record a safe token ID, and atomically retain the existing ACL schema. Default collection
-publishes paired ACL markers under the one durable receipt; status requires all four Proxmox markers.
-
-**Boundaries/checks:** fake HTTPS, synthetic credentials and disposable outputs only; no real
-credential/endpoint, ACL/pool change, grant, root or activation. Cover operate selection/redaction,
-malformed permissions, failed ACL retention/status refusal and recovery. Run the P4a checks. Rollback
-is git revert. Open `SKY-025 P4: collect operate-token ACL snapshots in Python`; do not merge.
-After Ali merges, request one fresh Astra Medium review for both P4 PRs before P5.
+**Close-out and P5b continuation:** P5a is slice-complete / P5 in progress, not independently
+accepted. Open `SKY-025 P5: collect PBS inventory in Python`; do not merge.
+After human merge, the execution lead details only Docker inventory: `src/skynet/docker.py`,
+CLI/default marker integration, `tests/test_docker.py` and fixtures, `collect-docker.sh`,
+package/hook/CI and affected docs. Preserve host label/context and container/image fields used
+by SQLite; use bounded read-only Docker argument arrays, validate JSON lines, distinguish
+missing context/failed commands from a valid empty host, retain bytes on partial failure,
+and require Docker freshness in default consumers. No Docker mutation or Arcane work.
+Run the same package/failure/consumer checks; review both P5 PRs together before P6.
 
 ## 6. Carry forward the original review as acceptance cases
 
@@ -310,6 +312,31 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
 ```
 
 ## 9. Status
+
+- 2026-09-09 — **P4 ACCEPT.** Reviewed all P4 slices: [#220](https://github.com/aliammar03/skynet/pull/220),
+  merge `67e1471987eb14f2f209db0d6ee4bed57386bd1f`, and
+  [#221](https://github.com/aliammar03/skynet/pull/221), merge/main reviewed
+  `29b3af942968953a470c9f6d7a06a5c29ca3f8ec`. Packet baseline is
+  `d2bbedc649e2b4226a2f1b1721a35febbb6148cd`; no intervening commits beyond those slices.
+  Session metadata, installed catalog and launcher dry-run confirm fresh Astra Medium.
+
+  | Full P4 exit | Verdict / independent evidence |
+  |---|---|
+  | Both node shapes, field compatibility and protected pools | ACCEPT — maintained synthetic projections pass; authorized live reads return core 8 guests/1 pool and network 6 guests/1 pool; 2020/5001/635/837 remain unpooled. |
+  | Operate-token selection, permissions validation, retained bytes | ACCEPT — GET-only shared transport inspected; CLI tests plus 32 review probes cover both targets, malformed/null permissions, missing operate token without fallback, timeout/redaction, marker refusal and recovery. |
+  | Default routing/freshness and caller integration | ACCEPT — all four hash/time markers require one receipt; both legacy implementations removed; default consumer, initial/late marker, timeout/descendant and recovery regressions pass. |
+  | Packaging and enforced safety checks | ACCEPT — 105 pytest cases, Ruff, mypy, source/installed Nix package check, flake evaluation, offline doctor/unavailable status and full staged hook pass. Five paused documentation suites remain unrun. |
+  | TLS/API compatibility and authority | ACCEPT — Ali explicitly requested live reads during review; all four packaged CLI reads succeeded using configured credentials and disposable outputs, with verified TLS. ACL policy projections have zero forbidden hits and no unauthorized root allocation. No production write/activation occurred. |
+
+  Findings requiring repair: none. P4a's earlier accidental T1 test reads are recorded in its
+  incident journal; its blanket no-live-read status sentence below is incorrect. The repaired
+  merged tests use parser inspection and synthetic overrides. This review's four live reads
+  were explicitly authorized. Workstation/state/payload recovery and other API parity remain
+  unverified; successful observations do not establish service health or restore readiness.
+  Accepted progress is **4/24**. Release only §5 P5a with Terra High; PBS/Docker become two
+  implementation slices within P5 because their transport/failure boundaries differ. No G
+  checkpoint is due and no phase reorder is needed.
+  [Raw commands and review evidence](../../journal/2026/2026-09-09-session-sky-025-p4-combined-independent-review.md).
 
 - 2026-09-08 — **P4a slice complete / P4 in progress.** From isolated
   remote-main base `d2bbedc649e2b4226a2f1b1721a35febbb6148cd`, P4a adds the explicit network
