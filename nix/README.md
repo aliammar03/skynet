@@ -73,11 +73,21 @@ observations, with absent backup results represented by null fields.
 `bin/ops collect` forwards to `skynet collect all --repo <checkout>`, running the Python core
 collector and the remaining shell readers once each. Core refresh evidence lives in
 `inventory/collection-core.json`: an incomplete marker precedes reads, and success records
-the exact snapshot hash/time. A local nonblocking lock prevents overlapping collections.
-After marker publication, failures preserve the snapshot but invalidate its refresh evidence.
-Marker setup failure stops before reads; nightly's same-pass cutoff rejects prior success.
+the exact snapshot hash/time. The nonblocking `.cache/collection.lock` also stores a durable
+attempt receipt before marker publication. Status requires the receipt to match the marker,
+so failed marker setup stops before reads and invalidates previous success without a cutoff.
+Missing receipts require a complete refresh. Status briefly locks and durably reaffirms the
+existing receipt; storage that cannot persist invalidation is unavailable even if old evidence
+is readable. An inability to persist any failure cannot leave a durable diagnosis: repair storage
+and complete a refresh before using observations. Snapshot bytes remain intact on setup failure.
 Other readers report their
 process exits; they do not yet provide the Python core collector's validated evidence contract.
+Each runs sequentially in an isolated Linux process group with a 120-second deadline. Before
+advancing or releasing the lock, collection kills remaining group members and reaps descendants,
+including on interruption or an early leader exit. Cleanup has a five-second deadline; unconfirmed
+cleanup stops collection with `recovery-required` and blocks further collections via the receipt.
+After operator verification that the reader processes are gone, clear that receipt under the
+collection lock and run a complete refresh. Do not delete the lock file while a process holds it.
 
 `skynet collect-status --repo <checkout> [--since <timestamp>] [--json]` requires matching
 successful core evidence no older than 36 hours, with timezone-aware timestamps. Missing,

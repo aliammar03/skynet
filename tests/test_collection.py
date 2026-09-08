@@ -4,8 +4,10 @@ import hashlib
 import json
 import os
 import shutil
+import signal
 import subprocess
 import sys
+import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -116,22 +118,269 @@ def test_unusable_evidence_never_reports_fresh(
     assert status(repo, capsys, *extra) == 3
 
 
-def test_remaining_timeout_is_failure_and_does_not_repeat_core(
+def test_initial_marker_failure_invalidates_default_consumers_and_recovers(
     repo: Path, credentials: Path, transport: type[FakeConnection],
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    calls = []
+    assert run(repo, credentials, capsys)[0] == 0
+    snapshot = repo / "inventory/proxmox-core.json"
+    previous = snapshot.read_bytes()
+    marker_writes = 0
 
-    def timeout(args: list[str], **kwargs: object) -> None:
-        calls.append(args)
-        assert kwargs["timeout"] == 120
-        raise subprocess.TimeoutExpired(args, 120, output=TOKEN)
+    from skynet import proxmox
+    replace = proxmox.os.replace
 
-    monkeypatch.setattr(collection.subprocess, "run", timeout)
+    def fail_initial_marker(source: str, destination: Path) -> None:
+        nonlocal marker_writes
+        if destination.name == "collection-core.json":
+            marker_writes += 1
+            if marker_writes == 1:
+                raise OSError(TOKEN)
+        replace(source, destination)
+
+    monkeypatch.setattr(proxmox.os, "replace", fail_initial_marker)
+    before_requests = len(transport.instances)
     assert run(repo, credentials, capsys)[0] == 1
-    assert len(calls) == 10
-    assert len(transport.instances) == 6
+    assert snapshot.read_bytes() == previous
+    assert len(transport.instances) == before_requests
+    assert status(repo, capsys) == 3
+
+    # Exercise the real shell callers through only the offline package-launch boundary.
+    ops = repo / "bin/ops"
+    skynet = repo / "bin/skynet"
+    render = repo / "scripts/render-docs.sh"
+    ops.parent.mkdir(exist_ok=True)
+    shutil.copy(ROOT / "bin/ops", ops)
+    shutil.copy(ROOT / "bin/skynet", skynet)
+    shutil.copy(ROOT / "scripts/render-docs.sh", render)
+    for target in (ops, skynet, render):
+        target.chmod(0o755)
+        target.write_text(target.read_text().replace(
+            "#!/usr/bin/env bash", f"#!{shutil.which('bash')}", 1))
+        target.chmod(0o755)
+    pages = repo / "docs/generated"
+    pages.mkdir(parents=True)
+    page = pages / "factual.md"
+    page.write_text("unchanged factual page\n")
+    fake_bin = repo / "fake-bin"
+    fake_bin.mkdir()
+    launcher = fake_bin / "nix"
+    launcher.write_text(
+        f"#!{sys.executable}\nimport sys\nsys.path[:] = {sys.path!r}\n"
+        "from skynet.cli import main\nsys.exit(main(sys.argv[6:]))\n"
+    )
+    launcher.chmod(0o755)
+    environment = os.environ | {"PATH": f"{fake_bin}:{os.environ['PATH']}"}
+    for args in ((str(ops), "entities"), (str(ops), "query", "SELECT 1"), (str(render),)):
+        result = subprocess.run(["bash", *args], env=environment,
+                                capture_output=True, text=True, check=False)
+        assert result.returncode == 3
+        assert TOKEN not in result.stdout + result.stderr
+    assert page.read_text() == "unchanged factual page\n"
+
+    monkeypatch.setattr(proxmox.os, "replace", replace)
+    assert run(repo, credentials, capsys)[0] == 0
+    assert status(repo, capsys) == 0
+
+
+def _write_delayed_reader(repo: Path, *, detached: bool = False) -> tuple[Path, Path, Path]:
+    """Create a reader and child that would write after cleanup if left alive."""
+    child = repo / ("detached-writer.py" if detached else "delayed-writer.py")
+    ready = repo / ("detached-ready" if detached else "delayed-ready")
+    destination = repo / "inventory/late-write"
+    child.write_text(
+        "import os, signal, time\n"
+        "from pathlib import Path\n"
+        "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+        f"Path({str(ready)!r}).write_text(str(os.getpid()))\n"
+        "time.sleep(0.45)\n"
+        f"Path({str(destination)!r}).touch()\n"
+    )
+    reader = repo / "scripts" / ("detached-reader.sh" if detached else "slow-reader.sh")
+    launch = f"{sys.executable} {child}"
+    suffix = (
+        f" &\nwhile [[ ! -e {ready} ]]; do :; done\nexit 0\n"
+        if detached else "\nwait\n"
+    )
+    reader.write_text(f"#!{shutil.which('bash')}\n{launch}{suffix}")
+    reader.chmod(0o755)
+    return reader, ready, destination
+
+
+def test_remaining_timeout_kills_descendants_before_next_reader_and_releases_lock(
+    repo: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    reader, ready, destination = _write_delayed_reader(repo)
+    remaining = collection.REMAINING
+    next_reader = repo / "scripts" / remaining[0][1]
+    body = next_reader.read_text().split("\n", 1)[1]
+    next_reader.write_text(
+        f"#!{sys.executable}\nimport os\nfrom pathlib import Path\n"
+        f"try: os.kill(int(Path({str(ready)!r}).read_text()), 0)\n"
+        "except ProcessLookupError: pass\n"
+        "else: Path('survivor-at-next').touch()\n" + body
+    )
+    cleanup = collection.stop_reader
+
+    def locked_cleanup(process: subprocess.Popen[bytes]) -> None:
+        with (repo / ".cache/collection.lock").open("r+") as other_lock:
+            with pytest.raises(BlockingIOError):
+                collection.fcntl.flock(
+                    other_lock, collection.fcntl.LOCK_EX | collection.fcntl.LOCK_NB)
+        cleanup(process)
+
+    monkeypatch.setattr(collection, "stop_reader", locked_cleanup)
+    monkeypatch.setattr(collection, "REMAINING", (("slow", reader.name), *remaining))
+    monkeypatch.setattr(collection, "READER_TIMEOUT", 0.25)
+    monkeypatch.setattr(collection, "CLEANUP_TIMEOUT", 0.12)
+    started = time.monotonic()
+    code, report = run(repo, credentials, capsys)
+    assert time.monotonic() - started < 5
+    assert code == 1
+    assert report["collectors"][1]["outcome"] == "failure"
+    assert ready.exists()
+    assert not destination.exists()
+    assert not (repo / "survivor-at-next").exists()
+    with pytest.raises(ProcessLookupError):
+        os.kill(int(ready.read_text()), 0)
+    assert (repo / "calls").read_text().splitlines() == [row[1] for row in remaining]
+    time.sleep(0.55)
+    assert not destination.exists()
+    assert TOKEN not in json.dumps(report)
+
+    # A second complete attempt proves timeout cleanup happened before lock release.
+    before_requests = len(transport.instances)
+    assert run(repo, credentials, capsys)[0] == 1
+    assert len(transport.instances) == before_requests + 6
+    assert (repo / "calls").read_text().splitlines() == [row[1] for row in remaining] * 2
     assert status(repo, capsys) == 0  # core success is independent of other readers' exits
+
+
+@pytest.mark.parametrize("interruption", [signal.SIGINT, signal.SIGTERM])
+def test_signal_interrupts_reader_and_reaps_child(
+    repo: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str], interruption: signal.Signals,
+) -> None:
+    reader, ready, destination = _write_delayed_reader(repo)
+    runner = repo / "runner.py"
+    runner.write_text(
+        f"import sys\nsys.path[:] = {sys.path!r}\n"
+        "from pathlib import Path\n"
+        "from test_proxmox import FakeConnection, endpoint_data\n"
+        "from skynet import collection, proxmox\nfrom skynet.cli import main\n"
+        "FakeConnection.responses = endpoint_data()\n"
+        "proxmox.http.client.HTTPSConnection = FakeConnection\n"
+        f"collection.REMAINING = (('slow', {reader.name!r}),)\n"
+        f"args = ['collect', 'all', '--repo', {str(repo)!r}, "
+        f"'--credentials-file', {str(credentials)!r}, '--json']\n"
+        "try: sys.exit(main(args))\nexcept KeyboardInterrupt: sys.exit(130)\n"
+    )
+    process = subprocess.Popen([sys.executable, str(runner)], stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE, text=True)
+    try:
+        deadline = time.monotonic() + 5
+        while not ready.exists() and process.poll() is None and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert ready.exists()
+        process.send_signal(interruption)
+        stdout, stderr = process.communicate(timeout=6)
+        assert process.returncode == 130
+        assert TOKEN not in stdout + stderr
+        with pytest.raises(ProcessLookupError):
+            os.kill(int(ready.read_text()), 0)
+        time.sleep(0.55)
+        assert not destination.exists()
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            process.wait(timeout=6)
+    assert run(repo, credentials, capsys)[0] == 0
+
+
+def test_normal_reader_exit_reaps_detached_descendant(
+    repo: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    reader, ready, destination = _write_delayed_reader(repo, detached=True)
+    monkeypatch.setattr(collection, "REMAINING", (("detached", reader.name),))
+    monkeypatch.setattr(collection, "READER_TIMEOUT", 0.5)
+    monkeypatch.setattr(collection, "CLEANUP_TIMEOUT", 0.12)
+    assert run(repo, credentials, capsys)[0] == 0
+    assert ready.exists()
+    assert not destination.exists()
+    time.sleep(0.55)
+    assert not destination.exists()
+
+
+def test_interrupted_reader_is_cleaned_and_lock_is_released(
+    repo: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    reader, ready, destination = _write_delayed_reader(repo)
+    remaining = collection.REMAINING
+    monkeypatch.setattr(collection, "REMAINING", (("interrupted", reader.name),))
+    real_popen = collection.subprocess.Popen
+
+    def interrupting_popen(*args: object, **kwargs: object) -> subprocess.Popen[bytes]:
+        process = real_popen(*args, **kwargs)
+        wait = process.wait
+        interrupted = False
+
+        def wait_once(*wait_args: object, **wait_kwargs: object) -> int:
+            nonlocal interrupted
+            if not interrupted:
+                interrupted = True
+                deadline = time.monotonic() + 1
+                while not ready.exists() and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                raise KeyboardInterrupt
+            return wait(*wait_args, **wait_kwargs)
+
+        process.wait = wait_once  # type: ignore[method-assign]
+        return process
+
+    monkeypatch.setattr(collection.subprocess, "Popen", interrupting_popen)
+    try:
+        code = run(repo, credentials, capsys)[0]
+    except KeyboardInterrupt:
+        code = 1
+    assert code != 0
+    assert ready.exists()
+    assert not destination.exists()
+    time.sleep(0.55)
+    assert not destination.exists()
+    monkeypatch.setattr(collection.subprocess, "Popen", real_popen)
+    monkeypatch.setattr(collection, "REMAINING", remaining)
+    before_requests = len(transport.instances)
+    assert run(repo, credentials, capsys)[0] == 0
+    assert len(transport.instances) == before_requests + 6
+
+
+def test_cleanup_failure_quarantines_receipt_and_stops_remaining_readers(
+    repo: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+
+    def fail_cleanup(*args: object, **kwargs: object) -> None:
+        calls.append("reader")
+        raise collection.CleanupError("synthetic cleanup failure")
+
+    real_reader = collection.run_reader
+    monkeypatch.setattr(collection, "run_reader", fail_cleanup)
+    monkeypatch.setattr(collection, "REMAINING", (collection.REMAINING[0], collection.REMAINING[1]))
+    assert run(repo, credentials, capsys)[0] == 1
+    assert calls == ["reader"]
+    assert not (repo / "calls").exists()
+    assert status(repo, capsys) == 3
+
+    # The recovery-required receipt is a hard stop before another core remote read.
+    before_requests = len(transport.instances)
+    monkeypatch.setattr(collection, "run_reader", real_reader)
+    assert run(repo, credentials, capsys)[0] == 1
+    assert len(transport.instances) == before_requests
+    assert status(repo, capsys) == 3
 
 
 def test_missing_credentials_fails_default_path_without_remote_access(
@@ -191,6 +440,22 @@ def test_marker_setup_failure_cannot_satisfy_this_pass_with_previous_success(
     assert run(repo, credentials, capsys)[0] == 1
     assert len(transport.instances) == previous_requests
     assert status(repo, capsys, "--since", since) == 3
+
+
+def test_status_fails_closed_when_receipt_cannot_be_reaffirmed(
+    repo: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert run(repo, credentials, capsys)[0] == 0
+
+    def fail_receipt_write(*args: object, **kwargs: object) -> None:
+        raise OSError(TOKEN)
+
+    monkeypatch.setattr(collection, "receipt_write", fail_receipt_write)
+    code = main(["collect-status", "--repo", str(repo), "--json"])
+    output = capsys.readouterr()
+    assert code == 3
+    assert TOKEN not in output.out + output.err
 
 
 @pytest.mark.parametrize("entry,args,expected", [

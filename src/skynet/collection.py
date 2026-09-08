@@ -1,10 +1,14 @@
 """Default collection and core evidence freshness for current-state consumers."""
 
+import ctypes
 import fcntl
 import hashlib
 import io
 import json
+import os
+import signal
 import subprocess
+import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, TextIO
@@ -23,6 +27,89 @@ REMAINING = (
     ("routes", "collect-routes.sh"),
     ("certs", "collect-certs.sh"),
 )
+READER_TIMEOUT = 120.0
+CLEANUP_TIMEOUT = 5.0
+
+
+class CleanupError(Exception):
+    """A reader group could not be confirmed stopped and reaped."""
+
+
+def receipt_write(lock: TextIO, attempted: str) -> None:
+    """Invalidate in place before recording an attempt, independently of atomic rename."""
+    lock.seek(0)
+    lock.truncate()
+    lock.flush()
+    os.fsync(lock.fileno())
+    lock.write(attempted)
+    lock.flush()
+    os.fsync(lock.fileno())
+
+
+def stop_reader(process: subprocess.Popen[bytes]) -> None:
+    """Kill only this reader's session group and reap its adopted descendants."""
+    deadline = time.monotonic() + CLEANUP_TIMEOUT
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    process.wait(timeout=max(0.001, deadline - time.monotonic()))
+    while True:
+        try:
+            while os.waitpid(-process.pid, os.WNOHANG)[0]:
+                pass
+        except ChildProcessError:
+            pass
+        try:
+            os.killpg(process.pid, 0)
+        except ProcessLookupError:
+            return
+        if time.monotonic() >= deadline:
+            raise CleanupError
+        time.sleep(0.01)
+
+
+def run_reader(args: list[str], repo: Path) -> int:
+    """Run one synchronous Linux reader with ownership of its process group."""
+    # Subreaping lets us wait for orphaned grandchildren rather than relying on PID 1.
+    libc = ctypes.CDLL(None, use_errno=True)
+    previous = ctypes.c_int()
+    if libc.prctl(37, ctypes.byref(previous), 0, 0, 0) != 0:  # PR_GET_CHILD_SUBREAPER
+        raise CleanupError
+    if libc.prctl(36, 1, 0, 0, 0) != 0:  # PR_SET_CHILD_SUBREAPER
+        raise CleanupError
+
+    def interrupted(signum: int, frame: Any) -> None:
+        raise KeyboardInterrupt
+
+    prior_term = signal.signal(signal.SIGTERM, interrupted)
+    process = None
+    try:
+        # Block interruptions across spawn so a child cannot exist without its handle.
+        mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGINT, signal.SIGTERM})
+        try:
+            process = subprocess.Popen(
+                args, cwd=repo, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL, start_new_session=True,
+            )
+        finally:
+            signal.pthread_sigmask(signal.SIG_SETMASK, mask)
+        try:
+            return process.wait(timeout=READER_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            return 3
+    finally:
+        mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGINT, signal.SIGTERM})
+        try:
+            if process is not None:
+                try:
+                    stop_reader(process)
+                except (OSError, subprocess.TimeoutExpired) as error:
+                    raise CleanupError from error
+        finally:
+            libc.prctl(36, previous.value, 0, 0, 0)
+            signal.signal(signal.SIGTERM, prior_term)
+            signal.pthread_sigmask(signal.SIG_SETMASK, mask)
 
 
 def emit(report: dict[str, Any], json_output: bool, stdout: TextIO) -> None:
@@ -47,8 +134,11 @@ def collect_all(repo: Path, credentials_file: Path, *, json_output: bool, stdout
         repo = repo.resolve()
         # A failed lock/marker setup cannot proceed to remote reads or bless old evidence.
         (repo / ".cache").mkdir(exist_ok=True)
-        with (repo / ".cache/collection.lock").open("a") as lock:
+        with (repo / ".cache/collection.lock").open("a+") as lock:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            lock.seek(0)
+            if lock.read() == "recovery-required":
+                raise CleanupError
             output = repo / "inventory/proxmox-core.json"
             status = repo / "inventory/collection-core.json"
             marker: dict[str, Any] = {
@@ -56,6 +146,7 @@ def collect_all(repo: Path, credentials_file: Path, *, json_output: bool, stdout
                 "attempted": datetime.now(UTC).isoformat(timespec="microseconds"),
                 "reason": "refresh incomplete; retained snapshot is previous evidence",
             }
+            receipt_write(lock, marker["attempted"])
             proxmox.publish(status, marker)
             stream = io.StringIO()
             code = proxmox.collect(output, credentials_file, json_output=True, stdout=stream)
@@ -71,13 +162,15 @@ def collect_all(repo: Path, credentials_file: Path, *, json_output: bool, stdout
             report["collectors"].append(core)
             for name, script, *args in REMAINING:
                 try:
-                    result = subprocess.run(
-                        [str(repo / "scripts" / script), *args], cwd=repo,
-                        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL, timeout=120, check=False,
-                    )
-                    exit_code = result.returncode
-                except (OSError, subprocess.TimeoutExpired):
+                    exit_code = run_reader([str(repo / "scripts" / script), *args], repo)
+                except CleanupError:
+                    try:
+                        receipt_write(lock, "recovery-required")
+                    except OSError:
+                        report["recovery_recorded"] = False
+                        raise CleanupError from None
+                    raise
+                except OSError:
                     exit_code = 3
                 # These legacy readers expose process status, not validated health evidence.
                 report["collectors"].append({"target": name, "exit_code": exit_code,
@@ -86,6 +179,10 @@ def collect_all(repo: Path, credentials_file: Path, *, json_output: bool, stdout
                     code = 1
             if code == 0:
                 report["outcome"] = "success"
+    except CleanupError:
+        report["outcome"] = "recovery-required"
+        report["reason"] = "reader cleanup unconfirmed; collection stopped; inspect local processes"
+        code = 1
     except (OSError, ValueError, proxmox.CollectionError):
         report["reason"] = "collection setup or evidence publication failed; no fresh result established"
         code = 1
@@ -106,8 +203,15 @@ def core_status(repo: Path, *, since: str | None, json_output: bool, stdout: Tex
     """Require a matching successful core refresh no more than 36 hours old."""
     report: dict[str, Any] = {"target": "proxmox-core", "outcome": "unavailable"}
     try:
-        evidence = json.loads((repo / "inventory/collection-core.json").read_bytes())
-        raw = (repo / "inventory/proxmox-core.json").read_bytes()
+        with (repo / ".cache/collection.lock").open("r+") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            attempted_receipt = lock.read()
+            timestamp(attempted_receipt)
+            # Refuse storage that cannot persist invalidation, even if old evidence is readable.
+            # Reaffirm only the existing receipt; status can never establish a new attempt.
+            receipt_write(lock, attempted_receipt)
+            evidence = json.loads((repo / "inventory/collection-core.json").read_bytes())
+            raw = (repo / "inventory/proxmox-core.json").read_bytes()
         snapshot = json.loads(raw)
         if not isinstance(evidence, dict) or not isinstance(snapshot, dict):
             raise ValueError
@@ -116,6 +220,7 @@ def core_status(repo: Path, *, since: str | None, json_output: bool, stdout: Tex
         attempted = timestamp(evidence.get("attempted"))
         valid = (
             evidence.get("target") == "proxmox-core" and evidence.get("outcome") == "success"
+            and attempted_receipt == evidence.get("attempted")
             and snapshot.get("node") == "core"
             and evidence.get("collected") == snapshot.get("collected")
             and evidence.get("sha256") == hashlib.sha256(raw).hexdigest()
