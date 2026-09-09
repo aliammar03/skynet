@@ -16,7 +16,7 @@ import pytest
 from test_proxmox import (FakeConnection, NETWORK_OPERATE_TOKEN, NETWORK_TOKEN, OPERATE_TOKEN,
                           network_endpoint_data, TOKEN)
 from skynet.cli import main
-from skynet import collection, pbs, proxmox
+from skynet import collection, docker, pbs, proxmox
 
 ROOT = Path(__file__).parents[1]
 pytest_plugins = ["test_proxmox"]
@@ -52,6 +52,16 @@ def pbs_observation(monkeypatch: pytest.MonkeyPatch) -> None:
             print(json.dumps(report), file=stdout)  # type: ignore[arg-type]
         return 0
     monkeypatch.setattr(pbs, "collect", collect)
+    def docker_collect(label: str, output: Path, context: str, *, json_output: bool, stdout: object) -> int:
+        data = {"collected": datetime.now(UTC).isoformat(timespec="seconds"), "host": label,
+                "containers": [], "images": []}
+        proxmox.publish(output, data)
+        report = {"target": f"docker-{label}", "outcome": "success", "collected": data["collected"],
+                  "counts": {"containers": 0, "images": 0}}
+        if json_output:
+            print(json.dumps(report), file=stdout)  # type: ignore[arg-type]
+        return 0
+    monkeypatch.setattr(docker, "collect", docker_collect)
 
 
 def run(
@@ -89,7 +99,7 @@ def test_default_collection_records_matching_evidence_and_runs_remaining_once(
     ])
     code, report = run(repo, credentials, capsys, network_credentials(repo, credentials))
     assert code == 0 and report["outcome"] == "success"
-    assert len(report["collectors"]) == 11
+    assert len(report["collectors"]) == 12
     assert (repo / "calls").read_text().splitlines() == [row[1] for row in collection.REMAINING]
     evidence = json.loads((repo / "inventory/collection-core.json").read_text())
     assert evidence["sha256"] == hashlib.sha256(
@@ -627,12 +637,15 @@ def test_bin_ops_collection_reaches_real_cli_and_core_collector(
     launcher.write_text(
         f"#!{sys.executable}\nimport sys\nsys.path[:] = {sys.path!r}\n"
         "from test_proxmox import FakeConnection, endpoint_data\n"
-        "from skynet import pbs, proxmox\nfrom skynet.cli import main\n"
+        "from skynet import docker, pbs, proxmox\nfrom skynet.cli import main\n"
         "FakeConnection.responses = endpoint_data()\n"
         "proxmox.http.client.HTTPSConnection = FakeConnection\n"
         "pbs.collect = lambda output, credentials_file, json_output, stdout: ("
         "proxmox.publish(output, {'collected':'2026-09-09T00:00:00+00:00','host':'pbs.test','datastores':[]}) or "
         "stdout.write('{\\\"target\\\":\\\"pbs\\\",\\\"outcome\\\":\\\"success\\\",\\\"collected\\\":\\\"2026-09-09T00:00:00+00:00\\\"}') and 0)\n"
+        "docker.collect = lambda label, output, context, json_output, stdout: ("
+        "proxmox.publish(output, {'collected':'2026-09-09T00:00:00+00:00','host':label,'containers':[],'images':[]}) or "
+        "stdout.write('{\\\"target\\\":\\\"docker-dmz\\\",\\\"outcome\\\":\\\"success\\\",\\\"collected\\\":\\\"2026-09-09T00:00:00+00:00\\\"}') and 0)\n"
         "sys.exit(main(sys.argv[6:]))\n"
     )
     launcher.chmod(0o755)

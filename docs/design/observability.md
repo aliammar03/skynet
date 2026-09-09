@@ -26,7 +26,7 @@ hand-maintained:
 ```
 
 `inventory/` and `docs/generated/` are **machine-owned — never hand-edited** (a constitution
-invariant). Default rendering requires matching successful core and network observation, ACL, and PBS evidence no
+invariant). Default rendering requires matching successful core and network observation, ACL, PBS, and Docker evidence no
 older than 36 hours and one matching local attempt receipt; the nightly additionally requires an
 attempt from its current pass. Missing or unwritable receipt storage is unavailable. A failed node
 refresh leaves that snapshot and prior pages intact and records a failure, rather than refreshing their

@@ -74,6 +74,12 @@ the pinned certificate's DNS name used for hostname verification. Missing/null e
 partial datastore reads, malformed snapshots, timeout and trust failure are unavailable or failed,
 never an empty successful backup result. Empty validated snapshot lists are valid observations.
 
+`skynet collect docker <label> --output <file> [--context <context>] [--json]` runs only
+read-only Docker context inspection, `ps --all`, and `image ls` using argument arrays and a
+20-second deadline. JSON lines must contain the container/image fields consumed by SQLite; a valid
+empty host is distinct from a missing context, failed command, or malformed output. Failure retains
+the previous snapshot and cannot establish fresh default evidence.
+
 The collector publishes atomically to the explicit destination after every required read and
 validation succeeds. Failure retains any previous snapshot and its timestamp; consumers must treat it as
 previous evidence. Collection success describes observations, not service or backup health.

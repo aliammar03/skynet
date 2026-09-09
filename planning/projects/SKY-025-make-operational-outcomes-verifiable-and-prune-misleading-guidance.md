@@ -313,6 +313,15 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
 
 ## 9. Status
 
+- 2026-09-09 — **P5b slice complete / P5 review pending.** From isolated remote-main base
+  `c0e0f53007dee3d49779c4f7fca065fbac13dbd2`, P5b replaces Docker shell parsing with an explicit
+  read-only Python CLI, validated container/image JSON lines, atomic retention and a receipt-bound
+  Docker marker required by default consumers. The retained shell entry forwards to the package.
+  Synthetic command/output tests cover a valid host, malformed output and retained bytes. No Docker
+  context, production host, credential, service, timer, root, grant or write action occurred.
+  P5 remains unaccepted at 4/24; after human merge, request one fresh Astra Medium review for both
+  P5a PBS and P5b Docker PRs before P6.
+
 - 2026-09-09 — **P5a slice complete / P5 in progress.** From isolated remote-main base
   `faf961ab3accb9466385da32efa9bb6185c77f3b`, P5a replaces the PBS shell parser/client with
   `skynet collect pbs`. The Python command accepts only literal configured assignments, normalizes
