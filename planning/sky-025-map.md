@@ -5,11 +5,11 @@ summary: "SKY-025 subsystem dispositions, external callers, output contracts, an
 # SKY-025 · Repository disposition map
 
 Owned by [the directive](projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md).
-Current accepted progress: **P6 / 6 of 24**. §5 releases **P7a Omada (Terra High)** as the current
-executable packet; P7b certs/routes and P7c recon are same-phase continuations. P6c is a bounded
-corrective slice after P6 acceptance (offline firewall inventory path retired — see below), not a
-new numbered phase. Per-phase acceptance verdicts, reviewed SHAs and phase history live in the
-directive §9 and git, not here.
+Current accepted progress: **P7 / 7 of 24**. §5 releases **P8a entity derivation/audit (Terra High)**
+as the current executable packet; P8b SQLite cache/query freshness is the same-phase continuation.
+P6c is a bounded corrective slice after P6 acceptance (offline firewall inventory path retired — see
+below), not a new numbered phase. Per-phase acceptance verdicts, reviewed SHAs and phase history live
+in the directive §9 and git, not here.
 This map describes planned replacements; it does not claim Python is installed or activated on any
 lab host. Its grouped families cover the baseline's tracked paths (enumerated with `git ls-files`);
 `scripts/` names are relative to that directory. **Verified** means source/caller inspection, not a
@@ -29,9 +29,9 @@ Enumeration counts: root files 10; `.claude` 1, `.codex` 4, `.githooks` 1, `.git
 | `collect-proxmox.sh`, `collect-proxmox-acl.sh` | migrate | Python read collectors; node-specific validation | collect-all, inventory gates/renderers | 3–4 | P4a leaves `collect-proxmox.sh` as a packaged-command forwarder and removes its shell API/parser. Both ACL readers remain P4b. Live behavior untested |
 | `collect-pbs.sh`, `collect-docker.sh` | migrate | Python PBS/Docker collectors | collect-all, backup/container views | 5 | P5 accepted with reviewer repairs: single Docker writer, descendant cleanup, strict required fields, truthful verification, TLS and test isolation; live reads pass |
 | `collect-dns.sh`, `collect-opnsense.sh` | migrate | Python DNS collection and live OPNsense firewall+state collection | collect-all, firewall/DNS views | 6 | P6a: `collect-dns.sh` → shim + `src/skynet/dns.py`. P6b-i: `collect-opnsense.sh` → shim + `src/skynet/opnsense.py` (live, paired firewall.json + opnsense.json, receipt-bound). No new OPNsense writer. P6 accepted with reviewer repairs and scoped live reads. **P6c retired the offline `config.xml` inventory path entirely** (`collect-firewall.sh`, `src/skynet/firewall.py`, `skynet collect firewall`, parser tests/fixtures deleted): live OPNsense API is the sole firewall inventory source; the `config.xml` git backup is DR-only (restored as config, never parsed into inventory). See disposition below |
-| `collect-network-gear.sh`, `collect-certs.sh`, `collect-routes.sh`, `recon.sh` | migrate | Python observations with provenance and vantage | collect-all, recon/diagnosis runbooks | 7 | P7a moves Omada; P7b moves fixed-vantage certificate probes and static Caddy routes; P7c moves local/forced-svc-ops recon. P7 review pending. |
-| `entity.sh`, `audit-entities.sh`, `build-db.sh` | migrate | Entity functions, audit, rebuildable SQLite cache | collectors/render-docs, bin/ops entities/query | 8 | Verified existing identity and join callers |
-| `scripts/sql/*.sql` | retain | SQL query definitions | bin/ops query, SQLite cache | 8 | Verified host-map/vhosts queries; adapt schema with consumers |
+| `collect-network-gear.sh`, `collect-certs.sh`, `collect-routes.sh`, `recon.sh` | migrate | Python observations with provenance and vantage | collect-all, recon/diagnosis runbooks | 7 | **P7 accepted with reviewer repairs:** Omada Viewer collection, fixed-vantage cert probes, static Caddy routes and local/forced-`svc-ops` recon are Python-owned. Missing/malformed route source now fails closed; recon JSON success explicitly records `target`/`outcome`. Authorized isolated reads: Omada 1 site/3 devices, certs 7/7 reachable, routes 9, recon nine sections local + `docker-dmz`. Shell entries remain P22-owned forwarders. |
+| `entity.sh`, `audit-entities.sh`, `build-db.sh` | migrate | Entity functions, audit, rebuildable SQLite cache | collectors/render-docs, bin/ops entities/query | 8 | **P8a released:** migrate entity derivation/audit and their current callers first; P8b then migrates the SQLite cache/query freshness boundary. Preserve VMID ambiguity/legacy cases, templates and declared exceptions. |
+| `scripts/sql/*.sql` | retain | SQL query definitions | bin/ops query, SQLite cache | 8 | Verified host-map/vhosts queries; P8b adapts schema only with consumers and must refuse stale required inputs. |
 | `render-docs.sh`, `render-digest.sh`, `render-context-map.sh`, `render-runbook-catalog.sh`; `bin/recall` | migrate | Python rendering/retrieval, existing Markdown sources | nightly, bin/ops, cold boot, catalog checks | 9 | Verified outputs; history remains append-only |
 | `deploy-gate.sh`, `gitops-deploy.sh`, `gitops-rollback.sh` | migrate | Python verification/deploy/recovery evidence | deploy/restore runbooks, Arcane Git Sync procedures | 10–11 | Verified references; actual Arcane command/revision settings blocked before P11 |
 | `cf-dns-route.sh`, `dns-revert.sh` | migrate | Scoped publishing/DNS workflows | publish runbooks, rollback tests | 12–14 | Verified declarative DNS/saved-plan relationship |
@@ -346,11 +346,37 @@ inventory was overwritten. Full source/installed checks passed, with 225 source 
 The raw review journal preserves failures, worker integration and limitations.
 
 P6 shell entry points remain forwarding shims owned by P22. P7a Omada, P7b certificates/routes and
-P7c recon are slice-complete. P7 is review pending; accepted progress remains 6/24.
-Workstation/state/payload recovery and live installation blockers remain unchanged.
-The historical implementation entries below do not supersede this acceptance.
+P7c recon were then implemented and have now been reviewed together. Workstation/state/payload
+recovery and live installation blockers remain unchanged. The historical implementation entries
+below do not supersede later acceptance records.
 
-## Phase 7b implementation (slice complete; P7 in progress)
+## Phase 7 independent acceptance
+
+**P7 ACCEPT with bounded reviewer repairs, effective when Ali merges PR #238.** Reviewed #235 at
+`b173e74142f6e57635a6b4f2a2e64b48800f2974`, #236 at
+`e45b8132f3fe1e9637a2a8846de1258cb234dac8`, and #237 at
+`ded7289ca3938c3adeeaf21d3dad3bb90dcd5a80`; reviewed `main` was exactly the #237 merge with no
+post-P7 commit. Omada's Viewer-only pinned-CA path retains strict pagination/session/device/port
+validation and receipt freshness; certificates record their fixed ops-VLAN observation vantage;
+routes record static Caddyfile provenance rather than reachability; recon records local/remote host
+and unprivileged execution identity. Existing implementation evidence includes source/installed
+behavioral checks plus authorized isolated T1 observations: Omada 1 site/3 devices, certs 7/7
+reachable, 9 authored routes, and all nine recon sections locally and on `docker-dmz`.
+
+The combined review found two bounded contract gaps and repaired them on the review branch. A truly
+missing `compose/caddy-apps/Caddyfile` had been coerced to an empty successful route set; it now returns
+unavailable, and malformed tracked block depth fails without replacing prior bytes. Successful recon
+JSON now explicitly carries `target: recon` and `outcome: success`, matching the package-wide JSON
+result convention. Focused regressions cover both defects. The reviewer runtime could not clone for
+an independent local Nix/pytest run because its container DNS could not resolve `github.com`; that
+unavailable execution is not reported as passing, and PR #238 repository checks validate the repair
+branch. No production mutation, grant, credential, activation or inventory rewrite was performed.
+
+Accepted progress becomes **7/24** at the human merge. No architecture checkpoint is due; G3 remains
+after P9. §5 releases only **P8a entity derivation/audit with Terra High**. P8b SQLite cache/query
+freshness is the same numbered phase and receives no independent acceptance until both slices merge.
+
+## Phase 7b implementation (historical slice completion)
 
 From remote-main base `b173e74142f6e57635a6b4f2a2e64b48800f2974`, P7b adds
 `skynet collect certs --output <file>` and `skynet collect routes --repo <checkout> --output <file>`.
@@ -361,20 +387,19 @@ reachability results, and resolve guest backends only through the retained P8-ow
 Both snapshots have receipt-bound default markers and freshness requirements; their shell entries
 now forward to Python. Synthetic source/installed checks pass, and the authorized isolated T1 pass
 returned 7/7 certificate endpoints reachable and 9 static routes. No production inventory changed.
+The Phase 7 independent acceptance above supersedes this slice's earlier review-pending state.
 
-P7's independent acceptance remains pending the merged P7c implementation review.
-
-## Phase 7c implementation (slice complete; P7 review pending)
+## Phase 7c implementation (historical slice completion)
 
 From remote-main base `e45b8132f3fe1e9637a2a8846de1258cb234dac8`, P7c adds `skynet recon
 [target] [--json]`. It sends a fixed read-only probe through local bash or argument-array SSH to a
 bare target forced as `svc-ops@<target>`; explicit users and SSH options are rejected. Complete
 marker boundaries are required before a snapshot can succeed, while individual probe output remains
 truthfully partial. Synthetic package checks pass, and isolated live reads returned all nine sections
-from the ops VM and `docker-dmz`. No inventory or service state changed. A fresh review after P7c's
-merge must accept all P7 slices before P8.
+from the ops VM and `docker-dmz`. No inventory or service state changed. The Phase 7 independent
+acceptance above supersedes this slice's earlier review-pending state.
 
-## Phase 7a implementation (slice complete; P7 in progress)
+## Phase 7a implementation (historical slice completion)
 
 From remote-main base `23223d035a4e5cd8a4138ca28eb6368413f082a9`, P7a adds
 `skynet collect omada --output <file> [--credentials-file <file>] [--json]` in
@@ -392,8 +417,8 @@ rendering and nightly now refuse missing, stale, failed or hash-mismatched Omada
 retained `collect-network-gear.sh` forwards `OMADA_SECRET_FILE` for its demonstrated callers; P22
 owns removal. Synthetic tests cover every API/session/failure boundary and marker recovery; no
 Omada login/read, production inventory rewrite, activation, timer/service change, root grant,
-credential/pin change or recovery drill occurred. Accepted progress remains **6/24** until all P7
-slices are merged and independently reviewed.
+credential/pin change or recovery drill occurred. The Phase 7 independent acceptance above
+supersedes this slice's earlier in-progress state.
 
 ## Phase 6a implementation (slice complete; P6 in progress)
 
