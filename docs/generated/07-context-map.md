@@ -7,7 +7,7 @@ tags: [skynet, generated, agent, context-map]
 # Skynet — Context Map
 
 **Always-loaded baseline:** `AGENTS.md` + `CLAUDE.md` ≈ **3890** tok — the contract; never in this list.
-**Cold-boot read:** `docs/generated/06-agent-digest.md` ≈ 1567 tok.
+**Cold-boot read:** `docs/generated/06-agent-digest.md` ≈ 1619 tok.
 
 Everything below is **on-demand**: nothing enters context until a trigger fires. Open a *file*, not a section.
 
@@ -28,13 +28,13 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 | `runbooks/dr/DR-network-node.md` | T3 | Network node or OPNsense is dead | 554 | Recover when server-proxmox-network is dead — OPNsense and routing gone. |
 | `runbooks/dr/pci-passthrough.md` | T3 | NIC passthrough for OPNsense | 789 | Re-establish NIC passthrough for VM 5001 (OPNsense) after a rebuild. |
 | `runbooks/dr/survival-kit.md` | T3 | Prepare or verify the off-site survival kit | 564 | What lives on paper and in the password manager, outside Skynet, to bootstrap recovery. |
-| `runbooks/nightly.md` | T1 read + generated-only PR | Run the nightly / nightly timer | 1578 | The report-only nightly maintenance run on both engine paths, and what it refreshes. |
+| `runbooks/nightly.md` | T1 read + generated-only PR | Run the nightly / nightly timer | 1583 | The report-only nightly maintenance run on both engine paths, and what it refreshes. |
 | `runbooks/provision-lxc.md` | Supervised T2 saved-plan create | Set up / deploy a new LXC for X | 723 | Provision a NixOS core-managed LXC from merged source and an explicitly approved saved plan; creates are supervised T2 without automatic rollback. |
 | `runbooks/provision-vm.md` | Supervised T2 saved-plan create + T2+ root grant | Set up a VM for X, hardened, with restic | 723 | Provision a VM from merged source and an explicitly approved saved plan; creates are supervised T2 without automatic rollback. |
-| `runbooks/publish-service.md` | T2 PR-gated | Publish or expose a service | 471 | Choose the runbook for publishing a service through apps Caddy, Authentik, or the Cloudflare Tunnel. |
 | `runbooks/publish/forward-auth.md` | T2 PR-gated | Put a no-login service behind Authentik | 1502 | Publish a service with no native login behind Authentik forward-auth on apps Caddy. |
 | `runbooks/publish/internal-route.md` | T2 PR-gated | Give an authenticated service an internal aliammar.net URL | 1255 | Publish an own-auth service on the internal apps Caddy front door. |
 | `runbooks/publish/public-tunnel.md` | T2 PR-gated | Expose an internally published service to the public internet | 681 | Add Cloudflare Tunnel and public DNS exposure to an already-working internal route. |
+| `runbooks/publish-service.md` | T2 PR-gated | Publish or expose a service | 471 | Choose the runbook for publishing a service through apps Caddy, Authentik, or the Cloudflare Tunnel. |
 | `runbooks/recon.md` | T1 read-only | Figure out why X is broken / what's going on with <host> | 558 | Take a bounded T1 host snapshot, interpret its signals, and route to the focused diagnosis runbook. |
 | `runbooks/restore-service.md` | T2; PBS token for VM restore | Restore a service / recover from backup | 654 | Restore a service or VM from restic/PBS using a selected recovery point. |
 | `runbooks/update-guests.md` | T2 snapshot + T2+ fleet root grant | Update all guests | 389 | Snapshot then update every guest under a fleet root grant. |
@@ -50,7 +50,7 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 | `docs/design/identity-and-proxy.md` | 882 | The current two-door proxy, split-DNS, Authentik boundary, and Cloudflare Tunnel public path. |
 | `docs/design/memory.md` | 511 | How Skynet keeps portable semantic, procedural, episodic, and working memory without overloading a fresh agent. |
 | `docs/design/network.md` | 1554 | Where Skynet sits, how it's addressed on VLAN 90, and the firewall rules bounding its reach to exactly what it needs. |
-| `docs/design/observability.md` | 1022 | How machine state becomes human-readable docs, and how the nightly run keeps the picture current. |
+| `docs/design/observability.md` | 1072 | How machine state becomes human-readable docs, and how the nightly run keeps the picture current. |
 | `docs/design/secrets.md` | 922 | How Skynet holds secrets with sops+age and materializes GitOps service env from .env.git plus .env.sops. |
 
 ## Conventions — `docs/conventions/`
@@ -82,7 +82,7 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 |---|--:|---|
 | `docs/generated/00-network-map.md` | 449 | Network map |
 | `docs/generated/05-state-of-the-lab.md` | 1581 | State of the Lab |
-| `docs/generated/06-agent-digest.md` | 1567 | Agent Digest |
+| `docs/generated/06-agent-digest.md` | 1619 | Agent Digest |
 | `docs/generated/10-vlans.md` | 794 | VLANs |
 | `docs/generated/20-firewall.md` | 2206 | Firewall |
 | `docs/generated/50-network-gear.md` | 507 | Network gear (Omada estate) |
@@ -91,10 +91,10 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 
 ## Episodic memory — retrieve by topic, don't browse
 
-- `journal/` — 95 raw episodes, ≈ 108228 tok total. Retrieve by topic: `bin/recall <topic>` or `grep -ri "<topic>" journal/`; recent episodes are already in `06-agent-digest.md`. **Do not load the whole store.**
+- `journal/` — 96 raw episodes, ≈ 109784 tok total. Retrieve by topic: `bin/recall <topic>` or `grep -ri "<topic>" journal/`; recent episodes are already in `06-agent-digest.md`. **Do not load the whole store.**
 
 ---
-**On-demand corpus:** ≈ **50897** tok across 53 files — but you load a *row* (≈ tens of tok) to choose, then one file.
+**On-demand corpus:** ≈ **51004** tok across 53 files — but you load a *row* (≈ tens of tok) to choose, then one file.
 _A cache — regenerable from git via `render-context-map.sh`; never a source of truth._
 
 > [!note] Generated by `scripts/render-context-map.sh` from each loadable's frontmatter.

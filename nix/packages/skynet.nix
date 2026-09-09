@@ -12,14 +12,17 @@ let
       (root + "/tests/test_collection.py")
       (root + "/tests/test_pbs.py")
       (root + "/tests/test_docker.py")
+      (root + "/tests/test_dns.py")
       (root + "/tests/fixtures/proxmox")
       (root + "/tests/fixtures/pbs")
+      (root + "/tests/fixtures/dns")
       (root + "/bin/ops")
       (root + "/bin/skynet")
       (root + "/scripts/collect-all.sh")
       (root + "/scripts/collect-proxmox.sh")
       (root + "/scripts/collect-pbs.sh")
       (root + "/scripts/collect-docker.sh")
+      (root + "/scripts/collect-dns.sh")
       (root + "/scripts/render-docs.sh")
     ];
   };

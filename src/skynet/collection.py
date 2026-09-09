@@ -13,10 +13,9 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, TextIO
 
-from skynet import docker, pbs, proxmox
+from skynet import dns, docker, pbs, proxmox
 
 REMAINING: tuple[tuple[str, ...], ...] = (
-    ("dns", "collect-dns.sh"),
     ("opnsense", "collect-opnsense.sh"),
     ("network-gear", "collect-network-gear.sh"),
     ("routes", "collect-routes.sh"),
@@ -32,6 +31,7 @@ PROXMOX_ACLS = (
 )
 PBS = ("pbs.json", "collection-pbs.json")
 DOCKERS = (("docker-dmz", "docker-docker-dmz.json", "collection-docker-dmz.json"),)
+DNS = ("dns-zones.json", "collection-dns.json")
 READER_TIMEOUT = 120.0
 CLEANUP_TIMEOUT = 5.0
 
@@ -133,7 +133,7 @@ def emit(report: dict[str, Any], json_output: bool, stdout: TextIO) -> None:
 
 
 def collect_all(repo: Path, credentials_file: Path, network_credentials_file: Path,
-                pbs_credentials_file: Path, *,
+                pbs_credentials_file: Path, dns_credentials_file: Path, *,
                 json_output: bool, stdout: TextIO) -> int:
     """Collect both Proxmox node shapes before retaining the remaining shell readers."""
     report: dict[str, Any] = {"target": "collection", "outcome": "failure", "collectors": []}
@@ -257,6 +257,30 @@ def collect_all(repo: Path, credentials_file: Path, network_credentials_file: Pa
                     code = 1
                 elif docker_code and code == 0:
                     code = docker_code
+            snapshot_name, marker_name = DNS
+            output = repo / "inventory" / snapshot_name
+            status = repo / "inventory" / marker_name
+            marker = {
+                "target": "dns", "outcome": "unavailable", "attempted": attempted,
+                "reason": "refresh incomplete; retained snapshot is previous evidence",
+            }
+            proxmox.publish(status, marker)
+            stream = io.StringIO()
+            dns_code = dns.collect(output, dns_credentials_file, json_output=True, stdout=stream)
+            observation = json.loads(stream.getvalue())
+            marker.update(outcome=observation["outcome"])
+            if dns_code == 0:
+                marker.pop("reason")
+                marker.update(collected=observation["collected"],
+                              sha256=hashlib.sha256(output.read_bytes()).hexdigest())
+            else:
+                marker["reason"] = observation["reason"]
+            proxmox.publish(status, marker)
+            report["collectors"].append(observation)
+            if dns_code == 1:
+                code = 1
+            elif dns_code and code == 0:
+                code = dns_code
             for name, script, *reader_args in REMAINING:
                 args: list[str] = [str(repo / "scripts" / script), *reader_args]
                 try:
@@ -322,7 +346,8 @@ def collection_status(repo: Path, *, since: str | None, json_output: bool, stdou
                 (f"docker-{label}", label, json.loads((repo / "inventory" / marker_name).read_bytes()),
                  (repo / "inventory" / snapshot_name).read_bytes())
                 for label, snapshot_name, marker_name in DOCKERS
-            ]
+            ] + [("dns", None, json.loads((repo / "inventory" / DNS[1]).read_bytes()),
+                  (repo / "inventory" / DNS[0]).read_bytes())]
         now = datetime.now(UTC)
         collected_values: dict[str, str] = {}
         for evidence_target, node, evidence, raw in observations:

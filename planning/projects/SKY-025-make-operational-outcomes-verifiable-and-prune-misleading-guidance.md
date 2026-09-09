@@ -310,6 +310,33 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
 
 ## 9. Status
 
+- 2026-09-09 — **P6a slice complete / P6 in progress.** From isolated remote-main base
+  `db09021802f590d79f2ab9f7c2c56064f29c0a4a` (#225), P6a replaces the Technitium shell collector
+  with `skynet collect dns --output <file> [--credentials-file <file>] [--json]` in
+  `src/skynet/dns.py`. Literal `TECH_HOST/TECH_TOKEN/TECH_CACERT` parsing (no eval/sudo/live read),
+  CA-file hostname-verified HTTPS on port 53443, a bounded timeout, and a token carried only in the
+  request query with fixed redacted diagnostics. Only `zones/list` and `zones/records/get` are
+  allowed; a non-`ok` API status, null/missing zone or record list, duplicate zone identity,
+  malformed required record field, timeout or trust failure is unavailable/failed and retains prior
+  bytes, while a validated empty record list is a real observation. The snapshot preserves
+  collection time, host, every zone object, and per-zone `{zone, records}` with record
+  `name/type/rData` (all types) for SQLite and the service renderer. `collect all` drops DNS from
+  the shell `REMAINING`, runs it once under the shared receipt, publishes a receipt/hash/time
+  `collection-dns.json` marker, and default status/query/entity/render plus the nightly cutoff now
+  require it; DNS failure permits later scoped readers but refuses default freshness. The shell
+  entry is a forwarding shim (P22 owns removal). New source/tests/fixtures are added to the Nix
+  source filter, installed check, and staged hook glob. Checks: `pytest -q tests` 166 passed,
+  Ruff/mypy clean, `nix build .#checks…skynet` and `nix flake check --no-build` pass, offline
+  doctor success, disposable missing-evidence status exits 3, full staged hook exits 0. Construction
+  used synthetic credentials/transports and disposable outputs only; no live DNS/OPNsense read,
+  credential/pin change, zone modification, timer/service, root, grant or production write occurred.
+  Source rollback is `git revert`; endpoint parity and workstation/state/payload recovery remain
+  unverified. The committed snapshot's root `""` Secondary zone returns null records, which the
+  stricter contract would fail — an unverified live boundary noted for P6b/live transition, not
+  resolved here. Accepted progress remains **5/24**. After human merge, detail only P6b (OPNsense
+  live/offline reads); request one fresh review of the complete P6 after both slices merge.
+  [Raw evidence](../../journal/2026/2026-09-09-session-sky-025-p6a-dns-python-collection.md).
+
 - 2026-09-09 — **P5 ACCEPT with reviewer repairs, effective at this PR's human merge.**
   Reviewed [#223](https://github.com/aliammar03/skynet/pull/223), merge
   `c0e0f53007dee3d49779c4f7fca065fbac13dbd2`, and

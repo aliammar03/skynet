@@ -9,6 +9,7 @@ from typing import NoReturn
 
 from skynet import installed_version
 from skynet.collection import collect_all, collection_status
+from skynet.dns import DEFAULT_CREDENTIALS as DNS_DEFAULT_CREDENTIALS, collect as collect_dns
 from skynet.doctor import write_report
 from skynet.docker import collect as collect_docker
 from skynet.pbs import DEFAULT_CREDENTIALS as PBS_DEFAULT_CREDENTIALS, collect as collect_pbs
@@ -41,6 +42,8 @@ def build_parser() -> argparse.ArgumentParser:
                              help="network Proxmox credential assignments")
     all_sources.add_argument("--pbs-credentials-file", type=Path, default=PBS_DEFAULT_CREDENTIALS,
                              help="PBS credential assignments")
+    all_sources.add_argument("--dns-credentials-file", type=Path, default=DNS_DEFAULT_CREDENTIALS,
+                             help="Technitium DNS credential assignments")
     all_sources.add_argument("--json", action="store_true", dest="json_output")
     proxmox = sources.add_parser("proxmox", help="collect Proxmox observations")
     targets = proxmox.add_subparsers(dest="target", required=True)
@@ -76,6 +79,13 @@ def build_parser() -> argparse.ArgumentParser:
     docker.add_argument("--output", type=Path, required=True)
     docker.add_argument("--context", help="read-only Docker context; defaults to the host label")
     docker.add_argument("--json", action="store_true", dest="json_output")
+    dns = sources.add_parser("dns", help="collect Technitium DNS zone observations")
+    dns.add_argument("--output", type=Path, required=True,
+                     help="explicit snapshot destination; publish only on complete success")
+    dns.add_argument("--credentials-file", type=Path, default=DNS_DEFAULT_CREDENTIALS,
+                     help="literal TECH_HOST/TECH_TOKEN/TECH_CACERT assignments")
+    dns.add_argument("--json", action="store_true", dest="json_output",
+                     help="write one collection outcome object as JSON")
     status = commands.add_parser("collect-status", help="require fresh successful inventory observations")
     status.add_argument("--repo", type=Path, required=True)
     status.add_argument("--since", default=os.environ.get("SKYNET_COLLECTION_SINCE"),
@@ -94,9 +104,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         if arguments.source == "all":
             return collect_all(arguments.repo, arguments.credentials_file,
                                arguments.network_credentials_file, arguments.pbs_credentials_file,
+                               arguments.dns_credentials_file,
                                json_output=arguments.json_output, stdout=sys.stdout)
         if arguments.source == "pbs":
             return collect_pbs(arguments.output, arguments.credentials_file,
+                               json_output=arguments.json_output, stdout=sys.stdout)
+        if arguments.source == "dns":
+            return collect_dns(arguments.output, arguments.credentials_file,
                                json_output=arguments.json_output, stdout=sys.stdout)
         if arguments.source == "docker":
             return collect_docker(arguments.label, arguments.output, arguments.context or arguments.label,
