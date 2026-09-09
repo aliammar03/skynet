@@ -108,7 +108,7 @@ documentation only to resolve a specific unanswered question; state that questio
 only the relevant section. Keep tool output bounded and avoid rereading inspected material.
 
 Construction follows [the delegation convention](docs/conventions/construction.md): the active
-packet selects its execution lead, a fresh Astra Medium session reviews the merged result, and
+packet selects its execution lead, a fresh session with the selected model reviews the merged result, and
 bounded Luna workers assist within the existing two-helper limit. New procedural code follows
 [the capability convention](docs/conventions/scripts.md); implementation language grants no authority.
 

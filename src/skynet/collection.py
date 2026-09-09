@@ -15,8 +15,7 @@ from typing import Any, TextIO
 
 from skynet import docker, pbs, proxmox
 
-REMAINING = (
-    ("docker-dmz", "collect-docker.sh", "docker-dmz"),
+REMAINING: tuple[tuple[str, ...], ...] = (
     ("dns", "collect-dns.sh"),
     ("opnsense", "collect-opnsense.sh"),
     ("network-gear", "collect-network-gear.sh"),
@@ -234,7 +233,16 @@ def collect_all(repo: Path, credentials_file: Path, network_credentials_file: Pa
                           "reason": "refresh incomplete; retained snapshot is previous evidence"}
                 proxmox.publish(status, marker)
                 stream = io.StringIO()
-                docker_code = docker.collect(label, output, label, json_output=True, stdout=stream)
+                try:
+                    docker_code = docker.collect(label, output, label, json_output=True, stdout=stream,
+                                                 raise_cleanup=True)
+                except docker.CleanupError:
+                    try:
+                        receipt_write(lock, "recovery-required")
+                    except OSError:
+                        report["recovery_recorded"] = False
+                        raise CleanupError from None
+                    raise CleanupError
                 observation = json.loads(stream.getvalue())
                 marker.update(outcome=observation["outcome"])
                 if docker_code == 0:
@@ -249,9 +257,10 @@ def collect_all(repo: Path, credentials_file: Path, network_credentials_file: Pa
                     code = 1
                 elif docker_code and code == 0:
                     code = docker_code
-            for name, script, *args in REMAINING:
+            for name, script, *reader_args in REMAINING:
+                args: list[str] = [str(repo / "scripts" / script), *reader_args]
                 try:
-                    exit_code = run_reader([str(repo / "scripts" / script), *args], repo)
+                    exit_code = run_reader(args, repo)
                 except CleanupError:
                     try:
                         receipt_write(lock, "recovery-required")

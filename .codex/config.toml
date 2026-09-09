@@ -2,7 +2,7 @@
 # The canonical contract is docs/conventions/construction.md. This file bounds build-time helper
 # fan-out and grants no production authority.
 # The invoking session selects the phase lead; bin/agent mirrors explicit tier selection.
-# Merged-result review uses a fresh Astra Medium session, never an implementation helper.
+# Merged-result review uses a fresh session with the selected model, never an implementation helper.
 
 [agents]
 # The two-helper cap is enforced here. One delegation level is doctrine, not a knob — helpers never spawn.

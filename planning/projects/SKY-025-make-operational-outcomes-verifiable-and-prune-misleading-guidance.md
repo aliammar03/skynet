@@ -6,7 +6,7 @@ horizon: long
 created: 2026-09-06
 updated: 2026-09-09
 phases: 24
-current_phase: 4
+current_phase: 5
 tier_touched: [T1, T2, T2+, T3]
 related:
   - docs/system-design.md
@@ -74,7 +74,7 @@ CLI names are settled by the first working slice, not an elaborate upfront schem
 ## 3. Phase-specific leads and Luna workers
 
 **Execution lead:** use the model/effort in the phase table. **Merged-result review and next-phase
-planning:** a fresh Astra Medium session for every phase, including phases implemented by Astra.
+planning:** a fresh session with the operator-selected model and effort for every phase.
 These are workload-based starting recommendations, not benchmark equivalences. Phase review may
 change the next recommendation from observed results; record the reason in that phase's work packet.
 
@@ -90,8 +90,9 @@ Verify actual identifiers in the installed harness; never silently substitute. I
 mark routing blocked and ask Ali to select an available identifier or update the harness.
 
 The execution lead owns decomposition, integration, verification and PRs within the approved packet.
-Astra owns cross-phase interfaces, unresolved recovery/policy decisions, independent acceptance and
-next-phase definition. Delegate bounded work proactively when worthwhile; do tiny jobs locally.
+The reviewer owns independent acceptance and next-phase definition; Astra execution leads own
+cross-phase interfaces and unresolved recovery/policy decisions.
+Delegate bounded work proactively when worthwhile; do tiny jobs locally.
 Luna gets only: `Goal | allowed files | interface/inputs | acceptance checks | exclusions`.
 
 Workers do not redesign, spawn helpers, commit/push/merge, handle secrets, or touch production.
@@ -120,8 +121,11 @@ releases them. Existing human merge and live/grant boundaries still apply. The t
 not permission to execute unspecified work. Section 5 holds the sole current executable packet.
 
 For every phase: implement → relevant checks → PR → Ali merges → review the actual merged result.
-A fresh Astra Medium reviewer reports **accept**, **fix before continuing**, or **blocked**. Fixes get a bounded PR and
-another review. Only after acceptance flesh out the next phase with exact files, interfaces, worker
+A fresh reviewer, using the selected model and effort, reports **accept**, **fix before continuing**, or **blocked**. The reviewer
+may implement bounded repairs using Luna workers, verify the affected complete-phase exits, and
+accept the repaired phase in the same human-merged review PR without another review session.
+Unresolved defects get a separate bounded fix packet and merged-result review. Only after acceptance
+flesh out the next phase with exact files, interfaces, worker
 packets, commands/checks, grants if any, and exit criteria. Do not roll into dependent implementation
 just because a worker or CI says done. Ali can use the reusable review prompt in §8 in a fresh session.
 Architecture checkpoints **G1–G6** additionally reconsider the remaining roadmap and prune unnecessary work.
@@ -157,94 +161,87 @@ Phases 12, 17, and 18 are especially likely to need lettered slices after inspec
 may move earlier when a real consumer needs them. Preserve dependency order, not arbitrary numbering.
 Do not add a new live OPNsense writer or finish unrelated fleet migrations under this overhaul.
 
-## 5. Phase 5a — PBS inventory (~1–2h)
+## 5. Phase 6a — DNS read collection (~1–2h)
 
-**Release gate:** execute after Ali merges this P4 ACCEPT planning PR. Accepted progress is
-4/24; §9 records the complete review of #220 and #221 at
-`29b3af942968953a470c9f6d7a06a5c29ca3f8ec`. P4 packets are preserved in git.
+**Release gate:** execute after Ali merges this P5 review/repair ACCEPT PR. §9 records the
+reviewed merged baseline and repairs verified by the reviewer. Acceptance and this next packet
+take effect together at human merge; no additional P5 review is required for these repairs.
 **Lead:** Terra High (`gpt-5.6-terra`, high), retaining the phase-table recommendation.
+**Goal:** replace Technitium zone/record shell collection with validated atomic Python reads
+and receipt-bound freshness. Split P6 into **P6a DNS** and **P6b OPNsense live/offline reads**;
+the execution lead details the latter after P6a merge. Review the entire numbered phase once.
 
-**Goal:** replace PBS shell collection and its default freshness integration with validated,
-atomic Python observations. P5 is split into **P5a PBS** and **P5b Docker** because PBS TLS
-pinning and Docker subprocess handling have distinct failure boundaries. The execution lead
-details P5b after P5a within the continuation below; review all P5 slices together before P6.
-
-**Exact surfaces:** new `src/skynet/pbs.py`, `src/skynet/{cli,collection,proxmox}.py`
-(the Proxmox module only for a shared helper with real callers), `tests/test_{pbs,cli,collection}.py`,
-`tests/fixtures/pbs/`, `scripts/collect-pbs.sh`, `tests/collect-pbs-test.sh`,
-`nix/packages/skynet.nix`, `flake.nix`, `.github/workflows/checks.yml`,
-`.githooks/pre-commit`; `bin/ops`, `scripts/{collect-all,render-docs,nightly}.sh`
-only where the evidence/caller contract requires it; `nix/README.md`,
-`docs/design/observability.md`, `runbooks/nightly.md`, this directive/map and a raw journal.
-Regenerate roadmap/digest/context with their generators.
+**Exact surfaces:** new `src/skynet/dns.py`, `src/skynet/{cli,collection}.py`;
+shared PBS/Proxmox transport helpers only where an actual consumer warrants extraction;
+`tests/test_{dns,cli,collection}.py`, synthetic `tests/fixtures/dns/`,
+`scripts/collect-dns.sh`, `nix/packages/skynet.nix`, `flake.nix`,
+`.githooks/pre-commit`, `.github/workflows/checks.yml`. Inspect `scripts/build-db.sh`,
+the DNS block of `scripts/render-docs.sh`, `bin/ops`, `scripts/{collect-all,nightly}.sh`;
+change them only if the preserved contract requires it. Update `nix/README.md`,
+`docs/design/observability.md`, `runbooks/nightly.md`, this directive/map and raw journal;
+regenerate roadmap/digest/context.
 
 **Interfaces and decisions:**
 
-1. Add `skynet collect pbs --output <file> [--credentials-file <file>] [--json]`.
-   Preserve `inventory/pbs.json`'s host/collected/datastores, status usage and per-group
-   identity/count/latest-time/verification fields consumed by the backup renderer.
-   Translate the existing namespace/group projection; do not infer verified from a missing
-   verification value or confuse zero snapshots with unavailable data.
-2. Parse literal PBS assignments without eval/sudo, using the configured default
-   `/opt/skynet-ops/secrets/pbs.env`. Preserve `PBS_HOST/TOKEN/PORT/CACERT/FINGERPRINT/SNI`
-   compatibility and the existing optional defaults from the shell source. Preserve the
-   PBS colon token separator and accepted equals-separator normalization. Redact external
-   exceptions and never print the secret. Do not read live files to design the parser.
-3. Preserve CA-file and fingerprint trust modes, hostname/SNI verification with the separate
-   connection address, the existing pin fallback and verified GET-only/no-redirect behavior.
-   A bootstrap certificate is usable only after its configured fingerprint matches; never
-   silently trust an observed certificate. TLS mismatch, missing CA, timeout and malformed
-   data fail nonzero. Use ordinary functions, explicit deadlines and argument arrays where
-   an existing tool is required. No new HTTP framework, insecure mode or dependency update.
-4. Require complete validated datastore status and snapshot responses before atomic replacement.
-   Empty successful snapshot lists are valid no-backup observations; a missing/null/failed
-   endpoint is unavailable, not zero. A failed refresh retains previous bytes. Preserve each
-   group's latest verification state and make failed/unverified/unknown distinguishable.
-   Fix the touched renderer's null-to-zero fallbacks where they would claim healthy backup
-   evidence; no renderer redesign or backup/restore operation.
-5. Remove PBS from `REMAINING`; run it exactly once under the existing collection lock and
-   durable attempt receipt. Add a PBS marker bound to snapshot hash/time and the same 36-hour/
-   nightly cutoff. Default status/query/entity/render require PBS as well as all four accepted
-   Proxmox markers. Failed PBS reads permit remaining readers but refuse fresh overall evidence.
-   Preserve marker-publication, reader cleanup and receipt regressions. Retain the PBS shell
-   entry only as a thin forwarding shim for its documented callers, owned by P22 for removal.
-6. Port useful shell assertions to Python and retire the replaced shell test from hook/CI in
-   the same slice. Include new modules, fixtures, tests and retained shim in source/installed
-   package checks and staged-path/CI triggers. Keep unrelated safety checks enforced.
+1. Add `skynet collect dns --output <file> [--credentials-file <file>] [--json]`.
+   Preserve `inventory/dns-zones.json`: collection time, zone objects and per-zone
+   `{zone, records}` objects, including record `name/type/rData` consumed by SQLite and
+   the A/CNAME renderer. Preserve other valid record types rather than dropping them.
+2. Read literal `TECH_HOST/TECH_TOKEN/TECH_CACERT` assignments from the configured default
+   `/opt/skynet-ops/secrets/technitium.env`, with no eval/sudo or live-file inspection
+   during development. Retain port 53443, CA/hostname verification, bounded timeouts and
+   URL encoding. Redact token-bearing URLs and external errors. No insecure fallback.
+3. Allow only existing read endpoints `zones/list` and `zones/records/get`.
+   Validate HTTP and API outcomes, zone identities and every required record list.
+   Missing/null/error/partial responses are unavailable or failed, never successful empty
+   evidence. Valid empty lists are observations, not proof that a required service exists.
+   Reject malformed required fields before atomic replacement; preserve previous bytes.
+4. Remove DNS from `REMAINING` and run it once under the collection lock/attempt receipt,
+   with an unavailable marker preceding reads and success bound to snapshot hash/time.
+   Require DNS along with all accepted markers for default status/query/entity/render and
+   nightly cutoff. DNS failure permits later scoped readers but refuses overall freshness.
+   Cover initial/late marker failure, stale evidence and recovery without weakening existing
+   process cleanup or receipt checks.
+5. Retain `collect-dns.sh` only as a forwarding shim for existing callers, owned by P22
+   for removal. Add new source, tests and fixtures to source/installed Nix checks and staged
+   triggers. Tests must isolate every API/credential/subprocess boundary, including spawned
+   runners; explicitly verify installed imports rather than prepending source.
 
-**Optional Luna High assignment:** after the lead settles the PBS data/TLS interface, delegate
-only `tests/test_pbs.py` and synthetic PBS fixtures: group projection, malformed/unavailable
-responses, TLS refusal and retained bytes. No production, module edits, secrets, commits or helpers.
-The lead owns integration/freshness tests and reviews the complete result.
+**Optional Luna High assignment:** after the lead settles the response contract, assign only
+`tests/test_dns.py` and synthetic fixtures for valid A/CNAME/other records, empty/error/null/
+partial responses and TLS refusal. Lead owns implementation, default integration and verification.
+Workers receive no production credentials, live reads, commits or helpers.
 
-**Checks/exits:** all must pass before closing P5a:
-- `nix develop --no-write-lock-file -c pytest -q`: actual CLI/fake HTTPS covers both trust
-  modes and SNI, missing credentials, malformed/null/timeout/partial datastore failure,
-  empty valid groups, verification states, atomic retention and recovery; default PBS
-  failure refuses ordinary consumers and preserves factual pages.
+**Checks/exits:**
+- `nix develop --no-write-lock-file -c pytest -q`: actual CLI with synthetic transport
+  validates complete projection, read endpoint allowlist, token redaction, TLS failure,
+  empty vs missing, partial-zone failure, retained bytes and default freshness/consumer
+  refusal/recovery. Existing PBS/Docker/Proxmox process and marker regressions remain green.
 - `nix develop --no-write-lock-file -c ruff check src tests/test_*.py` and
   `nix develop --no-write-lock-file -c mypy src/skynet`: clean.
 - `nix build --no-write-lock-file --no-link .#checks.x86_64-linux.skynet` and
   `nix flake check --no-write-lock-file --no-build`: source/installed checks pass.
-- Offline `bin/skynet doctor --json` succeeds; `collect-status` on a disposable repo
-  without evidence exits 3. Full staged hook and `git diff --cached --check` pass.
-  Keep the five paused documentation suites explicitly unrun and their P24 restoration.
+- Offline doctor succeeds, disposable missing-evidence status exits 3, full staged hook
+  and `git diff --cached --check` pass. Five paused documentation suites remain unrun;
+  restore maintained replacements by P24.
 
-**Boundaries:** isolated construction, synthetic credentials/transports and disposable outputs.
-No live PBS/Docker reads are released by this packet; the P4 live-read authorization was scoped
-to that review. No root/grant, activation, timer/service, trust/pin/credential change, backup,
-restore, prune or payload/state write. Source rollback is git revert. Independent workstation,
-state/payload recovery and untested endpoint parity remain prerequisites for live transitions.
+**Boundaries:** isolated construction, synthetic credentials/transports, disposable outputs.
+No live DNS/OPNsense reads, mirror credential/config contents, root/grant, activation, timers,
+credential/pin changes or production writes. P5's authorized PBS/Docker reads do not authorize
+P6 endpoints. No Technitium server settings, zone modifications, OPNsense writer or self-leash
+changes. Rollback is git revert; live-transition/workstation/state/payload prerequisites remain.
 
-**Close-out and P5b continuation:** P5a is slice-complete / P5 in progress, not independently
-accepted. Open `SKY-025 P5: collect PBS inventory in Python`; do not merge.
-After human merge, the execution lead details only Docker inventory: `src/skynet/docker.py`,
-CLI/default marker integration, `tests/test_docker.py` and fixtures, `collect-docker.sh`,
-package/hook/CI and affected docs. Preserve host label/context and container/image fields used
-by SQLite; use bounded read-only Docker argument arrays, validate JSON lines, distinguish
-missing context/failed commands from a valid empty host, retain bytes on partial failure,
-and require Docker freshness in default consumers. No Docker mutation or Arcane work.
-Run the same package/failure/consumer checks; review both P5 PRs together before P6.
+**Close-out and same-phase continuation:** publish P6a as slice-complete / P6 in progress.
+After human merge, detail only P6b: `src/skynet/opnsense.py` and an offline firewall parser,
+`collect-opnsense.sh`, `collect-firewall.sh`, matching CLI/tests/fixtures/package/callers.
+Preserve alias filtering, configured-rule intersection, reservations, firmware/ARP/interfaces,
+and explicit ICMP vantage/unknown semantics. Allow only existing GETs and explicitly enumerated
+read-only search POSTs; validate pagination/completeness and paired firewall/live publication
+before freshness. Offline mirror parsing must redact sensitive values, retain source provenance,
+avoid implicit pulls and never satisfy live freshness. Split that remaining work further if
+needed. No live writer or broader firewall capability. After all P6 slices merge, obtain one
+fresh review with the selected model of the complete numbered phase before P7.
+
 
 ## 6. Carry forward the original review as acceptance cases
 
@@ -298,7 +295,7 @@ tracker or repeated copies of the plan. Implementation-complete/review-pending i
 ## 8. Execute / review / continue prompts
 
 Use the [phase handoff workflow](../prompts/README.md): two reusable prompts with standard GitHub
-PR bodies. Select the execution model from the current packet; use a new Astra Medium task for
+PR bodies. Select the execution model from the current packet; use a fresh task with the selected model for
 merged-result review. The review/planning PR must be human-merged before its next or fix packet runs.
 
 **Start or continue in the packet's execution model:**
@@ -306,12 +303,41 @@ merged-result review. The review/planning PR must be human-merged before its nex
 Read planning/prompts/execute.md and execute the next authorized SKY-025 packet.
 ```
 
-**After Ali merges implementation, in a fresh Astra Medium task:**
+**After Ali merges implementation, in a fresh review task with the selected model:**
 ```text
 Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
 ```
 
 ## 9. Status
+
+- 2026-09-09 — **P5 ACCEPT with reviewer repairs, effective at this PR's human merge.**
+  Reviewed [#223](https://github.com/aliammar03/skynet/pull/223), merge
+  `c0e0f53007dee3d49779c4f7fca065fbac13dbd2`, and
+  [#224](https://github.com/aliammar03/skynet/pull/224), merge/main reviewed
+  `e09a8fc220d610cf6c5d60ac5471cdf0d67bcbe3`, against packet baseline
+  `faf961ab3accb9466385da32efa9bb6185c77f3b`. No intervening main changes.
+  Ali authorized reviewer repairs, live PBS/Docker reads and Luna workers, then requested
+  model-agnostic review. The invoking review used Astra Medium; that is evidence, not a
+  requirement. The combined PR contains inspected reviewer repairs and their regressions.
+
+  | Full P5 exit | Verdict / evidence including repairs |
+  |---|---|
+  | Complete PBS observations and retained bytes | ACCEPT — numeric usage validation; explicit root namespace collected once; malformed/null/timeout retention tests; live 1 datastore, 152 snapshots, 18 groups. |
+  | Backup verification signals | ACCEPT — failed, absent and unknown latest states cannot render green; real renderer tests cover warning and successful latest-group counts. Live latest states: 6 ok, 12 absent. |
+  | CA/pin/SNI compatibility and refusal | ACCEPT — real synthetic CA and fingerprint handshakes/GETs, pin/name/CA refusal and SAN/CN fallback; configured live TLS succeeds. |
+  | Docker field validation and bounded processes | ACCEPT — strict required fields with nullable optional Platform preserved; timeout, early-parent-exit and SIGINT/SIGTERM tests reap descendants; cleanup failure quarantines default receipt and reports recovery-required. Live 18 containers/31 images. |
+  | Default freshness and consumers | ACCEPT — duplicate Docker reader removed; exactly-once regression, read/marker failure refusal and recovery, shared receipt/hash/time validation and existing consumer/cleanup regressions pass. |
+  | Test isolation, installed package and enforced checks | ACCEPT — spawned runners substitute Docker; installed-mode imports preserved; full pytest, Ruff, mypy, Nix source/installed package check, flake evaluation, doctor/unavailable status and staged hook pass. Five paused documentation suites remain unrun, with P24 restoration retained. |
+
+  Initial counterexamples and test-isolation limitations remain in the
+  [review journal](../../journal/2026/2026-09-09-session-sky-025-p5-combined-independent-review.md).
+  [Repair and live-read evidence](../../journal/2026/2026-09-09-session-sky-025-p5-reviewer-repairs-and-live-reads.md)
+  records subsequent authorization and validation. No production mutation, activation, grant,
+  credential/pin change or payload/state operation occurred. Live observations do not establish
+  restore readiness; workstation/state/payload recovery remains unverified.
+  Accepted progress becomes **5/24** at human merge. Release only §5 P6a DNS with Terra High;
+  P6b remains a same-phase execution continuation. No G checkpoint or roadmap reorder is due.
+  Reviewer repairs that have passed full affected exits need no additional review session.
 
 - 2026-09-09 — **P5b slice complete / P5 review pending.** From isolated remote-main base
   `c0e0f53007dee3d49779c4f7fca065fbac13dbd2`, P5b replaces Docker shell parsing with an explicit

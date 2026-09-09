@@ -1,4 +1,4 @@
-{ lib, python3Packages, cacert }:
+{ lib, python3Packages, cacert, openssl, jq, gawk, bash }:
 let
   root = ../..;
   metadata = builtins.fromTOML (builtins.readFile (root + "/pyproject.toml"));
@@ -30,7 +30,7 @@ python3Packages.buildPythonApplication {
   pyproject = true;
   src = source;
   build-system = [ python3Packages.setuptools ];
-  nativeCheckInputs = with python3Packages; [ pytest ruff mypy ];
+  nativeCheckInputs = (with python3Packages; [ pytest ruff mypy ]) ++ [ openssl jq gawk bash ];
   doCheck = true;
 
   checkPhase = ''

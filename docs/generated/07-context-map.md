@@ -6,8 +6,8 @@ tags: [skynet, generated, agent, context-map]
 
 # Skynet — Context Map
 
-**Always-loaded baseline:** `AGENTS.md` + `CLAUDE.md` ≈ **3888** tok — the contract; never in this list.
-**Cold-boot read:** `docs/generated/06-agent-digest.md` ≈ 1535 tok.
+**Always-loaded baseline:** `AGENTS.md` + `CLAUDE.md` ≈ **3890** tok — the contract; never in this list.
+**Cold-boot read:** `docs/generated/06-agent-digest.md` ≈ 1567 tok.
 
 Everything below is **on-demand**: nothing enters context until a trigger fires. Open a *file*, not a section.
 
@@ -16,7 +16,7 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 | Path | Tier | Trigger | ~tok | Summary |
 |---|---|---|--:|---|
 | `runbooks/backup.md` | T2+ root grant | How do backups work / run a backup | 621 | How restic and PBS backups run, how to provision restic, and how to take a pre-change backup. |
-| `runbooks/construction-delegation.md` | T1 build-time only | Do a substantial construction task / build X / implement or change X | 728 | Run substantial construction as a lead — route bounded helpers, verify their work, and open the PR without granting production authority. |
+| `runbooks/construction-delegation.md` | T1 build-time only | Do a substantial construction task / build X / implement or change X | 730 | Run substantial construction as a lead — route bounded helpers, verify their work, and open the PR without granting production authority. |
 | `runbooks/deploy-service.md` | T2 PR-gated | Deploy or update a service | 948 | Deploy or update a service through the Arcane GitOps loop: edit compose then PR then Arcane reconciles. |
 | `runbooks/diagnose/arcane-stuck.md` | T1/T2 | A merged compose PR didn't deploy / Arcane isn't reconciling / git and running have drifted | 899 | Triage a merged compose PR that didn't deploy — check the Arcane Git Sync status/error, compare git vs running, distinguish sync-fail vs apply-fail vs drift. |
 | `runbooks/diagnose/backup-missed.md` | T1/T2 | An expected backup/snapshot is missing / a restic or PBS timer failed | 866 | Triage a missed backup — check the timer, the last snapshot age, and repo reachability across restic→gdrive and PBS→gdrive, fix the timer/creds/repo declaratively. |
@@ -28,7 +28,7 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 | `runbooks/dr/DR-network-node.md` | T3 | Network node or OPNsense is dead | 554 | Recover when server-proxmox-network is dead — OPNsense and routing gone. |
 | `runbooks/dr/pci-passthrough.md` | T3 | NIC passthrough for OPNsense | 789 | Re-establish NIC passthrough for VM 5001 (OPNsense) after a rebuild. |
 | `runbooks/dr/survival-kit.md` | T3 | Prepare or verify the off-site survival kit | 564 | What lives on paper and in the password manager, outside Skynet, to bootstrap recovery. |
-| `runbooks/nightly.md` | T1 read + generated-only PR | Run the nightly / nightly timer | 1576 | The report-only nightly maintenance run on both engine paths, and what it refreshes. |
+| `runbooks/nightly.md` | T1 read + generated-only PR | Run the nightly / nightly timer | 1578 | The report-only nightly maintenance run on both engine paths, and what it refreshes. |
 | `runbooks/provision-lxc.md` | Supervised T2 saved-plan create | Set up / deploy a new LXC for X | 723 | Provision a NixOS core-managed LXC from merged source and an explicitly approved saved plan; creates are supervised T2 without automatic rollback. |
 | `runbooks/provision-vm.md` | Supervised T2 saved-plan create + T2+ root grant | Set up a VM for X, hardened, with restic | 723 | Provision a VM from merged source and an explicitly approved saved plan; creates are supervised T2 without automatic rollback. |
 | `runbooks/publish-service.md` | T2 PR-gated | Publish or expose a service | 471 | Choose the runbook for publishing a service through apps Caddy, Authentik, or the Cloudflare Tunnel. |
@@ -50,7 +50,7 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 | `docs/design/identity-and-proxy.md` | 882 | The current two-door proxy, split-DNS, Authentik boundary, and Cloudflare Tunnel public path. |
 | `docs/design/memory.md` | 511 | How Skynet keeps portable semantic, procedural, episodic, and working memory without overloading a fresh agent. |
 | `docs/design/network.md` | 1554 | Where Skynet sits, how it's addressed on VLAN 90, and the firewall rules bounding its reach to exactly what it needs. |
-| `docs/design/observability.md` | 1003 | How machine state becomes human-readable docs, and how the nightly run keeps the picture current. |
+| `docs/design/observability.md` | 1022 | How machine state becomes human-readable docs, and how the nightly run keeps the picture current. |
 | `docs/design/secrets.md` | 922 | How Skynet holds secrets with sops+age and materializes GitOps service env from .env.git plus .env.sops. |
 
 ## Conventions — `docs/conventions/`
@@ -58,7 +58,7 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 | Path | ~tok | Summary |
 |---|--:|---|
 | `docs/conventions/compose.md` | 1085 | The single 'skynet way' every service's compose conforms to, so the fleet is uniform and Arcane's GitOps loop can own it. |
-| `docs/conventions/construction.md` | 1453 | Phase-specific execution leads, independent Astra review, and at most two bounded Luna workers. |
+| `docs/conventions/construction.md` | 1599 | Phase-specific execution leads, model-agnostic independent review, and at most two bounded Luna workers. |
 | `docs/conventions/docs.md` | 1691 | How Skynet's prose is structured: hub-and-spoke, ADRs, runbooks, README-as-catalog, and loadable summary/trigger frontmatter. |
 | `docs/conventions/git.md` | 605 | How change enters the repo: one branch per unit of work, one PR per phase, and the agent never merging its own PRs. |
 | `docs/conventions/layout.md` | 1507 | Where each kind of artifact lives, and the minimum files each must have to be well-formed. |
@@ -82,7 +82,7 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 |---|--:|---|
 | `docs/generated/00-network-map.md` | 449 | Network map |
 | `docs/generated/05-state-of-the-lab.md` | 1581 | State of the Lab |
-| `docs/generated/06-agent-digest.md` | 1535 | Agent Digest |
+| `docs/generated/06-agent-digest.md` | 1567 | Agent Digest |
 | `docs/generated/10-vlans.md` | 794 | VLANs |
 | `docs/generated/20-firewall.md` | 2206 | Firewall |
 | `docs/generated/50-network-gear.md` | 507 | Network gear (Omada estate) |
@@ -91,10 +91,10 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 
 ## Episodic memory — retrieve by topic, don't browse
 
-- `journal/` — 93 raw episodes, ≈ 105044 tok total. Retrieve by topic: `bin/recall <topic>` or `grep -ri "<topic>" journal/`; recent episodes are already in `06-agent-digest.md`. **Do not load the whole store.**
+- `journal/` — 95 raw episodes, ≈ 108228 tok total. Retrieve by topic: `bin/recall <topic>` or `grep -ri "<topic>" journal/`; recent episodes are already in `06-agent-digest.md`. **Do not load the whole store.**
 
 ---
-**On-demand corpus:** ≈ **50696** tok across 53 files — but you load a *row* (≈ tens of tok) to choose, then one file.
+**On-demand corpus:** ≈ **50897** tok across 53 files — but you load a *row* (≈ tens of tok) to choose, then one file.
 _A cache — regenerable from git via `render-context-map.sh`; never a source of truth._
 
 > [!note] Generated by `scripts/render-context-map.sh` from each loadable's frontmatter.

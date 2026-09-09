@@ -85,7 +85,7 @@ model_for_tier() { case "$1" in
 # role → tier / reasoning effort / sandbox / approval. The one routing table in code (doctrine:
 # docs/conventions/construction.md). Scout is read-only by contract; writers stay workspace-scoped —
 # deliberately MORE restricted than the nightly's full bypass, because construction touches no prod.
-# Execution leads select the packet's tier; review runs in a fresh Astra session.
+# Execution leads select the packet's tier; review uses the harness defaults unless overridden.
 # Workers implement a bounded packet at Luna high or inspect at Luna medium.
 case "${role}" in
   lead)
@@ -96,7 +96,7 @@ case "${role}" in
       sol) effort=low;;
       *) die "lead tier must be astra|terra|sol";;
     esac;;
-  review)   tier=astra;                       effort=medium; sandbox=workspace-write;;
+  review)   tier=selected; effort="${AGENT_REVIEW_EFFORT:-default}"; sandbox=workspace-write;;
   builder)  tier=luna;                        effort=high;   sandbox=workspace-write;;
   mechanic) tier=luna;                        effort=high;   sandbox=workspace-write;;
   scout)    tier=luna;                        effort=medium; sandbox=read-only;;
@@ -104,7 +104,11 @@ case "${role}" in
 esac
 [ -n "${requested_tier}" ] && [ "${role}" != lead ] && die "--tier is lead-only"
 
-model="$(model_for_tier "${tier}")"
+if [ "${role}" = review ]; then
+  model="${AGENT_REVIEW_MODEL:-default}"
+else
+  model="$(model_for_tier "${tier}")"
+fi
 
 # codex exec: non-interactive helper, sandboxed, model + reasoning effort pinned to the role.
 # The sandbox flag IS the leash — codex exec is already non-interactive, so there is no approval
@@ -112,12 +116,10 @@ model="$(model_for_tier "${tier}")"
 # That is stricter than we need and exactly right for build-time helpers: a scout physically cannot
 # write, a writer cannot leave the workspace. Do NOT reach for --dangerously-bypass-* or
 # --approve-for-me — construction never earns access wider than its role's sandbox.
-set -- codex exec \
-  --model "${model}" \
-  --sandbox "${sandbox}" \
-  -C "${workdir}" \
-  -c "model_reasoning_effort=\"${effort}\"" \
-  "${prompt}"
+set -- codex exec --sandbox "${sandbox}" -C "${workdir}"
+[ "${model}" = default ] || set -- "$@" --model "${model}"
+[ "${effort}" = default ] || set -- "$@" -c "model_reasoning_effort=\"${effort}\""
+set -- "$@" "${prompt}"
 
 echo "role=${role}  tier=${tier}  model=${model}  effort=${effort}  sandbox=${sandbox}  cwd=${workdir}" >&2
 if [ "${dry}" = 1 ]; then

@@ -1,5 +1,7 @@
 {
   "data": [
+    {"ns": ""},
+    {"ns": "network"},
     {"ns": "core"}
   ]
 }
