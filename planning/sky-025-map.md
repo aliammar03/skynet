@@ -290,6 +290,17 @@ inventory refresh, host activation, timer/service change, grant or production wr
 Independent workstation access, state/payload recovery and other live-transition prerequisites
 remain open.
 
+## Phase 5b implementation (slice complete; P5 review pending)
+
+From remote-main base `c0e0f53007dee3d49779c4f7fca065fbac13dbd2`, P5b replaces the Docker
+shell parser/client with `skynet collect docker`. It preserves host labels and contexts, uses
+bounded read-only argument arrays, validates JSON lines for container/image fields used by SQLite,
+and retains prior bytes for missing context, command failure, or malformed output. Default collection
+records a Docker marker under the shared receipt and status/render/query/entity callers require it.
+The shell entry forwards only. Synthetic subprocess tests cover valid and failed output; no Docker
+context or production host was contacted. Source rollback is `git revert`; P5 is ready for one
+fresh Astra Medium review after this PR is human-merged.
+
 ## Phase 5a implementation (slice complete; P5 in progress)
 
 From remote-main base `faf961ab3accb9466385da32efa9bb6185c77f3b`, P5a adds the explicit

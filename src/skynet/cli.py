@@ -10,6 +10,7 @@ from typing import NoReturn
 from skynet import installed_version
 from skynet.collection import collect_all, collection_status
 from skynet.doctor import write_report
+from skynet.docker import collect as collect_docker
 from skynet.pbs import DEFAULT_CREDENTIALS as PBS_DEFAULT_CREDENTIALS, collect as collect_pbs
 from skynet.proxmox import DEFAULT_CREDENTIALS, collect, collect_acl
 
@@ -70,6 +71,11 @@ def build_parser() -> argparse.ArgumentParser:
                      help="literal PBS_HOST/PBS_TOKEN trust assignments")
     pbs.add_argument("--json", action="store_true", dest="json_output",
                      help="write one collection outcome object as JSON")
+    docker = sources.add_parser("docker", help="collect Docker host observations")
+    docker.add_argument("label", nargs="?", default="docker-dmz")
+    docker.add_argument("--output", type=Path, required=True)
+    docker.add_argument("--context", help="read-only Docker context; defaults to the host label")
+    docker.add_argument("--json", action="store_true", dest="json_output")
     status = commands.add_parser("collect-status", help="require fresh successful inventory observations")
     status.add_argument("--repo", type=Path, required=True)
     status.add_argument("--since", default=os.environ.get("SKYNET_COLLECTION_SINCE"),
@@ -92,6 +98,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         if arguments.source == "pbs":
             return collect_pbs(arguments.output, arguments.credentials_file,
                                json_output=arguments.json_output, stdout=sys.stdout)
+        if arguments.source == "docker":
+            return collect_docker(arguments.label, arguments.output, arguments.context or arguments.label,
+                                  json_output=arguments.json_output, stdout=sys.stdout)
         function = collect_acl if arguments.source == "proxmox-acl" else collect
         return function(arguments.target, arguments.output, arguments.credentials_file,
                         json_output=arguments.json_output, stdout=sys.stdout)

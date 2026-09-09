@@ -13,7 +13,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, TextIO
 
-from skynet import pbs, proxmox
+from skynet import docker, pbs, proxmox
 
 REMAINING = (
     ("docker-dmz", "collect-docker.sh", "docker-dmz"),
@@ -32,6 +32,7 @@ PROXMOX_ACLS = (
     ("network", "proxmox-network-acl.json", "collection-network-acl.json"),
 )
 PBS = ("pbs.json", "collection-pbs.json")
+DOCKERS = (("docker-dmz", "docker-docker-dmz.json", "collection-docker-dmz.json"),)
 READER_TIMEOUT = 120.0
 CLEANUP_TIMEOUT = 5.0
 
@@ -226,6 +227,28 @@ def collect_all(repo: Path, credentials_file: Path, network_credentials_file: Pa
                 code = 1
             elif pbs_code and code == 0:
                 code = pbs_code
+            for label, snapshot_name, marker_name in DOCKERS:
+                output = repo / "inventory" / snapshot_name
+                status = repo / "inventory" / marker_name
+                marker = {"target": f"docker-{label}", "outcome": "unavailable", "attempted": attempted,
+                          "reason": "refresh incomplete; retained snapshot is previous evidence"}
+                proxmox.publish(status, marker)
+                stream = io.StringIO()
+                docker_code = docker.collect(label, output, label, json_output=True, stdout=stream)
+                observation = json.loads(stream.getvalue())
+                marker.update(outcome=observation["outcome"])
+                if docker_code == 0:
+                    marker.pop("reason")
+                    marker.update(collected=observation["collected"],
+                                  sha256=hashlib.sha256(output.read_bytes()).hexdigest())
+                else:
+                    marker["reason"] = observation["reason"]
+                proxmox.publish(status, marker)
+                report["collectors"].append(observation)
+                if docker_code == 1:
+                    code = 1
+                elif docker_code and code == 0:
+                    code = docker_code
             for name, script, *args in REMAINING:
                 try:
                     exit_code = run_reader([str(repo / "scripts" / script), *args], repo)
@@ -286,7 +309,11 @@ def collection_status(repo: Path, *, since: str | None, json_output: bool, stdou
                  (repo / "inventory" / snapshot_name).read_bytes())
                 for target, snapshot_name, marker_name in PROXMOX_ACLS
             ] + [("pbs", None, json.loads((repo / "inventory" / PBS[1]).read_bytes()),
-                  (repo / "inventory" / PBS[0]).read_bytes())]
+                  (repo / "inventory" / PBS[0]).read_bytes())] + [
+                (f"docker-{label}", label, json.loads((repo / "inventory" / marker_name).read_bytes()),
+                 (repo / "inventory" / snapshot_name).read_bytes())
+                for label, snapshot_name, marker_name in DOCKERS
+            ]
         now = datetime.now(UTC)
         collected_values: dict[str, str] = {}
         for evidence_target, node, evidence, raw in observations:
@@ -298,7 +325,7 @@ def collection_status(repo: Path, *, since: str | None, json_output: bool, stdou
             valid = (
                 evidence.get("target") == evidence_target and evidence.get("outcome") == "success"
                 and attempted_receipt == evidence.get("attempted")
-                and (node is None or snapshot.get("node") == node)
+                and (node is None or snapshot.get("node") == node or snapshot.get("host") == node)
                 and (node is not None or isinstance(snapshot.get("host"), str))
                 and evidence.get("collected") == snapshot.get("collected")
                 and evidence.get("sha256") == hashlib.sha256(raw).hexdigest()
