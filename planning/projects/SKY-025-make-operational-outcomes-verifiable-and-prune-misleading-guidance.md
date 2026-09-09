@@ -6,7 +6,7 @@ horizon: long
 created: 2026-09-06
 updated: 2026-09-09
 phases: 24
-current_phase: 5
+current_phase: 6
 tier_touched: [T1, T2, T2+, T3]
 related:
   - docs/system-design.md
@@ -161,86 +161,93 @@ Phases 12, 17, and 18 are especially likely to need lettered slices after inspec
 may move earlier when a real consumer needs them. Preserve dependency order, not arbitrary numbering.
 Do not add a new live OPNsense writer or finish unrelated fleet migrations under this overhaul.
 
-## 5. Phase 6a — DNS read collection (~1–2h)
+## 5. Phase 7a — Omada read collection (~1–2h)
 
-**Release gate:** execute after Ali merges this P5 review/repair ACCEPT PR. §9 records the
-reviewed merged baseline and repairs verified by the reviewer. Acceptance and this next packet
-take effect together at human merge; no additional P5 review is required for these repairs.
-**Lead:** Terra High (`gpt-5.6-terra`, high), retaining the phase-table recommendation.
-**Goal:** replace Technitium zone/record shell collection with validated atomic Python reads
-and receipt-bound freshness. Split P6 into **P6a DNS** and **P6b OPNsense live/offline reads**;
-the execution lead details the latter after P6a merge. Review the entire numbered phase once.
+**Release gate:** execute after Ali merges the P6 combined review/repair ACCEPT PR recorded
+in §9. Its verified repairs and phase acceptance take effect at that merge; no separate P6
+repair review is required. **Lead:** Terra High (`gpt-5.6-terra`, high), retaining the phase-table
+recommendation. The launcher dry-run resolves that exact model/effort.
 
-**Exact surfaces:** new `src/skynet/dns.py`, `src/skynet/{cli,collection}.py`;
-shared PBS/Proxmox transport helpers only where an actual consumer warrants extraction;
-`tests/test_{dns,cli,collection}.py`, synthetic `tests/fixtures/dns/`,
-`scripts/collect-dns.sh`, `nix/packages/skynet.nix`, `flake.nix`,
+**Goal:** replace the existing Omada shell collector with validated Python observations and
+receipt-bound freshness. Split P7 into **P7a Omada**, **P7b certs/routes**, and **P7c recon**:
+three independent parser/transport boundaries do not fit one implementation packet. Only P7a
+is detailed here; the execution lead details each remaining same-phase slice after the preceding
+merge. One independent review covers all P7 slices before P8.
+
+**Exact surfaces:** new `src/skynet/omada.py`, `src/skynet/{cli,collection}.py`,
+`tests/test_{omada,cli,collection}.py`, synthetic `tests/fixtures/omada/`,
+`scripts/collect-network-gear.sh`, `nix/packages/skynet.nix`, `flake.nix`,
 `.githooks/pre-commit`, `.github/workflows/checks.yml`. Inspect `scripts/build-db.sh`,
-the DNS block of `scripts/render-docs.sh`, `bin/ops`, `scripts/{collect-all,nightly}.sh`;
-change them only if the preserved contract requires it. Update `nix/README.md`,
+`scripts/render-docs.sh`, `bin/ops`, `scripts/{collect-all,nightly}.sh`; change consumers
+only where preserving their output contract requires it. Update `nix/README.md`,
 `docs/design/observability.md`, `runbooks/nightly.md`, this directive/map and raw journal;
-regenerate roadmap/digest/context.
+regenerate roadmap/digest/context through their tools. Shared transport extraction needs an
+actual second caller; do not add a generic client/session framework.
 
 **Interfaces and decisions:**
 
-1. Add `skynet collect dns --output <file> [--credentials-file <file>] [--json]`.
-   Preserve `inventory/dns-zones.json`: collection time, zone objects and per-zone
-   `{zone, records}` objects, including record `name/type/rData` consumed by SQLite and
-   the A/CNAME renderer. Preserve other valid record types rather than dropping them.
-2. Read literal `TECH_HOST/TECH_TOKEN/TECH_CACERT` assignments from the configured default
-   `/opt/skynet-ops/secrets/technitium.env`, with no eval/sudo or live-file inspection
-   during development. Retain port 53443, CA/hostname verification, bounded timeouts and
-   URL encoding. Redact token-bearing URLs and external errors. No insecure fallback.
-3. Allow only existing read endpoints `zones/list` and `zones/records/get`.
-   Validate HTTP and API outcomes, zone identities and every required record list.
-   Missing/null/error/partial responses are unavailable or failed, never successful empty
-   evidence. Valid empty lists are observations, not proof that a required service exists.
-   Reject malformed required fields before atomic replacement; preserve previous bytes.
-4. Remove DNS from `REMAINING` and run it once under the collection lock/attempt receipt,
-   with an unavailable marker preceding reads and success bound to snapshot hash/time.
-   Require DNS along with all accepted markers for default status/query/entity/render and
-   nightly cutoff. DNS failure permits later scoped readers but refuses overall freshness.
-   Cover initial/late marker failure, stale evidence and recovery without weakening existing
-   process cleanup or receipt checks.
-5. Retain `collect-dns.sh` only as a forwarding shim for existing callers, owned by P22
-   for removal. Add new source, tests and fixtures to source/installed Nix checks and staged
-   triggers. Tests must isolate every API/credential/subprocess boundary, including spawned
-   runners; explicitly verify installed imports rather than prepending source.
+1. Add `skynet collect omada --output <file> [--credentials-file <file>] [--json]`.
+   Preserve `inventory/network-gear.json`: collected time, controller host/version/omadacId,
+   site id/name objects, and entity-keyed device observations. Preserve device identity/name,
+   type/model/MAC/IP, site, firmware/upgrade status, connected/status, uptime/clients, PoE and
+   switch-port fields consumed by the SQLite cache and renderer. Keep the existing entity slug
+   grammar, including straight/curly apostrophe handling; reject ambiguous duplicate identities.
+2. Parse literal `OMADA_HOST/PORT/SNI/USER/PASS/CACERT` assignments from the configured default
+   `/opt/skynet-ops/secrets/omada.env`, without eval/sudo. Preserve quoted password characters
+   as data; never include passwords, session cookies, CSRF tokens or external error messages
+   in reports. Retain verified pinned-CA HTTPS, hostname/SNI handling and bounded timeouts.
+   Do not use production credentials during construction.
+3. Permit only the existing info GET, login POST, and authenticated sites/devices/switch-port
+   GETs. Login is session establishment for the Viewer account, not permission for controller
+   mutation. Keep session cookies in memory and validate controller identity, HTTP/API outcomes,
+   pagination and every required list. Missing/null/error/truncated responses fail; explicit
+   valid empty lists are observations. A missing switch-port read cannot silently become
+   `ports:null` success; null ports for non-switch devices remain valid. Preserve previous bytes
+   until every required read and validation completes, then replace atomically.
+4. Run Omada once under the shared collection receipt/lock, with an unavailable marker before
+   reads and success bound to snapshot hash/time. Remove only network-gear from `REMAINING`.
+   Add its marker to default status/query/entity/render and nightly freshness requirements.
+   Controller host provenance must work with `collect-status` (preserve nested controller data;
+   add top-level host if needed). Failed reads permit later scoped readers, refuse overall
+   freshness and retain previous data. Cover initial/final marker failure and recovery.
+5. Retain `collect-network-gear.sh` as a forwarding shim for demonstrated callers; preserve
+   `OMADA_SECRET_FILE` forwarding. P22 owns removal. Extend source/installed Nix checks and
+   hook triggers to the module, fixtures and shim. Isolate all API/login/subprocess boundaries
+   in tests, including subprocess-launched default collection; installed tests must import
+   the package, not the source checkout.
 
-**Optional Luna High assignment:** after the lead settles the response contract, assign only
-`tests/test_dns.py` and synthetic fixtures for valid A/CNAME/other records, empty/error/null/
-partial responses and TLS refusal. Lead owns implementation, default integration and verification.
-Workers receive no production credentials, live reads, commits or helpers.
+**Optional Luna assignments:** one Luna Medium scout maps Omada device/port fields to
+`build-db.sh`/`render-docs.sh`; one Luna High worker owns only `tests/test_omada.py` and synthetic
+fixtures after the lead settles the response contract. At most two helpers; no production,
+credentials, helpers, commits or pushes delegated. Lead owns implementation/integration.
 
-**Checks/exits:**
-- `nix develop --no-write-lock-file -c pytest -q`: actual CLI with synthetic transport
-  validates complete projection, read endpoint allowlist, token redaction, TLS failure,
-  empty vs missing, partial-zone failure, retained bytes and default freshness/consumer
-  refusal/recovery. Existing PBS/Docker/Proxmox process and marker regressions remain green.
+**Checks and exit criteria:**
+
+- `nix develop --no-write-lock-file -c pytest -q`: real CLI plus fake transport covers Viewer
+  endpoint allowlist, cookie/CSRF lifecycle, TLS refusal, redacted failures, site pagination,
+  complete switch-port collection, valid empty/non-switch shapes, malformed/null/error and
+  partial-site failure, retained bytes, consumer contract, default freshness refusal/recovery.
+  All previously accepted DNS/OPNsense/PBS/Docker/Proxmox and process-cleanup regressions pass.
 - `nix develop --no-write-lock-file -c ruff check src tests/test_*.py` and
   `nix develop --no-write-lock-file -c mypy src/skynet`: clean.
 - `nix build --no-write-lock-file --no-link .#checks.x86_64-linux.skynet` and
-  `nix flake check --no-write-lock-file --no-build`: source/installed checks pass.
-- Offline doctor succeeds, disposable missing-evidence status exits 3, full staged hook
-  and `git diff --cached --check` pass. Five paused documentation suites remain unrun;
-  restore maintained replacements by P24.
+  `nix flake check --no-write-lock-file --no-build`: source/installed checks and evaluation pass.
+- Offline doctor succeeds; disposable missing-evidence status exits 3; full staged hook and
+  `git diff --cached --check` pass. The five paused documentation suites remain manual/unrun,
+  with maintained replacements restored by P24.
 
-**Boundaries:** isolated construction, synthetic credentials/transports, disposable outputs.
-No live DNS/OPNsense reads, mirror credential/config contents, root/grant, activation, timers,
-credential/pin changes or production writes. P5's authorized PBS/Docker reads do not authorize
-P6 endpoints. No Technitium server settings, zone modifications, OPNsense writer or self-leash
-changes. Rollback is git revert; live-transition/workstation/state/payload prerequisites remain.
+**Live/grant boundaries and exclusions:** isolated construction, synthetic credentials and
+disposable outputs. No Omada live login/read, device adoption/reboot/configuration, controller
+write, root/grant, credential/pin change, activation or timer/service change is released here.
+The operator-authorized P6 DNS/OPNsense/mirror tests do not authorize P7 endpoints. No cert,
+route or recon implementation in P7a; no entity engine rewrite, new Omada capability or remote
+Python installation. Workstation/state/payload recovery prerequisites remain. Rollback is
+git revert; no production installation occurs in this packet.
 
-**Close-out and same-phase continuation:** publish P6a as slice-complete / P6 in progress.
-After human merge, detail only P6b: `src/skynet/opnsense.py` and an offline firewall parser,
-`collect-opnsense.sh`, `collect-firewall.sh`, matching CLI/tests/fixtures/package/callers.
-Preserve alias filtering, configured-rule intersection, reservations, firmware/ARP/interfaces,
-and explicit ICMP vantage/unknown semantics. Allow only existing GETs and explicitly enumerated
-read-only search POSTs; validate pagination/completeness and paired firewall/live publication
-before freshness. Offline mirror parsing must redact sensitive values, retain source provenance,
-avoid implicit pulls and never satisfy live freshness. Split that remaining work further if
-needed. No live writer or broader firewall capability. After all P6 slices merge, obtain one
-fresh review with the selected model of the complete numbered phase before P7.
+**Close-out:** mark P7a slice-complete / P7 in progress, keeping accepted progress 6/24. After
+human merge, detail P7b for certificate probes and authored Caddy route parsing with explicit
+vantage/source provenance; then P7c for bounded local/unprivileged-SSH recon. No independent
+slice acceptance or P8 release until all numbered-P7 work is merged and reviewed together.
 
 
 ## 6. Carry forward the original review as acceptance cases
@@ -309,6 +316,37 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
 ```
 
 ## 9. Status
+
+- 2026-09-09 — **P6 ACCEPT with reviewer repairs**, effective when Ali merges this combined
+  review PR. Reviewed [#226](https://github.com/aliammar03/skynet/pull/226)
+  (`b7e6f6e8e1dd69f8bbe0f54d91738f9bced4a1b8`),
+  [#227](https://github.com/aliammar03/skynet/pull/227)
+  (`ea50741c8a25cac9b72a460c3ef08395403dea41`), and
+  [#228](https://github.com/aliammar03/skynet/pull/228)
+  (`9858daf0b4405b14aa93f45f50d71349ea29b1b6`), all verified merged through GitHub.
+  Packet baseline `db09021802f590d79f2ab9f7c2c56064f29c0a4a`; reviewed main
+  `9858daf0b4405b14aa93f45f50d71349ea29b1b6`; only those three commits intervene.
+  Reviewer: GPT-6 session, exact variant/effort unavailable; two Luna Medium scouts and two
+  Luna High builders handled bounded inspection/repairs. The reviewer inspected all changes
+  and retained live checks and acceptance.
+
+  | P6 exit | Verdict and independent evidence |
+  |---|---|
+  | Scoped reads, TLS, no write creep | ACCEPT — actual packaged DNS and OPNsense collectors succeeded over verified TLS using unchanged credentials; endpoint/method and TLS-refusal tests pass. No configuration, credential, service or root writes. |
+  | Response validation and preserved consumers | ACCEPT after repairs — root DNS requests use `.` while inventory keeps its identity; A/AAAA/CNAME fields validated. OPNsense accepts unused `OPN_USER`, derives certificate SNI first, rejects missing/malformed containers and incomplete search/rule sets, and preserves optional interface fields. |
+  | Failure, paired freshness and recovery | ACCEPT — initial/final DNS and both OPNsense marker failures refuse prior success and recover; partial pair publication returns failure; offline mirror replacement invalidates an existing live receipt. ICMP execution errors remain unavailable, not no-reply. |
+  | Offline parser and provenance | ACCEPT — synthetic malformed XML, legacy paths, redaction and byte-retention tests pass; local mirror parse returned 41 aliases/29 rules/5 reservations without pulling or establishing live freshness. Source path is retained; mirror revision/hash is not recorded. |
+  | Source/installed checks and callers | ACCEPT — 225 pytest tests passed; Ruff and mypy clean; Nix source/installed package check and flake evaluation passed; offline doctor succeeds and disposable missing-evidence status exits 3. Full staged hook and diff checks are recorded in the review journal/PR. |
+
+  Packaged live results at 15:45 UTC: DNS 4 zones/13,355 records; OPNsense 40 aliases,
+  28 rules, 41 ARP entries, 17 interfaces. Outputs stayed in `/tmp/skynet-p6-live.0M8zWC`;
+  existing main inventory edits were preserved. No end-to-end production nightly, activation,
+  write or recovery drill was attempted. The five paused documentation suites remain unrun.
+  Repairs are included in this review branch; their commit identity is recorded in the PR.
+  [Raw evidence](../../journal/2026/2026-09-09-session-sky-025-p6-combined-review-and-live-reads.md).
+  Accepted progress becomes **6/24** at human merge. §5 releases only **P7a Omada, Terra High**;
+  P7b certs/routes and P7c recon are same-phase continuations. No G checkpoint is due and no
+  phase order changed. After merge: `Read planning/prompts/execute.md and execute SKY-025 P7a.`
 
 - 2026-09-09 — **P6b-i slice complete / P6 in progress.** From origin/main base
   `b7e6f6e8e1dd69f8bbe0f54d91738f9bced4a1b8` (includes P6a #226), P6b-i adds the live OPNsense

@@ -6,6 +6,7 @@ leaves the requested destination untouched; an empty-but-valid zone list is a re
 """
 
 import http.client
+import ipaddress
 import json
 import re
 import ssl
@@ -115,6 +116,16 @@ def _zone_name(zone: Any) -> str:
     return name
 
 
+def _zone_identity(name: str) -> str:
+    """Treat the API's dotted root spelling as the same identity as the empty root."""
+    return "" if name == "." else name
+
+
+def _zone_request_name(name: str) -> str:
+    """Use Technitium's accepted root spelling only in request parameters."""
+    return "." if name == "" else name
+
+
 def _record(record: Any) -> dict[str, Any]:
     """Preserve a full record after checking the fields SQLite and the renderer consume."""
     if not isinstance(record, dict):
@@ -128,6 +139,21 @@ def _record(record: Any) -> dict[str, Any]:
         raise CollectionError("missing or malformed record type")
     if not isinstance(data, dict):
         raise CollectionError("missing or malformed record data")
+    if kind in {"A", "AAAA"}:
+        address = data.get("ipAddress")
+        if not isinstance(address, str):
+            raise CollectionError("missing or malformed record IP address")
+        try:
+            parsed = ipaddress.ip_address(address)
+        except ValueError:
+            raise CollectionError("missing or malformed record IP address") from None
+        expected_version = 4 if kind == "A" else 6
+        if parsed.version != expected_version:
+            raise CollectionError("record IP address family mismatch")
+    elif kind == "CNAME":
+        cname = data.get("cname")
+        if not isinstance(cname, str) or not cname or any(ord(char) < 32 for char in cname):
+            raise CollectionError("missing or malformed CNAME target")
     return record
 
 
@@ -138,12 +164,21 @@ def snapshot(settings: Credentials) -> dict[str, Any]:
     if not isinstance(zones, list):
         raise CollectionError("missing or malformed zone list")
     names = [_zone_name(zone) for zone in zones]
-    if len(set(names)) != len(names):
+    if len({_zone_identity(name) for name in names}) != len(names):
         raise CollectionError("duplicate zone identity")
     records = []
     for name in names:
+        request_name = _zone_request_name(name)
         detail = get(settings, "zones/records/get",
-                     {"domain": name, "zone": name, "listZone": "true"})
+                     {"domain": request_name, "zone": request_name, "listZone": "true"})
+        if "zone" in detail:
+            detail_zone = detail["zone"]
+            if not isinstance(detail_zone, dict):
+                raise CollectionError("missing or malformed detail zone")
+            if "name" in detail_zone:
+                detail_name = _zone_name(detail_zone)
+                if _zone_identity(detail_name) != _zone_identity(name):
+                    raise CollectionError("inconsistent zone identity")
         zone_records = detail.get("records")
         if not isinstance(zone_records, list):
             raise CollectionError("missing or malformed record list")
