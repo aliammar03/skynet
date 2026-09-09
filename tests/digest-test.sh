@@ -68,6 +68,33 @@ thread_status: open
 - Explicit late follow-up remains open.
 EOF
 
+# A later episode closes an earlier one's open threads via `resolves:` — append-only-safe: the
+# superseded episode's follow-ups leave the current view, but its raw entry is never rewritten.
+cat > "${tmpj}/2026/2026-01-01-session-superseded-target.md" <<'EOF'
+---
+date: 2026-01-01
+time: 19:00:00
+kind: session
+title: superseded target
+thread_status: open
+---
+## Follow-ups / open threads
+- Superseded follow-up must not remain in the digest.
+EOF
+
+cat > "${tmpj}/2026/2026-01-01-session-superseder.md" <<'EOF'
+---
+date: 2026-01-01
+time: 20:00:00
+kind: session
+title: superseder
+thread_status: open
+resolves: [2026-01-01-session-superseded-target]
+---
+## Follow-ups / open threads
+- Superseder follow-up stays open.
+EOF
+
 JDIR="${tmpj}" PAGE="${tmpp}" ./scripts/render-digest.sh >/dev/null 2>&1 || bad "render-digest failed"
 out="$(cat "${tmpp}")"
 
@@ -92,6 +119,12 @@ else
 fi
 grep -qF 'session # inline' <<<"${out}" \
   && bad "inline frontmatter comment leaked" || ok "frontmatter parser strips inline comments"
+if grep -qF "Superseder follow-up stays open" <<<"${out}" \
+  && ! grep -qF "Superseded follow-up must not remain" <<<"${out}"; then
+  ok "a later episode's resolves: supersedes an earlier episode's follow-ups"
+else
+  bad "resolves: did not supersede the earlier episode's follow-ups"
+fi
 
 echo
 echo "digest-test: ${pass} passed, ${fail} failed"

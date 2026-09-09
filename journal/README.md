@@ -38,6 +38,8 @@ what broke — and distillation happens later, when something is actually retrie
 - **Frontmatter:** `date`, `time`, `kind`, `title`, `tier_touched`, `grants` (root grants actually used —
   host + KeyID), `refs` (SKY-###, PR, ADR, hosts), and `thread_status`. The digest orders same-day
   episodes by `time` and shows only explicitly `open` follow-ups; missing status is unknown, never resolved.
+  An optional `resolves: [<episode-basename>, …]` list lets a **later** episode close an earlier one's
+  open threads (they drop from the digest's current view) without rewriting the append-only original.
   See [`../templates/journal.md`](../templates/journal.md).
 - **Body:** `## What happened` (raw), `## Actions & outcomes`, `## Graveyard — tried & abandoned`,
   `## Follow-ups / open threads`.

@@ -7,6 +7,7 @@ tier_touched: [T1]      # tiers this episode ACTUALLY used (not what it could to
 grants: []              # root grants used this episode: "host KeyID", else empty
 refs: []                # SKY-###, PR #NNN, ADR NNNN, hosts — anything to cross-link
 thread_status: none     # none | open | resolved | unknown; digest shows only explicit open
+# resolves: [<episode-basename>, …]   # optional: close earlier episodes' open threads (append-only-safe)
 ---
 
 # __DATE__ · __KIND__ · __TITLE__
