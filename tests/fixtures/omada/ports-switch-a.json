@@ -1,0 +1,29 @@
+{
+  "errorCode": 0,
+  "result": [
+    {
+      "port": 1,
+      "name": "uplink",
+      "profileName": "All",
+      "portStatus": {"linkStatus": 1, "speed": 1000},
+      "poe": 0,
+      "disable": false
+    },
+    {
+      "port": 8,
+      "name": "U6-AP",
+      "profileName": "LAN",
+      "portStatus": {"linkStatus": 1, "speed": 100},
+      "poe": 12.5,
+      "disable": false
+    },
+    {
+      "port": 24,
+      "name": "unused",
+      "profileName": "Default",
+      "portStatus": {"linkStatus": 0, "speed": 0},
+      "poe": 0,
+      "disable": true
+    }
+  ]
+}

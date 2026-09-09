@@ -1,0 +1,6 @@
+{
+  "errorCode": 0,
+  "result": {
+    "token": "csrf-synthetic-token"
+  }
+}

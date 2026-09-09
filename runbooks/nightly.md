@@ -78,7 +78,7 @@ discard the prepared deterministic work.
 
 - Confirm the PR contains only the expected generated/encrypted paths, the current raw journal entry
   appears in the digest, the deterministic merge gate reports its decision, and anomalies are visible.
-- Run `bin/skynet collect-status --repo .` before interpreting Proxmox, PBS, Docker, DNS or OPNsense observations; markers
+- Run `bin/skynet collect-status --repo .` before interpreting Proxmox, PBS, Docker, DNS, OPNsense or Omada observations; markers
   alone cannot establish freshness without their matching durable local receipt. The optional
   narrative must label retained snapshots/pages as previous evidence when that refresh failed.
   Collection freshness does not establish service health for the remaining shell readers.

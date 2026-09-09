@@ -1,0 +1,10 @@
+{
+  "errorCode": 0,
+  "result": {
+    "data": [
+      {"id": "site-a", "name": "Downstairs"},
+      {"id": "site-b", "name": "Upstairs"}
+    ],
+    "totalRows": 2
+  }
+}

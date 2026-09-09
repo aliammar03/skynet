@@ -317,6 +317,20 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
 
 ## 9. Status
 
+- 2026-09-09 — **P7a slice complete — Omada Python collection.** From remote-main base
+  `23223d035a4e5cd8a4138ca28eb6368413f082a9`, P7a adds the validated Viewer-only
+  `skynet collect omada` command, preserves the existing network-gear consumer schema, and
+  adds top-level controller-host provenance for default status. The default collection runs it
+  once under the shared receipt, writes `collection-network-gear.json` before/after the read, and
+  rejects stale, failed or mismatched Omada evidence in `collect-status`; the legacy shell script
+  is a forwarding shim retaining `OMADA_SECRET_FILE`. Synthetic endpoint/session/TLS/redaction,
+  malformed/partial/empty/duplicate/retained-bytes and receipt-marker recovery cases are covered.
+  Source and installed checks passed (229 tests each), with Ruff, mypy, Nix package checks and
+  flake evaluation clean. No production Omada login/read, inventory rewrite, timer/service or
+  credential/pin change, activation, root grant or recovery test occurred. **P7 remains in
+  progress and accepted progress remains 6/24**; after this PR is human-merged, detail P7b
+  (certificate probes and static Caddy routes), then P7c recon, before one P7 review.
+
 - 2026-09-09 — **P6c corrective slice — offline firewall inventory path removed.** Authorized by
   GitHub issue #230 as a bounded cleanup after the P6 ACCEPT (#229), from base
   `4bc4715ded192dcade30174ed6a857b74acf54b5`. P6b-ii's offline `config.xml` inventory parser was a
