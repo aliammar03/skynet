@@ -16,7 +16,7 @@ import pytest
 from test_proxmox import (FakeConnection, NETWORK_OPERATE_TOKEN, NETWORK_TOKEN, OPERATE_TOKEN,
                           network_endpoint_data, TOKEN)
 from skynet.cli import main
-from skynet import collection, dns, docker, omada, opnsense, pbs, proxmox
+from skynet import certs, collection, dns, docker, omada, opnsense, pbs, proxmox, routes
 
 ROOT = Path(__file__).parents[1]
 pytest_plugins = ["test_proxmox"]
@@ -103,6 +103,28 @@ def pbs_observation(monkeypatch: pytest.MonkeyPatch) -> None:
             print(json.dumps(report), file=stdout)  # type: ignore[arg-type]
         return 0
     monkeypatch.setattr(omada, "collect", omada_collect)
+    def certs_collect(output: Path, *, json_output: bool, stdout: object) -> int:
+        data = {"collected": datetime.now(UTC).isoformat(timespec="seconds"),
+                "host": "vm-skynet-ops (ops VLAN 90)", "certs": [],
+                "counts": {"probed": 0, "reachable": 0}}
+        proxmox.publish(output, data)
+        report = {"target": "certs", "outcome": "success", "collected": data["collected"],
+                  "counts": data["counts"]}
+        if json_output:
+            print(json.dumps(report), file=stdout)  # type: ignore[arg-type]
+        return 0
+    monkeypatch.setattr(certs, "collect", certs_collect)
+    def routes_collect(repo: Path, output: Path, *, json_output: bool, stdout: object) -> int:
+        data = {"collected": datetime.now(UTC).isoformat(timespec="seconds"), "host": "test",
+                "source": "caddyfile static parse (compose/)", "routes": [],
+                "counts": {"routes": 0}}
+        proxmox.publish(output, data)
+        report = {"target": "routes", "outcome": "success", "collected": data["collected"],
+                  "counts": data["counts"]}
+        if json_output:
+            print(json.dumps(report), file=stdout)  # type: ignore[arg-type]
+        return 0
+    monkeypatch.setattr(routes, "collect", routes_collect)
 
 
 def run(
@@ -141,11 +163,7 @@ def test_default_collection_records_matching_evidence_and_runs_remaining_once(
     code, report = run(repo, credentials, capsys, network_credentials(repo, credentials))
     assert code == 0 and report["outcome"] == "success"
     assert len(report["collectors"]) == 11
-    calls = (repo / "calls").read_text().splitlines()
-    assert calls == [row[1] for row in collection.REMAINING]
-    assert "collect-docker.sh" not in calls
-    assert "collect-dns.sh" not in calls
-    assert "collect-opnsense.sh" not in calls
+    assert not (repo / "calls").exists()
     evidence = json.loads((repo / "inventory/collection-core.json").read_text())
     assert evidence["sha256"] == hashlib.sha256(
         (repo / "inventory/proxmox-core.json").read_bytes()).hexdigest()
@@ -400,7 +418,7 @@ def test_failed_core_refresh_retains_snapshot_but_invalidates_freshness_and_cont
     assert run(repo, credentials, capsys)[0] != 0
     assert output.read_bytes() == previous
     assert status(repo, capsys) == 3
-    assert len((repo / "calls").read_text().splitlines()) == 2 * len(collection.REMAINING)
+    assert not (repo / "calls").exists()
 
 
 def test_interrupted_refresh_leaves_incomplete_marker(
@@ -535,15 +553,15 @@ def test_remaining_timeout_kills_descendants_before_next_reader_and_releases_loc
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     reader, ready, destination = _write_delayed_reader(repo)
-    remaining = collection.REMAINING
-    next_reader = repo / "scripts" / remaining[0][1]
-    body = next_reader.read_text().split("\n", 1)[1]
+    next_reader = repo / "scripts" / "next-reader.py"
     next_reader.write_text(
         f"#!{sys.executable}\nimport os\nfrom pathlib import Path\n"
         f"try: os.kill(int(Path({str(ready)!r}).read_text()), 0)\n"
         "except ProcessLookupError: pass\n"
-        "else: Path('survivor-at-next').touch()\n" + body
+        "else: Path('survivor-at-next').touch()\n"
+        "with Path('calls').open('a') as stream: stream.write('next-reader.py\\n')\n"
     )
+    next_reader.chmod(0o755)
     cleanup = collection.stop_reader
 
     def locked_cleanup(process: subprocess.Popen[bytes]) -> None:
@@ -554,6 +572,7 @@ def test_remaining_timeout_kills_descendants_before_next_reader_and_releases_loc
         cleanup(process)
 
     monkeypatch.setattr(collection, "stop_reader", locked_cleanup)
+    remaining = (("next", next_reader.name),)
     monkeypatch.setattr(collection, "REMAINING", (("slow", reader.name), *remaining))
     monkeypatch.setattr(collection, "READER_TIMEOUT", 0.25)
     monkeypatch.setattr(collection, "CLEANUP_TIMEOUT", 0.12)
@@ -591,7 +610,7 @@ def test_signal_interrupts_reader_and_reaps_child(
         f"import json,sys\nsys.path[:] = {sys.path!r}\n"
         "from pathlib import Path\n"
         "from test_proxmox import FakeConnection, endpoint_data\n"
-        "from skynet import collection, dns, docker, omada, opnsense, pbs, proxmox\nfrom skynet.cli import main\n"
+        "from skynet import certs, collection, dns, docker, omada, opnsense, pbs, proxmox, routes\nfrom skynet.cli import main\n"
         "FakeConnection.responses = endpoint_data()\n"
         "proxmox.http.client.HTTPSConnection = FakeConnection\n"
         "def pbs_collect(output, credentials_file, *, json_output, stdout):\n"
@@ -625,6 +644,18 @@ def test_signal_interrupts_reader_and_reaps_child(
         "  stdout.write(json.dumps({'target':'network-gear','outcome':'success','collected':c}))\n"
         "  return 0\n"
         "omada.collect = omada_collect\n"
+        "def certs_collect(output, *, json_output, stdout):\n"
+        "  c = '2026-09-09T00:00:00+00:00'\n"
+        "  proxmox.publish(output, {'collected':c,'host':'test','certs':[]})\n"
+        "  stdout.write(json.dumps({'target':'certs','outcome':'success','collected':c}))\n"
+        "  return 0\n"
+        "certs.collect = certs_collect\n"
+        "def routes_collect(repo, output, *, json_output, stdout):\n"
+        "  c = '2026-09-09T00:00:00+00:00'\n"
+        "  proxmox.publish(output, {'collected':c,'host':'test','routes':[]})\n"
+        "  stdout.write(json.dumps({'target':'routes','outcome':'success','collected':c}))\n"
+        "  return 0\n"
+        "routes.collect = routes_collect\n"
         f"collection.REMAINING = (('slow', {reader.name!r}),)\n"
         f"args = ['collect', 'all', '--repo', {str(repo)!r}, "
         f"'--credentials-file', {str(credentials)!r}, "
@@ -724,7 +755,8 @@ def test_cleanup_failure_quarantines_receipt_and_stops_remaining_readers(
 
     real_reader = collection.run_reader
     monkeypatch.setattr(collection, "run_reader", fail_cleanup)
-    monkeypatch.setattr(collection, "REMAINING", (collection.REMAINING[0], collection.REMAINING[1]))
+    monkeypatch.setattr(collection, "REMAINING", (("first", "first-reader"),
+                                                   ("second", "second-reader")))
     assert run(repo, credentials, capsys)[0] == 1
     assert calls == ["reader"]
     assert not (repo / "calls").exists()
@@ -886,7 +918,7 @@ def test_bin_ops_collection_reaches_real_cli_and_core_collector(
     launcher.write_text(
         f"#!{sys.executable}\nimport sys\nsys.path[:] = {sys.path!r}\n"
         "from test_proxmox import FakeConnection, endpoint_data\n"
-        "from skynet import dns, docker, omada, opnsense, pbs, proxmox\nfrom skynet.cli import main\n"
+        "from skynet import certs, dns, docker, omada, opnsense, pbs, proxmox, routes\nfrom skynet.cli import main\n"
         "FakeConnection.responses = endpoint_data()\n"
         "proxmox.http.client.HTTPSConnection = FakeConnection\n"
         "pbs.collect = lambda output, credentials_file, json_output, stdout: ("
@@ -905,6 +937,12 @@ def test_bin_ops_collection_reaches_real_cli_and_core_collector(
         "omada.collect = lambda output, credentials_file, json_output, stdout: ("
         "proxmox.publish(output, {'collected':'2026-09-09T00:00:00+00:00','host':'omada.test','controller':{},'sites':[],'devices':[]}) or "
         "stdout.write('{\\\"target\\\":\\\"network-gear\\\",\\\"outcome\\\":\\\"success\\\",\\\"collected\\\":\\\"2026-09-09T00:00:00+00:00\\\"}') and 0)\n"
+        "certs.collect = lambda output, json_output, stdout: ("
+        "proxmox.publish(output, {'collected':'2026-09-09T00:00:00+00:00','host':'test','certs':[]}) or "
+        "stdout.write('{\\\"target\\\":\\\"certs\\\",\\\"outcome\\\":\\\"success\\\",\\\"collected\\\":\\\"2026-09-09T00:00:00+00:00\\\"}') and 0)\n"
+        "routes.collect = lambda repo, output, json_output, stdout: ("
+        "proxmox.publish(output, {'collected':'2026-09-09T00:00:00+00:00','host':'test','routes':[]}) or "
+        "stdout.write('{\\\"target\\\":\\\"routes\\\",\\\"outcome\\\":\\\"success\\\",\\\"collected\\\":\\\"2026-09-09T00:00:00+00:00\\\"}') and 0)\n"
         "sys.exit(main(sys.argv[6:]))\n"
     )
     launcher.chmod(0o755)

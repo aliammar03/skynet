@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import NoReturn
 
-from skynet import installed_version, omada
+from skynet import certs, installed_version, omada, routes
 from skynet.collection import collect_all, collection_status
 from skynet.dns import DEFAULT_CREDENTIALS as DNS_DEFAULT_CREDENTIALS, collect as collect_dns
 from skynet.doctor import write_report
@@ -109,6 +109,18 @@ def build_parser() -> argparse.ArgumentParser:
                               help="literal OMADA_HOST/PORT/SNI/USER/PASS/CACERT assignments")
     network_gear.add_argument("--json", action="store_true", dest="json_output",
                               help="write one collection outcome object as JSON")
+    certificates = sources.add_parser("certs", help="collect declared TLS certificate observations")
+    certificates.add_argument("--output", type=Path, required=True,
+                              help="explicit snapshot destination; publish only on complete success")
+    certificates.add_argument("--json", action="store_true", dest="json_output",
+                              help="write one collection outcome object as JSON")
+    route_inventory = sources.add_parser("routes", help="statically collect committed Caddy routes")
+    route_inventory.add_argument("--repo", type=Path, required=True,
+                                 help="checkout containing compose and collected guest observations")
+    route_inventory.add_argument("--output", type=Path, required=True,
+                               help="explicit snapshot destination; publish only on complete success")
+    route_inventory.add_argument("--json", action="store_true", dest="json_output",
+                               help="write one collection outcome object as JSON")
     status = commands.add_parser("collect-status", help="require fresh successful inventory observations")
     status.add_argument("--repo", type=Path, required=True)
     status.add_argument("--since", default=os.environ.get("SKYNET_COLLECTION_SINCE"),
@@ -146,6 +158,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         if arguments.source == "omada":
             return omada.collect(arguments.output, arguments.credentials_file,
                                  json_output=arguments.json_output, stdout=sys.stdout)
+        if arguments.source == "certs":
+            return certs.collect(arguments.output, json_output=arguments.json_output, stdout=sys.stdout)
+        if arguments.source == "routes":
+            return routes.collect(arguments.repo, arguments.output,
+                                  json_output=arguments.json_output, stdout=sys.stdout)
         function = collect_acl if arguments.source == "proxmox-acl" else collect
         return function(arguments.target, arguments.output, arguments.credentials_file,
                         json_output=arguments.json_output, stdout=sys.stdout)

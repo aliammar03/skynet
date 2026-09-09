@@ -29,7 +29,7 @@ Enumeration counts: root files 10; `.claude` 1, `.codex` 4, `.githooks` 1, `.git
 | `collect-proxmox.sh`, `collect-proxmox-acl.sh` | migrate | Python read collectors; node-specific validation | collect-all, inventory gates/renderers | 3–4 | P4a leaves `collect-proxmox.sh` as a packaged-command forwarder and removes its shell API/parser. Both ACL readers remain P4b. Live behavior untested |
 | `collect-pbs.sh`, `collect-docker.sh` | migrate | Python PBS/Docker collectors | collect-all, backup/container views | 5 | P5 accepted with reviewer repairs: single Docker writer, descendant cleanup, strict required fields, truthful verification, TLS and test isolation; live reads pass |
 | `collect-dns.sh`, `collect-opnsense.sh` | migrate | Python DNS collection and live OPNsense firewall+state collection | collect-all, firewall/DNS views | 6 | P6a: `collect-dns.sh` → shim + `src/skynet/dns.py`. P6b-i: `collect-opnsense.sh` → shim + `src/skynet/opnsense.py` (live, paired firewall.json + opnsense.json, receipt-bound). No new OPNsense writer. P6 accepted with reviewer repairs and scoped live reads. **P6c retired the offline `config.xml` inventory path entirely** (`collect-firewall.sh`, `src/skynet/firewall.py`, `skynet collect firewall`, parser tests/fixtures deleted): live OPNsense API is the sole firewall inventory source; the `config.xml` git backup is DR-only (restored as config, never parsed into inventory). See disposition below |
-| `collect-network-gear.sh`, `collect-certs.sh`, `collect-routes.sh`, `recon.sh` | migrate | Python observations with provenance and vantage | collect-all, recon/diagnosis runbooks | 7 | P7a moves Omada to Python with receipt-bound freshness; certs/routes/recon remain same-phase work |
+| `collect-network-gear.sh`, `collect-certs.sh`, `collect-routes.sh`, `recon.sh` | migrate | Python observations with provenance and vantage | collect-all, recon/diagnosis runbooks | 7 | P7a moves Omada; P7b moves fixed-vantage certificate probes and static Caddy routes, all receipt-bound. P7c recon remains same-phase work after P7b merge. |
 | `entity.sh`, `audit-entities.sh`, `build-db.sh` | migrate | Entity functions, audit, rebuildable SQLite cache | collectors/render-docs, bin/ops entities/query | 8 | Verified existing identity and join callers |
 | `scripts/sql/*.sql` | retain | SQL query definitions | bin/ops query, SQLite cache | 8 | Verified host-map/vhosts queries; adapt schema with consumers |
 | `render-docs.sh`, `render-digest.sh`, `render-context-map.sh`, `render-runbook-catalog.sh`; `bin/recall` | migrate | Python rendering/retrieval, existing Markdown sources | nightly, bin/ops, cold boot, catalog checks | 9 | Verified outputs; history remains append-only |
@@ -345,10 +345,24 @@ source path provenance is preserved but no mirror revision/hash is claimed. No p
 inventory was overwritten. Full source/installed checks passed, with 225 source tests.
 The raw review journal preserves failures, worker integration and limitations.
 
-P6 shell entry points remain forwarding shims owned by P22. P7a Omada is slice-complete; the lead
-details P7b certs/routes and P7c recon after their preceding slice merges.
+P6 shell entry points remain forwarding shims owned by P22. P7a Omada and P7b certificates/routes
+are slice-complete; P7c recon is released only after P7b's human merge.
 Workstation/state/payload recovery and live installation blockers remain unchanged.
 The historical implementation entries below do not supersede this acceptance.
+
+## Phase 7b implementation (slice complete; P7 in progress)
+
+From remote-main base `b173e74142f6e57635a6b4f2a2e64b48800f2974`, P7b adds
+`skynet collect certs --output <file>` and `skynet collect routes --repo <checkout> --output <file>`.
+Certificate observations use an explicit unverified TLS leaf handshake from the ops-VLAN vantage;
+unreachable endpoints remain observations, while malformed leaves and publication failure retain
+the previous destination. Route observations are explicitly static Caddyfile projections, not
+reachability results, and resolve guest backends only through the retained P8-owned entity script.
+Both snapshots have receipt-bound default markers and freshness requirements; their shell entries
+now forward to Python. Synthetic source/installed checks pass, and the authorized isolated T1 pass
+returned 7/7 certificate endpoints reachable and 9 static routes. No production inventory changed.
+
+P7c recon and P7's independent acceptance remain blocked on the human merge of this slice.
 
 ## Phase 7a implementation (slice complete; P7 in progress)
 

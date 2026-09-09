@@ -37,7 +37,7 @@ bash "${ROOT}/tests/nightly-sequence-test.sh"
 python_changed=0
 while IFS= read -r -d '' staged_path; do
   case "${staged_path}" in
-    pyproject.toml|src/*.py|src/**/*.py|tests/test_*.py|tests/fixtures/proxmox/*|tests/fixtures/pbs/*|tests/fixtures/dns/*|tests/fixtures/opnsense/*|tests/fixtures/omada/*|nix/packages/skynet.nix|flake.nix|bin/skynet|bin/ops|scripts/collect-all.sh|scripts/collect-proxmox.sh|scripts/collect-pbs.sh|scripts/collect-docker.sh|scripts/collect-dns.sh|scripts/collect-opnsense.sh|scripts/collect-network-gear.sh|scripts/render-docs.sh)
+    pyproject.toml|src/*.py|src/**/*.py|tests/test_*.py|tests/fixtures/proxmox/*|tests/fixtures/pbs/*|tests/fixtures/dns/*|tests/fixtures/opnsense/*|tests/fixtures/omada/*|tests/fixtures/certs/*|tests/fixtures/routes/*|nix/packages/skynet.nix|flake.nix|bin/skynet|bin/ops|scripts/collect-all.sh|scripts/collect-proxmox.sh|scripts/collect-pbs.sh|scripts/collect-docker.sh|scripts/collect-dns.sh|scripts/collect-opnsense.sh|scripts/collect-network-gear.sh|scripts/collect-certs.sh|scripts/collect-routes.sh|scripts/render-docs.sh)
       python_changed=1
       ;;
   esac

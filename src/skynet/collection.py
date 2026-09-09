@@ -13,12 +13,9 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, TextIO
 
-from skynet import dns, docker, omada, opnsense, pbs, proxmox
+from skynet import certs, dns, docker, omada, opnsense, pbs, proxmox, routes
 
-REMAINING: tuple[tuple[str, ...], ...] = (
-    ("routes", "collect-routes.sh"),
-    ("certs", "collect-certs.sh"),
-)
+REMAINING: tuple[tuple[str, ...], ...] = ()
 PROXMOX_NODES = (
     ("core", "proxmox-core.json", "collection-core.json"),
     ("network", "proxmox-network.json", "collection-network.json"),
@@ -34,6 +31,8 @@ DNS = ("dns-zones.json", "collection-dns.json")
 OPNSENSE = (("firewall", "firewall/firewall.json", "collection-firewall.json"),
             ("opnsense", "opnsense.json", "collection-opnsense.json"))
 OMADA = ("network-gear.json", "collection-network-gear.json")
+CERTS = ("certs.json", "collection-certs.json")
+ROUTES = ("routes.json", "collection-routes.json")
 READER_TIMEOUT = 120.0
 CLEANUP_TIMEOUT = 5.0
 
@@ -333,6 +332,32 @@ def collect_all(repo: Path, credentials_file: Path, network_credentials_file: Pa
                 code = 1
             elif omada_code and code == 0:
                 code = omada_code
+            for target, snapshot_name, marker_name in (("certs", *CERTS), ("routes", *ROUTES)):
+                output = repo / "inventory" / snapshot_name
+                status = repo / "inventory" / marker_name
+                marker = {"target": target, "outcome": "unavailable", "attempted": attempted,
+                          "reason": "refresh incomplete; retained snapshot is previous evidence"}
+                proxmox.publish(status, marker)
+                stream = io.StringIO()
+                local_code = (
+                    certs.collect(output, json_output=True, stdout=stream)
+                    if target == "certs" else
+                    routes.collect(repo, output, json_output=True, stdout=stream)
+                )
+                observation = json.loads(stream.getvalue())
+                marker.update(outcome=observation["outcome"])
+                if local_code == 0:
+                    marker.pop("reason")
+                    marker.update(collected=observation["collected"],
+                                  sha256=hashlib.sha256(output.read_bytes()).hexdigest())
+                else:
+                    marker["reason"] = observation["reason"]
+                proxmox.publish(status, marker)
+                report["collectors"].append(observation)
+                if local_code == 1:
+                    code = 1
+                elif local_code and code == 0:
+                    code = local_code
             for name, script, *reader_args in REMAINING:
                 args: list[str] = [str(repo / "scripts" / script), *reader_args]
                 try:
@@ -405,6 +430,9 @@ def collection_status(repo: Path, *, since: str | None, json_output: bool, stdou
                 for target, snapshot_name, marker_name in OPNSENSE
             ] + [("network-gear", None, json.loads((repo / "inventory" / OMADA[1]).read_bytes()),
                   (repo / "inventory" / OMADA[0]).read_bytes())
+            ] + [(target, None, json.loads((repo / "inventory" / marker_name).read_bytes()),
+                  (repo / "inventory" / snapshot_name).read_bytes())
+                 for target, snapshot_name, marker_name in (("certs", *CERTS), ("routes", *ROUTES))
             ]
         now = datetime.now(UTC)
         collected_values: dict[str, str] = {}

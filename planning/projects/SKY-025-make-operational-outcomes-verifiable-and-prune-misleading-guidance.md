@@ -249,6 +249,44 @@ human merge, detail P7b for certificate probes and authored Caddy route parsing 
 vantage/source provenance; then P7c for bounded local/unprivileged-SSH recon. No independent
 slice acceptance or P8 release until all numbered-P7 work is merged and reviewed together.
 
+## 5b. Phase 7b — certificate and authored-route observations (~1–2h)
+
+**Release gate:** P7a is merged as [#235](https://github.com/aliammar03/skynet/pull/235) at
+`b173e74142f6e57635a6b4f2a2e64b48800f2974`. **Lead:** Terra High (`gpt-5.6-terra`, high).
+
+**Goal and surfaces:** replace `scripts/collect-certs.sh` and `scripts/collect-routes.sh` with
+`src/skynet/{certs,routes}.py`, their `skynet collect certs|routes` CLI commands, synthetic tests
+and fixtures, forwarding shims, receipt-bound default collection/status integration, Nix source
+inputs and hook triggers. Update only consumers/doctrine needed to describe the implemented source
+and vantage; retain `scripts/entity.sh` as P8's existing entity-derivation caller.
+
+**Contracts:** certificates are unauthenticated TLS observations from the ops-VLAN vantage. Probe
+the existing declared endpoint list with an explicitly unverified handshake solely to read the
+leaf; do not call that trust. Record every unreachable endpoint as `reachable:false`, retain the
+existing issuer/subject/SAN/not-after/days-left schema for a valid leaf, and fail atomically for a
+malformed leaf or local publication failure. Routes are a static parse of the committed
+`compose/caddy-apps/Caddyfile`: record that source/provenance, the apps front door, backend and
+auth chain; use the existing entity script only to map collected guest IPs. Missing/invalid source
+or entity derivation fails, no live reachability is implied, and neither collector reads secrets.
+Both default observations receive initial/final receipt markers and status freshness; failure
+retains bytes, refuses freshness and permits later readers. Preserve old shell entry points as
+forwarders; P22 owns removal.
+
+**Checks:** fake TLS/subprocess boundaries cover endpoint/vantage/source provenance, malformed and
+unreachable cases, atomic retention, Caddy block/auth/backend parsing, source/installed CLI,
+marker failure/recovery and consumer fields. Run the P7a check set (pytest, Ruff, mypy, package,
+flake, doctor, disposable status, staged hook and diff check). The five paused documentation suites
+remain manual. Ali additionally authorized a T1 live pass only from this isolated checkout: Omada
+Viewer read, declared certificate probes, static route parse, and any P7c recon only after that
+slice is independently released. No inventory rewrite, root/grant, credential/pin change,
+activation, service/timer change, entity rewrite or recon implementation is authorized here.
+Rollback is `git revert`.
+
+**Optional Luna work:** one Luna High builder may own only certificate/route tests and fixtures;
+it must not access endpoints, credentials or production. Lead owns integration and validation.
+**Close-out:** P7b slice-complete / P7 in progress, accepted progress still 6/24; after human
+merge detail P7c only.
+
 
 ## 6. Carry forward the original review as acceptance cases
 
@@ -316,6 +354,19 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
 ```
 
 ## 9. Status
+
+- 2026-09-09 — **P7b slice complete — certificate and static-route observations.** From
+  remote-main base `b173e74142f6e57635a6b4f2a2e64b48800f2974`, `skynet collect certs` observes the
+  fixed seven-endpoint TLS allowlist from the explicit ops-VLAN vantage using an unauthenticated
+  leaf handshake, preserving the existing certificate schema and recording unreachable endpoints.
+  `skynet collect routes` statically parses the committed apps Caddyfile and maps backends through
+  compose addresses plus the existing entity script. Both collectors publish atomically, use
+  receipt-bound default markers and freshness status, and retain their shell callers only as
+  forwarders. Synthetic source and installed checks pass (239 tests, Ruff, mypy, package and flake
+  checks). Ali-authorized isolated T1 reads succeeded: Omada 1 site/3 devices, certificates 7/7
+  reachable, static routes 9. No production inventory, credentials, pins, timer/service, host,
+  grant or root state changed. **P7 remains in progress and accepted progress remains 6/24**:
+  P7c recon is released only after this PR is human-merged, then a fresh reviewer covers all P7.
 
 - 2026-09-09 — **P7a slice complete — Omada Python collection.** From remote-main base
   `23223d035a4e5cd8a4138ca28eb6368413f082a9`, P7a adds the validated Viewer-only
