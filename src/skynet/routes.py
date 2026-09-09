@@ -56,10 +56,14 @@ def _parse_caddy(text: str) -> list[tuple[str, str, str]]:
         if fields and fields[0] == "forward_auth":
             fauth = "yes"
         depth += line.count("{") - line.count("}")
-        if depth <= 0:
+        if depth < 0:
+            raise CollectionError("malformed route source")
+        if depth == 0:
             if vhost:
                 routes.append((vhost, backend, fauth))
-            depth, vhost = 0, ""
+            vhost = ""
+    if depth != 0:
+        raise CollectionError("malformed route source")
     return routes
 
 
@@ -124,12 +128,10 @@ def _resolve(backend: str, ip2svc: dict[str, str], guest_ip: dict[str, str]) -> 
 
 
 def snapshot(repo: Path) -> dict[str, Any]:
-    """Project the static route chain; a missing Caddyfile is an empty, valid observation."""
+    """Project the static route chain; missing or unreadable source is unavailable."""
     caddyfile = repo / CADDYFILE
     try:
         text = caddyfile.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        text = ""
     except (OSError, UnicodeError):
         raise CollectionError("route source unavailable", 3) from None
     ip2svc = _service_ips(repo)
