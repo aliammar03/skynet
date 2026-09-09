@@ -151,7 +151,7 @@ def test_missing_caddyfile_is_unavailable_and_retains_previous_bytes(
     del entity
     caddyfile = repo / routes.CADDYFILE
     caddyfile.unlink()
-    caddyfile.mkdir()
+    assert not caddyfile.exists()
     output = repo / "routes.json"
     previous = b'{"retained":true}\n'
     output.write_bytes(previous)
@@ -161,6 +161,30 @@ def test_missing_caddyfile_is_unavailable_and_retains_previous_bytes(
 
     report = json.loads(stream.getvalue())
     assert code == 3 and report["outcome"] == "unavailable"
+    assert output.read_bytes() == previous
+
+
+def test_unclosed_caddy_route_block_is_failure_and_retains_previous_bytes(
+    repo: Path, entity: list[dict[str, Any]]
+) -> None:
+    del entity
+    (repo / routes.CADDYFILE).write_text(
+        "complete.aliammar.net {\n"
+        "    reverse_proxy 10.10.100.11:8080\n"
+        "}\n"
+        "truncated.aliammar.net {\n"
+        "    reverse_proxy 10.10.99.9:1234\n"
+    )
+    output = repo / "routes.json"
+    previous = b'{"retained":true}\n'
+    output.write_bytes(previous)
+    stream = io.StringIO()
+
+    code = routes.collect(repo, output, json_output=True, stdout=stream)
+
+    report = json.loads(stream.getvalue())
+    assert code == 1 and report["outcome"] == "failure"
+    assert "malformed Caddy route block" in report["reason"]
     assert output.read_bytes() == previous
 
 

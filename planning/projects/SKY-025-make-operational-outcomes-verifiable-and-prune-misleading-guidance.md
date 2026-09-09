@@ -387,6 +387,17 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
 
 ## 9. Status
 
+- 2026-09-10 — **P7 corrective packet implementation complete / review pending.** From merged
+  remote-main `ded7289ca3938c3adeeaf21d3dad3bb90dcd5a80`, the bounded route/recon review fixes make
+  a missing or unreadable authored Caddyfile unavailable and retain prior route evidence, reject
+  malformed or unclosed vhost blocks rather than publishing a partial/empty observation, and add
+  `target: recon` plus `outcome: success` to successful recon JSON snapshots. Regression tests use
+  a genuinely absent source path and a truncated block. Full pytest (258), Ruff, mypy, Nix package
+  and flake checks pass; no live collector, inventory rewrite, credential/pin, root/grant,
+  service/timer, activation or remote write occurred. The five paused documentation suites remain
+  manual. **P7 remains review pending and accepted progress remains 6/24.** After this fix is
+  human-merged, a fresh reviewer must review #235, #236, #237 and this fix together before P8.
+
 - 2026-09-09 — **P7c slice complete — bounded Python reconnaissance.** From remote-main base
   `e45b8132f3fe1e9637a2a8846de1258cb234dac8`, `skynet recon [target] [--json]` replaces the shell
   implementation with a fixed read-only marker probe. Local is explicit; remote targets are bare
