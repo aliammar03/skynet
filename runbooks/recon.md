@@ -2,7 +2,7 @@
 summary: "Take a bounded T1 host snapshot, interpret its signals, and route to the focused diagnosis runbook."
 trigger: "Figure out why X is broken / what's going on with <host>"
 tier: "T1 read-only"
-executor: "scripts/recon.sh"
+executor: "skynet recon"
 rollback: "none; recon does not mutate"
 ---
 
@@ -18,11 +18,11 @@ rollback: "none; recon does not mutate"
 
 1. Capture the snapshot:
    ```bash
-   scripts/recon.sh <host>
-   scripts/recon.sh <host> > /tmp/recon-<host>.md
-   scripts/recon.sh <host> --json
+   bin/skynet recon <host>
+   bin/skynet recon <host> > /tmp/recon-<host>.md
+   bin/skynet recon <host> --json
    ```
-   `<host>` can be a mapped label or explicit `user@host`; no argument inspects the ops VM. Each probe is bounded by `RECON_TIMEOUT` (default six seconds), and sections requiring root say so instead of requesting a grant.
+   `<host>` is a mapped bare label or IP; remote probes always use unprivileged `svc-ops`, and no argument inspects the ops VM. Each probe is bounded by six seconds, and sections requiring root say so instead of requesting a grant.
 2. Read the returned host/kernel/uptime, pressure (including inodes), failed units, sockets, container state, warnings, and recent configuration/package changes. A failed unit, unhealthy container, full/inode-exhausted filesystem, or change immediately before failure is usually the best starting signal.
 3. Follow the focused branch (the script prints likely matches):
 
