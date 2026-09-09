@@ -1,0 +1,22 @@
+{
+  "rows": [
+    {
+      "uuid": "uuid-rule-dns", "action": "pass", "protocol": "TCP/UDP", "interface": "",
+      "source_net": "NET_SKYNET", "destination_net": "ROLE_DNS_RESOLVERS",
+      "destination_port": "53", "description": "CORE - Clients to approved DNS", "enabled": "1"
+    },
+    {
+      "uuid": "uuid-rule-web", "action": "pass", "protocol": "TCP", "interface": "lan",
+      "source_net": "NET_SKYNET", "destination_net": "ROLE_APPS",
+      "destination_port": "443", "description": "CORE - Clients to apps", "enabled": "0"
+    },
+    {
+      "uuid": "uuid-internal-auto", "action": "block", "protocol": "any", "interface": "lo0",
+      "source_net": "any", "destination_net": "any", "destination_port": "",
+      "description": "internal anti-lockout (not in filter/get)", "enabled": "1"
+    }
+  ],
+  "rowCount": 2000,
+  "current": 1,
+  "total": 3
+}

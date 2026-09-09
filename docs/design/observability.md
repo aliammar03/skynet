@@ -34,7 +34,12 @@ presentation. PBS status, group, snapshot, and verification fields are complete 
 null data cannot become a zero-backup claim, and failed or unknown verification cannot produce
 a successful backup callout. Technitium DNS collection validates the zone listing and every zone's
 record list before publishing; a null or missing record list fails rather than becoming an empty
-successful snapshot. The remaining shell readers retain their existing evidence limitations. Collection timestamps
+successful snapshot. Live OPNsense collection reads only enumerated GETs and read-only search POSTs,
+validates search-page completeness, and publishes the paired user-view firewall config and live
+state (firmware/ARP/interfaces/presence) together — neither is blessed fresh without the other, and
+declared-host presence records an explicit ARP/ICMP vantage. The offline config.xml mirror parser is
+the DR rebuild source and never satisfies live freshness. The remaining shell readers retain their
+existing evidence limitations. Collection timestamps
 describe observations, not live service-health verification.
 Failed initial marker publication also invalidates previous success for default queries and
 rendering. Remaining reader processes are stopped and reaped before collection advances; uncertain

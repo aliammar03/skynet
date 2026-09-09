@@ -1,0 +1,6 @@
+{
+  "status": "update",
+  "status_msg": "There are updates available.",
+  "product_version": "OPNsense 26.7",
+  "product_id": "opnsense"
+}

@@ -16,7 +16,7 @@ import pytest
 from test_proxmox import (FakeConnection, NETWORK_OPERATE_TOKEN, NETWORK_TOKEN, OPERATE_TOKEN,
                           network_endpoint_data, TOKEN)
 from skynet.cli import main
-from skynet import collection, dns, docker, pbs, proxmox
+from skynet import collection, dns, docker, opnsense, pbs, proxmox
 
 ROOT = Path(__file__).parents[1]
 pytest_plugins = ["test_proxmox"]
@@ -25,7 +25,7 @@ pytest_plugins = ["test_proxmox"]
 @pytest.fixture
 def repo(tmp_path: Path) -> Path:
     path = tmp_path / "repo"
-    (path / "inventory").mkdir(parents=True)
+    (path / "inventory" / "firewall").mkdir(parents=True)
     (path / "scripts").mkdir()
     for _, name, *_ in collection.REMAINING:
         script = path / "scripts" / name
@@ -74,6 +74,24 @@ def pbs_observation(monkeypatch: pytest.MonkeyPatch) -> None:
             print(json.dumps(report), file=stdout)  # type: ignore[arg-type]
         return 0
     monkeypatch.setattr(dns, "collect", dns_collect)
+    def opnsense_collect(firewall_output: Path, state_output: Path, credentials_file: Path, *,
+                         json_output: bool, stdout: object) -> int:
+        collected = datetime.now(UTC).isoformat(timespec="seconds")
+        proxmox.publish(firewall_output, {"collected": collected, "source": "stub",
+                                          "host": "10.10.60.1",
+                                          "counts": {"aliases": 0, "rules": 0, "reservations": 0},
+                                          "aliases": [], "rules": [], "reservations": []})
+        proxmox.publish(state_output, {"collected": collected, "source": "stub", "host": "10.10.60.1",
+                                       "firmware": {"status": "none", "product": None,
+                                                    "needs_upgrade": False},
+                                       "counts": {"arp": 0, "interfaces": 0, "live": 0, "silent": 0},
+                                       "arp": [], "interfaces": [], "presence": []})
+        report = {"target": "opnsense", "outcome": "success", "collected": collected,
+                  "counts": {"aliases": 0, "rules": 0, "arp": 0, "interfaces": 0}}
+        if json_output:
+            print(json.dumps(report), file=stdout)  # type: ignore[arg-type]
+        return 0
+    monkeypatch.setattr(opnsense, "collect", opnsense_collect)
 
 
 def run(
@@ -116,6 +134,7 @@ def test_default_collection_records_matching_evidence_and_runs_remaining_once(
     assert calls == [row[1] for row in collection.REMAINING]
     assert "collect-docker.sh" not in calls
     assert "collect-dns.sh" not in calls
+    assert "collect-opnsense.sh" not in calls
     evidence = json.loads((repo / "inventory/collection-core.json").read_text())
     assert evidence["sha256"] == hashlib.sha256(
         (repo / "inventory/proxmox-core.json").read_bytes()).hexdigest()
@@ -281,6 +300,32 @@ def test_failed_dns_refresh_invalidates_status_and_retains_snapshot(
     assert status(repo, capsys) == 3
 
     monkeypatch.setattr(dns, "collect", real_collect)
+    assert run(repo, credentials, capsys)[0] == 0
+    assert status(repo, capsys) == 0
+
+
+def test_failed_opnsense_refresh_invalidates_paired_status_and_retains_both_snapshots(
+    repo: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert run(repo, credentials, capsys)[0] == 0
+    firewall = (repo / "inventory/firewall/firewall.json").read_bytes()
+    state = (repo / "inventory/opnsense.json").read_bytes()
+    real_collect = opnsense.collect
+
+    def unavailable(firewall_output: Path, state_output: Path, credentials_file: Path, *,
+                    json_output: bool, stdout: object) -> int:
+        print(json.dumps({"target": "opnsense", "outcome": "unavailable",
+                          "reason": "synthetic OPNsense timeout"}), file=stdout)  # type: ignore[arg-type]
+        return 3
+
+    monkeypatch.setattr(opnsense, "collect", unavailable)
+    assert run(repo, credentials, capsys)[0] == 3
+    assert (repo / "inventory/firewall/firewall.json").read_bytes() == firewall
+    assert (repo / "inventory/opnsense.json").read_bytes() == state
+    assert status(repo, capsys) == 3
+
+    monkeypatch.setattr(opnsense, "collect", real_collect)
     assert run(repo, credentials, capsys)[0] == 0
     assert status(repo, capsys) == 0
 
@@ -489,7 +534,7 @@ def test_signal_interrupts_reader_and_reaps_child(
         f"import json,sys\nsys.path[:] = {sys.path!r}\n"
         "from pathlib import Path\n"
         "from test_proxmox import FakeConnection, endpoint_data\n"
-        "from skynet import collection, dns, docker, pbs, proxmox\nfrom skynet.cli import main\n"
+        "from skynet import collection, dns, docker, opnsense, pbs, proxmox\nfrom skynet.cli import main\n"
         "FakeConnection.responses = endpoint_data()\n"
         "proxmox.http.client.HTTPSConnection = FakeConnection\n"
         "def pbs_collect(output, credentials_file, *, json_output, stdout):\n"
@@ -510,6 +555,13 @@ def test_signal_interrupts_reader_and_reaps_child(
         "  stdout.write(json.dumps({'target':'dns','outcome':'success','collected':data['collected']}))\n"
         "  return 0\n"
         "dns.collect = dns_collect\n"
+        "def opnsense_collect(firewall_output, state_output, credentials_file, *, json_output, stdout):\n"
+        "  c = '2026-09-09T00:00:00+00:00'\n"
+        "  proxmox.publish(firewall_output, {'collected':c,'source':'stub','host':'10.10.60.1','counts':{},'aliases':[],'rules':[],'reservations':[]})\n"
+        "  proxmox.publish(state_output, {'collected':c,'source':'stub','host':'10.10.60.1','firmware':{},'counts':{},'arp':[],'interfaces':[],'presence':[]})\n"
+        "  stdout.write(json.dumps({'target':'opnsense','outcome':'success','collected':c}))\n"
+        "  return 0\n"
+        "opnsense.collect = opnsense_collect\n"
         f"collection.REMAINING = (('slow', {reader.name!r}),)\n"
         f"args = ['collect', 'all', '--repo', {str(repo)!r}, "
         f"'--credentials-file', {str(credentials)!r}, "
@@ -721,13 +773,14 @@ def test_status_fails_closed_when_receipt_cannot_be_reaffirmed(
     ("scripts/collect-proxmox.sh", ["core"], ["collect", "proxmox", "core"]),
     ("scripts/collect-pbs.sh", [], ["collect", "pbs", "--output"]),
     ("scripts/collect-dns.sh", [], ["collect", "dns", "--output"]),
+    ("scripts/collect-opnsense.sh", [], ["collect", "opnsense", "--firewall-output"]),
 ])
 def test_default_shell_callers_use_offline_package_and_propagate_failure(
     tmp_path: Path, entry: str, args: list[str], expected: list[str],
 ) -> None:
     for relative in ("bin/ops", "bin/skynet", "scripts/collect-all.sh",
                      "scripts/render-docs.sh", "scripts/collect-proxmox.sh", "scripts/collect-pbs.sh",
-                     "scripts/collect-dns.sh"):
+                     "scripts/collect-dns.sh", "scripts/collect-opnsense.sh"):
         target = tmp_path / relative
         target.parent.mkdir(exist_ok=True)
         shutil.copy(ROOT / relative, target)
@@ -770,7 +823,7 @@ def test_bin_ops_collection_reaches_real_cli_and_core_collector(
     launcher.write_text(
         f"#!{sys.executable}\nimport sys\nsys.path[:] = {sys.path!r}\n"
         "from test_proxmox import FakeConnection, endpoint_data\n"
-        "from skynet import dns, docker, pbs, proxmox\nfrom skynet.cli import main\n"
+        "from skynet import dns, docker, opnsense, pbs, proxmox\nfrom skynet.cli import main\n"
         "FakeConnection.responses = endpoint_data()\n"
         "proxmox.http.client.HTTPSConnection = FakeConnection\n"
         "pbs.collect = lambda output, credentials_file, json_output, stdout: ("
@@ -782,6 +835,10 @@ def test_bin_ops_collection_reaches_real_cli_and_core_collector(
         "dns.collect = lambda output, credentials_file, json_output, stdout: ("
         "proxmox.publish(output, {'collected':'2026-09-09T00:00:00+00:00','host':'10.10.70.50','zones':[],'records':[]}) or "
         "stdout.write('{\\\"target\\\":\\\"dns\\\",\\\"outcome\\\":\\\"success\\\",\\\"collected\\\":\\\"2026-09-09T00:00:00+00:00\\\"}') and 0)\n"
+        "opnsense.collect = lambda firewall_output, state_output, credentials_file, json_output, stdout: ("
+        "proxmox.publish(firewall_output, {'collected':'2026-09-09T00:00:00+00:00','source':'stub','host':'10.10.60.1','counts':{},'aliases':[],'rules':[],'reservations':[]}) or "
+        "proxmox.publish(state_output, {'collected':'2026-09-09T00:00:00+00:00','source':'stub','host':'10.10.60.1','firmware':{},'counts':{},'arp':[],'interfaces':[],'presence':[]}) or "
+        "stdout.write('{\\\"target\\\":\\\"opnsense\\\",\\\"outcome\\\":\\\"success\\\",\\\"collected\\\":\\\"2026-09-09T00:00:00+00:00\\\"}') and 0)\n"
         "sys.exit(main(sys.argv[6:]))\n"
     )
     launcher.chmod(0o755)

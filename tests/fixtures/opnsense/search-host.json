@@ -1,0 +1,12 @@
+{
+  "rows": [
+    {
+      "host": "RK-W", "domain": "home.aliammar.net", "ip": "10.10.10.50",
+      "hwaddr": "9c:6b:00:7d:f3:ea", "client_id": "01:9c:6b:00:7d:f3:ea",
+      "descr": "Workstation", "aliases": "", "comments": ""
+    }
+  ],
+  "rowCount": 2000,
+  "current": 1,
+  "total": 1
+}
