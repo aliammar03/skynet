@@ -29,7 +29,7 @@ Enumeration counts: root files 10; `.claude` 1, `.codex` 4, `.githooks` 1, `.git
 | `bin/ops`; `collect-all.sh` | migrate | Thin `skynet` dispatch and explicit workflow results | Humans, runbooks, nightly | 2–9, 20 | P4a routes core and network observations through the Nix package; paired refresh evidence guards default queries/audits/rendering. Remaining orchestration stays P20 |
 | `collect-proxmox.sh`, `collect-proxmox-acl.sh` | migrate | Python read collectors; node-specific validation | collect-all, inventory gates/renderers | 3–4 | P4a leaves `collect-proxmox.sh` as a packaged-command forwarder and removes its shell API/parser. Both ACL readers remain P4b. Live behavior untested |
 | `collect-pbs.sh`, `collect-docker.sh` | migrate | Python PBS/Docker collectors | collect-all, backup/container views | 5 | P5 accepted with reviewer repairs: single Docker writer, descendant cleanup, strict required fields, truthful verification, TLS and test isolation; live reads pass |
-| `collect-dns.sh`, `collect-opnsense.sh`, `collect-firewall.sh` | migrate | Python DNS/live OPNsense collection and offline mirror parsing | collect-all, firewall/DNS views; ADR 0006 offline recovery | 6 | P6a leaves `collect-dns.sh` a forwarding shim and replaces its curl/jq/eval with `src/skynet/dns.py` (validated zones/records, receipt-bound freshness). OPNsense live/offline reads remain P6b; no new OPNsense writer. Live DNS untested |
+| `collect-dns.sh`, `collect-opnsense.sh`, `collect-firewall.sh` | migrate | Python DNS/live OPNsense collection and offline mirror parsing | collect-all, firewall/DNS views; ADR 0006 offline recovery | 6 | P6a: `collect-dns.sh` → shim + `src/skynet/dns.py`. P6b-i: `collect-opnsense.sh` → shim + `src/skynet/opnsense.py` (live, paired firewall.json + opnsense.json, receipt-bound). `collect-firewall.sh` offline parser → `src/skynet/firewall.py` remains P6b-ii. No new OPNsense writer. Live untested |
 | `collect-network-gear.sh`, `collect-certs.sh`, `collect-routes.sh`, `recon.sh` | migrate | Python observations with provenance and vantage | collect-all, recon/diagnosis runbooks | 7 | Verified callers; static declarations cannot imply live discovery |
 | `entity.sh`, `audit-entities.sh`, `build-db.sh` | migrate | Entity functions, audit, rebuildable SQLite cache | collectors/render-docs, bin/ops entities/query | 8 | Verified existing identity and join callers |
 | `scripts/sql/*.sql` | retain | SQL query definitions | bin/ops query, SQLite cache | 8 | Verified host-map/vhosts queries; adapt schema with consumers |
@@ -368,3 +368,33 @@ committed `dns-zones.json` shows the root `""` Secondary zone returning `records
 stricter contract fails; whether that needs a zone-type exclusion or query adjustment is a
 P6b/live-transition question, not resolved here. P6b (OPNsense live + offline mirror) is the
 remaining same-phase work; one fresh review covers the complete P6 after both slices merge.
+
+## Phase 6b-i implementation (slice complete; P6 in progress)
+
+From origin/main base `b7e6f6e8e1dd69f8bbe0f54d91738f9bced4a1b8` (includes P6a), P6b-i adds the
+live OPNsense collector `src/skynet/opnsense.py`, replacing `collect-opnsense.sh`. P6 was split
+further: **P6b-i = live collector** (this slice); **P6b-ii = offline config.xml mirror parser**
+(`collect-firewall.sh` → `src/skynet/firewall.py`), matching the two shell scripts. One
+`skynet collect opnsense --firewall-output <f> --state-output <f> [--credentials-file <f>] [--json]`
+run produces both paired snapshots. TLS reuses the PBS SNI-pinned transport
+(`pbs.HTTPSConnection` + `pbs._sni_from_certificate`): connect to `OPN_HOST`, present the
+certificate-derived SNI, verify against the pinned cert as CA. Basic auth key/secret stay in the
+header; fixed redacted diagnostics. Only the enumerated GETs (`core/firmware/status`,
+`firewall/alias/get`, `firewall/filter/get`, `interfaces/overview/interfacesInfo`) and read-only
+search POSTs (`firewall/filter/searchRule`, `dnsmasq/settings/searchHost`,
+`diagnostics/interface/searchArp`) are called; a search page whose `total` exceeds its rows fails.
+
+| Consumer | Preserved snapshot contract / synthetic evidence |
+|---|---|
+| `build-db.sh`, `render-docs.sh`, `audit-entities.sh` (firewall.json) | `.aliases[]` keep `name/type/content/description/enabled` (built-ins dropped, form fields resolved); `.rules[]` keep `sequence/action/protocol/interface/source_net/destination_net/destination_port/description/uuid/enabled` (configured user rules only); `.reservations[]` keep `host/domain/ip/hwaddr/…`. Added top-level `host` for the freshness check. |
+| `build-db.sh`, `render-docs.sh`, `audit-entities.sh` (opnsense.json) | `.firmware{status,product,needs_upgrade}`, `.counts{arp,interfaces,live,silent}`, `.arp[]` (`ip/mac/hostname/intf/intf_description/manufacturer/permanent/expired/expires`), `.interfaces[]` (`device/description/status/enabled/identifier`), `.presence[]` (`ip/live/via`). |
+| `collect all` / `collect-status` | Two markers (`collection-firewall.json`, `collection-opnsense.json`) bind the shared receipt and each file's hash/time; both required within 36h + nightly cutoff. A failed OPNsense read retains both files, refuses freshness, and lets remaining scoped readers continue. |
+| CLI / explicit consumer | Success 0; unavailable 3; malformed/publication failure 1; usage 2. A failed read leaves both destinations untouched. |
+
+Construction used fake HTTPS, synthetic credentials and disposable outputs only; no live OPNsense
+read, config write, credential change, timer/service, root, grant or production write occurred.
+Source rollback is `git revert`; live endpoint parity, the ops→NET_SKYNET ICMP-vantage floating
+rule, and workstation/state/payload recovery remain unverified. **P6b-ii** (offline config.xml
+parser: redact sensitive tags, retain provenance, no implicit git pull, never satisfy live
+freshness; `collect-firewall.sh` → shim) is the remaining same-phase work. One fresh review covers
+the complete P6 (P6a + P6b-i + P6b-ii) after all slices merge, before P7.

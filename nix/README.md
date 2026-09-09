@@ -97,6 +97,27 @@ SQLite and the service renderer. A non-`ok` API status, a null/missing zone list
 duplicate zone identity, a malformed required record field, timeout or trust failure is unavailable
 or failed, never an empty successful result; a validated empty record list is a real observation.
 
+`skynet collect opnsense --firewall-output <file> --state-output <file> [--credentials-file <file>]
+[--json]` is the live T1 read of OPNsense, producing two paired snapshots: the user-view firewall
+configuration (aliases, rules, reservations) and live state the git mirror cannot give (firmware,
+ARP, interfaces, declared-host presence). It uses literal `/opt/skynet-ops/secrets/opnsense.env`
+`OPN_HOST/OPN_KEY/OPN_SECRET/OPN_CACERT` (optional `OPN_PORT` default 443, `OPN_SNI`); the SNI is
+derived from the pinned certificate's SAN so a stale name cannot break trust, and the key/secret
+travel only in the Basic auth header. Only the enumerated GETs (`core/firmware/status`,
+`firewall/alias/get`, `firewall/filter/get`, `interfaces/overview/interfacesInfo`) and the
+read-only search POSTs (`firewall/filter/searchRule`, `dnsmasq/settings/searchHost`,
+`diagnostics/interface/searchArp`) are called — the recon key carries "System: Deny config write",
+so this collector only reads. Built-in aliases (`^__.*_network$`, bogons/bogonsv6/sshlockout/
+virusprot) are dropped to match the mirror's user view; rules intersect the configured `filter/get`
+UUIDs with the flat `searchRule` display fields, excluding internal/auto rules. Search pages that
+report a `total` larger than the returned rows fail as incomplete. Declared-host presence is ARP
+first, then ICMP for ARP-silent hosts from the ops vantage; `via` is explicit (`arp`, `icmp`,
+`no-arp,no-icmp`, or `no-arp,icmp-unavailable` when the probe cannot run). Both snapshots are fully
+validated before either is written; a read or validation failure leaves both files untouched, and
+the default path binds both to one receipt so neither looks fresh without the other. The offline
+mirror parser (`collect-firewall.sh` today) remains the DR rebuild-from-git source and never
+satisfies live freshness.
+
 The collector publishes atomically to the explicit destination after every required read and
 validation succeeds. Failure retains any previous snapshot and its timestamp; consumers must treat it as
 previous evidence. Collection success describes observations, not service or backup health.
@@ -106,7 +127,7 @@ data or local publication failure. Empty nodes/resources fail; empty pools/jobs/
 observations, with absent backup results represented by null fields.
 
 `bin/ops collect` forwards to `skynet collect all --repo <checkout>`, running the Python core,
-network, ACL, PBS, Docker, and DNS collectors once each before the remaining shell readers. Refresh evidence lives in
+network, ACL, PBS, Docker, DNS, and live OPNsense collectors once each before the remaining shell readers. Refresh evidence lives in
 the matching `inventory/collection-*.json` markers: an incomplete marker precedes each read, and
 success records that snapshot's exact hash/time. The nonblocking
 `.cache/collection.lock` stores one durable attempt receipt before marker publication. Status

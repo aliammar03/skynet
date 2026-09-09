@@ -310,6 +310,35 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
 
 ## 9. Status
 
+- 2026-09-09 — **P6b-i slice complete / P6 in progress.** From origin/main base
+  `b7e6f6e8e1dd69f8bbe0f54d91738f9bced4a1b8` (includes P6a #226), P6b-i adds the live OPNsense
+  collector `src/skynet/opnsense.py`, replacing `collect-opnsense.sh`. P6 was split further:
+  P6b-i is the **live** collector (this PR); **P6b-ii is the offline config.xml mirror parser**
+  (`collect-firewall.sh` → `src/skynet/firewall.py`), matching the two shell scripts. One
+  `skynet collect opnsense --firewall-output <f> --state-output <f>` run produces both paired
+  snapshots: the user-view `inventory/firewall/firewall.json` (aliases with built-ins dropped and
+  type/content resolved, rules intersecting `filter/get` UUIDs+sequence with `searchRule` fields,
+  `dnsmasq` reservations) and live `inventory/opnsense.json` (firmware, ARP, interfaces, declared-
+  host presence with explicit ARP/ICMP vantage). TLS reuses the PBS SNI-pinned transport
+  (cert-derived SNI, pinned-cert CA trust); Basic auth key/secret stay in the header with fixed
+  redacted diagnostics. Only the enumerated GETs and read-only search POSTs are called; a search
+  page whose reported `total` exceeds its rows fails as incomplete. Both snapshots are fully
+  validated before either is written, so a read/validation failure leaves both files untouched;
+  `collect all` drops opnsense from the shell `REMAINING`, publishes both under one receipt with
+  two markers (`collection-firewall.json`, `collection-opnsense.json`), and default status/query/
+  entity/render + nightly require both. `collect-opnsense.sh` → forwarding shim (P22 owns removal);
+  `collect-firewall.sh` is unchanged, owned by P6b-ii. New source/tests/fixtures joined the Nix
+  source filter, installed check and staged-hook glob. Checks: `pytest -q tests` 186 passed,
+  Ruff/mypy clean, `nix build .#checks…skynet` and `nix flake check --no-build` pass, offline
+  doctor success, disposable missing-evidence status exits 3 (now requiring both OPNsense markers).
+  Construction used synthetic credentials/transports and disposable outputs only; no live
+  OPNsense read, config write, credential change, root, grant or production write occurred. Source
+  rollback is `git revert`; live endpoint parity, the ops→NET_SKYNET ICMP-vantage rule, and
+  workstation/state/payload recovery remain unverified. Accepted progress remains **5/24**. After
+  human merge, detail only P6b-ii; obtain one fresh review of the complete numbered P6 (P6a +
+  P6b-i + P6b-ii) before P7.
+  [Raw evidence](../../journal/2026/2026-09-09-session-sky-025-p6b-opnsense-live-python-collection.md).
+
 - 2026-09-09 — **P6a slice complete / P6 in progress.** From isolated remote-main base
   `db09021802f590d79f2ab9f7c2c56064f29c0a4a` (#225), P6a replaces the Technitium shell collector
   with `skynet collect dns --output <file> [--credentials-file <file>] [--json]` in

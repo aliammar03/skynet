@@ -49,8 +49,8 @@ discard the prepared deterministic work.
    latest `main`, then creates the timestamped nightly branch. A failed fetch stops safely rather
    than producing a report against an unknown base.
 2. **Refresh inventory** — `scripts/collect-all.sh` forwards to packaged `skynet collect all`.
-   The core and network Proxmox, operate-token ACL, PBS, Docker, and Technitium DNS collectors validate and atomically publish observations plus matching
-   receipt-bound markers; the remaining
+   The core and network Proxmox, operate-token ACL, PBS, Docker, Technitium DNS, and live OPNsense collectors validate and atomically publish observations plus matching
+   receipt-bound markers (OPNsense publishes the paired firewall config + live state under two markers); the remaining
    shell readers report process exits. A failed node read retains its previous snapshot and records unavailable/failed evidence,
    while remaining T1 reads continue. Initial evidence setup failure invalidates prior success
    through the local attempt receipt and stops before reads. Each remaining reader's process
@@ -78,7 +78,7 @@ discard the prepared deterministic work.
 
 - Confirm the PR contains only the expected generated/encrypted paths, the current raw journal entry
   appears in the digest, the deterministic merge gate reports its decision, and anomalies are visible.
-- Run `bin/skynet collect-status --repo .` before interpreting Proxmox, PBS, Docker or DNS observations; markers
+- Run `bin/skynet collect-status --repo .` before interpreting Proxmox, PBS, Docker, DNS or OPNsense observations; markers
   alone cannot establish freshness without their matching durable local receipt. The optional
   narrative must label retained snapshots/pages as previous evidence when that refresh failed.
   Collection freshness does not establish service health for the remaining shell readers.

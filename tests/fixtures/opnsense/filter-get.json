@@ -1,0 +1,10 @@
+{
+  "filter": {
+    "rules": {
+      "rule": {
+        "uuid-rule-dns": {"sequence": "100", "action": "pass"},
+        "uuid-rule-web": {"sequence": "110", "action": "pass"}
+      }
+    }
+  }
+}

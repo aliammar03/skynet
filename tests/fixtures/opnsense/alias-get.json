@@ -1,0 +1,54 @@
+{
+  "alias": {
+    "aliases": {
+      "alias": {
+        "uuid-admin": {
+          "enabled": "1",
+          "name": "HOST_ADMIN_WORKSTATION",
+          "type": {
+            "host": {"value": "Host(s)", "selected": 1},
+            "network": {"value": "Network(s)", "selected": 0}
+          },
+          "content": {
+            "10.10.10.50": {"value": "10.10.10.50", "selected": 1}
+          },
+          "description": "Primary trusted workstation."
+        },
+        "uuid-switches": {
+          "enabled": "1",
+          "name": "ROLE_INFRASTRUCTURE_SWITCHES",
+          "type": {
+            "host": {"value": "Host(s)", "selected": 1},
+            "network": {"value": "Network(s)", "selected": 0}
+          },
+          "content": {
+            "10.10.50.2": {"value": "10.10.50.2", "selected": 1},
+            "10.10.50.3": {"value": "10.10.50.3", "selected": 1}
+          },
+          "description": "Managed switches."
+        },
+        "uuid-net": {
+          "enabled": "1",
+          "name": "NET_SKYNET",
+          "type": "network",
+          "content": "10.10.0.0/16",
+          "description": "Skynet supernet."
+        },
+        "uuid-builtin-iface": {
+          "enabled": "1",
+          "name": "__lan_network",
+          "type": {"network": {"value": "Network(s)", "selected": 1}},
+          "content": {"lan": {"value": "lan", "selected": 1}},
+          "description": "auto interface alias"
+        },
+        "uuid-builtin-bogons": {
+          "enabled": "1",
+          "name": "bogons",
+          "type": {"external": {"value": "External", "selected": 1}},
+          "content": "",
+          "description": "built-in bogons"
+        }
+      }
+    }
+  }
+}
