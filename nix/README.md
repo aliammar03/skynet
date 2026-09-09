@@ -135,8 +135,17 @@ Exit codes: 0 success, 2 usage error, 3 unavailable credentials/CA/remote eviden
 data or local publication failure. Empty nodes/resources fail; empty pools/jobs/tasks are valid
 observations, with absent backup results represented by null fields.
 
+`skynet collect omada --output <file> [--credentials-file <file>] [--json]` is the T1 read of
+the Omada controller through its Viewer account. It parses literal `OMADA_HOST`, `OMADA_PORT`,
+`OMADA_SNI`, `OMADA_USER`, `OMADA_PASS`, and `OMADA_CACERT` assignments without shell evaluation,
+uses pinned-CA HTTPS, and keeps the password, cookie and CSRF token in memory. The allowlist is
+`/api/info`, one login POST, and authenticated site/device/switch-port GETs. Every site page,
+device list and switch-port list is validated before the legacy network-gear snapshot is atomically
+published; non-switch devices have `ports: null`, while a missing switch-port response fails the
+refresh. Default collection binds its snapshot hash/time to `collection-network-gear.json`.
+
 `bin/ops collect` forwards to `skynet collect all --repo <checkout>`, running the Python core,
-network, ACL, PBS, Docker, DNS, and live OPNsense collectors once each before the remaining shell readers. Refresh evidence lives in
+network, ACL, PBS, Docker, DNS, live OPNsense, and Omada collectors once each before the remaining shell readers. Refresh evidence lives in
 the matching `inventory/collection-*.json` markers: an incomplete marker precedes each read, and
 success records that snapshot's exact hash/time. The nonblocking
 `.cache/collection.lock` stores one durable attempt receipt before marker publication. Status
@@ -158,7 +167,7 @@ After operator verification that the reader processes are gone, clear that recei
 collection lock and run a complete refresh. Do not delete the lock file while a process holds it.
 
 `skynet collect-status --repo <checkout> [--since <timestamp>] [--json]` requires matching
-successful core and network observations, operate-token ACL, PBS, and Docker evidence no older than 36 hours,
+successful core and network observations, operate-token ACL, PBS, Docker, DNS, live OPNsense, and Omada evidence no older than 36 hours,
 with timezone-aware timestamps.
 Missing, failed, future, stale or mismatched evidence exits 3. Default factual rendering and
 `bin/ops query|entities` require this check. Nightly sets `SKYNET_COLLECTION_SINCE` so a prior

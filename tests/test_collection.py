@@ -16,7 +16,7 @@ import pytest
 from test_proxmox import (FakeConnection, NETWORK_OPERATE_TOKEN, NETWORK_TOKEN, OPERATE_TOKEN,
                           network_endpoint_data, TOKEN)
 from skynet.cli import main
-from skynet import collection, dns, docker, opnsense, pbs, proxmox
+from skynet import collection, dns, docker, omada, opnsense, pbs, proxmox
 
 ROOT = Path(__file__).parents[1]
 pytest_plugins = ["test_proxmox"]
@@ -92,6 +92,17 @@ def pbs_observation(monkeypatch: pytest.MonkeyPatch) -> None:
             print(json.dumps(report), file=stdout)  # type: ignore[arg-type]
         return 0
     monkeypatch.setattr(opnsense, "collect", opnsense_collect)
+    def omada_collect(output: Path, credentials_file: Path, *, json_output: bool, stdout: object) -> int:
+        data = {"collected": datetime.now(UTC).isoformat(timespec="seconds"), "host": "omada.test",
+                "controller": {"host": "omada.test", "version": "1.0", "omadacId": "abc"},
+                "sites": [], "devices": []}
+        proxmox.publish(output, data)
+        report = {"target": "network-gear", "outcome": "success", "collected": data["collected"],
+                  "counts": {"sites": 0, "devices": 0}}
+        if json_output:
+            print(json.dumps(report), file=stdout)  # type: ignore[arg-type]
+        return 0
+    monkeypatch.setattr(omada, "collect", omada_collect)
 
 
 def run(
@@ -332,9 +343,10 @@ def test_failed_opnsense_refresh_invalidates_paired_status_and_retains_both_snap
 
 @pytest.mark.parametrize("marker_name", [
     "collection-dns.json", "collection-firewall.json", "collection-opnsense.json",
+    "collection-network-gear.json",
 ])
 @pytest.mark.parametrize("failed_write", [1, 2])
-def test_p6_marker_failure_refuses_freshness_and_recovers(
+def test_migrated_marker_failure_refuses_freshness_and_recovers(
     repo: Path, credentials: Path, transport: type[FakeConnection],
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
     marker_name: str, failed_write: int,
@@ -579,7 +591,7 @@ def test_signal_interrupts_reader_and_reaps_child(
         f"import json,sys\nsys.path[:] = {sys.path!r}\n"
         "from pathlib import Path\n"
         "from test_proxmox import FakeConnection, endpoint_data\n"
-        "from skynet import collection, dns, docker, opnsense, pbs, proxmox\nfrom skynet.cli import main\n"
+        "from skynet import collection, dns, docker, omada, opnsense, pbs, proxmox\nfrom skynet.cli import main\n"
         "FakeConnection.responses = endpoint_data()\n"
         "proxmox.http.client.HTTPSConnection = FakeConnection\n"
         "def pbs_collect(output, credentials_file, *, json_output, stdout):\n"
@@ -607,6 +619,12 @@ def test_signal_interrupts_reader_and_reaps_child(
         "  stdout.write(json.dumps({'target':'opnsense','outcome':'success','collected':c}))\n"
         "  return 0\n"
         "opnsense.collect = opnsense_collect\n"
+        "def omada_collect(output, credentials_file, *, json_output, stdout):\n"
+        "  c = '2026-09-09T00:00:00+00:00'\n"
+        "  proxmox.publish(output, {'collected':c,'host':'omada.test','controller':{},'sites':[],'devices':[]})\n"
+        "  stdout.write(json.dumps({'target':'network-gear','outcome':'success','collected':c}))\n"
+        "  return 0\n"
+        "omada.collect = omada_collect\n"
         f"collection.REMAINING = (('slow', {reader.name!r}),)\n"
         f"args = ['collect', 'all', '--repo', {str(repo)!r}, "
         f"'--credentials-file', {str(credentials)!r}, "
@@ -868,7 +886,7 @@ def test_bin_ops_collection_reaches_real_cli_and_core_collector(
     launcher.write_text(
         f"#!{sys.executable}\nimport sys\nsys.path[:] = {sys.path!r}\n"
         "from test_proxmox import FakeConnection, endpoint_data\n"
-        "from skynet import dns, docker, opnsense, pbs, proxmox\nfrom skynet.cli import main\n"
+        "from skynet import dns, docker, omada, opnsense, pbs, proxmox\nfrom skynet.cli import main\n"
         "FakeConnection.responses = endpoint_data()\n"
         "proxmox.http.client.HTTPSConnection = FakeConnection\n"
         "pbs.collect = lambda output, credentials_file, json_output, stdout: ("
@@ -884,6 +902,9 @@ def test_bin_ops_collection_reaches_real_cli_and_core_collector(
         "proxmox.publish(firewall_output, {'collected':'2026-09-09T00:00:00+00:00','source':'stub','host':'10.10.60.1','counts':{},'aliases':[],'rules':[],'reservations':[]}) or "
         "proxmox.publish(state_output, {'collected':'2026-09-09T00:00:00+00:00','source':'stub','host':'10.10.60.1','firmware':{},'counts':{},'arp':[],'interfaces':[],'presence':[]}) or "
         "stdout.write('{\\\"target\\\":\\\"opnsense\\\",\\\"outcome\\\":\\\"success\\\",\\\"collected\\\":\\\"2026-09-09T00:00:00+00:00\\\"}') and 0)\n"
+        "omada.collect = lambda output, credentials_file, json_output, stdout: ("
+        "proxmox.publish(output, {'collected':'2026-09-09T00:00:00+00:00','host':'omada.test','controller':{},'sites':[],'devices':[]}) or "
+        "stdout.write('{\\\"target\\\":\\\"network-gear\\\",\\\"outcome\\\":\\\"success\\\",\\\"collected\\\":\\\"2026-09-09T00:00:00+00:00\\\"}') and 0)\n"
         "sys.exit(main(sys.argv[6:]))\n"
     )
     launcher.chmod(0o755)

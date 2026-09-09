@@ -27,7 +27,7 @@ hand-maintained:
 
 `inventory/` and `docs/generated/` are **machine-owned — never hand-edited** (a constitution
 invariant). Default rendering requires matching successful core and network observation, ACL, PBS,
-Docker, DNS, and paired live OPNsense evidence no
+Docker, DNS, paired live OPNsense, and Omada evidence no
 older than 36 hours and one matching local attempt receipt; the nightly additionally requires an
 attempt from its current pass. Missing or unwritable receipt storage is unavailable. A failed node
 refresh leaves that snapshot and prior pages intact and records a failure, rather than refreshing their
@@ -42,7 +42,9 @@ a publication failure can leave a partial pair, which the freshness gate refuses
 blessed fresh without the other, and
 declared-host presence records an explicit ARP/ICMP vantage. The live OPNsense API is the sole
 firewall inventory source; the `config.xml` git backup is kept only as disaster-recovery material
-(restored as configuration, not parsed into inventory). The remaining shell readers retain their
+(restored as configuration, not parsed into inventory). Omada's Viewer-only HTTPS reads validate
+the controller, sites, device and required switch-port responses before its legacy network-gear
+schema is atomically replaced and receipt-bound. The remaining shell readers retain their
 existing evidence limitations. Collection timestamps
 describe observations, not live service-health verification.
 Failed initial marker publication also invalidates previous success for default queries and

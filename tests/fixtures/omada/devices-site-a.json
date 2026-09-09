@@ -1,0 +1,35 @@
+{
+  "errorCode": 0,
+  "result": [
+    {
+      "type": "switch",
+      "name": "Ali’s Switch",
+      "model": "SG3428X",
+      "mac": "AA:BB:CC:DD:EE:01",
+      "ip": "10.10.50.2",
+      "firmwareVersion": "1.0.7",
+      "needUpgrade": true,
+      "statusCategory": 1,
+      "uptimeLong": 86400,
+      "clientNum": 12,
+      "poeSupport": true,
+      "poeRemain": 83.5,
+      "poeTotalPower": 192
+    },
+    {
+      "type": "ap",
+      "name": "Lobby AP",
+      "model": "EAP660 HD",
+      "mac": "AA:BB:CC:DD:EE:02",
+      "ip": "10.10.50.3",
+      "version": "1.2.3",
+      "needUpgrade": false,
+      "statusCategory": 1,
+      "uptime": 321,
+      "clientNum": 7,
+      "poeSupport": true,
+      "poeRemain": 15,
+      "poeTotalPower": 30
+    }
+  ]
+}
