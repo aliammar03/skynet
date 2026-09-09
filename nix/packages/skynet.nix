@@ -14,10 +14,12 @@ let
       (root + "/tests/test_docker.py")
       (root + "/tests/test_dns.py")
       (root + "/tests/test_opnsense.py")
+      (root + "/tests/test_firewall.py")
       (root + "/tests/fixtures/proxmox")
       (root + "/tests/fixtures/pbs")
       (root + "/tests/fixtures/dns")
       (root + "/tests/fixtures/opnsense")
+      (root + "/tests/fixtures/firewall")
       (root + "/bin/ops")
       (root + "/bin/skynet")
       (root + "/scripts/collect-all.sh")
@@ -26,6 +28,7 @@ let
       (root + "/scripts/collect-docker.sh")
       (root + "/scripts/collect-dns.sh")
       (root + "/scripts/collect-opnsense.sh")
+      (root + "/scripts/collect-firewall.sh")
       (root + "/scripts/render-docs.sh")
     ];
   };

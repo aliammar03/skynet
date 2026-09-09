@@ -29,7 +29,7 @@ Enumeration counts: root files 10; `.claude` 1, `.codex` 4, `.githooks` 1, `.git
 | `bin/ops`; `collect-all.sh` | migrate | Thin `skynet` dispatch and explicit workflow results | Humans, runbooks, nightly | 2–9, 20 | P4a routes core and network observations through the Nix package; paired refresh evidence guards default queries/audits/rendering. Remaining orchestration stays P20 |
 | `collect-proxmox.sh`, `collect-proxmox-acl.sh` | migrate | Python read collectors; node-specific validation | collect-all, inventory gates/renderers | 3–4 | P4a leaves `collect-proxmox.sh` as a packaged-command forwarder and removes its shell API/parser. Both ACL readers remain P4b. Live behavior untested |
 | `collect-pbs.sh`, `collect-docker.sh` | migrate | Python PBS/Docker collectors | collect-all, backup/container views | 5 | P5 accepted with reviewer repairs: single Docker writer, descendant cleanup, strict required fields, truthful verification, TLS and test isolation; live reads pass |
-| `collect-dns.sh`, `collect-opnsense.sh`, `collect-firewall.sh` | migrate | Python DNS/live OPNsense collection and offline mirror parsing | collect-all, firewall/DNS views; ADR 0006 offline recovery | 6 | P6a: `collect-dns.sh` → shim + `src/skynet/dns.py`. P6b-i: `collect-opnsense.sh` → shim + `src/skynet/opnsense.py` (live, paired firewall.json + opnsense.json, receipt-bound). `collect-firewall.sh` offline parser → `src/skynet/firewall.py` remains P6b-ii. No new OPNsense writer. Live untested |
+| `collect-dns.sh`, `collect-opnsense.sh`, `collect-firewall.sh` | migrate | Python DNS/live OPNsense collection and offline mirror parsing | collect-all, firewall/DNS views; ADR 0006 offline recovery | 6 | P6a: `collect-dns.sh` → shim + `src/skynet/dns.py`. P6b-i: `collect-opnsense.sh` → shim + `src/skynet/opnsense.py` (live, paired firewall.json + opnsense.json, receipt-bound). P6b-ii: `collect-firewall.sh` → shim + `src/skynet/firewall.py` (offline config.xml parse, redacted, no marker, never live-fresh). No new OPNsense writer. Live untested |
 | `collect-network-gear.sh`, `collect-certs.sh`, `collect-routes.sh`, `recon.sh` | migrate | Python observations with provenance and vantage | collect-all, recon/diagnosis runbooks | 7 | Verified callers; static declarations cannot imply live discovery |
 | `entity.sh`, `audit-entities.sh`, `build-db.sh` | migrate | Entity functions, audit, rebuildable SQLite cache | collectors/render-docs, bin/ops entities/query | 8 | Verified existing identity and join callers |
 | `scripts/sql/*.sql` | retain | SQL query definitions | bin/ops query, SQLite cache | 8 | Verified host-map/vhosts queries; adapt schema with consumers |
@@ -398,3 +398,29 @@ rule, and workstation/state/payload recovery remain unverified. **P6b-ii** (offl
 parser: redact sensitive tags, retain provenance, no implicit git pull, never satisfy live
 freshness; `collect-firewall.sh` → shim) is the remaining same-phase work. One fresh review covers
 the complete P6 (P6a + P6b-i + P6b-ii) after all slices merge, before P7.
+
+## Phase 6b-ii implementation (slice complete; P6 fully sliced)
+
+From origin/main base `b7e6f6e8e1dd69f8bbe0f54d91738f9bced4a1b8` (P6a; P6b-i #227 not yet merged),
+P6b-ii adds the offline OPNsense mirror parser `src/skynet/firewall.py`, replacing
+`collect-firewall.sh`. It parses the git-mirrored `config.xml` into the firewall.json
+aliases/rules/reservations shape for DR rebuild — root tag `opnsense` required; aliases from the
+modern or legacy path; rules merging legacy `./filter/rule` with the modern plugin path;
+reservations from Kea/dhcpd/dnsmasq. Every sensitive-looking child tag is dropped (defense in depth
+for a git-committed inventory). It does no network or git operation (no implicit pull) and writes
+no receipt-bound marker, and emits no `host`, so an offline parse never satisfies the default
+freshness contract. CLI `skynet collect firewall --output <f> [--config <path>] [--json]`;
+`collect-firewall.sh` is a forwarding shim; it is not wired into `collect all`.
+
+| Consumer | Preserved contract / evidence |
+|---|---|
+| `build-db.sh`, `render-docs.sh`, `audit-entities.sh` | Same firewall.json fields (aliases `name/type/content/description/enabled`, rules, reservations) as the live collector, so DR-rebuilt config feeds the existing joins/renderers. |
+| `collect-status` | Offline output carries no `host` and no marker, so it is always reported unavailable — a DR parse is never live-fresh. |
+| CLI / explicit consumer | Success 0; unavailable 3 (missing mirror); failure 1 (malformed XML / unexpected root / publication); failure retains prior bytes. |
+
+**Base/merge note:** the repo squash-merges, so P6b-ii is based on main (not the P6b-i branch) to
+avoid stranding; #228 shares `cli.py`, the Nix source filter, and the pre-commit glob with #227 and
+needs a trivial additive rebase onto main after #227 merges. Merge order: P6b-i (#227) then
+P6b-ii (#228). Construction used a synthetic config.xml and disposable outputs only; no live/mirror
+read, git operation, or production write occurred. P6 is now fully sliced (P6a + P6b-i + P6b-ii);
+one fresh review covers the complete numbered P6 after all three merge, before P7.

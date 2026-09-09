@@ -339,6 +339,29 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
   P6b-i + P6b-ii) before P7.
   [Raw evidence](../../journal/2026/2026-09-09-session-sky-025-p6b-opnsense-live-python-collection.md).
 
+- 2026-09-09 — **P6b-ii slice complete / P6 in progress (P6 now fully sliced).** From origin/main
+  base `b7e6f6e8e1dd69f8bbe0f54d91738f9bced4a1b8` (P6a; P6b-i #227 not yet merged), P6b-ii adds the
+  offline OPNsense mirror parser `src/skynet/firewall.py`, replacing `collect-firewall.sh`. It parses
+  the git-mirrored `config.xml` into the firewall.json aliases/rules/reservations shape for DR
+  rebuild: no network or git operation (the operator refreshes the mirror first — no implicit pull),
+  every sensitive-looking child tag dropped whether or not populated, and **no receipt-bound marker
+  and no `host` field**, so an offline parse can never satisfy the default freshness contract
+  (`collect-status` still reports it unavailable). A missing mirror is unavailable (3); malformed XML
+  or an unexpected root fails (1); both retain prior bytes. CLI `skynet collect firewall
+  --output <f> [--config <path>] [--json]`; `collect-firewall.sh` → forwarding shim; it is NOT wired
+  into `collect all`. New source/tests/fixtures joined the Nix source filter, installed check and
+  staged-hook glob. Checks: `pytest -q tests` 173 passed (this branch lacks P6b-i's opnsense tests),
+  Ruff/mypy clean, `nix build .#checks…skynet` and `nix flake check --no-build` pass, offline doctor
+  success, a real offline parse of the fixture returns counts {2,1,1} with no `host`.
+  **Base/merge note:** the repo squash-merges, so P6b-ii is based on main (not the P6b-i branch) to
+  avoid stranding; #228 shares three files with #227 (`cli.py`, the Nix source filter, the
+  pre-commit glob) and needs a trivial additive rebase onto main after #227 merges. Merge order:
+  P6b-i (#227) then P6b-ii (#228). Construction used a synthetic config.xml and disposable outputs
+  only; no live/mirror read, git operation, or production write occurred. Source rollback is
+  `git revert`. Accepted progress remains **5/24**. After all three P6 slices merge (P6a #226,
+  P6b-i #227, P6b-ii #228), obtain one fresh review of the complete numbered P6 before P7.
+  [Raw evidence](../../journal/2026/2026-09-09-session-sky-025-p6b-ii-opnsense-offline-mirror-parser.md).
+
 - 2026-09-09 — **P6a slice complete / P6 in progress.** From isolated remote-main base
   `db09021802f590d79f2ab9f7c2c56064f29c0a4a` (#225), P6a replaces the Technitium shell collector
   with `skynet collect dns --output <file> [--credentials-file <file>] [--json]` in
