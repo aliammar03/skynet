@@ -100,7 +100,8 @@ def run(target: str, *, json_output: bool, stdout: TextIO) -> int:
         print(json.dumps(report) if json_output else "recon: unavailable", file=stdout)
         return 3
     if json_output:
-        print(json.dumps({**metadata, "sections": dict(sections)}), file=stdout)
+        print(json.dumps({"target": "recon", "outcome": "success", **metadata,
+                          "sections": dict(sections)}), file=stdout)
     else:
         print(f"# recon: {metadata['host']}\ncollected: {metadata['collected']}   as: {metadata['as']}",
               file=stdout)
