@@ -40,6 +40,7 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 **Explicit durable follow-ups:**
 
+- P7c must be human-merged, then a fresh review covers P7a #235, P7b #236 and this P7c PR. Accepted progress remains 6/24 until that reviewer accepts the complete numbered phase. — _2026-09-09 session_
 - P7b must be human-merged before the lead details P7c recon. P7 remains unaccepted at 6/24; P7c and the independent merged-result review are still required. — _2026-09-09 session_
 - P7b certificate probes and static Caddy route parsing remain the next same-phase slice after this authored PR is human-merged; P7c recon then follows. P7 has no independent acceptance until every slice is merged and reviewed together. — _2026-09-09 session_
 - Live Omada authentication/read, production inventory replacement, timer/service activation, credential/pin change and recovery checks remain unperformed. — _2026-09-09 session_
@@ -47,17 +48,16 @@ follow a link for the full story; distill episodes at read time, never in this f
 - **Accepted SKY-025 progress is 6/24**; P7 has not started — never advance a numbered phase without its independent acceptance. — _2026-09-09 session_
 - **Offline `config.xml` firewall inventory parsing is retired** (P6c): the live OPNsense API (`src/skynet/opnsense.py`) is the sole firewall inventory source, and the `config.xml` git backup is DR-only — restored as configuration into OPNsense, never parsed into inventory. — _2026-09-09 session_
 - **Five paused documentation suites** (obsidian-hygiene, documentation-drift, temporal-hygiene, repo-surface, hygiene) remain manual during the overhaul; P24 must restore them to hook + CI. — _2026-09-09 session_
-- **Workstation/state/payload recovery and live endpoint parity remain unverified** across the overhaul; live transitions still need their existing grant/checkpoint. — _2026-09-09 session_
 
 ## 📓 Recent episodes
 
+- **2026-09-09** · incident · [[2026-09-09-incident-sky-025-p7c-shell-only-unavailable-path|SKY-025 P7c shell-only unavailable path]]
+- **2026-09-09** · session · [[2026-09-09-session-sky-025-p7c-bounded-python-reconnaissance|SKY-025 P7c bounded Python reconnaissance]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p7b-certificate-and-static-route-observations|SKY-025 P7b certificate and static route observations]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p7a-omada-python-collection|SKY-025 P7a Omada Python collection]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p6c-digest-supersede-stale-await-merge-follow-up|sky-025 p6c digest supersede stale await-merge follow-up]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p6c-review-fix-regenerate-stale-agent-and-planning-context|sky-025 p6c review-fix regenerate stale agent and planning context]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p6c-remove-offline-firewall-inventory-path|sky-025 p6c remove offline firewall inventory path]]
-- **2026-09-09** · session · [[2026-09-09-session-sky-025-p6-combined-review-and-live-reads|SKY-025 P6 combined review and live reads]]
-- **2026-09-09** · session · [[2026-09-09-session-sky-025-p6b-ii-opnsense-offline-mirror-parser|sky-025-p6b-ii-opnsense-offline-mirror-parser]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._

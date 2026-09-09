@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import NoReturn
 
-from skynet import certs, installed_version, omada, routes
+from skynet import certs, installed_version, omada, recon, routes
 from skynet.collection import collect_all, collection_status
 from skynet.dns import DEFAULT_CREDENTIALS as DNS_DEFAULT_CREDENTIALS, collect as collect_dns
 from skynet.doctor import write_report
@@ -121,6 +121,10 @@ def build_parser() -> argparse.ArgumentParser:
                                help="explicit snapshot destination; publish only on complete success")
     route_inventory.add_argument("--json", action="store_true", dest="json_output",
                                help="write one collection outcome object as JSON")
+    recon_command = commands.add_parser("recon", help="take a bounded T1 host snapshot")
+    recon_command.add_argument("target", nargs="?", default="local",
+                               help="local or a bare hostname/IP reached as unprivileged svc-ops")
+    recon_command.add_argument("--json", action="store_true", dest="json_output")
     status = commands.add_parser("collect-status", help="require fresh successful inventory observations")
     status.add_argument("--repo", type=Path, required=True)
     status.add_argument("--since", default=os.environ.get("SKYNET_COLLECTION_SINCE"),
@@ -169,6 +173,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if arguments.command == "collect-status":
         return collection_status(arguments.repo, since=arguments.since,
                                  json_output=arguments.json_output, stdout=sys.stdout)
+    if arguments.command == "recon":
+        return recon.run(arguments.target, json_output=arguments.json_output, stdout=sys.stdout)
     return _unreachable_command(arguments.command)
 
 

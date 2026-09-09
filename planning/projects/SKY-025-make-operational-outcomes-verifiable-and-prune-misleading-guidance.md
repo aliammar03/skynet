@@ -287,6 +287,38 @@ it must not access endpoints, credentials or production. Lead owns integration a
 **Close-out:** P7b slice-complete / P7 in progress, accepted progress still 6/24; after human
 merge detail P7c only.
 
+## 5c. Phase 7c — bounded local and unprivileged-SSH reconnaissance (~1–2h)
+
+**Release gate:** P7b is merged as [#236](https://github.com/aliammar03/skynet/pull/236) at
+`e45b8132f3fe1e9637a2a8846de1258cb234dac8`. **Lead:** Terra High (`gpt-5.6-terra`, high).
+
+**Goal and surfaces:** replace `scripts/recon.sh` with `src/skynet/recon.py`, `skynet recon
+[target] [--json]`, a forwarding shim, synthetic tests/fixtures and Nix/hook inputs. Update only
+the recon runbook and P7 evidence. The result is one bounded T1 snapshot, not a health assertion,
+daemon, scheduler, entity rewrite, or remote command framework.
+
+**Contracts:** local uses a fixed probe through `bash -s`. A remote target is a bare hostname or IP
+only and is always invoked as `svc-ops@<target>` with an argument-array SSH command, BatchMode and
+a bounded connect timeout; explicit users/options, root and grant use are rejected. The fixed probe
+contains read-only host, pressure, disk/inode, failed-unit, socket, unprivileged Docker, journal,
+configuration and package observations. Each probe is bounded; partial sections are preserved.
+It returns either a structured JSON snapshot or Markdown from the same marker stream. Transport,
+timeout, malformed/empty marker stream and rejected target are unavailable (exit 3), never a
+successful snapshot. No credentials, inventory output, remote write, service/timer change or root
+action exists in this packet.
+
+**Checks:** fake subprocess tests cover local and remote argument construction, forced `svc-ops`,
+target rejection, timeout/unavailable, malformed markers, partial sections, JSON/Markdown and shim
+forwarding; run pytest, Ruff, mypy, package, flake, doctor, staged hook and diff check. The five
+paused documentation suites remain manual. Ali's earlier phase-wide live authorization permits one
+local and one `docker-dmz` unprivileged read from this isolated checkout; neither result updates
+production inventory. Rollback is `git revert`.
+
+**Optional Luna work:** one Luna High builder owns only recon tests/fixtures; no endpoint, SSH,
+credential or production access. **Close-out:** P7c slice-complete / P7 review pending, accepted
+progress still 6/24. After all P7 PRs are merged, start a fresh review task: `Read
+planning/prompts/review.md and review SKY-025 implementation PR <P7c URL>, plus #235 and #236.`
+
 
 ## 6. Carry forward the original review as acceptance cases
 
@@ -354,6 +386,18 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
 ```
 
 ## 9. Status
+
+- 2026-09-09 — **P7c slice complete — bounded Python reconnaissance.** From remote-main base
+  `e45b8132f3fe1e9637a2a8846de1258cb234dac8`, `skynet recon [target] [--json]` replaces the shell
+  implementation with a fixed read-only marker probe. Local is explicit; remote targets are bare
+  hostname/IP inputs forced to `svc-ops@<target>` through argument-array SSH with BatchMode and a
+  connect timeout. Invalid target, transport/timeout, malformed or truncated marker streams return
+  unavailable; command-level partial output remains visible inside complete snapshots. Synthetic
+  source/installed checks pass (249 tests, Ruff, mypy and package checks). The authorized isolated
+  T1 pass succeeded locally and at `docker-dmz`, each with all nine snapshot sections. No inventory,
+  credential, grant/root, remote write, timer/service or activation state changed. **All P7 slices
+  are now implementation-complete; P7 is review pending and accepted progress remains 6/24.** After
+  this PR is human-merged, a fresh reviewer must review #235, #236 and this PR together before P8.
 
 - 2026-09-09 — **P7b slice complete — certificate and static-route observations.** From
   remote-main base `b173e74142f6e57635a6b4f2a2e64b48800f2974`, `skynet collect certs` observes the
