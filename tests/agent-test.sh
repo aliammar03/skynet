@@ -56,7 +56,9 @@ assert_resolution "scout"    scout    luna  gpt-5.6-luna  medium read-only
 assert_resolution "Astra lead" lead astra gpt-6-astra medium workspace-write --tier astra
 assert_resolution "Terra lead" lead terra gpt-5.6-terra high workspace-write --tier terra
 assert_resolution "Sol lead" lead sol gpt-5.6-sol low workspace-write --tier sol
-assert_resolution "review" review astra gpt-6-astra medium workspace-write
+assert_resolution "review" review selected default default workspace-write
+review_out="$(bin/agent review noop --dry-run 2>&1)"
+rc "review inherits harness model and effort" 0 bash -c '! [[ "$1" == *--model* || "$1" == *model_reasoning_effort* ]]' _ "${review_out}"
 
 echo "== bin/agent: invalid role options =="
 rc "builder --hard fails (lead-only)" 1 bin/agent builder noop --hard --dry-run
@@ -69,8 +71,9 @@ rc "missing tier fails" 1 bin/agent lead noop --tier
 rc "obsolete hard flag fails" 1 bin/agent lead noop --hard --dry-run
 
 echo "== bin/agent: explicit model override and native worker parity =="
-override_out="$(AGENT_MODEL_ASTRA=verified-astra bin/agent review noop --dry-run 2>&1)"
-assert_contains "explicit override is visible" "${override_out}" "model=verified-astra"
+override_out="$(AGENT_REVIEW_MODEL=selected-model AGENT_REVIEW_EFFORT=high bin/agent review noop --dry-run 2>&1)"
+assert_contains "explicit override is visible" "${override_out}" "model=selected-model"
+assert_contains "review effort override is visible" "${override_out}" "effort=high"
 for native_role in builder mechanic scout; do
   native_model="$(sed -n 's/^model = "\([^"]*\)"/\1/p' ".codex/agents/${native_role}.toml")"
   native_effort="$(sed -n 's/^model_reasoning_effort = "\([^"]*\)"/\1/p' ".codex/agents/${native_role}.toml")"

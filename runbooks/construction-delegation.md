@@ -27,7 +27,7 @@ rollback: "git revert accepted repository changes"
    ```
    `--cwd` is permitted only for an exact registered Skynet worktree. A helper report is not a merge signal.
 5. **Integrate.** Re-read cited evidence, inspect each full writer diff, run the declared tests yourself, and make any necessary integration edits. The lead owns the resulting PR.
-6. **Preserve continuity.** For a job crossing sessions, keep the compact ignored `.agent/CHECKPOINT.md`; delete it after durable facts move to their actual home. After human merge, use a fresh Astra Medium session for independent review and next-packet planning as required by the directive.
+6. **Preserve continuity.** For a job crossing sessions, keep the compact ignored `.agent/CHECKPOINT.md`; delete it after durable facts move to their actual home. After human merge, use a fresh session with the selected model for independent review and next-packet planning as required by the directive.
 
 ## Verify
 

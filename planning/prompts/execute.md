@@ -45,7 +45,7 @@ Why and changes: <problem, implemented behavior, affected callers/docs>
 Exit evidence: <each criterion → command/result or explicit gap>
 Limitations: <unverified checks, temporary breakage, recovery/live boundaries>
 Review status: full phase complete / review pending, or slice complete / phase in progress (or incomplete; remaining exits)
-Handoff for a complete numbered phase: after Ali merges all phase PRs, start a fresh Astra Medium task:
+Handoff for a complete numbered phase: after Ali merges all phase PRs, start a fresh review task with the selected model:
 Read planning/prompts/review.md and review SKY-025 implementation PR <this PR URL>.
 For fixes, also review original implementation PR <URL> and earlier fix PRs <URLs>.
 ```

@@ -6,9 +6,9 @@ summary: "SKY-025 subsystem dispositions, external callers, output contracts, an
 
 Owned by [the directive](projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md).
 Baseline: `670f06cfa75ca95a9eac7fdb1d3eb3544272ff1a` (remote main, 2026-09-07).
-Current accepted progress: **P4 / 4 of 24**, reviewed at
-`29b3af942968953a470c9f6d7a06a5c29ca3f8ec` on 2026-09-09. The directive's §5 releases only
-P5a PBS, followed by same-phase Docker continuation and one complete P5 review. Earlier phase
+Current accepted progress: **P5 / 5 of 24**, effective at human merge of the reviewer repairs.
+Reviewed main is `e09a8fc220d610cf6c5d60ac5471cdf0d67bcbe3`; the directive's latest §9 records
+**ACCEPT including verified repairs** and §5 releases only P6a DNS after merge. Earlier phase
 evidence below is historical; the latest directive verdict owns current acceptance.
 Phase 1 is accepted at G1; Phase 2 is accepted at `17db700c22cb17ad219655674eada344c215029a`. Its local package
 is built only in the isolated checkout and is not installed or activated on any lab host. This map
@@ -28,7 +28,7 @@ Enumeration counts: root files 10; `.claude` 1, `.codex` 4, `.githooks` 1, `.git
 |---|---|---|---|---|---|
 | `bin/ops`; `collect-all.sh` | migrate | Thin `skynet` dispatch and explicit workflow results | Humans, runbooks, nightly | 2–9, 20 | P4a routes core and network observations through the Nix package; paired refresh evidence guards default queries/audits/rendering. Remaining orchestration stays P20 |
 | `collect-proxmox.sh`, `collect-proxmox-acl.sh` | migrate | Python read collectors; node-specific validation | collect-all, inventory gates/renderers | 3–4 | P4a leaves `collect-proxmox.sh` as a packaged-command forwarder and removes its shell API/parser. Both ACL readers remain P4b. Live behavior untested |
-| `collect-pbs.sh`, `collect-docker.sh` | migrate | Python PBS/Docker collectors | collect-all, backup/container views | 5 | P5a moves PBS to Python with receipt-bound freshness; Docker remains P5b |
+| `collect-pbs.sh`, `collect-docker.sh` | migrate | Python PBS/Docker collectors | collect-all, backup/container views | 5 | P5 accepted with reviewer repairs: single Docker writer, descendant cleanup, strict required fields, truthful verification, TLS and test isolation; live reads pass |
 | `collect-dns.sh`, `collect-opnsense.sh`, `collect-firewall.sh` | migrate | Python DNS/live OPNsense collection and offline mirror parsing | collect-all, firewall/DNS views; ADR 0006 offline recovery | 6 | Verified live/offline distinction; no new OPNsense writer |
 | `collect-network-gear.sh`, `collect-certs.sh`, `collect-routes.sh`, `recon.sh` | migrate | Python observations with provenance and vantage | collect-all, recon/diagnosis runbooks | 7 | Verified callers; static declarations cannot imply live discovery |
 | `entity.sh`, `audit-entities.sh`, `build-db.sh` | migrate | Entity functions, audit, rebuildable SQLite cache | collectors/render-docs, bin/ops entities/query | 8 | Verified existing identity and join callers |
@@ -290,7 +290,18 @@ inventory refresh, host activation, timer/service change, grant or production wr
 Independent workstation access, state/payload recovery and other live-transition prerequisites
 remain open.
 
-## Phase 5b implementation (slice complete; P5 review pending)
+## Phase 5 review — ACCEPT with reviewer repairs
+
+Both #223 and #224 are merged; the directive's newest §9 entry owns the complete review and
+the repaired acceptance result. The reviewer fixed the five synthetic counterexamples, TLS
+fallback and test isolation, plus live-discovered PBS root namespaces and nullable Docker
+Platform fields. Configured live reads succeed: PBS 152 snapshots/18 groups; Docker 18
+containers/31 images. Prior blanket no-live-context test claims below remain unsupported;
+the journal distinguishes the initial unguarded test run from explicitly authorized live reads.
+Acceptance and P6a take effect at human merge of this combined PR. No restore/recovery
+readiness or broader live-transition prerequisite is claimed cleared.
+
+## Phase 5b implementation (historical slice completion)
 
 From remote-main base `c0e0f53007dee3d49779c4f7fca065fbac13dbd2`, P5b replaces the Docker
 shell parser/client with `skynet collect docker`. It preserves host labels and contexts, uses

@@ -87,6 +87,10 @@
           pkgs.python3Packages.pytest
           pkgs.ruff
           pkgs.mypy
+          pkgs.openssl
+          pkgs.jq
+          pkgs.gawk
+          pkgs.bash
         ];
       };
 
@@ -149,7 +153,7 @@
       # `nix flake check` runs deploy-rs's own schema checks over the node definitions.
       checks.${system} = (deploy-rs.lib.${system}.deployChecks self.deploy) // {
         skynet = pkgs.runCommand "skynet-checks" {
-          nativeBuildInputs = [ skynet pkgs.python3Packages.pytest ];
+          nativeBuildInputs = [ skynet pkgs.python3Packages.pytest pkgs.openssl pkgs.jq pkgs.gawk pkgs.bash ];
         } ''
           outside="$(mktemp -d)"
           cd "$outside"

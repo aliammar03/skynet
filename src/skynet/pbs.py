@@ -3,6 +3,7 @@
 import hashlib
 import http.client
 import json
+import math
 import re
 import socket
 import ssl
@@ -10,7 +11,7 @@ import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, TextIO
+from typing import Any, TextIO, cast
 from urllib.parse import quote, urlencode
 
 from skynet.proxmox import CollectionError, publish
@@ -83,8 +84,6 @@ def _fingerprint(value: str) -> bytes:
 
 
 def _certificate_name(decoded: Any, host: str) -> str:
-    if _hostname(host) and not re.fullmatch(r"\d+(?:\.\d+){3}", host):
-        return host
     for kind, value in decoded.get("subjectAltName", []):
         if kind == "DNS" and isinstance(value, str) and _hostname(value):
             return value
@@ -92,6 +91,8 @@ def _certificate_name(decoded: Any, host: str) -> str:
         for key, value in subject:
             if key == "commonName" and isinstance(value, str) and _hostname(value):
                 return value
+    if _hostname(host) and not re.fullmatch(r"\d+(?:\.\d+){3}", host):
+        return host
     raise CollectionError("certificate name unavailable", 3)
 
 
@@ -212,6 +213,18 @@ def _entries(value: Any) -> list[dict[str, Any]]:
     return value
 
 
+def _usage_number(value: Any) -> int | float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise CollectionError("missing or malformed datastore status")
+    # Integers are finite by definition; converting an arbitrarily large one to
+    # float for math.isfinite() can itself overflow before validation completes.
+    if isinstance(value, float) and not math.isfinite(value):
+        raise CollectionError("missing or malformed datastore status")
+    if value < 0:
+        raise CollectionError("missing or malformed datastore status")
+    return cast(int | float, value)
+
+
 def snapshot(settings: Credentials) -> dict[str, Any]:
     """Require every datastore status and namespace snapshot before returning an observation."""
     stores = _entries(get(settings, "admin/datastore"))
@@ -223,8 +236,17 @@ def snapshot(settings: Credentials) -> dict[str, Any]:
         status = get(settings, "admin/datastore/" + quote(store, safe="") + "/status")
         if not isinstance(status, dict):
             raise CollectionError("missing or malformed datastore status")
+        used = _usage_number(status.get("used"))
+        total = _usage_number(status.get("total"))
+        if used > total:
+            raise CollectionError("missing or malformed datastore status")
         namespaces = _entries(get(settings, "admin/datastore/" + quote(store, safe="") + "/namespace"))
-        namespace_names = ["", *[_string(entry.get("ns")) for entry in namespaces]]
+        namespace_names = [""]
+        for entry in namespaces:
+            namespace = entry.get("ns")
+            if namespace == "":
+                continue
+            namespace_names.append(_string(namespace))
         if len(set(namespace_names)) != len(namespace_names):
             raise CollectionError("duplicate API identity")
         snapshots: list[dict[str, Any]] = []
@@ -267,7 +289,7 @@ def snapshot(settings: Credentials) -> dict[str, Any]:
         datastores.append({"store": store, "status": status, "groups": projected,
                            "group_count": len(projected),
                            "snapshot_total": len(snapshots),
-                           "unverified": sum(group["verify_state"] is None for group in projected)})
+                           "unverified": sum(group["verify_state"] != "ok" for group in projected)})
     return {"collected": datetime.now(UTC).isoformat(timespec="seconds"), "host": settings.host,
             "datastores": datastores}
 

@@ -31,7 +31,8 @@ older than 36 hours and one matching local attempt receipt; the nightly addition
 attempt from its current pass. Missing or unwritable receipt storage is unavailable. A failed node
 refresh leaves that snapshot and prior pages intact and records a failure, rather than refreshing their
 presentation. PBS status, group, snapshot, and verification fields are complete before rendering;
-null data cannot become a zero-backup claim. Other collectors retain their existing evidence limitations. Collection timestamps
+null data cannot become a zero-backup claim, and failed or unknown verification cannot produce
+a successful backup callout. Other collectors retain their existing evidence limitations. Collection timestamps
 describe observations, not live service-health verification.
 Failed initial marker publication also invalidates previous success for default queries and
 rendering. Remaining reader processes are stopped and reaped before collection advances; uncertain

@@ -1,5 +1,5 @@
 ---
-summary: "Phase-specific execution leads, independent Astra review, and at most two bounded Luna workers."
+summary: "Phase-specific execution leads, model-agnostic independent review, and at most two bounded Luna workers."
 ---
 
 # Spoke · Construction delegation
@@ -18,7 +18,7 @@ The active directive's authorized packet selects the execution lead and effort. 
 | Foundational design, consequential policy or recovery | `gpt-6-astra` | medium | Execution lead |
 | Bounded implementation | `gpt-5.6-terra` | high | Default execution lead |
 | Defined rendering/documentation passes | `gpt-5.6-sol` | low | Execution lead |
-| Independent merged-result review and next packet | `gpt-6-astra` | medium | Fresh review session |
+| Independent merged-result review and next packet | Operator-selected | Operator-selected | Fresh review session |
 | Builder or mechanic | `gpt-5.6-luna` | high | Scoped implementation worker |
 | Scout | `gpt-5.6-luna` | medium | Read-only inspection worker |
 
@@ -29,8 +29,12 @@ identifier or update the harness. `[manual]` Model routing does not switch the i
 Terra/Sol leads refer unresolved architecture, privilege, or recovery decisions to Astra Medium.
 The lead owns decomposition, integration, verification, and PRs. A worker reports only its scoped
 result. Merged-result review runs in a **fresh session**, never as the implementing lead's helper.
-The reviewer reports accept, fix before continuing, or blocked and defines the next authorized
-packet. Human merge and directive-specific review gates still apply. `[manual]`
+The reviewer may repair bounded defects directly, using Luna workers for scoped implementation,
+tests and repetitive work. The reviewer inspects those changes, rechecks the affected full-phase
+exits, and may accept the repaired phase in the same review PR. Human merge makes the repairs,
+acceptance and next packet effective; those verified repairs need no additional review session.
+Unresolved defects receive a bounded fix packet; missing evidence or decisions may block review.
+The implementing lead still cannot accept its own phase. `[manual]`
 
 ## Bounded delegation
 
@@ -73,7 +77,9 @@ bin/agent mechanic "<specified edits>" --dry-run
 ```
 
 Preview with `--dry-run`, then omit that flag to launch. Lead defaults to Terra High; `--tier` is
-lead-only and the packet overrides the default. Review uses a writable construction checkout so it
+lead-only and the packet overrides the default. Review inherits the harness's configured model and
+effort; `AGENT_REVIEW_MODEL` and `AGENT_REVIEW_EFFORT` optionally override them. No model or effort
+is required by the review process. Review uses a writable construction checkout so it
 can author the review/planning PR, with no production authority. `AGENT_MODEL_ASTRA`,
 `AGENT_MODEL_TERRA`, `AGENT_MODEL_SOL`, and `AGENT_MODEL_LUNA` are explicit identifier overrides;
 the operator must verify availability before launch. `tests/agent-test.sh` checks the resolutions

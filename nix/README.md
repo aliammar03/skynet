@@ -32,7 +32,8 @@ nix/packages/
 ## Skynet Python runtime
 
 The `skynet` command is a Nix-owned Python package exposing a runtime diagnostic, core and network
-Proxmox observations, PBS backup observations, default collection and receipt-bound freshness checks. `bin/skynet` launches the package
+Proxmox observations, PBS backup observations, Docker inventory, default collection and receipt-bound
+freshness checks. `bin/skynet` launches the package
 from the checkout's tracked Git source using offline, lock-preserving Nix evaluation. It never
 falls back to source Python or installs a profile. Build the package and cache its dependencies
 before using default callers; a missing Nix/build prerequisite fails the command.
@@ -72,11 +73,15 @@ normalizes one PVE-style equals separator. `PBS_CACERT` uses normal CA-file vali
 the configured fingerprint pins the bootstrap leaf before a verified request, with `PBS_SNI` or
 the pinned certificate's DNS name used for hostname verification. Missing/null endpoint data,
 partial datastore reads, malformed snapshots, timeout and trust failure are unavailable or failed,
-never an empty successful backup result. Empty validated snapshot lists are valid observations.
+never an empty successful backup result. Empty validated snapshot lists are valid observations;
+an explicitly returned root namespace is collected once. Backup rendering distinguishes failed,
+absent and unknown latest verification from successful verification.
 
 `skynet collect docker <label> --output <file> [--context <context>] [--json]` runs only
 read-only Docker context inspection, `ps --all`, and `image ls` using argument arrays and a
-20-second deadline. JSON lines must contain the container/image fields consumed by SQLite; a valid
+20-second command deadline. Docker and its subprocess descendants are stopped and reaped before
+collection continues; uncertain cleanup stops the pass with recovery-required evidence.
+JSON lines must contain valid container/image fields consumed by SQLite; a valid
 empty host is distinct from a missing context, failed command, or malformed output. Failure retains
 the previous snapshot and cannot establish fresh default evidence.
 
@@ -89,7 +94,7 @@ data or local publication failure. Empty nodes/resources fail; empty pools/jobs/
 observations, with absent backup results represented by null fields.
 
 `bin/ops collect` forwards to `skynet collect all --repo <checkout>`, running the Python core,
-network, ACL, and PBS collectors once each before the remaining shell readers. Refresh evidence lives in
+network, ACL, PBS, and Docker collectors once each before the remaining shell readers. Refresh evidence lives in
 the matching `inventory/collection-*.json` markers: an incomplete marker precedes each read, and
 success records that snapshot's exact hash/time. The nonblocking
 `.cache/collection.lock` stores one durable attempt receipt before marker publication. Status
@@ -111,7 +116,7 @@ After operator verification that the reader processes are gone, clear that recei
 collection lock and run a complete refresh. Do not delete the lock file while a process holds it.
 
 `skynet collect-status --repo <checkout> [--since <timestamp>] [--json]` requires matching
-successful core and network observations, operate-token ACL, and PBS evidence no older than 36 hours,
+successful core and network observations, operate-token ACL, PBS, and Docker evidence no older than 36 hours,
 with timezone-aware timestamps.
 Missing, failed, future, stale or mismatched evidence exits 3. Default factual rendering and
 `bin/ops query|entities` require this check. Nightly sets `SKYNET_COLLECTION_SINCE` so a prior

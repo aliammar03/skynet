@@ -52,7 +52,8 @@ def pbs_observation(monkeypatch: pytest.MonkeyPatch) -> None:
             print(json.dumps(report), file=stdout)  # type: ignore[arg-type]
         return 0
     monkeypatch.setattr(pbs, "collect", collect)
-    def docker_collect(label: str, output: Path, context: str, *, json_output: bool, stdout: object) -> int:
+    def docker_collect(label: str, output: Path, context: str, *, json_output: bool, stdout: object,
+                       raise_cleanup: bool = False) -> int:
         data = {"collected": datetime.now(UTC).isoformat(timespec="seconds"), "host": label,
                 "containers": [], "images": []}
         proxmox.publish(output, data)
@@ -99,8 +100,10 @@ def test_default_collection_records_matching_evidence_and_runs_remaining_once(
     ])
     code, report = run(repo, credentials, capsys, network_credentials(repo, credentials))
     assert code == 0 and report["outcome"] == "success"
-    assert len(report["collectors"]) == 12
-    assert (repo / "calls").read_text().splitlines() == [row[1] for row in collection.REMAINING]
+    assert len(report["collectors"]) == 11
+    calls = (repo / "calls").read_text().splitlines()
+    assert calls == [row[1] for row in collection.REMAINING]
+    assert "collect-docker.sh" not in calls
     evidence = json.loads((repo / "inventory/collection-core.json").read_text())
     assert evidence["sha256"] == hashlib.sha256(
         (repo / "inventory/proxmox-core.json").read_bytes()).hexdigest()
@@ -112,6 +115,73 @@ def test_default_collection_records_matching_evidence_and_runs_remaining_once(
     network_snapshot = json.loads((repo / "inventory/proxmox-network.json").read_text())
     assert network_snapshot["pools"] == []
     assert [guest["vmid"] for guest in network_snapshot["resources"]] == [5001, 635, 837]
+
+
+def test_failed_default_docker_refresh_retains_snapshot_and_recovers(
+    repo: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert run(repo, credentials, capsys)[0] == 0
+    snapshot = repo / "inventory/docker-docker-dmz.json"
+    previous = snapshot.read_bytes()
+    real_collect = docker.collect
+
+    def unavailable_docker(label: str, output: Path, context: str, *,
+                           json_output: bool, stdout: object, raise_cleanup: bool = False) -> int:
+        report = {"target": f"docker-{label}", "outcome": "unavailable",
+                  "reason": "synthetic Docker read failure"}
+        if json_output:
+            print(json.dumps(report), file=stdout)  # type: ignore[arg-type]
+        return 3
+
+    monkeypatch.setattr(docker, "collect", unavailable_docker)
+    assert run(repo, credentials, capsys)[0] == 3
+    assert snapshot.read_bytes() == previous
+    assert status(repo, capsys) == 3
+
+    monkeypatch.setattr(docker, "collect", real_collect)
+    assert run(repo, credentials, capsys)[0] == 0
+    assert status(repo, capsys) == 0
+
+
+def test_failed_docker_marker_publication_retains_bytes_refuses_freshness_and_recovers(
+    repo: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert run(repo, credentials, capsys)[0] == 0
+    snapshot = repo / "inventory/docker-docker-dmz.json"
+    previous = snapshot.read_bytes()
+    real_collect = docker.collect
+
+    def unavailable_docker(label: str, output: Path, context: str, *,
+                           json_output: bool, stdout: object, raise_cleanup: bool = False) -> int:
+        if json_output:
+            print(json.dumps({"target": f"docker-{label}", "outcome": "unavailable",
+                              "reason": "synthetic Docker read failure"}),
+                  file=stdout)  # type: ignore[arg-type]
+        return 3
+
+    replace = proxmox.os.replace
+    marker_writes = 0
+
+    def fail_final_docker_marker(source: str, destination: Path) -> None:
+        nonlocal marker_writes
+        if destination.name == "collection-docker-dmz.json":
+            marker_writes += 1
+            if marker_writes == 2:
+                raise OSError(TOKEN)
+        replace(source, destination)
+
+    monkeypatch.setattr(docker, "collect", unavailable_docker)
+    monkeypatch.setattr(proxmox.os, "replace", fail_final_docker_marker)
+    assert run(repo, credentials, capsys)[0] == 1
+    assert snapshot.read_bytes() == previous
+    assert status(repo, capsys) == 3
+
+    monkeypatch.setattr(proxmox.os, "replace", replace)
+    monkeypatch.setattr(docker, "collect", real_collect)
+    assert run(repo, credentials, capsys)[0] == 0
+    assert status(repo, capsys) == 0
 
 
 def test_failed_network_refresh_invalidates_paired_status_and_retains_network_snapshot(
@@ -384,7 +454,7 @@ def test_signal_interrupts_reader_and_reaps_child(
         f"import json,sys\nsys.path[:] = {sys.path!r}\n"
         "from pathlib import Path\n"
         "from test_proxmox import FakeConnection, endpoint_data\n"
-        "from skynet import collection, pbs, proxmox\nfrom skynet.cli import main\n"
+        "from skynet import collection, docker, pbs, proxmox\nfrom skynet.cli import main\n"
         "FakeConnection.responses = endpoint_data()\n"
         "proxmox.http.client.HTTPSConnection = FakeConnection\n"
         "def pbs_collect(output, credentials_file, *, json_output, stdout):\n"
@@ -393,6 +463,12 @@ def test_signal_interrupts_reader_and_reaps_child(
         "  stdout.write(json.dumps({'target':'pbs','outcome':'success','collected':data['collected']}))\n"
         "  return 0\n"
         "pbs.collect = pbs_collect\n"
+        "def docker_collect(label, output, context, *, json_output, stdout, raise_cleanup=False):\n"
+        "  data = {'collected':'2026-09-09T00:00:00+00:00','host':label,'containers':[],'images':[]}\n"
+        "  proxmox.publish(output, data)\n"
+        "  stdout.write(json.dumps({'target':'docker-'+label,'outcome':'success','collected':data['collected']}))\n"
+        "  return 0\n"
+        "docker.collect = docker_collect\n"
         f"collection.REMAINING = (('slow', {reader.name!r}),)\n"
         f"args = ['collect', 'all', '--repo', {str(repo)!r}, "
         f"'--credentials-file', {str(credentials)!r}, "
@@ -503,6 +579,20 @@ def test_cleanup_failure_quarantines_receipt_and_stops_remaining_readers(
     monkeypatch.setattr(collection, "run_reader", real_reader)
     assert run(repo, credentials, capsys)[0] == 1
     assert len(transport.instances) == before_requests
+    assert status(repo, capsys) == 3
+
+
+def test_docker_cleanup_failure_quarantines_receipt_and_stops_collection(
+    repo: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_cleanup(*args: object, **kwargs: object) -> int:
+        raise docker.CleanupError("synthetic cleanup failure")
+
+    monkeypatch.setattr(docker, "collect", fail_cleanup)
+    assert run(repo, credentials, capsys)[0] == 1
+    assert (repo / ".cache/collection.lock").read_text() == "recovery-required"
+    assert not (repo / "calls").exists()
     assert status(repo, capsys) == 3
 
 
@@ -643,7 +733,7 @@ def test_bin_ops_collection_reaches_real_cli_and_core_collector(
         "pbs.collect = lambda output, credentials_file, json_output, stdout: ("
         "proxmox.publish(output, {'collected':'2026-09-09T00:00:00+00:00','host':'pbs.test','datastores':[]}) or "
         "stdout.write('{\\\"target\\\":\\\"pbs\\\",\\\"outcome\\\":\\\"success\\\",\\\"collected\\\":\\\"2026-09-09T00:00:00+00:00\\\"}') and 0)\n"
-        "docker.collect = lambda label, output, context, json_output, stdout: ("
+        "docker.collect = lambda label, output, context, json_output, stdout, raise_cleanup=False: ("
         "proxmox.publish(output, {'collected':'2026-09-09T00:00:00+00:00','host':label,'containers':[],'images':[]}) or "
         "stdout.write('{\\\"target\\\":\\\"docker-dmz\\\",\\\"outcome\\\":\\\"success\\\",\\\"collected\\\":\\\"2026-09-09T00:00:00+00:00\\\"}') and 0)\n"
         "sys.exit(main(sys.argv[6:]))\n"

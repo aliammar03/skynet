@@ -275,30 +275,42 @@ done
   echo "> [!note] These jobs write to \`pbs-unraid\` — the PBS datastore below."
   echo
   # ── PBS datastore(s): the receiving end of the vzdump jobs (collect-pbs.sh). Renders usage +
-  #    guest/snapshot counts + the DETERMINISTIC verify flag: 🟢 nothing unverified, 🟡 some latest
-  #    snapshot carries no verification (backed up but unproven — schedule a PBS verify job). ──
+  #    guest/snapshot counts + the latest verification state. Only `ok` is verified; failed,
+  #    unknown, and missing states remain visible as not verified. ──
   echo "## PBS datastore"
   echo
   if has "${inv}/pbs.json"; then
-    complete="$(j 'all(.datastores[]?; (.status|type) == "object" and (.status.used|type) == "number" and (.status.total|type) == "number" and (.groups|type) == "array" and (.group_count|type) == "number" and (.snapshot_total|type) == "number" and (.unverified|type) == "number")' "${inv}/pbs.json")"
+    complete="$(j 'all(.datastores[]?; (.status|type) == "object" and (.status.used|type) == "number" and (.status.total|type) == "number" and (.status.used|isfinite) and (.status.total|isfinite) and .status.used >= 0 and .status.total >= 0 and .status.used <= .status.total and (.groups|type) == "array" and (.group_count|type) == "number" and (.snapshot_total|type) == "number" and (.unverified|type) == "number")' "${inv}/pbs.json")"
     if [ "${complete}" != true ]; then
       echo "> [!warning] PBS snapshot is incomplete — no backup count or verification state is claimed."
       echo
     else
     totsnap="$(j '([.datastores[].snapshot_total] | add) // 0' "${inv}/pbs.json")"
+    totgroups="$(j '([.datastores[].group_count] | add) // 0' "${inv}/pbs.json")"
     totun="$(j '([.datastores[].unverified] | add) // 0' "${inv}/pbs.json")"
     if   [ "${totsnap:-0}" = 0 ]; then echo "> [!note] PBS reachable but no snapshots recorded this pass."
-    elif [ "${totun:-0}" = 0 ];   then echo "> [!success] 🟢 All ${totsnap} snapshots' latest backup carries a verification state."
-    else echo "> [!warning] 🟡 ${totun} guest(s) have a latest snapshot with NO verification — backed up but unproven. Schedule a PBS verify job."
+    elif [ "${totun:-0}" = 0 ];   then echo "> [!success] 🟢 All ${totgroups} backup groups have a verified latest snapshot (state \`ok\`)."
+    else
+      verify_detail="$(j '[.datastores[]?.groups[]?.verify_state]
+        | map(if . == "ok" then "verified" elif . == "failed" then "failed"
+              elif . == "unknown" or . == null then (if . == null then "unverified" else "unknown" end)
+              else "unknown" end)
+        | group_by(.) | map(.[0] + "=" + (length|tostring)) | join(", ")' "${inv}/pbs.json")"
+      echo "> [!warning] 🟡 ${totun} latest backup(s) are not verified (${verify_detail}). Schedule a PBS verify job."
     fi
     echo
-    echo "| Datastore | Used / Total | Guests | Snapshots | Unverified |"
-    echo "|-----------|--------------|-------:|----------:|-----------:|"
+    echo "| Datastore | Used / Total | Guests | Snapshots | Unverified | Latest verification |"
+    echo "|-----------|--------------|-------:|----------:|-----------:|---------------------|"
     j '.datastores[]? | [ .store,
          ((.status.used/1099511627776*10|round)/10|tostring),
          ((.status.total/1099511627776*10|round)/10|tostring),
-         .group_count, .snapshot_total, .unverified ] | @tsv' "${inv}/pbs.json" \
-      | awk -F'\t' '{printf "| `%s` | %s / %s TiB | %s | %s | %s |\n", $1,$2,$3,$4,$5,$6}'
+         .group_count, .snapshot_total, .unverified,
+         ([.groups[]?.verify_state]
+          | map(if . == "ok" then "verified" elif . == "failed" then "failed"
+                elif . == "unknown" then "unknown" elif . == null then "unverified"
+                else "unknown" end)
+          | group_by(.) | map(.[0] + ": " + (length|tostring)) | join(", ")) ] | @tsv' "${inv}/pbs.json" \
+      | awk -F'\t' '{printf "| `%s` | %s / %s TiB | %s | %s | %s | %s |\n", $1,$2,$3,$4,$5,$6,$7}'
     echo
     unlist="$(j '[.datastores[]?.groups[]? | select(.verify_state==null) | "\(.ns)/\(.backup_type)/\(.backup_id)"] | join(", ")' "${inv}/pbs.json")"
     [ -n "${unlist}" ] && { echo "> [!note] Unverified (latest snapshot): ${unlist}"; echo; }
