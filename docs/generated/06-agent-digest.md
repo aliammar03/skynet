@@ -40,24 +40,24 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 **Explicit durable follow-ups:**
 
+- **#228 depends on #227**: rebase onto main after #227 merges (trivial additive conflicts in cli.py, nix/packages/skynet.nix, .githooks/pre-commit — the hook glob is one shared line). Merge order: #227 then #228. — _2026-09-09 session_
+- **P6 is now fully sliced** (P6a #226 merged, P6b-i #227 open, P6b-ii #228 open). After all three merge, obtain ONE fresh review of the complete numbered P6 before P7. Accepted progress stays 5/24. — _2026-09-09 session_
+- **Unverified live boundary:** ET parsing of operator-supplied config.xml uses stdlib (not defusedxml) — acceptable since the source is the operator's own git mirror, noted for the live transition. No live read performed. — _2026-09-09 session_
+- Restore local worktree: `git stash pop` after leaving this branch. — _2026-09-09 session_
 - **P6b-ii is the remaining same-phase work:** `src/skynet/firewall.py` offline config.xml parser (redact sensitive tags, retain source provenance, avoid implicit git pulls, never satisfy live freshness), `collect-firewall.sh` → shim, `skynet collect firewall`, tests/fixtures. Detail it after this PR merges. — _2026-09-09 session_
 - **After all P6 slices (P6a + P6b-i + P6b-ii) merge**, obtain ONE fresh review of the complete numbered P6 before P7. Accepted progress stays 5/24. — _2026-09-09 session_
 - **Unverified live boundary (no live reads this packet):** ICMP presence depends on the ops→ NET_SKYNET floating rule; without it a silent host reads live:false via no-arp,no-icmp (recorded as vantage, not proven-down). Pagination completeness assumes OPNsense returns `total`; if an endpoint omits it, completeness isn't enforced — acceptable for the fixed 2000-row budget, noted for the live transition. — _2026-09-09 session_
 - Restore the local worktree: `git stash pop` after leaving this branch. — _2026-09-09 session_
-- **P6b is the remaining same-phase work** (OPNsense live + offline mirror parsing); detail it after this PR merges. One fresh review covers the whole numbered P6 after both slices merge. — _2026-09-09 session_
-- **Live boundary, unverified (no live reads this packet):** the committed `inventory/dns-zones.json` shows the root `""` Secondary zone returning `records: null`. Under P6a's stricter contract a null record list fails the whole DNS refresh. If live Technitium genuinely returns null for that secondary/root zone, live DNS collection would report unavailable and retain prior bytes — the honest F8 signal, but it may need a zone-type exclusion or query adjustment at the P6b/live transition. Recorded, not resolved here. — _2026-09-09 session_
-- Restore the local worktree: `git stash pop` the stashed inventory/docs + `tofu-drift.txt` after leaving this branch. — _2026-09-09 session_
-- Finish full source/installed validation, repeat packaged live observations, then publish the combined repair/acceptance PR and P6a DNS packet. No P6 implementation is part of this run. — _2026-09-09 session_
 
 ## 📓 Recent episodes
 
+- **2026-09-09** · session · [[2026-09-09-session-sky-025-p6b-ii-opnsense-offline-mirror-parser|sky-025-p6b-ii-opnsense-offline-mirror-parser]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p6b-opnsense-live-python-collection|sky-025-p6b-opnsense-live-python-collection]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p6a-dns-python-collection|sky-025-p6a-dns-python-collection]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p5-reviewer-repairs-and-live-reads|SKY-025 P5 reviewer repairs and live reads]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p5-combined-independent-review|SKY-025 P5 combined independent review]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p5b-docker-inventory|SKY-025 P5b Docker inventory]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p5a-pbs-inventory|SKY-025 P5a PBS inventory]]
-- **2026-09-09** · session · [[2026-09-09-session-sky-025-p4-combined-independent-review|SKY-025 P4 combined independent review]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._

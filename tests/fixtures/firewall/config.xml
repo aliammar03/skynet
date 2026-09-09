@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<opnsense>
+  <OPNsense>
+    <Firewall>
+      <Alias>
+        <aliases>
+          <alias uuid="a1">
+            <name>HOST_ADMIN_WORKSTATION</name>
+            <type>host</type>
+            <content>10.10.10.50</content>
+            <description>Primary trusted workstation.</description>
+            <enabled>1</enabled>
+          </alias>
+          <alias uuid="a2">
+            <name>NET_SKYNET</name>
+            <type>network</type>
+            <content>10.10.0.0/16</content>
+            <description>Skynet supernet.</description>
+            <enabled>1</enabled>
+          </alias>
+        </aliases>
+      </Alias>
+      <Filter>
+        <rules>
+          <rule uuid="r1">
+            <sequence>100</sequence>
+            <action>pass</action>
+            <description>CORE - Clients to approved DNS</description>
+            <apikey>SHOULD-BE-REDACTED</apikey>
+          </rule>
+        </rules>
+      </Filter>
+    </Firewall>
+    <Kea>
+      <dhcp4>
+        <reservations>
+          <reservation uuid="k1">
+            <ip_address>10.10.10.50</ip_address>
+            <hw_address>9c:6b:00:7d:f3:ea</hw_address>
+            <hostname>RK-W</hostname>
+            <description>Workstation</description>
+          </reservation>
+        </reservations>
+      </dhcp4>
+    </Kea>
+  </OPNsense>
+  <system>
+    <user>
+      <name>root</name>
+      <password>$2y$HASHED-NEVER-PARSED</password>
+      <apikey>ACCOUNT-KEY-NEVER-PARSED</apikey>
+    </user>
+  </system>
+</opnsense>
