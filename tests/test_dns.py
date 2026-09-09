@@ -148,6 +148,30 @@ def test_cli_projects_zones_and_records(
                for connection in transport.instances)
 
 
+def test_cli_requests_root_with_dot_and_preserves_empty_identity(
+    tmp_path: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    transport.responses = {
+        ("zones/list", ""): envelope({"zones": [{"name": ""}]}),
+        ("zones/records/get", "."): envelope({
+            "zone": {"name": "."},
+            "records": [{"name": "", "type": "A", "rData": {"ipAddress": "192.0.2.1"}}],
+        }),
+    }
+    code, report, output = collect(tmp_path, credentials, capsys)
+    assert code == 0 and report["outcome"] == "success"
+    snapshot = json.loads(output.read_text())
+    assert snapshot["zones"] == [{"name": ""}]
+    assert snapshot["records"] == [{"zone": "", "records": [
+        {"name": "", "type": "A", "rData": {"ipAddress": "192.0.2.1"}},
+    ]}]
+    request = next(connection for connection in transport.instances
+                   if connection.endpoint == "zones/records/get")
+    params = parse_qs(request.query)
+    assert params["domain"] == ["."] and params["zone"] == ["."]
+
+
 def test_only_read_endpoints_are_requested(
     tmp_path: Path, credentials: Path, transport: type[FakeConnection],
     capsys: pytest.CaptureFixture[str],
@@ -191,11 +215,26 @@ def test_rendered_service_table_reads_a_and_cname_records(tmp_path: Path) -> Non
 @pytest.mark.parametrize("mutation", [
     {("zones/list", ""): envelope({"zones": None})},
     {("zones/list", ""): envelope({"zones": [{"name": "aliammar.net"}, {"name": "aliammar.net"}]})},
+    {("zones/list", ""): envelope({"zones": [{"name": ""}, {"name": "."}]})},
     {("zones/records/get", "lab.aliammar.net"): envelope({"records": None})},
     {("zones/records/get", "lab.aliammar.net"): envelope({"records": [{"type": "A",
                                                                        "rData": {"ipAddress": "1"}}]})},
     {("zones/records/get", "lab.aliammar.net"): envelope({"records": [{"name": "x", "type": "A",
+                                                                       "rData": {}}]})},
+    {("zones/records/get", "lab.aliammar.net"): envelope({"records": [{"name": "x", "type": "A",
+                                                                       "rData": {"ipAddress": None}}]})},
+    {("zones/records/get", "lab.aliammar.net"): envelope({"records": [{"name": "x", "type": "A",
                                                                        "rData": "notdict"}]})},
+    {("zones/records/get", "lab.aliammar.net"): envelope({"records": [{"name": "x", "type": "A",
+                                                                       "rData": {"ipAddress": "2001:db8::1"}}]})},
+    {("zones/records/get", "lab.aliammar.net"): envelope({"records": [{"name": "x", "type": "AAAA",
+                                                                       "rData": {"ipAddress": "192.0.2.1"}}]})},
+    {("zones/records/get", "lab.aliammar.net"): envelope({"records": [{"name": "x", "type": "CNAME",
+                                                                       "rData": {"cname": ""}}]})},
+    {("zones/records/get", "lab.aliammar.net"): envelope({"records": [{"name": "x", "type": "CNAME",
+                                                                       "rData": {"cname": 7}}]})},
+    {("zones/records/get", "lab.aliammar.net"): envelope({"zone": {"name": "other.example"},
+                                                              "records": []})},
     {("zones/list", ""): {"status": "error", "errorMessage": "bad token"}},
     {("zones/list", ""): FakeResponse(b"{}", status=500)},
     {("zones/list", ""): b"not json"},

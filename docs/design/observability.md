@@ -26,7 +26,8 @@ hand-maintained:
 ```
 
 `inventory/` and `docs/generated/` are **machine-owned — never hand-edited** (a constitution
-invariant). Default rendering requires matching successful core and network observation, ACL, PBS, and Docker evidence no
+invariant). Default rendering requires matching successful core and network observation, ACL, PBS,
+Docker, DNS, and paired live OPNsense evidence no
 older than 36 hours and one matching local attempt receipt; the nightly additionally requires an
 attempt from its current pass. Missing or unwritable receipt storage is unavailable. A failed node
 refresh leaves that snapshot and prior pages intact and records a failure, rather than refreshing their
@@ -35,8 +36,10 @@ null data cannot become a zero-backup claim, and failed or unknown verification 
 a successful backup callout. Technitium DNS collection validates the zone listing and every zone's
 record list before publishing; a null or missing record list fails rather than becoming an empty
 successful snapshot. Live OPNsense collection reads only enumerated GETs and read-only search POSTs,
-validates search-page completeness, and publishes the paired user-view firewall config and live
-state (firmware/ARP/interfaces/presence) together — neither is blessed fresh without the other, and
+validates search-page completeness, and binds the user-view firewall config and live
+state (firmware/ARP/interfaces/presence) to one attempt receipt. Each file is replaced atomically;
+a publication failure can leave a partial pair, which the freshness gate refuses. Neither is
+blessed fresh without the other, and
 declared-host presence records an explicit ARP/ICMP vantage. The offline config.xml mirror parser is
 the DR rebuild source and never satisfies live freshness. The remaining shell readers retain their
 existing evidence limitations. Collection timestamps

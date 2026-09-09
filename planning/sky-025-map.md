@@ -29,7 +29,7 @@ Enumeration counts: root files 10; `.claude` 1, `.codex` 4, `.githooks` 1, `.git
 | `bin/ops`; `collect-all.sh` | migrate | Thin `skynet` dispatch and explicit workflow results | Humans, runbooks, nightly | 2–9, 20 | P4a routes core and network observations through the Nix package; paired refresh evidence guards default queries/audits/rendering. Remaining orchestration stays P20 |
 | `collect-proxmox.sh`, `collect-proxmox-acl.sh` | migrate | Python read collectors; node-specific validation | collect-all, inventory gates/renderers | 3–4 | P4a leaves `collect-proxmox.sh` as a packaged-command forwarder and removes its shell API/parser. Both ACL readers remain P4b. Live behavior untested |
 | `collect-pbs.sh`, `collect-docker.sh` | migrate | Python PBS/Docker collectors | collect-all, backup/container views | 5 | P5 accepted with reviewer repairs: single Docker writer, descendant cleanup, strict required fields, truthful verification, TLS and test isolation; live reads pass |
-| `collect-dns.sh`, `collect-opnsense.sh`, `collect-firewall.sh` | migrate | Python DNS/live OPNsense collection and offline mirror parsing | collect-all, firewall/DNS views; ADR 0006 offline recovery | 6 | P6a: `collect-dns.sh` → shim + `src/skynet/dns.py`. P6b-i: `collect-opnsense.sh` → shim + `src/skynet/opnsense.py` (live, paired firewall.json + opnsense.json, receipt-bound). P6b-ii: `collect-firewall.sh` → shim + `src/skynet/firewall.py` (offline config.xml parse, redacted, no marker, never live-fresh). No new OPNsense writer. Live untested |
+| `collect-dns.sh`, `collect-opnsense.sh`, `collect-firewall.sh` | migrate | Python DNS/live OPNsense collection and offline mirror parsing | collect-all, firewall/DNS views; ADR 0006 offline recovery | 6 | P6a: `collect-dns.sh` → shim + `src/skynet/dns.py`. P6b-i: `collect-opnsense.sh` → shim + `src/skynet/opnsense.py` (live, paired firewall.json + opnsense.json, receipt-bound). P6b-ii: `collect-firewall.sh` → shim + `src/skynet/firewall.py` (offline config.xml parse, redacted, no marker, never live-fresh). No new OPNsense writer. P6 accepted with reviewer repairs and scoped live reads; see independent acceptance below |
 | `collect-network-gear.sh`, `collect-certs.sh`, `collect-routes.sh`, `recon.sh` | migrate | Python observations with provenance and vantage | collect-all, recon/diagnosis runbooks | 7 | Verified callers; static declarations cannot imply live discovery |
 | `entity.sh`, `audit-entities.sh`, `build-db.sh` | migrate | Entity functions, audit, rebuildable SQLite cache | collectors/render-docs, bin/ops entities/query | 8 | Verified existing identity and join callers |
 | `scripts/sql/*.sql` | retain | SQL query definitions | bin/ops query, SQLite cache | 8 | Verified host-map/vhosts queries; adapt schema with consumers |
@@ -332,6 +332,24 @@ coverage into Python and removed the superseded shell test from hook/CI. Constru
 HTTPS, synthetic credentials and disposable paths only; no live PBS/Docker endpoint, credential,
 trust setting, backup, restore, host, timer, service, grant or production write occurred. Source
 rollback is `git revert`; endpoint parity and workstation/state/payload recovery remain unverified.
+
+## Phase 6 independent acceptance
+
+P6 ACCEPT including reviewer repairs, effective on Ali's merge of the combined review PR.
+Reviewed main `9858daf0b4405b14aa93f45f50d71349ea29b1b6` includes merged #226, #227 and #228;
+the directive's newest §9 entry owns merge identities and the criterion-by-criterion verdict.
+DNS root-query and record validation, OPNsense credential compatibility, response completeness,
+certificate-name precedence and probe-error reporting are repaired. Packaged live DNS returned
+4 zones/13,355 records; live OPNsense returned 40 aliases/28 rules/41 ARP rows/17 interfaces.
+The local offline mirror returned 41 aliases/29 rules/5 reservations and remains historical;
+source path provenance is preserved but no mirror revision/hash is claimed. No production
+inventory was overwritten. Full source/installed checks passed, with 225 source tests.
+The raw review journal preserves failures, worker integration and limitations.
+
+P6 shell entry points remain forwarding shims owned by P22. P7a Omada is the sole released
+packet; the lead details P7b certs/routes and P7c recon after their preceding slice merges.
+Workstation/state/payload recovery and live installation blockers remain unchanged.
+The historical implementation entries below do not supersede this acceptance.
 
 ## Phase 6a implementation (slice complete; P6 in progress)
 

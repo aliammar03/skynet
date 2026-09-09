@@ -23,6 +23,9 @@ if os.environ.get("SKYNET_ENTRYPOINT") != "console" and str(ROOT / "src") not in
 from skynet.cli import main  # noqa: E402
 import skynet.opnsense as opnsense  # noqa: E402
 
+REAL_PING = opnsense._ping
+REAL_PING_AVAILABLE = opnsense._ping_available
+
 # Interior '@' keeps these synthetic secrets out of the plaintext-secret scanner's run.
 KEY = "opn-key@synthetic"
 SECRET = "opn-secret@synthetic"
@@ -64,7 +67,6 @@ class FakeConnection:
     def __init__(self, host: str, port: int, context: ssl.SSLContext, sni: str, timeout: int):
         assert host == "10.10.60.1"
         assert port == 443
-        assert sni == "opnsense.example.test"
         assert timeout == 25
         self.context = context
         self.path = ""
@@ -109,6 +111,7 @@ def credentials(tmp_path: Path) -> Path:
     path = tmp_path / "opnsense.env"
     path.write_text(
         "OPN_HOST=10.10.60.1\n"
+        "OPN_USER='svc-skynet-recon'\n"
         f"OPN_KEY='{KEY}'\n"
         f"OPN_SECRET='{SECRET}'\n"
         "OPN_PORT=443\n"
@@ -204,6 +207,113 @@ def test_incomplete_search_page_fails_and_retains_both_files(
     assert code == 1 and report["outcome"] == "failure"
     assert (tmp_path / "firewall.json").read_bytes() == firewall
     assert (tmp_path / "opnsense.json").read_bytes() == state
+
+
+def test_second_publication_failure_is_honest_and_partial(
+    tmp_path: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = 0
+    real_publish = opnsense.publish
+
+    def fail_second(output: Path, data: dict[str, Any]) -> None:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise opnsense.CollectionError("local snapshot publication failed")
+        real_publish(output, data)
+
+    monkeypatch.setattr(opnsense, "publish", fail_second)
+    code, report, firewall, state = collect(tmp_path, credentials, capsys)
+    assert code == 1 and report["outcome"] == "failure"
+    assert firewall.exists() and not state.exists()
+
+
+def test_optional_user_does_not_change_basic_auth(
+    tmp_path: Path, credentials: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(opnsense, "_sni_from_certificate", lambda path, host: "derived.example")
+    settings = opnsense.credentials(credentials)
+    assert settings.sni == "derived.example"
+    assert settings.authorization == AUTHORIZATION
+
+
+def test_empty_terminal_alias_and_filter_maps_are_valid(
+    tmp_path: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    transport.responses["/api/firewall/alias/get"] = {"alias": {"aliases": {"alias": {}}}}
+    transport.responses["/api/firewall/filter/get"] = {"filter": {"rules": {"rule": {}}}}
+    code, report, firewall, _ = collect(tmp_path, credentials, capsys)
+    assert code == 0 and report["outcome"] == "success"
+    assert json.loads(firewall.read_text())["counts"]["aliases"] == 0
+
+
+@pytest.mark.parametrize("response", [{}, {"alias": None},
+                                        {"alias": {"aliases": {"alias": []}}},
+                                        {"error": "permission denied"}])
+def test_alias_container_or_api_error_fails(
+    tmp_path: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str], response: Any,
+) -> None:
+    transport.responses["/api/firewall/alias/get"] = response
+    code, report, _, _ = collect(tmp_path, credentials, capsys)
+    assert code == 1 and report["outcome"] == "failure"
+
+
+def test_missing_configured_rule_row_fails(
+    tmp_path: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    transport.responses["/api/firewall/filter/searchRule"]["rows"] = [
+        transport.responses["/api/firewall/filter/searchRule"]["rows"][0],
+        transport.responses["/api/firewall/filter/searchRule"]["rows"][2],
+    ]
+    transport.responses["/api/firewall/filter/searchRule"]["total"] = 2
+    code, report, _, _ = collect(tmp_path, credentials, capsys)
+    assert code == 1 and report["outcome"] == "failure"
+
+
+def test_interface_optional_enabled_defaults_false_and_total_is_checked(
+    tmp_path: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    transport.responses["/api/interfaces/overview/interfacesInfo"]["rows"][1]["enabled"] = None
+    code, report, _, state = collect(tmp_path, credentials, capsys)
+    assert code == 0 and report["outcome"] == "success"
+    assert json.loads(state.read_text())["interfaces"][1]["enabled"] is False
+    transport.responses["/api/interfaces/overview/interfacesInfo"]["total"] = 99
+    code, report, _, _ = collect(tmp_path, credentials, capsys)
+    assert code == 1 and report["outcome"] == "failure"
+
+
+def test_ping_exit_two_is_icmp_unavailable_not_no_reply(
+    tmp_path: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def run_ping(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(command, 0 if command[-1] == "127.0.0.1" else 2)
+
+    monkeypatch.setattr(opnsense.subprocess, "run", run_ping)
+    monkeypatch.setattr(opnsense, "_ping", REAL_PING)
+    monkeypatch.setattr(opnsense, "_ping_available", REAL_PING_AVAILABLE)
+    assert opnsense._ping_available() is True
+    assert opnsense._ping("10.10.50.3") is None
+    code, report, _, state = collect(tmp_path, credentials, capsys)
+    assert code == 0 and report["outcome"] == "success"
+    live = json.loads(state.read_text())
+    silent = next(p for p in live["presence"] if p["ip"] == "10.10.50.3")
+    assert silent == {"ip": "10.10.50.3", "live": False, "via": "no-arp,icmp-unavailable"}
+
+
+@pytest.mark.parametrize("total", [True, -1, 1.0, "-1", "1.0", None])
+def test_invalid_search_total_fails(
+    tmp_path: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str], total: Any,
+) -> None:
+    transport.responses["/api/firewall/filter/searchRule"]["total"] = total
+    code, report, _, _ = collect(tmp_path, credentials, capsys)
+    assert code == 1 and report["outcome"] == "failure"
 
 
 @pytest.mark.parametrize("path,response", [

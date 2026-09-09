@@ -96,12 +96,15 @@ The snapshot preserves the collection time, host, every zone object, and each zo
 SQLite and the service renderer. A non-`ok` API status, a null/missing zone list or record list, a
 duplicate zone identity, a malformed required record field, timeout or trust failure is unavailable
 or failed, never an empty successful result; a validated empty record list is a real observation.
+The root zone retains its empty-string identity in inventory and is requested as `.` from the API.
+A/AAAA address data and CNAME targets are validated before publication.
 
 `skynet collect opnsense --firewall-output <file> --state-output <file> [--credentials-file <file>]
 [--json]` is the live T1 read of OPNsense, producing two paired snapshots: the user-view firewall
 configuration (aliases, rules, reservations) and live state the git mirror cannot give (firmware,
 ARP, interfaces, declared-host presence). It uses literal `/opt/skynet-ops/secrets/opnsense.env`
-`OPN_HOST/OPN_KEY/OPN_SECRET/OPN_CACERT` (optional `OPN_PORT` default 443, `OPN_SNI`); the SNI is
+`OPN_HOST/OPN_KEY/OPN_SECRET/OPN_CACERT` (optional `OPN_PORT` default 443, `OPN_SNI`, and unused
+`OPN_USER` metadata); the SNI is
 derived from the pinned certificate's SAN so a stale name cannot break trust, and the key/secret
 travel only in the Basic auth header. Only the enumerated GETs (`core/firmware/status`,
 `firewall/alias/get`, `firewall/filter/get`, `interfaces/overview/interfacesInfo`) and the
@@ -109,12 +112,16 @@ read-only search POSTs (`firewall/filter/searchRule`, `dnsmasq/settings/searchHo
 `diagnostics/interface/searchArp`) are called — the recon key carries "System: Deny config write",
 so this collector only reads. Built-in aliases (`^__.*_network$`, bogons/bogonsv6/sshlockout/
 virusprot) are dropped to match the mirror's user view; rules intersect the configured `filter/get`
-UUIDs with the flat `searchRule` display fields, excluding internal/auto rules. Search pages that
-report a `total` larger than the returned rows fail as incomplete. Declared-host presence is ARP
+UUIDs with the flat `searchRule` display fields, excluding internal/auto rules. Every configured
+rule must appear once. Missing or malformed configuration sections fail; explicit empty mappings
+are observations. Search pages require a nonnegative integer `total` matching the returned rows.
+Declared-host presence is ARP
 first, then ICMP for ARP-silent hosts from the ops vantage; `via` is explicit (`arp`, `icmp`,
 `no-arp,no-icmp`, or `no-arp,icmp-unavailable` when the probe cannot run). Both snapshots are fully
 validated before either is written; a read or validation failure leaves both files untouched, and
-the default path binds both to one receipt so neither looks fresh without the other. The offline
+the default path binds both to one receipt so neither looks fresh without the other. Replacement
+is atomic per file, not across the pair: a publication failure can leave one changed file, returns
+failure, and cannot satisfy default freshness. The offline
 mirror parser (`collect-firewall.sh` today) remains the DR rebuild-from-git source and never
 satisfies live freshness.
 
@@ -128,9 +135,10 @@ sensitive-looking child tag (password/secret/key/token/psk/hash/…) is dropped 
 holds a value, since the inventory is committed to git. A missing mirror is unavailable; malformed
 XML or an unexpected root fails; both retain any previous snapshot.
 
-The collector publishes atomically to the explicit destination after every required read and
-validation succeeds. Failure retains any previous snapshot and its timestamp; consumers must treat it as
-previous evidence. Collection success describes observations, not service or backup health.
+Each collector validates every required read before atomically replacing each explicit destination.
+Read/validation failure retains previous snapshots; publication failure cannot establish fresh
+evidence, including a partially replaced OPNsense pair. Collection success describes observations,
+not service or backup health.
 JSON reports `outcome`, `target`, `output`, and either `collected`/`counts` or a redacted `reason`.
 Exit codes: 0 success, 2 usage error, 3 unavailable credentials/CA/remote evidence, 1 malformed
 data or local publication failure. Empty nodes/resources fail; empty pools/jobs/tasks are valid

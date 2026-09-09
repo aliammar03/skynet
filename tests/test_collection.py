@@ -16,7 +16,7 @@ import pytest
 from test_proxmox import (FakeConnection, NETWORK_OPERATE_TOKEN, NETWORK_TOKEN, OPERATE_TOKEN,
                           network_endpoint_data, TOKEN)
 from skynet.cli import main
-from skynet import collection, dns, docker, opnsense, pbs, proxmox
+from skynet import collection, dns, docker, firewall, opnsense, pbs, proxmox
 
 ROOT = Path(__file__).parents[1]
 pytest_plugins = ["test_proxmox"]
@@ -326,6 +326,51 @@ def test_failed_opnsense_refresh_invalidates_paired_status_and_retains_both_snap
     assert status(repo, capsys) == 3
 
     monkeypatch.setattr(opnsense, "collect", real_collect)
+    assert run(repo, credentials, capsys)[0] == 0
+    assert status(repo, capsys) == 0
+
+
+@pytest.mark.parametrize("marker_name", [
+    "collection-dns.json", "collection-firewall.json", "collection-opnsense.json",
+])
+@pytest.mark.parametrize("failed_write", [1, 2])
+def test_p6_marker_failure_refuses_freshness_and_recovers(
+    repo: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+    marker_name: str, failed_write: int,
+) -> None:
+    assert run(repo, credentials, capsys)[0] == 0
+    assert status(repo, capsys) == 0
+    replace = proxmox.os.replace
+    writes = 0
+
+    def fail_marker(source: str, destination: Path) -> None:
+        nonlocal writes
+        if Path(destination).name == marker_name:
+            writes += 1
+            if writes == failed_write:
+                raise OSError("synthetic marker storage failure")
+        replace(source, destination)
+
+    monkeypatch.setattr(proxmox.os, "replace", fail_marker)
+    assert run(repo, credentials, capsys)[0] == 1
+    assert status(repo, capsys) == 3
+    monkeypatch.setattr(proxmox.os, "replace", replace)
+    assert run(repo, credentials, capsys)[0] == 0
+    assert status(repo, capsys) == 0
+
+
+def test_offline_mirror_replacement_invalidates_existing_live_receipt(
+    repo: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert run(repo, credentials, capsys)[0] == 0
+    assert status(repo, capsys) == 0
+    output = repo / "inventory/firewall/firewall.json"
+    with open(os.devnull, "w") as stdout:
+        assert firewall.collect(output, ROOT / "tests/fixtures/firewall/config.xml",
+                                json_output=True, stdout=stdout) == 0
+    assert status(repo, capsys) == 3
     assert run(repo, credentials, capsys)[0] == 0
     assert status(repo, capsys) == 0
 
