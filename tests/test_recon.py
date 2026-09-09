@@ -160,6 +160,8 @@ def test_renderers_keep_machine_and_human_output_boundaries(
 
     if json_output:
         report = json.loads(rendered)
+        assert report["target"] == "recon"
+        assert report["outcome"] == "success"
         assert report["host"] == "worker.example.test"
         assert report["as"] == "svc-ops@worker.example.test"
         assert set(report["sections"]) == {
