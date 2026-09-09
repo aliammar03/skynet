@@ -61,7 +61,8 @@ own directive and not a one-session hack.
 - **Hosts & tiers touched:** the ops VM + OPNsense API. Moves the OPNsense boundary → the constitution
   PR is **ADR 0006 / #137** (must merge first). The T2 write key is a **⚠ credential checkpoint** (Ali).
 - **Rollback posture:** every phase additive; `git revert` restores. `apply` snapshots config first and
-  reverts on failure (Phase 5). The read collector degrades to the mirror.
+  reverts on failure (Phase 5). If the live read fails it retains the prior firewall inventory (the
+  offline mirror parser was retired in SKY-025 P6c; the `config.xml` git backup is DR-only).
 - **Grants / human actions:** Ali merges #137; Ali mints two OPNsense API keys (read `svc-skynet-recon`,
   write `svc-skynet-tofu`); normal PR merges thereafter.
 
@@ -73,7 +74,8 @@ from the pinned cert** (`OPNsense.internal`); degrades to `exit 0` with no creds
 proven live: a valid `addItem` → `denied for write access (user-config-readonly set)`, nothing created.
 The `config.xml` git backup stays the DR config source; the live read is now the sole firewall
 inventory source (the interim offline `config.xml` inventory parser was retired in SKY-025 P6c).
-Exit: live firewall inventory with no mirror lag; mirror still the git-truth backstop; no creds ⇒ mirror. ✅
+Exit: live firewall inventory with no mirror lag; the `config.xml` git backup remains the DR backstop;
+no creds ⇒ retains the prior inventory (no offline parse — that path was retired in P6c). ✅
 Done: Ali created the read-only `svc-skynet-recon` key + the reachability rule (rule 360 dest `(self)`,
 `PORT_OPS_API` += 443); PRs #138 (credential) + #139 (collector).
 

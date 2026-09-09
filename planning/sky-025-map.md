@@ -5,17 +5,16 @@ summary: "SKY-025 subsystem dispositions, external callers, output contracts, an
 # SKY-025 · Repository disposition map
 
 Owned by [the directive](projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md).
-Baseline: `670f06cfa75ca95a9eac7fdb1d3eb3544272ff1a` (remote main, 2026-09-07).
-Current accepted progress: **P5 / 5 of 24**, effective at human merge of the reviewer repairs.
-Reviewed main is `e09a8fc220d610cf6c5d60ac5471cdf0d67bcbe3`; the directive's latest §9 records
-**ACCEPT including verified repairs** and §5 releases only P6a DNS after merge. Earlier phase
-evidence below is historical; the latest directive verdict owns current acceptance.
-Phase 1 is accepted at G1; Phase 2 is accepted at `17db700c22cb17ad219655674eada344c215029a`. Its local package
-is built only in the isolated checkout and is not installed or activated on any lab host. This map
-describes planned replacements; it does not claim that Python is installed. The baseline's 398 tracked paths were enumerated with
-`git ls-files`; the grouped families below cover them. `scripts/` names are relative to that directory.
-**Verified** means source/caller inspection, not a successful production operation. **Blocked** names
-a later phase's missing live evidence. No blanket shell compatibility or duplicate production engine.
+Current accepted progress: **P6 / 6 of 24**. §5 releases **P7a Omada (Terra High)** as the current
+executable packet; P7b certs/routes and P7c recon are same-phase continuations. P6c is a bounded
+corrective slice after P6 acceptance (offline firewall inventory path retired — see below), not a
+new numbered phase. Per-phase acceptance verdicts, reviewed SHAs and phase history live in the
+directive §9 and git, not here.
+This map describes planned replacements; it does not claim Python is installed or activated on any
+lab host. Its grouped families cover the baseline's tracked paths (enumerated with `git ls-files`);
+`scripts/` names are relative to that directory. **Verified** means source/caller inspection, not a
+successful production operation. **Blocked** names a later phase's missing live evidence. No blanket
+shell compatibility or duplicate production engine.
 
 Enumeration counts: root files 10; `.claude` 1, `.codex` 4, `.githooks` 1, `.github` 2,
 `.obsidian` 5; `bin` 6, `ca` 3, `compose` 40, `docs` 42, `hosts` 5, `inventory` 14,
@@ -384,8 +383,9 @@ timer/service, root, grant or production write occurred. Source rollback is `git
 parity and workstation/state/payload recovery remain unverified. **Unverified live boundary:** the
 committed `dns-zones.json` shows the root `""` Secondary zone returning `records: null`, which the
 stricter contract fails; whether that needs a zone-type exclusion or query adjustment is a
-P6b/live-transition question, not resolved here. P6b (OPNsense live + offline mirror) is the
-remaining same-phase work; one fresh review covers the complete P6 after both slices merge.
+P6b/live-transition question, not resolved here. P6 has since been accepted (directive §9); the
+interim offline `config.xml` mirror parser was retired in P6c, leaving the live OPNsense API as the
+sole firewall inventory source.
 
 ## Phase 6b-i implementation (slice complete; P6 in progress)
 
@@ -412,40 +412,10 @@ search POSTs (`firewall/filter/searchRule`, `dnsmasq/settings/searchHost`,
 Construction used fake HTTPS, synthetic credentials and disposable outputs only; no live OPNsense
 read, config write, credential change, timer/service, root, grant or production write occurred.
 Source rollback is `git revert`; live endpoint parity, the ops→NET_SKYNET ICMP-vantage floating
-rule, and workstation/state/payload recovery remain unverified. **P6b-ii** (offline config.xml
-parser: redact sensitive tags, retain provenance, no implicit git pull, never satisfy live
-freshness; `collect-firewall.sh` → shim) is the remaining same-phase work. One fresh review covers
-the complete P6 (P6a + P6b-i + P6b-ii) after all slices merge, before P7.
-
-## Phase 6b-ii implementation (slice complete; P6 fully sliced)
-
-> **Superseded by P6c (below):** the offline `config.xml` inventory parser this slice shipped was
-> retired entirely after P6 acceptance. The record below is retained as historical evidence of what
-> P6b-ii built; it no longer describes a live capability.
-
-From origin/main base `b7e6f6e8e1dd69f8bbe0f54d91738f9bced4a1b8` (P6a; P6b-i #227 not yet merged),
-P6b-ii adds the offline OPNsense mirror parser `src/skynet/firewall.py`, replacing
-`collect-firewall.sh`. It parses the git-mirrored `config.xml` into the firewall.json
-aliases/rules/reservations shape for DR rebuild — root tag `opnsense` required; aliases from the
-modern or legacy path; rules merging legacy `./filter/rule` with the modern plugin path;
-reservations from Kea/dhcpd/dnsmasq. Every sensitive-looking child tag is dropped (defense in depth
-for a git-committed inventory). It does no network or git operation (no implicit pull) and writes
-no receipt-bound marker, and emits no `host`, so an offline parse never satisfies the default
-freshness contract. CLI `skynet collect firewall --output <f> [--config <path>] [--json]`;
-`collect-firewall.sh` is a forwarding shim; it is not wired into `collect all`.
-
-| Consumer | Preserved contract / evidence |
-|---|---|
-| `build-db.sh`, `render-docs.sh`, `audit-entities.sh` | Same firewall.json fields (aliases `name/type/content/description/enabled`, rules, reservations) as the live collector, so DR-rebuilt config feeds the existing joins/renderers. |
-| `collect-status` | Offline output carries no `host` and no marker, so it is always reported unavailable — a DR parse is never live-fresh. |
-| CLI / explicit consumer | Success 0; unavailable 3 (missing mirror); failure 1 (malformed XML / unexpected root / publication); failure retains prior bytes. |
-
-**Base/merge note:** the repo squash-merges, so P6b-ii is based on main (not the P6b-i branch) to
-avoid stranding; #228 shares `cli.py`, the Nix source filter, and the pre-commit glob with #227 and
-needs a trivial additive rebase onto main after #227 merges. Merge order: P6b-i (#227) then
-P6b-ii (#228). Construction used a synthetic config.xml and disposable outputs only; no live/mirror
-read, git operation, or production write occurred. P6 is now fully sliced (P6a + P6b-i + P6b-ii);
-one fresh review covers the complete numbered P6 after all three merge, before P7.
+rule, and workstation/state/payload recovery remain unverified. A third slice, P6b-ii, later added
+an offline `config.xml` mirror parser (`src/skynet/firewall.py`); it was retired entirely in P6c
+(below), so the live OPNsense collector here is the sole firewall inventory source. P6 was reviewed
+and accepted as a whole (directive §9).
 
 ## Phase 6c disposition (bounded corrective slice after P6 acceptance)
 
