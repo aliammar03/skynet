@@ -132,7 +132,7 @@ fi
       echo "**Live state** (OPNsense API): firmware \`$(j '.firmware.status' "${inv}/opnsense.json")\` · $(j '.counts.arp' "${inv}/opnsense.json") ARP neighbours · $(j '.counts.interfaces' "${inv}/opnsense.json") interfaces · declared-host presence $(j '.counts.live' "${inv}/opnsense.json") live / $(j '.counts.silent' "${inv}/opnsense.json") no-response (ARP+ICMP) — collected $(j '.collected' "${inv}/opnsense.json")."
     fi
   else
-    echo "> [!warning] No firewall inventory — run \`collect-opnsense.sh\` (live) or \`collect-firewall.sh\` (mirror/DR)."
+    echo "> [!warning] No firewall inventory — run \`collect-opnsense.sh\` (live OPNsense API)."
   fi
   foot
 } > "${gen}/20-firewall.md"

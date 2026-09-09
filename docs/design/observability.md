@@ -40,8 +40,9 @@ validates search-page completeness, and binds the user-view firewall config and 
 state (firmware/ARP/interfaces/presence) to one attempt receipt. Each file is replaced atomically;
 a publication failure can leave a partial pair, which the freshness gate refuses. Neither is
 blessed fresh without the other, and
-declared-host presence records an explicit ARP/ICMP vantage. The offline config.xml mirror parser is
-the DR rebuild source and never satisfies live freshness. The remaining shell readers retain their
+declared-host presence records an explicit ARP/ICMP vantage. The live OPNsense API is the sole
+firewall inventory source; the `config.xml` git backup is kept only as disaster-recovery material
+(restored as configuration, not parsed into inventory). The remaining shell readers retain their
 existing evidence limitations. Collection timestamps
 describe observations, not live service-health verification.
 Failed initial marker publication also invalidates previous success for default queries and

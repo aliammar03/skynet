@@ -39,7 +39,7 @@
     docker-compose
     htop
     nodejs_22 # runtime for the node-based ops scripts (bin/ops)
-    python3 # collect-firewall.sh parses the OPNsense config.xml
+    python3 # runtime for the skynet Python engine (collectors, verification, rendering)
     openssl # pin-cert.sh + TLS pinning
     netcat # reachability probes in a few scripts
     opentofu
