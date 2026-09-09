@@ -16,7 +16,7 @@ import pytest
 from test_proxmox import (FakeConnection, NETWORK_OPERATE_TOKEN, NETWORK_TOKEN, OPERATE_TOKEN,
                           network_endpoint_data, TOKEN)
 from skynet.cli import main
-from skynet import collection, docker, pbs, proxmox
+from skynet import collection, dns, docker, pbs, proxmox
 
 ROOT = Path(__file__).parents[1]
 pytest_plugins = ["test_proxmox"]
@@ -63,6 +63,17 @@ def pbs_observation(monkeypatch: pytest.MonkeyPatch) -> None:
             print(json.dumps(report), file=stdout)  # type: ignore[arg-type]
         return 0
     monkeypatch.setattr(docker, "collect", docker_collect)
+    def dns_collect(output: Path, credentials_file: Path, *, json_output: bool, stdout: object) -> int:
+        data = {"collected": datetime.now(UTC).isoformat(timespec="seconds"), "host": "10.10.70.50",
+                "zones": [{"name": "aliammar.net"}],
+                "records": [{"zone": "aliammar.net", "records": []}]}
+        proxmox.publish(output, data)
+        report = {"target": "dns", "outcome": "success", "collected": data["collected"],
+                  "counts": {"zones": 1, "records": 0}}
+        if json_output:
+            print(json.dumps(report), file=stdout)  # type: ignore[arg-type]
+        return 0
+    monkeypatch.setattr(dns, "collect", dns_collect)
 
 
 def run(
@@ -104,6 +115,7 @@ def test_default_collection_records_matching_evidence_and_runs_remaining_once(
     calls = (repo / "calls").read_text().splitlines()
     assert calls == [row[1] for row in collection.REMAINING]
     assert "collect-docker.sh" not in calls
+    assert "collect-dns.sh" not in calls
     evidence = json.loads((repo / "inventory/collection-core.json").read_text())
     assert evidence["sha256"] == hashlib.sha256(
         (repo / "inventory/proxmox-core.json").read_bytes()).hexdigest()
@@ -248,6 +260,29 @@ def test_failed_pbs_refresh_invalidates_status_and_retains_snapshot(
     assert run(repo, credentials, capsys)[0] == 3
     assert (repo / "inventory/pbs.json").read_bytes() == previous
     assert status(repo, capsys) == 3
+
+
+def test_failed_dns_refresh_invalidates_status_and_retains_snapshot(
+    repo: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert run(repo, credentials, capsys)[0] == 0
+    previous = (repo / "inventory/dns-zones.json").read_bytes()
+    real_collect = dns.collect
+
+    def unavailable(output: Path, credentials_file: Path, *, json_output: bool, stdout: object) -> int:
+        print(json.dumps({"target": "dns", "outcome": "unavailable",
+                          "reason": "synthetic DNS timeout"}), file=stdout)  # type: ignore[arg-type]
+        return 3
+
+    monkeypatch.setattr(dns, "collect", unavailable)
+    assert run(repo, credentials, capsys)[0] == 3
+    assert (repo / "inventory/dns-zones.json").read_bytes() == previous
+    assert status(repo, capsys) == 3
+
+    monkeypatch.setattr(dns, "collect", real_collect)
+    assert run(repo, credentials, capsys)[0] == 0
+    assert status(repo, capsys) == 0
 
 
 @pytest.mark.parametrize("failure", [TimeoutError(TOKEN), {"data": None}, {"data": [{}]}])
@@ -454,7 +489,7 @@ def test_signal_interrupts_reader_and_reaps_child(
         f"import json,sys\nsys.path[:] = {sys.path!r}\n"
         "from pathlib import Path\n"
         "from test_proxmox import FakeConnection, endpoint_data\n"
-        "from skynet import collection, docker, pbs, proxmox\nfrom skynet.cli import main\n"
+        "from skynet import collection, dns, docker, pbs, proxmox\nfrom skynet.cli import main\n"
         "FakeConnection.responses = endpoint_data()\n"
         "proxmox.http.client.HTTPSConnection = FakeConnection\n"
         "def pbs_collect(output, credentials_file, *, json_output, stdout):\n"
@@ -469,6 +504,12 @@ def test_signal_interrupts_reader_and_reaps_child(
         "  stdout.write(json.dumps({'target':'docker-'+label,'outcome':'success','collected':data['collected']}))\n"
         "  return 0\n"
         "docker.collect = docker_collect\n"
+        "def dns_collect(output, credentials_file, *, json_output, stdout):\n"
+        "  data = {'collected':'2026-09-09T00:00:00+00:00','host':'10.10.70.50','zones':[],'records':[]}\n"
+        "  proxmox.publish(output, data)\n"
+        "  stdout.write(json.dumps({'target':'dns','outcome':'success','collected':data['collected']}))\n"
+        "  return 0\n"
+        "dns.collect = dns_collect\n"
         f"collection.REMAINING = (('slow', {reader.name!r}),)\n"
         f"args = ['collect', 'all', '--repo', {str(repo)!r}, "
         f"'--credentials-file', {str(credentials)!r}, "
@@ -679,12 +720,14 @@ def test_status_fails_closed_when_receipt_cannot_be_reaffirmed(
     ("scripts/render-docs.sh", [], ["collect-status", "--repo"]),
     ("scripts/collect-proxmox.sh", ["core"], ["collect", "proxmox", "core"]),
     ("scripts/collect-pbs.sh", [], ["collect", "pbs", "--output"]),
+    ("scripts/collect-dns.sh", [], ["collect", "dns", "--output"]),
 ])
 def test_default_shell_callers_use_offline_package_and_propagate_failure(
     tmp_path: Path, entry: str, args: list[str], expected: list[str],
 ) -> None:
     for relative in ("bin/ops", "bin/skynet", "scripts/collect-all.sh",
-                     "scripts/render-docs.sh", "scripts/collect-proxmox.sh", "scripts/collect-pbs.sh"):
+                     "scripts/render-docs.sh", "scripts/collect-proxmox.sh", "scripts/collect-pbs.sh",
+                     "scripts/collect-dns.sh"):
         target = tmp_path / relative
         target.parent.mkdir(exist_ok=True)
         shutil.copy(ROOT / relative, target)
@@ -727,7 +770,7 @@ def test_bin_ops_collection_reaches_real_cli_and_core_collector(
     launcher.write_text(
         f"#!{sys.executable}\nimport sys\nsys.path[:] = {sys.path!r}\n"
         "from test_proxmox import FakeConnection, endpoint_data\n"
-        "from skynet import docker, pbs, proxmox\nfrom skynet.cli import main\n"
+        "from skynet import dns, docker, pbs, proxmox\nfrom skynet.cli import main\n"
         "FakeConnection.responses = endpoint_data()\n"
         "proxmox.http.client.HTTPSConnection = FakeConnection\n"
         "pbs.collect = lambda output, credentials_file, json_output, stdout: ("
@@ -736,6 +779,9 @@ def test_bin_ops_collection_reaches_real_cli_and_core_collector(
         "docker.collect = lambda label, output, context, json_output, stdout, raise_cleanup=False: ("
         "proxmox.publish(output, {'collected':'2026-09-09T00:00:00+00:00','host':label,'containers':[],'images':[]}) or "
         "stdout.write('{\\\"target\\\":\\\"docker-dmz\\\",\\\"outcome\\\":\\\"success\\\",\\\"collected\\\":\\\"2026-09-09T00:00:00+00:00\\\"}') and 0)\n"
+        "dns.collect = lambda output, credentials_file, json_output, stdout: ("
+        "proxmox.publish(output, {'collected':'2026-09-09T00:00:00+00:00','host':'10.10.70.50','zones':[],'records':[]}) or "
+        "stdout.write('{\\\"target\\\":\\\"dns\\\",\\\"outcome\\\":\\\"success\\\",\\\"collected\\\":\\\"2026-09-09T00:00:00+00:00\\\"}') and 0)\n"
         "sys.exit(main(sys.argv[6:]))\n"
     )
     launcher.chmod(0o755)

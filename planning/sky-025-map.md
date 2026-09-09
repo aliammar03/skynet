@@ -29,7 +29,7 @@ Enumeration counts: root files 10; `.claude` 1, `.codex` 4, `.githooks` 1, `.git
 | `bin/ops`; `collect-all.sh` | migrate | Thin `skynet` dispatch and explicit workflow results | Humans, runbooks, nightly | 2–9, 20 | P4a routes core and network observations through the Nix package; paired refresh evidence guards default queries/audits/rendering. Remaining orchestration stays P20 |
 | `collect-proxmox.sh`, `collect-proxmox-acl.sh` | migrate | Python read collectors; node-specific validation | collect-all, inventory gates/renderers | 3–4 | P4a leaves `collect-proxmox.sh` as a packaged-command forwarder and removes its shell API/parser. Both ACL readers remain P4b. Live behavior untested |
 | `collect-pbs.sh`, `collect-docker.sh` | migrate | Python PBS/Docker collectors | collect-all, backup/container views | 5 | P5 accepted with reviewer repairs: single Docker writer, descendant cleanup, strict required fields, truthful verification, TLS and test isolation; live reads pass |
-| `collect-dns.sh`, `collect-opnsense.sh`, `collect-firewall.sh` | migrate | Python DNS/live OPNsense collection and offline mirror parsing | collect-all, firewall/DNS views; ADR 0006 offline recovery | 6 | Verified live/offline distinction; no new OPNsense writer |
+| `collect-dns.sh`, `collect-opnsense.sh`, `collect-firewall.sh` | migrate | Python DNS/live OPNsense collection and offline mirror parsing | collect-all, firewall/DNS views; ADR 0006 offline recovery | 6 | P6a leaves `collect-dns.sh` a forwarding shim and replaces its curl/jq/eval with `src/skynet/dns.py` (validated zones/records, receipt-bound freshness). OPNsense live/offline reads remain P6b; no new OPNsense writer. Live DNS untested |
 | `collect-network-gear.sh`, `collect-certs.sh`, `collect-routes.sh`, `recon.sh` | migrate | Python observations with provenance and vantage | collect-all, recon/diagnosis runbooks | 7 | Verified callers; static declarations cannot imply live discovery |
 | `entity.sh`, `audit-entities.sh`, `build-db.sh` | migrate | Entity functions, audit, rebuildable SQLite cache | collectors/render-docs, bin/ops entities/query | 8 | Verified existing identity and join callers |
 | `scripts/sql/*.sql` | retain | SQL query definitions | bin/ops query, SQLite cache | 8 | Verified host-map/vhosts queries; adapt schema with consumers |
@@ -332,3 +332,39 @@ coverage into Python and removed the superseded shell test from hook/CI. Constru
 HTTPS, synthetic credentials and disposable paths only; no live PBS/Docker endpoint, credential,
 trust setting, backup, restore, host, timer, service, grant or production write occurred. Source
 rollback is `git revert`; endpoint parity and workstation/state/payload recovery remain unverified.
+
+## Phase 6a implementation (slice complete; P6 in progress)
+
+From remote-main base `db09021802f590d79f2ab9f7c2c56064f29c0a4a`, P6a adds
+`skynet collect dns --output <file> [--credentials-file <file>] [--json]` in `src/skynet/dns.py`,
+replacing the `collect-dns.sh` curl/jq/eval reader. Literal `TECH_HOST/TECH_TOKEN/TECH_CACERT`
+parsing, CA-file hostname-verified HTTPS on port 53443, a 15s timeout, and a token carried only in
+the request query with fixed redacted diagnostics. Only `zones/list` and `zones/records/get` are
+allowed. The snapshot preserves collection time, host, every zone object, and per-zone
+`{zone, records}` with record `name/type/rData` (all record types) consumed by SQLite
+(`build-db.sh`) and the A/CNAME service renderer (`render-docs.sh`); a top-level `host` field feeds
+the freshness node/host check. A non-`ok` API status, null/missing zone or record list, duplicate
+zone identity, malformed required record field, timeout or trust failure is unavailable/failed and
+retains prior bytes; a validated empty record list is a real observation.
+
+`collect all` drops DNS from the shell `REMAINING`, runs it once under the shared attempt receipt,
+publishes a receipt/hash/time `inventory/collection-dns.json` marker, and `collect-status`,
+query/entity, factual rendering and the nightly cutoff now require it. DNS failure continues later
+scoped readers but refuses default freshness. `collect-dns.sh` is a forwarding shim; P22 owns
+removal. `test_dns.py` + `tests/fixtures/dns/` and the shim join the Nix source filter, installed
+check and staged-hook glob.
+
+| Consumer | Preserved snapshot contract / synthetic evidence |
+|---|---|
+| `build-db.sh`, `render-docs.sh` | `.records[].records[]` A/CNAME rows keep `name`, `type`, `rData.ipAddress`/`rData.cname`; non-A/CNAME types (SOA/NS/TXT/…) are preserved verbatim, not dropped. |
+| `collect all` / `collect-status` | DNS marker binds the shared receipt and `dns-zones.json` hash/time; default consumers require all six migrated markers within 36 hours plus the nightly same-pass cutoff. Failed DNS retains bytes, refuses freshness, and lets remaining scoped readers continue. |
+| CLI / explicit file consumer | Success 0 with collection time/zone+record counts; unavailable 3; malformed/publication failure 1; usage 2. A failed refresh reports previous evidence and leaves old bytes intact. |
+
+Construction used fake HTTPS, synthetic credentials and disposable outputs only; no live
+DNS/OPNsense read, mirror credential/config content, zone modification, Technitium server setting,
+timer/service, root, grant or production write occurred. Source rollback is `git revert`; endpoint
+parity and workstation/state/payload recovery remain unverified. **Unverified live boundary:** the
+committed `dns-zones.json` shows the root `""` Secondary zone returning `records: null`, which the
+stricter contract fails; whether that needs a zone-type exclusion or query adjustment is a
+P6b/live-transition question, not resolved here. P6b (OPNsense live + offline mirror) is the
+remaining same-phase work; one fresh review covers the complete P6 after both slices merge.

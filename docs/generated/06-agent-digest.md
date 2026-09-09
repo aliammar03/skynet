@@ -40,24 +40,24 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 **Explicit durable follow-ups:**
 
+- **P6b is the remaining same-phase work** (OPNsense live + offline mirror parsing); detail it after this PR merges. One fresh review covers the whole numbered P6 after both slices merge. — _2026-09-09 session_
+- **Live boundary, unverified (no live reads this packet):** the committed `inventory/dns-zones.json` shows the root `""` Secondary zone returning `records: null`. Under P6a's stricter contract a null record list fails the whole DNS refresh. If live Technitium genuinely returns null for that secondary/root zone, live DNS collection would report unavailable and retain prior bytes — the honest F8 signal, but it may need a zone-type exclusion or query adjustment at the P6b/live transition. Recorded, not resolved here. — _2026-09-09 session_
+- Restore the local worktree: `git stash pop` the stashed inventory/docs + `tofu-drift.txt` after leaving this branch. — _2026-09-09 session_
 - Finish full source/installed validation, repeat packaged live observations, then publish the combined repair/acceptance PR and P6a DNS packet. No P6 implementation is part of this run. — _2026-09-09 session_
 - Workstation/state/payload recovery remains unverified. No backup/restore/prune, Docker mutation, activation, timer/service, root grant or credential/pin change was performed. — _2026-09-09 session_
 - After Ali merges this P5 FIX planning PR, use Terra High: `Read planning/prompts/execute.md and execute SKY-025 P5 fix.` After fix PR(s) merge, request fresh Astra Medium review of #223, #224 and all fixes. — _2026-09-09 session_
 - Workstation/state/payload recovery and live endpoint parity remain unverified. No live PBS/Docker permission is released by the fix packet; no root/grant, activation, timer/service, credential/pin change, backup/restore/prune or payload/state action occurred. — _2026-09-09 session_
 - Run packaged/flake/hook checks, regenerate routing views, publish P5b. After human merge, request one fresh Astra Medium review for P5a and P5b before P6. — _2026-09-09 session_
-- Regenerated digest, context map and roadmap after this entry. Commit, push and open the P5a PR. After Ali merges it, detail only P5b Docker; review both P5 slices together before P6. — _2026-09-09 session_
-- After Ali merges this P4 ACCEPT planning PR, run a fresh Terra High session: `Read planning/prompts/execute.md and execute SKY-025 P5a.` — _2026-09-09 session_
-- Workstation access, state/payload recovery, other endpoint parity and host activation remain unverified. Five paused documentation suites were not run or counted as passing; restore maintained replacements by P24. P4 live authorization does not authorize PBS/Docker execution. — _2026-09-09 session_
 
 ## 📓 Recent episodes
 
+- **2026-09-09** · session · [[2026-09-09-session-sky-025-p6a-dns-python-collection|sky-025-p6a-dns-python-collection]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p5-reviewer-repairs-and-live-reads|SKY-025 P5 reviewer repairs and live reads]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p5-combined-independent-review|SKY-025 P5 combined independent review]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p5b-docker-inventory|SKY-025 P5b Docker inventory]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p5a-pbs-inventory|SKY-025 P5a PBS inventory]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p4-combined-independent-review|SKY-025 P4 combined independent review]]
 - **2026-09-08** · session · [[2026-09-08-session-sky-025-p4b-operate-token-acl-snapshots|SKY-025 P4b operate-token ACL snapshots]]
-- **2026-09-08** · incident · [[2026-09-08-incident-sky-025-p4a-default-path-test-scope-breach|SKY-025 P4a default-path test scope breach]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._

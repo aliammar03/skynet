@@ -1,0 +1,33 @@
+{
+  "zones": [
+    {
+      "name": "aliammar.net",
+      "type": "Primary",
+      "lastModified": "2026-09-02T03:42:33.6062229Z",
+      "disabled": false,
+      "soaSerial": 22,
+      "catalog": "cluster-catalog.tdns.home.aliammar.net",
+      "dnssecStatus": "SignedWithNSEC",
+      "notifyFailed": false,
+      "notifyFailedFor": []
+    },
+    {
+      "name": "lab.aliammar.net",
+      "type": "Primary",
+      "lastModified": "2026-09-01T19:25:05.1947064Z",
+      "disabled": false,
+      "soaSerial": 291,
+      "notifyFailed": false,
+      "notifyFailedFor": []
+    },
+    {
+      "name": "empty.aliammar.net",
+      "type": "Forwarder",
+      "lastModified": "2026-08-12T19:21:21.34Z",
+      "disabled": false,
+      "soaSerial": 16,
+      "notifyFailed": false,
+      "notifyFailedFor": []
+    }
+  ]
+}

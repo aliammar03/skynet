@@ -32,7 +32,8 @@ nix/packages/
 ## Skynet Python runtime
 
 The `skynet` command is a Nix-owned Python package exposing a runtime diagnostic, core and network
-Proxmox observations, PBS backup observations, Docker inventory, default collection and receipt-bound
+Proxmox observations, PBS backup observations, Docker inventory, Technitium DNS zones, default
+collection and receipt-bound
 freshness checks. `bin/skynet` launches the package
 from the checkout's tracked Git source using offline, lock-preserving Nix evaluation. It never
 falls back to source Python or installs a profile. Build the package and cache its dependencies
@@ -85,6 +86,17 @@ JSON lines must contain valid container/image fields consumed by SQLite; a valid
 empty host is distinct from a missing context, failed command, or malformed output. Failure retains
 the previous snapshot and cannot establish fresh default evidence.
 
+`skynet collect dns --output <file> [--credentials-file <file>] [--json]` reads Technitium zones
+and their records over verified HTTPS on port 53443, using literal
+`/opt/skynet-ops/secrets/technitium.env` `TECH_HOST`, `TECH_TOKEN`, and `TECH_CACERT` assignments
+(the scoped Zones token, never server settings). Only the `zones/list` and `zones/records/get`
+read endpoints are called; the token travels solely in the request query and never in a diagnostic.
+The snapshot preserves the collection time, host, every zone object, and each zone's
+`{zone, records}` with record `name/type/rData` (all record types, not only A/CNAME) consumed by
+SQLite and the service renderer. A non-`ok` API status, a null/missing zone list or record list, a
+duplicate zone identity, a malformed required record field, timeout or trust failure is unavailable
+or failed, never an empty successful result; a validated empty record list is a real observation.
+
 The collector publishes atomically to the explicit destination after every required read and
 validation succeeds. Failure retains any previous snapshot and its timestamp; consumers must treat it as
 previous evidence. Collection success describes observations, not service or backup health.
@@ -94,7 +106,7 @@ data or local publication failure. Empty nodes/resources fail; empty pools/jobs/
 observations, with absent backup results represented by null fields.
 
 `bin/ops collect` forwards to `skynet collect all --repo <checkout>`, running the Python core,
-network, ACL, PBS, and Docker collectors once each before the remaining shell readers. Refresh evidence lives in
+network, ACL, PBS, Docker, and DNS collectors once each before the remaining shell readers. Refresh evidence lives in
 the matching `inventory/collection-*.json` markers: an incomplete marker precedes each read, and
 success records that snapshot's exact hash/time. The nonblocking
 `.cache/collection.lock` stores one durable attempt receipt before marker publication. Status

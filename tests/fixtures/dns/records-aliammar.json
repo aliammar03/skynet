@@ -1,0 +1,62 @@
+{
+  "records": [
+    {
+      "name": "aliammar.net",
+      "type": "SOA",
+      "ttl": 900,
+      "ttlString": "15m",
+      "disabled": false,
+      "rData": {
+        "primaryNameServer": "lxc-technitium-core",
+        "responsiblePerson": "invalid",
+        "serial": 22,
+        "refresh": 900,
+        "retry": 300,
+        "expire": 604800,
+        "minimum": 900
+      },
+      "dnssecStatus": "Unknown",
+      "lastModified": "2026-08-12T17:58:15.378Z"
+    },
+    {
+      "name": "aliammar.net",
+      "type": "NS",
+      "ttl": 3600,
+      "ttlString": "1h",
+      "disabled": false,
+      "rData": { "nameServer": "lxc-technitium-core." },
+      "dnssecStatus": "Unknown",
+      "lastModified": "2026-08-12T17:58:15.378Z"
+    },
+    {
+      "name": "apps.aliammar.net",
+      "type": "A",
+      "ttl": 300,
+      "ttlString": "5m",
+      "disabled": false,
+      "rData": { "ipAddress": "10.10.60.33" },
+      "dnssecStatus": "Unknown",
+      "lastModified": "2026-09-01T10:00:00.0Z"
+    },
+    {
+      "name": "obsidian.aliammar.net",
+      "type": "CNAME",
+      "ttl": 300,
+      "ttlString": "5m",
+      "disabled": false,
+      "rData": { "cname": "apps.aliammar.net" },
+      "dnssecStatus": "Unknown",
+      "lastModified": "2026-09-01T10:05:00.0Z"
+    },
+    {
+      "name": "aliammar.net",
+      "type": "TXT",
+      "ttl": 3600,
+      "ttlString": "1h",
+      "disabled": false,
+      "rData": { "text": "v=spf1 -all" },
+      "dnssecStatus": "Unknown",
+      "lastModified": "2026-09-01T10:06:00.0Z"
+    }
+  ]
+}
