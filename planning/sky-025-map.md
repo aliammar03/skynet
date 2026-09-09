@@ -29,7 +29,7 @@ Enumeration counts: root files 10; `.claude` 1, `.codex` 4, `.githooks` 1, `.git
 | `collect-proxmox.sh`, `collect-proxmox-acl.sh` | migrate | Python read collectors; node-specific validation | collect-all, inventory gates/renderers | 3–4 | P4a leaves `collect-proxmox.sh` as a packaged-command forwarder and removes its shell API/parser. Both ACL readers remain P4b. Live behavior untested |
 | `collect-pbs.sh`, `collect-docker.sh` | migrate | Python PBS/Docker collectors | collect-all, backup/container views | 5 | P5 accepted with reviewer repairs: single Docker writer, descendant cleanup, strict required fields, truthful verification, TLS and test isolation; live reads pass |
 | `collect-dns.sh`, `collect-opnsense.sh` | migrate | Python DNS collection and live OPNsense firewall+state collection | collect-all, firewall/DNS views | 6 | P6a: `collect-dns.sh` → shim + `src/skynet/dns.py`. P6b-i: `collect-opnsense.sh` → shim + `src/skynet/opnsense.py` (live, paired firewall.json + opnsense.json, receipt-bound). No new OPNsense writer. P6 accepted with reviewer repairs and scoped live reads. **P6c retired the offline `config.xml` inventory path entirely** (`collect-firewall.sh`, `src/skynet/firewall.py`, `skynet collect firewall`, parser tests/fixtures deleted): live OPNsense API is the sole firewall inventory source; the `config.xml` git backup is DR-only (restored as config, never parsed into inventory). See disposition below |
-| `collect-network-gear.sh`, `collect-certs.sh`, `collect-routes.sh`, `recon.sh` | migrate | Python observations with provenance and vantage | collect-all, recon/diagnosis runbooks | 7 | P7a moves Omada; P7b moves fixed-vantage certificate probes and static Caddy routes, all receipt-bound. P7c recon remains same-phase work after P7b merge. |
+| `collect-network-gear.sh`, `collect-certs.sh`, `collect-routes.sh`, `recon.sh` | migrate | Python observations with provenance and vantage | collect-all, recon/diagnosis runbooks | 7 | P7a moves Omada; P7b moves fixed-vantage certificate probes and static Caddy routes; P7c moves local/forced-svc-ops recon. P7 review pending. |
 | `entity.sh`, `audit-entities.sh`, `build-db.sh` | migrate | Entity functions, audit, rebuildable SQLite cache | collectors/render-docs, bin/ops entities/query | 8 | Verified existing identity and join callers |
 | `scripts/sql/*.sql` | retain | SQL query definitions | bin/ops query, SQLite cache | 8 | Verified host-map/vhosts queries; adapt schema with consumers |
 | `render-docs.sh`, `render-digest.sh`, `render-context-map.sh`, `render-runbook-catalog.sh`; `bin/recall` | migrate | Python rendering/retrieval, existing Markdown sources | nightly, bin/ops, cold boot, catalog checks | 9 | Verified outputs; history remains append-only |
@@ -345,8 +345,8 @@ source path provenance is preserved but no mirror revision/hash is claimed. No p
 inventory was overwritten. Full source/installed checks passed, with 225 source tests.
 The raw review journal preserves failures, worker integration and limitations.
 
-P6 shell entry points remain forwarding shims owned by P22. P7a Omada and P7b certificates/routes
-are slice-complete; P7c recon is released only after P7b's human merge.
+P6 shell entry points remain forwarding shims owned by P22. P7a Omada, P7b certificates/routes and
+P7c recon are slice-complete. P7 is review pending; accepted progress remains 6/24.
 Workstation/state/payload recovery and live installation blockers remain unchanged.
 The historical implementation entries below do not supersede this acceptance.
 
@@ -362,7 +362,17 @@ Both snapshots have receipt-bound default markers and freshness requirements; th
 now forward to Python. Synthetic source/installed checks pass, and the authorized isolated T1 pass
 returned 7/7 certificate endpoints reachable and 9 static routes. No production inventory changed.
 
-P7c recon and P7's independent acceptance remain blocked on the human merge of this slice.
+P7's independent acceptance remains pending the merged P7c implementation review.
+
+## Phase 7c implementation (slice complete; P7 review pending)
+
+From remote-main base `e45b8132f3fe1e9637a2a8846de1258cb234dac8`, P7c adds `skynet recon
+[target] [--json]`. It sends a fixed read-only probe through local bash or argument-array SSH to a
+bare target forced as `svc-ops@<target>`; explicit users and SSH options are rejected. Complete
+marker boundaries are required before a snapshot can succeed, while individual probe output remains
+truthfully partial. Synthetic package checks pass, and isolated live reads returned all nine sections
+from the ops VM and `docker-dmz`. No inventory or service state changed. A fresh review after P7c's
+merge must accept all P7 slices before P8.
 
 ## Phase 7a implementation (slice complete; P7 in progress)
 

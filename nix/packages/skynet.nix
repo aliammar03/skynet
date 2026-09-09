@@ -17,6 +17,7 @@ let
       (root + "/tests/test_omada.py")
       (root + "/tests/test_certs.py")
       (root + "/tests/test_routes.py")
+      (root + "/tests/test_recon.py")
       (root + "/tests/fixtures/proxmox")
       (root + "/tests/fixtures/pbs")
       (root + "/tests/fixtures/dns")
@@ -24,6 +25,7 @@ let
       (root + "/tests/fixtures/omada")
       (root + "/tests/fixtures/certs")
       (root + "/tests/fixtures/routes")
+      (root + "/tests/fixtures/recon")
       (root + "/bin/ops")
       (root + "/bin/skynet")
       (root + "/scripts/collect-all.sh")
@@ -35,6 +37,7 @@ let
       (root + "/scripts/collect-network-gear.sh")
       (root + "/scripts/collect-certs.sh")
       (root + "/scripts/collect-routes.sh")
+      (root + "/scripts/recon.sh")
       (root + "/scripts/render-docs.sh")
     ];
   };

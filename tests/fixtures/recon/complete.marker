@@ -1,0 +1,28 @@
+@@META@@host	worker.example.test
+@@META@@collected	2026-09-09T12:00:00+00:00
+@@META@@as	svc-ops@worker.example.test
+@@SEC@@Host
+kernel : Linux 6.12.0 synthetic
+uptime : up 1 hour
+@@SEC@@Load / memory / CPU
+load   : 0.10 0.20 0.30   (cores: 4)
+Mem: 8Gi 2Gi 6Gi
+@@SEC@@Disk — usage then inodes
+Filesystem  Size  Used Avail Use% Mounted on
+/dev/synthetic  20G  4G  16G  20% /
+--- inodes ---
+Filesystem  Inodes IUsed IFree IUse% Mounted on
+/dev/synthetic  1000 100 900 10% /
+@@SEC@@systemd — failed units
+(none failed)
+@@SEC@@Listening sockets (TCP/UDP)
+tcp   LISTEN 0.0.0.0:22
+@@SEC@@Containers (docker, unprivileged)
+NAME STATUS IMAGE
+web Up 1 hour web:synthetic
+@@SEC@@Recent warnings/errors (journal, last boot)
+(none)
+@@SEC@@Recent config changes — /etc modified in last 7 days
+(none)
+@@SEC@@Recent package changes (last 20)
+(none)
