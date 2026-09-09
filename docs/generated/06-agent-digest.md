@@ -40,24 +40,24 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 **Explicit durable follow-ups:**
 
+- **P7a Omada (Terra High) is the sole released executable packet** (directive §5); P7b certs/routes and P7c recon are same-phase continuations, and one fresh review covers all P7 before P8. — _2026-09-09 session_
+- **P6c + this review-fix await human merge** (PR #231 + the review-fix PR); once merged, the offline `config.xml` firewall inventory path is fully retired and the live OPNsense API is the sole source. — _2026-09-09 session_
+- **Five paused documentation suites remain manual** (obsidian-hygiene, documentation-drift, temporal-hygiene, repo-surface, hygiene); P24 must restore maintained replacements to hook + CI before the directive closes. — _2026-09-09 session_
+- **Generated agent-context surfaces (06-agent-digest, 07-context-map) were regenerated this session** to clear stale P6-in-progress/firewall context; they refresh from journal + planning, never hand-edited. — _2026-09-09 session_
+- **Accepted progress is 6/24** (P6 accepted via #229); P7 has not started — never advance a numbered phase without its independent acceptance. — _2026-09-09 session_
+- **Workstation/state/payload recovery and live endpoint parity remain unverified** across the overhaul; no live/production read or write, root, grant or credential change occurred this session. — _2026-09-09 session_
 - Complete OPNsense repair/live retest, full installed/source checks and review publication. — _2026-09-09 session_
 - No production inventory replacement, timer/service change, activation, root session, credential/pin change, zone write or firewall write occurred. The tests used disposable outputs; workstation/state/payload recovery remains unverified. — _2026-09-09 session_
-- **#228 depends on #227**: rebase onto main after #227 merges (trivial additive conflicts in cli.py, nix/packages/skynet.nix, .githooks/pre-commit — the hook glob is one shared line). Merge order: #227 then #228. — _2026-09-09 session_
-- **P6 is now fully sliced** (P6a #226 merged, P6b-i #227 open, P6b-ii #228 open). After all three merge, obtain ONE fresh review of the complete numbered P6 before P7. Accepted progress stays 5/24. — _2026-09-09 session_
-- **Unverified live boundary:** ET parsing of operator-supplied config.xml uses stdlib (not defusedxml) — acceptable since the source is the operator's own git mirror, noted for the live transition. No live read performed. — _2026-09-09 session_
-- Restore local worktree: `git stash pop` after leaving this branch. — _2026-09-09 session_
-- **P6b-ii is the remaining same-phase work:** `src/skynet/firewall.py` offline config.xml parser (redact sensitive tags, retain source provenance, avoid implicit git pulls, never satisfy live freshness), `collect-firewall.sh` → shim, `skynet collect firewall`, tests/fixtures. Detail it after this PR merges. — _2026-09-09 session_
-- **After all P6 slices (P6a + P6b-i + P6b-ii) merge**, obtain ONE fresh review of the complete numbered P6 before P7. Accepted progress stays 5/24. — _2026-09-09 session_
 
 ## 📓 Recent episodes
 
+- **2026-09-09** · session · [[2026-09-09-session-sky-025-p6c-review-fix-regenerate-stale-agent-and-planning-context|sky-025 p6c review-fix regenerate stale agent and planning context]]
+- **2026-09-09** · session · [[2026-09-09-session-sky-025-p6c-remove-offline-firewall-inventory-path|sky-025 p6c remove offline firewall inventory path]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p6-combined-review-and-live-reads|SKY-025 P6 combined review and live reads]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p6b-ii-opnsense-offline-mirror-parser|sky-025-p6b-ii-opnsense-offline-mirror-parser]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p6b-opnsense-live-python-collection|sky-025-p6b-opnsense-live-python-collection]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p6a-dns-python-collection|sky-025-p6a-dns-python-collection]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p5-reviewer-repairs-and-live-reads|SKY-025 P5 reviewer repairs and live reads]]
-- **2026-09-09** · session · [[2026-09-09-session-sky-025-p5-combined-independent-review|SKY-025 P5 combined independent review]]
-- **2026-09-09** · session · [[2026-09-09-session-sky-025-p5b-docker-inventory|SKY-025 P5b Docker inventory]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._
