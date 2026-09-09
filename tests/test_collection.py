@@ -16,7 +16,7 @@ import pytest
 from test_proxmox import (FakeConnection, NETWORK_OPERATE_TOKEN, NETWORK_TOKEN, OPERATE_TOKEN,
                           network_endpoint_data, TOKEN)
 from skynet.cli import main
-from skynet import collection, dns, docker, firewall, opnsense, pbs, proxmox
+from skynet import collection, dns, docker, opnsense, pbs, proxmox
 
 ROOT = Path(__file__).parents[1]
 pytest_plugins = ["test_proxmox"]
@@ -360,16 +360,16 @@ def test_p6_marker_failure_refuses_freshness_and_recovers(
     assert status(repo, capsys) == 0
 
 
-def test_offline_mirror_replacement_invalidates_existing_live_receipt(
+def test_out_of_band_firewall_overwrite_invalidates_existing_live_receipt(
     repo: Path, credentials: Path, transport: type[FakeConnection],
     capsys: pytest.CaptureFixture[str],
 ) -> None:
+    # A DR config restore or manual edit that rewrites firewall.json without the receipt
+    # cannot pass as fresh: the marker's sha256 no longer matches the file on disk.
     assert run(repo, credentials, capsys)[0] == 0
     assert status(repo, capsys) == 0
     output = repo / "inventory/firewall/firewall.json"
-    with open(os.devnull, "w") as stdout:
-        assert firewall.collect(output, ROOT / "tests/fixtures/firewall/config.xml",
-                                json_output=True, stdout=stdout) == 0
+    output.write_bytes(output.read_bytes() + b"\n")
     assert status(repo, capsys) == 3
     assert run(repo, credentials, capsys)[0] == 0
     assert status(repo, capsys) == 0

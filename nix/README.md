@@ -121,19 +121,10 @@ first, then ICMP for ARP-silent hosts from the ops vantage; `via` is explicit (`
 validated before either is written; a read or validation failure leaves both files untouched, and
 the default path binds both to one receipt so neither looks fresh without the other. Replacement
 is atomic per file, not across the pair: a publication failure can leave one changed file, returns
-failure, and cannot satisfy default freshness. The offline
-mirror parser (`collect-firewall.sh` today) remains the DR rebuild-from-git source and never
-satisfies live freshness.
-
-`skynet collect firewall --output <file> [--config <path>] [--json]` is the offline DR rebuild: it
-parses the git-mirrored OPNsense `config.xml` (default
-`/opt/skynet-ops/mirror/skynet-opnsense/config.xml`) into the firewall.json aliases/rules/
-reservations shape when the live API is unreachable. It performs no network or git operation — the
-operator refreshes the mirror first — and writes no receipt-bound marker, so an offline parse can
-never satisfy the default freshness contract (`collect-status` still reports it unavailable). Any
-sensitive-looking child tag (password/secret/key/token/psk/hash/…) is dropped whether or not it
-holds a value, since the inventory is committed to git. A missing mirror is unavailable; malformed
-XML or an unexpected root fails; both retain any previous snapshot.
+failure, and cannot satisfy default freshness. The live OPNsense API is the sole producer of
+firewall inventory; the `skynet-opnsense` `config.xml` git backup is retained only as
+disaster-recovery material (restored as configuration into OPNsense — see
+`docs/design/disaster-recovery.md`), never parsed into inventory.
 
 Each collector validates every required read before atomically replacing each explicit destination.
 Read/validation failure retains previous snapshots; publication failure cannot establish fresh

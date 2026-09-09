@@ -8,7 +8,7 @@
 The original hard law (§2a, AGENTS.md §6) was blunt: **"no standing route or credential to
 OPNsense."** Not even read. To get any firewall visibility at all, Skynet reads OPNsense **indirectly**
 through a git mirror — the `os-git-backup` plugin commits `config.xml` on every change and pushes it to
-the `skynet-opnsense` repo, and `collect-firewall.sh` parses that mirror.
+the `skynet-opnsense` repo, and a config.xml mirror parser rebuilt firewall inventory from that mirror.
 
 That indirection is a recurring freshness tax. `os-git-backup` **pushes to the remote nightly by
 default** ([OPNsense docs](https://docs.opnsense.org/manual/git-backup.html)); a change is committed
@@ -78,12 +78,14 @@ Reboot stays a hard checkpoint because it drops the whole network; it is never a
   credential used **only** by `scripts/tofu-apply.sh <saved-plan>` after a merged PR and explicit
   review of that plan. Both sops-nix (`opnsense.env`), same
   shape as the Proxmox/Omada creds.
-- **The live API is the collector; the git mirror is retired to DR-only.** `collect-opnsense.sh`
-  writes the canonical firewall inventory (`firewall.json` + `opnsense.json`) live — no push lag; the
-  mirror parser `collect-firewall.sh` leaves the nightly loop and stays as the offline/DR parser. The
-  `config.xml` mirror is retained as the **rebuild-from-git DR source** (§2a: OPNsense reconstructable
-  from git), not the observed-truth reader. (Refined 2026-09-01 after P1 proved the live read; Ali's
-  call — the mirror already holds every secret the box does, so live-as-primary loses nothing.)
+- **The live API is the sole firewall inventory collector; the git mirror is DR-only.** The live
+  OPNsense read (`collect-opnsense.sh` → `src/skynet/opnsense.py`) writes the canonical firewall
+  inventory (`firewall.json` + `opnsense.json`) live — no push lag. The `config.xml` mirror is
+  retained purely as the **rebuild-from-git DR source** (§2a: OPNsense reconstructable from git):
+  in recovery it is restored as configuration into OPNsense, never parsed into inventory. (Refined
+  2026-09-01 after P1 proved the live read; Ali's call — the mirror already holds every secret the
+  box does, so live-as-primary loses nothing. The interim offline `config.xml` inventory parser was
+  retired in SKY-025 P6c, leaving the live API as the one firewall inventory producer.)
 - This changes a §2a hard law + `invariants.json`, so it is **human-merged forever** (never
   agent-self-merged), like every leash change.
 

@@ -29,7 +29,7 @@ Enumeration counts: root files 10; `.claude` 1, `.codex` 4, `.githooks` 1, `.git
 | `bin/ops`; `collect-all.sh` | migrate | Thin `skynet` dispatch and explicit workflow results | Humans, runbooks, nightly | 2–9, 20 | P4a routes core and network observations through the Nix package; paired refresh evidence guards default queries/audits/rendering. Remaining orchestration stays P20 |
 | `collect-proxmox.sh`, `collect-proxmox-acl.sh` | migrate | Python read collectors; node-specific validation | collect-all, inventory gates/renderers | 3–4 | P4a leaves `collect-proxmox.sh` as a packaged-command forwarder and removes its shell API/parser. Both ACL readers remain P4b. Live behavior untested |
 | `collect-pbs.sh`, `collect-docker.sh` | migrate | Python PBS/Docker collectors | collect-all, backup/container views | 5 | P5 accepted with reviewer repairs: single Docker writer, descendant cleanup, strict required fields, truthful verification, TLS and test isolation; live reads pass |
-| `collect-dns.sh`, `collect-opnsense.sh`, `collect-firewall.sh` | migrate | Python DNS/live OPNsense collection and offline mirror parsing | collect-all, firewall/DNS views; ADR 0006 offline recovery | 6 | P6a: `collect-dns.sh` → shim + `src/skynet/dns.py`. P6b-i: `collect-opnsense.sh` → shim + `src/skynet/opnsense.py` (live, paired firewall.json + opnsense.json, receipt-bound). P6b-ii: `collect-firewall.sh` → shim + `src/skynet/firewall.py` (offline config.xml parse, redacted, no marker, never live-fresh). No new OPNsense writer. P6 accepted with reviewer repairs and scoped live reads; see independent acceptance below |
+| `collect-dns.sh`, `collect-opnsense.sh` | migrate | Python DNS collection and live OPNsense firewall+state collection | collect-all, firewall/DNS views | 6 | P6a: `collect-dns.sh` → shim + `src/skynet/dns.py`. P6b-i: `collect-opnsense.sh` → shim + `src/skynet/opnsense.py` (live, paired firewall.json + opnsense.json, receipt-bound). No new OPNsense writer. P6 accepted with reviewer repairs and scoped live reads. **P6c retired the offline `config.xml` inventory path entirely** (`collect-firewall.sh`, `src/skynet/firewall.py`, `skynet collect firewall`, parser tests/fixtures deleted): live OPNsense API is the sole firewall inventory source; the `config.xml` git backup is DR-only (restored as config, never parsed into inventory). See disposition below |
 | `collect-network-gear.sh`, `collect-certs.sh`, `collect-routes.sh`, `recon.sh` | migrate | Python observations with provenance and vantage | collect-all, recon/diagnosis runbooks | 7 | Verified callers; static declarations cannot imply live discovery |
 | `entity.sh`, `audit-entities.sh`, `build-db.sh` | migrate | Entity functions, audit, rebuildable SQLite cache | collectors/render-docs, bin/ops entities/query | 8 | Verified existing identity and join callers |
 | `scripts/sql/*.sql` | retain | SQL query definitions | bin/ops query, SQLite cache | 8 | Verified host-map/vhosts queries; adapt schema with consumers |
@@ -419,6 +419,10 @@ the complete P6 (P6a + P6b-i + P6b-ii) after all slices merge, before P7.
 
 ## Phase 6b-ii implementation (slice complete; P6 fully sliced)
 
+> **Superseded by P6c (below):** the offline `config.xml` inventory parser this slice shipped was
+> retired entirely after P6 acceptance. The record below is retained as historical evidence of what
+> P6b-ii built; it no longer describes a live capability.
+
 From origin/main base `b7e6f6e8e1dd69f8bbe0f54d91738f9bced4a1b8` (P6a; P6b-i #227 not yet merged),
 P6b-ii adds the offline OPNsense mirror parser `src/skynet/firewall.py`, replacing
 `collect-firewall.sh`. It parses the git-mirrored `config.xml` into the firewall.json
@@ -442,3 +446,29 @@ needs a trivial additive rebase onto main after #227 merges. Merge order: P6b-i 
 P6b-ii (#228). Construction used a synthetic config.xml and disposable outputs only; no live/mirror
 read, git operation, or production write occurred. P6 is now fully sliced (P6a + P6b-i + P6b-ii);
 one fresh review covers the complete numbered P6 after all three merge, before P7.
+
+## Phase 6c disposition (bounded corrective slice after P6 acceptance)
+
+Authorized by GitHub issue #230 as a bounded cleanup after the P6 combined review/repair ACCEPT
+(#229). P6b-ii's offline `config.xml` inventory parser created a second producer for the same
+firewall-inventory shape — deliberately never live-fresh, but a source of operator/agent ambiguity
+about whether firewall state came from the live OPNsense API or a stale git mirror. The capability
+was not worth the ambiguity, so P6c removes the offline inventory path entirely.
+
+Removed: `src/skynet/firewall.py`, `scripts/collect-firewall.sh`, the `skynet collect firewall`
+CLI wiring, `tests/test_firewall.py`, `tests/fixtures/firewall/`, and the Nix source-filter /
+installed-package / pre-commit-hook references that existed only for this parser/shim. The one
+`test_collection.py` case that used the offline parser to write stale bytes now does a direct
+out-of-band overwrite of `firewall.json`, preserving its receipt-hash-mismatch freshness coverage
+without the parser. Docs/design/ADR references that presented offline `config.xml` parsing as an
+inventory source (nix/README, observability, ADR 0006 consequence, SKY-020 references) were updated.
+
+Disposition: **the live OPNsense API (`src/skynet/opnsense.py`) is the sole producer of firewall
+inventory** (`inventory/firewall/firewall.json` + `inventory/opnsense.json`); its freshness/receipt
+semantics are unchanged and this removal does not regress P6's live-collector acceptance. The
+`skynet-opnsense` `config.xml` git backup is retained **only** as disaster-recovery material —
+in recovery it is restored as configuration into OPNsense (see `docs/design/disaster-recovery.md`
+and `runbooks/dr/DR-network-node.md`), never interpreted as current inventory. No replacement
+offline collector was added; live OPNsense API behavior and firewall write policy are unchanged;
+P17 recovery is not redesigned here. Accepted progress remains **6/24**; P6c is a corrective slice,
+not a new numbered phase.

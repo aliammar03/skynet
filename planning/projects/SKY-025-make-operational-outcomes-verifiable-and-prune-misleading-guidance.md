@@ -317,6 +317,25 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
 
 ## 9. Status
 
+- 2026-09-09 — **P6c corrective slice — offline firewall inventory path removed.** Authorized by
+  GitHub issue #230 as a bounded cleanup after the P6 ACCEPT (#229), from base
+  `4bc4715ded192dcade30174ed6a857b74acf54b5`. P6b-ii's offline `config.xml` inventory parser was a
+  second producer for the firewall-inventory shape and a source of ambiguity about live-vs-stale
+  provenance; P6c retires it. Deleted `src/skynet/firewall.py`, `scripts/collect-firewall.sh`, the
+  `skynet collect firewall` CLI wiring, `tests/test_firewall.py`, `tests/fixtures/firewall/`, and the
+  parser-only Nix source-filter / installed-check / pre-commit-hook references. The one
+  `test_collection.py` case that used the parser to write stale bytes now does a direct out-of-band
+  overwrite of `firewall.json`, keeping its receipt-hash-mismatch freshness coverage. Docs/design/ADR
+  references presenting offline `config.xml` parsing as an inventory source (nix/README, observability,
+  ADR 0006 consequence, SKY-020) were updated. **Disposition:** the live OPNsense API
+  (`src/skynet/opnsense.py`) is now the sole firewall inventory producer; freshness/receipt semantics
+  unchanged; the `config.xml` git backup is retained only as DR material (restored as configuration,
+  never parsed into inventory). No replacement offline collector added; live OPNsense API behavior and
+  firewall write policy unchanged; P17 recovery not redesigned. Accepted progress remains **6/24** —
+  P6c is a corrective slice, not a new numbered phase, and needs no P6 acceptance reopening beyond
+  verifying it does not regress the live collector. See the P6c disposition in
+  [the map](../sky-025-map.md).
+
 - 2026-09-09 — **P6 ACCEPT with reviewer repairs**, effective when Ali merges this combined
   review PR. Reviewed [#226](https://github.com/aliammar03/skynet/pull/226)
   (`b7e6f6e8e1dd69f8bbe0f54d91738f9bced4a1b8`),

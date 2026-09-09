@@ -54,7 +54,8 @@ own directive and not a one-session hack.
 ## 3. The plan
 
 - **Scope:** firewall **aliases + rules** as `tofu/` resources, PR-gated apply, the self-leash gate,
-  and tested apply+rollback. Plus the near-term **T1 live-read** cutover of `collect-firewall.sh`.
+  and tested apply+rollback. Plus the near-term **T1 live-read** cutover (shipped as the live
+  OPNsense collector, now `src/skynet/opnsense.py`, the sole firewall inventory source).
 - **Non-goals:** interface/VLAN/NAT/VPN config (later, if ever), node root, reboot automation, and
   anything in the self-leash set (human-merged forever). No autonomy promotion (that's SKY-017).
 - **Hosts & tiers touched:** the ops VM + OPNsense API. Moves the OPNsense boundary → the constitution
@@ -70,7 +71,8 @@ The near-term win, independent of the write layer. Shipped as a **new** `scripts
 rules, ARP neighbours, interfaces, firmware via `svc-skynet-recon`. Verified TLS by **deriving the SNI
 from the pinned cert** (`OPNsense.internal`); degrades to `exit 0` with no creds/unreachable. Read-only
 proven live: a valid `addItem` → `denied for write access (user-config-readonly set)`, nothing created.
-The mirror (`collect-firewall.sh`) stays the git-truth config source; the live read runs alongside it.
+The `config.xml` git backup stays the DR config source; the live read is now the sole firewall
+inventory source (the interim offline `config.xml` inventory parser was retired in SKY-025 P6c).
 Exit: live firewall inventory with no mirror lag; mirror still the git-truth backstop; no creds ⇒ mirror. ✅
 Done: Ali created the read-only `svc-skynet-recon` key + the reachability rule (rule 360 dest `(self)`,
 `PORT_OPS_API` += 443); PRs #138 (credential) + #139 (collector).

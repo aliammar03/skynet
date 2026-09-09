@@ -10,7 +10,6 @@ from typing import NoReturn
 from skynet import installed_version
 from skynet.collection import collect_all, collection_status
 from skynet.dns import DEFAULT_CREDENTIALS as DNS_DEFAULT_CREDENTIALS, collect as collect_dns
-from skynet.firewall import DEFAULT_CONFIG as FIREWALL_DEFAULT_CONFIG, collect as collect_firewall
 from skynet.doctor import write_report
 from skynet.docker import collect as collect_docker
 from skynet.opnsense import DEFAULT_CREDENTIALS as OPNSENSE_DEFAULT_CREDENTIALS, collect as collect_opnsense
@@ -100,14 +99,6 @@ def build_parser() -> argparse.ArgumentParser:
                           help="literal OPN_HOST/OPN_KEY/OPN_SECRET/OPN_CACERT assignments")
     opnsense.add_argument("--json", action="store_true", dest="json_output",
                           help="write one collection outcome object as JSON")
-    firewall = sources.add_parser("firewall",
-                                  help="parse the offline OPNsense config.xml mirror (DR rebuild)")
-    firewall.add_argument("--output", type=Path, required=True,
-                          help="explicit firewall-config destination; publish only on complete success")
-    firewall.add_argument("--config", type=Path, default=FIREWALL_DEFAULT_CONFIG,
-                          help="mirrored OPNsense config.xml; the parser never pulls it")
-    firewall.add_argument("--json", action="store_true", dest="json_output",
-                          help="write one collection outcome object as JSON")
     status = commands.add_parser("collect-status", help="require fresh successful inventory observations")
     status.add_argument("--repo", type=Path, required=True)
     status.add_argument("--since", default=os.environ.get("SKYNET_COLLECTION_SINCE"),
@@ -134,9 +125,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         if arguments.source == "dns":
             return collect_dns(arguments.output, arguments.credentials_file,
                                json_output=arguments.json_output, stdout=sys.stdout)
-        if arguments.source == "firewall":
-            return collect_firewall(arguments.output, arguments.config,
-                                    json_output=arguments.json_output, stdout=sys.stdout)
         if arguments.source == "docker":
             return collect_docker(arguments.label, arguments.output, arguments.context or arguments.label,
                                   json_output=arguments.json_output, stdout=sys.stdout)
