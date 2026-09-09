@@ -76,10 +76,20 @@ mkdir -p "$(dirname "${PAGE}")"
   [ "$found" = 1 ] || printf -- '- _no open directives._\n'
   printf '\n'
 
+  # Append-only history is never rewritten, so a later episode closes an earlier one's threads by
+  # naming its basename(s) in a `resolves:` frontmatter list. Collect that superseded set first; a
+  # superseded episode's follow-ups drop out of the current view while its raw entry stays intact.
+  superseded=" "
+  while IFS= read -r f; do
+    r="$(fm "$f" resolves)"; r="${r//[/ }"; r="${r//]/ }"; r="${r//,/ }"; r="${r//\"/}"
+    for name in $r; do superseded="${superseded}${name} "; done
+  done < <(find "${JDIR}" -name '*.md' -not -name 'README.md' 2>/dev/null)
+
   printf '**Explicit durable follow-ups:**\n\n'
   found=0; count=0; unknown=0
   while IFS= read -r f; do
     [ -e "$f" ] || continue
+    case "$superseded" in *" $(basename "$f" .md) "*) continue;; esac
     d="$(fm "$f" date)"; k="$(fm "$f" kind)"
     case "$(fm "$f" thread_status)" in
       open) ;;

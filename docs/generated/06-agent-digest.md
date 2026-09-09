@@ -41,23 +41,23 @@ follow a link for the full story; distill episodes at read time, never in this f
 **Explicit durable follow-ups:**
 
 - **P7a Omada (Terra High) is the sole released executable packet** (directive §5); P7b certs/routes and P7c recon are same-phase continuations, and one fresh review covers all P7 before P8. — _2026-09-09 session_
-- **P6c + this review-fix await human merge** (PR #231 + the review-fix PR); once merged, the offline `config.xml` firewall inventory path is fully retired and the live OPNsense API is the sole source. — _2026-09-09 session_
-- **Five paused documentation suites remain manual** (obsidian-hygiene, documentation-drift, temporal-hygiene, repo-surface, hygiene); P24 must restore maintained replacements to hook + CI before the directive closes. — _2026-09-09 session_
-- **Generated agent-context surfaces (06-agent-digest, 07-context-map) were regenerated this session** to clear stale P6-in-progress/firewall context; they refresh from journal + planning, never hand-edited. — _2026-09-09 session_
-- **Accepted progress is 6/24** (P6 accepted via #229); P7 has not started — never advance a numbered phase without its independent acceptance. — _2026-09-09 session_
-- **Workstation/state/payload recovery and live endpoint parity remain unverified** across the overhaul; no live/production read or write, root, grant or credential change occurred this session. — _2026-09-09 session_
+- **Accepted SKY-025 progress is 6/24**; P7 has not started — never advance a numbered phase without its independent acceptance. — _2026-09-09 session_
+- **Offline `config.xml` firewall inventory parsing is retired** (P6c): the live OPNsense API (`src/skynet/opnsense.py`) is the sole firewall inventory source, and the `config.xml` git backup is DR-only — restored as configuration into OPNsense, never parsed into inventory. — _2026-09-09 session_
+- **Five paused documentation suites** (obsidian-hygiene, documentation-drift, temporal-hygiene, repo-surface, hygiene) remain manual during the overhaul; P24 must restore them to hook + CI. — _2026-09-09 session_
+- **Workstation/state/payload recovery and live endpoint parity remain unverified** across the overhaul; live transitions still need their existing grant/checkpoint. — _2026-09-09 session_
+- **The OPNsense ops→NET_SKYNET ICMP-vantage floating rule is unverified** (P6 live boundary); declared-host presence probing depends on it. — _2026-09-09 session_
 - Complete OPNsense repair/live retest, full installed/source checks and review publication. — _2026-09-09 session_
 - No production inventory replacement, timer/service change, activation, root session, credential/pin change, zone write or firewall write occurred. The tests used disposable outputs; workstation/state/payload recovery remains unverified. — _2026-09-09 session_
 
 ## 📓 Recent episodes
 
+- **2026-09-09** · session · [[2026-09-09-session-sky-025-p6c-digest-supersede-stale-await-merge-follow-up|sky-025 p6c digest supersede stale await-merge follow-up]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p6c-review-fix-regenerate-stale-agent-and-planning-context|sky-025 p6c review-fix regenerate stale agent and planning context]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p6c-remove-offline-firewall-inventory-path|sky-025 p6c remove offline firewall inventory path]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p6-combined-review-and-live-reads|SKY-025 P6 combined review and live reads]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p6b-ii-opnsense-offline-mirror-parser|sky-025-p6b-ii-opnsense-offline-mirror-parser]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p6b-opnsense-live-python-collection|sky-025-p6b-opnsense-live-python-collection]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p6a-dns-python-collection|sky-025-p6a-dns-python-collection]]
-- **2026-09-09** · session · [[2026-09-09-session-sky-025-p5-reviewer-repairs-and-live-reads|SKY-025 P5 reviewer repairs and live reads]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._
