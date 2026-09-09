@@ -313,6 +313,24 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
 
 ## 9. Status
 
+- 2026-09-09 — **P5a slice complete / P5 in progress.** From isolated remote-main base
+  `faf961ab3accb9466385da32efa9bb6185c77f3b`, P5a replaces the PBS shell parser/client with
+  `skynet collect pbs`. The Python command accepts only literal configured assignments, normalizes
+  the PBS token separator, preserves CA or configured-fingerprint trust and separate SNI, performs
+  verified GETs, validates every datastore/status/namespace/snapshot response, then atomically
+  projects the existing datastore/group/count/latest-verification snapshot. Empty validated groups
+  are a zero-backup observation; null, partial, malformed, timed-out or trust-failed data fails and
+  retains old bytes. `collect all` obtains PBS once under the existing receipt, writes its own
+  hash/time marker, and default status/query/entity/render/nightly consumers require all five
+  migrated observations. Failed PBS permits later scoped readers but refuses default freshness.
+  The shell entry now forwards to the package; its obsolete shell test left hook/CI with Python
+  behavioral coverage. The touched renderer emits incomplete PBS evidence rather than coercing
+  nulls to zero. No live PBS/Docker call, credential/pin change, backup/restore/prune, host/profile,
+  timer/service, root, grant or production write occurred; rollback is `git revert` and endpoint
+  parity plus workstation/state/payload recovery remain unverified. The raw journal records exact
+  checks. Accepted progress remains **4/24**. After this PR is human-merged, detail only P5b Docker
+  within the released continuation; do not request an independent review until both P5 slices merge.
+
 - 2026-09-09 — **P4 ACCEPT.** Reviewed all P4 slices: [#220](https://github.com/aliammar03/skynet/pull/220),
   merge `67e1471987eb14f2f209db0d6ee4bed57386bd1f`, and
   [#221](https://github.com/aliammar03/skynet/pull/221), merge/main reviewed

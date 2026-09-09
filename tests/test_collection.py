@@ -16,7 +16,7 @@ import pytest
 from test_proxmox import (FakeConnection, NETWORK_OPERATE_TOKEN, NETWORK_TOKEN, OPERATE_TOKEN,
                           network_endpoint_data, TOKEN)
 from skynet.cli import main
-from skynet import collection
+from skynet import collection, pbs, proxmox
 
 ROOT = Path(__file__).parents[1]
 pytest_plugins = ["test_proxmox"]
@@ -35,6 +35,23 @@ def repo(tmp_path: Path) -> Path:
         )
         script.chmod(0o755)
     return path
+
+
+@pytest.fixture(autouse=True)
+def pbs_observation(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep Proxmox receipt tests focused; PBS transport is covered in test_pbs."""
+    def collect(output: Path, credentials_file: Path, *, json_output: bool, stdout: object) -> int:
+        data = {"collected": datetime.now(UTC).isoformat(timespec="seconds"), "host": "pbs.test",
+                "datastores": [{"store": "unraid", "status": {"used": 1, "total": 2},
+                                "groups": [], "group_count": 0, "snapshot_total": 0,
+                                "unverified": 0}]}
+        proxmox.publish(output, data)
+        report = {"target": "pbs", "outcome": "success", "collected": data["collected"],
+                  "counts": {"datastores": 1, "snapshots": 0}}
+        if json_output:
+            print(json.dumps(report), file=stdout)  # type: ignore[arg-type]
+        return 0
+    monkeypatch.setattr(pbs, "collect", collect)
 
 
 def run(
@@ -132,6 +149,24 @@ def test_failed_acl_refresh_invalidates_status_and_retains_acl_snapshot(
     monkeypatch.setattr(proxmox, "collect_acl", unavailable_acl)
     assert run(repo, credentials, capsys)[0] == 3
     assert (repo / "inventory/proxmox-network-acl.json").read_bytes() == previous
+    assert status(repo, capsys) == 3
+
+
+def test_failed_pbs_refresh_invalidates_status_and_retains_snapshot(
+    repo: Path, credentials: Path, transport: type[FakeConnection],
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert run(repo, credentials, capsys)[0] == 0
+    previous = (repo / "inventory/pbs.json").read_bytes()
+
+    def unavailable(output: Path, credentials_file: Path, *, json_output: bool, stdout: object) -> int:
+        print(json.dumps({"target": "pbs", "outcome": "unavailable",
+                          "reason": "synthetic PBS timeout"}), file=stdout)  # type: ignore[arg-type]
+        return 3
+
+    monkeypatch.setattr(pbs, "collect", unavailable)
+    assert run(repo, credentials, capsys)[0] == 3
+    assert (repo / "inventory/pbs.json").read_bytes() == previous
     assert status(repo, capsys) == 3
 
 
@@ -336,12 +371,18 @@ def test_signal_interrupts_reader_and_reaps_child(
     reader, ready, destination = _write_delayed_reader(repo)
     runner = repo / "runner.py"
     runner.write_text(
-        f"import sys\nsys.path[:] = {sys.path!r}\n"
+        f"import json,sys\nsys.path[:] = {sys.path!r}\n"
         "from pathlib import Path\n"
         "from test_proxmox import FakeConnection, endpoint_data\n"
-        "from skynet import collection, proxmox\nfrom skynet.cli import main\n"
+        "from skynet import collection, pbs, proxmox\nfrom skynet.cli import main\n"
         "FakeConnection.responses = endpoint_data()\n"
         "proxmox.http.client.HTTPSConnection = FakeConnection\n"
+        "def pbs_collect(output, credentials_file, *, json_output, stdout):\n"
+        "  data = {'collected':'2026-09-09T00:00:00+00:00','host':'pbs.test','datastores':[]}\n"
+        "  proxmox.publish(output, data)\n"
+        "  stdout.write(json.dumps({'target':'pbs','outcome':'success','collected':data['collected']}))\n"
+        "  return 0\n"
+        "pbs.collect = pbs_collect\n"
         f"collection.REMAINING = (('slow', {reader.name!r}),)\n"
         f"args = ['collect', 'all', '--repo', {str(repo)!r}, "
         f"'--credentials-file', {str(credentials)!r}, "
@@ -537,12 +578,13 @@ def test_status_fails_closed_when_receipt_cannot_be_reaffirmed(
     ("bin/ops", ["query", "SELECT 1"], ["collect-status", "--repo"]),
     ("scripts/render-docs.sh", [], ["collect-status", "--repo"]),
     ("scripts/collect-proxmox.sh", ["core"], ["collect", "proxmox", "core"]),
+    ("scripts/collect-pbs.sh", [], ["collect", "pbs", "--output"]),
 ])
 def test_default_shell_callers_use_offline_package_and_propagate_failure(
     tmp_path: Path, entry: str, args: list[str], expected: list[str],
 ) -> None:
     for relative in ("bin/ops", "bin/skynet", "scripts/collect-all.sh",
-                     "scripts/render-docs.sh", "scripts/collect-proxmox.sh"):
+                     "scripts/render-docs.sh", "scripts/collect-proxmox.sh", "scripts/collect-pbs.sh"):
         target = tmp_path / relative
         target.parent.mkdir(exist_ok=True)
         shutil.copy(ROOT / relative, target)
@@ -585,9 +627,12 @@ def test_bin_ops_collection_reaches_real_cli_and_core_collector(
     launcher.write_text(
         f"#!{sys.executable}\nimport sys\nsys.path[:] = {sys.path!r}\n"
         "from test_proxmox import FakeConnection, endpoint_data\n"
-        "from skynet import proxmox\nfrom skynet.cli import main\n"
+        "from skynet import pbs, proxmox\nfrom skynet.cli import main\n"
         "FakeConnection.responses = endpoint_data()\n"
         "proxmox.http.client.HTTPSConnection = FakeConnection\n"
+        "pbs.collect = lambda output, credentials_file, json_output, stdout: ("
+        "proxmox.publish(output, {'collected':'2026-09-09T00:00:00+00:00','host':'pbs.test','datastores':[]}) or "
+        "stdout.write('{\\\"target\\\":\\\"pbs\\\",\\\"outcome\\\":\\\"success\\\",\\\"collected\\\":\\\"2026-09-09T00:00:00+00:00\\\"}') and 0)\n"
         "sys.exit(main(sys.argv[6:]))\n"
     )
     launcher.chmod(0o755)

@@ -139,6 +139,6 @@ def test_missing_refresh_evidence_outside_checkout(run: Run, tmp_path: Path) -> 
     result = run("collect-status", "--repo", str(tmp_path), "--json")
     assert result.returncode == 3
     report = json.loads(result.stdout)
-    assert report["target"] == "proxmox"
+    assert report["target"] == "collection"
     assert report["outcome"] == "unavailable"
     assert not result.stderr

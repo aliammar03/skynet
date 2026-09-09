@@ -32,7 +32,7 @@ nix/packages/
 ## Skynet Python runtime
 
 The `skynet` command is a Nix-owned Python package exposing a runtime diagnostic, core and network
-Proxmox observations, default collection and paired Proxmox freshness checks. `bin/skynet` launches the package
+Proxmox observations, PBS backup observations, default collection and receipt-bound freshness checks. `bin/skynet` launches the package
 from the checkout's tracked Git source using offline, lock-preserving Nix evaluation. It never
 falls back to source Python or installs a profile. Build the package and cache its dependencies
 before using default callers; a missing Nix/build prerequisite fails the command.
@@ -65,6 +65,15 @@ the shared operate assignment is never a fallback. Shell expressions, duplicate/
 assignments and redirects are refused.
 Requests use a 15-second socket timeout and the specified CA with hostname verification.
 
+`skynet collect pbs --output <file> [--credentials-file <file>] [--json]` reads complete
+datastore status, namespaces and backup snapshots with the literal
+`/opt/skynet-ops/secrets/pbs.env` assignments. `PBS_TOKEN` retains PBS's colon separator and
+normalizes one PVE-style equals separator. `PBS_CACERT` uses normal CA-file validation; otherwise
+the configured fingerprint pins the bootstrap leaf before a verified request, with `PBS_SNI` or
+the pinned certificate's DNS name used for hostname verification. Missing/null endpoint data,
+partial datastore reads, malformed snapshots, timeout and trust failure are unavailable or failed,
+never an empty successful backup result. Empty validated snapshot lists are valid observations.
+
 The collector publishes atomically to the explicit destination after every required read and
 validation succeeds. Failure retains any previous snapshot and its timestamp; consumers must treat it as
 previous evidence. Collection success describes observations, not service or backup health.
@@ -73,13 +82,13 @@ Exit codes: 0 success, 2 usage error, 3 unavailable credentials/CA/remote eviden
 data or local publication failure. Empty nodes/resources fail; empty pools/jobs/tasks are valid
 observations, with absent backup results represented by null fields.
 
-`bin/ops collect` forwards to `skynet collect all --repo <checkout>`, running the Python core and
-network collectors once each before the remaining shell readers. Refresh evidence lives in
-`inventory/collection-core.json` and `inventory/collection-network.json`: an incomplete marker
-precedes each node read, and success records that snapshot's exact hash/time. The nonblocking
+`bin/ops collect` forwards to `skynet collect all --repo <checkout>`, running the Python core,
+network, ACL, and PBS collectors once each before the remaining shell readers. Refresh evidence lives in
+the matching `inventory/collection-*.json` markers: an incomplete marker precedes each read, and
+success records that snapshot's exact hash/time. The nonblocking
 `.cache/collection.lock` stores one durable attempt receipt before marker publication. Status
-requires that receipt to match both markers, so failed marker setup stops before that node's read
-and invalidates either node's previous success without a cutoff.
+requires that receipt to match every migrated marker, so failed marker setup stops before that read
+and invalidates prior success without a cutoff.
 Missing receipts require a complete refresh. Status briefly locks and durably reaffirms the
 existing receipt; storage that cannot persist invalidation is unavailable even if old evidence
 is readable. An inability to persist any failure cannot leave a durable diagnosis: repair storage
@@ -96,7 +105,7 @@ After operator verification that the reader processes are gone, clear that recei
 collection lock and run a complete refresh. Do not delete the lock file while a process holds it.
 
 `skynet collect-status --repo <checkout> [--since <timestamp>] [--json]` requires matching
-successful core and network observations and operate-token ACL evidence no older than 36 hours,
+successful core and network observations, operate-token ACL, and PBS evidence no older than 36 hours,
 with timezone-aware timestamps.
 Missing, failed, future, stale or mismatched evidence exits 3. Default factual rendering and
 `bin/ops query|entities` require this check. Nightly sets `SKYNET_COLLECTION_SINCE` so a prior

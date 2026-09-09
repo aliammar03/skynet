@@ -8,8 +8,9 @@ from pathlib import Path
 from typing import NoReturn
 
 from skynet import installed_version
-from skynet.collection import collect_all, proxmox_status
+from skynet.collection import collect_all, collection_status
 from skynet.doctor import write_report
+from skynet.pbs import DEFAULT_CREDENTIALS as PBS_DEFAULT_CREDENTIALS, collect as collect_pbs
 from skynet.proxmox import DEFAULT_CREDENTIALS, collect, collect_acl
 
 
@@ -37,6 +38,8 @@ def build_parser() -> argparse.ArgumentParser:
     all_sources.add_argument("--network-credentials-file", type=Path,
                              default=DEFAULT_CREDENTIALS["network"],
                              help="network Proxmox credential assignments")
+    all_sources.add_argument("--pbs-credentials-file", type=Path, default=PBS_DEFAULT_CREDENTIALS,
+                             help="PBS credential assignments")
     all_sources.add_argument("--json", action="store_true", dest="json_output")
     proxmox = sources.add_parser("proxmox", help="collect Proxmox observations")
     targets = proxmox.add_subparsers(dest="target", required=True)
@@ -60,7 +63,14 @@ def build_parser() -> argparse.ArgumentParser:
         node.add_argument("--credentials-file", type=Path, default=DEFAULT_CREDENTIALS[target],
                           help="literal PVE_HOST/PVE_TOKEN_OPERATE/PVE_CACERT assignments")
         node.add_argument("--json", action="store_true", dest="json_output")
-    status = commands.add_parser("collect-status", help="require fresh successful Proxmox observations")
+    pbs = sources.add_parser("pbs", help="collect PBS backup observations")
+    pbs.add_argument("--output", type=Path, required=True,
+                     help="explicit snapshot destination; publish only on complete success")
+    pbs.add_argument("--credentials-file", type=Path, default=PBS_DEFAULT_CREDENTIALS,
+                     help="literal PBS_HOST/PBS_TOKEN trust assignments")
+    pbs.add_argument("--json", action="store_true", dest="json_output",
+                     help="write one collection outcome object as JSON")
+    status = commands.add_parser("collect-status", help="require fresh successful inventory observations")
     status.add_argument("--repo", type=Path, required=True)
     status.add_argument("--since", default=os.environ.get("SKYNET_COLLECTION_SINCE"),
                         help="require an attempt at or after this timezone-aware timestamp")
@@ -77,14 +87,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     if arguments.command == "collect":
         if arguments.source == "all":
             return collect_all(arguments.repo, arguments.credentials_file,
-                               arguments.network_credentials_file,
+                               arguments.network_credentials_file, arguments.pbs_credentials_file,
+                               json_output=arguments.json_output, stdout=sys.stdout)
+        if arguments.source == "pbs":
+            return collect_pbs(arguments.output, arguments.credentials_file,
                                json_output=arguments.json_output, stdout=sys.stdout)
         function = collect_acl if arguments.source == "proxmox-acl" else collect
         return function(arguments.target, arguments.output, arguments.credentials_file,
                         json_output=arguments.json_output, stdout=sys.stdout)
     if arguments.command == "collect-status":
-        return proxmox_status(arguments.repo, since=arguments.since,
-                              json_output=arguments.json_output, stdout=sys.stdout)
+        return collection_status(arguments.repo, since=arguments.since,
+                                 json_output=arguments.json_output, stdout=sys.stdout)
     return _unreachable_command(arguments.command)
 
 
