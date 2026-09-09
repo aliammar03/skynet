@@ -1,0 +1,25 @@
+{
+  "data": [
+    {
+      "backup-type": "vm",
+      "backup-id": "10015",
+      "backup-time": 100,
+      "owner": "svc-ops@pbs",
+      "verification": {"state": "ok"}
+    },
+    {
+      "backup-type": "vm",
+      "backup-id": "10015",
+      "backup-time": 200,
+      "owner": "svc-ops@pbs",
+      "verification": null
+    },
+    {
+      "backup-type": "ct",
+      "backup-id": "101",
+      "backup-time": 150,
+      "owner": "svc-ops@pbs",
+      "verification": {"state": "ok"}
+    }
+  ]
+}

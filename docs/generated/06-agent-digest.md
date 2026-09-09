@@ -40,6 +40,7 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 **Explicit durable follow-ups:**
 
+- Regenerated digest, context map and roadmap after this entry. Commit, push and open the P5a PR. After Ali merges it, detail only P5b Docker; review both P5 slices together before P6. — _2026-09-09 session_
 - After Ali merges this P4 ACCEPT planning PR, run a fresh Terra High session: `Read planning/prompts/execute.md and execute SKY-025 P5a.` — _2026-09-09 session_
 - Workstation access, state/payload recovery, other endpoint parity and host activation remain unverified. Five paused documentation suites were not run or counted as passing; restore maintained replacements by P24. P4 live authorization does not authorize PBS/Docker execution. — _2026-09-09 session_
 - Run full checks, regenerate digest/context, commit/push/open the P4b PR. After Ali merges it, request one fresh Astra Medium review covering both P4 slices before P5. — _2026-09-08 session_
@@ -47,17 +48,16 @@ follow a link for the full story; distill episodes at read time, never in this f
 - The map's live API parity, independent workstation access, state/payload recovery, and first live transition prerequisites remain unverified. — _2026-09-08 session_
 - After Ali merges this credential-fix/P4 packet PR, execute SKY-025 §5 Phase 4a with Terra High via planning/prompts/execute.md. No additional P3 review round is required; accepted progress is 3/24. — _2026-09-08 session_
 - Independent workstation/state/payload recovery and live API/TLS parity remain unverified before a live transition. The five paused documentation suites remain unrun and must return as maintained checks by P24. — _2026-09-08 session_
-- After Ali merges the P3 fix PR, use a fresh Astra Medium session to review all P3 implementation (#215, #216 and this fix) via `planning/prompts/review.md`. Review the draft P4a/P4b boundaries before releasing the next packet. Accepted progress remains 2/24 until acceptance. — _2026-09-08 session_
 
 ## 📓 Recent episodes
 
+- **2026-09-09** · session · [[2026-09-09-session-sky-025-p5a-pbs-inventory|SKY-025 P5a PBS inventory]]
 - **2026-09-09** · session · [[2026-09-09-session-sky-025-p4-combined-independent-review|SKY-025 P4 combined independent review]]
 - **2026-09-08** · session · [[2026-09-08-session-sky-025-p4b-operate-token-acl-snapshots|SKY-025 P4b operate-token ACL snapshots]]
 - **2026-09-08** · incident · [[2026-09-08-incident-sky-025-p4a-default-path-test-scope-breach|SKY-025 P4a default-path test scope breach]]
 - **2026-09-08** · session · [[2026-09-08-session-sky-025-p4a-network-observations|SKY-025 P4a network observations]]
 - **2026-09-08** · session · [[2026-09-08-session-sky-025-p3-combined-re-review|SKY-025 P3 combined re-review]]
 - **2026-09-08** · session · [[2026-09-08-session-sky-025-p3-freshness-and-process-fixes|SKY-025 P3 freshness and process fixes]]
-- **2026-09-08** · session · [[2026-09-08-session-sky-025-p3-independent-review|SKY-025 P3 independent review]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._

@@ -13,10 +13,9 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, TextIO
 
-from skynet import proxmox
+from skynet import pbs, proxmox
 
 REMAINING = (
-    ("pbs", "collect-pbs.sh"),
     ("docker-dmz", "collect-docker.sh", "docker-dmz"),
     ("dns", "collect-dns.sh"),
     ("opnsense", "collect-opnsense.sh"),
@@ -32,6 +31,7 @@ PROXMOX_ACLS = (
     ("core", "proxmox-core-acl.json", "collection-core-acl.json"),
     ("network", "proxmox-network-acl.json", "collection-network-acl.json"),
 )
+PBS = ("pbs.json", "collection-pbs.json")
 READER_TIMEOUT = 120.0
 CLEANUP_TIMEOUT = 5.0
 
@@ -132,7 +132,8 @@ def emit(report: dict[str, Any], json_output: bool, stdout: TextIO) -> None:
                 print(result["reason"], file=stdout)
 
 
-def collect_all(repo: Path, credentials_file: Path, network_credentials_file: Path, *,
+def collect_all(repo: Path, credentials_file: Path, network_credentials_file: Path,
+                pbs_credentials_file: Path, *,
                 json_output: bool, stdout: TextIO) -> int:
     """Collect both Proxmox node shapes before retaining the remaining shell readers."""
     report: dict[str, Any] = {"target": "collection", "outcome": "failure", "collectors": []}
@@ -201,6 +202,30 @@ def collect_all(repo: Path, credentials_file: Path, network_credentials_file: Pa
                     code = 1
                 elif acl_code and code == 0:
                     code = acl_code
+            snapshot_name, marker_name = PBS
+            output = repo / "inventory" / snapshot_name
+            status = repo / "inventory" / marker_name
+            marker = {
+                "target": "pbs", "outcome": "unavailable", "attempted": attempted,
+                "reason": "refresh incomplete; retained snapshot is previous evidence",
+            }
+            proxmox.publish(status, marker)
+            stream = io.StringIO()
+            pbs_code = pbs.collect(output, pbs_credentials_file, json_output=True, stdout=stream)
+            observation = json.loads(stream.getvalue())
+            marker.update(outcome=observation["outcome"])
+            if pbs_code == 0:
+                marker.pop("reason")
+                marker.update(collected=observation["collected"],
+                              sha256=hashlib.sha256(output.read_bytes()).hexdigest())
+            else:
+                marker["reason"] = observation["reason"]
+            proxmox.publish(status, marker)
+            report["collectors"].append(observation)
+            if pbs_code == 1:
+                code = 1
+            elif pbs_code and code == 0:
+                code = pbs_code
             for name, script, *args in REMAINING:
                 try:
                     exit_code = run_reader([str(repo / "scripts" / script), *args], repo)
@@ -240,9 +265,9 @@ def timestamp(value: Any) -> datetime:
     return instant
 
 
-def proxmox_status(repo: Path, *, since: str | None, json_output: bool, stdout: TextIO) -> int:
-    """Require paired successful Proxmox observations no more than 36 hours old."""
-    report: dict[str, Any] = {"target": "proxmox", "outcome": "unavailable"}
+def collection_status(repo: Path, *, since: str | None, json_output: bool, stdout: TextIO) -> int:
+    """Require all migrated inventory observations no more than 36 hours old."""
+    report: dict[str, Any] = {"target": "collection", "outcome": "unavailable"}
     try:
         with (repo / ".cache/collection.lock").open("r+") as lock:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -260,7 +285,8 @@ def proxmox_status(repo: Path, *, since: str | None, json_output: bool, stdout: 
                  json.loads((repo / "inventory" / marker_name).read_bytes()),
                  (repo / "inventory" / snapshot_name).read_bytes())
                 for target, snapshot_name, marker_name in PROXMOX_ACLS
-            ]
+            ] + [("pbs", None, json.loads((repo / "inventory" / PBS[1]).read_bytes()),
+                  (repo / "inventory" / PBS[0]).read_bytes())]
         now = datetime.now(UTC)
         collected_values: dict[str, str] = {}
         for evidence_target, node, evidence, raw in observations:
@@ -272,7 +298,8 @@ def proxmox_status(repo: Path, *, since: str | None, json_output: bool, stdout: 
             valid = (
                 evidence.get("target") == evidence_target and evidence.get("outcome") == "success"
                 and attempted_receipt == evidence.get("attempted")
-                and snapshot.get("node") == node
+                and (node is None or snapshot.get("node") == node)
+                and (node is not None or isinstance(snapshot.get("host"), str))
                 and evidence.get("collected") == snapshot.get("collected")
                 and evidence.get("sha256") == hashlib.sha256(raw).hexdigest()
                 and now - timedelta(hours=36) <= collected <= now
@@ -285,7 +312,7 @@ def proxmox_status(repo: Path, *, since: str | None, json_output: bool, stdout: 
             collected_values[evidence_target] = snapshot["collected"]
     except (OSError, ValueError, TypeError, OverflowError):
         report["reason"] = (
-            "Proxmox refresh evidence missing, failed, mismatched or stale; "
+            "Inventory refresh evidence missing, failed, mismatched or stale; "
             "retained files are historical observations"
         )
         code = 3
@@ -294,3 +321,8 @@ def proxmox_status(repo: Path, *, since: str | None, json_output: bool, stdout: 
         code = 0
     emit(report, json_output, stdout)
     return code
+
+
+# Retained only for the P3/P4 in-package import surface; callers use collection_status now that PBS
+# freshness is part of the default contract.
+proxmox_status = collection_status

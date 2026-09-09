@@ -10,11 +10,14 @@ let
       (root + "/tests/test_cli.py")
       (root + "/tests/test_proxmox.py")
       (root + "/tests/test_collection.py")
+      (root + "/tests/test_pbs.py")
       (root + "/tests/fixtures/proxmox")
+      (root + "/tests/fixtures/pbs")
       (root + "/bin/ops")
       (root + "/bin/skynet")
       (root + "/scripts/collect-all.sh")
       (root + "/scripts/collect-proxmox.sh")
+      (root + "/scripts/collect-pbs.sh")
       (root + "/scripts/render-docs.sh")
     ];
   };

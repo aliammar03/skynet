@@ -28,7 +28,7 @@ Enumeration counts: root files 10; `.claude` 1, `.codex` 4, `.githooks` 1, `.git
 |---|---|---|---|---|---|
 | `bin/ops`; `collect-all.sh` | migrate | Thin `skynet` dispatch and explicit workflow results | Humans, runbooks, nightly | 2–9, 20 | P4a routes core and network observations through the Nix package; paired refresh evidence guards default queries/audits/rendering. Remaining orchestration stays P20 |
 | `collect-proxmox.sh`, `collect-proxmox-acl.sh` | migrate | Python read collectors; node-specific validation | collect-all, inventory gates/renderers | 3–4 | P4a leaves `collect-proxmox.sh` as a packaged-command forwarder and removes its shell API/parser. Both ACL readers remain P4b. Live behavior untested |
-| `collect-pbs.sh`, `collect-docker.sh` | migrate | Python PBS/Docker collectors | collect-all, backup/container views | 5 | Verified current callers; preserve unavailable states |
+| `collect-pbs.sh`, `collect-docker.sh` | migrate | Python PBS/Docker collectors | collect-all, backup/container views | 5 | P5a moves PBS to Python with receipt-bound freshness; Docker remains P5b |
 | `collect-dns.sh`, `collect-opnsense.sh`, `collect-firewall.sh` | migrate | Python DNS/live OPNsense collection and offline mirror parsing | collect-all, firewall/DNS views; ADR 0006 offline recovery | 6 | Verified live/offline distinction; no new OPNsense writer |
 | `collect-network-gear.sh`, `collect-certs.sh`, `collect-routes.sh`, `recon.sh` | migrate | Python observations with provenance and vantage | collect-all, recon/diagnosis runbooks | 7 | Verified callers; static declarations cannot imply live discovery |
 | `entity.sh`, `audit-entities.sh`, `build-db.sh` | migrate | Entity functions, audit, rebuildable SQLite cache | collectors/render-docs, bin/ops entities/query | 8 | Verified existing identity and join callers |
@@ -289,3 +289,24 @@ these four endpoint shapes and TLS paths, not other APIs or restore/service heal
 inventory refresh, host activation, timer/service change, grant or production write occurred.
 Independent workstation access, state/payload recovery and other live-transition prerequisites
 remain open.
+
+## Phase 5a implementation (slice complete; P5 in progress)
+
+From remote-main base `faf961ab3accb9466385da32efa9bb6185c77f3b`, P5a adds the explicit
+`skynet collect pbs --output <file> [--credentials-file <file>] [--json]` command. Literal
+credential parsing preserves PBS's token separator normalization, configured CA or fingerprint
+pinning, a distinct connection address/SNI, GET-only requests, redacted errors, and atomic
+publication. It validates every datastore's status, namespace and snapshot response before it
+projects the existing group/count/latest-verification schema. Valid empty snapshots stay distinct
+from missing, null, partial, malformed, timed-out or trust-failed observations; a failed refresh
+retains its prior bytes.
+
+`collect all` now publishes a PBS marker using the same receipt/hash/time contract as the four
+Proxmox observations; status, query/entity, factual rendering and nightly require it. PBS failure
+continues later scoped readers but refuses default freshness. The retained shell entry is a
+documented forwarding shim; P22 owns its removal. Renderer input with incomplete PBS state is a
+warning rather than a zero-snapshot/verified claim. Tests and package inputs moved the useful shell
+coverage into Python and removed the superseded shell test from hook/CI. Construction uses fake
+HTTPS, synthetic credentials and disposable paths only; no live PBS/Docker endpoint, credential,
+trust setting, backup, restore, host, timer, service, grant or production write occurred. Source
+rollback is `git revert`; endpoint parity and workstation/state/payload recovery remain unverified.

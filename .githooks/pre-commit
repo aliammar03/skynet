@@ -24,7 +24,6 @@ bash "${ROOT}/tests/cert-selector-test.sh"
 bash "${ROOT}/tests/tofu-rollback-test.sh"
 bash "${ROOT}/tests/pve-snapshot-test.sh"
 bash "${ROOT}/tests/provisioning-truth-test.sh"
-bash "${ROOT}/tests/collect-pbs-test.sh"
 bash "${ROOT}/tests/construction-test.sh"
 bash "${ROOT}/tests/agent-test.sh"
 bash "${ROOT}/tests/gitignore-test.sh"
@@ -38,7 +37,7 @@ bash "${ROOT}/tests/nightly-sequence-test.sh"
 python_changed=0
 while IFS= read -r -d '' staged_path; do
   case "${staged_path}" in
-    pyproject.toml|src/*.py|src/**/*.py|tests/test_*.py|tests/fixtures/proxmox/*|nix/packages/skynet.nix|flake.nix|bin/skynet|bin/ops|scripts/collect-all.sh|scripts/collect-proxmox.sh|scripts/render-docs.sh)
+    pyproject.toml|src/*.py|src/**/*.py|tests/test_*.py|tests/fixtures/proxmox/*|tests/fixtures/pbs/*|nix/packages/skynet.nix|flake.nix|bin/skynet|bin/ops|scripts/collect-all.sh|scripts/collect-proxmox.sh|scripts/collect-pbs.sh|scripts/render-docs.sh)
       python_changed=1
       ;;
   esac

@@ -280,8 +280,13 @@ done
   echo "## PBS datastore"
   echo
   if has "${inv}/pbs.json"; then
-    totsnap="$(j '[.datastores[]?.snapshot_total // 0]|add // 0' "${inv}/pbs.json")"
-    totun="$(j '[.datastores[]?.unverified // 0]|add // 0' "${inv}/pbs.json")"
+    complete="$(j 'all(.datastores[]?; (.status|type) == "object" and (.status.used|type) == "number" and (.status.total|type) == "number" and (.groups|type) == "array" and (.group_count|type) == "number" and (.snapshot_total|type) == "number" and (.unverified|type) == "number")' "${inv}/pbs.json")"
+    if [ "${complete}" != true ]; then
+      echo "> [!warning] PBS snapshot is incomplete — no backup count or verification state is claimed."
+      echo
+    else
+    totsnap="$(j '([.datastores[].snapshot_total] | add) // 0' "${inv}/pbs.json")"
+    totun="$(j '([.datastores[].unverified] | add) // 0' "${inv}/pbs.json")"
     if   [ "${totsnap:-0}" = 0 ]; then echo "> [!note] PBS reachable but no snapshots recorded this pass."
     elif [ "${totun:-0}" = 0 ];   then echo "> [!success] 🟢 All ${totsnap} snapshots' latest backup carries a verification state."
     else echo "> [!warning] 🟡 ${totun} guest(s) have a latest snapshot with NO verification — backed up but unproven. Schedule a PBS verify job."
@@ -290,14 +295,15 @@ done
     echo "| Datastore | Used / Total | Guests | Snapshots | Unverified |"
     echo "|-----------|--------------|-------:|----------:|-----------:|"
     j '.datastores[]? | [ .store,
-         (((.status.used // 0)/1099511627776*10|round)/10|tostring),
-         (((.status.total // 0)/1099511627776*10|round)/10|tostring),
-         (.group_count // 0), (.snapshot_total // 0), (.unverified // 0) ] | @tsv' "${inv}/pbs.json" \
+         ((.status.used/1099511627776*10|round)/10|tostring),
+         ((.status.total/1099511627776*10|round)/10|tostring),
+         .group_count, .snapshot_total, .unverified ] | @tsv' "${inv}/pbs.json" \
       | awk -F'\t' '{printf "| `%s` | %s / %s TiB | %s | %s | %s |\n", $1,$2,$3,$4,$5,$6}'
     echo
     unlist="$(j '[.datastores[]?.groups[]? | select(.verify_state==null) | "\(.ns)/\(.backup_type)/\(.backup_id)"] | join(", ")' "${inv}/pbs.json")"
     [ -n "${unlist}" ] && { echo "> [!note] Unverified (latest snapshot): ${unlist}"; echo; }
     echo "_\`unraid\` is NFS-backed on Unraid; L5 mirrors it to \`gdrive:Skynet/Backups/pbs\` (PBS-encrypted + deduped). Targeted Drive→PBS archive recovery is proven; the full core-loss rebuild/boot sequence still needs a drill._"
+    fi
   else
     echo "> [!note] PBS not collected this pass — \`inventory/pbs.json\` absent (token idle or PBS unreachable)."
   fi

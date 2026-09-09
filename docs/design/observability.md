@@ -26,11 +26,12 @@ hand-maintained:
 ```
 
 `inventory/` and `docs/generated/` are **machine-owned — never hand-edited** (a constitution
-invariant). Default rendering requires matching successful core and network observation and ACL evidence no
+invariant). Default rendering requires matching successful core and network observation, ACL, and PBS evidence no
 older than 36 hours and one matching local attempt receipt; the nightly additionally requires an
 attempt from its current pass. Missing or unwritable receipt storage is unavailable. A failed node
 refresh leaves that snapshot and prior pages intact and records a failure, rather than refreshing their
-presentation. Other collectors retain their existing evidence limitations. Collection timestamps
+presentation. PBS status, group, snapshot, and verification fields are complete before rendering;
+null data cannot become a zero-backup claim. Other collectors retain their existing evidence limitations. Collection timestamps
 describe observations, not live service-health verification.
 Failed initial marker publication also invalidates previous success for default queries and
 rendering. Remaining reader processes are stopped and reaped before collection advances; uncertain
