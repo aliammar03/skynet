@@ -309,6 +309,52 @@ for relative, text in {
             f"{relative}: retired current-runtime vocabulary remains: {', '.join(matches)}"
         )
 
+verification_guidance = (
+    "routine T1 verification of repo-local files and `$TMPDIR`/`tmp` scratch",
+    "must not request operator escalation merely to create, mutate, or clean up",
+    "canonical repository test commands and maintained test-suite fixtures",
+    "one-off exploratory disposable fixtures",
+    "language-native temporary-directory lifecycle handling",
+    "harmless TMP-only cleanup alone would require escalation",
+    "leave it for normal automatic cleanup",
+)
+for role in ("default_executor", "senior_executor", "tester"):
+    role_text = normalized(read_text(f".codex/agents/{role}.toml")).lower()
+    for phrase in verification_guidance:
+        require(
+            phrase.lower(),
+            role_text,
+            f"{role} verification-without-permission-noise guidance",
+        )
+
+for relative in ("docs/conventions/construction.md", "runbooks/construction-delegation.md"):
+    surface_text = runtime_text[relative]
+    for phrase in verification_guidance:
+        require(
+            phrase.lower(),
+            surface_text,
+            f"{relative} verification-without-permission-noise guidance",
+        )
+
+config_text = read_text(".codex/config.toml")
+try:
+    config_document = tomllib.loads(config_text)
+except tomllib.TOMLDecodeError as exc:
+    errors.append(f".codex/config.toml: cannot be parsed while checking approval policy: {exc}")
+else:
+    def contains_key(value: object, key: str) -> bool:
+        if isinstance(value, dict):
+            return key in value or any(contains_key(child, key) for child in value.values())
+        if isinstance(value, list):
+            return any(contains_key(child, key) for child in value)
+        return False
+
+    if contains_key(config_document, "approval_policy"):
+        errors.append(
+            ".codex/config.toml: project approval_policy must remain inherited; "
+            "do not set it (especially never)"
+        )
+
 if errors:
     sys.stderr.write("\n".join(errors) + "\n")
     raise SystemExit(1)
@@ -404,7 +450,24 @@ grep -qE '^[[:space:]]*max_concurrent_threads_per_session[[:space:]]*=' .codex/c
   || ok ".codex/config.toml pins no workflow concurrency cap"
 
 echo "== temporary drift is rejected =="
-TMP="$(mktemp -d)"; trap 'rm -rf "${TMP}"' EXIT
+TMP=""
+cleanup_tmp() {
+  if [ -n "${TMP}" ]; then
+    python3 - "${TMP}" <<'PY'
+import shutil
+import sys
+
+shutil.rmtree(sys.argv[1], ignore_errors=True)
+PY
+  fi
+}
+TMP="$(python3 - <<'PY'
+import tempfile
+
+print(tempfile.mkdtemp(prefix="construction-test-"))
+PY
+)"
+trap cleanup_tmp EXIT
 
 copy_contract_fixture() {
   local destination="$1"
@@ -511,6 +574,17 @@ fixture="${TMP}/legacy-role-vocabulary"; copy_contract_fixture "${fixture}"
 printf '\n# Scout, Mechanic, and Builder are not current worker roles.\n' >> \
   "${fixture}/.codex/agents/default_executor.toml"
 expect_contract_failure "legacy-role-vocabulary" "${fixture}"
+
+for role in default_executor senior_executor tester; do
+  fixture="${TMP}/verification-guidance-${role}"; copy_contract_fixture "${fixture}"
+  sed -i 's/must not request operator escalation merely to create/may request operator escalation merely to create/' \
+    "${fixture}/.codex/agents/${role}.toml"
+  expect_contract_failure "verification-guidance-${role}" "${fixture}"
+done
+
+fixture="${TMP}/project-approval-never"; copy_contract_fixture "${fixture}"
+printf '\napproval_policy = "never"\n' >> "${fixture}/.codex/config.toml"
+expect_contract_failure "project-approval-never" "${fixture}"
 
 # A reintroduced cap is detectable by the same rule the gate uses.
 cp .codex/config.toml "${TMP}/config.toml"

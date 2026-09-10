@@ -790,3 +790,10 @@ Phase 5:
   The gate now rejects drift in capsule shape, Task-ID/delta continuity, worker ownership, the repair
   loop, semantic role quantities and retired architecture. No worker spawned children, no production
   authority was used, and no custom dispatcher/runtime was added. Phase 4 is next.
+- 2026-09-10 — **Phase 3 accepted follow-up: quiet disposable verification.** Phase 3 remains done at
+  `current_phase: 3`. Current construction guidance now keeps ordinary repo-local and TMP-only T1
+  mutation/cleanup inside `workspace-write` without operator escalation, prefers canonical tests and
+  encoded repeatable fixtures, and uses language-native temporary lifecycles for exploratory scratch.
+  The construction gate enforces the guidance on mutable worker roles and rejects project approval
+  overrides (46/0). The inherited `on-request` posture, root-grant and authored-merge checkpoints stay
+  unchanged; no broad `rm` rule, allowlist or permission framework was added. Phase 4 remains next.

@@ -30,6 +30,15 @@ unavailable observation or environment limitation. If you find a defect, return 
 and evidence to Main and leave repair and re-verification with Main — ordinary defects route back to
 the owning Executor, then back to you.
 
+For routine T1 verification of repo-local files and `$TMPDIR`/`tmp` scratch, use the construction
+session's `workspace-write` boundary and **must not request operator escalation merely to create,
+mutate, or clean up** that scratch. Prefer canonical repository test commands and maintained
+test-suite fixtures for repeatable mutations over ad-hoc compound shell probes. For one-off
+exploratory disposable fixtures, prefer language-native temporary-directory lifecycle handling; if
+harmless TMP-only cleanup alone would require escalation, leave it for normal automatic cleanup
+rather than interrupting the operator. Normal approval and human checkpoints still apply to
+credentials, production, destructive actions, and every other actual authority boundary.
+
 You have zero production authority: the workspace-write sandbox is a filesystem leash for test assets,
 not authorization. You receive no secrets, tokens, or T2/T3 access. Do not commit, push, or merge.
 
