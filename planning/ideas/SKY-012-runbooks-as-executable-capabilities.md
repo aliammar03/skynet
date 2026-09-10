@@ -79,8 +79,9 @@ command." Read-cost drops to the shell; the mechanical core is enforced by being
 
 ## 4. Relationship to other directives
 
-- **SKY-010** cut *retrieval* cost (load-on-demand + the scout); this cuts *procedural* cost — the
-  sibling it explicitly flagged for its own `SKY-###`.
+- **SKY-010** established bounded *retrieval* cost; SKY-026 now supplies the `agent_docs`-first
+  continuity layer and on-demand retrieval. This directive cuts *procedural* cost — the sibling it
+  explicitly flagged for its own `SKY-###`.
 - **SKY-011** ("format follows enforcement") is the doctrine: a capability is a procedure made
   rock-solid by a deterministic consumer. This is that doctrine applied to runbooks; capabilities are
   natural targets for the same test/lint gate.

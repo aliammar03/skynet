@@ -35,15 +35,15 @@ makes memory *infrastructure*, not a nicety. Score it honestly:
 | **Procedural** | how-to | **strong** — runbooks/, scripts/, bin/ |
 | **Episodic** | what *happened*, the trajectory | **weak** — only raw git history before this directive |
 
-**The gap is episodic.** A cold agent can't efficiently answer *how did the lab get here, what was
+**The gap is episodic.** A fresh session can't efficiently answer *how did the lab get here, what was
 tried, what failed.* Git history technically holds it, but it isn't shaped for recall — the problem
 isn't storage, it's **retrieval**. (Scratchpad thesis §4.)
 
 ## 2. Brainstorm — options considered
 
 **The episodic store**
-- **Option A — lean on git history + commit messages.** Zero new files, but un-queryable; a cold
-  agent won't `git log` six months to reconstruct a decision.
+- **Option A — lean on git history + commit messages.** Zero new files, but un-queryable; a fresh
+  session won't `git log` six months to reconstruct a decision.
 - **Option B — an append-only `journal/`.** Dated session / incident / decision records — intent,
   actions, grants used, outcome, and crucially a **graveyard of tried-and-abandoned approaches**
   (negative results are memory too). The immutable episodic log git history only *implies*.
@@ -51,15 +51,17 @@ isn't storage, it's **retrieval**. (Scratchpad thesis §4.)
   **Key rule (research brief): write RAW episodes, summarize at *read* time — never at write time**,
   or the episodic signal is destroyed before it's ever used.
 
-**Cold-boot retrieval**
+**Cross-session retrieval**
 - **Option A — grep only.** Status quo; doesn't scale past a few months.
-- **Option B — a rolling digest.** Extend `05-state-of-the-lab.md` into a maintained "state + recent
-  decisions + open threads" page the agent reads first. Cheap, high-leverage, no new infra.
+- **Option B — a rolling digest.** Keep a generated recent-activity / episodic / open-thread view
+  available on demand. It is useful retrieval, but it is not the normal fresh-session orientation.
 - **Option C — a local semantic index.** A lightweight, **git-rebuildable** embedding index (e.g.
-  sqlite-vec class) over repo + journal so a cold agent retrieves by similarity. Must be a **cache,
+  sqlite-vec class) over repo + journal so a fresh session retrieves by similarity. Must be a **cache,
   never a source of truth** — regenerable from git, so statelessness holds.
-- **Decision:** **B now, C as a later phase (both CHOSEN, staged).** Digest is the 80/20; the index
-  is the bigger swing, pending the research brief.
+- **Current rule:** `agent_docs/` plus the active directive are the normal fresh-session intake. The
+  digest remains an optional recent-activity / episodic retrieval view, and the context map is an
+  on-demand routing/load-cost index. Both are caches, never sources of truth. A semantic index remains
+  a future option under this directive.
 
 **Decision memory**
 - **Decision (CHOSEN):** enforce ADRs in `docs/decisions/` for every non-trivial settled choice, so
@@ -83,17 +85,20 @@ deterministic + `bin/ops`/`runbooks/nightly.md` agent) · doctrine pointers (`do
 `docs/design/observability.md`, `AGENTS.md §4`) · ADR 0002 · seed entry. SKY-005 (incident feeder)
 isn't built yet, so the nightly is the only live writer today; the convention is ready for it.
 
-### Phase 2 — rolling digest  (~1–2h)   `[x]` done 2026-08-17
-Extend the generated `05-state-of-the-lab.md` into a cold-boot "state + recent decisions + open
-threads" digest. Exit: a fresh session can orient from one page.
+### Phase 2 — optional recent-activity digest  (~1–2h)   `[x]` done 2026-08-17
+Provide a generated recent-decisions / open-threads / recent-episodes retrieval view. Exit: a fresh
+session can use the view on demand while normal orientation starts with `agent_docs/` plus the active
+directive.
 
 **Shipped:** `scripts/render-digest.sh` — deterministic, read-only, content-stable + idempotent —
-generates the standalone agent page `docs/generated/06-agent-digest.md` (recent decisions from ADRs ·
-open threads from open `SKY-###` + journal follow-ups · recent episodes). Runs on **both** nightly
-paths (`scripts/nightly.sh` + `bin/ops` prompt), so the cold-boot pointers stay fresh even LLM-free.
+generates the standalone retrieval page `docs/generated/06-agent-digest.md` (recent decisions from
+ADRs · open threads from open `SKY-###` + journal follow-ups · recent episodes). Runs on **both**
+nightly paths (`scripts/nightly.sh` + `bin/ops` prompt), so optional retrieval stays fresh even
+LLM-free.
 The human `05-state-of-the-lab.md` stays a prose narrative and is now **featured in the top-level
-`README.md`**; the machine digest is kept separate (Ali's call). Pointers: `AGENTS.md` (cold boot →
-read 06), `docs/design/observability.md` (05/06 split, live), `runbooks/nightly.md`.
+`README.md`**; the machine digest is kept separate. Pointers: `AGENTS.md` (`agent_docs/` plus the
+active directive), `docs/design/observability.md` (05/06 split, live), the on-demand context map, and
+`runbooks/nightly.md`.
 
 ### Phase 3 — git-rebuildable semantic index  (~1–2h)   `[ ]` not started
 Evaluate + stand up a local embedding index (per research brief) that rebuilds from git. Exit: the

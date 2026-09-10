@@ -13,13 +13,14 @@ summary: "SKY-025 handoffs: execute bounded packets, independently review comple
 
 Select the model and effort when starting each task. Prompts cannot switch the running model or
 launch the next session. Use a fresh task for independent review; do not resume the implementation
-conversation. Git records the handoff, so chat transcripts and optional memory are unnecessary.
+conversation. `agent_docs/` plus the active directive provide compact cross-session orientation; chat
+transcripts are not durable handoff state.
 
 1. After this workflow PR merges, start Phase 1 with the execute invocation below. Its detailed
    packet in the merged directive is the initial authorization; no preceding review PR is needed.
 2. Review the implementation PR and merge it yourself when ready.
-3. If that PR completes only a slice, continue execution within the same numbered phase; the
-   execution lead details the remaining packet before work. Once the whole phase is implemented
+3. If that PR completes only a slice, continue execution within the same numbered phase; Main
+   details the remaining packet before work. Once the whole phase is implemented
    and its PRs are merged, start a fresh review with all phase implementation PR URLs.
 4. The reviewer never repairs. ACCEPT publishes a review PR that releases the next packet — merge it
    when ready. BLOCKED records the blocker and releases nothing until it is resolved and reviewed.

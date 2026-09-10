@@ -62,11 +62,12 @@ discard the prepared deterministic work.
    records a render failure. A failed SQLite rebuild cannot supply an old cache to new pages.
 4. **Optional agent work** — when an engine is available, it may write the human narrative and
    grant audit only. This stage cannot own the branch or PR lifecycle.
-5. **Journal then render routing pages** — the finalizer appends a raw journal session entry first,
-   then `scripts/render-digest.sh` regenerates the **agent cold-boot digest** `06-agent-digest.md`
-   (recent decisions / open threads / recent episodes, from ADRs + the journal + the roadmap), and
-   `scripts/render-context-map.sh` regenerates the **context map** `07-context-map.md` (what's
-   loadable + its token cost). The current entry is therefore visible in both machine-facing pages.
+5. **Journal then render retrieval indexes** — the finalizer appends a raw journal session entry
+   first, then `scripts/render-digest.sh` regenerates the **recent-activity / episodic / open-thread
+   retrieval view** `06-agent-digest.md` (recent decisions / open threads / recent episodes, from ADRs
+   + the journal + the roadmap), and `scripts/render-context-map.sh` regenerates the **on-demand
+   context map** `07-context-map.md` (loadable paths + token costs). The current entry is therefore
+   visible in the digest, while the map refreshes its routing metadata and episodic-store pointer.
 6. **Open a PR** — the deterministic finalizer stages generated evidence, commits, pushes, and opens
    the PR on branch `inventory/<date>-<HHMM>` (the `HHMM` suffix lets same-day re-runs each
    get their own branch instead of colliding) with the diff + summary. **The engine never merges by
@@ -77,7 +78,8 @@ discard the prepared deterministic work.
 ## Verify
 
 - Confirm the PR contains only the expected generated/encrypted paths, the current raw journal entry
-  appears in the digest, the deterministic merge gate reports its decision, and anomalies are visible.
+  appears in the digest, the context map exposes current load-cost/routing rows, the deterministic
+  merge gate reports its decision, and anomalies are visible.
 - Run `bin/skynet collect-status --repo .` before interpreting Proxmox, PBS, Docker, DNS, OPNsense or Omada observations; markers
   alone cannot establish freshness without their matching durable local receipt. The optional
   narrative must label retained snapshots/pages as previous evidence when that refresh failed.

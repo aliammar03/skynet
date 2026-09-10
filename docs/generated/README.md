@@ -8,7 +8,8 @@ Live view of the lab, rendered from `inventory/` each nightly. **Do not edit** �
 collectors or `scripts/render-docs.sh`.
 
 - [[05-state-of-the-lab]] — 🖊️ the agent's nightly narrative (human-readable)
-- [[06-agent-digest]] — 🤖 the agent's cold-boot digest (decisions / open threads / episodes)
+- [[06-agent-digest]] — 🤖 recent-activity / episodic / open-thread retrieval view
+- [[07-context-map]] — 🧭 on-demand load-cost and context-routing index
 - [[00-network-map]] — the map
 - [[10-vlans]] — subnets & hosts
 - [[20-firewall]] — rules & aliases

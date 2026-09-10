@@ -8,22 +8,23 @@ summary: "Execute one authorized SKY-025 phase or fix packet and publish its evi
 
 Execute the next authorized SKY-025 packet, or the phase/slice specified by Ali.
 
-1. Read AGENTS.md and planning/README.md. Locate the single active SKY-025 directive by ID
-   (`bin/plan show SKY-025`, or tracked files if that helper has been replaced). Read its current
-   packet, disposition map if present, and relevant conventions. Load other files only as needed.
+1. Read `agent_docs/` once with AGENTS.md and planning/README.md before broad exploration. Locate the
+   single active SKY-025 directive by ID (`bin/plan show SKY-025`, or tracked files if that helper has
+   been replaced). Read its current packet, disposition map if present, and relevant conventions.
+   Load other files only as needed.
 2. Resolve current remote main and start a clean branch from it; preserve unrelated local work.
    Record the base SHA. Verify the phase authorization is merged, its preceding numbered phase accepted, and
    there is no outstanding FIX/BLOCKED review. A merged FIX packet authorizes only those fixes.
    Phase 1 is the bootstrap exception: its merged detailed packet needs no predecessor review.
    If an implementation PR already exists for this packet, inspect/reuse it rather than duplicating it.
-   For remaining slices within the authorized phase, the execution lead details the next bounded
+   For remaining slices within the authorized phase, Main details the next bounded
    packet before work. Completed slices need no independent review; preserve human merge and
    live/grant prerequisites. Never advance to the next numbered phase without phase acceptance.
 3. Confirm the session's model/effort matches the packet. Follow the directive's routing rules;
    do not claim a model switch or silently substitute an unavailable model. Route the session on a
    Light/Medium/Heavy route and delegate workers, capsules, ownership, batching, and verification
    through [`../../docs/conventions/construction.md`](../../docs/conventions/construction.md). The
-   phase table's model is a recommendation for the Main session, not a second orchestration system.
+   phase table's route is guidance for the Main session, not a second orchestration system.
 4. Implement only this 1–2h packet, including affected callers, tests, and current documentation.
    Follow its live boundaries and existing authorization. Downtime tolerance does not expand data,
    credential, or privilege authority. If the scope no longer fits, propose a bounded slice and

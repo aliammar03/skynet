@@ -68,8 +68,13 @@ bin/new journal decision "adopt an append-only episodic journal"
 
 It writes `journal/<YYYY>/<YYYY-MM-DD>-<kind>-<slug>.md` from [`../templates/journal.md`](../templates/journal.md).
 
-## Reading (today)
+## Reading
 
-Grep + read the dated files; the nightly's rolling digest (P2) will become the cold-boot front door,
-and a local semantic index (P3) adds retrieval-by-similarity once markdown + grep visibly strain.
-Until then: `grep -ri "<topic>" journal/` and read the episodes it surfaces.
+At substantive Medium/Heavy entry, read the six compact [`agent_docs/`](../agent_docs/) files plus
+the active directive first. They provide orientation only: constitution, runtime/configuration,
+current operational docs, active directives, and accepted evidence win conflicts. The generated
+[digest](../docs/generated/06-agent-digest.md) is optional recent-activity/episodic/open-thread
+retrieval; the generated [context map](../docs/generated/07-context-map.md) is on-demand load-cost
+routing. Neither is required for cold-session continuity or a source of truth.
+
+For raw history, grep and read the dated files: `grep -ri "<topic>" journal/`.

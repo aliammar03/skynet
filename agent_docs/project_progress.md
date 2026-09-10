@@ -16,16 +16,18 @@ and each capability earns autonomy through recorded verification and rollback ev
   is the generated roadmap for their exact state.
 - SKY-026 is in progress. Phases 1–4 established Main-directed routes, native specialist roles,
   batching, repair ownership, independent verification, compact agent memory, Archivist closure,
-  and recorded token accounting.
+  and recorded token accounting. Phase 5 implementation evidence is ready for fresh external review.
 
 ## Current Position
 
-SKY-026 Phase 4 is accepted. A bounded follow-up changes Codex construction permissions so ordinary
-work inherits the unprivileged `aliammar` account's authority without approval prompts, while
-self-merge and self-root remain hard-blocked. No production authority or live host is involved.
+SKY-026 Phase 5 dogfood passed internal verification. Light, Medium, and Heavy work ran under the
+current contract; two non-overlapping Executor packages ran concurrently, natural defects returned to
+their owning Executor and the same Tester passed the recheck. The digest and context map now have
+distinct on-demand roles, the unused checkpoint surface is removed, and current construction guidance
+uses SKY-026 only. No production authority or live host was involved.
 
 ## Next Milestone
 
-After the permission follow-up is human-merged and its Home Manager generation is activated, execute
-SKY-026 Phase 5 to dogfood the full system, decide which legacy continuity artifacts have unique
-value, and remove every remaining current SKY-022 dependency.
+Open the Phase-5 implementation PR and run the directive's fresh external review. After
+`ACCEPT SKY-026`, perform the bounded final close-out: mark Phase 5 done, set `current_phase: 5`,
+archive the directive through the planning lifecycle, refresh the roadmap, and keep authored merge human-only.

@@ -4,7 +4,7 @@ title: "Overhaul agent orchestration around a Main-directed worker swarm"
 status: in-progress
 horizon: long
 created: 2026-09-10
-updated: 2026-09-10
+updated: 2026-09-11
 phases: 5
 current_phase: 4
 tier_touched: [T1]
@@ -426,7 +426,7 @@ Exit criteria:
 
 Close-out: one reviewable PR + journal episode + directive progress bump + `bin/plan list`.
 
-### Phase 5 · Dogfood end to end, prune continuity duplication, eradicate SKY-022  `[ ]` not started
+### Phase 5 · Dogfood end to end, prune continuity duplication, eradicate SKY-022  `[~]` implementation ready — external review pending
 **Recommended Main:** Astra Medium, Heavy route where task decomposition is real.
 
 Goal: finish with one coherent construction engine, one compact agent-memory layer, no redundant
@@ -670,3 +670,8 @@ Phase 5:
   continuity surfaces rather than maintaining parallel handoff systems forever.
 - P4 complete in PR #250: six compact files, authority/ownership boundaries, closure shapes, recorded
   token reporter, and bounded cold-start comparison passed. Next: execute Phase 5 after human merge.
+- P5 implementation ready: fresh `agent_docs/` intake repaired a real stale-memory conflict; Light,
+  Medium, and concurrent Heavy work exercised the native topology; retained continuity views now have
+  distinct retrieval/index roles; the unused checkpoint and remaining current legacy guidance are
+  removed; independent Tester repair/recheck and relevant gates pass. Status stays `in-progress`
+  pending the required fresh external review.

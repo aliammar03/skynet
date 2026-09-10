@@ -17,7 +17,8 @@ hand-maintained:
 ```
 00-network-map.md      # mermaid: WANs → OPNsense → VLANs → hosts
 05-state-of-the-lab.md # human narrative, LLM-authored nightly (surfaced in README)
-06-agent-digest.md     # agent cold-boot digest, render-digest.sh (decisions/threads/episodes)
+06-agent-digest.md     # recent-activity / episodic / open-thread retrieval, render-digest.sh
+07-context-map.md      # on-demand load-cost / context-routing index, render-context-map.sh
 10-vlans.md            # per-VLAN tables linking to host pages
 20-firewall.md         # rules/aliases from the LIVE OPNsense API (collect-opnsense.sh); mirror = DR only
 30-services/<svc>.md   # IP, ports, front door, backup status, last deploy
@@ -68,11 +69,13 @@ outside the version-controlled auto-approve list.
 ## Episodic memory — see the memory spoke
 
 Rendered docs answer *what is true now*; they can't answer *how the lab got here, what was tried,
-what failed*. That **episodic** memory — the [`journal/`](../../journal/README.md) and the read-time
-digest that reconstructs it — is its own domain, designed in the [memory](memory.md) spoke. The
-only part that lives here is the *rendering*: `scripts/render-digest.sh` produces the agent digest
-[`../generated/06-agent-digest.md`](../generated/06-agent-digest.md) alongside the other nightly
-pages (deterministic, content-stable), and the human narrative
+what failed*. That **episodic** memory — the [`journal/`](../../journal/README.md) and its generated
+recent-activity/episodic/open-thread retrieval view — is its own domain, designed in the [memory](memory.md)
+spoke. The only part that lives here is the *rendering*: `scripts/render-digest.sh` produces the agent
+digest [`../generated/06-agent-digest.md`](../generated/06-agent-digest.md) alongside the other nightly
+pages (deterministic, content-stable), while `scripts/render-context-map.sh` produces the on-demand
+load-cost/context-routing index [`../generated/07-context-map.md`](../generated/07-context-map.md).
+The human narrative
 [`05-state-of-the-lab.md`](../generated/05-state-of-the-lab.md) is the agent-authored counterpart.
 
 ## Scope
