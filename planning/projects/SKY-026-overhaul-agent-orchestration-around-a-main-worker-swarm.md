@@ -738,3 +738,18 @@ Phase 5:
   `lead`/`review`/`--tier`/`AGENT_MODEL_*`), updated `invariants.json` + `scripts/check-invariants.sh`
   + `tests/{agent,construction}-test.sh`. All deterministic gates green. Token accounting stays for
   Phase 4; the full current-authority SKY-022 sweep stays for Phase 5.
+- 2026-09-10 — **Phase 2 fix (independent-review findings).** Stays `current_phase: 2`; Phase 3 unreleased
+  until a fresh re-review accepts. (1) Verified from pinned openai/codex rust-v0.153.4 source that roles
+  are discovered from each config layer's `agents/*.toml` and spawned in-session via `spawn_agent`
+  (`agent_type=<role>`), loading the complete role contract; there is no standalone CLI for a named role.
+  `bin/agent` only set model/effort/sandbox and never loaded `developer_instructions`, so it was a false
+  mirror — **deleted** it and `tests/agent-test.sh`, and migrated every current-authority reference
+  (construction.md, the construction runbook, sky-025-map.md, pre-commit, CI) to native-spawn-only.
+  (2) Ran a live native smoke on the installed harness: all six roles spawned and resolved (no
+  `unknown agent_type`), each child carried its own role file's `developer_instructions`, and the per-role
+  model override applied (luna/sol as declared); a read-only-parent run confirmed the sandbox ceiling.
+  Current discovery evidence no longer depends on SKY-022. (3) Regenerated `planning/README.md` with
+  `bin/plan list` → SKY-026 `2/5`. Rewrote `construction-test.sh` to validate the real role TOMLs (23/0).
+  Also corrected an honest overclaim: a role file's `sandbox_mode` is the enforced DECLARATION, but
+  runtime filesystem reach is bounded by the spawning session (the parent is the ceiling) — the
+  always-true boundary is zero production authority.

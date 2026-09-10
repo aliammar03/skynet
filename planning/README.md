@@ -79,8 +79,8 @@ bodies and manual merge gates. The directive remains the source for phase scope 
 | SKY-007 | NixOS host definition, piloted on the ops VM | archive | done | — | 🔭 long |
 | SKY-008 | OpenTofu provisioning layer: VM and CT lifecycle plus DNS | archive | done | — | 🔭 long |
 | SKY-009 | Convention bedrock: doctrine spine and golden templates | archive | done | — | 🌱 short |
-| SKY-010 | Default-lean context — strip the baseline, load on demand | archive | done | — | 🔭 long |
-| SKY-011 | Machine-enforced invariants and the ambiguity-layering doctrine | archive | done | — | 🔭 long |
+| SKY-010 | Default-lean context — strip the baseline, load on demand | archive | done | — | 🌱 short |
+| SKY-011 | Machine-enforced invariants and the ambiguity-layering doctrine | archive | done | — | 🌱 short |
 | SKY-012 | Runbooks as executable capabilities | ideas | draft | — | 🌱 short |
 | SKY-013 | Deploy Obsidian Self-hosted LiveSync (CouchDB backend) | archive | done | — | 🌱 short |
 | SKY-014 | Adopt cloudflared as a Skynet-managed tunnel (public path via apps-Caddy) | archive | done | — | 🌱 short |
@@ -93,7 +93,7 @@ bodies and manual merge gates. The directive remains the source for phase scope 
 | SKY-021 | NixOS-in-LXC: prove the container path and set the new-CT default | archive | done | — | 🌱 short |
 | SKY-022 | "Lean multi-agent construction orchestration: lead-driven delegation" | archive | done | — | 🔭 long |
 | SKY-023 | Eliminate documentation drift and shrink operational context | projects | in-progress | 10/10 | 🌱 short |
-| SKY-024 | tofu declares managed core guests — API-driven CT/VM lifecycle, no node SSH | projects | in-progress | 4/6 | 🔭 long |
+| SKY-024 | tofu declares managed core guests — API-driven CT/VM lifecycle, no node SSH | projects | in-progress | 4/6 | 🌱 short |
 | SKY-025 | Rebuild the Skynet engine in Python | projects | in-progress | 6/24 | 🔭 long |
-| SKY-026 | Overhaul agent orchestration around a Main-directed worker swarm | projects | in-progress | 0/5 | 🔭 long |
+| SKY-026 | "Overhaul agent orchestration around a Main-directed worker swarm" | projects | in-progress | 2/5 | 🔭 long |
 <!-- ROADMAP:END -->
