@@ -162,12 +162,23 @@ Construction grants **zero production authority**: no production credentials, ro
 actions reach a worker, and the sandbox is a filesystem leash, not authorisation. See [`git.md`](git.md)
 and the constitution. `[manual]`
 
-Native Codex subagents are the runtime mechanism. Use a named SKY-026 role only when the installed or
-project configuration actually exposes it with the required model, effort, and sandbox; if a required
-role is not exposed, report that route/role as **blocked** rather than silently substituting a legacy
-role. The runtime surfaces are [`.codex/agents/`](../../.codex/agents/),
-[`.codex/config.toml`](../../.codex/config.toml), [`invariants.json`](../../invariants.json) (checked
-by `scripts/check-invariants.sh`), and [`bin/agent`](../../bin/agent) for standalone non-Codex
-sessions — a role's routing is available to claim only once these agree with this doctrine. Read-only
-roles cannot write, no worker uses `danger-full-access`, and every worker runs with no production
-authority. `[testable/manual]`
+Native Codex subagents are the **only** runtime mechanism — Main spawns a worker in-session (`spawn_agent`,
+`agent_type = <role>`), and Codex loads that role's complete definition from its role file: instructions,
+model, and effort are applied per role. There is no standalone launcher: a shell wrapper that only sets
+model/effort/sandbox cannot load a role's developer instructions, so it is not a role and must not stand
+in for one. Use a named role only when the installed or project configuration actually exposes it; if a
+required role is not exposed, report that route/role as **blocked** rather than silently substituting a
+legacy role. The runtime surfaces are [`.codex/agents/`](../../.codex/agents/) (one role per `*.toml`,
+discovered by Codex as a config layer), [`.codex/config.toml`](../../.codex/config.toml), and
+[`invariants.json`](../../invariants.json) (checked by `scripts/check-invariants.sh`) — a role is
+claimable only once these agree with this doctrine. `[testable/manual]`
+
+Each role file **declares** its sandbox, and the gate enforces the declaration and bans
+`danger-full-access`. At runtime a spawned worker's filesystem reach is the spawning session's sandbox
+as a **ceiling** — a role never escalates above it (a workspace-write role spawned under a read-only
+Main runs read-only), and in the installed Codex the role file's own `sandbox_mode` does not by itself
+reduce a worker below a workspace-write parent. So a read-only role's no-write guarantee holds only when
+Main spawns it from a suitably bounded session; treat the declaration as least-privilege intent, not an
+unconditional runtime leash. The boundary that always holds is **zero production authority**: no
+credential, token, root grant, or T2/T3 action reaches any worker regardless of its filesystem sandbox.
+`[manual]`
