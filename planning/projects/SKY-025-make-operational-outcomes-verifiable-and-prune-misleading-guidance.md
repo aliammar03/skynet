@@ -216,10 +216,10 @@ actual second caller; do not add a generic client/session framework.
    in tests, including subprocess-launched default collection; installed tests must import
    the package, not the source checkout.
 
-**Optional Luna assignments:** one Luna Medium scout maps Omada device/port fields to
-`build-db.sh`/`render-docs.sh`; one Luna High worker owns only `tests/test_omada.py` and synthetic
-fixtures after the lead settles the response contract. At most two helpers; no production,
-credentials, helpers, commits or pushes delegated. Lead owns implementation/integration.
+**Optional worker assignments:** an Investigator (read-only) maps Omada device/port fields to
+`build-db.sh`/`render-docs.sh`; a Default Executor owns only `tests/test_omada.py` and synthetic
+fixtures after Main settles the response contract, on non-overlapping ownership. No production,
+credentials, commits or pushes delegated; workers never spawn workers. Main owns implementation/integration.
 
 **Checks and exit criteria:**
 
@@ -282,8 +282,8 @@ slice is independently released. No inventory rewrite, root/grant, credential/pi
 activation, service/timer change, entity rewrite or recon implementation is authorized here.
 Rollback is `git revert`.
 
-**Optional Luna work:** one Luna High builder may own only certificate/route tests and fixtures;
-it must not access endpoints, credentials or production. Lead owns integration and validation.
+**Optional worker:** a Default Executor may own only certificate/route tests and fixtures;
+it must not access endpoints, credentials or production. Main owns integration and validation.
 **Close-out:** P7b slice-complete / P7 in progress, accepted progress still 6/24; after human
 merge detail P7c only.
 
@@ -314,7 +314,7 @@ paused documentation suites remain manual. Ali's earlier phase-wide live authori
 local and one `docker-dmz` unprivileged read from this isolated checkout; neither result updates
 production inventory. Rollback is `git revert`.
 
-**Optional Luna work:** one Luna High builder owns only recon tests/fixtures; no endpoint, SSH,
+**Optional worker:** a Default Executor owns only recon tests/fixtures; no endpoint, SSH,
 credential or production access. **Close-out:** P7c slice-complete / P7 review pending, accepted
 progress still 6/24. After all P7 PRs are merged, start a fresh review task: `Read
 planning/prompts/review.md and review SKY-025 implementation PR <P7c URL>, plus #235 and #236.`
