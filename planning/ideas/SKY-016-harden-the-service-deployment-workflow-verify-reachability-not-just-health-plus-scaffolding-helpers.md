@@ -4,7 +4,7 @@ title: Harden the service-deployment workflow: verify reachability not just heal
 status: draft
 horizon: short
 created: 2026-08-23
-updated: 2026-09-10
+updated: 2026-08-23
 phases: 3
 current_phase: 0
 tier_touched: [T1, T2]  # editing scripts/runbooks/docs + gitops-deploy runs as T2 (svc-ops).
@@ -150,6 +150,7 @@ steps. When the phase's exit criteria are met, do the "Phase close-out" at the b
 
 ## 5. Phase close-out (resume material)
 - [ ] Land the work via **PR** (agent never merges its own).
+- [ ] Main refreshes the three state-memory files in `agent_docs/` after acceptance.
 - [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.

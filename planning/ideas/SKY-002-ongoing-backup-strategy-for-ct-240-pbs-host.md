@@ -4,7 +4,7 @@ title: Ongoing backup strategy for CT 240 (PBS host)
 status: draft
 horizon: short
 created: 2026-08-16
-updated: 2026-09-10
+updated: 2026-08-16
 phases: 1
 current_phase: 0
 tier_touched: [T2, T2+]   # T2 vzdump (operate token) + a T2+ grant to set up restic on the host
@@ -79,6 +79,7 @@ steps. When the phase's exit criteria are met, do the "Phase close-out" at the b
 ## 5. Phase close-out (resume material)
 Run this every time a phase finishes successfully — it's what makes the next session cold-startable:
 - [ ] Land the work via **PR** (agent never merges its own).
+- [ ] Main refreshes the three state-memory files in `agent_docs/` after acceptance.
 - [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.

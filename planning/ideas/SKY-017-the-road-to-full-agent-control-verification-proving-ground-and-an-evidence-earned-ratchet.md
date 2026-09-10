@@ -4,7 +4,7 @@ title: The road to full agent control: verification, proving ground, and an evid
 status: draft
 horizon: long
 created: 2026-08-28
-updated: 2026-09-10
+updated: 2026-09-03
 phases: 5
 current_phase: 0
 tier_touched: [T1, T2]   # P1–P3 build T1 machinery; P4–P5 graduate capabilities to A3/A4, which
@@ -222,6 +222,7 @@ exit criteria are met, do the "Phase close-out" at the bottom.
 
 ## 5. Phase close-out (resume material)
 - [ ] Land the work via **PR** (agent never merges its own).
+- [ ] Main refreshes the three state-memory files in `agent_docs/` after acceptance.
 - [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.

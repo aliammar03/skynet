@@ -32,7 +32,8 @@ related:                     # authoritative paths this directive leans on
 - **A directive touching T2+/T3 or a blast-radius boundary MUST list `docs/system-design.md` in
   `related`** and PR the constitution `[manual]` (AGENTS.md §5).
 - **`current_phase`, `status`, `updated` are bumped at every phase close-out** `[manual]`; the
-  matching phase checkbox flips `[ ]`→`[x]`.
+  matching phase checkbox flips `[ ]`→`[x]`. Main also refreshes the three state-memory files named
+  by the construction convention; they remain derived views, not directive metadata. `[manual]`
 
 ## Service-catalog entry (`planning/services/SKY-###-*.md`) `[manual]`
 

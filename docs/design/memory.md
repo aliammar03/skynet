@@ -11,17 +11,18 @@ summary: "How Skynet keeps portable semantic, procedural, episodic, and working 
 | Kind | Holds | Authoritative home |
 |---|---|---|
 | Working | The current task | Context window |
-| Semantic | Current facts and state | `docs/`, `inventory/`, `docs/generated/` |
+| Semantic | Current facts and compact agent orientation | authoritative `docs/`/config/state plus derived `agent_docs/` |
 | Procedural | Executable knowledge | `runbooks/`, `scripts/`, `bin/` |
 | Episodic | What happened and why | `journal/`, ADRs, generated digest |
 
 ## Default-lean retrieval
 
-Context is scarce operational capacity. Load the smallest high-signal contract first, then retrieve
-one relevant document through the generated [context map](../generated/07-context-map.md). It supplies
-summary, trigger, and approximate load cost for each on-demand artifact. For broad historical
-questions, use `bin/recall <topic>` or targeted journal search; retain the conclusion for the task,
-not the entire corpus. A temporary retrieval summary is never a source of truth.
+Context is scarce operational capacity. A substantive Medium/Heavy construction session reads the
+six compact files in [`../../agent_docs/`](../../agent_docs/) once plus its active directive, then
+opens only decision-critical authoritative evidence. `agent_docs/` is derived memory: constitution,
+runtime/configuration, current operational docs, active directives, and accepted evidence always win
+conflicts. For other retrieval, load the smallest high-signal contract and use the generated
+[context map](../generated/07-context-map.md) to select one relevant document.
 
 On cold boot, read the generated [agent digest](../generated/06-agent-digest.md) after the baseline
 contract. The digest points to recent ADRs, open directives, and raw episodes; it does not replace

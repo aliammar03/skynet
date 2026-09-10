@@ -41,7 +41,7 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 **Explicit durable follow-ups:**
 
-- Ali must merge the authored Phase 4 PR. Then execute SKY-026 Phase 5; no Phase 5 work occurred here. — _2026-09-10 session_
+- Ali must review and merge authored PR #250. Then execute SKY-026 Phase 5; no Phase-5 work occurred. — _2026-09-10 session_
 - Open the bounded P7 fix PR, then await human merge and a fresh review of the complete P7 merged result. Accepted progress remains 6/24. — _2026-09-10 session_
 - P7c must be human-merged, then a fresh review covers P7a #235, P7b #236 and this P7c PR. Accepted progress remains 6/24 until that reviewer accepts the complete numbered phase. — _2026-09-09 session_
 - P7b must be human-merged before the lead details P7c recon. P7 remains unaccepted at 6/24; P7c and the independent merged-result review are still required. — _2026-09-09 session_

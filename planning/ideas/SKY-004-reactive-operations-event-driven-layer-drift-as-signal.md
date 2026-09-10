@@ -4,7 +4,7 @@ title: Reactive operations: event-driven layer + drift-as-signal
 status: draft
 horizon: long
 created: 2026-08-17
-updated: 2026-09-10
+updated: 2026-08-17
 phases: 3
 current_phase: 0
 tier_touched: [T1, T2]   # T1 observe/propose; graduating any event→action to auto-approve is a
@@ -101,6 +101,7 @@ steps. When the phase's exit criteria are met, do the "Phase close-out" at the b
 
 ## 5. Phase close-out (resume material)
 - [ ] Land the work via **PR** (agent never merges its own).
+- [ ] Main refreshes the three state-memory files in `agent_docs/` after acceptance.
 - [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.

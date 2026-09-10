@@ -6,7 +6,7 @@ tags: [skynet, generated, agent, context-map]
 
 # Skynet — Context Map
 
-**Always-loaded baseline:** `AGENTS.md` + `CLAUDE.md` ≈ **3971** tok — the contract; never in this list.
+**Always-loaded baseline:** `AGENTS.md` + `CLAUDE.md` ≈ **4049** tok — the contract; never in this list.
 **Cold-boot read:** `docs/generated/06-agent-digest.md` ≈ 1611 tok.
 
 Everything below is **on-demand**: nothing enters context until a trigger fires. Open a *file*, not a section.
@@ -16,7 +16,7 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 | Path | Tier | Trigger | ~tok | Summary |
 |---|---|---|--:|---|
 | `runbooks/backup.md` | T2+ root grant | How do backups work / run a backup | 621 | How restic and PBS backups run, how to provision restic, and how to take a pre-change backup. |
-| `runbooks/construction-delegation.md` | T1 build-time only | Do a substantial construction task / build X / implement or change X | 1533 | Run substantial construction as Main on a Light/Medium/Heavy route — direct bounded specialist workers, let Testers verify independently, and open the PR without granting production authority. |
+| `runbooks/construction-delegation.md` | T1 build-time only | Do a substantial construction task / build X / implement or change X | 1606 | Run substantial construction as Main on a Light/Medium/Heavy route — direct bounded specialist workers, let Testers verify independently, and open the PR without granting production authority. |
 | `runbooks/deploy-service.md` | T2 PR-gated | Deploy or update a service | 948 | Deploy or update a service through the Arcane GitOps loop: edit compose then PR then Arcane reconciles. |
 | `runbooks/diagnose/arcane-stuck.md` | T1/T2 | A merged compose PR didn't deploy / Arcane isn't reconciling / git and running have drifted | 899 | Triage a merged compose PR that didn't deploy — check the Arcane Git Sync status/error, compare git vs running, distinguish sync-fail vs apply-fail vs drift. |
 | `runbooks/diagnose/backup-missed.md` | T1/T2 | An expected backup/snapshot is missing / a restic or PBS timer failed | 866 | Triage a missed backup — check the timer, the last snapshot age, and repo reachability across restic→gdrive and PBS→gdrive, fix the timer/creds/repo declaratively. |
@@ -48,7 +48,7 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 | `docs/design/disaster-recovery.md` | 601 | The survival kit and how each node-loss scenario is recovered; the step-by-step procedures live in runbooks/dr/. |
 | `docs/design/gitops-loop.md` | 682 | How a service change becomes a running container via Arcane, with git-revert rollback and image pinning + Renovate. |
 | `docs/design/identity-and-proxy.md` | 882 | The current two-door proxy, split-DNS, Authentik boundary, and Cloudflare Tunnel public path. |
-| `docs/design/memory.md` | 511 | How Skynet keeps portable semantic, procedural, episodic, and working memory without overloading a fresh agent. |
+| `docs/design/memory.md` | 545 | How Skynet keeps portable semantic, procedural, episodic, and working memory without overloading a fresh agent. |
 | `docs/design/network.md` | 1554 | Where Skynet sits, how it's addressed on VLAN 90, and the firewall rules bounding its reach to exactly what it needs. |
 | `docs/design/observability.md` | 1288 | How machine state becomes human-readable docs, and how the nightly run keeps the picture current. |
 | `docs/design/secrets.md` | 922 | How Skynet holds secrets with sops+age and materializes GitOps service env from .env.git plus .env.sops. |
@@ -58,11 +58,11 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 | Path | ~tok | Summary |
 |---|--:|---|
 | `docs/conventions/compose.md` | 1085 | The single 'skynet way' every service's compose conforms to, so the fleet is uniform and Arcane's GitOps loop can own it. |
-| `docs/conventions/construction.md` | 3874 | Main directs a specialist worker swarm on Light/Medium/Heavy routes; workers own bounded work, verification is independent, and a fresh session reviews the merged result and returns a fix prompt rather than repairing. |
+| `docs/conventions/construction.md` | 3998 | Main directs a specialist worker swarm on Light/Medium/Heavy routes; workers own bounded work, verification is independent, and a fresh session reviews the merged result and returns a fix prompt rather than repairing. |
 | `docs/conventions/docs.md` | 1691 | How Skynet's prose is structured: hub-and-spoke, ADRs, runbooks, README-as-catalog, and loadable summary/trigger frontmatter. |
 | `docs/conventions/git.md` | 605 | How change enters the repo: one branch per unit of work, one PR per phase, and the agent never merging its own PRs. |
 | `docs/conventions/layout.md` | 1507 | Where each kind of artifact lives, and the minimum files each must have to be well-formed. |
-| `docs/conventions/metadata.md` | 633 | The structured fields machines read: directive frontmatter, service-catalog entries, and the compose label/tag namespaces. |
+| `docs/conventions/metadata.md` | 670 | The structured fields machines read: directive frontmatter, service-catalog entries, and the compose label/tag namespaces. |
 | `docs/conventions/naming.md` | 1905 | The one naming grammar — VMIDs, IPs, hostnames, slugs, branches — so a name is predictable and machine-validatable. |
 | `docs/conventions/scripts.md` | 1080 | Capability contracts, Python procedural code, existing Bash entry points, and verified TLS. |
 
@@ -72,7 +72,7 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 |---|--:|---|
 | `compose/README.md` | 1519 | The compose/ service catalog and the Arcane GitOps deployment loop every project follows. |
 | `journal/README.md` | 1123 | The episodic journal format — session/incident/decision records, the Graveyard, and the write-raw/read-summarize rule. |
-| `planning/README.md` | 1854 | Where future work lives as SKY-### directives: the scratchpad→ideas→backlog→projects→archive lifecycle, bin/plan, and the roadmap. |
+| `planning/README.md` | 1868 | Where future work lives as SKY-### directives: the scratchpad→ideas→backlog→projects→archive lifecycle, bin/plan, and the roadmap. |
 | `runbooks/README.md` | 1508 | Catalog of task-shaped, engine-neutral operational procedures. Rendered from runbook frontmatter. |
 | `templates/README.md` | 395 | The golden templates (compose, script, runbook, ADR, journal) that bin/new stamps so new artifacts inherit the house style. |
 
@@ -91,10 +91,10 @@ Everything below is **on-demand**: nothing enters context until a trigger fires.
 
 ## Episodic memory — retrieve by topic, don't browse
 
-- `journal/` — 115 raw episodes, ≈ 133998 tok total. Retrieve by topic: `bin/recall <topic>` or `grep -ri "<topic>" journal/`; recent episodes are already in `06-agent-digest.md`. **Do not load the whole store.**
+- `journal/` — 115 raw episodes, ≈ 134051 tok total. Retrieve by topic: `bin/recall <topic>` or `grep -ri "<topic>" journal/`; recent episodes are already in `06-agent-digest.md`. **Do not load the whole store.**
 
 ---
-**On-demand corpus:** ≈ **54420** tok across 53 files — but you load a *row* (≈ tens of tok) to choose, then one file.
+**On-demand corpus:** ≈ **54702** tok across 53 files — but you load a *row* (≈ tens of tok) to choose, then one file.
 _A cache — regenerable from git via `render-context-map.sh`; never a source of truth._
 
 > [!note] Generated by `scripts/render-context-map.sh` from each loadable's frontmatter.

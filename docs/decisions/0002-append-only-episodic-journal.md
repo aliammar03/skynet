@@ -7,7 +7,8 @@
 
 Skynet is stateless by design: every session is a fresh mind that rebuilds the world from git. That
 makes memory *infrastructure*, not a nicety. Scored honestly, three of the four memory kinds are
-already strong — **semantic** (active directives, design docs, `inventory/`, `docs/generated/`),
+already strong — **semantic** (active directives, design docs, derived `agent_docs/`, `inventory/`,
+`docs/generated/`),
 **procedural** (`runbooks/`, `scripts/`, `bin/`), and **working** (the context window). The weak
 one is **episodic**: *how did the lab get here, what was tried, what failed.* Git history technically
 holds every event, but it is not shaped for recall — a cold agent will not `git log` six months to
@@ -58,5 +59,5 @@ break the "rebuild from git" invariant.
 
 ## History
 
-- 2026-09-10 — corrected the semantic-memory list to the canonical git-backed surfaces; Skynet has
-  no separate `MEMORY.md` progress database.
+- 2026-09-10 — corrected the semantic-memory list to the current git-backed surfaces. Compact
+  `agent_docs/` is derived memory; it is not a second runtime/configuration authority or task database.

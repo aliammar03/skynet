@@ -4,7 +4,7 @@ title: Rebuild the Skynet engine in Python
 status: in-progress
 horizon: long
 created: 2026-09-06
-updated: 2026-09-10
+updated: 2026-09-09
 phases: 24
 current_phase: 6
 tier_touched: [T1, T2, T2+, T3]

@@ -26,7 +26,7 @@ related:               # authoritative files this directive touches
       not taken so nobody re-litigates them.
     • Checkpoints — flag every T3 / destructive / credential / leaves-scope step as a
       ⚠ hard checkpoint (Ali acts; the agent stops and waits).
-    • Close-out — every phase ends with §5: PR + raw journal evidence + frontmatter bump.
+    • Close-out — every phase ends with §5: PR + Main state-memory update + raw journal evidence + frontmatter bump.
     • Frontmatter — keep parsed keys value-only (NO inline `#` on title/phases/current_phase);
       `current_phase` = last COMPLETED phase (0 = not started); bump `phases` as you add them.
 -->
@@ -71,13 +71,15 @@ steps. When the phase's exit criteria are met, do the "Phase close-out" at the b
 ## 5. Phase close-out (resume material)
 Run this every time a phase finishes successfully — it's what makes the next session cold-startable:
 - [ ] Land the work via **PR** (agent never merges its own).
+- [ ] After acceptance, Main updates `agent_docs/project_progress.md`, `project_diary.md`, and
+      `latest_session_work.md`; the latest-session file contains the single next entry point.
 - [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.
-- [ ] Keep exactly one **Continue prompt** below as the next-session entry point:
+- [ ] Keep the **Continue prompt** below aligned with the single next entry point in latest-session memory:
 ```
 Continue planning/projects/SKY-000-slug.md at Phase <N+1>.
-Prereqs carried from the last phase: <…>. Read the directive and its linked journal evidence.
+Prereqs carried from the last phase: <…>. Read `agent_docs/` and this directive first.
 Follow AGENTS.md as above.
 ```
 

@@ -4,7 +4,7 @@ title: "Eight-layer reconciliation: entity spine, the Analyze phase, and the ver
 status: in-progress
 horizon: long
 created: 2026-08-28
-updated: 2026-09-10
+updated: 2026-09-03
 phases: 12
 current_phase: 6
 tier_touched: [T1, T2]   # Mostly T1 (derive, collect, render, check). P4 EXTENDS the T1 read surface
@@ -459,6 +459,7 @@ stop and wait there. When the phase's exit criteria are met, do the "Phase close
 
 ## 5. Phase close-out (resume material)
 - [ ] Land the work via **PR** (agent never merges its own).
+- [ ] Main refreshes the three state-memory files in `agent_docs/` after acceptance.
 - [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.

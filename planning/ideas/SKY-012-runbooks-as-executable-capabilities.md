@@ -4,7 +4,7 @@ title: Runbooks as executable capabilities
 status: draft
 horizon: short
 created: 2026-08-18
-updated: 2026-09-10
+updated: 2026-08-18
 phases: 1
 current_phase: 0
 tier_touched: [T1, T2]   # writing capabilities is T1 repo work; a capability RUNS at its runbook's

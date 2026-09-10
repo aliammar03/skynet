@@ -37,8 +37,9 @@ scratchpad ──▶ ideas ──▶ backlog ──▶ projects ──▶ archiv
   also PR `docs/system-design.md` — same rule as everywhere else. (`tier_touched` frontmatter flags it.)
 - **PR-gated.** Directives land via PR like all repo changes; the agent never merges its own.
 - **Phases are ~1–2h.** Anything longer is split, and each phase ends with a **close-out**: a PR,
-  raw journal evidence, a frontmatter bump, and one **Continue prompt** so the next session cold-starts
-  from the directive. Do not create a second progress tracker.
+  Main's three agent-memory state updates, raw journal evidence, a frontmatter bump, and one next
+  entry point so the next session cold-starts from `agent_docs/` plus the directive. Do not create a
+  second task database.
 - **Reopening is exceptional.** A completed maintenance directive may return from `archive/` to
   `projects/` only on explicit human instruction when the same maintenance domain needs another bounded
   phase set. Preserve its completed phases/history and permanent ID; never keep duplicate archive and

@@ -4,7 +4,7 @@ title: Firewall-as-code — OPNsense config to T2 via OpenTofu
 status: in-progress
 horizon: long
 created: 2026-09-01
-updated: 2026-09-10
+updated: 2026-09-01
 phases: 6
 current_phase: 1
 tier_touched: [T2, T3]   # moves the OPNsense boundary — the constitution PR is ADR 0006 / PR #137.
@@ -118,6 +118,7 @@ criteria are met, do the "Phase close-out" below.
 
 ## 5. Phase close-out (resume material)
 - [ ] Land the work via **PR** (agent never merges its own).
+- [ ] Main refreshes the three state-memory files in `agent_docs/` after acceptance.
 - [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.

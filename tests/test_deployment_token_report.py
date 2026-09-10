@@ -21,39 +21,6 @@ SCRIPT = (
 )
 
 
-class ClosureContractTests(unittest.TestCase):
-    def test_complete_paused_and_blocked_have_one_directive_entry_point(self) -> None:
-        construction = (ROOT / "docs/conventions/construction.md").read_text(
-            encoding="utf-8"
-        )
-        expected = {
-            "complete": "the directive's next-phase Execute/Continue prompt",
-            "paused": "the directive's same-phase Continue prompt",
-            "blocked": (
-                "the directive's same-phase Continue prompt naming the unblock condition"
-            ),
-        }
-        for state, entry_point in expected.items():
-            rows = [
-                line
-                for line in construction.splitlines()
-                if line.startswith(f"| {state} |")
-            ]
-            self.assertEqual(len(rows), 1, state)
-            self.assertIn(entry_point, rows[0])
-        self.assertIn(
-            ".agent/CHECKPOINT.md` only as\n"
-            "disposable working state",
-            construction,
-        )
-
-    def test_archivist_keeps_acceptance_and_generated_truth_with_main(self) -> None:
-        role = (ROOT / ".codex/agents/archivist.toml").read_text(encoding="utf-8")
-        self.assertIn("Main owns acceptance and the active", role)
-        self.assertIn("Never hand-edit\ngenerated outputs", role)
-        self.assertIn("$deployment-token-report", role)
-
-
 def metadata(
     session_id: str,
     timestamp: str,

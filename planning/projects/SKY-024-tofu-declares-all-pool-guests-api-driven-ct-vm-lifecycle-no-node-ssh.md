@@ -4,7 +4,7 @@ title: tofu declares managed core guests — API-driven CT/VM lifecycle, no node
 status: in-progress
 horizon: short
 created: 2026-09-04
-updated: 2026-09-10
+updated: 2026-09-05
 phases: 6
 current_phase: 4
 tier_touched: [T2, T3]   # T3: consolidating the agent's Proxmox identity (tofu → operate token) +
@@ -202,6 +202,7 @@ steps. When the phase's exit criteria are met, do the "Phase close-out" at the b
 ## 5. Phase close-out (resume material)
 Run this every time a phase finishes successfully — it's what makes the next session cold-startable:
 - [ ] Land the work via **PR** (agent never merges its own).
+- [ ] Main refreshes the three state-memory files in `agent_docs/` after acceptance.
 - [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.
