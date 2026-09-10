@@ -675,3 +675,6 @@ Phase 5:
   distinct retrieval/index roles; the unused checkpoint and remaining current legacy guidance are
   removed; independent Tester repair/recheck and relevant gates pass. Status stays `in-progress`
   pending the required fresh external review.
+- P5 first external review of PR #252 requested evidence-only fixes: a distinct Main-only Light task,
+  durable closing Archivist/token-report disposition, and current open-PR state. Those facts are now
+  recorded for fresh re-review; architecture and implementation scope are unchanged.

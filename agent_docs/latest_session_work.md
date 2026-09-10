@@ -5,17 +5,18 @@
 
 ## Detailed Current State
 
-SKY-026 Phase 5 implementation passed internal verification and is ready for its required fresh
-external review. The directive remains `in-progress`; final completion and archive are held until
-the reviewer returns `ACCEPT SKY-026`.
+SKY-026 Phase 5 implementation is open in PR #252. Its first fresh external review returned a bounded
+evidence fix rather than ACCEPT; the implementation architecture remains unchanged. The directive
+stays `in-progress` until a fresh re-review returns `ACCEPT SKY-026`.
 
 ## Session Changes
 
 - Fresh intake used `agent_docs/` plus SKY-026 and repaired a real stale handoff against merged Git and
   installed runtime evidence.
-- Representative Light, Medium, and Heavy work exercised one persistent Companion, one Investigator,
-  two concurrent non-overlapping Default Executors, and one independent Tester. Senior Executor was
-  not justified for the bounded packages.
+- A standalone Main-only Light task verified PR #252 state without a worker or mutation. The Phase-4
+  journal records Medium; Phase-3 and Phase-5 episodes record Heavy with one persistent Companion,
+  one Investigator, two concurrent non-overlapping Default Executors, and one independent Tester.
+  Senior Executor was not justified for the bounded packages.
 - The generated digest is now optional recent-activity/episodic/open-thread retrieval; the context map
   is on-demand load-cost routing. The unconsumed `.agent/CHECKPOINT.md` surface and its test/callers are gone.
 - Current prompts, active planning, AGENTS, doctrine, runbook, renderers, tests, and generated indexes
@@ -32,18 +33,21 @@ the reviewer returns `ACCEPT SKY-026`.
 - Installed configuration is activated (`approval_policy = "never"`, `sandbox_mode =
   "danger-full-access"`), and native child roles executed under the unprivileged account. No root,
   production credential, deploy, live infrastructure write, or self-merge occurred.
+- Closing Archivist task `sky026_p5_archive_20260911` owned the affected stable-memory/current-doc
+  updates and checked the stable memory. Its one token-report invocation failed closed exactly:
+  `deployment-token-report: deployment marker 'skynet-deployment-start: sky026_phase5_20260910' was not in the first main-agent commentary message`.
+  No usage or price was estimated.
 
 ## Pending Work and Blockers
 
-- Fresh external review and human merge are still pending; SKY-026 must remain `in-progress` until
-  the review returns ACCEPT.
+- Fresh external re-review and human merge are pending; SKY-026 remains `in-progress` until ACCEPT.
 - `pre-commit` is unavailable in both the host and Nix shell. Two temporal-hygiene failures reproduce
   on clean `HEAD` and are not caused by this phase.
 - The unrelated untracked `inventory/tofu-drift.txt` remains user-owned and untouched.
 
 ## Next Entry Point
 
-Run the fresh external review prompt in
+Run the fresh external review prompt again against updated PR #252 from
 [`planning/projects/SKY-026-overhaul-agent-orchestration-around-a-main-worker-swarm.md`](../planning/projects/SKY-026-overhaul-agent-orchestration-around-a-main-worker-swarm.md)
-against the Phase-5 PR. After `ACCEPT SKY-026`, return for the bounded final close-out and archive;
-do not merge the authored PR from the implementation session.
+After `ACCEPT SKY-026`, return for the bounded final close-out and archive; do not merge the authored
+PR from the implementation session.
