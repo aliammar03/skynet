@@ -42,9 +42,9 @@ cached-input and output counts with no warnings; no price was calculated.
   generated truth, and returns only the exact recorded report or exact limitation.
 - Ran `codex debug prompt-input` from the repo → the installed harness listed
   `deployment-token-report` from `/home/aliammar/skynet/.agents/skills`.
-- Ran `python3 -B -m unittest -v tests/test_deployment_token_report.py` → 10 tests passed, including
+- Ran `python3 -B -m unittest -v tests/test_deployment_token_report.py` → 11 tests passed, including
   complete/paused/blocked continuation, missing/ambiguous markers, ancestry, guardian exclusion,
-  incomplete-tail evidence behavior, and Archivist-only closure ownership.
+  late-marker rejection, incomplete-tail evidence behavior, and Archivist-only closure ownership.
 - Ran `bash tests/construction-test.sh` → 46 passed, 0 failed.
 - Migrated current planning templates/directives away from nonexistent `SKY-###-progress`/`MEMORY.md`
   handoffs and stale Scout wording; archive/journal history was not rewritten.
@@ -53,6 +53,8 @@ cached-input and output counts with no warnings; no price was calculated.
   it also confirmed this deployment's first commentary predated the newly introduced hidden-marker
   contract. The closing Archivist must return that exact limitation instead of treating the later
   marker or Main's diagnostic report as closure evidence.
+- Tightened `find_boundary` after that check → the parser now verifies record order and fails unless
+  the marker is in the first Main assistant message after the deployment's user turn.
 
 ## Graveyard — tried & abandoned
 - `.codex/skills/deployment-token-report/` → abandoned before commit because installed Codex does not

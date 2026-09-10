@@ -182,27 +182,38 @@ def find_boundary(
 ) -> datetime:
     marker = f"{MARKER_PREFIX} {deployment_id}"
     marker_pattern = re.compile(re.escape(marker) + r"(?![a-z0-9_])")
-    marker_times: list[datetime] = []
-    for record in iter_jsonl(root.path, warnings):
-        texts = message_texts(record, roles=frozenset({"assistant"}))
-        if any(marker_pattern.search(text) for text in texts):
-            marker_times.append(record_time(record, path=root.path))
-    if not marker_times:
+    records = list(iter_jsonl(root.path, warnings))
+    marker_indexes = [
+        index
+        for index, record in enumerate(records)
+        if any(
+            marker_pattern.search(text)
+            for text in message_texts(record, roles=frozenset({"assistant"}))
+        )
+    ]
+    if not marker_indexes:
         raise ReportError(
             f"deployment marker {marker!r} was not found in the main-agent rollout"
         )
-    marker_time = min(marker_times)
-
-    candidates: list[datetime] = []
-    for record in iter_jsonl(root.path, warnings):
-        timestamp = record_time(record, path=root.path)
-        if timestamp > marker_time:
-            continue
-        if tuple(user_texts(record)):
-            candidates.append(timestamp)
-    if not candidates:
+    marker_index = min(marker_indexes)
+    user_indexes = [
+        index
+        for index, record in enumerate(records[: marker_index + 1])
+        if tuple(user_texts(record))
+    ]
+    if not user_indexes:
         raise ReportError("no main-agent user turn precedes the deployment marker")
-    return max(candidates)
+    user_index = max(user_indexes)
+    assistant_indexes = [
+        index
+        for index, record in enumerate(records[user_index + 1 :], user_index + 1)
+        if tuple(message_texts(record, roles=frozenset({"assistant"})))
+    ]
+    if not assistant_indexes or assistant_indexes[0] != marker_index:
+        raise ReportError(
+            f"deployment marker {marker!r} was not in the first main-agent commentary message"
+        )
+    return record_time(records[user_index], path=root.path)
 
 
 def descendants(root_id: str, index: dict[str, Session]) -> list[Session]:

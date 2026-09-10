@@ -371,6 +371,29 @@ class DeploymentTokenReportTests(unittest.TestCase):
         completed = self.run_report("--format", "json")
         self.assertEqual(completed.returncode, 0, completed.stderr)
 
+    def test_marker_after_first_commentary_fails_closed(self) -> None:
+        self.build_fixture()
+        path = self.sessions / "rollout-2026-08-23T10-00-00-root-session.jsonl"
+        text = path.read_text(encoding="utf-8").replace(
+            "<!-- skynet-deployment-start: major_task -->",
+            "Starting without a deployment marker.",
+        )
+        records = [json.loads(line) for line in text.splitlines()]
+        records.insert(
+            5,
+            assistant_message(
+                "2026-08-23T10:00:40Z",
+                "<!-- skynet-deployment-start: major_task -->",
+            ),
+        )
+        path.write_text(
+            "".join(json.dumps(record) + "\n" for record in records),
+            encoding="utf-8",
+        )
+        completed = self.run_report()
+        self.assertEqual(completed.returncode, 2)
+        self.assertIn("first main-agent commentary", completed.stderr)
+
     def test_marker_does_not_match_a_longer_deployment_id(self) -> None:
         self.build_fixture()
         path = self.sessions / "rollout-2026-08-23T10-00-00-root-session.jsonl"
