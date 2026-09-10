@@ -6,7 +6,7 @@ horizon: long
 created: 2026-09-10
 updated: 2026-09-10
 phases: 5
-current_phase: 2
+current_phase: 3
 tier_touched: [T1]
 related:
   - AGENTS.md
@@ -425,7 +425,7 @@ replaced above rather than silently dropped.
 
 Close-out: PR + journal episode + directive progress bump + `bin/plan list`.
 
-### Phase 3 · Wire Heavy orchestration, capsules, batching and repair  `[ ]` not started
+### Phase 3 · Wire Heavy orchestration, capsules, batching and repair  `[x]` done
 **Recommended Main:** Sol High using the new Heavy route
 
 Goal: prove behavior changed, not just filenames.
@@ -781,3 +781,12 @@ Phase 5:
   Fixed the stale surfaces (nix/home/aliammar.nix bin/agent comment; companion/investigator mechanical
   comments; construction.md; runbook). The gate + construction-test now assert the project config is
   workspace-write and never danger-full-access (26/0). No launcher/proxy/second transport built.
+- 2026-09-10 — **Phase 3 done.** Ran a real Heavy deployment with Task ID
+  `sky026-p3-20260910`: exactly one reused Companion plus one Investigator supplied a batched context
+  intake; one Default Executor owned the donor-derived construction contract gate; an independent
+  Tester found two fail-open worker-orchestration mutations; the same Executor repaired them from a
+  delta-only capsule and the same Tester rechecked to PASS (42/0). Main directed, integrated and owned
+  acceptance without duplicating implementation or verification. Senior Executor was not justified.
+  The gate now rejects drift in capsule shape, Task-ID/delta continuity, worker ownership, the repair
+  loop, semantic role quantities and retired architecture. No worker spawned children, no production
+  authority was used, and no custom dispatcher/runtime was added. Phase 4 is next.
