@@ -110,7 +110,8 @@ only the relevant section. Keep tool output bounded and avoid rereading inspecte
 Construction follows [the delegation convention](docs/conventions/construction.md): a Light/Medium/Heavy
 route (Light is the default; a directive may select the route) decides how much Main delegates. Main
 owns the decisions and integration while bounded specialist workers — Companion, Investigator,
-Executors, Tester, Archivist — own scoped work; concurrency follows platform capacity and
+Executors, Tester, Archivist — own scoped work, each used only where the runtime actually exposes
+that role; concurrency follows platform capacity and
 non-overlapping ownership, and a fresh session reviews the merged result, returning a paste-ready fix
 prompt rather than repairing. New procedural code follows
 [the capability convention](docs/conventions/scripts.md); implementation language grants no authority.

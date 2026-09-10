@@ -162,9 +162,12 @@ Construction grants **zero production authority**: no production credentials, ro
 actions reach a worker, and the sandbox is a filesystem leash, not authorisation. See [`git.md`](git.md)
 and the constitution. `[manual]`
 
-Native Codex subagents are the runtime. The roles above live in
-[`.codex/agents/`](../../.codex/agents/) with the sandboxes listed; read-only roles cannot write and no
-worker uses `danger-full-access`. [`.codex/config.toml`](../../.codex/config.toml) and
-[`invariants.json`](../../invariants.json) bound the runtime and are checked by
-`scripts/check-invariants.sh`. [`bin/agent`](../../bin/agent) mirrors this routing for standalone,
-non-Codex sessions with a writable construction checkout and no production authority. `[testable/manual]`
+Native Codex subagents are the runtime mechanism. Use a named SKY-026 role only when the installed or
+project configuration actually exposes it with the required model, effort, and sandbox; if a required
+role is not exposed, report that route/role as **blocked** rather than silently substituting a legacy
+role. The runtime surfaces are [`.codex/agents/`](../../.codex/agents/),
+[`.codex/config.toml`](../../.codex/config.toml), [`invariants.json`](../../invariants.json) (checked
+by `scripts/check-invariants.sh`), and [`bin/agent`](../../bin/agent) for standalone non-Codex
+sessions — a role's routing is available to claim only once these agree with this doctrine. Read-only
+roles cannot write, no worker uses `danger-full-access`, and every worker runs with no production
+authority. `[testable/manual]`
