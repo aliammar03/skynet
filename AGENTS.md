@@ -68,7 +68,7 @@ failure case, and performed by something dumber than you.
    hosts touched, rollback path. Ali approves in one word, or by issuing the grant (the grant *is* approval).
 2. **Then run without narrating.** Within approved scope, execute end-to-end — no
    per-command confirmations, no play-by-play. Run in autonomous mode inside the grant window
-   (`codex exec --dangerously-bypass-approvals-and-sandbox`, `claude -p --permission-mode acceptEdits` with a Bash allowlist).
+   (`codex exec`, `claude -p --permission-mode acceptEdits` with a Bash allowlist).
 3. **Hard checkpoints — the only mid-run interruptions:**
    - leaving the stated scope;
    - destructive / irreversible actions not in the plan;
@@ -115,6 +115,10 @@ that role; concurrency follows platform capacity and
 non-overlapping ownership, and a fresh session reviews the merged result, returning a paste-ready fix
 prompt rather than repairing. New procedural code follows
 [the capability convention](docs/conventions/scripts.md); implementation language grants no authority.
+The unprivileged NixOS `aliammar` account is Codex's construction filesystem/OS boundary: ordinary
+account-accessible work runs without approval prompts, while `gh pr merge` and both repository
+`grant-root` spellings are hard-blocked. Native workers inherit that session posture; no role/model
+gains production authority.
 
 ```
 edit compose/<svc>/ → branch → PR → Ali merges

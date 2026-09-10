@@ -15,6 +15,9 @@
   not the story of how they were reached.
 - Authored work always lands through a human-merged PR. Construction roles and implementation
   languages grant no production authority.
+- The unprivileged NixOS `aliammar` account is the construction filesystem/OS boundary. Native
+  construction inherits its no-prompt Codex posture; self-root and authored self-merge are forbidden,
+  and production authority remains governed separately by trust-tier contracts.
 
 ## Lessons
 
@@ -26,3 +29,5 @@
   incomplete; missing data is a limitation, not a value to estimate.
 - Keep Main wakeups low by giving Companion bulky reusable context once and using delta/conflict checks
   later; retain direct Main reads for decision-critical evidence.
+- Approval ergonomics are not an authority model: keep ordinary construction quiet at the Unix
+  boundary and encode the two prohibited self-actions as deterministic hard blocks.

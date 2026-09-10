@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # construction-test.sh — validate the native construction worker role files + the invariant checker.
 # The six roles spawn ONLY through Codex's native subagent mechanism (Codex loads each role's full
-# contract — instructions, model, effort, sandbox — from .codex/agents/<role>.toml). There is no shell
+# contract — instructions, model, and effort — from .codex/agents/<role>.toml). There is no shell
 # launcher to mirror, so this gate validates the real role source files, not a reproduction of a parser.
 # TIER: T1 — reads repo files and a disposable temp copy only. No network, no tracked-file writes.
 set -uo pipefail
@@ -15,11 +15,6 @@ pass=0; fail=0
 ok()   { printf '  ✓ %s\n' "$1"; pass=$(( pass + 1 )); }
 bad()  { printf '  ✗ %s\n' "$1" >&2; fail=$(( fail + 1 )); }
 eq()   { if [ "$2" = "$3" ]; then ok "$1"; else bad "$1 — expected [$3], got [$2]"; fi; }
-
-sandbox_of() {
-  grep -E '^[[:space:]]*sandbox_mode[[:space:]]*=' "$1" 2>/dev/null \
-    | sed -nE 's/^[[:space:]]*sandbox_mode[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' | head -n 1
-}
 
 # Check the contracts which are carried by the role files and the current construction surfaces.
 # This is deliberately a source-contract check: native Codex owns dispatch, so there is no local
@@ -154,6 +149,8 @@ for role in expected_roles:
         continue
 
     instructions = str(document.get("developer_instructions", ""))
+    if "sandbox_mode" in document:
+        errors.append(f"{role}: sandbox_mode must inherit the spawning aliammar session")
     flat = normalized(instructions)
     lowered = flat.lower()
     require(normalized(capsule_intro[role]), flat, f"{role} capsule introduction")
@@ -232,11 +229,11 @@ for phrase, label in (
         "construction same-Tester recheck",
     ),
     (
-        "Companion | `gpt-5.6-luna` | xhigh | read-only | exactly 1 persistent per deployment",
+        "Companion | `gpt-5.6-luna` | xhigh | `aliammar` account; read-only ownership | exactly 1 persistent per deployment",
         "exactly-one Companion quantity",
     ),
     (
-        "Senior Executor | `gpt-5.6-sol` | medium | workspace-write | at most 1",
+        "Senior Executor | `gpt-5.6-sol` | medium | `aliammar` account | at most 1",
         "at-most-one Senior quantity",
     ),
     (
@@ -295,7 +292,7 @@ runtime_text["docs/conventions/construction.md"] = construction.lower().replace(
     "",
 )
 retired_vocabulary = re.compile(
-    r"\b(?:manager|scheduler|queue|dag|transport|scout|mechanic|builder)\b"
+    r"\b(?:scheduler|queue|dag|transport|scout|mechanic|builder)\b|llm wave manager"
     r"|workflow database|lease/heartbeat|heartbeat service",
     re.IGNORECASE,
 )
@@ -309,31 +306,26 @@ for relative, text in {
             f"{relative}: retired current-runtime vocabulary remains: {', '.join(matches)}"
         )
 
-verification_guidance = (
-    "routine T1 verification of repo-local files and `$TMPDIR`/`tmp` scratch",
-    "must not request operator escalation merely to create, mutate, or clean up",
-    "canonical repository test commands and maintained test-suite fixtures",
-    "one-off exploratory disposable fixtures",
+testing_guidance = (
+    "canonical repository test commands and maintained fixtures",
     "language-native temporary-directory lifecycle handling",
-    "harmless TMP-only cleanup alone would require escalation",
-    "leave it for normal automatic cleanup",
 )
 for role in ("default_executor", "senior_executor", "tester"):
     role_text = normalized(read_text(f".codex/agents/{role}.toml")).lower()
-    for phrase in verification_guidance:
+    for phrase in testing_guidance:
         require(
             phrase.lower(),
             role_text,
-            f"{role} verification-without-permission-noise guidance",
+            f"{role} testing guidance",
         )
 
 for relative in ("docs/conventions/construction.md", "runbooks/construction-delegation.md"):
     surface_text = runtime_text[relative]
-    for phrase in verification_guidance:
+    for phrase in testing_guidance:
         require(
             phrase.lower(),
             surface_text,
-            f"{relative} verification-without-permission-noise guidance",
+            f"{relative} testing guidance",
         )
 
 config_text = read_text(".codex/config.toml")
@@ -349,11 +341,11 @@ else:
             return any(contains_key(child, key) for child in value)
         return False
 
-    if contains_key(config_document, "approval_policy"):
-        errors.append(
-            ".codex/config.toml: project approval_policy must remain inherited; "
-            "do not set it (especially never)"
-        )
+    for inherited_key in ("approval_policy", "sandbox_mode", "sandbox_workspace_write"):
+        if contains_key(config_document, inherited_key):
+            errors.append(
+                f".codex/config.toml: project {inherited_key} must remain inherited"
+            )
 
 if errors:
     sys.stderr.write("\n".join(errors) + "\n")
@@ -365,7 +357,7 @@ PY
 echo "== construction doctrine: the invariant gate runs and passes on a clean tree =="
 gate_out="$(./scripts/check-invariants.sh 2>&1)"; gate_status=$?
 eq "check-invariants.sh exits cleanly" "${gate_status}" "0"
-printf '%s\n' "${gate_out}" | grep -q 'construction worker sandboxes match' \
+printf '%s\n' "${gate_out}" | grep -q 'construction permission posture' \
   && ok "check-invariants.sh runs the construction block" \
   || bad "check-invariants.sh did not run the construction block"
 
@@ -380,7 +372,7 @@ done
 
 echo "== role files: each parses and carries its full native contract =="
 # Parse every role file with a real TOML parser and emit one validated TSV row per file. A parse error,
-# a name that does not match the filename, a missing/empty required field, or a forbidden sandbox fails
+# a name that does not match the filename, a missing/empty required field, or a sandbox override fails
 # here (non-zero exit) and is reported below. This validates the source Codex actually loads, not a shim.
 contract_tsv="$(python3 - "${EXPECTED_ROLES[@]}" <<'PY'
 import sys, tomllib, pathlib
@@ -399,14 +391,14 @@ for stem in sorted(expected):
     if name in seen:
         errors.append(f"{stem}: duplicate role name {name!r}")
     seen.add(name)
-    for field in ("model", "model_reasoning_effort", "sandbox_mode", "description",
+    for field in ("model", "model_reasoning_effort", "description",
                   "developer_instructions"):
         if not str(d.get(field, "")).strip():
             errors.append(f"{stem}: missing or empty {field}")
-    if d.get("sandbox_mode") == "danger-full-access":
-        errors.append(f"{stem}: sandbox danger-full-access is forbidden for a construction worker")
+    if "sandbox_mode" in d:
+        errors.append(f"{stem}: sandbox_mode must inherit the spawning aliammar session")
     rows.append("\t".join([stem, name, str(d.get("model","")), str(d.get("model_reasoning_effort","")),
-                            str(d.get("sandbox_mode","")), str(len(str(d.get("description","")))),
+                            str(len(str(d.get("description","")))),
                             str(len(str(d.get("developer_instructions",""))))]))
 if errors:
     sys.stderr.write("\n".join(errors) + "\n")
@@ -418,31 +410,26 @@ parse_rc=$?
 if [ "${parse_rc}" -ne 0 ]; then
   bad "role contract validation failed:"$'\n'"${contract_tsv}"
 else
-  while IFS=$'\t' read -r stem name model effort sandbox dlen ilen; do
+  while IFS=$'\t' read -r stem name model effort dlen ilen; do
     [ -n "${stem}" ] || continue
-    ok "${stem}: parses; name=${name}; model=${model}; effort=${effort}; sandbox=${sandbox}; desc ${dlen}B; instructions ${ilen}B"
+    ok "${stem}: parses; name=${name}; model=${model}; effort=${effort}; inherited-session; desc ${dlen}B; instructions ${ilen}B"
   done <<< "${contract_tsv}"
 fi
 
-echo "== invariants.json and the role files agree on the six roles and their sandboxes =="
+echo "== invariants.json and the role files agree on the six inherited-session roles =="
 declared_roles="$(jq -r '.construction.agents[].role' invariants.json | sort | tr '\n' ' ')"
 eq "invariants declares exactly the six roles" "${declared_roles}" "${expected}"
-while IFS=$'\t' read -r role expected_sandbox; do
-  eq "${role} TOML sandbox matches the declared value" \
-    "$(sandbox_of ".codex/agents/${role}.toml")" "${expected_sandbox}"
-done < <(jq -r '.construction.agents[] | "\(.role)\t\(.sandbox_mode)"' invariants.json)
+for role in "${EXPECTED_ROLES[@]}"; do
+  grep -qE '^[[:space:]]*sandbox_mode[[:space:]]*=' ".codex/agents/${role}.toml" \
+    && bad "${role} overrides the inherited session posture" \
+    || ok "${role} inherits the spawning aliammar session posture"
+done
 
-echo "== the construction session sandbox is the real leash: workspace-write, never danger-full-access =="
-# Codex 0.153.4 gives a spawned worker the spawning session's permission profile (a role file's
-# sandbox_mode is not applied per child), so the enforceable boundary is this session sandbox. It must
-# pin the declared value and never danger-full-access — that is what keeps a worker off danger-full-access.
+echo "== the project config does not override Home Manager permissions =="
 project_config="$(jq -r '.construction.project_config' invariants.json)"
-project_sandbox="$(jq -r '.construction.project_sandbox_mode' invariants.json)"
-config_sandbox="$(sandbox_of "${project_config}")"
-eq "${project_config} pins the declared construction session sandbox" "${config_sandbox}" "${project_sandbox}"
-[ "${config_sandbox}" != "danger-full-access" ] \
-  && ok "${project_config} is not danger-full-access" \
-  || bad "${project_config} runs danger-full-access — workers would inherit it"
+grep -qE '^[[:space:]]*(approval_policy|sandbox_mode)[[:space:]]*=|^[[:space:]]*\[sandbox_workspace_write\]' "${project_config}" \
+  && bad "${project_config} overrides inherited approval/sandbox settings" \
+  || ok "${project_config} inherits Home Manager approval/sandbox settings"
 
 echo "== no workflow concurrency cap is pinned =="
 grep -qE '^[[:space:]]*max_concurrent_threads_per_session[[:space:]]*=' .codex/config.toml \
@@ -575,16 +562,17 @@ printf '\n# Scout, Mechanic, and Builder are not current worker roles.\n' >> \
   "${fixture}/.codex/agents/default_executor.toml"
 expect_contract_failure "legacy-role-vocabulary" "${fixture}"
 
-for role in default_executor senior_executor tester; do
-  fixture="${TMP}/verification-guidance-${role}"; copy_contract_fixture "${fixture}"
-  sed -i 's/must not request operator escalation merely to create/may request operator escalation merely to create/' \
-    "${fixture}/.codex/agents/${role}.toml"
-  expect_contract_failure "verification-guidance-${role}" "${fixture}"
-done
+fixture="${TMP}/project-approval-override"; copy_contract_fixture "${fixture}"
+printf '\napproval_policy = "on-request"\n' >> "${fixture}/.codex/config.toml"
+expect_contract_failure "project-approval-override" "${fixture}"
 
-fixture="${TMP}/project-approval-never"; copy_contract_fixture "${fixture}"
-printf '\napproval_policy = "never"\n' >> "${fixture}/.codex/config.toml"
-expect_contract_failure "project-approval-never" "${fixture}"
+fixture="${TMP}/project-sandbox-override"; copy_contract_fixture "${fixture}"
+printf '\nsandbox_mode = "workspace-write"\n' >> "${fixture}/.codex/config.toml"
+expect_contract_failure "project-sandbox-override" "${fixture}"
+
+fixture="${TMP}/role-sandbox-override"; copy_contract_fixture "${fixture}"
+printf '\nsandbox_mode = "read-only"\n' >> "${fixture}/.codex/agents/tester.toml"
+expect_contract_failure "role-sandbox-override" "${fixture}"
 
 # A reintroduced cap is detectable by the same rule the gate uses.
 cp .codex/config.toml "${TMP}/config.toml"
@@ -592,20 +580,6 @@ printf '\nmax_concurrent_threads_per_session = 2\n' >> "${TMP}/config.toml"
 grep -qE '^[[:space:]]*max_concurrent_threads_per_session[[:space:]]*=' "${TMP}/config.toml" \
   && ok "a reintroduced max_concurrent_threads_per_session is detectable" \
   || bad "a reintroduced concurrency cap went undetected"
-# A danger-full-access construction session config is detectable by the same rule the gate uses.
-cp .codex/config.toml "${TMP}/config-dfa.toml"
-sed -i -E 's/^[[:space:]]*sandbox_mode[[:space:]]*=.*/sandbox_mode = "danger-full-access"/' "${TMP}/config-dfa.toml"
-[ "$(sandbox_of "${TMP}/config-dfa.toml")" = "danger-full-access" ] \
-  && ok "a danger-full-access construction session config is detectable" \
-  || bad "a danger-full-access construction session config went undetected"
-# A drifted sandbox in a copy no longer matches the declared value.
-cp .codex/agents/tester.toml "${TMP}/tester.toml"
-sed -i -E 's/^[[:space:]]*sandbox_mode[[:space:]]*=.*/sandbox_mode = "danger-full-access"/' "${TMP}/tester.toml"
-declared_tester="$(jq -r '.construction.agents[] | select(.role=="tester").sandbox_mode' invariants.json)"
-[ "$(sandbox_of "${TMP}/tester.toml")" != "${declared_tester}" ] \
-  && ok "a drifted tester sandbox no longer matches the declared value" \
-  || bad "a drifted tester sandbox still matched the declared value"
-eq "the real tester TOML is unchanged" "$(sandbox_of .codex/agents/tester.toml)" "${declared_tester}"
 
 echo
 echo "construction-test: ${pass} passed, ${fail} failed"

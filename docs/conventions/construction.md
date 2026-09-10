@@ -42,22 +42,21 @@ Executor or Tester — reassign, replace, pause, or report the blocker. `[manual
 Main is the invoking session. Workers are native Codex subagents; they never orchestrate children.
 Initial defaults (verify exact identifiers and efforts against installed harness metadata or a safe
 dry-run — **source TOML wins over any README**; do not silently substitute, report routing blocked
-instead). The **Model** and **Effort** are applied per role from its file; the **Sandbox** column is
-the role's *declared* least-privilege intent, which on the installed Codex is **not** what bounds a
-worker's filesystem reach — see [Trust and native tooling](#trust-and-native-tooling). `[manual]`
+instead). The **Model** and **Effort** are applied per role from its file. The unprivileged NixOS
+`aliammar` account is the common filesystem/OS boundary; role ownership can be narrower. `[manual]`
 
-| Role | Model | Effort | Sandbox (declared) | Quantity |
+| Role | Model | Effort | Filesystem/OS boundary | Quantity |
 |---|---|---|---|---|
-| Main | session-selected | task-selected | invoking session | 1 |
-| Companion | `gpt-5.6-luna` | xhigh | read-only | exactly 1 persistent per deployment |
-| Investigator | `gpt-5.6-luna` | xhigh | read-only | as needed |
-| Default Executor | `gpt-5.6-luna` | max | workspace-write | as needed |
-| Senior Executor | `gpt-5.6-sol` | medium | workspace-write | at most 1 |
-| Tester | `gpt-5.6-luna` | xhigh | workspace-write | as needed |
-| Archivist | `gpt-5.6-luna` | xhigh | workspace-write | one at substantive closure, plus explicit doc assignments |
+| Main | session-selected | task-selected | `aliammar` account | 1 |
+| Companion | `gpt-5.6-luna` | xhigh | `aliammar` account; read-only ownership | exactly 1 persistent per deployment |
+| Investigator | `gpt-5.6-luna` | xhigh | `aliammar` account; read-only ownership | as needed |
+| Default Executor | `gpt-5.6-luna` | max | `aliammar` account | as needed |
+| Senior Executor | `gpt-5.6-sol` | medium | `aliammar` account | at most 1 |
+| Tester | `gpt-5.6-luna` | xhigh | `aliammar` account | as needed |
+| Archivist | `gpt-5.6-luna` | xhigh | `aliammar` account | one at substantive closure, plus explicit doc assignments |
 
-- **Companion** — persistent, project-centred secretary, **read-only by ownership and instructions**
-  (not by a runtime sandbox it declares): bounded context intake, large synthesis, and retained
+- **Companion** — persistent, project-centred secretary, **read-only by ownership and instructions**:
+  bounded context intake, large synthesis, and retained
   operational context. It is not a message bus; workers report to Main.
 - **Investigator** — disposable worker for one bounded, unfamiliar project or Internet evidence gap,
   **read-only by ownership and instructions**. It supplies evidence; Main owns the causal decision.
@@ -184,13 +183,14 @@ incomplete evidence is a reported limitation. Never estimate usage or price. `[t
 ## Trust and native tooling
 
 Construction grants **zero production authority**: no production credentials, root grants, or T2/T3
-actions reach a worker, and the sandbox is a filesystem leash, not authorisation. See [`git.md`](git.md)
-and the constitution. `[manual]`
+actions reach a worker. The unprivileged `aliammar` Unix account is the filesystem/OS construction
+boundary; role/model selection is not authorisation. See [`git.md`](git.md) and the constitution.
+`[manual]`
 
 Native Codex subagents are the **only** runtime mechanism — Main spawns a worker in-session (`spawn_agent`,
 `agent_type = <role>`), and Codex loads that role's complete definition from its role file: instructions,
 model, and effort are applied per role. There is no standalone launcher: a shell wrapper that only sets
-model/effort/sandbox cannot load a role's developer instructions, so it is not a role and must not stand
+model/effort cannot load a role's developer instructions, so it is not a role and must not stand
 in for one. Use a named role only when the installed or project configuration actually exposes it; if a
 required role is not exposed, report that route/role as **blocked** rather than silently substituting a
 legacy role. The runtime surfaces are [`.codex/agents/`](../../.codex/agents/) (one role per `*.toml`,
@@ -198,29 +198,15 @@ discovered by Codex as a config layer), [`.codex/config.toml`](../../.codex/conf
 [`invariants.json`](../../invariants.json) (checked by `scripts/check-invariants.sh`) — a role is
 claimable only once these agree with this doctrine. `[testable/manual]`
 
-Each role file **declares** its sandbox, and the gate enforces the declaration and bans
-`danger-full-access`. But on the installed Codex (0.153.4) that declaration is **not** what bounds a
-worker's filesystem reach: Codex applies a role file's instructions, model, and effort to a spawned
-child but **not** its `sandbox_mode`, and `spawn_agent` has no per-child sandbox argument — so a worker
-inherits the **spawning session's** permission profile as its ceiling (a role only ever reduces, never
-escalates). The real construction leash is therefore set once at the **session** level:
-[`.codex/config.toml`](../../.codex/config.toml) pins the project sandbox to `workspace-write`
-(network on for git/gh/research), which overrides the user-level default, so every construction worker
-is confined to the repo working tree plus `$TMPDIR`/`tmp` and **no worker inherits `danger-full-access`**.
-Companion and Investigator are read-only by **ownership and instructions**, not by a runtime sandbox of
-their own; treat their declared `read-only` as least-privilege intent and future-compatible. Filesystem
-reach beyond the workspace is an escalation routed through the normal approval/trust path, never granted
-wholesale. The boundary that always holds is **zero production authority**: no credential, token, root
-grant, or T2/T3 action reaches any worker regardless of its filesystem sandbox. `[testable/manual]`
+Home Manager sets Codex to `approval_policy = "never"` and `sandbox_mode = "danger-full-access"`.
+There is no project or role sandbox override. On the installed Codex, native children inherit the
+spawning session's permission profile, so Main and workers can silently perform any ordinary action
+available to the unprivileged `aliammar` account. Companion/Investigator remain read-only and all other
+write scopes remain bounded by role ownership and instructions, not an OS sandbox. Prefer canonical
+repository test commands and maintained fixtures for repeatable mutations; use language-native
+temporary-directory lifecycle handling for disposable data. `[testable/manual]`
 
-### Verification without permission noise
-
-The construction session's `workspace-write` boundary covers routine T1 verification of repo-local
-files and `$TMPDIR`/`tmp` scratch. Main and mutable workers **must not request operator escalation
-merely to create, mutate, or clean up** that scratch. Prefer canonical repository test commands and
-maintained test-suite fixtures for repeatable mutations instead of many ad-hoc compound shell probes.
-For one-off exploratory disposable fixtures, prefer language-native temporary-directory lifecycle
-handling; if harmless TMP-only cleanup alone would require escalation, leave it for normal automatic
-cleanup rather than interrupting the operator. These rules do not bypass normal approval or human
-checkpoints for credentials, production, destructive actions, or any other actual authority boundary.
-`[testable/manual]`
+Exec-policy hard-blocks `gh pr merge`, `bin/grant-root`, and `./bin/grant-root`; these operations never
+fall back to an approval prompt. Human merge and human-issued, time-bounded root grants remain the only
+paths. No role/model receives a credential, token, root grant, T2/T3 authority, or permission to widen
+its own leash. `[testable/manual]`
