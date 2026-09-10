@@ -6,7 +6,7 @@ horizon: long
 created: 2026-09-10
 updated: 2026-09-10
 phases: 5
-current_phase: 0
+current_phase: 1
 tier_touched: [T1]
 related:
   - AGENTS.md
@@ -351,7 +351,7 @@ reviews again. Repeat until ACCEPT.
 
 ## 4. Plan
 
-### Phase 1 · Transplant the orchestration contract  `[ ]` not started
+### Phase 1 · Transplant the orchestration contract  `[x]` done
 **Recommended Main:** Sol High
 
 Goal: make donor semantics the one current construction model before wiring all workers.
@@ -720,3 +720,10 @@ Phase 5:
 - 2026-09-10 — concurrency aligned with upstream: remove the SKY-022 two-helper cap and do not replace
   it with another workflow-owned aggregate number; rely on platform capacity plus
   ownership/dependency/risk rules.
+- 2026-09-10 — **Phase 1 done.** Rewrote `docs/conventions/construction.md` around donor semantics
+  (routes, Main boundary, six roles, context routing, capsules, batching, repair loop, no-cap
+  concurrency, fresh-session-review-returns-fix-prompt, Skynet continuity map). Migrated `AGENTS.md`,
+  `docs/conventions.md`, `docs/system-design.md`, the construction runbook (+ re-rendered catalog),
+  the generated context map, and SKY-025's optional-worker notes off the lead+two-helper vocabulary.
+  Runtime surface (`.codex/*`, launcher, tests, invariants) intentionally deferred to Phase 2; the
+  exhaustive SKY-022 sweep of SKY-025's inline execution model is deferred to Phase 5.

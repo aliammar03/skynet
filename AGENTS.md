@@ -107,9 +107,12 @@ research. Verify routing through installed harness metadata and dry-runs. Consul
 documentation only to resolve a specific unanswered question; state that question first and fetch
 only the relevant section. Keep tool output bounded and avoid rereading inspected material.
 
-Construction follows [the delegation convention](docs/conventions/construction.md): the active
-packet selects its execution lead, a fresh session with the selected model reviews the merged result, and
-bounded Luna workers assist within the existing two-helper limit. New procedural code follows
+Construction follows [the delegation convention](docs/conventions/construction.md): a Light/Medium/Heavy
+route (Light is the default; a directive may select the route) decides how much Main delegates. Main
+owns the decisions and integration while bounded specialist workers — Companion, Investigator,
+Executors, Tester, Archivist — own scoped work; concurrency follows platform capacity and
+non-overlapping ownership, and a fresh session reviews the merged result, returning a paste-ready fix
+prompt rather than repairing. New procedural code follows
 [the capability convention](docs/conventions/scripts.md); implementation language grants no authority.
 
 ```

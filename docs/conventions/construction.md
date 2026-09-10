@@ -1,105 +1,170 @@
 ---
-summary: "Phase-specific execution leads, model-agnostic independent review, and at most two bounded Luna workers."
+summary: "Main directs a specialist worker swarm on Light/Medium/Heavy routes; workers own bounded work, verification is independent, and a fresh session reviews the merged result and returns a fix prompt rather than repairing."
 ---
 
 # Spoke · Construction delegation
 
-> One accountable lead integrates bounded workers and owns the authored PR.
+> Main spends context on decisions that need the whole picture; specialist workers spend context on
+> bounded work. Verification is independent of implementation, and final acceptance review runs in a
+> fresh session that returns one paste-ready fix prompt — it never repairs.
 > Governed by [`../conventions.md`](../conventions.md); production authority stays with the trust tiers.
 
 Tags: **[testable]** = a deterministic gate can assert it; **[manual]** = requires review.
 
-## Execution and review
+## Routes
 
-The active directive's authorized packet selects the execution lead and effort. `[manual]`
+Every deployment runs on one route. **Light** is the default when neither the user nor the active
+directive packet selects another; do not infer Medium or Heavy merely because workers exist. A
+directive may select the route so Ali does not micromanage worker spawning; keep that route for the
+substantive deployment until it is explicitly changed. `[manual]`
 
-| Work | Model | Effort | Responsibility |
+| Route | Production & verification owner | Support | Use |
 |---|---|---|---|
-| Foundational design, consequential policy or recovery | `gpt-6-astra` | medium | Execution lead |
-| Bounded implementation | `gpt-5.6-terra` | high | Default execution lead |
-| Defined rendering/documentation passes | `gpt-5.6-sol` | low | Execution lead |
-| Independent merged-result review and next packet | Operator-selected | Operator-selected | Fresh review session |
-| Builder or mechanic | `gpt-5.6-luna` | high | Scoped implementation worker |
-| Scout | `gpt-5.6-luna` | medium | Read-only inspection worker |
+| **Light** | Main | none | Q&A and small bounded leaf work |
+| **Medium** | Main | Companion, Investigator, Archivist | substantive work that benefits from context/research support while Main still implements and verifies |
+| **Heavy** | Executors + Testers | full topology | large or cross-cutting work that decomposes into bounded packages |
 
-Verify exact identifiers and supported efforts in the installed harness. Do not guess identifiers or
-silently substitute models. If unavailable, report routing blocked and ask Ali to select an available
-identifier or update the harness. `[manual]` Model routing does not switch the invoking session.
+## Main is a decision owner, not an extra worker
 
-Terra/Sol leads refer unresolved architecture, privilege, or recovery decisions to Astra Medium.
-The lead owns decomposition, integration, verification, and PRs. A worker reports only its scoped
-result. Merged-result review runs in a **fresh session**, never as the implementing lead's helper.
-The reviewer may repair bounded defects directly, using Luna workers for scoped implementation,
-tests and repetitive work. The reviewer inspects those changes, rechecks the affected full-phase
-exits, and may accept the repaired phase in the same review PR. Human merge makes the repairs,
-acceptance and next packet effective; those verified repairs need no additional review session.
-Unresolved defects receive a bounded fix packet; missing evidence or decisions may block review.
-The implementing lead still cannot accept its own phase. `[manual]`
+Main owns task understanding, architecture and cross-package contracts, material causal/root-cause
+decisions, decomposition and worker ownership, integration, risk/authority decisions, final
+acceptance, and user communication. In a substantive **Heavy** deployment Main does **not** routinely
+write production code or tests, run the Executor's implementation, execute the Tester's verification,
+run ordinary deployment operations, chase routine logs/environment checks, or take a package over
+because its first worker attempt failed. `[manual]`
 
-## Bounded delegation
+Main may directly inspect the **smallest** evidence needed for an architecture, scope, risk, causal,
+or acceptance decision. Route the rest. Worker unavailability does not authorise Main to become an
+Executor or Tester — reassign, replace, pause, or report the blocker. `[manual]`
 
-For substantial construction, proactively delegate work only when it is **Bounded**, **Independent**,
-and **Verifiable**. Keep ambiguous architecture and tightly coupled decisions with the lead; do tiny
-jobs locally. `[manual]`
+## Roles and defaults
 
-- At most **two active workers**, one level deep: `Ali → lead → worker`. Workers never spawn
-  helpers. The cap is `[testable]`; the one-level instruction remains `[manual]`.
-- Give each worker only `Goal | allowed files | interface/inputs | acceptance checks | exclusions`.
-  Use non-overlapping file ownership and tell writers they share the repo and must preserve others'
-  changes. `[manual]`
-- Workers do not redesign, commit, push, merge, handle secrets, or touch production. A worker stops
-  and reports ambiguity instead of widening its packet. `[manual]`
-- Return `changed files | checks/results | unresolved issues`. The lead inspects the complete diff
-  and reruns relevant checks; worker completion is not phase acceptance. `[manual]`
+Main is the invoking session. Workers are native Codex subagents; they never orchestrate children.
+Initial defaults (verify exact identifiers, efforts, and sandboxes against installed harness
+metadata or a safe dry-run — **source TOML wins over any README**; do not silently substitute, report
+routing blocked instead): `[manual]`
 
-## Native tooling and standalone launcher
+| Role | Model | Effort | Sandbox | Quantity |
+|---|---|---|---|---|
+| Main | session-selected | task-selected | invoking session | 1 |
+| Companion | `gpt-5.6-luna` | xhigh | read-only | exactly 1 persistent per deployment |
+| Investigator | `gpt-5.6-luna` | xhigh | read-only | as needed |
+| Default Executor | `gpt-5.6-luna` | max | workspace-write | as needed |
+| Senior Executor | `gpt-5.6-sol` | medium | workspace-write | at most 1 |
+| Tester | `gpt-5.6-luna` | xhigh | workspace-write | as needed |
+| Archivist | `gpt-5.6-luna` | xhigh | workspace-write | one at substantive closure, plus explicit doc assignments |
 
-Use native subagents when available. [`.codex/agents/`](../../.codex/agents/) defines builder and
-mechanic workers with `workspace-write` and scouts with `read-only`. The roles describe task shape;
-both writing roles use Luna High. `[testable]`
+- **Companion** — persistent, project-centred read-only secretary: bounded context intake, large
+  synthesis, and retained operational context. It is not a message bus; workers report to Main.
+- **Investigator** — disposable read-only worker for one bounded, unfamiliar project or Internet
+  evidence gap. It supplies evidence; Main owns the causal decision.
+- **Default Executor** — owns local discovery, implementation, self-check, deployment operations, and
+  ordinary repair inside one bounded package.
+- **Senior Executor** — the one optional higher-reasoning worker for an exceptionally hard
+  mathematical, logical, architectural, or cross-cutting package. Record when it was not justified.
+- **Tester** — independent verifier owning the assigned verification, test assets, and execution; it
+  does not perform production repair.
+- **Archivist** — substantive-closure worker for concise assigned documentation outside Main-owned
+  directive/journal state; see [Continuity](#continuity-and-truth-surfaces).
 
-[`.codex/config.toml`](../../.codex/config.toml) sets
-`agents.max_concurrent_threads_per_session = 2`. The cap and role sandboxes are checked against
-[`invariants.json`](../../invariants.json) by `scripts/check-invariants.sh`. No worker may use
-`danger-full-access`. The sandbox is a filesystem boundary; it is not evidence of production
-authorization or a substitute for withholding credentials. `[testable/manual]`
+## Context routing
 
-The existing [`bin/agent`](../../bin/agent) mirrors the routing table for standalone sessions:
+At substantive Medium/Heavy entry, before broad exploration, Main builds a compact working-context map:
 
-```bash
-bin/agent lead "<authorized packet>" --tier astra --dry-run
-bin/agent lead "<authorized packet>" --tier terra --dry-run
-bin/agent lead "<authorized packet>" --tier sol --dry-run
-bin/agent review "<merged-result review packet>" --dry-run
-bin/agent scout "<bounded inspection>" --dry-run
-bin/agent builder "<bounded implementation>" --dry-run
-bin/agent mechanic "<specified edits>" --dry-run
+- **Direct** — decision-critical contracts, interfaces, and evidence Main must inspect itself;
+- **Companion** — supporting or bulky non-decisive project context, returned as one bounded synthesis;
+- **Investigator** — one bounded unfamiliar project or Internet evidence gap.
+
+The map is working state, not durable documentation; reclassify only when evidence changes relevance.
+Do not directly explore a Companion/Investigator surface unless it becomes decision-critical. `[manual]`
+
+## Task capsules
+
+Every initial worker assignment opens with a deployment-unique **Task ID** and the capsule for that
+role. Follow-ups repeat the Task ID and send only changed capsule parts. `[manual]`
+
+| Role | Capsule parts |
+|---|---|
+| Companion | `Project Context Scope` · `Context Task + Goal` · `Main-Agent Context Guidance` |
+| Investigator | `Investigation Context` · `Evidence Question + Goal` · `Main-Agent Investigation Guidance` |
+| Default / Senior Executor | `Implementation Context + Ownership` · `Implementation Task + Goal` · `Main-Agent Implementation Guidance` |
+| Tester | `Verification Context` · `Verification Goal` · `Main-Agent Verification Guidance` |
+| Archivist | `Documentation Context + Audience` · `Documentation Task + Goal` · `Main-Agent Documentation Guidance` |
+
+A capsule carries only material context, contracts, boundaries, decisions, constraints, intended
+outcome, and cautions. Leave bounded discovery, command selection, implementation, and ordinary
+troubleshooting to the owning worker. Give the Tester acceptance intent, risks, contracts, and gates —
+not a test script tailored to the implementation.
+
+## Batching and coordination
+
+Optimise for **fewer Main decision turns and less Main-context replay** while preserving quality;
+aggregate worker token use is not the goal. `[manual]`
+
+- Dispatch independent workers that inform the same decision together, wait for the relevant set, and
+  synthesise once. Open another batch only when earlier evidence changes the next question.
+- Run independent, non-overlapping mutable packages concurrently when dependencies allow. Keep
+  dependencies, overlapping mutations, uncertainty, and risky work sequential.
+- Do not poll workers, request status-only updates, or re-request evidence already returned.
+- Batch Main's own independent reads, searches, and metadata checks when the inputs are known together.
+
+## Ownership, repair, and lifecycle
+
+```text
+Executor implements + self-checks → Tester independently verifies → ordinary defect?
+   yes → same owning Executor repairs → same Tester rechecks → PASS
 ```
 
-Preview with `--dry-run`, then omit that flag to launch. Lead defaults to Terra High; `--tier` is
-lead-only and the packet overrides the default. Review inherits the harness's configured model and
-effort; `AGENT_REVIEW_MODEL` and `AGENT_REVIEW_EFFORT` optionally override them. No model or effort
-is required by the review process. Review uses a writable construction checkout so it
-can author the review/planning PR, with no production authority. `AGENT_MODEL_ASTRA`,
-`AGENT_MODEL_TERRA`, `AGENT_MODEL_SOL`, and `AGENT_MODEL_LUNA` are explicit identifier overrides;
-the operator must verify availability before launch. `tests/agent-test.sh` checks the resolutions
-and invalid combinations. A dry-run proves argument construction, not remote model execution.
+Main intervenes only when evidence changes a material decision: a capsule/contract conflict, ownership
+or scope change, architecture, authority, security/migration risk, an external blocker, or repeated
+focused failure. The resulting Main action is a revised decision and package, not operational takeover.
+After one evidence-free worker response, send one focused retry; after a second, replace the worker or
+report the limitation — Main does not become the Executor or Tester. `[manual]`
 
-## Isolation and continuity
+Concurrency is bounded by platform capacity and task judgement, **not a workflow-owned quota**. The
+only standing limits are semantic: exactly one persistent Companion per deployment; at most one Senior
+Executor; concurrent mutable assignments require non-overlapping ownership; workers never spawn
+workers; dependencies and risk stay sequential; and production authority never expands because more
+construction workers exist. Do not add an LLM wave manager, scheduler, queue, DAG engine, workflow
+database, lease/heartbeat service, or custom agent transport unless native Codex genuinely cannot
+express a required behaviour and Ali separately authorises that complexity. `[manual]`
 
-Use an isolated checkout when live timers/reconcilers consume the main checkout. Otherwise worktrees
-are optional and useful when concurrent edits need separate filesystem state. `--cwd` accepts only
-an exact registered Skynet worktree root; arbitrary directories and subdirectories are refused.
-Workers edit; the lead commits. `[testable/manual]`
+## Fresh external review
 
-For work crossing sessions, keep a compact ignored `.agent/CHECKPOINT.md` with `Goal`, `Done`,
-`Current`, `Decisions`, `Dead ends`, `Verified`, and `Next`. Write it at a meaningful milestone or
-handoff. Move durable evidence to its authoritative home and remove the disposable checkpoint at
-completion. Do not use transcripts or a second tracker as the handoff. `[manual]`
+Executor self-check, Tester verification, and Main acceptance are the internal gates. Final acceptance
+review then runs in a **fresh session outside the swarm**. The reviewer never repairs the work: if it
+finds a fixable defect its entire final response is one complete, paste-ready fix prompt for the
+original implementation session. That session fixes; a fresh reviewer reviews again; repeat until
+ACCEPT. Human merge makes the accepted result effective — authored PRs stay human-merged. `[manual]`
 
-## Trust and complexity
+## Continuity and truth surfaces
 
-Construction never grants production authority: no production credentials, root grants, or T2/T3
-actions go to workers. Authored PRs remain human-merged. See [`git.md`](git.md) and the constitution.
-Keep native tooling and ordinary Git; add no scheduler, queue, workflow database, retry framework,
-automatic model router, or automatic session/merge machinery. `[manual]`
+There is **one canonical home per fact** — no second durable tracker and no `agent_docs/` truth tree.
+Donor continuity maps onto existing Skynet surfaces: `[manual]`
+
+| Continuity need | Canonical Skynet home |
+|---|---|
+| overview / architecture | [`../system-design.md`](../system-design.md) + relevant `docs/design/` |
+| current position / progress | the active `planning/projects/SKY-###` directive |
+| decisions, discarded approaches, lessons | append-only [`../../journal/`](../../journal/README.md) |
+| session handoff | directive close-out + generated digest/context map + optional disposable checkpoint |
+| operator / public docs | their existing canonical docs and runbooks |
+
+Main owns acceptance and active directive state. The Archivist receives only verified facts, may update
+explicitly assigned current docs/runbooks and append journal evidence, and **never** decides acceptance
+or hand-edits generated outputs (`inventory/`, `docs/generated/`) — those are regenerated by their
+owning tools. For work crossing sessions, keep a compact ignored `.agent/CHECKPOINT.md` and delete it
+once durable facts reach their canonical home. `[manual]`
+
+## Trust and native tooling
+
+Construction grants **zero production authority**: no production credentials, root grants, or T2/T3
+actions reach a worker, and the sandbox is a filesystem leash, not authorisation. See [`git.md`](git.md)
+and the constitution. `[manual]`
+
+Native Codex subagents are the runtime. The roles above live in
+[`.codex/agents/`](../../.codex/agents/) with the sandboxes listed; read-only roles cannot write and no
+worker uses `danger-full-access`. [`.codex/config.toml`](../../.codex/config.toml) and
+[`invariants.json`](../../invariants.json) bound the runtime and are checked by
+`scripts/check-invariants.sh`. [`bin/agent`](../../bin/agent) mirrors this routing for standalone,
+non-Codex sessions with a writable construction checkout and no production authority. `[testable/manual]`

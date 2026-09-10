@@ -11,7 +11,7 @@ A runbook is engine-neutral markdown plus plain bash. Read the leaf whose trigge
 | Runbook | Tier | Trigger | Summary |
 |---|---|---|---|
 | [`backup.md`](backup.md) | T2+ root grant | How do backups work / run a backup | How restic and PBS backups run, how to provision restic, and how to take a pre-change backup. |
-| [`construction-delegation.md`](construction-delegation.md) | T1 build-time only | Do a substantial construction task / build X / implement or change X | Run substantial construction as a lead — route bounded helpers, verify their work, and open the PR without granting production authority. |
+| [`construction-delegation.md`](construction-delegation.md) | T1 build-time only | Do a substantial construction task / build X / implement or change X | Run substantial construction as Main on a Light/Medium/Heavy route — direct bounded specialist workers, verify independently, and open the PR without granting production authority. |
 | [`deploy-service.md`](deploy-service.md) | T2 PR-gated | Deploy or update a service | Deploy or update a service through the Arcane GitOps loop: edit compose then PR then Arcane reconciles. |
 | [`diagnose/arcane-stuck.md`](diagnose/arcane-stuck.md) | T1/T2 | A merged compose PR didn't deploy / Arcane isn't reconciling / git and running have drifted | Triage a merged compose PR that didn't deploy — check the Arcane Git Sync status/error, compare git vs running, distinguish sync-fail vs apply-fail vs drift. |
 | [`diagnose/backup-missed.md`](diagnose/backup-missed.md) | T1/T2 | An expected backup/snapshot is missing / a restic or PBS timer failed | Triage a missed backup — check the timer, the last snapshot age, and repo reachability across restic→gdrive and PBS→gdrive, fix the timer/creds/repo declaratively. |
@@ -26,10 +26,10 @@ A runbook is engine-neutral markdown plus plain bash. Read the leaf whose trigge
 | [`nightly.md`](nightly.md) | T1 read + generated-only PR | Run the nightly / nightly timer | The report-only nightly maintenance run on both engine paths, and what it refreshes. |
 | [`provision-lxc.md`](provision-lxc.md) | Supervised T2 saved-plan create | Set up / deploy a new LXC for X | Provision a NixOS core-managed LXC from merged source and an explicitly approved saved plan; creates are supervised T2 without automatic rollback. |
 | [`provision-vm.md`](provision-vm.md) | Supervised T2 saved-plan create + T2+ root grant | Set up a VM for X, hardened, with restic | Provision a VM from merged source and an explicitly approved saved plan; creates are supervised T2 without automatic rollback. |
-| [`publish-service.md`](publish-service.md) | T2 PR-gated | Publish or expose a service | Choose the runbook for publishing a service through apps Caddy, Authentik, or the Cloudflare Tunnel. |
 | [`publish/forward-auth.md`](publish/forward-auth.md) | T2 PR-gated | Put a no-login service behind Authentik | Publish a service with no native login behind Authentik forward-auth on apps Caddy. |
 | [`publish/internal-route.md`](publish/internal-route.md) | T2 PR-gated | Give an authenticated service an internal aliammar.net URL | Publish an own-auth service on the internal apps Caddy front door. |
 | [`publish/public-tunnel.md`](publish/public-tunnel.md) | T2 PR-gated | Expose an internally published service to the public internet | Add Cloudflare Tunnel and public DNS exposure to an already-working internal route. |
+| [`publish-service.md`](publish-service.md) | T2 PR-gated | Publish or expose a service | Choose the runbook for publishing a service through apps Caddy, Authentik, or the Cloudflare Tunnel. |
 | [`recon.md`](recon.md) | T1 read-only | Figure out why X is broken / what's going on with <host> | Take a bounded T1 host snapshot, interpret its signals, and route to the focused diagnosis runbook. |
 | [`restore-service.md`](restore-service.md) | T2; PBS token for VM restore | Restore a service / recover from backup | Restore a service or VM from restic/PBS using a selected recovery point. |
 | [`update-guests.md`](update-guests.md) | T2 snapshot + T2+ fleet root grant | Update all guests | Snapshot then update every guest under a fleet root grant. |
