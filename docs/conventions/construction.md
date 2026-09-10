@@ -40,11 +40,13 @@ Executor or Tester — reassign, replace, pause, or report the blocker. `[manual
 ## Roles and defaults
 
 Main is the invoking session. Workers are native Codex subagents; they never orchestrate children.
-Initial defaults (verify exact identifiers, efforts, and sandboxes against installed harness
-metadata or a safe dry-run — **source TOML wins over any README**; do not silently substitute, report
-routing blocked instead): `[manual]`
+Initial defaults (verify exact identifiers and efforts against installed harness metadata or a safe
+dry-run — **source TOML wins over any README**; do not silently substitute, report routing blocked
+instead). The **Model** and **Effort** are applied per role from its file; the **Sandbox** column is
+the role's *declared* least-privilege intent, which on the installed Codex is **not** what bounds a
+worker's filesystem reach — see [Trust and native tooling](#trust-and-native-tooling). `[manual]`
 
-| Role | Model | Effort | Sandbox | Quantity |
+| Role | Model | Effort | Sandbox (declared) | Quantity |
 |---|---|---|---|---|
 | Main | session-selected | task-selected | invoking session | 1 |
 | Companion | `gpt-5.6-luna` | xhigh | read-only | exactly 1 persistent per deployment |
@@ -54,10 +56,11 @@ routing blocked instead): `[manual]`
 | Tester | `gpt-5.6-luna` | xhigh | workspace-write | as needed |
 | Archivist | `gpt-5.6-luna` | xhigh | workspace-write | one at substantive closure, plus explicit doc assignments |
 
-- **Companion** — persistent, project-centred read-only secretary: bounded context intake, large
-  synthesis, and retained operational context. It is not a message bus; workers report to Main.
-- **Investigator** — disposable read-only worker for one bounded, unfamiliar project or Internet
-  evidence gap. It supplies evidence; Main owns the causal decision.
+- **Companion** — persistent, project-centred secretary, **read-only by ownership and instructions**
+  (not by a runtime sandbox it declares): bounded context intake, large synthesis, and retained
+  operational context. It is not a message bus; workers report to Main.
+- **Investigator** — disposable worker for one bounded, unfamiliar project or Internet evidence gap,
+  **read-only by ownership and instructions**. It supplies evidence; Main owns the causal decision.
 - **Default Executor** — owns local discovery, implementation, self-check, deployment operations, and
   ordinary repair inside one bounded package.
 - **Senior Executor** — the one optional higher-reasoning worker for an exceptionally hard
@@ -174,11 +177,16 @@ discovered by Codex as a config layer), [`.codex/config.toml`](../../.codex/conf
 claimable only once these agree with this doctrine. `[testable/manual]`
 
 Each role file **declares** its sandbox, and the gate enforces the declaration and bans
-`danger-full-access`. At runtime a spawned worker's filesystem reach is the spawning session's sandbox
-as a **ceiling** — a role never escalates above it (a workspace-write role spawned under a read-only
-Main runs read-only), and in the installed Codex the role file's own `sandbox_mode` does not by itself
-reduce a worker below a workspace-write parent. So a read-only role's no-write guarantee holds only when
-Main spawns it from a suitably bounded session; treat the declaration as least-privilege intent, not an
-unconditional runtime leash. The boundary that always holds is **zero production authority**: no
-credential, token, root grant, or T2/T3 action reaches any worker regardless of its filesystem sandbox.
-`[manual]`
+`danger-full-access`. But on the installed Codex (0.153.4) that declaration is **not** what bounds a
+worker's filesystem reach: Codex applies a role file's instructions, model, and effort to a spawned
+child but **not** its `sandbox_mode`, and `spawn_agent` has no per-child sandbox argument — so a worker
+inherits the **spawning session's** permission profile as its ceiling (a role only ever reduces, never
+escalates). The real construction leash is therefore set once at the **session** level:
+[`.codex/config.toml`](../../.codex/config.toml) pins the project sandbox to `workspace-write`
+(network on for git/gh/research), which overrides the user-level default, so every construction worker
+is confined to the repo working tree plus `$TMPDIR`/`tmp` and **no worker inherits `danger-full-access`**.
+Companion and Investigator are read-only by **ownership and instructions**, not by a runtime sandbox of
+their own; treat their declared `read-only` as least-privilege intent and future-compatible. Filesystem
+reach beyond the workspace is an escalation routed through the normal approval/trust path, never granted
+wholesale. The boundary that always holds is **zero production authority**: no credential, token, root
+grant, or T2/T3 action reaches any worker regardless of its filesystem sandbox. `[testable/manual]`

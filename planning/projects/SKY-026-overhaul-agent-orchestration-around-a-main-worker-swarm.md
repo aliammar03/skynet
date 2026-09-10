@@ -403,12 +403,25 @@ Steps:
 8. Verify model IDs, efforts and sandboxes from installed harness metadata/dry-runs.
 
 Exit criteria:
-- six roles resolve with intended model/effort/sandbox behavior;
+- six roles resolve with intended model and effort (applied per role from the role file);
 - one current role vocabulary;
-- read-only roles cannot write;
-- write roles gain no production authority;
-- no SKY-022 role alias, compatibility route or artificial thread cap remains;
-- launcher/tests/invariants agree with actual config.
+- Companion/Investigator are read-only by role ownership/instructions, and their TOMLs retain
+  `sandbox_mode = "read-only"` as least-privilege intent / future-compatible declaration;
+- filesystem reach is bounded by the spawning session — the project `.codex/config.toml` pins the
+  construction session sandbox so **no construction worker inherits `danger-full-access`** (on Codex
+  0.153.4 a role file's own `sandbox_mode` is not applied per child; see the platform note below);
+- write roles gain no production authority, and production authority stays zero regardless of sandbox;
+- no SKY-022 role alias, compatibility route, launcher, or artificial thread cap remains;
+- tests/invariants agree with actual config and assert only what is machine-checkable (exact role
+  set, model/effort/instructions, declared sandbox intent, no `danger-full-access` in any role file or
+  the project config).
+
+Platform note (Codex 0.153.4): per-role `sandbox_mode` is **not** an enforceable child filesystem
+leash — `AgentRoleOverrides` applies instructions/model/reasoning but not sandbox, and
+`apply_spawn_agent_runtime_overrides` copies the spawning turn's permission profile into the child
+(`spawn_agent` exposes no child-sandbox argument). The enforceable boundary is the session sandbox set
+in `.codex/config.toml`; the original wording "read-only roles cannot write" was not achievable and is
+replaced above rather than silently dropped.
 
 Close-out: PR + journal episode + directive progress bump + `bin/plan list`.
 
@@ -753,3 +766,18 @@ Phase 5:
   Also corrected an honest overclaim: a role file's `sandbox_mode` is the enforced DECLARATION, but
   runtime filesystem reach is bounded by the spawning session (the parent is the ceiling) — the
   always-true boundary is zero production authority.
+- 2026-09-10 — **Phase 2 fix #2 (second re-review: the construction session boundary).** Stays
+  `current_phase: 2`; Phase 3 unreleased. The re-review confirmed per-role `sandbox_mode` is not an
+  enforceable child leash on Codex 0.153.4 (role overrides carry instructions/model/reasoning, not
+  sandbox; the spawn path copies the spawning turn's permission profile), and that the user-level
+  `danger-full-access` default meant workers could inherit it. Established the boundary at the SESSION
+  level instead of a launcher (YAGNI): project `.codex/config.toml` now pins
+  `sandbox_mode = "workspace-write"` (network on), which overrides the user default (project layer wins
+  per Codex config precedence). Verified on the installed harness: a normal project session runs
+  workspace-write, and a native smoke (companion/investigator/default_executor/tester) showed every
+  child inheriting workspace-write — **none danger-full-access**. Reworded the Phase 2 exit criterion
+  "read-only roles cannot write" to the achievable contract (read-only by ownership/intent; session
+  sandbox bounds filesystem reach; no worker inherits danger-full-access; zero production authority).
+  Fixed the stale surfaces (nix/home/aliammar.nix bin/agent comment; companion/investigator mechanical
+  comments; construction.md; runbook). The gate + construction-test now assert the project config is
+  workspace-write and never danger-full-access (26/0). No launcher/proxy/second transport built.

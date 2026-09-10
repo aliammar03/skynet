@@ -127,14 +127,27 @@ fi
 echo "== construction worker sandboxes match the declared build-time leash =="
 before=${fail}
 forbidden_sandbox="$(jq -r '.construction.forbidden_sandbox_mode' "${INV}")"
-config_file=".codex/config.toml"
-# No workflow-owned concurrency cap: codex's own max_concurrent_threads_per_session default applies, so
-# the config must NOT pin one as doctrine. The only construction guarantees the machine proves are the
-# per-role sandboxes and the danger-full-access prohibition (docs/conventions/construction.md).
+config_file="$(jq -r '.construction.project_config' "${INV}")"
+project_sandbox="$(jq -r '.construction.project_sandbox_mode' "${INV}")"
+# The construction SESSION sandbox in .codex/config.toml is the real filesystem leash: Codex 0.153.4
+# gives a spawned worker the spawning session's permission profile (a role file's sandbox_mode is not
+# applied per child), so this must pin the declared boundary and NEVER danger-full-access — that is what
+# stops a worker inheriting danger-full-access from the user-level default. No workflow concurrency cap:
+# codex's own default applies, so the config must NOT pin one (docs/conventions/construction.md).
 if [ ! -r "${config_file}" ]; then
   violation "${config_file} is missing — the construction config must exist"
-elif grep -qE '^[[:space:]]*max_concurrent_threads_per_session[[:space:]]*=' "${config_file}"; then
-  violation "${config_file} pins max_concurrent_threads_per_session — construction follows the no-workflow-quota model; remove it"
+else
+  if grep -qE '^[[:space:]]*max_concurrent_threads_per_session[[:space:]]*=' "${config_file}"; then
+    violation "${config_file} pins max_concurrent_threads_per_session — construction follows the no-workflow-quota model; remove it"
+  fi
+  config_sandbox="$(grep -E '^[[:space:]]*sandbox_mode[[:space:]]*=' "${config_file}" | sed -nE 's/^[[:space:]]*sandbox_mode[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' | head -n 1)"
+  if [ -z "${config_sandbox}" ]; then
+    violation "${config_file} declares no sandbox_mode — the construction session boundary must pin \"${project_sandbox}\""
+  elif [ "${config_sandbox}" = "${forbidden_sandbox}" ]; then
+    violation "${config_file} sets sandbox_mode = \"${forbidden_sandbox}\" — a construction session must never run danger-full-access (workers inherit it)"
+  elif [ "${config_sandbox}" != "${project_sandbox}" ]; then
+    violation "${config_file} sets sandbox_mode = \"${config_sandbox}\" — expected \"${project_sandbox}\" from invariants.json"
+  fi
 fi
 
 while IFS=$'\t' read -r role expected_sandbox; do
@@ -160,7 +173,7 @@ for agent_file in .codex/agents/*.toml; do
     violation "${agent_file} declares forbidden sandbox_mode = \"${forbidden_sandbox}\" — a construction helper must never receive danger-full-access"
   fi
 done
-[ "${fail}" -eq "${before}" ] && ok "no workflow concurrency cap pinned; declared worker sandboxes match; no worker has forbidden ${forbidden_sandbox}"
+[ "${fail}" -eq "${before}" ] && ok "construction session sandbox is ${project_sandbox} (never ${forbidden_sandbox}); no concurrency cap pinned; declared worker sandboxes match; no role file has forbidden ${forbidden_sandbox}"
 
 echo
 if [ "${fail}" -ne 0 ]; then
