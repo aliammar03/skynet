@@ -4,7 +4,7 @@ title: Agent episodic memory: journal + retrieval
 status: in-progress
 horizon: short
 created: 2026-08-17
-updated: 2026-08-17
+updated: 2026-09-10
 phases: 3
 current_phase: 2
 tier_touched: [T1]   # repo files + a local, git-rebuildable index on the ops VM. No blast radius.
@@ -13,9 +13,6 @@ related:
   - docs/design/observability.md
   - docs/decisions
   - planning/scratchpad/2026-08-17-declarative-future-and-agent-cognition.md
-  - "[[SKY-004-progress]]"
-  - "[[SKY-005-progress]]"
-  - "[[SKY-006-progress]]"
 ---
 
 # SKY-006 · Agent episodic memory: journal + retrieval
@@ -34,9 +31,9 @@ makes memory *infrastructure*, not a nicety. Score it honestly:
 | Kind | What | Today |
 |---|---|---|
 | **Working** | context window | fine |
-| **Semantic** | facts / current state | **strong** — MEMORY.md, docs/, inventory/, generated/ |
+| **Semantic** | facts / current state | **strong** — active directives, docs/, inventory/, generated/ |
 | **Procedural** | how-to | **strong** — runbooks/, scripts/, bin/ |
-| **Episodic** | what *happened*, the trajectory | **weak** — only raw git history + progress memories |
+| **Episodic** | what *happened*, the trajectory | **weak** — only raw git history before this directive |
 
 **The gap is episodic.** A cold agent can't efficiently answer *how did the lab get here, what was
 tried, what failed.* Git history technically holds it, but it isn't shaped for recall — the problem
@@ -65,9 +62,8 @@ isn't storage, it's **retrieval**. (Scratchpad thesis §4.)
   is the bigger swing, pending the research brief.
 
 **Decision memory**
-- **Decision (CHOSEN):** enforce ADRs in `docs/decisions/` for every non-trivial choice, so the agent
-  never re-litigates a settled question — the same discipline `[[SKY-###-progress]]` memories apply
-  lightly today.
+- **Decision (CHOSEN):** enforce ADRs in `docs/decisions/` for every non-trivial settled choice, so
+  the agent never re-litigates it. Active directive state and raw journal evidence carry progress.
 
 ## 3. The plan
 - **Scope / non-goals:** journal, rolling digest, ADR discipline, and a git-rebuildable semantic
@@ -85,7 +81,7 @@ have the nightly append to it. Exit: nightly runs and SKY-005 diagnoses land dat
 `bin/new journal <kind> <title>` · nightly wired on both paths (raw session entry: `scripts/nightly.sh`
 deterministic + `bin/ops`/`runbooks/nightly.md` agent) · doctrine pointers (`docs/conventions/{docs,layout}.md`,
 `docs/design/observability.md`, `AGENTS.md §4`) · ADR 0002 · seed entry. SKY-005 (incident feeder)
-isn't built yet, so the nightly is the only live writer today; the convention is ready for it. See [[SKY-006-progress]].
+isn't built yet, so the nightly is the only live writer today; the convention is ready for it.
 
 ### Phase 2 — rolling digest  (~1–2h)   `[x]` done 2026-08-17
 Extend the generated `05-state-of-the-lab.md` into a cold-boot "state + recent decisions + open
@@ -97,7 +93,7 @@ open threads from open `SKY-###` + journal follow-ups · recent episodes). Runs 
 paths (`scripts/nightly.sh` + `bin/ops` prompt), so the cold-boot pointers stay fresh even LLM-free.
 The human `05-state-of-the-lab.md` stays a prose narrative and is now **featured in the top-level
 `README.md`**; the machine digest is kept separate (Ali's call). Pointers: `AGENTS.md` (cold boot →
-read 06), `docs/design/observability.md` (05/06 split, live), `runbooks/nightly.md`. See [[SKY-006-progress]].
+read 06), `docs/design/observability.md` (05/06 split, live), `runbooks/nightly.md`.
 
 ### Phase 3 — git-rebuildable semantic index  (~1–2h)   `[ ]` not started
 Evaluate + stand up a local embedding index (per research brief) that rebuilds from git. Exit: the
@@ -114,13 +110,13 @@ steps. When the phase's exit criteria are met, do the "Phase close-out" at the b
 
 ## 5. Phase close-out (resume material)
 - [ ] Land the work via **PR** (agent never merges its own).
-- [ ] Write/refresh a memory `SKY-006-progress` (what shipped, what's next, gotchas) + a MEMORY.md pointer.
+- [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:
 ```
 Continue planning/projects/SKY-006-agent-episodic-memory-journal-retrieval.md at Phase <N+1>.
-Prereqs carried from the last phase: <…>. Resume context from memory [[SKY-006-progress]].
+Prereqs carried from the last phase: <…>. Read the directive and its linked journal evidence.
 Follow AGENTS.md as above.
 ```
 

@@ -4,7 +4,7 @@ title: Eliminate documentation drift and shrink operational context
 status: in-progress
 horizon: short
 created: 2026-09-04
-updated: 2026-09-06
+updated: 2026-09-10
 phases: 10
 current_phase: 10
 tier_touched: [T1, T2]
@@ -29,7 +29,6 @@ related:
   - tests/temporal-hygiene-test.sh
   - tests/documentation-drift-test.sh
   - scripts/hygiene.sh
-  - "[[SKY-023-progress]]"
 ---
 
 # SKY-023 · Eliminate documentation drift and shrink operational context

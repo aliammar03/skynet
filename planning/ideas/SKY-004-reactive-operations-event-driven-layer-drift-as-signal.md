@@ -4,7 +4,7 @@ title: Reactive operations: event-driven layer + drift-as-signal
 status: draft
 horizon: long
 created: 2026-08-17
-updated: 2026-08-17
+updated: 2026-09-10
 phases: 3
 current_phase: 0
 tier_touched: [T1, T2]   # T1 observe/propose; graduating any event→action to auto-approve is a
@@ -14,8 +14,6 @@ related:
   - docs/design/gitops-loop.md
   - docs/system-design.md
   - planning/scratchpad/2026-08-17-declarative-future-and-agent-cognition.md
-  - "[[SKY-006-progress]]"
-  - "[[SKY-004-progress]]"
 ---
 
 # SKY-004 · Reactive operations: event-driven layer + drift-as-signal
@@ -79,7 +77,7 @@ terms: a plant, two sensors, no controller. Someone hand-edits the firewall or a
 
 ### Phase 1 — drift-as-signal, report-only  (~1–2h)   `[ ]` not started
 A scheduled diff (compose config + firewall-mirror vs declared baseline) that emits an ntfy alert
-and a journal note ([[SKY-006-progress]]) when desired ≠ observed. **No actions.**
+and a raw journal episode when desired ≠ observed. **No actions.**
 Exit: hand-editing the firewall or stopping a tracked container produces a same-day drift alert.
 
 ### Phase 2 — webhook receiver, propose-only  (~1–2h)   `[ ]` not started
@@ -103,13 +101,13 @@ steps. When the phase's exit criteria are met, do the "Phase close-out" at the b
 
 ## 5. Phase close-out (resume material)
 - [ ] Land the work via **PR** (agent never merges its own).
-- [ ] Write/refresh a memory `SKY-004-progress` (what shipped, what's next, gotchas) + a MEMORY.md pointer.
+- [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:
 ```
 Continue planning/projects/SKY-004-reactive-operations-event-driven-layer-drift-as-signal.md at Phase <N+1>.
-Prereqs carried from the last phase: <…>. Resume context from memory [[SKY-004-progress]].
+Prereqs carried from the last phase: <…>. Read the directive and its linked journal evidence.
 Follow AGENTS.md as above.
 ```
 

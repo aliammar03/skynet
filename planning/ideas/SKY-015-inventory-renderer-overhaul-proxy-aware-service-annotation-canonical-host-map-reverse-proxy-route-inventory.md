@@ -4,7 +4,7 @@ title: Inventory renderer overhaul: proxy-aware service annotation, canonical ho
 status: draft
 horizon: long
 created: 2026-08-20
-updated: 2026-08-20
+updated: 2026-09-10
 phases: 3
 current_phase: 0
 tier_touched: [T1]     # all read + render. No new access, no blast-radius move → no system-design PR.
@@ -12,9 +12,7 @@ related:
   - scripts/render-docs.sh
   - docs/generated/30-services/README.md
   - docs/generated/10-vlans.md
-  - "[[SKY-005-progress]]"
   - "[[lab-addressing-static-first]]"
-  - "[[SKY-015-progress]]"
 ---
 
 # SKY-015 · Inventory renderer overhaul: proxy-aware service annotation, canonical host map, reverse-proxy route inventory
@@ -112,13 +110,13 @@ steps. When the phase's exit criteria are met, do the "Phase close-out" at the b
 
 ## 5. Phase close-out (resume material)
 - [ ] Land the work via **PR** (agent never merges its own).
-- [ ] Write/refresh a memory `SKY-015-progress` (what shipped, what's next, gotchas) + a MEMORY.md pointer.
+- [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:
 ```
 Continue planning/projects/SKY-015-inventory-renderer-overhaul-proxy-aware-service-annotation-canonical-host-map-reverse-proxy-route-inventory.md at Phase <N+1>.
-Prereqs carried from the last phase: <…>. Resume context from memory [[SKY-015-progress]].
+Prereqs carried from the last phase: <…>. Read the directive and its linked journal evidence.
 Follow AGENTS.md as above.
 ```
 

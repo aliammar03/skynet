@@ -6,7 +6,7 @@ horizon: long
 created: 2026-09-10
 updated: 2026-09-10
 phases: 5
-current_phase: 3
+current_phase: 4
 tier_touched: [T1]
 related:
   - AGENTS.md
@@ -16,7 +16,6 @@ related:
   - bin/agent
   - planning/archive/SKY-022-lean-multi-agent-construction-orchestration-lead-driven-delegation.md
   - planning/projects/SKY-025-rebuild-the-skynet-engine-in-python.md
-  - "[[SKY-026-progress]]"
 ---
 
 # SKY-026 · Overhaul agent orchestration around a Main-directed worker swarm
@@ -457,7 +456,7 @@ Exit criteria:
 
 Close-out: PR + journal episode + directive progress bump + `bin/plan list`.
 
-### Phase 4 · Adapt continuity, Archivist and token accounting  `[ ]` not started
+### Phase 4 · Adapt continuity, Archivist and token accounting  `[x]` done
 **Recommended Main:** Sol High with Companion + Archivist
 
 Goal: borrow donor closure/context economy without duplicating durable truth.
@@ -797,3 +796,12 @@ Phase 5:
   The construction gate enforces the guidance on mutable worker roles and rejects project approval
   overrides (46/0). The inherited `on-request` posture, root-grant and authored-merge checkpoints stay
   unchanged; no broad `rm` rule, allowlist or permission framework was added. Phase 4 remains next.
+- 2026-09-10 — **Phase 4 done.** Medium/Heavy intake now assigns the Direct set to Main once and
+  bulky/reusable context plus later delta/conflict checks to Companion. Complete, paused and blocked
+  closure each resolve to one directive-owned continuation; `.agent/CHECKPOINT.md` stays disposable,
+  while directive state and raw journal evidence remain canonical. Ported the donor's deterministic
+  deployment token reporter, skill contract and behavioral tests into the repository-standard
+  `.agents/skills/` surface with Skynet deployment markers. Codex 0.153.4 discovery and recorded JSONL
+  usage were verified directly; reports expose recorded cached-input/input/output counts only and fail
+  closed on missing or malformed evidence. Archivist seals closure after assigned docs/checks, cannot
+  decide acceptance or edit generated truth, and returns the exact report or limitation. Phase 5 is next.

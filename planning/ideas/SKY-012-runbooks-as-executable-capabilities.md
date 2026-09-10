@@ -4,7 +4,7 @@ title: Runbooks as executable capabilities
 status: draft
 horizon: short
 created: 2026-08-18
-updated: 2026-08-18
+updated: 2026-09-10
 phases: 1
 current_phase: 0
 tier_touched: [T1, T2]   # writing capabilities is T1 repo work; a capability RUNS at its runbook's
@@ -19,7 +19,6 @@ related:
   - planning/scratchpad/2026-08-17-declarative-future-and-agent-cognition.md
   - planning/archive/SKY-010-default-lean-context-load-on-demand.md
   - planning/projects/SKY-011-machine-enforced-invariants-and-the-ambiguity-layering-doctrine.md
-  - "[[SKY-012-progress]]"
 ---
 
 # SKY-012 · Runbooks as executable capabilities

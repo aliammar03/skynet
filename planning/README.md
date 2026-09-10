@@ -30,14 +30,15 @@ scratchpad ──▶ ideas ──▶ backlog ──▶ projects ──▶ archiv
 ## Conventions
 
 - **ID for life.** An item minted `SKY-014` stays `SKY-014` through every stage — folders show
-  *where it is now*, the ID is the permanent handle (in filenames, the index, memory `[[SKY-014-progress]]`).
+  *where it is now*, and the ID is the permanent handle in filenames, the roadmap, and journal refs.
 - **Filename:** `SKY-###-kebab-slug.md`. Frontmatter is the source of truth for the index.
 - **Horizon** (ideas): 🌱 `short` (weeks, fits today's system) vs 🔭 `long` (vision; may need an overhaul or a new trust boundary).
 - **Trust tiers.** If a directive touches **T2+/T3** or moves a blast-radius boundary, its plan must
   also PR `docs/system-design.md` — same rule as everywhere else. (`tier_touched` frontmatter flags it.)
 - **PR-gated.** Directives land via PR like all repo changes; the agent never merges its own.
 - **Phases are ~1–2h.** Anything longer is split, and each phase ends with a **close-out**: a PR,
-  a `SKY-###-progress` memory, a frontmatter bump, and a **Continue prompt** so the next session cold-starts.
+  raw journal evidence, a frontmatter bump, and one **Continue prompt** so the next session cold-starts
+  from the directive. Do not create a second progress tracker.
 - **Reopening is exceptional.** A completed maintenance directive may return from `archive/` to
   `projects/` only on explicit human instruction when the same maintenance domain needs another bounded
   phase set. Preserve its completed phases/history and permanent ID; never keep duplicate archive and
@@ -95,5 +96,5 @@ bodies and manual merge gates. The directive remains the source for phase scope 
 | SKY-023 | Eliminate documentation drift and shrink operational context | projects | in-progress | 10/10 | 🌱 short |
 | SKY-024 | tofu declares managed core guests — API-driven CT/VM lifecycle, no node SSH | projects | in-progress | 4/6 | 🌱 short |
 | SKY-025 | Rebuild the Skynet engine in Python | projects | in-progress | 6/24 | 🔭 long |
-| SKY-026 | "Overhaul agent orchestration around a Main-directed worker swarm" | projects | in-progress | 3/5 | 🔭 long |
+| SKY-026 | "Overhaul agent orchestration around a Main-directed worker swarm" | projects | in-progress | 4/5 | 🔭 long |
 <!-- ROADMAP:END -->

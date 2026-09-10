@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
-# recall — read-time scout: grep the repo's memory for a topic and rank what's worth opening.
+# recall — read-time retrieval: grep Skynet's canonical memory for a topic and rank what to open.
 #   TIER: T1 (read-only — greps journal/ + docs/ + runbooks/ + planning/; never writes).
 #   USAGE: bin/recall <topic> [more terms...]
 #     Prints the files that mention the topic, ranked by relevance, each with its ~token cost and
-#     one-line summary — so a cold session (or a subagent scout) opens only the few that matter,
+#     one-line summary — so a cold session or context worker opens only the few that matter,
 #     distills them in a THROWAWAY window, and returns just the conclusion to the main context.
 #     It never persists a summary (ADR 0002): the raw journal/docs stay the source of truth; the
-#     distillation lives for one query. The machine-neutral twin of a Claude subagent scout — any
-#     engine runs this; a Claude scout can call it internally. Leans on the `tokens:` +
-#     `summary:` frontmatter for the cost/label columns.
+#     distillation lives for one query. Any engine can run it. Token cost is computed from bytes;
+#     `summary:` frontmatter supplies the label when present.
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${REPO_DIR}"
@@ -20,7 +19,7 @@ re="$1"; shift || true; for t in "$@"; do re="${re}|${t}"; done
 SEARCH="journal docs runbooks planning AGENTS.md README.md"
 
 fm()   { awk -v k="$2" 'NR==1&&$0=="---"{f=1;next} f&&$0=="---"{exit} f{if($0 ~ ("^" k ":")){sub("^" k ":[[:space:]]*","");gsub(/^"|"$/,"");print;exit}}' "$1"; }
-toks() { local t b; t=$(fm "$1" tokens); if [ -n "$t" ]; then echo "$t"; else b=$( { grep -v '^tokens:' "$1" || true; } | wc -c); echo $(( b / 4 )); fi; }
+toks() { local b; b=$(wc -c < "$1"); echo $(( b / 4 )); }
 summ() { local s; s=$(fm "$1" summary); [ -n "$s" ] || s=$(fm "$1" title); [ -n "$s" ] || s=$(grep -m1 '^# ' "$1" 2>/dev/null | sed -E 's/^#+[[:space:]]*//'); printf '%s' "${s:-—}"; }
 
 # matching files (skip the machine-owned generated/ derivatives and .git)
@@ -49,5 +48,5 @@ printf '%s' "$rows" | sort -t$'\t' -k1,1nr -k2,2n | head -n 20 | while IFS=$'\t'
   printf '\n'
 done
 
-printf 'Scout rule: open only what you need, summarize in a throwaway window, return the conclusion.\n'
+printf 'Retrieval rule: open only what you need, summarize in a throwaway window, return the conclusion.\n'
 printf 'Never persist that summary — the raw source stays truth (ADR 0002); it lives for one query.\n'
