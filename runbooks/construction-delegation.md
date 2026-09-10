@@ -14,6 +14,18 @@ rollback: "git revert accepted repository changes"
 
 - Main owns the scoped success condition and can define the acceptance evidence for every delegated package — in Heavy that evidence is produced by an independent Tester, not by Main re-running the work.
 
+## Verification without permission noise
+
+For routine T1 verification of repo-local files and `$TMPDIR`/`tmp` scratch, Main and mutable
+workers use the construction session's `workspace-write` boundary and must not request operator
+escalation merely to create, mutate, or clean up that scratch. Prefer canonical repository test
+commands and maintained test-suite fixtures for repeatable mutations; avoid many ad-hoc compound
+shell probes. For one-off exploratory disposable fixtures, prefer language-native temporary-directory
+lifecycle handling; if harmless TMP-only cleanup alone would require escalation, leave it for normal
+automatic cleanup. Normal approval and human checkpoints still apply to credentials, production,
+destructive actions, and every other actual authority boundary. The detailed rule lives in the
+[construction convention](../docs/conventions/construction.md).
+
 ## Steps
 
 1. **Pick the route.** Light (Main works alone) is the default; use Medium or Heavy only for substantive work, and follow the route the active directive selected. Do not infer Medium/Heavy merely because workers exist.

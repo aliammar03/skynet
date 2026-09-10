@@ -190,3 +190,15 @@ their own; treat their declared `read-only` as least-privilege intent and future
 reach beyond the workspace is an escalation routed through the normal approval/trust path, never granted
 wholesale. The boundary that always holds is **zero production authority**: no credential, token, root
 grant, or T2/T3 action reaches any worker regardless of its filesystem sandbox. `[testable/manual]`
+
+### Verification without permission noise
+
+The construction session's `workspace-write` boundary covers routine T1 verification of repo-local
+files and `$TMPDIR`/`tmp` scratch. Main and mutable workers **must not request operator escalation
+merely to create, mutate, or clean up** that scratch. Prefer canonical repository test commands and
+maintained test-suite fixtures for repeatable mutations instead of many ad-hoc compound shell probes.
+For one-off exploratory disposable fixtures, prefer language-native temporary-directory lifecycle
+handling; if harmless TMP-only cleanup alone would require escalation, leave it for normal automatic
+cleanup rather than interrupting the operator. These rules do not bypass normal approval or human
+checkpoints for credentials, production, destructive actions, or any other actual authority boundary.
+`[testable/manual]`
