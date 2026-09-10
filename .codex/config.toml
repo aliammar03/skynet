@@ -1,9 +1,10 @@
 # Codex project config — construction delegation only.
-# The canonical contract is docs/conventions/construction.md. This file bounds build-time helper
-# fan-out and grants no production authority.
-# The invoking session selects the phase lead; bin/agent mirrors explicit tier selection.
-# Merged-result review uses a fresh session with the selected model, never an implementation helper.
-
-[agents]
-# The two-helper cap is enforced here. One delegation level is doctrine, not a knob — helpers never spawn.
-max_concurrent_threads_per_session = 2
+# The canonical contract is docs/conventions/construction.md. The six worker roles live in
+# .codex/agents/*.toml (companion, investigator, default_executor, senior_executor, tester, archivist),
+# each pinning its own model/effort/sandbox. This file grants no production authority.
+#
+# Concurrency is NOT capped here. Fan-out is bounded by platform capacity and task judgement, with only
+# the semantic limits in the doctrine (one persistent Companion, at most one Senior Executor,
+# non-overlapping mutable ownership, no worker-spawns-worker). Codex's own
+# max_concurrent_threads_per_session default applies; do not pin a workflow-owned number as doctrine.
+# Merged-result acceptance review uses a fresh session, never an implementation worker.

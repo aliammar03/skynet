@@ -123,22 +123,18 @@ elif [ "${fail}" -eq "${before}" ]; then
   ok "operate token: no bright-line privilege anywhere; /vms-root only on declared node(s) [${vms_root_nodes[*]}]"
 fi
 
-# --- 6. Construction helpers stay within their declared build-time leash -----------------------
-echo "== construction helper cap and sandboxes match the declared build-time leash =="
+# --- 6. Construction workers stay within their declared build-time leash ------------------------
+echo "== construction worker sandboxes match the declared build-time leash =="
 before=${fail}
-declared_cap="$(jq -r '.construction.max_concurrent_threads_per_session' "${INV}")"
 forbidden_sandbox="$(jq -r '.construction.forbidden_sandbox_mode' "${INV}")"
 config_file=".codex/config.toml"
+# No workflow-owned concurrency cap: codex's own max_concurrent_threads_per_session default applies, so
+# the config must NOT pin one as doctrine. The only construction guarantees the machine proves are the
+# per-role sandboxes and the danger-full-access prohibition (docs/conventions/construction.md).
 if [ ! -r "${config_file}" ]; then
-  violation "${config_file} is missing — declare max_concurrent_threads_per_session = ${declared_cap} under [agents]"
-else
-  cap_line="$(grep -E '^[[:space:]]*max_concurrent_threads_per_session[[:space:]]*=' "${config_file}" || true)"
-  found_cap="$(printf '%s\n' "${cap_line}" | sed -nE 's/^[[:space:]]*max_concurrent_threads_per_session[[:space:]]*=[[:space:]]*([^[:space:]#]+).*/\1/p' | head -n 1)"
-  if [ -z "${found_cap}" ]; then
-    violation "${config_file} has no max_concurrent_threads_per_session declaration — expected ${declared_cap}"
-  elif [ "${found_cap}" != "${declared_cap}" ]; then
-    violation "${config_file}: max_concurrent_threads_per_session is ${found_cap} — expected ${declared_cap} from invariants.json"
-  fi
+  violation "${config_file} is missing — the construction config must exist"
+elif grep -qE '^[[:space:]]*max_concurrent_threads_per_session[[:space:]]*=' "${config_file}"; then
+  violation "${config_file} pins max_concurrent_threads_per_session — construction follows the no-workflow-quota model; remove it"
 fi
 
 while IFS=$'\t' read -r role expected_sandbox; do
@@ -164,7 +160,7 @@ for agent_file in .codex/agents/*.toml; do
     violation "${agent_file} declares forbidden sandbox_mode = \"${forbidden_sandbox}\" — a construction helper must never receive danger-full-access"
   fi
 done
-[ "${fail}" -eq "${before}" ] && ok "construction cap is ${declared_cap}; declared helper sandboxes match; no helper has forbidden ${forbidden_sandbox}"
+[ "${fail}" -eq "${before}" ] && ok "no workflow concurrency cap pinned; declared worker sandboxes match; no worker has forbidden ${forbidden_sandbox}"
 
 echo
 if [ "${fail}" -ne 0 ]; then

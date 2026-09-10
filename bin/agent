@@ -1,38 +1,60 @@
 #!/usr/bin/env bash
-# agent — launch a bounded construction helper by ROLE, or preview the resolution. → a codex process.
-# TIER: T1 — build-time only. Helpers get NO production authority (no secrets/tokens/T2/T3); the
-#   sandbox (writers=workspace-write, scout=read-only) is the boundary. Doctrine: docs/conventions/construction.md.
+# agent — launch one bounded construction worker by ROLE, or preview the resolution. → a codex process.
+# TIER: T1 — build-time only. Workers get NO production authority (no secrets/tokens/T2/T3); the
+#   sandbox (read-only | workspace-write) is the boundary. Doctrine: docs/conventions/construction.md.
 # USAGE:
-#   bin/agent <lead|review|builder|mechanic|scout> "<prompt>" [--tier astra|terra|sol] [--cwd <dir>] [--dry-run]
-#     --tier      lead only: use the execution tier named in the authorized phase packet
-#     --cwd <dir> run the helper rooted at <dir> instead of the main checkout — for a git worktree,
-#                 so two writers get separate filesystem state. Git is the isolation.
-#     --dry-run   print the resolved role/tier/model/sandbox + exact command, launch nothing
-#   Tier→model is env-overridable: AGENT_MODEL_{ASTRA,SOL,TERRA,LUNA}. No secrets are read.
+#   bin/agent <companion|investigator|default_executor|senior_executor|tester|archivist> "<prompt>" [--cwd <dir>] [--dry-run]
+#     --cwd <dir> run the worker rooted at <dir> instead of the main checkout — for a git worktree,
+#                 so two Executors get separate filesystem state. Git is the isolation.
+#     --dry-run   print the resolved role/model/effort/sandbox + exact command, launch nothing
 #
 # This is the STANDALONE mirror of the native in-session delegation in .codex/agents/*.toml. When a
-# job fits native Codex subagents, prefer those (they enforce the ≤2-helper cap). One delegation
-# level only — a helper launched here never launches its own helper.
+# job fits native Codex subagents, prefer those. A worker launched here never launches its own worker.
+# Each role's model/effort/sandbox is READ FROM its .codex/agents/<role>.toml — the TOML is the single
+# source of truth (source TOML wins over any README), so this launcher can never drift from it.
 set -euo pipefail
 
 REPO_DIR="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
+USAGE='usage: bin/agent <companion|investigator|default_executor|senior_executor|tester|archivist> "<prompt>" [--cwd <dir>] [--dry-run]'
 die() { echo "agent: $*" >&2; exit 1; }
 
-role="${1:?usage: bin/agent <lead|review|builder|mechanic|scout> \"<prompt>\" [--tier astra|terra|sol] [--cwd <dir>] [--dry-run]}"
-prompt="${2:?usage: bin/agent <role> \"<prompt>\" [--tier astra|terra|sol] [--cwd <dir>] [--dry-run]}"
+role="${1:?${USAGE}}"
+prompt="${2:?${USAGE}}"
 shift 2 || true
 
-requested_tier=""; dry=0; cwd=""
+dry=0; cwd=""
 while [ $# -gt 0 ]; do case "$1" in
-  --tier)    requested_tier="${2:?--tier needs astra|terra|sol}"; shift;;
   --dry-run) dry=1;;
   --cwd)     cwd="${2:?--cwd needs a directory}"; shift;;
-  *) die "unknown flag '$1' (--tier astra|terra|sol | --cwd <dir> | --dry-run)";;
+  *) die "unknown flag '$1' (--cwd <dir> | --dry-run)";;
 esac; shift; done
 
+# The role vocabulary is exactly the construction worker set — one .codex/agents/<role>.toml per role.
+# No legacy scout/mechanic/builder aliases and no lead/review shim survive.
+case "${role}" in
+  companion|investigator|default_executor|senior_executor|tester|archivist) ;;
+  *) die "unknown role '${role}' (companion|investigator|default_executor|senior_executor|tester|archivist)";;
+esac
+
+toml="${REPO_DIR}/.codex/agents/${role}.toml"
+[ -r "${toml}" ] || die "missing role definition ${toml}"
+
+toml_value() {
+  # Extract a quoted top-level key from the role TOML: toml_value <key>
+  sed -nE "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*\"([^\"]+)\".*/\1/p" "${toml}" | head -n 1
+}
+model="$(toml_value model)"
+effort="$(toml_value model_reasoning_effort)"
+sandbox="$(toml_value sandbox_mode)"
+[ -n "${model}" ]   || die "${toml}: no model declared"
+[ -n "${effort}" ]  || die "${toml}: no model_reasoning_effort declared"
+[ -n "${sandbox}" ] || die "${toml}: no sandbox_mode declared"
+# A construction worker never receives danger-full-access — the forbidden sandbox (invariants.json).
+[ "${sandbox}" != "danger-full-access" ] || die "${toml}: sandbox danger-full-access is forbidden for construction workers"
+
 # Root the run at a registered worktree if --cwd was given, else the main checkout. Git is the only
-# isolation: accepting an arbitrary directory would let a helper escape the repository contract.
+# isolation: accepting an arbitrary directory would let a worker escape the repository contract.
 workdir="${REPO_DIR}"
 if [ -n "${cwd}" ]; then
   [ -d "${cwd}" ] || die "--cwd '${cwd}' is not a directory"
@@ -74,54 +96,15 @@ if [ -n "${cwd}" ]; then
 fi
 cd "${workdir}"
 
-# tier → concrete model. Env override is the only place model IDs live.
-model_for_tier() { case "$1" in
-  astra) echo "${AGENT_MODEL_ASTRA:-gpt-6-astra}";;
-  sol)   echo "${AGENT_MODEL_SOL:-gpt-5.6-sol}";;
-  terra) echo "${AGENT_MODEL_TERRA:-gpt-5.6-terra}";;
-  luna)  echo "${AGENT_MODEL_LUNA:-gpt-5.6-luna}";;
-  *) return 1;; esac; }
-
-# role → tier / reasoning effort / sandbox / approval. The one routing table in code (doctrine:
-# docs/conventions/construction.md). Scout is read-only by contract; writers stay workspace-scoped —
-# deliberately MORE restricted than the nightly's full bypass, because construction touches no prod.
-# Execution leads select the packet's tier; review uses the harness defaults unless overridden.
-# Workers implement a bounded packet at Luna high or inspect at Luna medium.
-case "${role}" in
-  lead)
-    tier="${requested_tier:-terra}"; sandbox=workspace-write
-    case "${tier}" in
-      astra) effort=medium;;
-      terra) effort=high;;
-      sol) effort=low;;
-      *) die "lead tier must be astra|terra|sol";;
-    esac;;
-  review)   tier=selected; effort="${AGENT_REVIEW_EFFORT:-default}"; sandbox=workspace-write;;
-  builder)  tier=luna;                        effort=high;   sandbox=workspace-write;;
-  mechanic) tier=luna;                        effort=high;   sandbox=workspace-write;;
-  scout)    tier=luna;                        effort=medium; sandbox=read-only;;
-  *) die "unknown role '${role}' (lead|review|builder|mechanic|scout)";;
-esac
-[ -n "${requested_tier}" ] && [ "${role}" != lead ] && die "--tier is lead-only"
-
-if [ "${role}" = review ]; then
-  model="${AGENT_REVIEW_MODEL:-default}"
-else
-  model="$(model_for_tier "${tier}")"
-fi
-
-# codex exec: non-interactive helper, sandboxed, model + reasoning effort pinned to the role.
-# The sandbox flag IS the leash — codex exec is already non-interactive, so there is no approval
-# flag to set here (v0.149.0 `exec` has none; escalation beyond the sandbox is denied, not prompted).
-# That is stricter than we need and exactly right for build-time helpers: a scout physically cannot
-# write, a writer cannot leave the workspace. Do NOT reach for --dangerously-bypass-* or
+# codex exec: non-interactive worker, sandboxed, model + reasoning effort pinned from the role TOML.
+# The sandbox flag IS the leash — codex exec is already non-interactive, so there is no approval flag
+# to set (escalation beyond the sandbox is denied, not prompted). A read-only role physically cannot
+# write; a write role cannot leave the workspace. Do NOT reach for --dangerously-bypass-* or
 # --approve-for-me — construction never earns access wider than its role's sandbox.
-set -- codex exec --sandbox "${sandbox}" -C "${workdir}"
-[ "${model}" = default ] || set -- "$@" --model "${model}"
-[ "${effort}" = default ] || set -- "$@" -c "model_reasoning_effort=\"${effort}\""
-set -- "$@" "${prompt}"
+set -- codex exec --sandbox "${sandbox}" -C "${workdir}" --model "${model}" \
+  -c "model_reasoning_effort=\"${effort}\"" "${prompt}"
 
-echo "role=${role}  tier=${tier}  model=${model}  effort=${effort}  sandbox=${sandbox}  cwd=${workdir}" >&2
+echo "role=${role}  model=${model}  effort=${effort}  sandbox=${sandbox}  cwd=${workdir}" >&2
 if [ "${dry}" = 1 ]; then
   printf 'DRY-RUN — would launch:\n  ' >&2; printf '%q ' "$@" >&2; echo >&2
   exit 0

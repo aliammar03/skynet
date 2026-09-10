@@ -6,7 +6,7 @@ horizon: long
 created: 2026-09-10
 updated: 2026-09-10
 phases: 5
-current_phase: 1
+current_phase: 2
 tier_touched: [T1]
 related:
   - AGENTS.md
@@ -380,7 +380,7 @@ Exit criteria:
 
 Close-out: PR + journal episode + directive progress bump + `bin/plan list`.
 
-### Phase 2 · Replace worker roles and Codex configuration  `[ ]` not started
+### Phase 2 · Replace worker roles and Codex configuration  `[x]` done
 **Recommended Main:** Sol High
 
 Goal: make native Codex config match doctrine and eliminate the SKY-022 runtime surface.
@@ -727,3 +727,14 @@ Phase 5:
   the generated context map, and SKY-025's optional-worker notes off the lead+two-helper vocabulary.
   Runtime surface (`.codex/*`, launcher, tests, invariants) intentionally deferred to Phase 2; the
   exhaustive SKY-022 sweep of SKY-025's inline execution model is deferred to Phase 5.
+- 2026-09-10 — **Phase 2 done.** Added six `.codex/agents/*.toml` (companion, investigator,
+  default_executor, senior_executor, tester, archivist) closely derived from the pinned donor TOMLs,
+  re-pointed off `agent_docs/` onto Skynet's canonical surfaces, with production isolation on every
+  role. Deleted builder/mechanic/scout. Verified luna·xhigh / luna·max / sol·medium against the live
+  harness (codex 0.153.4) via real `codex exec` runs — source TOML values hold, no substitution.
+  Established that `max_concurrent_threads_per_session` is a real codex field, not a SKY-022 invention;
+  per Decision I removed the pinned `= 2` and let codex's default apply — the gate now fails if a cap
+  reappears. Rewrote `bin/agent` to launch the six roles resolving each one from its TOML (dropped
+  `lead`/`review`/`--tier`/`AGENT_MODEL_*`), updated `invariants.json` + `scripts/check-invariants.sh`
+  + `tests/{agent,construction}-test.sh`. All deterministic gates green. Token accounting stays for
+  Phase 4; the full current-authority SKY-022 sweep stays for Phase 5.
