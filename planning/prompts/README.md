@@ -9,7 +9,7 @@ summary: "SKY-025 handoffs: execute bounded packets, independently review comple
 | Prompt | Session | Produces |
 |---|---|---|
 | [Execute](execute.md) | New task with the packet's execution model/effort | Implementation or fix PR |
-| [Review](review.md) | Fresh task with the selected model/effort | Review, bounded repairs when needed, and next-packet PR |
+| [Review](review.md) | Fresh task with the selected model/effort | ACCEPT/BLOCKED review PR, or a paste-ready fix prompt — the reviewer never repairs |
 
 Select the model and effort when starting each task. Prompts cannot switch the running model or
 launch the next session. Use a fresh task for independent review; do not resume the implementation
@@ -21,14 +21,13 @@ conversation. Git records the handoff, so chat transcripts and optional memory a
 3. If that PR completes only a slice, continue execution within the same numbered phase; the
    execution lead details the remaining packet before work. Once the whole phase is implemented
    and its PRs are merged, start a fresh review with all phase implementation PR URLs.
-4. The reviewer fixes bounded defects directly, using Luna workers for scoped implementation,
-   tests and repetitive work, and verifies the complete phase. Merge the resulting review PR,
-   including any repairs. ACCEPT releases its next packet without another review session for
-   those verified repairs; FIX releases only its
-   fix packet; BLOCKED releases no implementation until the recorded blocker is resolved and reviewed.
-5. Execute that packet in a new task. If a separate FIX packet was needed, after its PR merges,
-   review the original phase again with
-   both the original and fix PR URLs. Repeat until accepted.
+4. The reviewer never repairs. ACCEPT publishes a review PR that releases the next packet — merge it
+   when ready. BLOCKED records the blocker and releases nothing until it is resolved and reviewed.
+   FIX returns one paste-ready fix prompt (no review PR) addressed to the original implementation
+   session.
+5. Execute the released packet (ACCEPT) or the fix prompt (FIX) in a new task. After a fix PR merges,
+   review the complete phase again in a fresh session with the original and fix PR URLs. Repeat until
+   accepted.
 
 **Execute invocation** (the agent resolves the next packet; add a phase/slice if desired):
 

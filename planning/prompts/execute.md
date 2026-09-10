@@ -20,16 +20,19 @@ Execute the next authorized SKY-025 packet, or the phase/slice specified by Ali.
    packet before work. Completed slices need no independent review; preserve human merge and
    live/grant prerequisites. Never advance to the next numbered phase without phase acceptance.
 3. Confirm the session's model/effort matches the packet. Follow the directive's routing rules;
-   do not claim a model switch or silently substitute an unavailable model. Use at most two scoped
-   Luna workers where worthwhile, with the directive's worker packet and restrictions.
+   do not claim a model switch or silently substitute an unavailable model. Route the session on a
+   Light/Medium/Heavy route and delegate workers, capsules, ownership, batching, and verification
+   through [`../../docs/conventions/construction.md`](../../docs/conventions/construction.md). The
+   phase table's model is a recommendation for the Main session, not a second orchestration system.
 4. Implement only this 1–2h packet, including affected callers, tests, and current documentation.
    Follow its live boundaries and existing authorization. Downtime tolerance does not expand data,
    credential, or privilege authority. If the scope no longer fits, propose a bounded slice and
    record unfinished exits; do not quietly expand scope or declare the phase complete.
-5. Inspect worker changes and run the packet's meaningful checks. Report exact commands, results,
-   skipped/unavailable checks, and temporary breakage. Do not invent validation or weaken an exit
-   criterion. Resolve concrete defects within scope; escalate unresolved architecture/recovery
-   decisions according to the directive.
+5. Verify per the construction convention: in Light/Medium run the packet's meaningful checks
+   yourself; in Heavy evaluate the independent Tester's returned evidence against the exit criteria
+   rather than re-running its checks, and return ordinary defects to the owning Executor. Report exact
+   commands, results, skipped/unavailable checks, and temporary breakage. Do not invent validation or
+   weaken an exit criterion. Escalate unresolved architecture/recovery decisions according to the directive.
 6. Record close-out evidence as the directive requires. Record slice and full-phase status separately;
    do not increment accepted progress, accept your own phase, or flesh out dependent numbered phases.
    Mark a completed slice as phase-in-progress; review-pending applies only when all phase slices finish.

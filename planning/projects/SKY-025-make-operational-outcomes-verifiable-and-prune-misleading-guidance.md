@@ -71,35 +71,29 @@ CLI names are settled by the first working slice, not an elaborate upfront schem
 - Update a component's callers, tests, runbooks, and doctrine with its replacement. Current docs state
   implemented behavior only; evidence/history belongs in journal/git, future work in this directive.
 
-## 3. Phase-specific leads and Luna workers
+## 3. Main model recommendations
 
-**Execution lead:** use the model/effort in the phase table. **Merged-result review and next-phase
-planning:** a fresh session with the operator-selected model and effort for every phase.
-These are workload-based starting recommendations, not benchmark equivalences. Phase review may
-change the next recommendation from observed results; record the reason in that phase's work packet.
+Construction — Light/Medium/Heavy routes, worker roles, task capsules, ownership, batching,
+verification, and repair — follows [`../../docs/conventions/construction.md`](../../docs/conventions/construction.md).
+This directive adds only per-phase **Main model recommendations**, not a second orchestration system.
 
-Terra High is the default implementation lead. Sol Low handles the defined rendering/documentation
-passes. Astra Medium owns foundational design and consequential recovery/policy work. If a Terra/Sol
-phase exposes unresolved architecture, privilege, or recovery decisions, stop that decision and hand
-it to Astra Medium; do not spend repeated worker retries guessing. No automatic model router.
+**Main model:** use the model/effort in the phase table as a starting recommendation for the Main
+session; **merged-result review and next-phase planning** run in a fresh session with the
+operator-selected model and effort. These are workload-based starting recommendations, not benchmark
+equivalences. A phase review may change the next recommendation from observed results; record the
+reason in that phase's packet.
 
-**Workers: Luna**, native tooling, at most two active workers, one level deep. Luna Medium for
-inspection; Luna High for scoped implementation. These phase roles replace the old fixed Terra/Sol
-routing and the overhaul's Astra-only execution rule. Phase 1 aligns config, launcher and tests.
-Verify actual identifiers in the installed harness; never silently substitute. If unavailable,
-mark routing blocked and ask Ali to select an available identifier or update the harness.
+Terra High is the default Main. Sol Low handles the defined rendering/documentation passes. Astra
+Medium owns foundational design and consequential recovery/policy work. If a Terra/Sol phase exposes
+unresolved architecture, privilege, or recovery decisions, hand that decision to Astra Medium rather
+than spending repeated worker retries guessing. No automatic model router. Verify actual identifiers
+in the installed harness; never silently substitute — if unavailable, mark routing blocked and ask
+Ali to select an available identifier or update the harness.
 
-The execution lead owns decomposition, integration, verification and PRs within the approved packet.
-The reviewer owns independent acceptance and next-phase definition; Astra execution leads own
-cross-phase interfaces and unresolved recovery/policy decisions.
-Delegate bounded work proactively when worthwhile; do tiny jobs locally.
-Luna gets only: `Goal | allowed files | interface/inputs | acceptance checks | exclusions`.
-
-Workers do not redesign, spawn helpers, commit/push/merge, handle secrets, or touch production.
-Use non-overlapping files; separate worktrees only when concurrent edits need them. Return:
-`changed files | checks/results | unresolved issues`. The execution lead inspects the diff and
-reruns relevant checks; a worker's completion is not phase acceptance. No full-repo dumps or
-transcript handoffs; load this directive, current phase, and relevant files only.
+Workers gain no production authority, never touch secrets or production, and never commit/push/merge;
+keep non-overlapping ownership and human merge. Main owns decomposition, integration decisions, and
+PRs; in Heavy, independent verification is the Tester's, not Main's. Load this directive, the current
+phase, and relevant files only — no full-repo dumps or transcript handoffs.
 
 ## 4. Rolling plan and review gates
 
@@ -116,21 +110,21 @@ Retirement of an obsolete assertion needs an explicit recorded disposition, not 
 **Each numbered phase is 1–2 hours of implementation**, excluding waiting for merge. Split an oversized
 phase into lettered implementation slices before work. Slices may have separate PRs, but independent
 review and acceptance apply to the complete numbered phase, never to individual slices.
-The execution lead details remaining slices within that phase's scope; no intermediate reviewer
+Main details remaining slices within that phase's scope; no intermediate reviewer
 releases them. Existing human merge and live/grant boundaries still apply. The table is a route map,
 not permission to execute unspecified work. Section 5 holds the sole current executable packet.
 
 For every phase: implement → relevant checks → PR → Ali merges → review the actual merged result.
-A fresh reviewer, using the selected model and effort, reports **accept**, **fix before continuing**, or **blocked**. The reviewer
-may implement bounded repairs using Luna workers, verify the affected complete-phase exits, and
-accept the repaired phase in the same human-merged review PR without another review session.
-Unresolved defects get a separate bounded fix packet and merged-result review. Only after acceptance
+A fresh reviewer, using the selected model and effort, reports **accept**, **fix**, or **blocked**
+and never modifies the implementation. A fixable defect returns one paste-ready fix prompt to the
+original implementation session, which lands a bounded fix PR; a fresh reviewer then reviews the
+complete phase again, repeating until accept. Only after acceptance
 flesh out the next phase with exact files, interfaces, worker
-packets, commands/checks, grants if any, and exit criteria. Do not roll into dependent implementation
+capsules, commands/checks, grants if any, and exit criteria. Do not roll into dependent implementation
 just because a worker or CI says done. Ali can use the reusable review prompt in §8 in a fresh session.
 Architecture checkpoints **G1–G6** additionally reconsider the remaining roadmap and prune unnecessary work.
 
-| Phase | Execution lead | Bounded outcome / main surface | Depends on; exit evidence |
+| Phase | Recommended Main | Bounded outcome / main surface | Depends on; exit evidence |
 |---|---|---|---|
 | 1 | Astra Medium | Repo disposition, minimal Python doctrine, phase-specific lead/Luna routing, overlap decisions | Current main; complete surface map + checked agent config. **G1** |
 | 2 | Terra High | Installable Python CLI, Nix package/dev environment, test/lint/type-check CI | 1; packaged help + one command work in clean environment |
@@ -171,7 +165,7 @@ recommendation. The launcher dry-run resolves that exact model/effort.
 **Goal:** replace the existing Omada shell collector with validated Python observations and
 receipt-bound freshness. Split P7 into **P7a Omada**, **P7b certs/routes**, and **P7c recon**:
 three independent parser/transport boundaries do not fit one implementation packet. Only P7a
-is detailed here; the execution lead details each remaining same-phase slice after the preceding
+is detailed here; Main details each remaining same-phase slice after the preceding
 merge. One independent review covers all P7 slices before P8.
 
 **Exact surfaces:** new `src/skynet/omada.py`, `src/skynet/{cli,collection}.py`,
@@ -373,7 +367,9 @@ tracker or repeated copies of the plan. Implementation-complete/review-pending i
 
 Use the [phase handoff workflow](../prompts/README.md): two reusable prompts with standard GitHub
 PR bodies. Select the execution model from the current packet; use a fresh task with the selected model for
-merged-result review. The review/planning PR must be human-merged before its next or fix packet runs.
+merged-result review. An ACCEPT review/planning PR must be human-merged before its next packet runs;
+a FIX verdict returns a paste-ready fix prompt to the original implementation session, which lands a
+bounded fix PR reviewed afresh.
 
 **Start or continue in the packet's execution model:**
 ```text
