@@ -123,57 +123,44 @@ elif [ "${fail}" -eq "${before}" ]; then
   ok "operate token: no bright-line privilege anywhere; /vms-root only on declared node(s) [${vms_root_nodes[*]}]"
 fi
 
-# --- 6. Construction workers stay within their declared build-time leash ------------------------
-echo "== construction worker sandboxes match the declared build-time leash =="
+# --- 6. Construction uses the unprivileged account without approval prompts ---------------------
+echo "== construction permission posture is inherited, prompt-free, and production-neutral =="
 before=${fail}
-forbidden_sandbox="$(jq -r '.construction.forbidden_sandbox_mode' "${INV}")"
 config_file="$(jq -r '.construction.project_config' "${INV}")"
-project_sandbox="$(jq -r '.construction.project_sandbox_mode' "${INV}")"
-# The construction SESSION sandbox in .codex/config.toml is the real filesystem leash: Codex 0.153.4
-# gives a spawned worker the spawning session's permission profile (a role file's sandbox_mode is not
-# applied per child), so this must pin the declared boundary and NEVER danger-full-access — that is what
-# stops a worker inheriting danger-full-access from the user-level default. No workflow concurrency cap:
-# codex's own default applies, so the config must NOT pin one (docs/conventions/construction.md).
+home_config="$(jq -r '.construction.home_config' "${INV}")"
 if [ ! -r "${config_file}" ]; then
   violation "${config_file} is missing — the construction config must exist"
 else
   if grep -qE '^[[:space:]]*max_concurrent_threads_per_session[[:space:]]*=' "${config_file}"; then
     violation "${config_file} pins max_concurrent_threads_per_session — construction follows the no-workflow-quota model; remove it"
   fi
-  config_sandbox="$(grep -E '^[[:space:]]*sandbox_mode[[:space:]]*=' "${config_file}" | sed -nE 's/^[[:space:]]*sandbox_mode[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' | head -n 1)"
-  if [ -z "${config_sandbox}" ]; then
-    violation "${config_file} declares no sandbox_mode — the construction session boundary must pin \"${project_sandbox}\""
-  elif [ "${config_sandbox}" = "${forbidden_sandbox}" ]; then
-    violation "${config_file} sets sandbox_mode = \"${forbidden_sandbox}\" — a construction session must never run danger-full-access (workers inherit it)"
-  elif [ "${config_sandbox}" != "${project_sandbox}" ]; then
-    violation "${config_file} sets sandbox_mode = \"${config_sandbox}\" — expected \"${project_sandbox}\" from invariants.json"
+  if grep -qE '^[[:space:]]*(approval_policy|sandbox_mode)[[:space:]]*=|^[[:space:]]*\[sandbox_workspace_write\]' "${config_file}"; then
+    violation "${config_file} overrides inherited approval/sandbox settings — Home Manager owns the no-prompt account boundary"
   fi
 fi
 
-while IFS=$'\t' read -r role expected_sandbox; do
+if [ ! -r "${home_config}" ]; then
+  violation "${home_config} is missing — Home Manager must own Codex permissions"
+else
+  grep -q 'approval_policy = "never";' "${home_config}" \
+    || violation "${home_config} must set Codex approval_policy = \"never\""
+  grep -q 'sandbox_mode = "danger-full-access";' "${home_config}" \
+    || violation "${home_config} must set Codex sandbox_mode = \"danger-full-access\""
+  [ "$(grep -c 'decision = "forbidden",' "${home_config}")" -eq 3 ] \
+    || violation "${home_config} must hard-block exactly gh pr merge and both grant-root spellings"
+fi
+
+while IFS= read -r role; do
   agent_file=".codex/agents/${role}.toml"
   if [ ! -r "${agent_file}" ]; then
-    violation "${role}: ${agent_file} is missing — declare sandbox_mode = \"${expected_sandbox}\""
+    violation "${role}: ${agent_file} is missing"
     continue
   fi
-  sandbox_line="$(grep -E '^[[:space:]]*sandbox_mode[[:space:]]*=' "${agent_file}" || true)"
-  found_sandbox="$(printf '%s\n' "${sandbox_line}" | sed -nE 's/^[[:space:]]*sandbox_mode[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' | head -n 1)"
-  if [ -z "${found_sandbox}" ]; then
-    violation "${role}: ${agent_file} has no sandbox_mode declaration — expected \"${expected_sandbox}\""
-  elif [ "${found_sandbox}" != "${expected_sandbox}" ]; then
-    violation "${role}: ${agent_file} declares sandbox_mode = \"${found_sandbox}\" — expected \"${expected_sandbox}\" from invariants.json"
+  if grep -qE '^[[:space:]]*sandbox_mode[[:space:]]*=' "${agent_file}"; then
+    violation "${role}: ${agent_file} overrides the inherited aliammar session posture"
   fi
-done < <(jq -r '.construction.agents[] | "\(.role)\t\(.sandbox_mode)"' "${INV}")
-
-for agent_file in .codex/agents/*.toml; do
-  [ -e "${agent_file}" ] || continue
-  sandbox_line="$(grep -E '^[[:space:]]*sandbox_mode[[:space:]]*=' "${agent_file}" || true)"
-  found_sandbox="$(printf '%s\n' "${sandbox_line}" | sed -nE 's/^[[:space:]]*sandbox_mode[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' | head -n 1)"
-  if [ "${found_sandbox}" = "${forbidden_sandbox}" ]; then
-    violation "${agent_file} declares forbidden sandbox_mode = \"${forbidden_sandbox}\" — a construction helper must never receive danger-full-access"
-  fi
-done
-[ "${fail}" -eq "${before}" ] && ok "construction session sandbox is ${project_sandbox} (never ${forbidden_sandbox}); no concurrency cap pinned; declared worker sandboxes match; no role file has forbidden ${forbidden_sandbox}"
+done < <(jq -r '.construction.agents[].role' "${INV}")
+[ "${fail}" -eq "${before}" ] && ok "Home Manager owns never/danger-full-access; project and roles inherit; merge/root are forbidden; no concurrency cap is pinned"
 
 echo
 if [ "${fail}" -ne 0 ]; then

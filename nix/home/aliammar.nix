@@ -92,39 +92,35 @@ in
     enable = true;
     package = codexPkgs.codex;
     enableMcpIntegration = true;
-    # Match Claude's acceptEdits + Bash allow posture: the aliammar OS account is the security wall,
-    # so the interactive lead may read/write/run anything that account can. This also keeps Nix,
-    # normal git work, branch pushes, and `gh pr create` prompt-free. The two real checkpoints live
-    # in skynet.rules below. This is the user-level default; INSIDE the Skynet repo the project
-    # layer (skynet/.codex/config.toml) overrides it with sandbox_mode = "workspace-write", which is
-    # the construction boundary: Codex 0.153.4 gives a spawned native worker the SPAWNING SESSION's
-    # permission profile (a role file's own sandbox_mode is not applied per child), so construction
-    # workers inherit that project workspace-write ceiling, never this danger-full-access default.
+    # The unprivileged aliammar account is Codex's filesystem/OS construction boundary. Main and
+    # native workers may use every ordinary capability of that account without approval prompts;
+    # Skynet production authority remains governed separately by its tiers and credentials. The
+    # exec-policy below hard-blocks the two operations Codex must never perform for itself.
     settings = {
       model = "gpt-5.6-sol";
       model_reasoning_effort = "medium";
-      approval_policy = "on-request";
+      approval_policy = "never";
       sandbox_mode = "danger-full-access";
       projects."/home/aliammar/skynet".trust_level = "trusted";
     };
     # Use a named managed rule file instead of default.rules: Codex owns the latter when Ali accepts
     # a remembered command interactively, and Home Manager must not collide with that local file.
-    # Rule precedence is restrictive, so these prompts override any remembered allow rule.
+    # Rule precedence is restrictive, so these blocks override any remembered allow rule.
     rules.skynet = ''
       prefix_rule(
         pattern = ["gh", "pr", "merge"],
-        decision = "prompt",
-        justification = "Authored pull requests require an explicit human merge decision",
+        decision = "forbidden",
+        justification = "Authored pull requests are merged by a human, never Codex",
       )
       prefix_rule(
         pattern = ["bin/grant-root"],
-        decision = "prompt",
-        justification = "Root access requires an explicit time-bounded grant",
+        decision = "forbidden",
+        justification = "Codex cannot grant itself root; Ali issues time-bounded grants",
       )
       prefix_rule(
         pattern = ["./bin/grant-root"],
-        decision = "prompt",
-        justification = "Root access requires an explicit time-bounded grant",
+        decision = "forbidden",
+        justification = "Codex cannot grant itself root; Ali issues time-bounded grants",
       )
     '';
   };

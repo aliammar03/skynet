@@ -169,15 +169,15 @@ deployment unless explicitly changed.
 
 ### D · Donor roles and defaults — CHOSEN
 
-| Role | Model | Effort | Declared sandbox | Quantity |
+| Role | Model | Effort | Filesystem/OS boundary | Quantity |
 |---|---|---|---|---:|
-| Main | session-selected | task-selected | invoking session | 1 |
-| Companion | `gpt-5.6-luna` | xhigh | read-only | exactly 1 persistent per deployment |
-| Investigator | `gpt-5.6-luna` | xhigh | read-only | as needed |
-| Default Executor | `gpt-5.6-luna` | max | workspace-write | as needed |
-| Senior Executor | `gpt-5.6-sol` | medium | workspace-write | max 1 |
-| Tester | `gpt-5.6-luna` | xhigh | workspace-write | as needed |
-| Archivist | `gpt-5.6-luna` | xhigh | workspace-write | one at substantive closure, plus explicit doc assignments |
+| Main | session-selected | task-selected | `aliammar` account | 1 |
+| Companion | `gpt-5.6-luna` | xhigh | `aliammar`; read-only ownership | exactly 1 persistent per deployment |
+| Investigator | `gpt-5.6-luna` | xhigh | `aliammar`; read-only ownership | as needed |
+| Default Executor | `gpt-5.6-luna` | max | `aliammar` account | as needed |
+| Senior Executor | `gpt-5.6-sol` | medium | `aliammar` account | max 1 |
+| Tester | `gpt-5.6-luna` | xhigh | `aliammar` account | as needed |
+| Archivist | `gpt-5.6-luna` | xhigh | `aliammar` account | one at substantive closure, plus explicit doc assignments |
 
 Source TOML wins if prose disagrees. Verify exact identifiers/efforts against the installed harness;
 do not silently substitute.
@@ -260,9 +260,11 @@ evidence-free worker response gets one focused retry; a second gets replacement 
 
 ### K · Construction authority remains separate from production authority — CHOSEN
 
-Worker role or filesystem sandbox grants zero production authority. No production credential, root
-grant, T2/T3 permission or implicit live-infrastructure authority reaches a worker merely because it
-can edit a workspace. Human merge remains required for authored work.
+The unprivileged `aliammar` account is the filesystem/OS construction boundary. Main and workers may
+use its ordinary capabilities without interactive approval, but role/model still grants zero production
+authority. No production credential, root grant, T2/T3 permission, or implicit live-infrastructure
+authority reaches a worker. `gh pr merge` and both repository `grant-root` spellings are forbidden;
+human merge remains required for authored work.
 
 ### L · Fresh review stays outside the implementation swarm — CHOSEN
 
@@ -354,15 +356,15 @@ instructions were reduced and SKY-022 current-language migration began.
 
 Accepted foundation: six native roles exist; legacy Scout/Mechanic/Builder roles and false standalone
 launcher semantics are gone; no workflow-owned thread cap remains; model/effort resolution was tested;
-construction session filesystem reach is bounded by project `workspace-write`, while production
-authority remains zero.
+construction sessions inherit the unprivileged `aliammar` account without approval prompts, while
+production authority remains zero and self-merge/self-root are forbidden.
 
 ### Phase 3 · Wire Heavy orchestration, capsules, batching and repair  `[x]` done
 
 Accepted foundation: a real Heavy deployment proved one persistent Companion, batched context intake,
 Executor ownership, independent Tester verification, same-Executor repair, same-Tester recheck,
-delta-only follow-up and no child orchestration. The accepted follow-up also removed operator prompt
-churn from ordinary repo/TMP-only mutation verification without weakening root/merge checkpoints.
+delta-only follow-up and no child orchestration. Canonical repository tests and disposable fixtures
+remain the preferred verification style.
 
 ### Phase 4 · Port `agent_docs`, Archivist closure and token accounting  `[x]` done — 2026-09-10
 **Recommended Main:** Astra Medium with Companion + Archivist; use Heavy only for implementation packages that genuinely decompose.
@@ -659,11 +661,10 @@ Phase 5:
 ## 10. Status
 
 - P1 accepted: donor orchestration doctrine transplanted and SKY-022 current semantics began retirement.
-- P2 accepted after fixes: six native roles, native spawning, project workspace-write construction leash,
-  no legacy launcher semantics, no workflow-owned concurrency cap.
+- P2 accepted after fixes: six native roles, native spawning, unprivileged `aliammar` construction
+  boundary, no legacy launcher semantics, no workflow-owned concurrency cap.
 - P3 accepted: real Heavy route proved batched intake, persistent Companion, Executor ownership,
-  independent Tester, owner repair and same-Tester recheck. Accepted follow-up removed permission churn
-  for ordinary repo/TMP-only verification without weakening root/merge checkpoints.
+  independent Tester, owner repair and same-Tester recheck.
 - 2026-09-10 continuity decision changed before P4: port donor `agent_docs/` deliberately as **canonical
   agent memory derived from higher-authority Skynet truth**, then use P4/P5 dogfood to retire redundant
   continuity surfaces rather than maintaining parallel handoff systems forever.

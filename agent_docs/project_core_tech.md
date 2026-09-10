@@ -49,6 +49,7 @@ the internal/public service path.
 - Production OpenTofu uses a single-scope saved plan and the wrapper; bare re-planning apply,
   delete/replace, and unauthorized targets are refused. OPNsense's approved T2 config path is not
   yet implemented; self-leash changes remain T3 and human-merged.
-- Generated inventory and documentation are machine-owned. Authored changes use a PR and normal
-  human merge; construction role, model, language, and workspace sandbox do not confer production
-  authority.
+- Generated inventory and documentation are machine-owned. Construction runs as the unprivileged
+  `aliammar` Unix account and ordinary native construction inherits the no-prompt posture within
+  that filesystem/OS boundary. Roles, models, and language grant zero production authority; self-root
+  and self-merge remain forbidden.

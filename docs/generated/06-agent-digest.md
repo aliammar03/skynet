@@ -41,25 +41,25 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 **Explicit durable follow-ups:**
 
+- The current installed Home Manager generation still reports `approval OnRequest`; the authored target must be human-merged and activated through the normal declarative path before the live user configuration changes. — _2026-09-10 session_
+- After activation, run one fresh native-child smoke test, then continue SKY-026 Phase 5. — _2026-09-10 session_
+- After activation, directly write and remove harmless probes in `.agents/` and `.codex/`; the current pre-merge session could verify their configuration contracts but not their live writes. — _2026-09-10 session_
 - Ali must review and merge authored PR #250. Then execute SKY-026 Phase 5; no Phase-5 work occurred. — _2026-09-10 session_
 - Open the bounded P7 fix PR, then await human merge and a fresh review of the complete P7 merged result. Accepted progress remains 6/24. — _2026-09-10 session_
 - P7c must be human-merged, then a fresh review covers P7a #235, P7b #236 and this P7c PR. Accepted progress remains 6/24 until that reviewer accepts the complete numbered phase. — _2026-09-09 session_
 - P7b must be human-merged before the lead details P7c recon. P7 remains unaccepted at 6/24; P7c and the independent merged-result review are still required. — _2026-09-09 session_
 - P7b certificate probes and static Caddy route parsing remain the next same-phase slice after this authored PR is human-merged; P7c recon then follows. P7 has no independent acceptance until every slice is merged and reviewed together. — _2026-09-09 session_
-- Live Omada authentication/read, production inventory replacement, timer/service activation, credential/pin change and recovery checks remain unperformed. — _2026-09-09 session_
-- **P7a Omada (Terra High) is the sole released executable packet** (directive §5); P7b certs/routes and P7c recon are same-phase continuations, and one fresh review covers all P7 before P8. — _2026-09-09 session_
-- **Accepted SKY-025 progress is 6/24**; P7 has not started — never advance a numbered phase without its independent acceptance. — _2026-09-09 session_
 - _5 historical episode(s) have unclassified follow-ups; status unknown, not promoted as current work._
 
 ## 📓 Recent episodes
 
+- **2026-09-10** · session · [[2026-09-10-session-sky-026-permission-ergonomics-fix|SKY-026 permission ergonomics fix]]
 - **2026-09-10** · session · [[2026-09-10-session-sky-026-phase-4-continuity-and-token-accounting|SKY-026 Phase 4 continuity and token accounting]]
 - **2026-09-10** · session · [[2026-09-10-session-sky-026-phase-3-disposable-verification-permission-follow-up|SKY-026 Phase 3 disposable verification permission follow-up]]
 - **2026-09-10** · session · [[2026-09-10-session-sky-026-phase-3-heavy-orchestration-dogfood|SKY-026 Phase 3 Heavy orchestration dogfood]]
 - **2026-09-10** · session · [[2026-09-10-session-sky-026-p2-fix2-construction-session-sandbox-boundary|SKY-026 P2-fix2 construction session sandbox boundary]]
 - **2026-09-10** · session · [[2026-09-10-session-sky-026-p2-fix-native-runtime-evidence-and-bin-agent-removal|SKY-026 P2-fix native-runtime evidence and bin/agent removal]]
 - **2026-09-10** · session · [[2026-09-10-session-sky-026-p1-fix-remove-surviving-sky-022-construction-authority|SKY-026 P1 fix — remove surviving SKY-022 construction authority]]
-- **2026-09-10** · session · [[2026-09-10-session-sky-026-p2-replace-worker-roles-and-codex-configuration|SKY-026 P2 replace worker roles and Codex configuration]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._

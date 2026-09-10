@@ -14,17 +14,18 @@ and each capability earns autonomy through recorded verification and rollback ev
   lifecycle are established.
 - Several infrastructure and engine directives remain active; [`planning/README.md`](../planning/README.md)
   is the generated roadmap for their exact state.
-- SKY-026 is in progress. Phases 1–3 established Main-directed routes, native specialist roles,
-  batching, repair ownership, and independent verification. Phase 4 adds compact agent memory,
-  Archivist closure, and recorded token accounting.
+- SKY-026 is in progress. Phases 1–4 established Main-directed routes, native specialist roles,
+  batching, repair ownership, independent verification, compact agent memory, Archivist closure,
+  and recorded token accounting.
 
 ## Current Position
 
-SKY-026 Phase 4 is implemented on PR #250 and awaiting human review/merge. The six-file memory model,
-authority/ownership split, cold-start evidence, closure shapes, and reporter gates are included; no
-production authority or live host was used.
+SKY-026 Phase 4 is accepted. A bounded follow-up changes Codex construction permissions so ordinary
+work inherits the unprivileged `aliammar` account's authority without approval prompts, while
+self-merge and self-root remain hard-blocked. No production authority or live host is involved.
 
 ## Next Milestone
 
-After PR #250 is human-merged, execute SKY-026 Phase 5 to dogfood the full system, decide which legacy
-continuity artifacts have unique value, and remove every remaining current SKY-022 dependency.
+After the permission follow-up is human-merged and its Home Manager generation is activated, execute
+SKY-026 Phase 5 to dogfood the full system, decide which legacy continuity artifacts have unique
+value, and remove every remaining current SKY-022 dependency.
