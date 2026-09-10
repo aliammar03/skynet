@@ -1,8 +1,25 @@
-# Codex project config — construction delegation only.
+# Codex project config — the construction-session permission boundary + delegation notes.
 # The canonical contract is docs/conventions/construction.md. The six worker roles live in
 # .codex/agents/*.toml (companion, investigator, default_executor, senior_executor, tester, archivist),
-# each pinning its own model/effort/sandbox. This file grants no production authority.
-#
+# each pinning its own model/effort/instructions. This file grants no production authority.
+
+# THE construction permission boundary. This project layer overrides the user-level config
+# (~/.codex/config.toml, which sets danger-full-access for the interactive lead) — Codex config
+# precedence is: project .codex/config.toml > user config (codex-rs/config/src/loader/README.md).
+# It matters because Codex 0.153.4 does NOT apply a role file's sandbox_mode to a spawned child and
+# has no per-spawn sandbox argument: a native worker inherits the SPAWNING SESSION's permission
+# profile as its ceiling (core/src/agent/role.rs + tools/handlers/multi_agents_common.rs). So the
+# session-level sandbox here is the real filesystem leash for every construction worker, and it must
+# not be danger-full-access. workspace-write confines writes to the repo working tree + $TMPDIR/tmp;
+# network stays on so Main/workers can do git, gh, and research. Filesystem reach beyond the workspace
+# is an escalation that goes through the normal approval/trust path (approval_policy from the user
+# config still applies) — it is NOT granted wholesale here. Production authority (T2/T3/live ops,
+# secrets, root) is governed entirely by docs/system-design.md and never rides on this sandbox.
+sandbox_mode = "workspace-write"
+
+[sandbox_workspace_write]
+network_access = true
+
 # Concurrency is NOT capped here. Fan-out is bounded by platform capacity and task judgement, with only
 # the semantic limits in the doctrine (one persistent Companion, at most one Senior Executor,
 # non-overlapping mutable ownership, no worker-spawns-worker). Codex's own

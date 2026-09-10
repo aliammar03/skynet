@@ -91,6 +91,18 @@ while IFS=$'\t' read -r role expected_sandbox; do
     "$(sandbox_of ".codex/agents/${role}.toml")" "${expected_sandbox}"
 done < <(jq -r '.construction.agents[] | "\(.role)\t\(.sandbox_mode)"' invariants.json)
 
+echo "== the construction session sandbox is the real leash: workspace-write, never danger-full-access =="
+# Codex 0.153.4 gives a spawned worker the spawning session's permission profile (a role file's
+# sandbox_mode is not applied per child), so the enforceable boundary is this session sandbox. It must
+# pin the declared value and never danger-full-access — that is what keeps a worker off danger-full-access.
+project_config="$(jq -r '.construction.project_config' invariants.json)"
+project_sandbox="$(jq -r '.construction.project_sandbox_mode' invariants.json)"
+config_sandbox="$(sandbox_of "${project_config}")"
+eq "${project_config} pins the declared construction session sandbox" "${config_sandbox}" "${project_sandbox}"
+[ "${config_sandbox}" != "danger-full-access" ] \
+  && ok "${project_config} is not danger-full-access" \
+  || bad "${project_config} runs danger-full-access — workers would inherit it"
+
 echo "== no workflow concurrency cap is pinned =="
 grep -qE '^[[:space:]]*max_concurrent_threads_per_session[[:space:]]*=' .codex/config.toml \
   && bad ".codex/config.toml pins a concurrency cap — the no-workflow-quota model is in effect" \
@@ -104,6 +116,12 @@ printf '\nmax_concurrent_threads_per_session = 2\n' >> "${TMP}/config.toml"
 grep -qE '^[[:space:]]*max_concurrent_threads_per_session[[:space:]]*=' "${TMP}/config.toml" \
   && ok "a reintroduced max_concurrent_threads_per_session is detectable" \
   || bad "a reintroduced concurrency cap went undetected"
+# A danger-full-access construction session config is detectable by the same rule the gate uses.
+cp .codex/config.toml "${TMP}/config-dfa.toml"
+sed -i -E 's/^[[:space:]]*sandbox_mode[[:space:]]*=.*/sandbox_mode = "danger-full-access"/' "${TMP}/config-dfa.toml"
+[ "$(sandbox_of "${TMP}/config-dfa.toml")" = "danger-full-access" ] \
+  && ok "a danger-full-access construction session config is detectable" \
+  || bad "a danger-full-access construction session config went undetected"
 # A drifted sandbox in a copy no longer matches the declared value.
 cp .codex/agents/tester.toml "${TMP}/tester.toml"
 sed -i -E 's/^[[:space:]]*sandbox_mode[[:space:]]*=.*/sandbox_mode = "danger-full-access"/' "${TMP}/tester.toml"
