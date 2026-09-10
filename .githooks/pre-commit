@@ -6,8 +6,8 @@
 #                          matches inventory, and plaintext secrets are rejected.
 #   3. entity-test       — VMID/IP derivation and entity-ID grammar hold against the known-good set.
 #   4. digest-test       — resolved historical threads stay out of the cold-boot digest.
-#   5. construction-test — construction limits and helper sandboxes match invariants.json.
-#   6. agent-test        — bin/agent resolves every role to its declared tier/model/effort/sandbox.
+#   5. construction-test — the six construction worker sandboxes match invariants.json; no cap is pinned.
+#   6. agent-test        — bin/agent resolves every role to its TOML model/effort/sandbox.
 #   7. gitignore-test    — the disposable .agent/ checkpoint directory stays ignored.
 #   8. rollback/provisioning regressions — current executor, snapshot, certificate-selection, and
 #      declared-guest truth stays covered locally as well as in CI.
