@@ -30,6 +30,7 @@ follow a link for the full story; distill episodes at read time, never in this f
 - **SKY-023** (projects · in-progress · 10/10) — Eliminate documentation drift and shrink operational context
 - **SKY-024** (projects · in-progress · 4/6) — tofu declares managed core guests — API-driven CT/VM lifecycle, no node SSH
 - **SKY-025** (projects · in-progress · 6/24) — Rebuild the Skynet engine in Python
+- **SKY-026** (projects · in-progress · 4/5) — Overhaul agent orchestration around a Main-directed worker swarm
 - **SKY-002** (ideas · draft) — Ongoing backup strategy for CT 240 (PBS host)
 - **SKY-004** (ideas · draft) — Reactive operations: event-driven layer + drift-as-signal
 - **SKY-012** (ideas · draft) — Runbooks as executable capabilities
@@ -40,6 +41,7 @@ follow a link for the full story; distill episodes at read time, never in this f
 
 **Explicit durable follow-ups:**
 
+- Ali must review and merge authored PR #250. Then execute SKY-026 Phase 5; no Phase-5 work occurred. — _2026-09-10 session_
 - Open the bounded P7 fix PR, then await human merge and a fresh review of the complete P7 merged result. Accepted progress remains 6/24. — _2026-09-10 session_
 - P7c must be human-merged, then a fresh review covers P7a #235, P7b #236 and this P7c PR. Accepted progress remains 6/24 until that reviewer accepts the complete numbered phase. — _2026-09-09 session_
 - P7b must be human-merged before the lead details P7c recon. P7 remains unaccepted at 6/24; P7c and the independent merged-result review are still required. — _2026-09-09 session_
@@ -47,17 +49,17 @@ follow a link for the full story; distill episodes at read time, never in this f
 - Live Omada authentication/read, production inventory replacement, timer/service activation, credential/pin change and recovery checks remain unperformed. — _2026-09-09 session_
 - **P7a Omada (Terra High) is the sole released executable packet** (directive §5); P7b certs/routes and P7c recon are same-phase continuations, and one fresh review covers all P7 before P8. — _2026-09-09 session_
 - **Accepted SKY-025 progress is 6/24**; P7 has not started — never advance a numbered phase without its independent acceptance. — _2026-09-09 session_
-- **Offline `config.xml` firewall inventory parsing is retired** (P6c): the live OPNsense API (`src/skynet/opnsense.py`) is the sole firewall inventory source, and the `config.xml` git backup is DR-only — restored as configuration into OPNsense, never parsed into inventory. — _2026-09-09 session_
+- _5 historical episode(s) have unclassified follow-ups; status unknown, not promoted as current work._
 
 ## 📓 Recent episodes
 
-- **2026-09-10** · session · [[2026-09-10-session-sky-025-p7-route-and-recon-review-fixes|SKY-025 P7 route and recon review fixes]]
-- **2026-09-09** · incident · [[2026-09-09-incident-sky-025-p7c-shell-only-unavailable-path|SKY-025 P7c shell-only unavailable path]]
-- **2026-09-09** · session · [[2026-09-09-session-sky-025-p7c-bounded-python-reconnaissance|SKY-025 P7c bounded Python reconnaissance]]
-- **2026-09-09** · session · [[2026-09-09-session-sky-025-p7b-certificate-and-static-route-observations|SKY-025 P7b certificate and static route observations]]
-- **2026-09-09** · session · [[2026-09-09-session-sky-025-p7a-omada-python-collection|SKY-025 P7a Omada Python collection]]
-- **2026-09-09** · session · [[2026-09-09-session-sky-025-p6c-digest-supersede-stale-await-merge-follow-up|sky-025 p6c digest supersede stale await-merge follow-up]]
-- **2026-09-09** · session · [[2026-09-09-session-sky-025-p6c-review-fix-regenerate-stale-agent-and-planning-context|sky-025 p6c review-fix regenerate stale agent and planning context]]
+- **2026-09-10** · session · [[2026-09-10-session-sky-026-phase-4-continuity-and-token-accounting|SKY-026 Phase 4 continuity and token accounting]]
+- **2026-09-10** · session · [[2026-09-10-session-sky-026-phase-3-disposable-verification-permission-follow-up|SKY-026 Phase 3 disposable verification permission follow-up]]
+- **2026-09-10** · session · [[2026-09-10-session-sky-026-phase-3-heavy-orchestration-dogfood|SKY-026 Phase 3 Heavy orchestration dogfood]]
+- **2026-09-10** · session · [[2026-09-10-session-sky-026-p2-fix2-construction-session-sandbox-boundary|SKY-026 P2-fix2 construction session sandbox boundary]]
+- **2026-09-10** · session · [[2026-09-10-session-sky-026-p2-fix-native-runtime-evidence-and-bin-agent-removal|SKY-026 P2-fix native-runtime evidence and bin/agent removal]]
+- **2026-09-10** · session · [[2026-09-10-session-sky-026-p1-fix-remove-surviving-sky-022-construction-authority|SKY-026 P1 fix — remove surviving SKY-022 construction authority]]
+- **2026-09-10** · session · [[2026-09-10-session-sky-026-p2-replace-worker-roles-and-codex-configuration|SKY-026 P2 replace worker roles and Codex configuration]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · what to load + its cost: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._

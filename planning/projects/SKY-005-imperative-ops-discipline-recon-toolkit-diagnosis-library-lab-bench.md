@@ -14,7 +14,6 @@ related:
   - docs/design/access-and-trust.md
   - planning/scratchpad/2026-08-17-declarative-future-and-agent-cognition.md
   - "[[skynet-service-standard]]"
-  - "[[SKY-005-progress]]"
 ---
 
 # SKY-005 · Imperative ops discipline: recon toolkit, diagnosis library, lab bench
@@ -82,7 +81,7 @@ would reveal more — never requires a grant) + `runbooks/recon.md` (start-here 
 
 ### Phase 2 — diagnosis library  (~1–2h)   `[x]` done (2026-08-20)
 Triage runbooks for the top failure classes, each embedding diagnostic commands + decision branches
-and ending in an incident record for the journal ([[SKY-006-progress]]). Exit: ≥4 failure classes
+and ending in an incident record in `journal/`. Exit: ≥4 failure classes
 have a triage runbook.
 **Shipped:** `runbooks/diagnose/` — **6** triage runbooks (container-crashloop, disk-full, dns-failure,
 cert-expired, backup-missed, arcane-stuck), each with confirm → diagnose (commands + decision-branch
@@ -110,13 +109,14 @@ steps. When the phase's exit criteria are met, do the "Phase close-out" at the b
 
 ## 5. Phase close-out (resume material)
 - [ ] Land the work via **PR** (agent never merges its own).
-- [ ] Write/refresh a memory `SKY-005-progress` (what shipped, what's next, gotchas) + a MEMORY.md pointer.
+- [ ] Main refreshes the three state-memory files in `agent_docs/` after acceptance.
+- [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:
 ```
 Continue planning/projects/SKY-005-imperative-ops-discipline-recon-toolkit-diagnosis-library-lab-bench.md at Phase <N+1>.
-Prereqs carried from the last phase: <…>. Resume context from memory [[SKY-005-progress]].
+Prereqs carried from the last phase: <…>. Read the directive and its linked journal evidence.
 Follow AGENTS.md as above.
 ```
 

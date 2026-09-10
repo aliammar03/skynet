@@ -151,6 +151,9 @@ edit compose/<svc>/ → branch → PR → Ali merges
   (session / incident / decision) when a run happens, something breaks, or a non-trivial choice is
   made — `bin/new journal <kind> "<title>"`. **Write raw, summarize only at read time**; entries
   are append-only. A cold agent greps it to learn what was already tried (and abandoned).
+- **Substantive Medium/Heavy intake** starts with the six compact files in [`agent_docs/`](agent_docs/)
+  plus the active directive before broad exploration. They are derived agent memory: the constitution,
+  runtime/configuration, current operational docs, active directive, and accepted evidence win conflicts.
 - **Cold boot?** Read [`06-agent-digest.md`](docs/generated/06-agent-digest.md) first — the
   read-time view (recent **decisions** you shouldn't relitigate, **open threads**, recent
   **episodes**) — then [`07-context-map.md`](docs/generated/07-context-map.md) for *what else is

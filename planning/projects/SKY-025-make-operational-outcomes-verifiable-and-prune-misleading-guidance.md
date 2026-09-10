@@ -13,7 +13,6 @@ related:
   - AGENTS.md
   - docs/conventions/construction.md
   - planning/README.md
-  - "[[SKY-025-progress]]"
 ---
 
 # SKY-025 · Rebuild the Skynet engine in Python
@@ -359,9 +358,9 @@ automatic in hook and CI; a cold operator can diagnose and recover from git + su
 An unperformed destructive/full-core drill stays explicitly unverified, not silently waived as passed.
 
 **Close each phase:** PR with result/checks/limitations → Ali merge → independent review → update this
-file (`current_phase` = accepted phases, date/status), map and roadmap; journal raw evidence. Keep
-`SKY-025-progress` as a compact pointer when memory is available, never required to resume. No extra
-tracker or repeated copies of the plan. Implementation-complete/review-pending is not accepted/done.
+file (`current_phase` = accepted phases, date/status), map and roadmap; journal raw evidence. The
+directive is the sole progress record—no extra tracker or repeated copy of the plan.
+Implementation-complete/review-pending is not accepted/done.
 
 ## 8. Execute / review / continue prompts
 

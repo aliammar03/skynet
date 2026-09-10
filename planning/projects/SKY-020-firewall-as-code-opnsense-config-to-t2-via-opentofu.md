@@ -13,7 +13,6 @@ related:
   - docs/decisions/0006-opnsense-read-is-t1-write-stays-t3.md
   - planning/projects/SKY-018-eight-layer-reconciliation-entity-spine-the-analyze-phase-and-the-verification-toolchain.md
   - "[[opnsense-readonly-and-gitbackup]]"
-  - "[[SKY-020-progress]]"
 ---
 
 # SKY-020 · Firewall-as-code — OPNsense config to T2 via OpenTofu
@@ -119,13 +118,14 @@ criteria are met, do the "Phase close-out" below.
 
 ## 5. Phase close-out (resume material)
 - [ ] Land the work via **PR** (agent never merges its own).
-- [ ] Write/refresh a memory `SKY-020-progress` (what shipped, what's next, gotchas) + a MEMORY.md pointer.
+- [ ] Main refreshes the three state-memory files in `agent_docs/` after acceptance.
+- [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:
 ```
 Continue planning/projects/SKY-020-firewall-as-code-opnsense-config-to-t2-via-opentofu.md at Phase <N+1>.
-Prereqs carried from the last phase: <…>. Resume context from memory [[SKY-020-progress]].
+Prereqs carried from the last phase: <…>. Read the directive and its linked journal evidence.
 Follow AGENTS.md as above.
 ```
 

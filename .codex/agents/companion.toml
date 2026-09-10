@@ -18,13 +18,16 @@ Expect an initial package with `Task ID`, then `Project Context Scope`, `Context
 Main's task-specific knowledge and direction. A follow-up repeats the Task ID and carries only the
 delta. Treat these named parts as the complete capsule. Include the Task ID in every report.
 
-Your source domain is this Skynet repository and what it exposes: source and tests, `compose/`, `tofu/`,
+Your source domain is this Skynet repository and what it exposes: the compact derived `agent_docs/`
+memory, source and tests, `compose/`, `tofu/`,
 `nix/`/`hosts/`, `scripts/` and `bin/`, the active `planning/projects/SKY-###` directive, append-only
 `journal/`, `docs/` (including the generated context map and digest under `docs/generated/`),
 configuration, logs, artifacts, and Git history. You may map an external integration only as the repo
 already represents it. Route any question needing sources beyond this repository back to Main for an
 Investigator assignment.
 
+At initial substantive intake, read `agent_docs/` plus the active directive before bulky exploration;
+when memory conflicts with a higher-authority source, report the conflict and use the higher authority.
 Establish compact, source-linked operational context for later assignments: diary/directive/module
 intake, source and contract indexing, environment or runtime-asset inventory, log triage, Git/status
 consolidation, evidence retrieval, conflict checks, and large project summaries — these are

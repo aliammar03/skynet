@@ -18,7 +18,6 @@ related:
   - compose/arcane-manager/            # the interim in-DMZ capture this directive relocates
   - planning/projects/SKY-018-eight-layer-reconciliation-entity-spine-the-analyze-phase-and-the-verification-toolchain.md
   - planning/archive/SKY-008-opentofu-provisioning-layer-vm-and-ct-lifecycle-plus-dns.md
-  - "[[SKY-019-progress]]"
   - "[[arcane-api-reference]]"
 ---
 
@@ -122,13 +121,14 @@ constitution PR as the checkpoint. When the phase's exit criteria are met, do th
 
 ## 5. Phase close-out (resume material)
 - [ ] Land the work via **PR** (agent never merges its own).
-- [ ] Write/refresh a memory `SKY-019-progress` (what shipped, what's next, gotchas) + a MEMORY.md pointer.
+- [ ] Main refreshes the three state-memory files in `agent_docs/` after acceptance.
+- [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:
 ```
 Continue planning/projects/SKY-019-relocate-the-arcane-controller-off-the-dmz-to-a-dedicated-management-docker-vm-managing-docker-hosts-remotely.md at Phase <N+1>.
-Prereqs carried from the last phase: <…>. Resume context from memory [[SKY-019-progress]].
+Prereqs carried from the last phase: <…>. Read the directive and its linked journal evidence.
 Follow AGENTS.md as above.
 ```
 

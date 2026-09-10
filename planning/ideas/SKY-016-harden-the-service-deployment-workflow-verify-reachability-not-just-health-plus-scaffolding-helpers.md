@@ -18,7 +18,6 @@ related:
   - bin/new
   - "[[arcane-api-reference]]"
   - "[[skynet-service-standard]]"
-  - "[[SKY-016-progress]]"
 ---
 
 # SKY-016 · Harden the service-deployment workflow: verify reachability not just health, plus scaffolding helpers
@@ -151,13 +150,14 @@ steps. When the phase's exit criteria are met, do the "Phase close-out" at the b
 
 ## 5. Phase close-out (resume material)
 - [ ] Land the work via **PR** (agent never merges its own).
-- [ ] Write/refresh a memory `SKY-016-progress` (what shipped, what's next, gotchas) + a MEMORY.md pointer.
+- [ ] Main refreshes the three state-memory files in `agent_docs/` after acceptance.
+- [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:
 ```
 Continue planning/projects/SKY-016-harden-the-service-deployment-workflow-verify-reachability-not-just-health-plus-scaffolding-helpers.md at Phase <N+1>.
-Prereqs carried from the last phase: <…>. Resume context from memory [[SKY-016-progress]].
+Prereqs carried from the last phase: <…>. Read the directive and its linked journal evidence.
 Follow AGENTS.md as above.
 ```
 

@@ -13,9 +13,6 @@ related:
   - docs/system-design.md
   - planning/archive/SKY-008-opentofu-provisioning-layer-vm-and-ct-lifecycle-plus-dns.md
   - planning/archive/SKY-021-nixos-in-lxc-prove-the-container-path-and-set-the-new-ct-default.md
-  - "[[SKY-008-progress]]"
-  - "[[SKY-021-progress]]"
-  - "[[SKY-024-progress]]"
 ---
 
 # SKY-024 · tofu declares managed core guests — API-driven CT/VM lifecycle, no node SSH
@@ -205,13 +202,14 @@ steps. When the phase's exit criteria are met, do the "Phase close-out" at the b
 ## 5. Phase close-out (resume material)
 Run this every time a phase finishes successfully — it's what makes the next session cold-startable:
 - [ ] Land the work via **PR** (agent never merges its own).
-- [ ] Write/refresh a memory `SKY-024-progress` (what shipped, what's next, gotchas) + a MEMORY.md pointer.
+- [ ] Main refreshes the three state-memory files in `agent_docs/` after acceptance.
+- [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:
 ```
 Continue planning/projects/SKY-024-tofu-declares-all-pool-guests-api-driven-ct-vm-lifecycle-no-node-ssh.md at Phase <N+1>.
-Prereqs carried from the last phase: <…>. Resume context from memory [[SKY-024-progress]].
+Prereqs carried from the last phase: <…>. Read the directive and its linked journal evidence.
 Follow AGENTS.md as above.
 ```
 

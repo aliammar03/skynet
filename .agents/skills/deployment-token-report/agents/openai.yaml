@@ -1,0 +1,6 @@
+interface:
+  display_name: "Deployment Token Report"
+  short_description: "Compile recorded deployment token totals"
+  default_prompt: "Use $deployment-token-report to compile the current deployment token totals."
+policy:
+  allow_implicit_invocation: false

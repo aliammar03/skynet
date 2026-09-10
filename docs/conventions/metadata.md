@@ -24,16 +24,16 @@ updated: YYYY-MM-DD          # bumped every phase close-out
 phases: <int>                # total phases (project directives)
 current_phase: <int>         # 0 until a phase completes
 tier_touched: [T1, T2, T2+, T3]   # every tier the work touches
-related:                     # paths + [[memory-links]] this directive leans on
+related:                     # authoritative paths this directive leans on
   - docs/system-design.md
-  - "[[SKY-###-progress]]"
 ---
 ```
 
 - **A directive touching T2+/T3 or a blast-radius boundary MUST list `docs/system-design.md` in
   `related`** and PR the constitution `[manual]` (AGENTS.md §5).
 - **`current_phase`, `status`, `updated` are bumped at every phase close-out** `[manual]`; the
-  matching phase checkbox flips `[ ]`→`[x]`.
+  matching phase checkbox flips `[ ]`→`[x]`. Main also refreshes the three state-memory files named
+  by the construction convention; they remain derived views, not directive metadata. `[manual]`
 
 ## Service-catalog entry (`planning/services/SKY-###-*.md`) `[manual]`
 

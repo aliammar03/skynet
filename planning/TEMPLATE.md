@@ -9,9 +9,8 @@ phases: 1
 current_phase: 0
 tier_touched: [T1]     # T1 | T2 | T2+ | T3 — if it hits T2+/T3 or moves a blast-radius boundary,
                        # the plan MUST also PR docs/system-design.md (the constitution).
-related:               # files + memories this touches; [[slug]] cross-links a memory
+related:               # authoritative files this directive touches
   - docs/system-design.md
-  - "[[SKY-000-progress]]"
 ---
 
 # SKY-000 · <Title>
@@ -27,7 +26,7 @@ related:               # files + memories this touches; [[slug]] cross-links a m
       not taken so nobody re-litigates them.
     • Checkpoints — flag every T3 / destructive / credential / leaves-scope step as a
       ⚠ hard checkpoint (Ali acts; the agent stops and waits).
-    • Close-out — every phase ends with §5: PR + `SKY-000-progress` memory + frontmatter bump.
+    • Close-out — every phase ends with §5: PR + Main state-memory update + raw journal evidence + frontmatter bump.
     • Frontmatter — keep parsed keys value-only (NO inline `#` on title/phases/current_phase);
       `current_phase` = last COMPLETED phase (0 = not started); bump `phases` as you add them.
 -->
@@ -72,13 +71,15 @@ steps. When the phase's exit criteria are met, do the "Phase close-out" at the b
 ## 5. Phase close-out (resume material)
 Run this every time a phase finishes successfully — it's what makes the next session cold-startable:
 - [ ] Land the work via **PR** (agent never merges its own).
-- [ ] Write/refresh a memory `SKY-000-progress` (what shipped, what's next, gotchas) + a MEMORY.md pointer.
+- [ ] After acceptance, Main updates `agent_docs/project_progress.md`, `project_diary.md`, and
+      `latest_session_work.md`; the latest-session file contains the single next entry point.
+- [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.
-- [ ] Paste the **Continue prompt** below to resume in a fresh session:
+- [ ] Keep the **Continue prompt** below aligned with the single next entry point in latest-session memory:
 ```
 Continue planning/projects/SKY-000-slug.md at Phase <N+1>.
-Prereqs carried from the last phase: <…>. Resume context from memory [[SKY-000-progress]].
+Prereqs carried from the last phase: <…>. Read `agent_docs/` and this directive first.
 Follow AGENTS.md as above.
 ```
 

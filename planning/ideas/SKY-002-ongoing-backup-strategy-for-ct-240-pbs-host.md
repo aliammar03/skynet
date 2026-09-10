@@ -79,13 +79,14 @@ steps. When the phase's exit criteria are met, do the "Phase close-out" at the b
 ## 5. Phase close-out (resume material)
 Run this every time a phase finishes successfully — it's what makes the next session cold-startable:
 - [ ] Land the work via **PR** (agent never merges its own).
-- [ ] Write/refresh a memory `SKY-002-progress` (what shipped, what's next, gotchas) + a MEMORY.md pointer.
+- [ ] Main refreshes the three state-memory files in `agent_docs/` after acceptance.
+- [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:
 ```
 Continue planning/projects/SKY-002-ongoing-backup-strategy-for-ct-240-pbs-host.md at Phase <N+1>.
-Prereqs carried from the last phase: <…>. Resume context from memory [[SKY-002-progress]].
+Prereqs carried from the last phase: <…>. Read the directive and its linked journal evidence.
 Follow AGENTS.md as above.
 ```
 
@@ -94,4 +95,4 @@ Follow AGENTS.md as above.
   and can't be snapshotted. Proposed restic-to-gdrive (Option B). See [[skynet-backups]], [[skynet-a6-next]].
 - 2026-08-16 — **renumbered SKY-001 → SKY-002.** This directive was minted SKY-001 by mistake right
   after A6; SKY-001 is reassigned to the system-design rework (`planning/projects/SKY-001-*`). ID moved
-  before any progress memory existed, so nothing external pointed at the old number. See [[SKY-001-progress]].
+  before any progress record existed, so nothing external pointed at the old number.

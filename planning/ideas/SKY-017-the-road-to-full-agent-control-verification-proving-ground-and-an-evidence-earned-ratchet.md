@@ -17,7 +17,6 @@ related:
   - planning/ideas/SKY-016-harden-the-service-deployment-workflow-verify-reachability-not-just-health-plus-scaffolding-helpers.md
   - planning/scratchpad/research/2026-08-28-complete-system-and-ansible.md
   - planning/scratchpad/research/2026-08-28-full-agent-control-options.md
-  - "[[SKY-017-progress]]"
 ---
 
 # SKY-017 · The road to full agent control: verification, proving ground, and an evidence-earned ratchet
@@ -223,13 +222,14 @@ exit criteria are met, do the "Phase close-out" at the bottom.
 
 ## 5. Phase close-out (resume material)
 - [ ] Land the work via **PR** (agent never merges its own).
-- [ ] Write/refresh a memory `SKY-017-progress` (what shipped, what's next, gotchas) + a MEMORY.md pointer.
+- [ ] Main refreshes the three state-memory files in `agent_docs/` after acceptance.
+- [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:
 ```
 Continue planning/projects/SKY-017-the-road-to-full-agent-control-verification-proving-ground-and-an-evidence-earned-ratchet.md at Phase <N+1>.
-Prereqs carried from the last phase: <…>. Resume context from memory [[SKY-017-progress]].
+Prereqs carried from the last phase: <…>. Read the directive and its linked journal evidence.
 Follow AGENTS.md as above.
 ```
 

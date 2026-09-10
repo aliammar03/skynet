@@ -29,7 +29,6 @@ related:
   - tests/temporal-hygiene-test.sh
   - tests/documentation-drift-test.sh
   - scripts/hygiene.sh
-  - "[[SKY-023-progress]]"
 ---
 
 # SKY-023 · Eliminate documentation drift and shrink operational context

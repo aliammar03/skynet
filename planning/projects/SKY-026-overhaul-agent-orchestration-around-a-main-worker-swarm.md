@@ -6,7 +6,7 @@ horizon: long
 created: 2026-09-10
 updated: 2026-09-10
 phases: 5
-current_phase: 3
+current_phase: 4
 tier_touched: [T1]
 related:
   - AGENTS.md
@@ -16,7 +16,6 @@ related:
   - agent_docs/
   - planning/archive/SKY-022-lean-multi-agent-construction-orchestration-lead-driven-delegation.md
   - planning/projects/SKY-025-rebuild-the-skynet-engine-in-python.md
-  - "[[SKY-026-progress]]"
 ---
 
 # SKY-026 · Overhaul agent orchestration around a Main-directed worker swarm
@@ -365,7 +364,7 @@ Executor ownership, independent Tester verification, same-Executor repair, same-
 delta-only follow-up and no child orchestration. The accepted follow-up also removed operator prompt
 churn from ordinary repo/TMP-only mutation verification without weakening root/merge checkpoints.
 
-### Phase 4 · Port `agent_docs`, Archivist closure and token accounting  `[ ]` not started
+### Phase 4 · Port `agent_docs`, Archivist closure and token accounting  `[x]` done — 2026-09-10
 **Recommended Main:** Astra Medium with Companion + Archivist; use Heavy only for implementation packages that genuinely decompose.
 
 Goal: make cold-session continuity cheap and explicit by porting the donor's six-document memory model
@@ -668,3 +667,5 @@ Phase 5:
 - 2026-09-10 continuity decision changed before P4: port donor `agent_docs/` deliberately as **canonical
   agent memory derived from higher-authority Skynet truth**, then use P4/P5 dogfood to retire redundant
   continuity surfaces rather than maintaining parallel handoff systems forever.
+- P4 complete in PR #250: six compact files, authority/ownership boundaries, closure shapes, recorded
+  token reporter, and bounded cold-start comparison passed. Next: execute Phase 5 after human merge.
