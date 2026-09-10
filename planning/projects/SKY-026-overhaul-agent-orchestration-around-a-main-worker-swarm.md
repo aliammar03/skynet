@@ -21,10 +21,10 @@ related:
 
 # SKY-026 · Overhaul agent orchestration around a Main-directed worker swarm
 
-> Replace SKY-022's lead + two-helper model with a Skynet-native adaptation of
-> `viettran-edgeAI/codex_workflow`: Main spends context on decisions, specialist workers own bounded
-> work, coordination is batched, verification is independent, and failed reviews return one
-> paste-ready fix prompt to the original implementation session.
+> Completely supersede SKY-022's lead + two-helper construction model with a Skynet-native adaptation
+> of `viettran-edgeAI/codex_workflow`: Main spends context on decisions, specialist workers own bounded
+> work, coordination is batched, verification is independent, and failed reviews return one paste-ready
+> fix prompt to the original implementation session.
 
 ## 1. Goal and donor
 
@@ -49,9 +49,22 @@ README prose when they disagree. Primary donor surfaces:
 - deployment-token-report skill/parser/tests
 - lifecycle/runtime code only where a deterministic primitive is useful to Skynet itself
 
-This directive may overturn SKY-022 without preserving its decisions for compatibility. Where current
-SKY-026 doctrine conflicts with SKY-022, **SKY-026 wins**. SKY-022 remains archived historical
-evidence; never rewrite its history to match the new design.
+### SKY-022 supersession rule
+
+**SKY-026 completely supersedes SKY-022.** Once SKY-026 is accepted:
+
+- SKY-022 has **zero current construction authority**;
+- no current agent, doctrine, launcher, test, invariant, runbook, prompt, or workflow may use SKY-022
+  as a fallback, compatibility contract, secondary source, or behavioral reference;
+- no Scout / Mechanic / Builder compatibility aliases survive merely to preserve SKY-022 interfaces;
+- any current caller that still depends on SKY-022 behavior must be migrated to SKY-026 or removed;
+- current documentation must point only to the SKY-026 construction contract;
+- the archived SKY-022 directive and its journal episodes remain untouched **only as inert historical
+  provenance** and may be consulted only when explicitly investigating history, never to decide how
+  current construction should operate.
+
+Do not rewrite or delete historical records to make the transition look cleaner. Supersession means
+**no present-tense authority**, not erasing provenance.
 
 ### Target topology
 
@@ -193,12 +206,15 @@ For SKY-026 itself, use **Sol High** as the preferred Main for architecture/cont
 is appropriate when a genuinely consequential cross-cutting decision warrants it. After the new roles
 exist, later phases must dogfood them.
 
-### E · Replace Scout / Mechanic / Builder — CHOSEN
+### E · Delete the SKY-022 role surface, do not preserve compatibility — CHOSEN
 
-Retire SKY-022's `scout`, `mechanic`, and `builder` role vocabulary, TOMLs, launcher routes, tests and
-current doctrine once the new roles own all known callers. Keep a compatibility alias only for a
-**demonstrated external caller**, with an owner and removal condition. Familiarity alone is not a
-reason to preserve it.
+Retire SKY-022's `scout`, `mechanic`, and `builder` role vocabulary, TOMLs, launcher routes, tests,
+prompts and current doctrine. Perform a complete caller/reference search and **migrate every current
+caller** to the new roles or delete the obsolete caller.
+
+Do not create compatibility aliases or shims for SKY-022 role names. If an external current caller is
+discovered, update that caller as part of SKY-026. If it cannot be updated safely, SKY-026 is blocked
+until the dependency is resolved rather than preserving SKY-022 as a fallback.
 
 ### F · Knowledge capsules are the worker API — CHOSEN
 
@@ -317,7 +333,8 @@ reviews again. Repeat until ACCEPT.
 - map Companion/Archivist continuity onto existing Skynet truth surfaces;
 - borrow deterministic token-reporting machinery where reliable;
 - dogfood the architecture on real SKY-026 work;
-- remove superseded active SKY-022 guidance while preserving archived/journal history.
+- remove **all current SKY-022 orchestration dependencies and authority references**;
+- preserve SKY-022 only inside archive/journal as inert provenance.
 
 ### Explicitly out
 
@@ -328,7 +345,8 @@ reviews again. Repeat until ACCEPT.
 - custom inter-agent transport when native Codex works;
 - automatic merge of authored work;
 - widening production trust/credential boundaries;
-- rewriting archived SKY-022 history;
+- preserving any SKY-022 compatibility API, role alias, fallback doctrine, or current behavior;
+- rewriting/deleting archived SKY-022 or journal history;
 - changing unrelated SKY-025 engine scope.
 
 ## 4. Plan
@@ -345,13 +363,18 @@ Steps:
 3. Preserve only explicit Skynet deltas: existing truth surfaces, trust tiers, human merge, directive
    lifecycle, fresh external review.
 4. Reduce `AGENTS.md` to the minimum always-loaded orchestration contract and link the spoke for detail.
-5. Remove obsolete active Scout/Mechanic/Builder and two-helper wording instead of adding negation patches.
-6. Add deterministic assertions only for rules the machine can actually prove.
+5. Remove current Scout/Mechanic/Builder, max-two-helper and other SKY-022 wording rather than adding
+   transition notes or compatibility language.
+6. Search all current doctrine/prompts/runbooks for SKY-022 references. Migrate any reference that
+   supplies present behavior to SKY-026; historical/archive references may remain only where explicitly
+   historical.
+7. Add deterministic assertions only for rules the machine can actually prove.
 
 Exit criteria:
 - one canonical current construction doctrine;
 - Main/worker ownership and repair boundaries unambiguous;
-- no duplicate active SKY-022 role model;
+- **no current source derives construction authority from SKY-022**;
+- no fallback to SKY-022 exists when SKY-026 is silent;
 - no new production authority or memory truth tree;
 - current docs state present rules, not migration narrative.
 
@@ -360,7 +383,7 @@ Close-out: PR + journal episode + directive progress bump + `bin/plan list`.
 ### Phase 2 · Replace worker roles and Codex configuration  `[ ]` not started
 **Recommended Main:** Sol High
 
-Goal: make native Codex config match doctrine.
+Goal: make native Codex config match doctrine and eliminate the SKY-022 runtime surface.
 
 Steps:
 1. Add Skynet-native TOMLs closely derived from upstream for `companion`, `investigator`,
@@ -369,19 +392,22 @@ Steps:
 3. Adapt only Skynet-specific source domains: Companion uses repo/directives/journal/generated context;
    Archivist writes assigned canonical docs/journal only and never hand-edits generated outputs; all
    roles preserve production isolation.
-4. Remove old `builder.toml`, `mechanic.toml`, `scout.toml` and callers after a complete caller search.
+4. Remove old `builder.toml`, `mechanic.toml`, `scout.toml` after a complete caller search. Migrate every
+   live caller; do not retain aliases or shims.
 5. Remove SKY-022's workflow-owned max-two thread setting. Follow upstream's no-workflow-cap model; if
    current Codex itself requires a technical maximum, use platform-supported behavior without making
    the number doctrine.
 6. Adapt `bin/agent` and tests to new names if the launcher still earns its thin debug/standalone role.
-7. Verify model IDs, efforts and sandboxes from installed harness metadata/dry-runs.
+7. Remove any launcher command, environment knob, test expectation or invariant whose only purpose is
+   preserving SKY-022 behavior.
+8. Verify model IDs, efforts and sandboxes from installed harness metadata/dry-runs.
 
 Exit criteria:
 - six roles resolve with intended model/effort/sandbox behavior;
 - one current role vocabulary;
 - read-only roles cannot write;
 - write roles gain no production authority;
-- no artificial SKY-022 thread cap remains;
+- no SKY-022 role alias, compatibility route or artificial thread cap remains;
 - launcher/tests/invariants agree with actual config.
 
 Close-out: PR + journal episode + directive progress bump + `bin/plan list`.
@@ -449,10 +475,11 @@ Exit criteria:
 
 Close-out: PR + journal episode + directive progress bump + `bin/plan list`.
 
-### Phase 5 · Dogfood, prune the old engine, and validate end to end  `[ ]` not started
+### Phase 5 · Dogfood, eradicate SKY-022 current authority, and validate end to end  `[ ]` not started
 **Recommended Main:** Sol High, Heavy route
 
-Goal: finish with one coherent orchestration engine and real Skynet-scale evidence.
+Goal: finish with one coherent orchestration engine, zero SKY-022 current authority, and real
+Skynet-scale evidence.
 
 Steps:
 1. Dogfood three representative tasks without Ali instructing individual worker spawns:
@@ -463,9 +490,12 @@ Steps:
 2. In Heavy, demonstrate useful concurrent workers with non-overlapping ownership when real work allows;
    do not treat fan-out as a quota.
 3. Demonstrate Senior Executor is used only when justified, or correctly omitted.
-4. Search all current repo surfaces for obsolete active Scout/Mechanic/Builder, max-two-helper,
-   lead-owned Heavy verification, or other SKY-022 behavior. Clean current sources; leave archive/journal.
-5. Verify `AGENTS.md`, construction doctrine, `.codex/*`, launcher, tests and invariants tell one story.
+4. Search **all current repo surfaces** for Scout/Mechanic/Builder, max-two-helper, lead-owned Heavy
+   verification, active SKY-022 links, SKY-022-derived tests/prompts, or any other current dependence on
+   SKY-022. Migrate or delete every one. Archive/journal references are allowed only when clearly
+   historical and incapable of steering current behavior.
+5. Verify `AGENTS.md`, construction doctrine, `.codex/*`, launcher, tests, invariants, prompts and
+   runbooks tell one SKY-026 story.
 6. Run focused and full relevant repo gates. Fix implementation defects before requesting final review.
 7. Journal concise before/after evidence: Main wakeups/rollouts when measurable, worker use,
    coordination failures/retries and concurrency behavior. Do not universalize a tiny benchmark.
@@ -474,12 +504,14 @@ Steps:
 Exit criteria:
 - Light/Medium/Heavy behave as documented;
 - all six specialist roles are live and internally consistent;
-- obsolete active SKY-022 orchestration is gone;
+- **SKY-022 has zero current construction authority, callers, aliases, fallbacks, or compatibility
+  surface**;
 - Heavy Main boundary is respected;
 - Tester defects round-trip through owner Executor;
 - current docs stay lean and historical narrative stays in directive/journal;
 - deterministic gates pass;
-- fresh reviewer can reconstruct and challenge the entire result.
+- fresh reviewer can reconstruct and challenge the entire result without consulting SKY-022 for
+  present behavior.
 
 Close-out before review: implementation PR(s), journal evidence, status stays `in-progress`.
 
@@ -530,6 +562,8 @@ Optimization target:
 
 > **Spend Main context on decisions that need the whole picture. Spend worker context on bounded work.**
 
+SKY-022 is not part of this operating model. It is an archived historical artifact only.
+
 ## 6. Review and repair protocol
 
 This is mandatory and intentionally differs from SKY-025's reviewer-repairs-directly behavior.
@@ -541,10 +575,13 @@ Run acceptance review in a **fresh session**. Reviewer does not modify implement
 - complete SKY-026 directive and exit criteria;
 - current `main` plus implementation/fix PRs or merged SHAs;
 - donor source contracts;
-- `AGENTS.md`, construction doctrine, `.codex/*`, launcher/tests/invariants and callers;
+- `AGENTS.md`, construction doctrine, `.codex/*`, launcher/tests/invariants/prompts/runbooks and callers;
 - deterministic gates + dogfood evidence;
-- trust/memory/merge boundaries.
+- trust/memory/merge boundaries;
+- proof that SKY-022 has **no current construction authority or compatibility surface**.
 
+Reviewer may inspect SKY-022 only as historical provenance when needed to verify that its active
+surfaces were actually removed. The reviewer must never use SKY-022 to fill a gap in SKY-026 behavior.
 Reviewer may use read-only workers for evidence but owns the verdict.
 
 ### PASS
@@ -609,16 +646,19 @@ Paste into a fresh session, replacing `<N>`:
 Read planning/projects/SKY-026-overhaul-agent-orchestration-around-a-main-worker-swarm.md and execute
 Phase <N> only.
 
+SKY-026 completely supersedes SKY-022. Do not use SKY-022 as current guidance, a fallback contract, or
+compatibility target. Its archive/journal material is historical provenance only.
+
 Borrow aggressively from viettran-edgeAI/codex_workflow using its source contracts as the donor, while
 preserving only the explicit SKY-026 Skynet deltas: existing canonical truth/memory surfaces instead of
 agent_docs, Skynet production trust tiers, human merge, and fresh external review.
 
-Follow AGENTS.md and the directive. Keep current docs lean; history belongs in journal. Land one
+Follow AGENTS.md and this directive. Keep current docs lean; history belongs in journal. Land one
 reviewable PR, never merge your own authored work, and perform phase close-out when exits pass.
 ```
 
-After Phase 2 lands, later phases must use/dogfood the new route and worker contracts rather than the
-old SKY-022 helper model.
+After Phase 2 lands, later phases must use/dogfood the new route and worker contracts. The old
+SKY-022 helper model is not an allowed fallback.
 
 ## 8. ▶ Final review prompt
 
@@ -629,8 +669,13 @@ Independently review SKY-026 end to end.
 
 Read planning/projects/SKY-026-overhaul-agent-orchestration-around-a-main-worker-swarm.md, current
 AGENTS.md, docs/conventions/construction.md, .codex configuration/agents, launcher/tests/invariants,
-all SKY-026 implementation/fix PRs or merged SHAs, and the relevant donor source contracts from
-viettran-edgeAI/codex_workflow.
+current construction prompts/runbooks, all SKY-026 implementation/fix PRs or merged SHAs, and the
+relevant donor source contracts from viettran-edgeAI/codex_workflow.
+
+SKY-026 must completely supersede SKY-022. Verify that SKY-022 has zero current construction authority,
+callers, aliases, fallbacks, compatibility behavior, or present-tense documentation references. Archived
+directive/journal material may remain only as inert history and must not be required to determine
+current behavior.
 
 Do not modify the implementation and do not repair findings yourself. Verify all directive exit
 criteria, role ownership, Light/Medium/Heavy behavior, context routing, task capsules, batching,
@@ -659,17 +704,19 @@ Phase 5:
 - land implementation evidence and keep `in-progress` pending independent review;
 - after `ACCEPT SKY-026`, one bounded close-out update marks Phase 5 `[x]`, sets `current_phase: 5`,
   `status: done`, refreshes roadmap, and archives through normal planning lifecycle;
-- retain SKY-022 unchanged as historical evidence, not active doctrine.
+- SKY-022 remains untouched in archive/journal **solely as inert historical provenance**. It must not
+  appear in any current authority chain or be required for current construction behavior.
 
 ## 10. Status log
 
 - 2026-09-10 — SKY-026 minted using `viettran-edgeAI/codex_workflow` as the architecture donor;
   snapshot `6d9b06f73bee7f899001b0bb102c70529a24313f`. Borrow upstream aggressively while preserving
   Skynet's existing truth, production trust and human-merge boundaries.
-- 2026-09-10 — SKY-022 is superseded wherever current construction doctrine conflicts. Old history
-  remains untouched.
+- 2026-09-10 — supersession clarified: **SKY-026 completely supersedes SKY-022**. SKY-022 retains no
+  current authority, fallback, compatibility role, alias or caller. Archived directive/journal material
+  remains only as inert historical provenance.
 - 2026-09-10 — review policy set: reviewer never repairs SKY-026. Failed review returns only one
   paste-ready fix prompt to the original implementation session; fresh re-review repeats until ACCEPT.
-- 2026-09-10 — concurrency aligned more closely with upstream: remove the SKY-022 two-helper cap and
-  do not replace it with another workflow-owned aggregate number; rely on platform capacity plus
+- 2026-09-10 — concurrency aligned with upstream: remove the SKY-022 two-helper cap and do not replace
+  it with another workflow-owned aggregate number; rely on platform capacity plus
   ownership/dependency/risk rules.
