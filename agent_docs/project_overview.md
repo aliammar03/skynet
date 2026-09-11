@@ -30,11 +30,12 @@ root grants, and never-standing T3 access; a construction worker has no producti
   read paths and inventory is refreshed by machine-owned collectors/renderers.
 - The generated digest is optional recent-activity/episodic/open-thread retrieval and the context map
   is on-demand load-cost routing; neither replaces `agent_docs/` continuity or authoritative sources.
-- Construction is a native Main-directed Light/Medium/Heavy worker swarm. Main owns decisions,
-  integration, internal integration/implementation acceptance, and authored-PR readiness inside the
-  implementation session. External final acceptance belongs only to a separate fresh reviewer manually
-  started by Ali against the exact open PR head; workers and implementation Main do not claim it.
-  `agent_docs/` is compact cross-session memory, not a second infrastructure truth system.
+- Construction is a native Main-directed Light/Medium/Heavy worker swarm. Main owns internal
+  integration/implementation acceptance and authored-PR readiness inside the implementation session,
+  plus implementation decisions and integration. External final acceptance belongs only to a separate
+  fresh reviewer manually started by Ali against the exact open PR head; workers and implementation
+  Main do not claim it. `agent_docs/` is compact cross-session memory, not a second infrastructure
+  truth system.
 
 ## Main workflows
 
