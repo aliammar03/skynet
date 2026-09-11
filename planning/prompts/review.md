@@ -1,72 +1,96 @@
 ---
-summary: "Independently review the exact open SKY-025 phase PR before human merge; accept it read-only or return one paste-ready fix prompt."
+summary: "Independently review SKY-025 before merge, binding ACCEPT to the reviewer-resolved base+head pair; includes the one-time already-merged P7 transition."
 ---
 
-# Review open work before merge
+# Review SKY-025 work
 
 > Independent review prompt for the [phase handoff workflow](README.md). Follows the active SKY-025
-> directive and the review model in [`../../docs/conventions/construction.md`](../../docs/conventions/construction.md):
-> the reviewer never modifies implementation or planning state.
+> directive and [`../../docs/conventions/construction.md`](../../docs/conventions/construction.md).
+> The reviewer is read-only and resolves Git revision identities from GitHub itself. **Ali never needs
+> to supply, copy, or compare commit SHAs by hand.**
 
-In a **new separate fresh session** using the selected model and effort, review the complete numbered
-SKY-025 phase against the exact **open final implementation/fix PR head proposed for merge**. Include
-any earlier merged slice PRs required to judge the complete phase. Do not run independent acceptance
-reviews of intermediate slices.
+Use a **new separate fresh session** with the selected model/effort. For normal future work, review the
+complete numbered phase against its open final implementation/fix PR before human merge. The one
+exception is the explicit SKY-025 P7 migration below, because its implementation/fix PRs were already
+merged before the pre-merge review lifecycle became current policy.
 
 1. Read `agent_docs/`, AGENTS.md, planning/README.md, the active SKY-025 directive found by ID, its
-   current packet and disposition map if present. Record the selected model/effort when available;
-   review is model-agnostic and does not require a particular model or effort. Use repository/PR evidence,
-   not an implementation transcript. Load relevant callers, contracts and tests as needed. Read-only
-   Investigator workers may gather evidence, but the reviewer owns the verdict.
-2. Verify through GitHub that the target PR is **open**, record its URL and exact head SHA, and inspect
-   current main plus all earlier merged slice/fix PRs needed for the numbered phase. Confirm every slice
-   is implemented. If the complete phase is not yet represented, return the same-phase execution
-   continuation without issuing ACCEPT or releasing the next numbered phase.
-3. Inspect the complete phase/fix diff against the packet's starting revision and the actual proposed
-   result (`current main + exact open PR head`). Account for intervening commits affecting these surfaces.
-   Check callers, failure handling, doctrine/runbooks and scope, not merely the PR summary. Run relevant
-   checks independently; report commands and unavailable verification explicitly. **Do not modify the
-   repository and do not author repair or planning commits.** Existing live/grant boundaries still apply;
-   review alone grants no production access.
-4. Choose ACCEPT, FIX, or BLOCKED against each exit criterion. CI green alone is insufficient. ACCEPT
-   requires satisfied exits; FIX means one or more concrete, fixable implementation defects; BLOCKED
-   means missing evidence, access, or an unresolved decision prevents judgment. Do not silently waive an
-   exit criterion. There is no reviewer-authored-repair acceptance path.
-5. Act on the verdict:
-   - **ACCEPT**: return a concise read-only verdict naming the exact reviewed PR and head SHA, critical
-     evidence, limitations, and any G1–G6 roadmap decision that the post-merge closeout must carry.
-     **Do not commit, push, open a review PR, merge, or update accepted progress yourself.** Ali may
-     human-merge only that exact reviewed head. If the head changes, acceptance is stale and a fresh
-     review is required before merge.
-   - **BLOCKED**: return the blocker, owner, evidence/decision needed to resume, and the exact reviewed
-     PR/head. Do not modify the repository and do not release the next phase.
-   - **FIX**: your entire final response is **only** one fenced paste-ready fix prompt for the original
-     implementation/fix session using the structure below. Leave accepted progress unchanged. The
-     original session updates the same open PR, publishes the new head, and stops. Ali then manually
-     starts another fresh independent review.
-6. After ACCEPT and **human merge**, a separate bounded closeout updates accepted progress,
-   `agent_docs`, directive/map/roadmap, G-checkpoint decisions, and only the next 1–2h packet. That
-   closeout is not this review and does not automatically launch another acceptance review unless it
-   introduces substantive implementation changes.
+   current packet and disposition map. Use repository/PR evidence, not an implementation transcript.
+   Load relevant callers, contracts and tests as needed. Read-only Investigator workers may gather
+   evidence, but the reviewer owns the verdict.
+2. Resolve review identity from GitHub, without asking Ali for hashes:
+   - **Normal open-PR mode:** verify the target PR is open; record its URL/number, target branch,
+     **reviewed base SHA** (the current target-branch tip, normally `main`) and **reviewed head SHA**.
+     Include earlier merged slice/fix PRs needed to judge the complete numbered phase.
+   - **One-time SKY-025 P7 legacy transition:** if P7 is still review-pending and #235, #236, #237 and
+     corrective #239 are already merged, do **not** require a nonexistent open P7 PR. Record current
+     `main` as the reviewed integrated revision and review the complete P7 result already present in
+     `main`, including those merged PRs plus any later commits touching P7-owned surfaces. This
+     transition applies only to P7 work merged before the new lifecycle; it is not a future escape
+     hatch from pre-merge review.
+3. Inspect the actual integration state, not just PR summaries:
+   - normal mode: the result of the captured **reviewed base + reviewed head** pair;
+   - P7 legacy mode: the captured integrated `main` revision.
+   Account for intervening commits affecting the phase. Check callers, failure handling,
+   doctrine/runbooks and scope. Run relevant checks independently and report unavailable verification.
+   **Do not modify the repository and do not author repair or planning commits.** Review grants no
+   production access.
+4. Immediately before publishing a verdict, resolve GitHub state again. In normal mode, if either the
+   target/base SHA **or** PR head SHA differs from the captured pair, the old integration conclusion is
+   stale: refresh the diff/evidence against the new pair and do not issue ACCEPT until the currently
+   proposed pair has actually been reviewed. In P7 legacy mode, if `main` moved, inspect the delta and
+   refresh affected evidence before verdict. GitHub mergeability or an unchanged head alone is not
+   proof that the reviewed integration result is unchanged.
+5. Choose ACCEPT, FIX, or BLOCKED against every exit criterion. CI green alone is insufficient.
+   - **Normal ACCEPT:** record both reviewer-resolved base SHA and head SHA. Acceptance belongs only to
+     that pair. Ali may human-merge only while both still match; movement of either invalidates the
+     verdict and requires a fresh review of the new integration state. This is an agent-enforced
+     evidence rule, not a request for Ali to manually compare hashes.
+   - **P7 legacy ACCEPT:** record the reviewed integrated `main` revision and explicitly label the
+     verdict as the one-time merged-work transition. No implementation merge remains; bounded closeout
+     may record P7 accepted and release P8.
+   - **BLOCKED:** report the blocker and evidence/decision needed. Do not mutate the repo or release the
+     next phase.
+   - **FIX, normal mode:** return only one paste-ready fix prompt for the original implementation/fix
+     session. It updates the same open PR and stops; Ali starts another fresh reviewer. The fix handoff
+     names the PR, not a SHA for Ali to shuttle around.
+   - **FIX, P7 legacy mode:** return one paste-ready prompt to create a bounded corrective P7 PR. Once
+     that corrective PR exists, it follows the normal pre-merge lifecycle above.
+6. After normal ACCEPT and human merge, or after P7 legacy ACCEPT, a separate bounded closeout updates
+   accepted progress, `agent_docs`, directive/map/roadmap, G-checkpoint decisions, and only the next
+   packet. Closeout is not this review and does not automatically launch another acceptance review
+   unless it introduces substantive implementation changes.
 
 ## ACCEPT response
 
-Return a compact verdict such as:
+Normal open-PR review:
 
 ```text
 ACCEPT SKY-025 P<N>
-Reviewed PR: <URL>
-Reviewed head: <full SHA>
+Reviewed PR: #<number> <URL>
+Reviewed base/main: <full SHA resolved by reviewer>
+Reviewed PR head: <full SHA resolved by reviewer>
 Evidence: <exit criterion → independent result; unavailable checks>
 Limitations: <remaining explicitly unverified items, or none>
 Post-merge closeout: <required progress/map/roadmap/G-checkpoint/next-packet actions>
+```
+
+One-time P7 legacy transition:
+
+```text
+ACCEPT SKY-025 P7 — legacy merged-work transition
+Reviewed integrated main: <full SHA resolved by reviewer>
+Merged P7 evidence: #235, #236, #237, #239 + <later P7-relevant commits, if any>
+Evidence: <exit criterion → independent result; unavailable checks>
+Limitations: <remaining explicitly unverified items, or none>
+Closeout: record P7 accepted and release P8
 ```
 
 Do not create a review/planning PR from the reviewer session.
 
 ## FIX response
 
-On FIX, emit **only** this block, populated with real findings, with no preamble or prose outside it:
+For normal open-PR work, emit **only** this block with real findings and no prose outside it:
 
 ```text
 Continue the original SKY-025 implementation/fix session and fix the independent review findings below.
@@ -82,10 +106,14 @@ Verification required:
 - <specific affected tests/gates; run the relevant full repo gates after focused checks pass>
 
 Git/PR handling:
-- update the same open reviewed SKY-025 branch/PR and report its new exact head;
+- update the same open reviewed SKY-025 PR;
 - do not merge your own PR;
 - after publishing the fix, STOP. Do not launch or continue into acceptance review.
 
-When fixed, report the PR URL/commit, changed files, checks run/results, and any remaining limitation.
-Then stop. Ali will manually start a fresh independent review session against the updated open PR.
+When fixed, report the PR URL/number, changed files, checks/results, and any remaining limitation.
+Then stop. Ali will manually start a fresh independent review of that PR; the reviewer will resolve
+its current base/head revisions directly from GitHub.
 ```
+
+For a FIX from the one-time already-merged P7 transition, use the same structure except replace the
+first Git/PR bullet with: `open one bounded corrective P7 PR; future review follows normal open-PR mode`.
