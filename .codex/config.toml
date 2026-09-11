@@ -7,6 +7,7 @@
 # the semantic limits in the doctrine (one persistent Companion, at most one Senior Executor,
 # non-overlapping mutable ownership, no worker-spawns-worker). Codex's own
 # max_concurrent_threads_per_session default applies; do not pin a workflow-owned number as doctrine.
-# Merged-result acceptance review is operator-started in a separate fresh chat/session. The
-# implementation session publishes its authored PR, reports the review handoff, and stops; it must not
-# start, spawn, or continue into the acceptance review itself.
+# Acceptance review is operator-started against the open authored PR in a separate fresh chat/session.
+# The implementation or fix session publishes its authored PR, reports the review handoff, and stops;
+# it must not start, spawn, or continue into acceptance review itself. After ACCEPT, Ali human-merges
+# the reviewed PR, then starts a bounded closeout to update durable project state/archive as needed.
