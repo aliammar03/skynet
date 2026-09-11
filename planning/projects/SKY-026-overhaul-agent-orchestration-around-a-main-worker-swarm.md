@@ -148,8 +148,8 @@ independent truth system.
 ### B · Main is a decision owner, not an extra Heavy worker — CHOSEN
 
 Heavy Main owns task understanding, architecture, cross-package contracts, material causal decisions,
-decomposition, worker ownership, integration, risk/authority decisions, acceptance, and user
-communication.
+decomposition, worker ownership, integration, risk/authority decisions, internal integration
+acceptance, and user communication. External final acceptance belongs to the fresh review session.
 
 Heavy Main does not routinely write production code/tests, perform Executor work, execute Tester
 verification, run ordinary deployment operations, chase routine logs, or take over a package after a
@@ -268,10 +268,13 @@ human merge remains required for authored work.
 
 ### L · Fresh review stays outside the implementation swarm — CHOSEN
 
-Executor self-check + Tester verification + Main acceptance are internal gates. Final acceptance
-review runs in a fresh session outside the implementation swarm. Reviewer never repairs SKY-026. Any
-fixable defect produces only one complete paste-ready fix prompt for the original implementation
-session; then a fresh session reviews again until ACCEPT.
+Executor self-check + Tester verification + Main internal integration acceptance are implementation
+gates. The implementation/fix session publishes its authored PR, reports the handoff, and stops. Ali
+manually starts final acceptance review in a separate fresh session against the **open PR before human
+merge**. Reviewer never repairs SKY-026. Any fixable defect produces only one complete paste-ready fix
+prompt for the original implementation/fix session; that session updates the same PR and stops, then Ali
+starts another fresh review. `ACCEPT` applies only to the exact reviewed PR head; Ali human-merges only
+after ACCEPT. Any post-merge state/archive work is a bounded closeout, not an automatic re-review.
 
 ### M · `agent_docs/` ownership and closure split — CHOSEN
 
@@ -283,9 +286,10 @@ Borrow the donor's split directly:
 - `agent_docs/project_diary.md`
 - `agent_docs/latest_session_work.md`
 
-Main updates those only from accepted/verified facts. `project_diary.md` contains distinct decisions,
-discarded approaches, mistakes and reusable lessons, not chronology, commits, routine maintenance or
-raw logs.
+Main updates those only from accepted/verified facts. Before external acceptance they describe the open
+authored PR and review state truthfully, such as `pending fresh review`; they must not claim an open PR
+is already merged or externally accepted. `project_diary.md` contains distinct decisions, discarded
+approaches, mistakes and reusable lessons, not chronology, commits, routine maintenance or raw logs.
 
 **Archivist owns assigned stable project memory:**
 
@@ -302,15 +306,27 @@ Closure order for substantive Medium/Heavy work:
 ```text
 workers complete evidence
         ↓
-Main accepts or marks paused/blocked
+Main internal integration acceptance or paused/blocked decision
         ↓
 Main updates progress + diary + latest_session_work
+(pending fresh review when implementation is ready)
         ↓
 Archivist updates affected stable memory/docs
         ↓
 owned generators refresh any retained generated context
         ↓
-PR / human merge
+authored PR + review handoff
+        ↓
+implementation/fix session STOPS
+        ↓
+Ali starts fresh review of OPEN PR
+        ├── FIX → original session updates same PR → STOP → fresh review
+        └── ACCEPT
+                ↓
+           human merge
+                ↓
+       bounded post-merge closeout
+(final accepted/merged state + directive/archive/roadmap)
         ↓
 next fresh Main reads agent_docs + active directive
 ```
@@ -390,8 +406,8 @@ Steps:
    plus the active directive before broad exploration. Main then directly inspects only decision-critical
    authoritative evidence; Companion owns bulky reusable canonical context and later conflict/delta checks.
 6. Implement the donor ownership split:
-   - Main updates `project_progress.md`, `project_diary.md`, `latest_session_work.md` after acceptance or
-     when recording a paused/blocked closure;
+   - Main updates `project_progress.md`, `project_diary.md`, `latest_session_work.md` from verified
+     implementation state, marking review-pending work truthfully until external acceptance;
    - Archivist may update assigned `project_overview.md`, `project_core_tech.md`, `project_structure.md`
      and assigned current docs/runbooks from verified facts;
    - Archivist cannot decide acceptance or rewrite Main-owned deployment-state files during closure.
@@ -404,10 +420,10 @@ Steps:
 9. Port/adapt donor deployment-token-report only if current Codex exposes reliable recorded usage.
    Report recorded counts only; never estimate price or fabricate missing data. If unavailable, document
    the limitation and omit brittle accounting.
-10. Use one real Phase-4 closure to dogfood the full sequence: Main acceptance/state-memory update →
-    Archivist stable-memory/doc update → PR. Then open a **fresh cold session** and verify it can recover
-    the current project position from `agent_docs/` + active directive with only bounded authoritative
-    follow-up reads.
+10. Use one real Phase-4 closure to dogfood the full sequence: Main internal acceptance/state-memory
+    update → Archivist stable-memory/doc update → PR. Then open a **fresh cold session** and verify it can
+    recover the current project position from `agent_docs/` + active directive with only bounded
+    authoritative follow-up reads.
 11. Compare cold-start quality, required reads and Main wakeups against the existing digest/context-map
     path. Record evidence, not a universal benchmark.
 12. Test completed, paused and blocked closure shapes so each leaves exactly one clear next entry point.
@@ -512,17 +528,23 @@ agent_docs + active directive
           ├── Tester(s)
           └── Archivist
           ↓
- Main integrates + accepts
+ Main integrates + internally accepts
           ↓
- Main state-memory update
+ Main pre-review state-memory update
           ↓
  Archivist stable-memory/docs update
           ↓
- authored PR
+ authored PR + handoff
           ↓
- human merge
+ implementation session STOPS
           ↓
- fresh independent review
+ Ali starts fresh independent review of OPEN PR
+          ├── FIX → original session updates same PR → STOP → fresh review
+          └── ACCEPT
+                 ↓
+             human merge
+                 ↓
+       bounded final closeout/archive
 ```
 
 Optimization target:
@@ -534,10 +556,11 @@ SKY-022 is archived historical provenance only.
 
 ## 6. Review and repair protocol
 
-Acceptance review runs in a fresh session and does not modify implementation. Review:
+Acceptance review is operator-started in a fresh session against the **open authored PR before human
+merge** and does not modify implementation. Review:
 
 - complete SKY-026 directive and exit criteria;
-- current `main` plus implementation/fix PRs or merged SHAs;
+- current `main` plus the exact open implementation/fix PR head being proposed for merge;
 - relevant donor source contracts;
 - AGENTS, construction doctrine, `.codex/*`, roles, tests/invariants, prompts/runbooks and callers;
 - `agent_docs/` content, ownership, authority boundaries and cold-start behavior;
@@ -548,22 +571,25 @@ Acceptance review runs in a fresh session and does not modify implementation. Re
 
 Reviewer may inspect SKY-022 only as history to verify old active surfaces were removed. It must never
 use SKY-022 to fill a current behavior gap. Reviewer may use read-only workers for evidence but owns the
-verdict.
+verdict. The implementation/fix session must not start, spawn, or continue into this acceptance review.
 
 ### PASS
 
-Return a concise `ACCEPT SKY-026` verdict with reviewed refs and critical evidence. Original
-implementation session may then perform final close-out bookkeeping held for acceptance.
+Return a concise `ACCEPT SKY-026` verdict with the exact reviewed PR/head and critical evidence. Ali
+may then human-merge that exact reviewed head. If the head changes after ACCEPT, review is stale and a
+fresh reviewer must inspect the updated open PR before merge. After merge, a bounded closeout session
+performs final bookkeeping/archive held for acceptance; it does not automatically start another
+acceptance review unless it introduces substantive implementation changes.
 
 ### FIX
 
 If any fixable defect exists, the reviewer's final response must be only one fenced text block containing
-a complete paste-ready prompt for the original SKY-026 implementation session. No prose outside it.
+a complete paste-ready prompt for the original SKY-026 implementation/fix session. No prose outside it.
 
 Use this populated structure:
 
 ```text
-Continue the original SKY-026 implementation session and fix the independent review findings below.
+Continue the original SKY-026 implementation/fix session and fix the independent review findings below.
 Do not redesign unrelated work and do not self-accept SKY-026.
 
 Review findings:
@@ -577,15 +603,16 @@ Verification required:
 - run the relevant full repo gates after focused checks pass
 
 Git/PR handling:
-- if the reviewed implementation PR is still open, update that same branch/PR;
-- if the reviewed work is already merged, create one bounded SKY-026 fix branch/PR from current main;
-- do not merge your own PR.
+- update the same open reviewed branch/PR and report its new head;
+- do not merge your own PR;
+- after publishing the fix, STOP. Do not launch or continue into acceptance review.
 
 When fixed, report the PR URL/commit, changed files, checks run/results, and any remaining limitation.
-Then stop. The result will be reviewed again in a fresh independent review session.
+Then stop. Ali will manually start a fresh independent review session against the updated open PR.
 ```
 
-Then a fresh session reviews again. Repeat until ACCEPT. Reviewer never repairs its own findings.
+Then Ali manually starts a fresh session to review again. Repeat until ACCEPT. Reviewer never repairs
+its own findings.
 
 ## 7. ▶ Execute prompt
 
@@ -605,20 +632,24 @@ accepted evidence remain higher authority and win any conflict.
 
 Preserve Skynet production trust tiers, human merge and fresh external review. Follow AGENTS.md and
 this directive. Keep current docs and agent memory lean; history belongs in journal. Land one reviewable
-PR, never merge your own authored work, and perform phase close-out only when exits pass.
+PR, never merge your own authored work, and perform implementation close-out only when exits pass.
+After opening/pushing the authored PR, report the review handoff and STOP. Do not start, spawn, or
+continue into final acceptance review; Ali starts that manually in a separate fresh chat against the
+open PR.
 ```
 
 ## 8. ▶ Final review prompt
 
-Paste into a fresh session after Phase 5 implementation evidence is ready:
+Paste into a **new separate fresh chat while the implementation/fix PR is still open**:
 
 ```text
-Independently review SKY-026 end to end.
+Independently review SKY-026 end to end against the exact open PR head proposed for merge.
 
 Read planning/projects/SKY-026-overhaul-agent-orchestration-around-a-main-worker-swarm.md, current
 AGENTS.md, docs/conventions/construction.md, .codex configuration/agents, tests/invariants,
-agent_docs/, current construction prompts/runbooks, all SKY-026 implementation/fix PRs or merged SHAs,
-and relevant donor source contracts from viettran-edgeAI/codex_workflow.
+agent_docs/, current construction prompts/runbooks, current main, the exact open SKY-026
+implementation/fix PR head, earlier merged SKY-026 PRs/SHAs needed as evidence, and relevant donor source
+contracts from viettran-edgeAI/codex_workflow.
 
 SKY-026 must completely supersede SKY-022. Verify SKY-022 has zero current construction authority,
 callers, aliases, fallbacks, compatibility behavior or present-tense authority references. Archived
@@ -627,18 +658,21 @@ material may remain only as inert history and must not determine current behavio
 Verify agent_docs is the compact cross-session agent-memory layer, with the donor-inspired six-file
 shape and Main/Archivist ownership split, while constitution/runtime/current operational docs/active
 directives/accepted evidence remain higher authority. Verify stale memory is repaired rather than
-trusted, and that any retained digest/context-map/checkpoint surface has a distinct justified role.
+trusted, that pre-review memory does not claim the open PR is already merged/accepted, and that any
+retained digest/context-map/checkpoint surface has a distinct justified role.
 
 Do not modify implementation and do not repair findings yourself. Verify all directive exits, role
 ownership, Light/Medium/Heavy behavior, context routing, task capsules, batching, Executor↔Tester repair,
 continuity/closure, obsolete-role removal, model/sandbox configuration, production isolation, human
-merge and deterministic gates.
+merge and deterministic gates. Confirm implementation/fix sessions stop after publishing their PR and
+do not launch acceptance review themselves.
 
-If everything passes, return a concise ACCEPT SKY-026 verdict with reviewed refs and critical evidence.
+If everything passes, return a concise ACCEPT SKY-026 verdict naming the exact reviewed PR/head and
+critical evidence. That exact head may then be human-merged; any later head change requires fresh review.
 If any fixable defect exists, your FINAL RESPONSE MUST BE ONLY ONE fenced text block containing a
-complete paste-ready fix prompt for the original SKY-026 implementation session. Include exact findings,
-required fixes, verification and PR handling. No prose outside that block. The original session fixes;
-then a fresh independent session reviews again.
+complete paste-ready fix prompt for the original SKY-026 implementation/fix session. Include exact
+findings, required fixes, verification and PR handling. No prose outside that block. The original
+session fixes the same open PR and stops; then Ali manually starts a fresh independent review session.
 ```
 
 ## 9. Phase close-out
@@ -653,9 +687,14 @@ Phases 1–4:
 
 Phase 5:
 
-- land implementation evidence and keep `in-progress` pending independent review;
-- after `ACCEPT SKY-026`, one bounded close-out marks Phase 5 done, sets `current_phase: 5`, marks the
-  directive done, refreshes roadmap, and archives through normal planning lifecycle;
+- land implementation evidence in an open authored PR and keep `in-progress` pending independent review;
+- Ali manually starts a fresh reviewer against that open PR; FIX returns to the original session, which
+  updates the same PR and stops, then Ali starts another fresh review;
+- after `ACCEPT SKY-026`, Ali human-merges the exact reviewed PR head;
+- one bounded post-merge closeout then marks Phase 5 done, sets `current_phase: 5`, marks the directive
+  done, updates final accepted/merged `agent_docs`, refreshes roadmap, and archives through normal
+  planning lifecycle; that bookkeeping does not automatically trigger another acceptance review unless
+  it introduces substantive implementation changes;
 - SKY-022 remains only inert historical provenance.
 
 ## 10. Status
@@ -670,11 +709,12 @@ Phase 5:
   continuity surfaces rather than maintaining parallel handoff systems forever.
 - P4 complete in PR #250: six compact files, authority/ownership boundaries, closure shapes, recorded
   token reporter, and bounded cold-start comparison passed. Next: execute Phase 5 after human merge.
-- P5 implementation ready: fresh `agent_docs/` intake repaired a real stale-memory conflict; Light,
-  Medium, and concurrent Heavy work exercised the native topology; retained continuity views now have
-  distinct retrieval/index roles; the unused checkpoint and remaining current legacy guidance are
-  removed; independent Tester repair/recheck and relevant gates pass. Status stays `in-progress`
-  pending the required fresh external review.
+- P5 implementation was merged in PR #252 at `61f805cf3116450ac42f1e72b88f59b08410da5c` before final
+  manual acceptance because the prior lifecycle placed review after merge. Architecture/dogfood evidence
+  remains reviewable, but SKY-026 stays `in-progress`.
 - P5 first external review of PR #252 requested evidence-only fixes: a distinct Main-only Light task,
-  durable closing Archivist/token-report disposition, and current open-PR state. Those facts are now
-  recorded for fresh re-review; architecture and implementation scope are unchanged.
+  durable closing Archivist/token-report disposition, and current open-PR state. Those facts were
+  recorded; the implementation session then incorrectly continued into review instead of stopping.
+- Open bounded fix PR #253 corrects the lifecycle: implementation/fix sessions stop after publishing,
+  Ali manually reviews the open PR in a separate fresh chat, ACCEPT precedes human merge, and final
+  accepted/merged memory is written only in bounded post-merge closeout.
