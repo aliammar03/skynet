@@ -11,7 +11,9 @@
   integration/implementation acceptance and authored-PR readiness inside the implementation swarm,
   plus implementation decisions and integration; bounded workers own their assigned context,
   implementation, verification, or docs. External final acceptance belongs only to a separate fresh
-  reviewer manually started by Ali against the exact open PR head.
+  reviewer manually started by Ali. That reviewer resolves the current target/base SHA and PR head
+  SHA from GitHub, reviews that integration pair, rechecks both before verdict, and binds ACCEPT to
+  the pair. Ali identifies the PR; agents handle revision hashes.
 - Main owns progress, diary, and latest-session memory. Archivist owns assigned overview, technology,
   and structure memory plus assigned current docs; Archivist never decides internal integration
   acceptance or external final acceptance.
@@ -22,8 +24,12 @@
 - Final acceptance review is operator-started. An implementation or fix session publishes its authored
   PR, reports the review handoff, and stops; Ali manually starts each fresh reviewer in a separate chat
   against that open PR. Implementation sessions never launch their own acceptance review or re-review.
-  Only after ACCEPT does Ali human-merge the reviewed PR; durable post-merge state/archive updates are
-  a bounded closeout, not another automatic acceptance review.
+  Movement of either the reviewed base or reviewed head invalidates ACCEPT; GitHub mergeability or an
+  unchanged head alone is insufficient. Only after ACCEPT does Ali human-merge the reviewed PR;
+  durable post-merge state/archive updates are a bounded closeout, not another automatic review.
+- A directive may define one bounded legacy transition for work already merged before the current
+  pre-merge lifecycle. A legacy FIX must open a corrective PR and return to the normal pre-merge path;
+  the exception cannot authorize future work to bypass review-before-merge.
 - The unprivileged NixOS `aliammar` account is the construction filesystem/OS boundary. Native
   construction inherits its no-prompt Codex posture; self-root and authored self-merge are forbidden,
   and production authority remains governed separately by trust-tier contracts.
