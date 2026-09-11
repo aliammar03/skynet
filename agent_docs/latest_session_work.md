@@ -1,7 +1,7 @@
 # Latest Session Work
 
 > Derived closure handoff. The active directive, current Git/PR state, and accepted evidence win any
-> conflict; this file is updated by Main after acceptance or a paused/blocked closure.
+> conflict; Main updates this at implementation-ready, paused/blocked, and bounded post-merge closeout.
 
 ## Detailed Current State
 
