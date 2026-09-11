@@ -9,8 +9,8 @@ SKY-026 Phase 5 implementation was human-merged in PR #252 at
 `61f805cf3116450ac42f1e72b88f59b08410da5c`. Phase 5 is not yet accepted: the current manual review
 found a handoff defect because the implementation session started its own external review instead of
 stopping after publishing the PR. Bounded fix PR #253 corrects that review boundary and this stale
-post-merge memory. The directive remains `in-progress` until a fresh manually started review returns
-`ACCEPT SKY-026`.
+post-merge memory. PR #253 itself must be reviewed while still open; SKY-026 remains `in-progress`
+until a fresh manually started review returns `ACCEPT SKY-026`.
 
 ## Session Changes
 
@@ -25,7 +25,9 @@ post-merge memory. The directive remains `in-progress` until a fresh manually st
 - Current prompts, active planning, AGENTS, doctrine, runbook, renderers, tests, and generated indexes
   use the SKY-026 ownership and continuity model. Archived/journal provenance remains historical only.
 - PR #253 makes acceptance review explicitly operator-started: implementation/fix sessions publish
-  their authored PR, report the handoff, and stop; Ali starts each fresh reviewer in a separate chat.
+  their authored PR, report the handoff, and stop; Ali starts each fresh reviewer in a separate chat
+  against the still-open PR. After ACCEPT, Ali human-merges that reviewed PR and then performs bounded
+  post-merge closeout/state archival rather than launching another acceptance review.
 
 ## Verification
 
@@ -45,14 +47,18 @@ post-merge memory. The directive remains `in-progress` until a fresh manually st
 
 ## Pending Work and Blockers
 
-- Human merge of bounded fix PR #253, then one fresh manual external review are pending. SKY-026 stays
-  `in-progress` until that independently started review returns ACCEPT.
+- Fresh manual external review of open fix PR #253 is pending. SKY-026 stays `in-progress` until that
+  independently started review returns ACCEPT. Only then should Ali human-merge #253.
+- After the accepted PR is merged, a bounded closeout must update durable state/archive surfaces to the
+  merged accepted reality; that closeout does not automatically start another acceptance review.
 - `pre-commit` was unavailable in both the host and Nix shell during Phase 5. Two temporal-hygiene
   failures reproduced on clean Phase-5 `HEAD` and were not caused by the phase.
 
 ## Next Entry Point
 
-Ali human-merges PR #253, then manually starts a **new separate review chat** using the SKY-026 final
-review prompt against current `main`, merged Phase 5 PR #252, and merged fix PR #253. Do not resume the
-implementation/fix session to perform that review. After `ACCEPT SKY-026`, return for the bounded final
-close-out and archive.
+Ali manually starts a **new separate review chat** using the SKY-026 final review prompt against open
+PR #253 plus merged Phase 5 PR #252/current `main`. Do not resume the implementation/fix session to
+perform that review. If the reviewer returns FIX, paste its prompt into the original fix session, let
+that session update PR #253, then start another fresh review. If it returns `ACCEPT SKY-026`, human-merge
+PR #253 and then run the bounded final closeout/archive so `agent_docs/`, the directive, and roadmap
+record the merged accepted state.
