@@ -140,11 +140,14 @@ express a required behaviour and Ali separately authorises that complexity. `[ma
 
 ## Fresh external review
 
-Executor self-check, Tester verification, and Main acceptance are the internal gates. Final acceptance
-review then runs in a **fresh session outside the swarm**. The reviewer never repairs the work: if it
-finds a fixable defect its entire final response is one complete, paste-ready fix prompt for the
-original implementation session. That session fixes; a fresh reviewer reviews again; repeat until
-ACCEPT. Human merge makes the accepted result effective — authored PRs stay human-merged. `[manual]`
+Executor self-check, Tester verification, and Main acceptance are the internal gates. The
+implementation session then commits, pushes, opens its authored PR, returns the PR URL and review
+handoff, and **stops**. Final acceptance review is an **operator-started action**: Ali manually starts
+a separate fresh chat/session after human merge. The implementation session must not start, spawn, or
+continue into that review. The reviewer never repairs the work: if it finds a fixable defect its entire
+final response is one complete, paste-ready fix prompt for the original implementation session. That
+session fixes and stops after publishing its fix PR; Ali manually starts another fresh reviewer. Repeat
+until ACCEPT. `[manual]`
 
 ## Continuity and truth surfaces
 
