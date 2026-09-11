@@ -161,9 +161,9 @@ docs/runbooks; it never decides acceptance, rewrites Main-owned deployment state
 hand-edits generated outputs (`inventory/`, `docs/generated/`). `[manual]`
 
 The generated digest remains the read-time view of recent decisions, open threads, and raw episodes;
-the context map remains the generated routing/load-cost index; `.agent/CHECKPOINT.md` remains optional
-disposable in-flight state. They are Phase-5 evaluation candidates, not permanent required companions
-to `agent_docs/`. `[manual]`
+the context map remains the generated routing/load-cost index. Neither generated view is required for
+agent-memory continuity after `agent_docs/` and the active directive are read; retain each only for its
+distinct generated-view consumer. `[manual]`
 
 Every substantive closure leaves exactly one `## Next Entry Point` in `latest_session_work.md`: `[testable/manual]`
 

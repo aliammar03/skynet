@@ -38,10 +38,12 @@ Every night the agent writes a fresh, human-readable
 healthy, where the build stands, and what it's keeping an eye on, rendered from live inventory.
 It's the friendliest way to see where Skynet is right now.
 
-For the machine's own orientation there's a companion
-**[agent digest](docs/generated/06-agent-digest.md)** — recent decisions, open threads, and recent
-episodes, assembled from the [`journal/`](journal/README.md) and the roadmap — which a fresh agent
-session reads first on a cold boot.
+For compact cross-session orientation, a fresh substantive agent session reads the six
+**[`agent_docs/`](agent_docs/)** files plus its active directive. The generated
+**[agent digest](docs/generated/06-agent-digest.md)** remains an optional recent-activity, episodic,
+and open-thread retrieval view, assembled from the [`journal/`](journal/README.md) and the roadmap.
+The generated **[context map](docs/generated/07-context-map.md)** is an on-demand index of loadable
+paths, triggers, and approximate token costs.
 
 ---
 

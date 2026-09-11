@@ -28,6 +28,8 @@ root grants, and never-standing T3 access; a construction worker has no producti
   Bash procedures, Nix modules, OpenTofu, and Compose retain their declared roles.
 - Arcane reconciles merged Compose changes through Git Sync. Health is verified through the scoped
   read paths and inventory is refreshed by machine-owned collectors/renderers.
+- The generated digest is optional recent-activity/episodic/open-thread retrieval and the context map
+  is on-demand load-cost routing; neither replaces `agent_docs/` continuity or authoritative sources.
 - Construction is a native Main-directed Light/Medium/Heavy worker swarm. Main owns decisions and
   acceptance; bounded workers own assigned context, implementation, verification, or documentation.
   `agent_docs/` is compact cross-session memory, not a second infrastructure truth system.

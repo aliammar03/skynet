@@ -18,6 +18,9 @@
 - The unprivileged NixOS `aliammar` account is the construction filesystem/OS boundary. Native
   construction inherits its no-prompt Codex posture; self-root and authored self-merge are forbidden,
   and production authority remains governed separately by trust-tier contracts.
+- Cross-session construction continuity starts with the six `agent_docs/` files plus the active
+  directive. The generated digest is only a recent-activity/episodic/open-thread retrieval view; the
+  context map is only an on-demand load-cost router. Disposable checkpoint state has no repository role.
 
 ## Lessons
 
@@ -31,3 +34,8 @@
   later; retain direct Main reads for decision-critical evidence.
 - Approval ergonomics are not an authority model: keep ordinary construction quiet at the Unix
   boundary and encode the two prohibited self-actions as deterministic hard blocks.
+- A real conflict is better continuity evidence than a synthetic stale-memory fixture: when derived
+  memory disagrees with merged Git or installed runtime, use the higher authority immediately and
+  repair the handoff at the owned closure point.
+- Current planning prompts and active directives are construction callers too; legacy-role scans that
+  cover only role files and doctrine can miss live routing language there.

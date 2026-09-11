@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# digest-test.sh — the cold-boot digest reads explicit current thread state, never guesses from old
-# journal prose. T1 — fixtures only; no network or repository mutation. Run: bash tests/digest-test.sh
+# digest-test.sh — the recent-activity digest reads explicit current thread state, never guesses from
+# old journal prose. T1 — fixtures only; no network or repository mutation. Run: bash tests/digest-test.sh
 # TIER: T1 — renders to a TEMP page against a fixture journal + the real inventory. No network, no writes.
 # Run: bash tests/digest-test.sh
 set -uo pipefail

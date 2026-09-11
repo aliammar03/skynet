@@ -5,12 +5,11 @@
 #   2. check-invariants  — hard laws hold: excluded guests stay unpooled, the managed-pool dial
 #                          matches inventory, and plaintext secrets are rejected.
 #   3. entity-test       — VMID/IP derivation and entity-ID grammar hold against the known-good set.
-#   4. digest-test       — resolved historical threads stay out of the cold-boot digest.
+#   4. digest-test       — resolved historical threads stay out of the optional recent-activity digest.
 #   5. construction-test — the six native worker role TOMLs parse and carry their full contract
 #                          (name/model/effort/sandbox/description/instructions); sandboxes match
 #                          invariants.json; no legacy role or concurrency cap survives.
-#   6. gitignore-test    — the disposable .agent/ checkpoint directory stays ignored.
-#   7. rollback/provisioning regressions — current executor, snapshot, certificate-selection, and
+#   6. rollback/provisioning regressions — current executor, snapshot, certificate-selection, and
 #      declared-guest truth stays covered locally as well as in CI.
 # Bypass a false positive with:  git commit --no-verify  (CI re-runs every gate regardless).
 set -euo pipefail
@@ -26,7 +25,6 @@ bash "${ROOT}/tests/tofu-rollback-test.sh"
 bash "${ROOT}/tests/pve-snapshot-test.sh"
 bash "${ROOT}/tests/provisioning-truth-test.sh"
 bash "${ROOT}/tests/construction-test.sh"
-bash "${ROOT}/tests/gitignore-test.sh"
 bash "${ROOT}/tests/nightly-automerge-test.sh"
 bash "${ROOT}/tests/nightly-sequence-test.sh"
 # Documentation/style/context checks are manual during the repository overhaul.

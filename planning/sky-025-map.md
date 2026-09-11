@@ -5,7 +5,7 @@ summary: "SKY-025 subsystem dispositions, external callers, output contracts, an
 # SKY-025 · Repository disposition map
 
 Owned by [the directive](projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md).
-Current accepted progress: **P6 / 6 of 24**. §5 releases **P7a Omada (Terra High)** as the current
+Current accepted progress: **P6 / 6 of 24**. §5 releases **P7a Omada** as the current
 executable packet; P7b certs/routes and P7c recon are same-phase continuations. P6c is a bounded
 corrective slice after P6 acceptance (offline firewall inventory path retired — see below), not a
 new numbered phase. Per-phase acceptance verdicts, reviewed SHAs and phase history live in the
@@ -32,7 +32,7 @@ Enumeration counts: root files 10; `.claude` 1, `.codex` 4, `.githooks` 1, `.git
 | `collect-network-gear.sh`, `collect-certs.sh`, `collect-routes.sh`, `recon.sh` | migrate | Python observations with provenance and vantage | collect-all, recon/diagnosis runbooks | 7 | P7a moves Omada; P7b moves fixed-vantage certificate probes and static Caddy routes; P7c moves local/forced-svc-ops recon. P7 review pending. |
 | `entity.sh`, `audit-entities.sh`, `build-db.sh` | migrate | Entity functions, audit, rebuildable SQLite cache | collectors/render-docs, bin/ops entities/query | 8 | Verified existing identity and join callers |
 | `scripts/sql/*.sql` | retain | SQL query definitions | bin/ops query, SQLite cache | 8 | Verified host-map/vhosts queries; adapt schema with consumers |
-| `render-docs.sh`, `render-digest.sh`, `render-context-map.sh`, `render-runbook-catalog.sh`; `bin/recall` | migrate | Python rendering/retrieval, existing Markdown sources | nightly, bin/ops, cold boot, catalog checks | 9 | Verified outputs; history remains append-only |
+| `render-docs.sh`, `render-digest.sh`, `render-context-map.sh`, `render-runbook-catalog.sh`; `bin/recall` | migrate | Python rendering/retrieval, existing Markdown sources | nightly, bin/ops, on-demand retrieval, catalog checks | 9 | Verified outputs; history remains append-only |
 | `deploy-gate.sh`, `gitops-deploy.sh`, `gitops-rollback.sh` | migrate | Python verification/deploy/recovery evidence | deploy/restore runbooks, Arcane Git Sync procedures | 10–11 | Verified references; actual Arcane command/revision settings blocked before P11 |
 | `cf-dns-route.sh`, `dns-revert.sh` | migrate | Scoped publishing/DNS workflows | publish runbooks, rollback tests | 12–14 | Verified declarative DNS/saved-plan relationship |
 | `tofu-env.sh`, `tofu-apply.sh`, `pve-snapshot.sh` | migrate | Python saved-plan policy/execution and recovery | provisioning/publishing runbooks, operator contract | 13–14 | Verified scopes/exclusions; preserve refusal/recovery cases F3 |
@@ -47,13 +47,13 @@ Enumeration counts: root files 10; `.claude` 1, `.codex` 4, `.githooks` 1, `.git
 | `check-invariants.sh`, `secret-scan.sh`, `repo-surface.sh`, `hygiene.sh` | migrate | Python deterministic gates with equivalent behavioral enforcement | hook, CI, nightly, bin/ops hygiene | 21 | Verified callers; no safety gate disabled during replacement |
 | `bin/new`, `bin/plan`; `templates/**`, `planning/TEMPLATE.md` | migrate executables; retain/adapt templates | Python scaffolding/planning helpers | operators, directive/journal lifecycle | 9, 21 | Verified Bash script template is for shell needs, not mandatory new Python logic |
 | `.codex/**` | retain/adapt | Native Codex worker-role definitions (one role per `.codex/agents/*.toml`) | construction runbook, invoking sessions, routing tests | 1, 22 | SKY-026 removed the `bin/agent` launcher — native Codex subagent spawning is the sole worker mechanism, so there is no shell launcher left for P22 to retire |
-| `.claude/settings.json`, `CLAUDE.md` | retain | Shared-contract import and operator permissions | Claude lead sessions | 1, 22 | Inspected: no model router or Bash-only capability rule; git-push permission does not authorize worker pushes |
+| `.claude/settings.json`, `CLAUDE.md` | retain | Shared-contract import and operator permissions | Claude Main sessions | 1, 22 | Inspected: no model router or Bash-only capability rule; git-push permission does not authorize worker pushes |
 | `tests/*.sh` (19 suites) | migrate useful assertions; delete obsolete mirrors | Behavioral tests/fixtures under tests | CI and pre-commit | 2–21 | Routing tests updated P1; each other suite travels with its replaced component |
 | `.github/workflows/*`, `.githooks/pre-commit` | retain/adapt | Unified package/lint/type/test and invariant checks | GitHub, local Git hook | 2, 21 | Verified shell suites and Nix checks; no new workflow required |
 | `flake.nix`, `flake.lock`, `hosts/**`, `nix/**` | retain/adapt | Nix packages, host definitions, timers, activation and rescue packaging | deploy-rs/Nix, Home Manager, Docker context/MOTD/login | 2, 18–23 | Source inspected; activation and live installs not run |
 | `tofu/**` | retain | OpenTofu resources/providers/locks and encrypted state configuration | saved-plan executor, provision/publish runbooks | 13–14, 18 | Declarative ownership retained; local state never copied into this worktree |
 | `compose/**` | retain | Compose/Caddy/tunnel/app configuration and encrypted env | Arcane, Docker, publish/deploy workflows | 11–12, 22–23 | Includes Jikan PHP/JS override assets and `.env.compose`: service code, not ops engine; payload not replaced |
-| `inventory/**`, `docs/generated/**` | retain data contracts; regenerate views | Python collectors/renderers | gates, SQLite/SQL, Obsidian, cold boot | 3–9, 21–22 | Never hand-edit; format decisions below |
+| `inventory/**`, `docs/generated/**` | retain data contracts; regenerate views | Python collectors/renderers | gates, SQLite/SQL, Obsidian, on-demand retrieval | 3–9, 21–22 | Never hand-edit; format decisions below |
 | `AGENTS.md`, `README.md`, `docs/system-design.md`, `docs/conventions*`, `docs/design/**`, other `docs/*.md`, `runbooks/**` | retain/adapt/prune stale guidance | One current authority per rule, commands match each replacement | human/agent operators, context/catalog/hygiene | 1, 9–24 | No future capability claimed installed; raw history excluded from cleanup |
 | `docs/history/**`, `docs/decisions/**`, `journal/**`, `planning/**` except templates | retain | History, accepted decisions, working plans | recall/digest, review handoffs | 1, 9, 21, 24 | Journal append-only; adjacent directives keep unrelated work |
 | `ca/**`, `secrets/**`, `.sops.yaml`, encrypted Compose payloads | retain | Existing public keys, encrypted material and custody | sops/Nix activation, SSH grants, recovery | all; 18, 24 | Filenames/source declarations only; no decrypted material read |
@@ -82,7 +82,7 @@ frontmatter, encrypted secret/state formats and recovery locations. Saved-plan s
 scope/action refusal and partial-write evidence are required contracts; byte-for-byte old logs are not.
 
 Generated Markdown, roadmap/catalog formatting and `.cache/inventory.db` may be regenerated when their
-consumer changes together: retain meaningful links and cold-boot filenames, not whitespace or cached
+consumer changes together: retain meaningful links and current continuity filenames, not whitespace or cached
 schemas by default. Optional CLI JSON must include an explicit outcome (success/failure/unavailable/
 skipped/recovery-required); success exits zero and failed or indeterminate required work exits nonzero.
 The first slice must settle exact keys/exit numbers and test them; a skip must state its reason and
@@ -99,7 +99,7 @@ cannot satisfy required verification. Human output and JSON must agree.
 | Ops `/opt/skynet-ops/{certs,mirror}` and `/nix/persist/opt/skynet-ops` | Local cert/mirror directories exist by metadata. Nix persists `/opt/skynet-ops`, home, Docker data, systemd state, logs, SSH host identity. Mirror contents not read. | Preserve on replacement; verify recovery at first live phase |
 | `/opt/skynet-ops/secrets/`, `/run/secrets`, per-CT age identity | Nix declarations own materialization and persistent age path; no secret contents inspected. Preserve existing recovery/custody rules. | No rotation or new credential handling authorized P1 |
 | Main checkout `.cache/`, `.claude/settings.local.json`, `result`, `tofu/.terraform`, `tofu/*.tfstate*` | Ignored-file names show SQLite/nightly logs, local settings, build output, provider cache and state/backups. No contents read or copied. State is recovery-critical; caches/build outputs are rebuildable. | Capture/verify state recovery before live execution; never blanket-clean ignored files |
-| `.agent/`, `.obsidian/workspace*.json`, `.obsidian/plugins/`, effective Compose `.env`/`project.env`, credential/SSH files | Declared ignored/runtime classes; existence not inferred. Home also holds engine auth/config, gh auth, ops.env and SSH material per Nix/runtime contracts. | Inventory metadata only before affected install; do not remove to simplify rebuild |
+| `.obsidian/workspace*.json`, `.obsidian/plugins/`, effective Compose `.env`/`project.env`, credential/SSH files | Declared ignored/runtime classes; existence not inferred. Home also holds engine auth/config, gh auth, ops.env and SSH material per Nix/runtime contracts. | Inventory metadata only before affected install; do not remove to simplify rebuild |
 
 Survival-kit source: [runbooks/dr/survival-kit.md](../runbooks/dr/survival-kit.md), plus
 [core](../runbooks/dr/DR-core-node.md) and [network](../runbooks/dr/DR-network-node.md) recovery.
@@ -128,15 +128,15 @@ SKY-025 owns engine replacement and its F1–F11 correctness work. No adjacent p
 
 ## Phase 1 evidence
 
-Model identifiers/efforts were checked against installed Codex `0.153.4` model catalog metadata;
-session metadata confirmed `gpt-6-astra`, medium. The exact five combinations are in the construction
-convention. Luna Medium scouts performed bounded read-only audits; leads/workers were not silently
-substituted. Dry-run routing is verified separately from model availability; no test claims live
-execution for Terra High, Sol Low, or Luna High.
+Phase 1 used a Main session and bounded read-only workers for repository inspection; no worker was
+silently substituted. Route selection, role identifiers, and effort are governed by the construction
+convention and installed native role definitions. Dry-run routing is verified separately from model
+availability, and no test claims live execution for an unavailable role.
 
 The [official configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference)
-was consulted for explicit model/effort and agent configuration. Existing helper cap and sandbox
-settings remain unchanged. Final check commands/results and raw inspection corrections are in the
+was consulted for explicit model/effort and agent configuration. No workflow-owned concurrency cap or
+role sandbox override is part of the current contract. Final check commands/results and raw inspection
+corrections are in the
 [phase journal](../journal/2026/2026-09-07-session-sky-025-p1-repository-map-and-routing.md).
 G1 accepted PR #211 at `3373fc887296cb6b32064d867f814c75266fedc5`; the directive records independent
 exit evidence. P2's isolated package build, source-filter boundary, runtime-only doctor, and Nix-owned
@@ -232,7 +232,7 @@ The local receipt is intentionally not portable through Git: a fresh clone requi
 collection before default consumers can claim current observations.
 
 Remaining readers use isolated Linux process groups and temporary subreaper ownership. Timeout,
-interruption and early leader exit all clean up/reap group descendants before continuing.
+interruption and early process-group exit all clean up/reap group descendants before continuing.
 Unconfirmed cleanup records `recovery-required`, stops the pass and refuses another collection
 until operator process recovery. No generic subprocess framework or new dependency was added.
 Storage failure that prevents any durable record remains explicitly indeterminate; consumers
@@ -309,7 +309,7 @@ and retains prior bytes for missing context, command failure, or malformed outpu
 records a Docker marker under the shared receipt and status/render/query/entity callers require it.
 The shell entry forwards only. Synthetic subprocess tests cover valid and failed output; no Docker
 context or production host was contacted. Source rollback is `git revert`; P5 is ready for one
-fresh Astra Medium review after this PR is human-merged.
+fresh independent review after this PR is human-merged.
 
 ## Phase 5a implementation (slice complete; P5 in progress)
 

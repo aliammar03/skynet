@@ -74,20 +74,14 @@ CLI names are settled by the first working slice, not an elaborate upfront schem
 
 Construction — Light/Medium/Heavy routes, worker roles, task capsules, ownership, batching,
 verification, and repair — follows [`../../docs/conventions/construction.md`](../../docs/conventions/construction.md).
-This directive adds only per-phase **Main model recommendations**, not a second orchestration system.
+This directive adds only per-phase **Main route recommendations**, not a second orchestration system.
 
-**Main model:** use the model/effort in the phase table as a starting recommendation for the Main
-session; **merged-result review and next-phase planning** run in a fresh session with the
-operator-selected model and effort. These are workload-based starting recommendations, not benchmark
-equivalences. A phase review may change the next recommendation from observed results; record the
-reason in that phase's packet.
-
-Terra High is the default Main. Sol Low handles the defined rendering/documentation passes. Astra
-Medium owns foundational design and consequential recovery/policy work. If a Terra/Sol phase exposes
-unresolved architecture, privilege, or recovery decisions, hand that decision to Astra Medium rather
-than spending repeated worker retries guessing. No automatic model router. Verify actual identifiers
-in the installed harness; never silently substitute — if unavailable, mark routing blocked and ask
-Ali to select an available identifier or update the harness.
+**Main route:** use the Light/Medium/Heavy route selected under SKY-026 for the phase; a substantive
+packet may use Heavy when it decomposes into non-overlapping packages. Main remains the decision owner,
+and **merged-result review and next-phase planning** run in a fresh session with the operator-selected
+model and effort. Role identifiers and efforts come from the installed native `.codex/agents/*.toml`
+definitions; there is no automatic model router or silent substitution. If a required role is
+unavailable, mark routing blocked and ask Ali to select an available identifier or update the harness.
 
 Workers gain no production authority, never touch secrets or production, and never commit/push/merge;
 keep non-overlapping ownership and human merge. Main owns decomposition, integration decisions, and
@@ -125,30 +119,30 @@ Architecture checkpoints **G1–G6** additionally reconsider the remaining roadm
 
 | Phase | Recommended Main | Bounded outcome / main surface | Depends on; exit evidence |
 |---|---|---|---|
-| 1 | Astra Medium | Repo disposition, minimal Python doctrine, phase-specific lead/Luna routing, overlap decisions | Current main; complete surface map + checked agent config. **G1** |
-| 2 | Terra High | Installable Python CLI, Nix package/dev environment, test/lint/type-check CI | 1; packaged help + one command work in clean environment |
-| 3 | Astra Medium | P3a core collector in isolation; P3b default-caller integration and freshness | 2; complete vertical slice/default path handles success, timeout, malformed and absent data. **G2** after both slices |
-| 4 | Terra High | Remaining core/network Proxmox and ACL collection; shared client only where useful | 3; both node shapes + existing invariants preserved |
-| 5 | Terra High | PBS and Docker inventory | 4; backup/container signals and unavailable/stale cases verified |
-| 6 | Terra High | DNS and OPNsense/firewall read collection | 5; scoped reads, TLS, response validation, no write creep |
-| 7 | Terra High | Omada, certs, routes, recon | 6; live/static provenance and vantage explicit; fixtures cover parsers |
-| 8 | Terra High | Entity derivation/audit, SQLite cache and queries | 7; identity exceptions preserved, stale inputs cannot look fresh |
-| 9 | Sol Low | Docs/digest/context/catalog rendering; journal/recall helpers | 8; deterministic views and usable cold-start context. **G3** |
-| 10 | Terra High | Python deployment health and reachability verification | 9; SSH failure, empty/partial sets and wrong revision fail |
-| 11 | Terra High | Arcane deploy/env/sync sequence and reviewed rollback preparation | 10; exact source, atomic env, failures/flags truthful |
-| 12 | Terra High | Publishing: Caddy routes, Authentik scoped operations, DNS coordination | 11; internal/public/auth paths verified from correct vantage |
-| 13 | Astra Medium | Saved-plan parsing, scope/action/exclusion policy in Python | 12; mixed create/update refused, protected targets refused before writes |
-| 14 | Astra Medium | Snapshot/apply/task completion, partial failure and recovery evidence | 13; failed rollback cannot erase state; interrupted writes stop safely. **G4** |
-| 15 | Terra High | Restic setup, target selection, consistency method, local scheduling | 14; init/auth/timer/path/volume failure cannot report success |
-| 16 | Terra High | PBS off-site transfer preflight and retention semantics | 15; wrong/missing/empty source never deletes backups; stable source proven |
-| 17 | Astra Medium | Service restore and guest/core/network recovery procedures | 16; isolated data restore + correct config/ownership; T3 explicitly labelled. **G5** |
-| 18 | Astra Medium | Provision/onboard VM/LXC, pins, age identity and workstation grant tooling | 17; API/deploy/bootstrap paths agree, keys stay human-held where required |
-| 19 | Terra High | OS-aware guest updates and required host-local backup/rescue packaging | 18; NixOS/Debian paths distinct; rollback failure stops affected workflow |
-| 20 | Astra Medium | Nightly collect/report/evidence/PR and exact-PR auto-merge gate | 19; one sequence, bounded engine attempts, no repeated writes, authority unchanged |
-| 21 | Terra High | Planning/scaffolding, repository hygiene and invariant gates; CI unification | 20; metadata/links/tests agree; meaningful gates replace shell doctrine |
-| 22 | Sol Low | Whole-repo prune: docs, agent shims/config, templates, Nix/Tofu/Compose callers, obsolete scripts | 21; disposition map has no unresolved live caller or duplicate implementation |
-| 23 | Terra High | Install/restart the Python engine and intended services; staged operational acceptance | 22; packaged CLI, schedules, collection and one approved write work. **G6** |
-| 24 | Astra Medium | Cold-start/recovery rehearsal, final fixes and archive | 23; final acceptance below; restore maintained documentation/style/context gates; honest residual limitations |
+| 1 | Main (Medium) | Repo disposition, minimal Python doctrine, phase-specific Main/worker routing, overlap decisions | Current main; complete surface map + checked agent config. **G1** |
+| 2 | Main (Heavy) | Installable Python CLI, Nix package/dev environment, test/lint/type-check CI | 1; packaged help + one command work in clean environment |
+| 3 | Main (Medium) | P3a core collector in isolation; P3b default-caller integration and freshness | 2; complete vertical slice/default path handles success, timeout, malformed and absent data. **G2** after both slices |
+| 4 | Main (Heavy) | Remaining core/network Proxmox and ACL collection; shared client only where useful | 3; both node shapes + existing invariants preserved |
+| 5 | Main (Heavy) | PBS and Docker inventory | 4; backup/container signals and unavailable/stale cases verified |
+| 6 | Main (Heavy) | DNS and OPNsense/firewall read collection | 5; scoped reads, TLS, response validation, no write creep |
+| 7 | Main (Heavy) | Omada, certs, routes, recon | 6; live/static provenance and vantage explicit; fixtures cover parsers |
+| 8 | Main (Heavy) | Entity derivation/audit, SQLite cache and queries | 7; identity exceptions preserved, stale inputs cannot look fresh |
+| 9 | Main (Medium) | Docs/digest/context/catalog rendering; journal/recall helpers | 8; deterministic views and usable cold-start context. **G3** |
+| 10 | Main (Heavy) | Python deployment health and reachability verification | 9; SSH failure, empty/partial sets and wrong revision fail |
+| 11 | Main (Heavy) | Arcane deploy/env/sync sequence and reviewed rollback preparation | 10; exact source, atomic env, failures/flags truthful |
+| 12 | Main (Heavy) | Publishing: Caddy routes, Authentik scoped operations, DNS coordination | 11; internal/public/auth paths verified from correct vantage |
+| 13 | Main (Medium) | Saved-plan parsing, scope/action/exclusion policy in Python | 12; mixed create/update refused, protected targets refused before writes |
+| 14 | Main (Medium) | Snapshot/apply/task completion, partial failure and recovery evidence | 13; failed rollback cannot erase state; interrupted writes stop safely. **G4** |
+| 15 | Main (Heavy) | Restic setup, target selection, consistency method, local scheduling | 14; init/auth/timer/path/volume failure cannot report success |
+| 16 | Main (Heavy) | PBS off-site transfer preflight and retention semantics | 15; wrong/missing/empty source never deletes backups; stable source proven |
+| 17 | Main (Medium) | Service restore and guest/core/network recovery procedures | 16; isolated data restore + correct config/ownership; T3 explicitly labelled. **G5** |
+| 18 | Main (Medium) | Provision/onboard VM/LXC, pins, age identity and workstation grant tooling | 17; API/deploy/bootstrap paths agree, keys stay human-held where required |
+| 19 | Main (Heavy) | OS-aware guest updates and required host-local backup/rescue packaging | 18; NixOS/Debian paths distinct; rollback failure stops affected workflow |
+| 20 | Main (Medium) | Nightly collect/report/evidence/PR and exact-PR auto-merge gate | 19; one sequence, bounded engine attempts, no repeated writes, authority unchanged |
+| 21 | Main (Heavy) | Planning/scaffolding, repository hygiene and invariant gates; CI unification | 20; metadata/links/tests agree; meaningful gates replace shell doctrine |
+| 22 | Main (Medium) | Whole-repo prune: docs, agent shims/config, templates, Nix/Tofu/Compose callers, obsolete scripts | 21; disposition map has no unresolved live caller or duplicate implementation |
+| 23 | Main (Heavy) | Install/restart the Python engine and intended services; staged operational acceptance | 22; packaged CLI, schedules, collection and one approved write work. **G6** |
+| 24 | Main (Medium) | Cold-start/recovery rehearsal, final fixes and archive | 23; final acceptance below; restore maintained documentation/style/context gates; honest residual limitations |
 
 Phases 12, 17, and 18 are especially likely to need lettered slices after inspection. Shared clients
 may move earlier when a real consumer needs them. Preserve dependency order, not arbitrary numbering.
@@ -158,8 +152,9 @@ Do not add a new live OPNsense writer or finish unrelated fleet migrations under
 
 **Release gate:** execute after Ali merges the P6 combined review/repair ACCEPT PR recorded
 in §9. Its verified repairs and phase acceptance take effect at that merge; no separate P6
-repair review is required. **Lead:** Terra High (`gpt-5.6-terra`, high), retaining the phase-table
-recommendation. The launcher dry-run resolves that exact model/effort.
+repair review is required. **Main route:** use the active SKY-026 route; Heavy is appropriate when
+the packet decomposes into non-overlapping packages. Native role identifiers and efforts come from
+`.codex/agents/*.toml`; there is no launcher or silent model substitution.
 
 **Goal:** replace the existing Omada shell collector with validated Python observations and
 receipt-bound freshness. Split P7 into **P7a Omada**, **P7b certs/routes**, and **P7c recon**:
@@ -245,7 +240,8 @@ slice acceptance or P8 release until all numbered-P7 work is merged and reviewed
 ## 5b. Phase 7b — certificate and authored-route observations (~1–2h)
 
 **Release gate:** P7a is merged as [#235](https://github.com/aliammar03/skynet/pull/235) at
-`b173e74142f6e57635a6b4f2a2e64b48800f2974`. **Lead:** Terra High (`gpt-5.6-terra`, high).
+`b173e74142f6e57635a6b4f2a2e64b48800f2974`. **Main route:** use the active SKY-026 route; Heavy is
+appropriate when this slice decomposes into non-overlapping packages.
 
 **Goal and surfaces:** replace `scripts/collect-certs.sh` and `scripts/collect-routes.sh` with
 `src/skynet/{certs,routes}.py`, their `skynet collect certs|routes` CLI commands, synthetic tests
@@ -283,7 +279,8 @@ merge detail P7c only.
 ## 5c. Phase 7c — bounded local and unprivileged-SSH reconnaissance (~1–2h)
 
 **Release gate:** P7b is merged as [#236](https://github.com/aliammar03/skynet/pull/236) at
-`e45b8132f3fe1e9637a2a8846de1258cb234dac8`. **Lead:** Terra High (`gpt-5.6-terra`, high).
+`e45b8132f3fe1e9637a2a8846de1258cb234dac8`. **Main route:** use the active SKY-026 route; Heavy is
+appropriate when this slice decomposes into non-overlapping packages.
 
 **Goal and surfaces:** replace `scripts/recon.sh` with `src/skynet/recon.py`, `skynet recon
 [target] [--json]`, a forwarding shim, synthetic tests/fixtures and Nix/hook inputs. Update only
@@ -460,8 +457,8 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
   (`9858daf0b4405b14aa93f45f50d71349ea29b1b6`), all verified merged through GitHub.
   Packet baseline `db09021802f590d79f2ab9f7c2c56064f29c0a4a`; reviewed main
   `9858daf0b4405b14aa93f45f50d71349ea29b1b6`; only those three commits intervene.
-  Reviewer: GPT-6 session, exact variant/effort unavailable; two Luna Medium scouts and two
-  Luna High builders handled bounded inspection/repairs. The reviewer inspected all changes
+  Reviewer: fresh session; bounded Investigator and Executor workers handled inspection/repairs.
+  The reviewer inspected all changes
   and retained live checks and acceptance.
 
   | P6 exit | Verdict and independent evidence |
@@ -478,7 +475,7 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
   write or recovery drill was attempted. The five paused documentation suites remain unrun.
   Repairs are included in this review branch; their commit identity is recorded in the PR.
   [Raw evidence](../../journal/2026/2026-09-09-session-sky-025-p6-combined-review-and-live-reads.md).
-  Accepted progress becomes **6/24** at human merge. §5 releases only **P7a Omada, Terra High**;
+  Accepted progress becomes **6/24** at human merge. §5 releases only **P7a Omada**;
   P7b certs/routes and P7c recon are same-phase continuations. No G checkpoint is due and no
   phase order changed. After merge: `Read planning/prompts/execute.md and execute SKY-025 P7a.`
 
@@ -568,7 +565,7 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
   `e09a8fc220d610cf6c5d60ac5471cdf0d67bcbe3`, against packet baseline
   `faf961ab3accb9466385da32efa9bb6185c77f3b`. No intervening main changes.
   Ali authorized reviewer repairs, live PBS/Docker reads and Luna workers, then requested
-  model-agnostic review. The invoking review used Astra Medium; that is evidence, not a
+  model-agnostic review. The invoking review used Main (Medium); that is evidence, not a
   requirement. The combined PR contains inspected reviewer repairs and their regressions.
 
   | Full P5 exit | Verdict / evidence including repairs |
@@ -586,7 +583,7 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
   records subsequent authorization and validation. No production mutation, activation, grant,
   credential/pin change or payload/state operation occurred. Live observations do not establish
   restore readiness; workstation/state/payload recovery remains unverified.
-  Accepted progress becomes **5/24** at human merge. Release only §5 P6a DNS with Terra High;
+  Accepted progress becomes **5/24** at human merge. Release only §5 P6a DNS with Main (Heavy);
   P6b remains a same-phase execution continuation. No G checkpoint or roadmap reorder is due.
   Reviewer repairs that have passed full affected exits need no additional review session.
 
@@ -596,7 +593,7 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
   Docker marker required by default consumers. The retained shell entry forwards to the package.
   Synthetic command/output tests cover a valid host, malformed output and retained bytes. No Docker
   context, production host, credential, service, timer, root, grant or write action occurred.
-  P5 remains unaccepted at 4/24; after human merge, request one fresh Astra Medium review for both
+  P5 remains unaccepted at 4/24; after human merge, request one fresh Main (Medium) review for both
   P5a PBS and P5b Docker PRs before P6.
 
 - 2026-09-09 — **P5a slice complete / P5 in progress.** From isolated remote-main base
@@ -622,7 +619,7 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
   [#221](https://github.com/aliammar03/skynet/pull/221), merge/main reviewed
   `29b3af942968953a470c9f6d7a06a5c29ca3f8ec`. Packet baseline is
   `d2bbedc649e2b4226a2f1b1721a35febbb6148cd`; no intervening commits beyond those slices.
-  Session metadata, installed catalog and launcher dry-run confirm fresh Astra Medium.
+  Session metadata, installed catalog and routing dry-run confirm a fresh Main (Medium) session.
 
   | Full P4 exit | Verdict / independent evidence |
   |---|---|
@@ -637,7 +634,7 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
   merged tests use parser inspection and synthetic overrides. This review's four live reads
   were explicitly authorized. Workstation/state/payload recovery and other API parity remain
   unverified; successful observations do not establish service health or restore readiness.
-  Accepted progress is **4/24**. Release only §5 P5a with Terra High; PBS/Docker become two
+  Accepted progress is **4/24**. Release only §5 P5a with Main (Heavy); PBS/Docker become two
   implementation slices within P5 because their transport/failure boundaries differ. No G
   checkpoint is due and no phase reorder is needed.
   [Raw commands and review evidence](../../journal/2026/2026-09-09-session-sky-025-p4-combined-independent-review.md).
@@ -680,13 +677,13 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
   |---|---|
   | CLI/data/TLS/atomic retention | ACCEPT — 99 behavioral cases pass; actual CLI with fake HTTPS covers malformed/absent/timeout/redirect/CA failures and retained bytes/times. |
   | Default caller and freshness failure handling | ACCEPT — R1 regression refuses ordinary status/query/entity/render after initial-marker failure, makes no reads, preserves pages and recovers after a complete refresh. |
-  | Sequential readers, overlap and bounded cleanup | ACCEPT — real timeout, SIGINT/SIGTERM and early-leader-exit tests reap group descendants before continuation/lock release; failed cleanup quarantines the receipt. Scope is existing foreground readers, not arbitrary daemonizing programs. |
+  | Sequential readers, overlap and bounded cleanup | ACCEPT — real timeout, SIGINT/SIGTERM and early process-group-exit tests reap group descendants before continuation/lock release; failed cleanup quarantines the receipt. Scope is existing foreground readers, not arbitrary daemonizing programs. |
   | Existing credential/caller compatibility | ACCEPT with repair — shared read/operate assignments accepted, only read token used, operate never substitutes for missing read token; duplicate/expression/unknown refusal and redaction retained. |
   | Packaging and repository integration | ACCEPT — source/installed Nix check, Ruff, mypy, flake evaluation, offline doctor/unavailable status and full hook pass; existing consumer field projections and safety suites retained. |
   | Authority and live boundaries | ACCEPT for isolated construction — no production credentials, API, activation, timer, host or protected-data changes. Live TLS/API parity and independent workstation/state/payload recovery remain unverified. |
 
   **G2 decisions:** retain synchronous ordinary functions and the receipt/hash/time contract.
-  Accept 3/24 and release only §5 P4a with Terra High after human merge. Confirm the network/ACL
+  Accept 3/24 and release only §5 P4a with Main (Heavy) after human merge. Confirm the network/ACL
   slice boundary; move shared credential compatibility into P3 (fixed here), so P4 reuses it.
   No broader framework or roadmap reorder is needed. Preserve the five paused documentation
   suites and P24 restoration requirement. [Raw evidence](../../journal/2026/2026-09-08-session-sky-025-p3-combined-re-review.md).
@@ -696,9 +693,9 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
   repair packet #217). A durable local attempt receipt invalidates prior success even when
   initial marker replacement fails. Status tests writable receipt durability and preserves
   existing snapshot hash/time, 36-hour and nightly-cutoff rules. Reader process groups are
-  killed/reaped under the collection lock on timeout, interruption and early leader exit;
+  killed/reaped under the collection lock on timeout, interruption and early process-group exit;
   unconfirmed cleanup stops/quarantines further collection.
-  Lead self-review and regressions cover ordinary default-consumer refusal, later recovery,
+  Executor self-check and regressions cover ordinary default-consumer refusal, later recovery,
   actual descendants/signals, lock lifetime and redaction. Full pytest: 94 passed; installed
   package: 86 passed; Ruff, mypy, flake evaluation, offline launcher and staged hook pass.
   [Raw repair evidence](../../journal/2026/2026-09-08-session-sky-025-p3-freshness-and-process-fixes.md)
@@ -715,7 +712,7 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
   Packet starting revision `17db700c22cb17ad219655674eada344c215029a`;
   intervening #214 (`f21442c44d34baf71e01ca8938ea1305c82242f6`) supplies the accepted
   P2 review and P3 packet, with no implementation. No post-#216 changes at review.
-  Fresh session metadata, installed catalog and review dry-run confirm Astra Medium.
+  Fresh session metadata, installed catalog and review dry-run confirm Main (Medium).
 
   | Full P3 exit | Verdict and independent evidence |
   |---|---|
@@ -733,7 +730,7 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
   Both PRs' GitHub checks are green; that does not discharge these missing failure cases.
 
   **G2 decisions:** keep the small synchronous package and explicit observation/freshness contract.
-  Repair those contracts before extending collection; release only §5's Astra Medium fix packet.
+  Repair those contracts before extending collection; release only §5's Main (Medium) fix packet.
   Accepted progress remains **2/24**, P4 is unreleased, and G2 acceptance awaits full-phase
   re-review. No roadmap reorder is justified before these repairs. P4–7 retain their collector
   ownership; do not add a generic process/workflow framework. Live API parity and independent
@@ -787,7 +784,7 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
   build/activation is not claimed. Flake evaluation passed with system-rename, app-meta and custom
   deploy-output warnings. No live calls or recovery drill were required/performed.
   [Raw independent evidence](../../journal/2026/2026-09-07-session-sky-025-p2-independent-review.md).
-  Accepted numbered progress is 2/24. Release only §5 P3a with Astra Medium. P3b and G2 remain
+  Accepted numbered progress is 2/24. Release only §5 P3a with Main (Medium). P3b and G2 remain
   pending; the split bounds foundational code separately from default-caller/live prerequisites.
   No other roadmap reordering or autonomy change; P2 is not an architecture checkpoint.
 
@@ -798,7 +795,7 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
   passes outside-checkout help/version/doctor smoke with `PYTHONPATH` unset; behavioral tests,
   Ruff, mypy, packaged checks, and `nix flake check --no-build` pass. Nix was not activated and no
   host, credential, timer, service, collector, or production data was touched. `current_phase: 1`
-  remains correct until a fresh Astra Medium reviewer accepts the merged implementation. Raw command
+  remains correct until a fresh Main (Medium) reviewer accepts the merged implementation. Raw command
   evidence and the corrected package-check test split are in the
   [P2 journal](../../journal/2026/2026-09-07-session-sky-025-p2-package-local-cli.md).
 
@@ -818,19 +815,19 @@ Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
 
   Findings: none requiring P1 repair. Roadmap, digest and context map regenerate identically at the
   reviewed SHA. No Nix/Tofu apply, remote backup/Arcane verification, recovery drill, or live
-  Terra/Sol/Luna High invocation was performed or required for this repository-only phase.
+  native worker invocation was performed or required for this repository-only phase.
   [Raw review evidence](../../journal/2026/2026-09-07-session-sky-025-p1-independent-review.md).
 
   **G1 decisions:** accept the compact package/output boundaries and adjacent ownership map. Keep
   dependency order and provisional 24 phases; no evidence yet justifies collapsing later failure/
   recovery work. Bound P2 to package/dev/CI and one runtime-only command. Move F9 updater removal
   wholly to P20–22 so its script, timer and configuration owner change together. P3 settles external
-  data contracts. Only §5 is actionable after this planning PR's human merge; Terra High is retained.
+  data contracts. Only §5 is actionable after this planning PR's human merge; the Heavy route is retained.
 
 - 2026-09-06 — Original correctness directive merged in #207; no implementation phases completed.
 - 2026-09-06 — Reworked by Ali's instruction into a Python engine/repository overhaul, 24 provisional
-  phases with rolling elaboration, Astra Medium/Luna construction, and accepted service downtime.
+  phases with rolling elaboration, Main-directed native-worker construction, and accepted service downtime.
 
-- 2026-09-06 — Assigned execution leads per phase: Terra High by default, Sol Low for defined prose/
-  rendering passes, Astra Medium for foundations and consequential logic; fresh Astra Medium reviews
-  every merged phase and defines the next packet. Luna workers remain scoped.
+- 2026-09-06 — Assigned Main route recommendations per phase: Heavy for decomposable implementation,
+  Medium for bounded design/recovery and documentation work; fresh independent review follows each
+  merged phase and defines the next packet. Native workers remain scoped.

@@ -79,8 +79,8 @@ write_journal() {
 }
 
 finalize() {
-  # The journal is intentionally before these two renders so the cold-boot digest includes this
-  # run and the context map reflects the new episodic-store size.
+  # The journal is intentionally before these two renders so the optional recent-activity digest
+  # includes this run and the on-demand context map reflects the new episodic-store size.
   write_journal
   step render-digest ./scripts/render-digest.sh
   step render-context-map ./scripts/render-context-map.sh

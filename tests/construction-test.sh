@@ -205,6 +205,31 @@ for role in expected_roles:
 construction = normalized(read_text("docs/conventions/construction.md"))
 runbook = normalized(read_text("runbooks/construction-delegation.md"))
 
+# Current construction and planning surfaces must tell the SKY-026 story. The retired role names
+# are intentionally retained below only as negative drift fixtures; they must not leak into guidance.
+current_surfaces = (
+    "AGENTS.md",
+    ".githooks/pre-commit",
+    "docs/conventions/construction.md",
+    "runbooks/construction-delegation.md",
+    "planning/prompts/README.md",
+    "planning/prompts/execute.md",
+    "planning/sky-025-map.md",
+    "planning/projects/SKY-006-agent-episodic-memory-journal-retrieval.md",
+    "planning/projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md",
+)
+current_legacy_vocabulary = re.compile(
+    r"\b(?:scout|mechanic|builder|lead|leader)\b|cold[- ]boot|digest[- ]first|read 06",
+    re.IGNORECASE,
+)
+for relative in current_surfaces:
+    current = normalized(read_text(relative))
+    matches = sorted({match.group(0).lower() for match in current_legacy_vocabulary.finditer(current)})
+    if matches:
+        errors.append(
+            f"{relative}: retired current-guidance vocabulary remains: {', '.join(matches)}"
+        )
+
 # These are the current, machine-provable lifecycle and ownership contracts. They intentionally do
 # not assert route chronology or prose history; only the durable boundaries that dispatch/roles need.
 for phrase, label in (
@@ -459,13 +484,23 @@ trap cleanup_tmp EXIT
 copy_contract_fixture() {
   local destination="$1"
   mkdir -p "${destination}/.codex/agents" \
-    "${destination}/docs/conventions" "${destination}/runbooks" "${destination}/scripts"
+    "${destination}/docs/conventions" "${destination}/runbooks" "${destination}/scripts" \
+    "${destination}/planning/projects" "${destination}/planning/prompts" "${destination}/.githooks"
   cp .codex/config.toml "${destination}/.codex/config.toml"
   cp .codex/agents/*.toml "${destination}/.codex/agents/"
   cp invariants.json "${destination}/invariants.json"
   cp scripts/check-invariants.sh "${destination}/scripts/check-invariants.sh"
+  cp AGENTS.md "${destination}/AGENTS.md"
+  cp .githooks/pre-commit "${destination}/.githooks/pre-commit"
   cp docs/conventions/construction.md "${destination}/docs/conventions/construction.md"
   cp runbooks/construction-delegation.md "${destination}/runbooks/construction-delegation.md"
+  cp planning/prompts/README.md "${destination}/planning/prompts/README.md"
+  cp planning/prompts/execute.md "${destination}/planning/prompts/execute.md"
+  cp planning/sky-025-map.md "${destination}/planning/sky-025-map.md"
+  cp planning/projects/SKY-006-agent-episodic-memory-journal-retrieval.md \
+    "${destination}/planning/projects/SKY-006-agent-episodic-memory-journal-retrieval.md"
+  cp planning/projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md \
+    "${destination}/planning/projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md"
 }
 
 expect_contract_failure() {
@@ -561,6 +596,21 @@ fixture="${TMP}/legacy-role-vocabulary"; copy_contract_fixture "${fixture}"
 printf '\n# Scout, Mechanic, and Builder are not current worker roles.\n' >> \
   "${fixture}/.codex/agents/default_executor.toml"
 expect_contract_failure "legacy-role-vocabulary" "${fixture}"
+
+fixture="${TMP}/legacy-current-guidance"; copy_contract_fixture "${fixture}"
+printf '\n# A Scout remains the current construction lead.\n' >> \
+  "${fixture}/planning/sky-025-map.md"
+expect_contract_failure "legacy-current-guidance" "${fixture}"
+
+fixture="${TMP}/stale-continuity-guidance"; copy_contract_fixture "${fixture}"
+printf '\nRead 06-agent-digest.md first on cold boot.\n' >> \
+  "${fixture}/planning/prompts/execute.md"
+expect_contract_failure "stale-continuity-guidance" "${fixture}"
+
+fixture="${TMP}/stale-execution-lead"; copy_contract_fixture "${fixture}"
+printf '\nThe execution lead chooses the remaining packet.\n' >> \
+  "${fixture}/planning/prompts/README.md"
+expect_contract_failure "stale-execution-lead" "${fixture}"
 
 fixture="${TMP}/project-approval-override"; copy_contract_fixture "${fixture}"
 printf '\napproval_policy = "on-request"\n' >> "${fixture}/.codex/config.toml"

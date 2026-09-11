@@ -154,15 +154,15 @@ edit compose/<svc>/ → branch → PR → Ali merges
 - **Episodic memory lives in [`journal/`](journal/README.md).** Append a **raw** dated episode
   (session / incident / decision) when a run happens, something breaks, or a non-trivial choice is
   made — `bin/new journal <kind> "<title>"`. **Write raw, summarize only at read time**; entries
-  are append-only. A cold agent greps it to learn what was already tried (and abandoned).
+  are append-only. A fresh agent greps it to learn what was already tried (and abandoned).
 - **Substantive Medium/Heavy intake** starts with the six compact files in [`agent_docs/`](agent_docs/)
   plus the active directive before broad exploration. They are derived agent memory: the constitution,
   runtime/configuration, current operational docs, active directive, and accepted evidence win conflicts.
-- **Cold boot?** Read [`06-agent-digest.md`](docs/generated/06-agent-digest.md) first — the
-  read-time view (recent **decisions** you shouldn't relitigate, **open threads**, recent
-  **episodes**) — then [`07-context-map.md`](docs/generated/07-context-map.md) for *what else is
-  loadable and what it costs*: read a row, open one file. **Nothing else auto-loads** — default-lean
-  ([memory](docs/design/memory.md)). Human narrative: the separate `05-state-of-the-lab.md`.
+- **Fresh session?** Read [`agent_docs/`](agent_docs/) first, then inspect the active directive and only the
+  decision-critical authoritative sources it points to. The generated digest and context map remain
+  machine-owned views for their distinct consumers; load them when a task needs those views, not as a
+  second agent-memory path. **Nothing else auto-loads** — default-lean ([memory](docs/design/memory.md)).
+  Human narrative: the separate `05-state-of-the-lab.md`.
 
 ---
 

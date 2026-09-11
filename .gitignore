@@ -15,10 +15,6 @@ age.key
 *.tmp
 *.log
 .DS_Store
-# The lead's disposable cross-session checkpoint (.agent/CHECKPOINT.md).
-# Working memory is not repository truth; durable facts live in current docs or history-bearing files.
-.agent/
-
 # Collector working files (final JSON is committed by the collectors themselves)
 inventory/**/*.partial.json
 result
