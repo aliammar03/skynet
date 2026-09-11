@@ -7,10 +7,11 @@
 
 - Git is operational truth. `agent_docs/` is compact agent memory derived from higher-authority
   sources, never runtime/configuration truth or a task database.
-- Substantive construction uses Main-directed Light/Medium/Heavy routes. Main owns decisions,
-  integration, internal integration/implementation acceptance, and authored-PR readiness; bounded
-  workers own their assigned context, implementation, verification, or docs. External final acceptance
-  belongs only to the separate fresh reviewer manually started by Ali against the exact open PR head.
+- Substantive construction uses Main-directed Light/Medium/Heavy routes. Main owns internal
+  integration/implementation acceptance and authored-PR readiness inside the implementation swarm,
+  plus implementation decisions and integration; bounded workers own their assigned context,
+  implementation, verification, or docs. External final acceptance belongs only to a separate fresh
+  reviewer manually started by Ali against the exact open PR head.
 - Main owns progress, diary, and latest-session memory. Archivist owns assigned overview, technology,
   and structure memory plus assigned current docs; Archivist never decides internal integration
   acceptance or external final acceptance.
