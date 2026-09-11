@@ -33,9 +33,11 @@ root grants, and never-standing T3 access; a construction worker has no producti
 - Construction is a native Main-directed Light/Medium/Heavy worker swarm. Main owns internal
   integration/implementation acceptance and authored-PR readiness inside the implementation session,
   plus implementation decisions and integration. External final acceptance belongs only to a separate
-  fresh reviewer manually started by Ali against the exact open PR head; workers and implementation
-  Main do not claim it. `agent_docs/` is compact cross-session memory, not a second infrastructure
-  truth system.
+  fresh reviewer manually started by Ali. The reviewer resolves the current target/base SHA and PR
+  head SHA from GitHub, reviews that integration pair, rechecks both before verdict, and binds ACCEPT
+  to the pair. Workers and implementation Main do not claim final acceptance, and Ali does not shuttle
+  commit hashes between sessions. `agent_docs/` is compact cross-session memory, not a second
+  infrastructure truth system.
 
 ## Main workflows
 
