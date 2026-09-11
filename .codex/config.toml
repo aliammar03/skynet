@@ -8,6 +8,8 @@
 # non-overlapping mutable ownership, no worker-spawns-worker). Codex's own
 # max_concurrent_threads_per_session default applies; do not pin a workflow-owned number as doctrine.
 # Acceptance review is operator-started against the open authored PR in a separate fresh chat/session.
-# The implementation or fix session publishes its authored PR, reports the review handoff, and stops;
-# it must not start, spawn, or continue into acceptance review itself. After ACCEPT, Ali human-merges
-# the reviewed PR, then starts a bounded closeout to update durable project state/archive as needed.
+# The implementation or fix session publishes its authored PR, reports the PR handoff, and stops; it
+# must not start, spawn, or continue into acceptance review itself. The reviewer resolves the target
+# base/main SHA and PR head SHA directly from GitHub, rechecks both before verdict, and binds ACCEPT to
+# that pair. Ali does not supply or compare hashes manually. After ACCEPT, Ali human-merges only while
+# the reviewed pair remains current, then starts bounded closeout for durable project state/archive.
