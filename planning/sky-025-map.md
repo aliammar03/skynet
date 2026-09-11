@@ -5,11 +5,15 @@ summary: "SKY-025 subsystem dispositions, external callers, output contracts, an
 # SKY-025 · Repository disposition map
 
 Owned by [the directive](projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md).
-Current accepted progress: **P6 / 6 of 24**. §5 releases **P7a Omada** as the current
-executable packet; P7b certs/routes and P7c recon are same-phase continuations. P6c is a bounded
-corrective slice after P6 acceptance (offline firewall inventory path retired — see below), not a
-new numbered phase. Per-phase acceptance verdicts, reviewed SHAs and phase history live in the
-directive §9 and git, not here.
+Current accepted progress: **P6 / 6 of 24**. **P7 implementation and corrective work are already
+merged (#235, #236, #237, #239) but P7 is not yet accepted. No implementation packet is currently
+released.** The single current next action is a fresh read-only review of the already-integrated P7
+result on current `main` using the directive's one-time legacy transition. ACCEPT → bounded P7 closeout
+and P8 release. FIX → one bounded corrective P7 PR, then the normal pre-merge review lifecycle.
+The reviewer resolves/rechecks Git revisions itself; Ali does not supply or compare commit hashes.
+P6c remains a bounded corrective slice after P6 acceptance (offline firewall inventory path retired —
+see below), not a new numbered phase. Per-phase acceptance evidence and history live in directive §9
+and git, not here.
 This map describes planned replacements; it does not claim Python is installed or activated on any
 lab host. Its grouped families cover the baseline's tracked paths (enumerated with `git ls-files`);
 `scripts/` names are relative to that directory. **Verified** means source/caller inspection, not a
@@ -29,7 +33,7 @@ Enumeration counts: root files 10; `.claude` 1, `.codex` 4, `.githooks` 1, `.git
 | `collect-proxmox.sh`, `collect-proxmox-acl.sh` | migrate | Python read collectors; node-specific validation | collect-all, inventory gates/renderers | 3–4 | P4a leaves `collect-proxmox.sh` as a packaged-command forwarder and removes its shell API/parser. Both ACL readers remain P4b. Live behavior untested |
 | `collect-pbs.sh`, `collect-docker.sh` | migrate | Python PBS/Docker collectors | collect-all, backup/container views | 5 | P5 accepted with reviewer repairs: single Docker writer, descendant cleanup, strict required fields, truthful verification, TLS and test isolation; live reads pass |
 | `collect-dns.sh`, `collect-opnsense.sh` | migrate | Python DNS collection and live OPNsense firewall+state collection | collect-all, firewall/DNS views | 6 | P6a: `collect-dns.sh` → shim + `src/skynet/dns.py`. P6b-i: `collect-opnsense.sh` → shim + `src/skynet/opnsense.py` (live, paired firewall.json + opnsense.json, receipt-bound). No new OPNsense writer. P6 accepted with reviewer repairs and scoped live reads. **P6c retired the offline `config.xml` inventory path entirely** (`collect-firewall.sh`, `src/skynet/firewall.py`, `skynet collect firewall`, parser tests/fixtures deleted): live OPNsense API is the sole firewall inventory source; the `config.xml` git backup is DR-only (restored as config, never parsed into inventory). See disposition below |
-| `collect-network-gear.sh`, `collect-certs.sh`, `collect-routes.sh`, `recon.sh` | migrate | Python observations with provenance and vantage | collect-all, recon/diagnosis runbooks | 7 | P7a moves Omada; P7b moves fixed-vantage certificate probes and static Caddy routes; P7c moves local/forced-svc-ops recon. P7 review pending. |
+| `collect-network-gear.sh`, `collect-certs.sh`, `collect-routes.sh`, `recon.sh` | migrate | Python observations with provenance and vantage | collect-all, recon/diagnosis runbooks | 7 | P7a Omada, P7b certificates/routes, P7c recon, and corrective P7 work are merged; one-time integrated-main P7 acceptance review is pending. |
 | `entity.sh`, `audit-entities.sh`, `build-db.sh` | migrate | Entity functions, audit, rebuildable SQLite cache | collectors/render-docs, bin/ops entities/query | 8 | Verified existing identity and join callers |
 | `scripts/sql/*.sql` | retain | SQL query definitions | bin/ops query, SQLite cache | 8 | Verified host-map/vhosts queries; adapt schema with consumers |
 | `render-docs.sh`, `render-digest.sh`, `render-context-map.sh`, `render-runbook-catalog.sh`; `bin/recall` | migrate | Python rendering/retrieval, existing Markdown sources | nightly, bin/ops, on-demand retrieval, catalog checks | 9 | Verified outputs; history remains append-only |
@@ -72,7 +76,7 @@ Use one `src/skynet/` package and CLI. Add collector/client/workflow/renderer mo
 working slice needs them. P2 packages a minimal local command; P3 settles the first external-data
 boundary through Proxmox collection and readable output. Keep ordinary functions, synchronous I/O,
 stdlib-first dependencies, and Nix-owned runtime. No generic workflow/result class hierarchy or new
-database. Proposed command families are those in the directive; these are not implemented commands.
+database.
 
 Preserve inventory filenames and fields consumed by the existing invariant checker, SQL cache,
 renderers, and tests until their consumers change in the same accepted slice. Collection must write
@@ -328,7 +332,7 @@ continues later scoped readers but refuses default freshness. The retained shell
 documented forwarding shim; P22 owns its removal. Renderer input with incomplete PBS state is a
 warning rather than a zero-snapshot/verified claim. Tests and package inputs moved the useful shell
 coverage into Python and removed the superseded shell test from hook/CI. Construction uses fake
-HTTPS, synthetic credentials and disposable paths only; no live PBS/Docker endpoint, credential,
+HTTPS, synthetic credentials and disposable outputs only; no live PBS/Docker endpoint, credential,
 trust setting, backup, restore, host, timer, service, grant or production write occurred. Source
 rollback is `git revert`; endpoint parity and workstation/state/payload recovery remain unverified.
 
@@ -420,7 +424,7 @@ check and staged-hook glob.
 |---|---|
 | `build-db.sh`, `render-docs.sh` | `.records[].records[]` A/CNAME rows keep `name`, `type`, `rData.ipAddress`/`rData.cname`; non-A/CNAME types (SOA/NS/TXT/…) are preserved verbatim, not dropped. |
 | `collect all` / `collect-status` | DNS marker binds the shared receipt and `dns-zones.json` hash/time; default consumers require all six migrated markers within 36 hours plus the nightly same-pass cutoff. Failed DNS retains bytes, refuses freshness, and lets remaining scoped readers continue. |
-| CLI / explicit file consumer | Success 0 with collection time/zone+record counts; unavailable 3; malformed/publication failure 1; usage 2. A failed refresh reports previous evidence and leaves old bytes intact. |
+| CLI / explicit file consumer | Success 0 with collection time/zone+record counts; unavailable 3; malformed/publication failure 1; usage 2. A failed refresh leaves old bytes intact. |
 
 Construction used fake HTTPS, synthetic credentials and disposable outputs only; no live
 DNS/OPNsense read, mirror credential/config content, zone modification, Technitium server setting,
