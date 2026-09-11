@@ -7,7 +7,7 @@ x-arcane:
 
 services:
   marinara:
-    image: ghcr.io/pasta-devs/marinara-engine:latest@sha256:eed2d2f7db49d5867f30f90d314c2f668f767246cd6e7a48907c3386720be0db
+    image: ghcr.io/pasta-devs/marinara-engine:latest@sha256:de94abe62bc6f3c94f7d537893062fff4de042f636cbe703ce51d333ae677791
     init: true
     env_file:
       - .env
