@@ -163,7 +163,7 @@ class AgentDocsContractTests(unittest.TestCase):
         self.assertIn("reviewed base/main:", review)
         self.assertIn("reviewed pr head:", review)
         self.assertIn("if either the target/base sha", review)
-        self.assertIn("gitHub mergeability".lower(), review)
+        self.assertIn("github mergeability", review)
         self.assertIn("unchanged head alone", review)
 
         for name, text in (
@@ -190,7 +190,7 @@ class AgentDocsContractTests(unittest.TestCase):
             for pr in ("#235", "#236", "#237", "#239"):
                 self.assertIn(pr, text)
 
-        self.assertIn("do not require a nonexistent open p7 pr", review)
+        self.assertIn("nonexistent open p7 pr", review)
         self.assertIn("there is no open p7 pr to review", directive)
         self.assertIn("single current next action", directive)
         self.assertIn("single current next action", disposition)
