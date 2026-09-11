@@ -111,9 +111,10 @@ Construction follows [the delegation convention](docs/conventions/construction.m
 route (Light is the default; a directive may select the route) decides how much Main delegates. Main
 owns the decisions and integration while bounded specialist workers — Companion, Investigator,
 Executors, Tester, Archivist — own scoped work, each used only where the runtime actually exposes
-that role; concurrency follows platform capacity and
-non-overlapping ownership, and a fresh session reviews the merged result, returning a paste-ready fix
-prompt rather than repairing. New procedural code follows
+that role; concurrency follows platform capacity and non-overlapping ownership. Implementation/fix
+sessions publish their authored PR and stop; Ali manually starts a fresh acceptance review against the
+open PR before human merge. A fix returns to the original session, while ACCEPT permits human merge of
+the exact reviewed head. New procedural code follows
 [the capability convention](docs/conventions/scripts.md); implementation language grants no authority.
 The unprivileged NixOS `aliammar` account is Codex's construction filesystem/OS boundary: ordinary
 account-accessible work runs without approval prompts, while `gh pr merge` and both repository
@@ -121,7 +122,7 @@ account-accessible work runs without approval prompts, while `gh pr merge` and b
 gains production authority.
 
 ```
-edit compose/<svc>/ → branch → PR → Ali merges
+edit compose/<svc>/ → branch → PR → fresh acceptance review → Ali merges
    → Arcane Git Sync polls, pulls, reconciles (project read-only in UI)
    → agent verifies health via Arcane API / docker context, commits refreshed inventory
 ```
