@@ -269,12 +269,21 @@ human merge remains required for authored work.
 ### L · Fresh review stays outside the implementation swarm — CHOSEN
 
 Executor self-check + Tester verification + Main internal integration acceptance are implementation
-gates. The implementation/fix session publishes its authored PR, reports the handoff, and stops. Ali
-manually starts final acceptance review in a separate fresh session against the **open PR before human
-merge**. Reviewer never repairs SKY-026. Any fixable defect produces only one complete paste-ready fix
-prompt for the original implementation/fix session; that session updates the same PR and stops, then Ali
-starts another fresh review. `ACCEPT` applies only to the exact reviewed PR head; Ali human-merges only
-after ACCEPT. Any post-merge state/archive work is a bounded closeout, not an automatic re-review.
+gates. The implementation/fix session publishes its authored PR, reports the PR handoff, and stops.
+Ali manually starts final acceptance review in a separate fresh session against the **open PR before
+human merge**. Ali supplies the PR identity only; the reviewer resolves the current target/base SHA and
+PR head SHA directly from GitHub, reviews that exact integration pair, and rechecks both immediately
+before verdict. If either moved, the prior integration conclusion is stale and cannot be ACCEPTed until
+the current pair is reviewed. GitHub mergeability, CI green, or an unchanged head alone is not proof
+that the reviewed integration result is unchanged.
+
+Reviewer never repairs SKY-026. Any fixable defect produces only one complete paste-ready fix prompt
+for the original implementation/fix session; that session updates the same PR and stops, then Ali starts
+another fresh review. The human handoff names the PR, not a SHA Ali must copy between sessions.
+`ACCEPT` records and applies only to the reviewer-resolved **base+head pair**; Ali human-merges only
+while that pair remains current. Any movement of either side invalidates the verdict and requires a
+fresh review of the resulting integration state. Any post-merge state/archive work is a bounded
+closeout, not an automatic re-review.
 
 ### M · `agent_docs/` ownership and closure split — CHOSEN
 
@@ -320,10 +329,11 @@ authored PR + review handoff
 implementation/fix session STOPS
         ↓
 Ali starts fresh review of OPEN PR
+(reviewer resolves + rechecks base/main + PR-head pair)
         ├── FIX → original session updates same PR → STOP → fresh review
-        └── ACCEPT
+        └── ACCEPT for reviewed pair
                 ↓
-           human merge
+           human merge while pair remains current
                 ↓
        bounded post-merge closeout
 (final accepted/merged state + directive/archive/roadmap)
@@ -539,10 +549,11 @@ agent_docs + active directive
  implementation session STOPS
           ↓
  Ali starts fresh independent review of OPEN PR
+ reviewer resolves + rechecks base/main + PR-head pair
           ├── FIX → original session updates same PR → STOP → fresh review
-          └── ACCEPT
+          └── ACCEPT for reviewed pair
                  ↓
-             human merge
+             human merge while pair remains current
                  ↓
        bounded final closeout/archive
 ```
@@ -557,10 +568,11 @@ SKY-022 is archived historical provenance only.
 ## 6. Review and repair protocol
 
 Acceptance review is operator-started in a fresh session against the **open authored PR before human
-merge** and does not modify implementation. Review:
+merge** and does not modify implementation. Ali supplies the PR identity only; the reviewer resolves
+Git revision identities from GitHub. Review:
 
 - complete SKY-026 directive and exit criteria;
-- current `main` plus the exact open implementation/fix PR head being proposed for merge;
+- current target branch and the exact reviewer-resolved **base/main SHA + open PR head SHA** pair;
 - relevant donor source contracts;
 - AGENTS, construction doctrine, `.codex/*`, roles, tests/invariants, prompts/runbooks and callers;
 - `agent_docs/` content, ownership, authority boundaries and cold-start behavior;
@@ -572,14 +584,19 @@ merge** and does not modify implementation. Review:
 Reviewer may inspect SKY-022 only as history to verify old active surfaces were removed. It must never
 use SKY-022 to fill a current behavior gap. Reviewer may use read-only workers for evidence but owns the
 verdict. The implementation/fix session must not start, spawn, or continue into this acceptance review.
+Immediately before verdict, the reviewer resolves the target/base and head again. If either differs
+from the reviewed pair, it refreshes affected diff/evidence against the current pair before any ACCEPT.
+GitHub mergeability, CI green, or an unchanged head alone is insufficient.
 
 ### PASS
 
-Return a concise `ACCEPT SKY-026` verdict with the exact reviewed PR/head and critical evidence. Ali
-may then human-merge that exact reviewed head. If the head changes after ACCEPT, review is stale and a
-fresh reviewer must inspect the updated open PR before merge. After merge, a bounded closeout session
-performs final bookkeeping/archive held for acceptance; it does not automatically start another
-acceptance review unless it introduces substantive implementation changes.
+Return a concise `ACCEPT SKY-026` verdict recording the reviewed PR plus both the reviewer-resolved
+base/main SHA and PR head SHA, with critical evidence. Ali may then human-merge that PR only while both
+remain current. Movement of either invalidates the verdict and requires fresh review of the resulting
+integration state. Ali does not manually compare or shuttle hashes; the reviewer/merge helper resolves
+them. After merge, a bounded closeout session performs final bookkeeping/archive held for acceptance;
+it does not automatically start another acceptance review unless it introduces substantive
+implementation changes.
 
 ### FIX
 
@@ -603,12 +620,13 @@ Verification required:
 - run the relevant full repo gates after focused checks pass
 
 Git/PR handling:
-- update the same open reviewed branch/PR and report its new head;
+- update the same open reviewed PR;
 - do not merge your own PR;
 - after publishing the fix, STOP. Do not launch or continue into acceptance review.
 
-When fixed, report the PR URL/commit, changed files, checks run/results, and any remaining limitation.
-Then stop. Ali will manually start a fresh independent review session against the updated open PR.
+When fixed, report the PR URL/number, changed files, checks run/results, and any remaining limitation.
+Then stop. Ali will manually start a fresh independent review of that PR; the reviewer resolves the
+current base/head pair directly from GitHub.
 ```
 
 Then Ali manually starts a fresh session to review again. Repeat until ACCEPT. Reviewer never repairs
@@ -633,9 +651,9 @@ accepted evidence remain higher authority and win any conflict.
 Preserve Skynet production trust tiers, human merge and fresh external review. Follow AGENTS.md and
 this directive. Keep current docs and agent memory lean; history belongs in journal. Land one reviewable
 PR, never merge your own authored work, and perform implementation close-out only when exits pass.
-After opening/pushing the authored PR, report the review handoff and STOP. Do not start, spawn, or
-continue into final acceptance review; Ali starts that manually in a separate fresh chat against the
-open PR.
+After opening/pushing the authored PR, report the PR number/URL and STOP. Do not start, spawn, or
+continue into final acceptance review; Ali starts that manually in a separate fresh chat for the open
+PR. The reviewer resolves revision hashes from GitHub; do not make Ali carry them between sessions.
 ```
 
 ## 8. ▶ Final review prompt
@@ -643,13 +661,16 @@ open PR.
 Paste into a **new separate fresh chat while the implementation/fix PR is still open**:
 
 ```text
-Independently review SKY-026 end to end against the exact open PR head proposed for merge.
+Independently review SKY-026 end to end for open PR #<number>.
 
 Read planning/projects/SKY-026-overhaul-agent-orchestration-around-a-main-worker-swarm.md, current
 AGENTS.md, docs/conventions/construction.md, .codex configuration/agents, tests/invariants,
-agent_docs/, current construction prompts/runbooks, current main, the exact open SKY-026
-implementation/fix PR head, earlier merged SKY-026 PRs/SHAs needed as evidence, and relevant donor source
-contracts from viettran-edgeAI/codex_workflow.
+agent_docs/, current construction prompts/runbooks, current main, earlier merged SKY-026 PRs needed as
+evidence, and relevant donor source contracts from viettran-edgeAI/codex_workflow.
+
+Resolve the PR's target branch, current base/main SHA and current head SHA directly from GitHub. Review
+the actual integration result for that pair. Immediately before verdict, resolve both again; if either
+moved, refresh the affected review against the current pair. Do not ask Ali to provide or compare SHAs.
 
 SKY-026 must completely supersede SKY-022. Verify SKY-022 has zero current construction authority,
 callers, aliases, fallbacks, compatibility behavior or present-tense authority references. Archived
@@ -667,12 +688,13 @@ continuity/closure, obsolete-role removal, model/sandbox configuration, producti
 merge and deterministic gates. Confirm implementation/fix sessions stop after publishing their PR and
 do not launch acceptance review themselves.
 
-If everything passes, return a concise ACCEPT SKY-026 verdict naming the exact reviewed PR/head and
-critical evidence. That exact head may then be human-merged; any later head change requires fresh review.
-If any fixable defect exists, your FINAL RESPONSE MUST BE ONLY ONE fenced text block containing a
-complete paste-ready fix prompt for the original SKY-026 implementation/fix session. Include exact
-findings, required fixes, verification and PR handling. No prose outside that block. The original
-session fixes the same open PR and stops; then Ali manually starts a fresh independent review session.
+If everything passes, return a concise ACCEPT SKY-026 verdict recording the reviewed PR, reviewed
+base/main SHA, reviewed PR head SHA and critical evidence. That verdict applies only to that pair;
+movement of either requires fresh review before merge. If any fixable defect exists, your FINAL
+RESPONSE MUST BE ONLY ONE fenced text block containing a complete paste-ready fix prompt for the
+original SKY-026 implementation/fix session. Include exact findings, required fixes, verification and
+PR handling, but do not make Ali shuttle revision hashes. The original session fixes the same open PR
+and stops; then Ali manually starts a fresh independent review session.
 ```
 
 ## 9. Phase close-out
@@ -688,9 +710,10 @@ Phases 1–4:
 Phase 5:
 
 - land implementation evidence in an open authored PR and keep `in-progress` pending independent review;
-- Ali manually starts a fresh reviewer against that open PR; FIX returns to the original session, which
-  updates the same PR and stops, then Ali starts another fresh review;
-- after `ACCEPT SKY-026`, Ali human-merges the exact reviewed PR head;
+- Ali manually starts a fresh reviewer for that open PR; the reviewer resolves/rechecks the current
+  base/main + PR-head pair from GitHub; FIX returns to the original session, which updates the same PR
+  and stops, then Ali starts another fresh review;
+- after `ACCEPT SKY-026`, Ali human-merges only while the reviewer-confirmed pair remains current;
 - one bounded post-merge closeout then marks Phase 5 done, sets `current_phase: 5`, marks the directive
   done, updates final accepted/merged `agent_docs`, refreshes roadmap, and archives through normal
   planning lifecycle; that bookkeeping does not automatically trigger another acceptance review unless
@@ -709,12 +732,13 @@ Phase 5:
   continuity surfaces rather than maintaining parallel handoff systems forever.
 - P4 complete in PR #250: six compact files, authority/ownership boundaries, closure shapes, recorded
   token reporter, and bounded cold-start comparison passed. Next: execute Phase 5 after human merge.
-- P5 implementation was merged in PR #252 at `61f805cf3116450ac42f1e72b88f59b08410da5c` before final
-  manual acceptance because the prior lifecycle placed review after merge. Architecture/dogfood evidence
-  remains reviewable, but SKY-026 stays `in-progress`.
+- P5 implementation was merged in PR #252 before final manual acceptance because the prior lifecycle
+  placed review after merge. Architecture/dogfood evidence remains reviewable, but SKY-026 stays
+  `in-progress`.
 - P5 first external review of PR #252 requested evidence-only fixes: a distinct Main-only Light task,
   durable closing Archivist/token-report disposition, and current open-PR state. Those facts were
   recorded; the implementation session then incorrectly continued into review instead of stopping.
-- Open bounded fix PR #253 corrects the lifecycle: implementation/fix sessions stop after publishing,
-  Ali manually reviews the open PR in a separate fresh chat, ACCEPT precedes human merge, and final
-  accepted/merged memory is written only in bounded post-merge closeout.
+- Open bounded fix PR #253 corrects the lifecycle: implementation/fix sessions stop after publishing;
+  Ali manually reviews the open PR in a separate fresh chat; the reviewer resolves and rechecks the
+  target/base + PR-head pair itself; ACCEPT precedes human merge; final accepted/merged memory is
+  written only in bounded post-merge closeout. Ali never needs to shuttle commit hashes between chats.
