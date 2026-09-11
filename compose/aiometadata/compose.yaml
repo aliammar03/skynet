@@ -43,7 +43,7 @@ services:
         max-file: "5"
 
   redis:
-    image: docker.io/redis:7.2.15-alpine@sha256:05a97a479bc73de66f087dc05b569010772880f778cc8671fa6b8aadee32e5c6
+    image: docker.io/redis:7.4.11-alpine@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf
     restart: unless-stopped
     init: true
     env_file:
