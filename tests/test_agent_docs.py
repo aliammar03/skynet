@@ -65,7 +65,7 @@ class AgentDocsContractTests(unittest.TestCase):
         construction = (ROOT / "docs/conventions/construction.md").read_text(
             encoding="utf-8"
         )
-        for state in ("complete", "paused", "blocked"):
+        for state in ("implementation ready", "paused", "blocked", "accepted + merged"):
             rows = [
                 line
                 for line in construction.splitlines()
