@@ -1,12 +1,13 @@
 ---
-summary: "Main directs a specialist worker swarm on Light/Medium/Heavy routes; workers own bounded work, verification is independent, and a fresh session reviews the merged result and returns a fix prompt rather than repairing."
+summary: "Main directs a specialist worker swarm on Light/Medium/Heavy routes; workers own bounded work, verification is independent, and a fresh session reviews the open authored PR before human merge."
 ---
 
 # Spoke · Construction delegation
 
 > Main spends context on decisions that need the whole picture; specialist workers spend context on
-> bounded work. Verification is independent of implementation, and final acceptance review runs in a
-> fresh session that returns one paste-ready fix prompt — it never repairs.
+> bounded work. Verification is independent, and final acceptance review runs against the open authored
+> PR in a fresh operator-started session before human merge; it returns one paste-ready fix prompt and
+> never repairs.
 > Governed by [`../conventions.md`](../conventions.md); production authority stays with the trust tiers.
 
 Tags: **[testable]** = a deterministic gate can assert it; **[manual]** = requires review.
@@ -27,21 +28,22 @@ substantive deployment until it is explicitly changed. `[manual]`
 ## Main is a decision owner, not an extra worker
 
 Main owns task understanding, architecture and cross-package contracts, material causal/root-cause
-decisions, decomposition and worker ownership, integration, risk/authority decisions, final
-acceptance, and user communication. In a substantive **Heavy** deployment Main does **not** routinely
+decisions, decomposition and worker ownership, integration, risk/authority decisions, internal
+integration acceptance, and user communication. External final acceptance belongs to the separate fresh
+review session described below. In a substantive **Heavy** deployment Main does **not** routinely
 write production code or tests, run the Executor's implementation, execute the Tester's verification,
 run ordinary deployment operations, chase routine logs/environment checks, or take a package over
 because its first worker attempt failed. `[manual]`
 
 Main may directly inspect the **smallest** evidence needed for an architecture, scope, risk, causal,
-or acceptance decision. Route the rest. Worker unavailability does not authorise Main to become an
-Executor or Tester — reassign, replace, pause, or report the blocker. `[manual]`
+or internal acceptance decision. Route the rest. Worker unavailability does not authorise Main to become
+an Executor or Tester: reassign, replace, pause, or report the blocker. `[manual]`
 
 ## Roles and defaults
 
 Main is the invoking session. Workers are native Codex subagents; they never orchestrate children.
 Initial defaults (verify exact identifiers and efforts against installed harness metadata or a safe
-dry-run — **source TOML wins over any README**; do not silently substitute, report routing blocked
+dry-run; **source TOML wins over any README**; do not silently substitute, report routing blocked
 instead). The **Model** and **Effort** are applied per role from its file. The unprivileged NixOS
 `aliammar` account is the common filesystem/OS boundary; role ownership can be narrower. `[manual]`
 
@@ -55,18 +57,18 @@ instead). The **Model** and **Effort** are applied per role from its file. The u
 | Tester | `gpt-5.6-luna` | xhigh | `aliammar` account | as needed |
 | Archivist | `gpt-5.6-luna` | xhigh | `aliammar` account | one at substantive closure, plus explicit doc assignments |
 
-- **Companion** — persistent, project-centred secretary, **read-only by ownership and instructions**:
-  bounded context intake, large synthesis, and retained
-  operational context. It is not a message bus; workers report to Main.
-- **Investigator** — disposable worker for one bounded, unfamiliar project or Internet evidence gap,
+- **Companion**: persistent, project-centred secretary, **read-only by ownership and instructions**:
+  bounded context intake, large synthesis, and retained operational context. It is not a message bus;
+  workers report to Main.
+- **Investigator**: disposable worker for one bounded, unfamiliar project or Internet evidence gap,
   **read-only by ownership and instructions**. It supplies evidence; Main owns the causal decision.
-- **Default Executor** — owns local discovery, implementation, self-check, deployment operations, and
+- **Default Executor**: owns local discovery, implementation, self-check, deployment operations, and
   ordinary repair inside one bounded package.
-- **Senior Executor** — the one optional higher-reasoning worker for an exceptionally hard
-  mathematical, logical, architectural, or cross-cutting package. Record when it was not justified.
-- **Tester** — independent verifier owning the assigned verification, test assets, and execution; it
+- **Senior Executor**: the one optional higher-reasoning worker for an exceptionally hard mathematical,
+  logical, architectural, or cross-cutting package. Record when it was not justified.
+- **Tester**: independent verifier owning the assigned verification, test assets, and execution; it
   does not perform production repair.
-- **Archivist** — substantive-closure worker for concise assigned documentation outside Main-owned
+- **Archivist**: substantive-closure worker for concise assigned documentation outside Main-owned
   directive/journal state; see [Continuity](#continuity-and-truth-surfaces).
 
 ## Context routing
@@ -77,9 +79,9 @@ memory, not runtime or configuration truth: when they conflict, the constitution
 current operational docs, active directive, and accepted evidence win and the memory is corrected.
 Main then builds a compact working-context map:
 
-- **Direct** — decision-critical contracts, interfaces, and evidence Main must inspect itself;
-- **Companion** — supporting or bulky non-decisive project context, returned as one bounded synthesis;
-- **Investigator** — one bounded unfamiliar project or Internet evidence gap.
+- **Direct**: decision-critical contracts, interfaces, and evidence Main must inspect itself;
+- **Companion**: supporting or bulky non-decisive project context, returned as one bounded synthesis;
+- **Investigator**: one bounded unfamiliar project or Internet evidence gap.
 
 Main reads the Direct set once. Companion owns the initial bulky/reusable canonical intake beyond the
 compact memory set, then later checks only changed facts or conflicts; Investigator owns bounded
@@ -102,7 +104,7 @@ role. Follow-ups repeat the Task ID and send only changed capsule parts. `[manua
 
 A capsule carries only material context, contracts, boundaries, decisions, constraints, intended
 outcome, and cautions. Leave bounded discovery, command selection, implementation, and ordinary
-troubleshooting to the owning worker. Give the Tester acceptance intent, risks, contracts, and gates —
+troubleshooting to the owning worker. Give the Tester acceptance intent, risks, contracts, and gates,
 not a test script tailored to the implementation.
 
 ## Batching and coordination
@@ -128,7 +130,7 @@ Main intervenes only when evidence changes a material decision: a capsule/contra
 or scope change, architecture, authority, security/migration risk, an external blocker, or repeated
 focused failure. The resulting Main action is a revised decision and package, not operational takeover.
 After one evidence-free worker response, send one focused retry; after a second, replace the worker or
-report the limitation — Main does not become the Executor or Tester. `[manual]`
+report the limitation. Main does not become the Executor or Tester. `[manual]`
 
 Concurrency is bounded by platform capacity and task judgement, **not a workflow-owned quota**. The
 only standing limits are semantic: exactly one persistent Companion per deployment; at most one Senior
@@ -140,14 +142,22 @@ express a required behaviour and Ali separately authorises that complexity. `[ma
 
 ## Fresh external review
 
-Executor self-check, Tester verification, and Main acceptance are the internal gates. The
-implementation session then commits, pushes, opens its authored PR, returns the PR URL and review
-handoff, and **stops**. Final acceptance review is an **operator-started action**: Ali manually starts
-a separate fresh chat/session after human merge. The implementation session must not start, spawn, or
-continue into that review. The reviewer never repairs the work: if it finds a fixable defect its entire
-final response is one complete, paste-ready fix prompt for the original implementation session. That
-session fixes and stops after publishing its fix PR; Ali manually starts another fresh reviewer. Repeat
-until ACCEPT. `[manual]`
+Executor self-check, Tester verification, and Main internal integration acceptance are the implementation
+gates. The implementation or fix session then commits, pushes, opens its authored PR, returns the PR URL
+and review handoff, and **stops**. Final acceptance review is an **operator-started action**: Ali manually
+starts a separate fresh chat/session against the **open authored PR before human merge**. The
+implementation/fix session must not start, spawn, or continue into that review.
+
+The reviewer never repairs the work. If it finds a fixable defect, its entire final response is one
+complete, paste-ready fix prompt for the original implementation/fix session. That session repairs the
+same PR, publishes the updated head, reports the handoff, and stops again. Ali manually starts another
+fresh reviewer against the updated open PR. Repeat until ACCEPT. `[manual]`
+
+`ACCEPT` applies only to the exact reviewed PR head. After ACCEPT, Ali human-merges that reviewed PR. If
+the PR head changes after ACCEPT, the acceptance is stale and a fresh review is required before merge.
+After the accepted PR is merged, a bounded closeout updates durable project state, directive/archive,
+and roadmap as required. That closeout does **not** automatically launch another acceptance review
+unless it introduces substantive implementation changes. `[manual]`
 
 ## Continuity and truth surfaces
 
@@ -156,12 +166,19 @@ higher-authority sources rather than a second runtime/configuration truth tree. 
 overview, core technology, structure, progress, reusable decisions/lessons, and latest-session handoff.
 Summarise and link; do not copy procedures, inventories, raw episodes, or long history. `[testable/manual]`
 
-Main owns acceptance and the deployment-state files `project_progress.md`, `project_diary.md`, and
-`latest_session_work.md`. After acceptance, or when recording a paused/blocked closure, Main updates
-those files and the active directive from verified evidence. The Archivist may update assigned stable
-memory (`project_overview.md`, `project_core_tech.md`, `project_structure.md`) and assigned current
-docs/runbooks; it never decides acceptance, rewrites Main-owned deployment state during closure, or
-hand-edits generated outputs (`inventory/`, `docs/generated/`). `[manual]`
+Main owns implementation-state updates to `project_progress.md`, `project_diary.md`, and
+`latest_session_work.md`. Before external acceptance, those files must describe the authored PR and
+review state truthfully, for example `pending fresh review`; they must never claim an open PR is merged
+or final acceptance has happened. The Archivist may update assigned stable memory
+(`project_overview.md`, `project_core_tech.md`, `project_structure.md`) and assigned current docs/runbooks;
+it never decides acceptance, rewrites Main-owned deployment state during closure, or hand-edits generated
+outputs (`inventory/`, `docs/generated/`). `[manual]`
+
+After a fresh reviewer returns ACCEPT and Ali human-merges the exact reviewed PR, a bounded closeout Main
+updates the three state-memory files and active directive from merged evidence, performs required
+planning/archive transitions, and refreshes owned generated views. This is the point at which durable
+memory may say the work is accepted/merged. The closeout remains human-merged and does not create an
+automatic acceptance-review loop unless it contains substantive implementation changes. `[manual]`
 
 The generated digest remains the read-time view of recent decisions, open threads, and raw episodes;
 the context map remains the generated routing/load-cost index. Neither generated view is required for
@@ -172,13 +189,14 @@ Every substantive closure leaves exactly one `## Next Entry Point` in `latest_se
 
 | State | Durable closure | One next entry point |
 |---|---|---|
-| complete | Main accepts, advances directive and progress, records reusable lessons plus the raw journal episode, and regenerates owned views | the next-phase Execute/Continue prompt |
+| implementation ready | Main records verified implementation state and open authored PR as pending fresh review; it does not claim external acceptance or merge | operator-started fresh review of that open PR |
 | paused | Main records verified position, pending work, and checks without advancing the phase | the same-phase Continue prompt |
 | blocked | Main records the exact external condition and sets directive/progress status `blocked` | the same-phase Continue prompt naming the unblock condition |
+| accepted + merged | bounded closeout records the reviewer ACCEPT, exact human-merged PR evidence, final directive/progress/archive state, and reusable lessons | the next active directive/phase entry point |
 
 At the start of each substantive Medium/Heavy deployment, Main emits
 `<!-- skynet-deployment-start: <deployment_id> -->` in its first commentary message. The ID is unique,
-lowercase, underscore-safe working identity—not a task database. After all other closure work is sealed,
+lowercase, underscore-safe working identity, not a task database. After all other closure work is sealed,
 the one closing Archivist runs the project-local `deployment-token-report` skill. It reports only
 recorded rollout counts and cached-input/input/output tokens from Codex session evidence; missing or
 incomplete evidence is a reported limitation. Never estimate usage or price. `[testable/manual]`
@@ -190,16 +208,16 @@ actions reach a worker. The unprivileged `aliammar` Unix account is the filesyst
 boundary; role/model selection is not authorisation. See [`git.md`](git.md) and the constitution.
 `[manual]`
 
-Native Codex subagents are the **only** runtime mechanism — Main spawns a worker in-session (`spawn_agent`,
+Native Codex subagents are the **only** runtime mechanism: Main spawns a worker in-session (`spawn_agent`,
 `agent_type = <role>`), and Codex loads that role's complete definition from its role file: instructions,
 model, and effort are applied per role. There is no standalone launcher: a shell wrapper that only sets
-model/effort cannot load a role's developer instructions, so it is not a role and must not stand
-in for one. Use a named role only when the installed or project configuration actually exposes it; if a
-required role is not exposed, report that route/role as **blocked** rather than silently substituting a
-legacy role. The runtime surfaces are [`.codex/agents/`](../../.codex/agents/) (one role per `*.toml`,
-discovered by Codex as a config layer), [`.codex/config.toml`](../../.codex/config.toml), and
-[`invariants.json`](../../invariants.json) (checked by `scripts/check-invariants.sh`) — a role is
-claimable only once these agree with this doctrine. `[testable/manual]`
+model/effort cannot load a role's developer instructions, so it is not a role and must not stand in for
+one. Use a named role only when the installed or project configuration actually exposes it; if a required
+role is not exposed, report that route/role as **blocked** rather than silently substituting a legacy role.
+The runtime surfaces are [`.codex/agents/`](../../.codex/agents/) (one role per `*.toml`, discovered by
+Codex as a config layer), [`.codex/config.toml`](../../.codex/config.toml), and
+[`invariants.json`](../../invariants.json) (checked by `scripts/check-invariants.sh`). A role is claimable
+only once these agree with this doctrine. `[testable/manual]`
 
 Home Manager sets Codex to `approval_policy = "never"` and `sandbox_mode = "danger-full-access"`.
 There is no project or role sandbox override. On the installed Codex, native children inherit the
