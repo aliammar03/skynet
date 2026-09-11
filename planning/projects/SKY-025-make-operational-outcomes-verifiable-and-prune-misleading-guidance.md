@@ -78,11 +78,14 @@ This directive adds only per-phase **Main route recommendations**, not a second 
 
 **Main route:** use the Light/Medium/Heavy route selected under SKY-026 for the phase; a substantive
 packet may use Heavy when it decomposes into non-overlapping packages. Main remains the decision owner.
-Final acceptance review is operator-started in a fresh session against the exact open phase PR head
-before human merge; next-phase planning is released only after ACCEPT, human merge, and bounded
-post-merge closeout. Role identifiers and efforts come from the installed native `.codex/agents/*.toml`
-definitions; there is no automatic model router or silent substitution. If a required role is
-unavailable, mark routing blocked and ask Ali to select an available identifier or update the harness.
+Final acceptance review is operator-started in a fresh session against the open phase PR before human
+merge. The reviewer resolves the current target/base SHA and PR-head SHA from GitHub, reviews that
+integration pair, and rechecks both before verdict. ACCEPT binds to that pair; Ali supplies the PR
+identity, not hashes to copy between chats. Next-phase planning is released only after ACCEPT, human
+merge, and bounded post-merge closeout. Role identifiers and efforts come from the installed native
+`.codex/agents/*.toml` definitions; there is no automatic model router or silent substitution. If a
+required role is unavailable, mark routing blocked and ask Ali to select an available identifier or
+update the harness.
 
 Workers gain no production authority, never touch secrets or production, and never commit/push/merge;
 keep non-overlapping ownership and human merge. Main owns decomposition, integration decisions, and
@@ -106,19 +109,30 @@ phase into lettered implementation slices before work. Slices may have separate 
 review and acceptance apply to the complete numbered phase, never to individual slices.
 Main details remaining slices within that phase's scope; no intermediate reviewer
 releases them. Existing human merge and live/grant boundaries still apply. The table is a route map,
-not permission to execute unspecified work. Section 5 holds the sole current executable packet.
+not permission to execute unspecified work. Section 5 holds the current phase action; for P7 that
+action is now the explicit one-time already-merged review transition, not another implementation slice.
 
-For every complete numbered phase: implement → relevant checks → open final phase/fix PR → implementation
-session **stops** → Ali manually starts a fresh independent review of that exact open PR head → FIX loops
-back to the original implementation/fix session on the same PR, or ACCEPT → Ali human-merges the exact
-reviewed head → bounded post-merge closeout updates accepted progress and releases the next packet.
-The reviewer never modifies implementation or planning state. If the PR head changes after ACCEPT, the
-verdict is stale and a fresh review is required before merge. Only after accepted work is human-merged
-and closeout records that merged reality may the next phase be fleshed out with exact files, interfaces,
-worker capsules, commands/checks, grants if any, and exit criteria. Do not roll into dependent
-implementation just because a worker or CI says done. Ali can use the reusable review prompt in §8 in
-a fresh session. Architecture checkpoints **G1–G6** additionally reconsider the remaining roadmap and
-prune unnecessary work.
+For every future complete numbered phase: implement → relevant checks → open final phase/fix PR →
+implementation session **stops** → Ali manually starts a fresh independent review for that PR → the
+reviewer resolves and reviews the current **target/base + PR-head pair**, then rechecks both immediately
+before verdict → FIX loops back to the original implementation/fix session on the same PR, or ACCEPT →
+Ali human-merges only while the reviewed pair remains current → bounded post-merge closeout updates
+accepted progress and releases the next packet. Movement of either base or head invalidates ACCEPT and
+requires fresh review of the resulting integration state. GitHub mergeability, CI green, or an unchanged
+head alone is insufficient. The reviewer never modifies implementation or planning state, and Ali does
+not manually compare hashes. Only after accepted work is human-merged and closeout records that merged
+reality may the next phase be fleshed out with exact files, interfaces, worker capsules, commands/checks,
+grants if any, and exit criteria. Do not roll into dependent implementation just because a worker or CI
+says done. Ali can use the reusable review prompt in §8 in a fresh session. Architecture checkpoints
+**G1–G6** additionally reconsider the remaining roadmap and prune unnecessary work.
+
+**P7 transition:** P7a/P7b/P7c and corrective P7 work were already human-merged in #235, #236, #237 and
+#239 under the former post-merge review lifecycle. There is no open P7 PR to review. P7 therefore gets
+one bounded fresh read-only review of the already-integrated P7 result on current `main`; the reviewer
+resolves and rechecks that integrated `main` revision itself and includes those merged PRs plus any later
+P7-owned changes. This does **not** pretend the merged PRs received pre-merge review and does not create
+a future bypass. P7 ACCEPT proceeds to bounded closeout and P8 release. P7 FIX opens one bounded
+corrective P7 PR, after which the normal pre-merge base+head lifecycle above applies.
 
 | Phase | Recommended Main | Bounded outcome / main surface | Depends on; exit evidence |
 |---|---|---|---|
@@ -153,7 +167,13 @@ Do not add a new live OPNsense writer or finish unrelated fleet migrations under
 
 ## 5. Phase 7a — Omada read collection (~1–2h)
 
-**Release gate:** execute after Ali merges the P6 combined review/repair ACCEPT PR recorded
+> **Current state, 2026-09-11:** P7 implementation is complete and its implementation/corrective PRs
+> #235, #236, #237 and #239 are already merged. The packet text in §§5/5b/5c is retained as scope and
+> evidence history, **not executable guidance**. Accepted progress remains 6/24. The single current
+> next action is the one-time P7 integrated-main review defined in §4 and §8. ACCEPT closes P7 and
+> releases P8; FIX opens one corrective P7 PR and then uses the normal pre-merge lifecycle.
+
+**Historical release gate:** execute after Ali merges the P6 combined review/repair ACCEPT PR recorded
 in §9. Its verified repairs and phase acceptance take effect at that merge; no separate P6
 repair review is required. **Main route:** use the active SKY-026 route; Heavy is appropriate when
 the packet decomposes into non-overlapping packages. Native role identifiers and efforts come from
@@ -235,15 +255,13 @@ route or recon implementation in P7a; no entity engine rewrite, new Omada capabi
 Python installation. Workstation/state/payload recovery prerequisites remain. Rollback is
 git revert; no production installation occurs in this packet.
 
-**Close-out:** mark P7a slice-complete / P7 in progress, keeping accepted progress 6/24. After
-human merge, detail P7b for certificate probes and authored Caddy route parsing with explicit
-vantage/source provenance; then P7c for bounded local/unprivileged-SSH recon. No independent
-slice acceptance or P8 release until all numbered-P7 work is implemented and the final open P7
-PR/fix head is independently accepted before its human merge.
+**Historical close-out:** P7a slice-complete / P7 in progress, accepted progress 6/24; P7b and P7c
+subsequently completed and merged. This paragraph records the old slice transition only; it does not
+authorize execution now. Current P7 acceptance follows the one-time integrated-main transition above.
 
 ## 5b. Phase 7b — certificate and authored-route observations (~1–2h)
 
-**Release gate:** P7a is merged as [#235](https://github.com/aliammar03/skynet/pull/235) at
+**Historical release gate:** P7a merged as [#235](https://github.com/aliammar03/skynet/pull/235) at
 `b173e74142f6e57635a6b4f2a2e64b48800f2974`. **Main route:** use the active SKY-026 route; Heavy is
 appropriate when this slice decomposes into non-overlapping packages.
 
@@ -277,13 +295,12 @@ Rollback is `git revert`.
 
 **Optional worker:** a Default Executor may own only certificate/route tests and fixtures;
 it must not access endpoints, credentials or production. Main owns integration and validation.
-**Close-out:** P7b slice-complete / P7 in progress, accepted progress still 6/24; after human
-merge detail P7c only. P7 phase acceptance still waits for the complete phase's final open PR/fix
-head to pass a fresh pre-merge review.
+**Historical close-out:** P7b slice-complete / P7 in progress, accepted progress 6/24; P7c later
+completed and merged. Current P7 acceptance follows the one-time integrated-main transition in §4.
 
 ## 5c. Phase 7c — bounded local and unprivileged-SSH reconnaissance (~1–2h)
 
-**Release gate:** P7b is merged as [#236](https://github.com/aliammar03/skynet/pull/236) at
+**Historical release gate:** P7b merged as [#236](https://github.com/aliammar03/skynet/pull/236) at
 `e45b8132f3fe1e9637a2a8846de1258cb234dac8`. **Main route:** use the active SKY-026 route; Heavy is
 appropriate when this slice decomposes into non-overlapping packages.
 
@@ -310,11 +327,11 @@ local and one `docker-dmz` unprivileged read from this isolated checkout; neithe
 production inventory. Rollback is `git revert`.
 
 **Optional worker:** a Default Executor owns only recon tests/fixtures; no endpoint, SSH,
-credential or production access. **Close-out:** P7c slice-complete / P7 review pending, accepted
-progress still 6/24. Review the complete P7 result against the exact open final/corrective P7 PR head,
-including merged #235 and #236 plus the other merged P7 slice PRs as evidence. The implementation/fix
-session stops after publishing; Ali manually starts that fresh review before merging the final/fix head.
-
+credential or production access. **Current close-out:** P7c and the subsequent corrective P7 work are
+already merged; P7 remains review-pending at accepted progress 6/24. Do not look for a nonexistent open
+P7 PR. Run the one-time fresh read-only review of the already-integrated P7 result on current `main`,
+including #235, #236, #237 and #239 plus later P7-owned changes. ACCEPT closes P7 and releases P8;
+FIX opens one bounded corrective P7 PR and then uses normal pre-merge review.
 
 ## 6. Carry forward the original review as acceptance cases
 
@@ -360,51 +377,70 @@ intended services/backups are restored; maintained documentation/style/context c
 automatic in hook and CI; a cold operator can diagnose and recover from git + survival kit.
 An unperformed destructive/full-core drill stays explicitly unverified, not silently waived as passed.
 
-**Close each complete phase:** implementation/fix PR with result/checks/limitations → implementation
-session stops → operator-started fresh independent review of the exact open head → ACCEPT → Ali human
-merge → bounded closeout updates this file (`current_phase` = accepted phases, date/status), map,
-`agent_docs`, roadmap and next packet; journal raw evidence. FIX returns to the original session, which
-updates the same PR and stops before another operator-started fresh review. The directive is the sole
-progress record — no extra tracker or repeated copy of the plan. Implementation-ready/review-pending is
-not accepted/done, and an open PR must never be described as already merged.
+**Close each future complete phase:** implementation/fix PR with result/checks/limitations →
+implementation session stops → operator-started fresh independent review; reviewer resolves/rechecks the
+current target/base + PR-head pair from GitHub → ACCEPT for that pair → Ali human-merges while the pair
+remains current → bounded closeout updates this file (`current_phase` = accepted phases, date/status),
+map, `agent_docs`, roadmap and next packet; journal raw evidence. FIX returns to the original session,
+which updates the same PR and stops before another operator-started fresh review. Movement of either
+reviewed base or head invalidates ACCEPT. Ali does not manually compare hashes. The directive is the
+sole progress record — no extra tracker or repeated copy of the plan. Implementation-ready/review-pending
+is not accepted/done, and an open PR must never be described as already merged. P7 alone uses the
+one-time already-merged transition defined in §4 because its work predates this lifecycle.
 
 ## 8. Execute / review / continue prompts
 
-Use the [phase handoff workflow](../prompts/README.md): the implementation/fix session publishes the
-authored PR and stops; Ali manually starts the fresh reviewer against the open exact head. The reviewer
-is read-only: ACCEPT names the reviewed head, BLOCKED names the missing prerequisite, and FIX returns a
-single paste-ready prompt to the original implementation/fix session. Review never creates a planning
-PR. After ACCEPT, Ali human-merges that exact head, then a bounded closeout updates accepted progress,
-G-checkpoint decisions and the next packet. A changed head after ACCEPT requires fresh review.
+Use the [phase handoff workflow](../prompts/README.md): implementation/fix publishes the authored PR
+and stops; Ali manually starts the fresh reviewer by PR identity. The reviewer is read-only, resolves
+the current target/base and PR-head revisions directly from GitHub, rechecks both before verdict, and
+records both on ACCEPT. BLOCKED names the missing prerequisite; FIX returns one paste-ready prompt to
+the original implementation/fix session. Review never creates a planning PR. After ACCEPT, Ali
+human-merges only while the reviewed pair remains current, then bounded closeout updates accepted
+progress, G-checkpoint decisions and the next packet. Ali never needs to shuttle commit hashes between
+sessions.
 
 **Start or continue in the packet's execution model:**
 ```text
 Read planning/prompts/execute.md and execute the next authorized SKY-025 packet.
 ```
 
-**When the complete numbered phase has an open final/fix PR, in a new separate fresh review chat:**
+**Normal future complete-phase review, in a new separate fresh chat:**
 ```text
-Read planning/prompts/review.md and review open SKY-025 implementation/fix PR <URL>.
+Read planning/prompts/review.md and review SKY-025 PR #<number>.
+```
+
+**Current single P7 next action, in a new separate fresh review chat:**
+```text
+Read planning/prompts/review.md and review SKY-025 P7 using the one-time already-merged transition.
 ```
 
 ## 9. Status
 
 Current lifecycle is defined by §§4, 7, and 8 plus the construction convention. Historical entries
 below record what happened under earlier handoff rules and do not override the current pre-merge review
-contract.
+contract or the bounded P7 transition.
 
-- 2026-09-10 — **P7 corrective packet implementation complete / review pending.** From merged
-  remote-main `ded7289ca3938c3adeeaf21d3dad3bb90dcd5a80`, the bounded route/recon review fixes make
-  a missing or unreadable authored Caddyfile unavailable and retain prior route evidence, reject
-  malformed or unclosed vhost blocks rather than publishing a partial/empty observation, and add
-  `target: recon` plus `outcome: success` to successful recon JSON snapshots. Regression tests use
-  a genuinely absent source path and a truncated block. Full pytest (258), Ruff, mypy, Nix package
-  and flake checks pass; no live collector, inventory rewrite, credential/pin, root/grant,
-  service/timer, activation or remote write occurred. The five paused documentation suites remain
-  manual. **P7 remains review pending and accepted progress remains 6/24.** The final/corrective P7
-  PR must be reviewed while still open together with #235, #236, #237 and any other merged P7 slice
-  evidence. On ACCEPT, Ali human-merges the exact reviewed head; bounded closeout then records P7
-  acceptance and releases P8.
+- 2026-09-11 — **P7 implementation/corrective work already merged; one-time integrated-main review
+  pending.** P7a/P7b/P7c and corrective work landed in #235, #236, #237 and #239 before the current
+  review-before-merge lifecycle became authoritative. There is no open P7 implementation/fix PR and no
+  requirement to invent one merely to satisfy a later process rule. Accepted progress remains **6/24**.
+  **Single current next action:** Ali starts one fresh read-only P7 review using the one-time transition
+  in `planning/prompts/review.md`. The reviewer resolves and rechecks current `main` itself and judges
+  the already-integrated P7 result, including those merged PRs plus later P7-owned changes. ACCEPT →
+  bounded closeout records P7 accepted and releases P8. FIX → open one bounded corrective P7 PR, then
+  use the normal pre-merge target/base + PR-head review lifecycle. This transition does not claim the
+  older PRs were reviewed before merge and cannot be reused for future phases.
+
+- 2026-09-10 — **P7 corrective packet implementation complete / review pending under the former
+  lifecycle.** From merged remote-main `ded7289ca3938c3adeeaf21d3dad3bb90dcd5a80`, the bounded
+  route/recon review fixes make a missing or unreadable authored Caddyfile unavailable and retain prior
+  route evidence, reject malformed or unclosed vhost blocks rather than publishing a partial/empty
+  observation, and add `target: recon` plus `outcome: success` to successful recon JSON snapshots.
+  Regression tests use a genuinely absent source path and a truncated block. Full pytest (258), Ruff,
+  mypy, Nix package and flake checks pass; no live collector, inventory rewrite, credential/pin,
+  root/grant, service/timer, activation or remote write occurred. The five paused documentation suites
+  remain manual. This entry is historical evidence; the 2026-09-11 transition above owns the current
+  review entry point.
 
 - 2026-09-09 — **P7c slice complete — bounded Python reconnaissance.** From remote-main base
   `e45b8132f3fe1e9637a2a8846de1258cb234dac8`, `skynet recon [target] [--json]` replaces the shell
@@ -474,8 +510,7 @@ contract.
   Packet baseline `db09021802f590d79f2ab9f7c2c56064f29c0a4a`; reviewed main
   `9858daf0b4405b14aa93f45f50d71349ea29b1b6`; only those three commits intervene.
   Reviewer: fresh session; bounded Investigator and Executor workers handled inspection/repairs.
-  The reviewer inspected all changes
-  and retained live checks and acceptance.
+  The reviewer inspected all changes and retained live checks and acceptance.
 
   | P6 exit | Verdict and independent evidence |
   |---|---|
@@ -617,7 +652,7 @@ contract.
   `skynet collect pbs`. The Python command accepts only literal configured assignments, normalizes
   the PBS token separator, preserves CA or configured-fingerprint trust and separate SNI, performs
   verified GETs, validates every datastore/status/namespace/snapshot response, then atomically
-  projects the existing datastore/group/count/latest-verification snapshot. Empty validated groups
+  projects the existing datastore/group/count/latest-verification schema. Empty validated groups
   are a zero-backup observation; null, partial, malformed, timed-out or trust-failed data fails and
   retains old bytes. `collect all` obtains PBS once under the existing receipt, writes its own
   hash/time marker, and default status/query/entity/render/nightly consumers require all five
@@ -635,9 +670,9 @@ contract.
   [#221](https://github.com/aliammar03/skynet/pull/221), merge/main reviewed
   `29b3af942968953a470c9f6d7a06a5c29ca3f8ec`. Packet baseline is
   `d2bbedc649e2b4226a2f1b1721a35febbb6148cd`; no intervening commits beyond those slices.
-  Session metadata, installed catalog and routing dry-run confirm a fresh Main (Medium) session.
+  Session metadata, installed catalog and routing dry-run confirm a fresh Main (Medium).
 
-  | Full P4 exit | Verdict / independent evidence |
+  | Full P4 exit | Verdict / evidence including repairs |
   |---|---|
   | Both node shapes, field compatibility and protected pools | ACCEPT — maintained synthetic projections pass; authorized live reads return core 8 guests/1 pool and network 6 guests/1 pool; 2020/5001/635/837 remain unpooled. |
   | Operate-token selection, permissions validation, retained bytes | ACCEPT — GET-only shared transport inspected; CLI tests plus 32 review probes cover both targets, malformed/null permissions, missing operate token without fallback, timeout/redaction, marker refusal and recovery. |
@@ -707,10 +742,10 @@ contract.
 - 2026-09-08 — **P3 R1/R2 fixes implemented / full P3-G2 re-review pending.** Isolated
   branch `fix/sky-025-p3` starts at `89a1dee3f497df7c8609c8639298f4d3db66d505` (merged
   repair packet #217). A durable local attempt receipt invalidates prior success even when
-  initial marker replacement fails. Status tests writable receipt durability and preserves
-  existing snapshot hash/time, 36-hour and nightly-cutoff rules. Reader process groups are
-  killed/reaped under the collection lock on timeout, interruption and early process-group exit;
-  unconfirmed cleanup stops/quarantines further collection.
+  initial marker replacement fails. Ordinary status requires that receipt, matching marker/snapshot
+  hashes and times, and writable durable receipt storage. It cannot create successful refresh evidence.
+  Reader process groups are killed/reaped under the collection lock on timeout, interruption and early
+  process-group exit; unconfirmed cleanup stops/quarantines further collection.
   Executor self-check and regressions cover ordinary default-consumer refusal, later recovery,
   actual descendants/signals, lock lifetime and redaction. Full pytest: 94 passed; installed
   package: 86 passed; Ruff, mypy, flake evaluation, offline launcher and staged hook pass.
