@@ -113,8 +113,10 @@ owns the decisions and integration while bounded specialist workers — Companio
 Executors, Tester, Archivist — own scoped work, each used only where the runtime actually exposes
 that role; concurrency follows platform capacity and non-overlapping ownership. Implementation/fix
 sessions publish their authored PR and stop; Ali manually starts a fresh acceptance review against the
-open PR before human merge. A fix returns to the original session, while ACCEPT permits human merge of
-the exact reviewed head. New procedural code follows
+open PR before human merge. The reviewer resolves the current target/base SHA and PR head SHA directly
+from GitHub, reviews that integration pair, and rechecks both before verdict. A fix returns to the
+original session; ACCEPT permits human merge only while that reviewer-resolved pair remains current.
+Ali supplies the PR identity, not hashes to copy between chats. New procedural code follows
 [the capability convention](docs/conventions/scripts.md); implementation language grants no authority.
 The unprivileged NixOS `aliammar` account is Codex's construction filesystem/OS boundary: ordinary
 account-accessible work runs without approval prompts, while `gh pr merge` and both repository
