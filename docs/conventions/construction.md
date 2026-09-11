@@ -58,8 +58,8 @@ instead). The **Model** and **Effort** are applied per role from its file. The u
 | Archivist | `gpt-5.6-luna` | xhigh | `aliammar` account | one at substantive closure, plus explicit doc assignments |
 
 - **Companion** — persistent, project-centred secretary, **read-only by ownership and instructions**:
-  bounded context intake, large synthesis, and retained
-  operational context. It is not a message bus; workers report to Main.
+  bounded context intake, large synthesis, and retained operational context. It is not a message bus;
+  workers report to Main.
 - **Investigator** — disposable worker for one bounded, unfamiliar project or Internet evidence gap,
   **read-only by ownership and instructions**. It supplies evidence; Main owns the causal decision.
 - **Default Executor** — owns local discovery, implementation, self-check, deployment operations, and
@@ -143,21 +143,38 @@ express a required behaviour and Ali separately authorises that complexity. `[ma
 ## Fresh external review
 
 Executor self-check, Tester verification, and Main internal integration acceptance are the implementation
-gates. The implementation or fix session then commits, pushes, opens its authored PR, returns the PR URL
-and review handoff, and **stops**. Final acceptance review is an **operator-started action**: Ali manually
-starts a separate fresh chat/session against the **open authored PR before human merge**. The
-implementation/fix session must not start, spawn, or continue into that review.
+gates. The implementation or fix session then commits, pushes, opens its authored PR, returns the PR
+number/URL and review handoff, and **stops**. Final acceptance review is an **operator-started action**:
+Ali manually starts a separate fresh chat/session against the **open authored PR before human merge**.
+The implementation/fix session must not start, spawn, or continue into that review. Ali supplies the
+PR identity only; **the reviewer resolves Git revision identities from GitHub itself.** `[manual]`
+
+At review start, the reviewer records the target branch and the exact **reviewed base SHA + reviewed PR
+head SHA** pair, then evaluates the actual integration result represented by that pair. Immediately
+before verdict it resolves both again. If either base or head moved, the earlier integration conclusion
+is stale: refresh the affected diff/evidence and do not issue ACCEPT until the current pair has actually
+been reviewed. GitHub mergeability, CI green, or an unchanged head alone cannot prove that the reviewed
+integration result is unchanged. `[manual]`
 
 The reviewer never repairs the work: if it finds a fixable defect its entire final response is one
 complete, paste-ready fix prompt for the original implementation/fix session. That session repairs the
-same PR, publishes the updated head, reports the handoff, and stops again; Ali manually starts another
-fresh reviewer against the updated open PR. Repeat until ACCEPT. `[manual]`
+same PR, publishes it, reports the PR handoff, and stops again; Ali manually starts another fresh
+reviewer. The human handoff names the PR, **not a SHA that Ali must shuttle between chats**. Repeat until
+ACCEPT. `[manual]`
 
-`ACCEPT` applies only to the exact reviewed PR head. After ACCEPT, Ali human-merges that reviewed PR. If
-the PR head changes after ACCEPT, the acceptance is stale and a fresh review is required before merge.
+`ACCEPT` records and applies only to the reviewer-resolved **base+head pair**. After ACCEPT, Ali
+human-merges that PR only while both target/base and head remain the reviewed pair. Movement of either
+invalidates the verdict and requires fresh review of the resulting integration state before merge.
+Ali is not expected to compare hashes manually; any review/merge helper must resolve them from GitHub.
 After the accepted PR is merged, a bounded closeout updates durable project state, directive/archive,
 and roadmap as required. That closeout does **not** automatically launch another acceptance review
 unless it introduces substantive implementation changes. `[manual]`
+
+A directive may define a **bounded legacy transition** only for work that was already human-merged
+before this pre-merge lifecycle became current. Such a transition must name the already-merged work and
+a single truthful integrated-state review target; it cannot be used for future implementation. A legacy
+ACCEPT records the integrated revision reviewed and proceeds to bounded closeout. A legacy FIX opens a
+new corrective PR, which immediately returns to the normal pre-merge base+head lifecycle. `[manual]`
 
 ## Continuity and truth surfaces
 
@@ -174,11 +191,13 @@ stable memory (`project_overview.md`, `project_core_tech.md`, `project_structure
 docs/runbooks; it never decides acceptance, rewrites Main-owned deployment state during closure, or
 hand-edits generated outputs (`inventory/`, `docs/generated/`). `[manual]`
 
-After a fresh reviewer returns ACCEPT and Ali human-merges the exact reviewed PR, a bounded closeout Main
-updates the three state-memory files and active directive from merged evidence, performs required
-planning/archive transitions, and refreshes owned generated views. This is the point at which durable
-memory may say the work is accepted/merged. The closeout remains human-merged and does not create an
-automatic acceptance-review loop unless it contains substantive implementation changes. `[manual]`
+After a fresh reviewer returns ACCEPT for the current base+head pair and Ali human-merges that accepted
+PR, a bounded closeout Main updates the three state-memory files and active directive from merged
+evidence, performs required planning/archive transitions, and refreshes owned generated views. This is
+the point at which durable memory may say the work is accepted/merged. The closeout records the review
+pair and actual human-merged result as evidence, but ordinary human handoffs need only the PR identity.
+The closeout remains human-merged and does not create an automatic acceptance-review loop unless it
+contains substantive implementation changes. `[manual]`
 
 The generated digest remains the read-time view of recent decisions, open threads, and raw episodes;
 the context map remains the generated routing/load-cost index. Neither generated view is required for
@@ -189,10 +208,10 @@ Every substantive closure leaves exactly one `## Next Entry Point` in `latest_se
 
 | State | Durable closure | One next entry point |
 |---|---|---|
-| implementation ready | Main records verified implementation state and the open authored PR as pending fresh review; it does not claim external acceptance or merge | operator-started fresh review of that open PR |
+| implementation ready | Main records verified implementation state and the open authored PR as pending fresh review; it does not claim external acceptance or merge | operator-started fresh review of that PR; reviewer resolves the current base/head pair |
 | paused | Main records verified position, pending work, and checks without advancing the phase | the same-phase Continue prompt |
 | blocked | Main records the exact external condition and sets directive/progress status `blocked` | the same-phase Continue prompt naming the unblock condition |
-| accepted + merged | bounded closeout records the reviewer ACCEPT, exact human-merged PR evidence, final directive/progress/archive state, and reusable lessons | the next active directive/phase entry point |
+| accepted + merged | bounded closeout records reviewer ACCEPT for the reviewed base+head pair, actual human-merged PR evidence, final directive/progress/archive state, and reusable lessons | the next active directive/phase entry point |
 
 At the start of each substantive Medium/Heavy deployment, Main emits
 `<!-- skynet-deployment-start: <deployment_id> -->` in its first commentary message. The ID is unique,
