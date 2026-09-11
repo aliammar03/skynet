@@ -15,6 +15,9 @@
   not the story of how they were reached.
 - Authored work always lands through a human-merged PR. Construction roles and implementation
   languages grant no production authority.
+- Final acceptance review is operator-started. An implementation or fix session publishes its authored
+  PR, reports the review handoff, and stops; Ali manually starts each fresh reviewer in a separate chat
+  after human merge. Implementation sessions never launch their own acceptance review or re-review.
 - The unprivileged NixOS `aliammar` account is the construction filesystem/OS boundary. Native
   construction inherits its no-prompt Codex posture; self-root and authored self-merge are forbidden,
   and production authority remains governed separately by trust-tier contracts.
