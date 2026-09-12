@@ -26,9 +26,10 @@
 - Normal authored work therefore uses **one PR and one human merge**: implementation → fresh review →
   ACCEPT marker → same-PR closeout → human merge. There is no closeout-only PR and no automatic second
   review for a valid closeout-only delta.
-- SKY-026 completed by exercising that exact lifecycle on PR #253: fresh external ACCEPT was recorded
-  on the PR, Main then performed only the sanctioned closeout bookkeeping on that same PR, and the
-  directive moved to archive before its single human merge.
+- SKY-026's first real same-PR closeout proved the stale-ACCEPT escape hatch: final CI exposed a
+  regression test that assumed the directive could never move from `planning/projects/` to
+  `planning/archive/`. Fixing that test was substantive, so the ACCEPT was invalidated and SKY-026
+  returned to fresh review instead of disguising the repair as bookkeeping.
 - Private GitHub Free leaves a residual race between the final agent recheck and Ali clicking Merge;
   the workflow does not claim atomicity and does not require a paid GitHub feature or manual SHA work.
 - Main owns progress, diary, and latest-session memory. Archivist owns assigned overview, technology,
@@ -61,6 +62,8 @@
   against the higher-authority source.
 - Keep accepted closeout mechanically boring. If it needs to touch implementation or behavioral truth,
   it is not closeout anymore and must go back through review.
+- A green pre-ACCEPT suite is not enough to prove the closeout transition itself works; lifecycle tests
+  must tolerate legitimate state movement such as an active directive becoming archived.
 - The reviewer-owned PR marker plus a machine-checked closeout-only delta gives the implementation
   session enough evidence to close accepted work without making Ali shuttle revision hashes.
 - Token accounting must fail closed when ancestry, the first-commentary boundary, or recorded usage is
