@@ -196,7 +196,7 @@ class AgentDocsContractTests(unittest.TestCase):
         self.assertIn("race window", review)
         self.assertIn("not a mechanical or atomic guarantee", review)
         self.assertIn("do not require a paid github upgrade", review)
-        self.assertIn("do not compare or shuttle them", review)
+        self.assertIn("ali does not compare or shuttle them", review)
 
     def test_lifecycle_surfaces_expose_private_free_race_and_no_atomic_promise(self) -> None:
         for path in LIFECYCLE_FILES:
