@@ -118,8 +118,9 @@ Use only for historical P7 implementation already merged in #235, #236, #237 and
 accepted progress remains 6/24. **Do not use Mode B for a new corrective P7 PR.**
 
 Merged PR **#239 is the durable P7 review-state anchor** because P7 has no open phase PR and #239 is the
-last historical corrective PR. Every fresh Mode B verdict writes one marker there. The newest marker is
-the complete current legacy-review state; older markers are audit history only.
+last historical corrective PR. The merged PR #239 conversation is the durable handoff. Every fresh
+Mode B verdict writes one marker there. The newest marker is the complete current legacy-review state;
+older markers are audit history only.
 
 1. Resolve current `main` and record it as the reviewed integrated revision.
 2. Review the complete already-integrated P7 result, including #235, #236, #237, #239 and later commits
@@ -140,7 +141,8 @@ anchor_pr=239
 ```
 
 The later P8 session uses only the **newest** applicable marker from #239. A newer FIX or BLOCKED marker
-supersedes every older ACCEPT even when `main` has not moved. Ali never copies or compares marker SHAs.
+supersedes every older ACCEPT even when `main` has not moved. Ali never copies or compares its SHA;
+Ali never carries marker hashes between chats.
 
 ### P7 ACCEPT
 
@@ -161,7 +163,7 @@ Legacy review-state marker: posted to merged PR #239
 Merged evidence: #235, #236, #237, #239 + <later P7-relevant commits if any>
 Evidence: <exit criterion → independent result>
 Limitations: <explicit unverified items, or none>
-Next: start P8. The P8 session will fetch the newest #239 marker itself; only a newest ACCEPT whose integrated_main still equals current main can release P8. Do NOT create a standalone P7 closeout PR.
+Next: start P8. The P8 session will fetch the newest #239 marker itself; only a newest ACCEPT whose integrated_main still equals current main can release P8. The P8 PR then records P7 accepted / current_phase 7 as opening bookkeeping. Do NOT create a standalone P7 closeout PR.
 ```
 
 Because there is no open P7 PR to close out, the next natural P8 PR carries the small P7 state
