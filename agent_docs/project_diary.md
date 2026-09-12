@@ -26,6 +26,9 @@
 - Normal authored work therefore uses **one PR and one human merge**: implementation → fresh review →
   ACCEPT marker → same-PR closeout → human merge. There is no closeout-only PR and no automatic second
   review for a valid closeout-only delta.
+- SKY-026 completed by exercising that exact lifecycle on PR #253: fresh external ACCEPT was recorded
+  on the PR, Main then performed only the sanctioned closeout bookkeeping on that same PR, and the
+  directive moved to archive before its single human merge.
 - Private GitHub Free leaves a residual race between the final agent recheck and Ali clicking Merge;
   the workflow does not claim atomicity and does not require a paid GitHub feature or manual SHA work.
 - Main owns progress, diary, and latest-session memory. Archivist owns assigned overview, technology,
@@ -58,6 +61,8 @@
   against the higher-authority source.
 - Keep accepted closeout mechanically boring. If it needs to touch implementation or behavioral truth,
   it is not closeout anymore and must go back through review.
+- The reviewer-owned PR marker plus a machine-checked closeout-only delta gives the implementation
+  session enough evidence to close accepted work without making Ali shuttle revision hashes.
 - Token accounting must fail closed when ancestry, the first-commentary boundary, or recorded usage is
   incomplete; missing data is a limitation, not a value to estimate.
 - Keep Main wakeups low by giving Companion bulky reusable context once and using delta/conflict checks
