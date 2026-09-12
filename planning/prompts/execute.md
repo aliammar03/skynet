@@ -25,11 +25,11 @@ review chat and never ask Ali for a revision hash.
    - one full `integrated_main` SHA;
    - **newest marker `verdict=ACCEPT`**.
 3. Resolve current remote `main` yourself immediately before creating/reusing the P8 branch.
-4. Require current `main` to equal the newest marker's `integrated_main`. If the newest marker is absent,
-   malformed, FIX, BLOCKED, or current `main` differs, report **P7 ACCEPT stale/missing**, keep P8
-   blocked, and do not advance P7 state from a stale marker. Never fall back to an older ACCEPT marker.
-   Any intervening `main` movement after the accepted revision also requires a fresh one-time P7 Mode B
-   review while the legacy gate is still active.
+4. Require current `main` to equal the marker's `integrated_main`. Here, "the marker" is the newest
+   applicable marker selected in step 1. If it is absent, malformed, FIX, BLOCKED, or current `main`
+   differs, report **P7 ACCEPT stale/missing**, keep P8 blocked, and do not advance P7 state from a stale
+   marker. Never fall back to an older ACCEPT marker. Any intervening `main` movement after the accepted
+   revision also requires a fresh one-time P7 Mode B review while the legacy gate is still active.
 5. Only after both checks pass, start from that validated `main`, use the natural P8 PR, and make its
    opening bookkeeping record P7 accepted / `current_phase: 7` before P8 implementation. No standalone
    P7 closeout PR is created.
