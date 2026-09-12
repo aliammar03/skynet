@@ -65,7 +65,7 @@ clicking Merge. Prompt merge minimizes but does not eliminate that race.
 - First closeout run #657 passed hard invariants, `git diff --check`, digest, construction, rollback/
   provisioning, and nightly gates, but lifecycle tests failed because they hard-coded the active
   SKY-026 path. That failure is the reason the previous ACCEPT is stale.
-- Repaired current head passed GitHub Actions run **#665**: lifecycle contracts **15 passed**; full
+- Repaired current head passed GitHub Actions run **#666**: lifecycle contracts **15 passed**; full
   pytest **287 passed, 1 skipped**; Ruff clean; mypy clean across **14 source files**; packaged Nix
   checks passed; hard invariants, `git diff --check`, entity/digest, rollback/provisioning,
   construction, nightly-automerge, and nightly-sequence gates all passed.
