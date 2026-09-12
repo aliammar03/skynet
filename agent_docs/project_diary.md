@@ -30,6 +30,10 @@
 - A directive may define one bounded legacy transition for work already merged before the current
   pre-merge lifecycle. A legacy FIX must open a corrective PR and return to the normal pre-merge path;
   the exception cannot authorize future work to bypass review-before-merge.
+- SKY-025 uses one open authored PR per numbered phase from P8 onward. Internal lettered slices are
+  working units on that same phase PR and are not merged separately. The complete numbered phase is
+  reviewed once while its PR is open; FIX stays on that PR; ACCEPT precedes human merge. P7 is the
+  sole legacy already-merged exception.
 - The unprivileged NixOS `aliammar` account is the construction filesystem/OS boundary. Native
   construction inherits its no-prompt Codex posture; self-root and authored self-merge are forbidden,
   and production authority remains governed separately by trust-tier contracts.
