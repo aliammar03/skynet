@@ -3,7 +3,7 @@ date: 2026-09-13
 time: 01:38:00
 kind: session
 title: SKY-026 final accepted closeout
- tier_touched: [T1]
+tier_touched: [T1]
 grants: []
 refs: [SKY-026, PR-253, 2026-09-12-session-sky-026-closeout-invalidated-by-lifecycle-test]
 thread_status: closed
