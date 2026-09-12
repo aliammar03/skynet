@@ -25,8 +25,8 @@ related:
 Accepted numbered progress is **P7 / 7 of 24**. The one-time P7 migration review required a corrective
 change; corrective PR **#254** was accepted and merged through the authored-PR lifecycle.
 
-**Current action:** implement the complete P8 entity-spine and rebuildable-query-cache packet on its
-single `phase/sky-025-p8` branch and PR. P8 remains repository-only and requires no live authority.
+**Current action:** P8 implementation is ready on PR **#255** and pending one fresh external review.
+No live authority was used; implementation/fix work stops until review returns FIX or ACCEPT.
 
 ## 2. Mandate and boundaries
 
@@ -151,7 +151,7 @@ Architecture checkpoints G1/G2 are already behind us. G3–G6 remain at phases 9
 
 ### Phase 8 — entity spine + rebuildable query cache
 
-**Status:** in progress.
+**Status:** implementation-ready / pending fresh review on PR **#255**.
 
 **Recommended Main:** Heavy. Use one P8 branch/PR for the whole numbered phase. Internal slices are
 working units on that same PR, never separately merged.

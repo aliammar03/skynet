@@ -70,7 +70,8 @@ Each directive carries its own execution/review entry points, so running or resu
 paste into a fresh session.
 
 For SKY-025, use the [execute/review handoff prompts](prompts/README.md). Corrective P7 PR #254 is
-accepted and merged. P8 is active with accepted progress recorded as P7/24. From P8 onward, one numbered phase
+accepted and merged. P8 implementation is ready on PR #255, with accepted progress still recorded as
+P7/24 pending fresh review. From P8 onward, one numbered phase
 owns one open PR; internal slices remain on that PR until fresh acceptance, then bounded closeout stays
 on that **same accepted PR** before one human merge. Ali never provides commit hashes to the reviewer or
 closeout session.

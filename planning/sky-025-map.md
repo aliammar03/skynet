@@ -7,8 +7,8 @@ summary: "SKY-025 current subsystem dispositions, callers, replacement phases, a
 Owned by [the active directive](projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md).
 
 Current accepted progress is **P7 / 7 of 24**. Corrective P7 PR **#254** is accepted and merged.
-P8 is active on its single numbered-phase branch/PR; its entity and disposable-cache slices remain
-working units on that same PR and are never merged independently.
+P8 implementation is ready on PR **#255** and pending one fresh external review. Its entity and
+disposable-cache slices remain on that single numbered-phase PR and are never merged independently.
 
 The reviewer resolves/rechecks Git revisions from GitHub. Ali supplies the phase/PR identity, not hashes.
 For normal open PRs, ACCEPT is recorded in a machine-readable PR marker; Ali later says only `accepted`
@@ -27,9 +27,9 @@ This file is a current disposition/caller/blocker map. Implementation chronology
 | DNS + OPNsense shell collectors | migrate | Python DNS + live OPNsense collectors | DNS/firewall/state views | P6 accepted; shell forwarding cleanup P22 |
 | offline OPNsense `config.xml` inventory parser | **deleted** | none | none | retired P6c; config.xml is DR restore material only |
 | Omada/cert/routes/recon shell implementations | migrate | Python observation modules | default collection/status/render/recon | P7 accepted |
-| `scripts/entity.sh` | migrate/delete shell logic | prepared `src/skynet/entities.py` | audit, routes, cache/render/query consumers | P8A |
-| `scripts/audit-entities.sh` | migrate/delete shell logic | Python entity audit | `bin/ops entities`, CI/current diagnostics | P8A |
-| `scripts/build-db.sh` | migrate/delete shell logic | small Python rebuildable-cache module | `bin/ops query`, renderer | P8B |
+| `scripts/entity.sh` | forwarding compatibility only | `src/skynet/entities.py` | legacy shell entity tests | P8 implemented; removal P22 |
+| `scripts/audit-entities.sh` | forwarding compatibility only | Python entity audit | invariant gate | P8 implemented; removal P22 |
+| `scripts/build-db.sh` | forwarding compatibility only | `src/skynet/cache.py` | renderer, legacy shell cache tests | P8 implemented; removal P22 |
 | `scripts/sql/host-map.sql`, `scripts/sql/vhosts.sql` | retain if useful | SQL query definitions over disposable cache | renderer/query | P8B |
 | rendering/digest/context/catalog shell tools | migrate/prune | Python render/retrieval paths | nightly, humans, agent context | P9 |
 | `deploy-gate.sh`, GitOps deploy/rollback shell logic | migrate | Python verify/deploy/recovery evidence | deployment/restore runbooks | P10–P11 |
@@ -60,8 +60,8 @@ callers together and delete duplicate procedural logic.
 
 ## P8 caller map
 
-P8 is active. Its internal slices stay on one open numbered-phase PR and are not merged separately.
-Normal ACCEPT is followed by bounded closeout on that same PR and then one human merge.
+P8 implementation is ready on PR **#255**. Its internal slices stay on that one open numbered-phase
+PR. Normal ACCEPT is followed by bounded closeout on the same PR and then one human merge.
 
 ### P8A · entity derivation/audit
 

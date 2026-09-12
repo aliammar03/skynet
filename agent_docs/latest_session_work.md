@@ -5,55 +5,37 @@
 
 ## Detailed Current State
 
-SKY-026 is externally accepted and in bounded closeout on **PR #253**.
+The entity/cache phase is implementation-ready on **PR #255** and pending one fresh external review.
+Accepted numbered progress remains 7/24. The authored PR is open and unaccepted; implementation stops
+until a fresh reviewer returns FIX or ACCEPT.
 
-- Corrective SKY-025 P7 PR #254 is accepted and merged into `main`.
-- PR #253 was refreshed against that post-P7 `main`, independently reviewed, and accepted on its exact
-  integration pair.
-- The final review-process rule is simple: every ACCEPT/FIX/BLOCKED verdict is durable, the newest
-  applicable marker wins, and only newest ACCEPT may enter bounded same-PR closeout.
-- SKY-026 is now archived with `status: done` and `current_phase: 5`.
-
-The simplified lifecycle ends in **one human merge**:
-
-```text
-implement/fix → open PR → fresh review → durable ACCEPT/FIX/BLOCKED marker
-→ newest applicable verdict wins
-→ only newest ACCEPT may enter bounded closeout on SAME PR
-→ CI/final recheck → Ali merges once
-```
-
-Ali never copies hashes. A newer FIX/BLOCKED or malformed newest marker blocks closeout. Private GitHub
-Free still leaves a non-atomic race window between the final agent recheck and Ali clicking Merge.
-
-The entity/cache phase is active on its single phase branch. Accepted progress is 7/24;
-implementation now owns the entity spine and rebuildable SQLite query cache.
+The phase replaces shell entity derivation, audit, cache build, and ad-hoc query logic with packaged
+Python. Forwarding-only shell entries remain for demonstrated invariant, renderer, and legacy test
+callers, with later caller cleanup already assigned in planning.
 
 ## Session Changes
 
-- Merged current `main` into #253 after #254 landed so acceptance bound to the real post-P7 integration.
-- Repaired the last stale SKY-026 directive wording so it matches the final newest-verdict rule.
-- Fresh review accepted #253 and posted the new `skynet-acceptance:v1` marker.
-- Archived SKY-026 as complete and refreshed planning/Main-owned closeout state only.
-- No source/runtime/config/tests/invariants/AGENTS/doctrine/runbooks/behavioral docs/stable memory were
-  changed after ACCEPT.
+- Added packaged entity derivation/audit for guest, service, node, vhost, and network identities.
+- Moved route guest resolution from a Bash subprocess to the entity module.
+- Added an atomic 14-table SQLite projection and packaged query command; failed rebuilds retain the
+  previous valid cache and ordinary query/render callers retain collection freshness gates.
+- Kept the two maintained SQL views and migrated operator/query/renderer callers to Python behavior.
+- Updated focused behavior, package, shell-caller, and lifecycle-state tests.
 
 ## Verification
 
-- #253 pre-closeout exact-head GitHub Actions run #702: lifecycle contracts, full behavioral tests,
-  Ruff, mypy, packaged Nix checks, hard invariants, `git diff --check`, entity/digest/DNS-revert/
-  compose-rollback/cert-selector/OpenTofu-rollback/PVE-snapshot/provisioning-truth/construction/nightly
-  gates all passed.
-- Final closeout CI is still required on the closeout head before human merge.
-- No production endpoint, credential, root grant, service/timer, inventory, or live infrastructure
-  write occurred.
+- Supported full Python suite: 324 passed.
+- Packaged Nix application/check build: passed; installed console tests: 12 passed.
+- Focused entity/cache/route/CLI suites, Ruff, strict mypy, hard invariants, construction, entity,
+  repository-surface, and `git diff --check`: passed.
+- No live endpoint, credential, root grant, service/timer, generated inventory/docs rewrite, or
+  production mutation occurred.
 
 ## Pending Work and Blockers
 
-- Run final CI and verify the accepted-head → final-head delta contains only sanctioned closeout paths.
-- Recheck `main` still matches the reviewed base.
-- If both pass, PR #253 is ready for one human merge.
+- Fresh external review of PR #255 is required; internal verification is not external acceptance.
+- Unchanged baseline temporal-hygiene matches and runbook-catalog drift remain outside this phase.
 
 ## Next Entry Point
 
-Complete the entity/cache phase on its single PR, then hand that open PR to a fresh external review.
+Read `planning/prompts/review.md` and review SKY-025 PR #255.
