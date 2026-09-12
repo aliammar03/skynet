@@ -5,18 +5,16 @@
 
 ## Detailed Current State
 
-Two open PRs are intentionally separate:
+SKY-026 is externally accepted and in bounded closeout on **PR #253**.
 
-- **#254** is the bounded corrective SKY-025 P7 route-source fix. It fails closed when the authored
-  Caddyfile is readable but yields zero supported routes, retains previous route evidence on failure,
-  and keeps backend-less authored `respond` routes valid. Its verification is green and Ali has accepted
-  it for human merge.
-- **#253** is the SKY-026/SKY-025 review-process overhaul. Its last independent review found one defect:
-  normal open-PR review persisted ACCEPT but not later FIX/BLOCKED verdicts, allowing an older ACCEPT to
-  survive a newer rejection on the same revision. The repair now persists every verdict and makes the
-  newest applicable marker authoritative. The old Mode A/Mode B labels are removed from active prompts.
+- Corrective SKY-025 P7 PR #254 is accepted and merged into `main`.
+- PR #253 was refreshed against that post-P7 `main`, independently reviewed, and accepted on its exact
+  integration pair.
+- The final review-process rule is simple: every ACCEPT/FIX/BLOCKED verdict is durable, the newest
+  applicable marker wins, and only newest ACCEPT may enter bounded same-PR closeout.
+- SKY-026 is now archived with `status: done` and `current_phase: 5`.
 
-The simplified normal lifecycle ends in **one human merge**:
+The simplified lifecycle ends in **one human merge**:
 
 ```text
 implement/fix → open PR → fresh review → durable ACCEPT/FIX/BLOCKED marker
@@ -28,36 +26,34 @@ implement/fix → open PR → fresh review → durable ACCEPT/FIX/BLOCKED marker
 Ali never copies hashes. A newer FIX/BLOCKED or malformed newest marker blocks closeout. Private GitHub
 Free still leaves a non-atomic race window between the final agent recheck and Ali clicking Merge.
 
-SKY-025 repository state remains P6/24 until the accepted P7 corrective PR lands and the planned P8
-opening bookkeeping records P7 accepted/current phase 7. P8 is already prepared behind that gate.
+SKY-025 repository state remains P6/24 until P8 opens. P8 will record P7 accepted / `current_phase: 7`
+as opening bookkeeping, then continue the Python-first overhaul.
 
 ## Session Changes
 
-- Kept #254 bounded to P7 route-source validation only.
-- Repaired #253 so every normal open-PR verdict writes durable `skynet-acceptance:v1` state.
-- Closeout now selects the newest applicable marker rather than searching for the newest ACCEPT.
-- Added regressions for ACCEPT → newer FIX, ACCEPT → newer BLOCKED, malformed newest marker, and
-  base/head movement.
-- Removed Mode A/Mode B terminology from active SKY-025 review prompts.
-- Updated construction doctrine/runbook to match the same single newest-verdict rule.
+- Merged current `main` into #253 after #254 landed so acceptance bound to the real post-P7 integration.
+- Repaired the last stale SKY-026 directive wording so it matches the final newest-verdict rule.
+- Fresh review accepted #253 and posted the new `skynet-acceptance:v1` marker.
+- Archived SKY-026 as complete and refreshed planning/Main-owned closeout state only.
+- No source/runtime/config/tests/invariants/AGENTS/doctrine/runbooks/behavioral docs/stable memory were
+  changed after ACCEPT.
 
 ## Verification
 
-- #254 exact-head GitHub Actions run #689: **278 passed, 1 skipped**; Ruff clean; mypy clean across 14
-  source files; packaged Nix checks and repository hard-law/rollback/construction gates passed.
-- #253 requires a new CI run on the repaired head; do not reuse its earlier stale ACCEPT marker.
+- #253 pre-closeout exact-head GitHub Actions run #702: lifecycle contracts, full behavioral tests,
+  Ruff, mypy, packaged Nix checks, hard invariants, `git diff --check`, entity/digest/DNS-revert/
+  compose-rollback/cert-selector/OpenTofu-rollback/PVE-snapshot/provisioning-truth/construction/nightly
+  gates all passed.
+- Final closeout CI is still required on the closeout head before human merge.
 - No production endpoint, credential, root grant, service/timer, inventory, or live infrastructure
   write occurred.
 
 ## Pending Work and Blockers
 
-- Merge #254 first once ready at the GitHub UI.
-- Let #253 CI run on the repaired head. If following the review lifecycle strictly, run one fresh review
-  of that head before merging because the prior ACCEPT is stale.
-- After both PRs land, continue SKY-025 at P8. No new review-workflow redesign is needed.
+- Run final CI and verify the accepted-head → final-head delta contains only sanctioned closeout paths.
+- Recheck `main` still matches the reviewed base.
+- If both pass, PR #253 is ready for one human merge.
 
 ## Next Entry Point
 
-Finish PR #253 verification. When green, the only remaining process decision is whether to run its fresh
-external review before human merge. Do not reopen review-workflow design; then continue SKY-025 P8 after
-#254 has landed.
+After final closeout verification passes, human-merge PR #253. Then start SKY-025 P8 from current `main`.
