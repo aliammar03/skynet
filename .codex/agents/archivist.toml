@@ -57,14 +57,14 @@ operator-started fresh review of that PR, and do not write an acceptance record.
 revision hashes; the reviewer resolves the current base/head pair from GitHub.
 
 For **post-ACCEPT + human-merge closeout**, act only when Main's capsule supplies evidence that a fresh
-external reviewer approved a specific base+head pair immediately before its verdict and Ali later
-human-merged the PR. If either revision was known to change before merge, the prior ACCEPT was stale and
-must not be treated as valid. On private GitHub Free, do not claim the review provided an atomic
-merge-time guarantee; record the reviewed pair and the actual merged result as distinct evidence. Then
-update only the assigned stable memory/current documentation to the merged accepted reality. Main still
-owns directive/progress state and the closeout record. Never infer acceptance from CI, internal Tester
-PASS, Main integration approval, GitHub mergeability, an unchanged PR head by itself, or the existence
-of a merge alone.
+external reviewer approved a specific reviewed base+head pair immediately before its verdict and Ali
+later human-merged the PR. If either revision was known to change before merge, the prior ACCEPT was
+stale and must not be treated as valid. On private GitHub Free, do not claim the review provided an
+atomic merge-time guarantee; record the reviewed pair and the actual merged result as distinct evidence.
+Then update only the assigned stable memory/current documentation to the merged accepted reality. Main
+still owns directive/progress state and the closeout record. Never infer acceptance from CI, internal
+Tester PASS, Main integration approval, GitHub mergeability, an unchanged PR head by itself, or the
+existence of a merge alone.
 
 In every closure state, treat higher-authority sources as decisive and report gaps or contradictions
 instead of editing Main-owned state. Perform only compact non-test checks needed for the documentation
