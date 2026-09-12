@@ -34,7 +34,8 @@ transition in [`../prompts/review.md`](../prompts/review.md). The reviewer inspe
 P7-owned changes. This does not pretend those PRs were reviewed before merge.
 
 - **P7 ACCEPT** → bounded closeout records P7 accepted (`current_phase: 7`) and releases P8.
-- **P7 FIX** → FIX opens one bounded corrective P7 PR, which then uses the normal pre-merge lifecycle.
+- **P7 FIX** → FIX opens one bounded corrective P7 PR, which then uses the normal open-PR review
+  lifecycle and never returns to the integrated-main legacy mode.
 - No implementation packet is executable until P7 receives that verdict.
 
 P8 is already prepared below so work can begin immediately after a truthful P7 ACCEPT and closeout.
@@ -93,13 +94,20 @@ If a phase needs internal slices:
    PR and **stops**;
 5. Ali manually starts a fresh reviewer for that PR;
 6. the reviewer resolves the current target/base and PR head from GitHub, reviews that integration
-   pair, then rechecks both before verdict;
+   pair, then rechecks both immediately before verdict;
 7. FIX returns to the same phase PR and the implementation/fix session stops again;
-8. ACCEPT applies only while the reviewer-confirmed base+head pair remains current;
-9. Ali human-merges; bounded closeout records accepted progress and releases the next phase.
+8. ACCEPT approves the exact base+head pair verified immediately before verdict; if either revision is
+   known to change before merge, the verdict is stale and fresh review is required;
+9. Ali human-merges promptly when practical; bounded closeout records accepted progress and releases
+   the next phase.
 
 Ali provides the PR identity, not commit hashes. GitHub mergeability, green CI, or an unchanged PR head
-alone does not prove that the reviewed integration result is unchanged.
+alone does not prove that the reviewed integration result is unchanged. On the intended private GitHub
+Free setup, there is an unavoidable race window between the reviewer's final recheck/ACCEPT and Ali's
+later human merge. ACCEPT is not a mechanical or atomic guarantee of the merge-time pair. Prompt merge
+reduces but does not eliminate that window. Do not require a paid GitHub upgrade, manual SHA comparison,
+or a helper that falsely claims atomicity. A future enforceable up-to-date-branch or equivalent atomic
+mechanism may strengthen this contract later without being a prerequisite today.
 
 No future SKY-025 phase may return to the old pattern of merging implementation slices first and only
 reviewing the combined result afterward.
@@ -107,7 +115,8 @@ reviewing the combined result afterward.
 ### P7 migration exception
 
 P7 predates this lifecycle. Its already-merged state gets exactly one read-only integrated-main review.
-That exception exists only to migrate truthful state and cannot be reused by P8+.
+That exception exists only to migrate truthful state and cannot be reused by P8+ or by a new corrective
+P7 PR. Any corrective P7 PR created after a legacy FIX uses the normal open-PR base+head review path.
 
 ## 4. Roadmap
 
@@ -278,13 +287,16 @@ Read planning/prompts/execute.md and execute the next authorized SKY-025 packet.
 Until P7 is accepted, `execute.md` must refuse P8 and point to the P7 migration review above.
 After P7 closeout, that same invocation resolves P8 as the sole authorized packet.
 
-### Review a normal P8+ phase PR
+### Review a normal open PR
+
+Use this for every P8+ phase PR and for any bounded corrective P7 PR created after a legacy P7 FIX:
 
 ```text
 Read planning/prompts/review.md and review SKY-025 PR #<number>.
 ```
 
-The reviewer resolves/rechecks base+head itself. Ali never supplies hashes.
+The reviewer resolves/rechecks base+head itself. Ali never supplies hashes. The one-time already-merged
+P7 transition is separate and cannot be reused for a new corrective P7 PR.
 
 ## 9. Progress authority
 
