@@ -1,5 +1,5 @@
 ---
-summary: "Fresh SKY-025 review: normal open-PR ACCEPT writes a machine-readable marker, while the one-time P7 integrated-main review writes durable legacy acceptance on merged PR #239."
+summary: "Fresh SKY-025 review: normal open-PR ACCEPT writes a machine-readable marker, while every one-time P7 Mode B verdict writes durable review state on merged PR #239."
 ---
 
 # Review SKY-025
@@ -8,8 +8,9 @@ Follow the active SKY-025 directive and
 [`../../docs/conventions/construction.md`](../../docs/conventions/construction.md).
 
 The reviewer is **implementation-read-only**. Ali provides only `P7` or a PR number. Never ask Ali for
-commit hashes. The reviewer's only allowed repository mutation is the applicable machine-readable
-ACCEPT marker comment described below; it never edits Git content.
+commit hashes. The reviewer's only allowed repository mutation is a machine-readable review comment:
+for Mode A, the ACCEPT marker below; for Mode B, exactly one P7 verdict marker on merged PR #239 for
+every ACCEPT, FIX, or BLOCKED verdict. The reviewer never edits Git content.
 
 ## Mode A · normal open-PR review
 
@@ -116,10 +117,9 @@ phase.
 Use only for historical P7 implementation already merged in #235, #236, #237 and corrective #239 while
 accepted progress remains 6/24. **Do not use Mode B for a new corrective P7 PR.**
 
-Merged PR **#239 is the durable legacy-acceptance anchor**. It is used only because P7 has no open phase
-PR and already includes the final historical corrective work. A Mode B ACCEPT posts review metadata to
-that existing merged PR conversation; it does not reopen, modify, or merge the PR and does not create a
-bookkeeping PR.
+Merged PR **#239 is the durable P7 review-state anchor** because P7 has no open phase PR and #239 is the
+last historical corrective PR. Every fresh Mode B verdict writes one marker there. The newest marker is
+the complete current legacy-review state; older markers are audit history only.
 
 1. Resolve current `main` and record it as the reviewed integrated revision.
 2. Review the complete already-integrated P7 result, including #235, #236, #237, #239 and later commits
@@ -128,49 +128,55 @@ bookkeeping PR.
 4. Immediately before verdict, resolve `main` again. If it moved, inspect the delta and refresh affected
    evidence before verdict.
 5. Choose ACCEPT, FIX, or BLOCKED.
-
-### P7 ACCEPT
-
-Immediately before posting ACCEPT, resolve `main` one final time. The exact revision verified at that
-point is the accepted integrated revision. Post exactly one machine-readable marker to the **merged
-PR #239 conversation**:
+6. For **every** Mode B verdict, post exactly one machine-readable marker to merged PR #239:
 
 ```text
 <!-- skynet-legacy-acceptance:v1
 scope=SKY-025 P7
-verdict=ACCEPT
+verdict=<ACCEPT|FIX|BLOCKED>
 integrated_main=<full reviewed main SHA>
 anchor_pr=239
 -->
 ```
 
-This marker is the durable handoff for the later P8 session. Ali never copies or compares its SHA. A
-fresh P8 execution session must fetch the latest valid `skynet-legacy-acceptance:v1` marker from #239
-itself and require current `main` to equal `integrated_main` before it records P7 accepted or starts P8.
-If `main` has moved, the marker is stale regardless of whether the movement is later judged relevant;
-P8 stays blocked until a fresh Mode B review of current integrated P7 posts a new marker. Older markers
-remain audit history and are never reused after a newer review or stale finding.
+The later P8 session uses only the **newest** applicable marker from #239. A newer FIX or BLOCKED marker
+supersedes every older ACCEPT even when `main` has not moved. Ali never copies or compares marker SHAs.
+
+### P7 ACCEPT
+
+ACCEPT approves the exact `integrated_main` recorded in the marker posted above. A fresh P8 execution
+session must fetch the newest `skynet-legacy-acceptance:v1` marker from #239 itself and require both:
+
+- newest marker verdict is `ACCEPT`; and
+- current `main` exactly equals that marker's `integrated_main`.
+
+If either check fails, P8 stays blocked and P7 state does not advance.
 
 Return:
 
 ```text
 ACCEPT SKY-025 P7 — one-time legacy transition
 Review binding: integrated main <full SHA>
-Legacy acceptance marker: posted to merged PR #239
+Legacy review-state marker: posted to merged PR #239
 Merged evidence: #235, #236, #237, #239 + <later P7-relevant commits if any>
 Evidence: <exit criterion → independent result>
 Limitations: <explicit unverified items, or none>
-Next: start P8. The P8 session will fetch and validate the #239 legacy marker itself; if current main still matches, the P8 implementation PR records P7 accepted/current_phase 7 as opening bookkeeping before P8 work. Do NOT create a standalone P7 closeout PR.
+Next: start P8. The P8 session will fetch the newest #239 marker itself; only a newest ACCEPT whose integrated_main still equals current main can release P8. Do NOT create a standalone P7 closeout PR.
 ```
 
-This accepts the current integrated P7 result without pretending those historical PRs were reviewed
-pre-merge. Because there is no open P7 PR to close out, the next natural P8 PR carries the small P7
-state transition instead of manufacturing a bookkeeping-only PR. The durable #239 marker replaces any
-chat-transcript or human hash handoff.
+Because there is no open P7 PR to close out, the next natural P8 PR carries the small P7 state
+transition instead of manufacturing a bookkeeping-only PR.
 
 ### P7 FIX
 
-Return only one fenced repair prompt. It must create **one bounded corrective P7 PR**. Once open, review
-it with Mode A exactly like future phase PRs. It may never return to Mode B.
+The FIX marker posted above immediately supersedes any older ACCEPT. Return only one fenced repair
+prompt creating **one bounded corrective P7 PR**. Once open, review it with Mode A exactly like future
+phase PRs. It may never return to Mode B. While that repair is outstanding, P8 remains blocked because
+the newest #239 legacy marker is FIX.
+
+### P7 BLOCKED
+
+The BLOCKED marker posted above immediately supersedes any older ACCEPT. Report the exact blocker and
+keep P8 blocked. A later fresh Mode B review may post a newer verdict after the blocker is resolved.
 
 No future phase may use Mode B.
