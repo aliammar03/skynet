@@ -902,6 +902,53 @@ def test_default_shell_callers_use_offline_package_and_propagate_failure(
     assert not (tmp_path / "docs").exists()  # renderer stops before any publication
 
 
+def test_bin_ops_query_delegates_to_python_cache_without_sqlite_cli(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    (repo / "inventory").mkdir(parents=True)
+    (repo / "lab.json").write_text(json.dumps({
+        "vlans": {"list": [{"vlan": 10, "name": "Trusted", "slug": "lan"}]},
+        "front_doors": {"aliases": [
+            {"alias": "HOST_PROXY", "ip": "10.10.10.5", "proxy": "caddy"},
+        ]},
+    }))
+    (repo / "invariants.json").write_text(json.dumps({
+        "entity_conventions": {"declared_vlans": [10], "exceptions": []},
+        "excluded_guests": {"guests": []},
+    }))
+    for relative in ("bin/ops", "bin/skynet"):
+        target = repo / relative
+        target.parent.mkdir(exist_ok=True)
+        target.write_text((ROOT / relative).read_text().replace(
+            "#!/usr/bin/env bash", f"#!{shutil.which('bash')}", 1))
+        target.chmod(0o755)
+
+    fake_bin = repo / "fake-bin"
+    fake_bin.mkdir()
+    launcher = fake_bin / "nix"
+    launcher.write_text(
+        f"#!{sys.executable}\nimport sys\nsys.path.insert(0, {str(ROOT / 'src')!r})\n"
+        "from skynet.cli import main\n"
+        "arguments = sys.argv[1:]\n"
+        "command = arguments[arguments.index('--') + 1:]\n"
+        "if command[0] == 'collect-status': raise SystemExit(0)\n"
+        "raise SystemExit(main(command))\n"
+    )
+    launcher.chmod(0o755)
+    sqlite = fake_bin / "sqlite3"
+    sqlite.write_text(f"#!{sys.executable}\nraise SystemExit(73)\n")
+    sqlite.chmod(0o755)
+
+    result = subprocess.run(
+        ["bash", str(repo / "bin/ops"), "query", "SELECT COUNT(*) AS count FROM vlans"],
+        env=os.environ | {"PATH": f"{fake_bin}:{os.environ['PATH']}"},
+        capture_output=True, text=True, check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.splitlines() == ["count", "1"]
+    assert "sqlite3" not in result.stderr
+
+
 def test_bin_ops_collection_reaches_real_cli_and_core_collector(
     repo: Path, credentials: Path,
 ) -> None:

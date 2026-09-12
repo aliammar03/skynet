@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import NoReturn
 
-from skynet import certs, installed_version, omada, recon, routes
+from skynet import cache, certs, entities, installed_version, omada, recon, routes
 from skynet.collection import collect_all, collection_status
 from skynet.dns import DEFAULT_CREDENTIALS as DNS_DEFAULT_CREDENTIALS, collect as collect_dns
 from skynet.doctor import write_report
@@ -125,6 +125,19 @@ def build_parser() -> argparse.ArgumentParser:
     recon_command.add_argument("target", nargs="?", default="local",
                                help="local or a bare hostname/IP reached as unprivileged svc-ops")
     recon_command.add_argument("--json", action="store_true", dest="json_output")
+    entity_audit = commands.add_parser("entities", help="audit committed entity identity and mappings")
+    entity_audit.add_argument("--repo", type=Path, required=True,
+                              help="checkout containing authored conventions and inventory")
+    entity_audit.add_argument("--json", action="store_true", dest="json_output",
+                              help="write one entity audit report object as JSON")
+    query = commands.add_parser("query", help="build and query the disposable inventory cache")
+    query.add_argument("statement", help="one SQL statement to execute")
+    query.add_argument("--repo", type=Path, required=True,
+                       help="checkout containing authored conventions and inventory")
+    query.add_argument("--format", choices=("tabs", "plain"), default="plain",
+                       help="query output format (default: plain)")
+    query.add_argument("--no-header", action="store_true",
+                       help="omit query column names")
     status = commands.add_parser("collect-status", help="require fresh successful inventory observations")
     status.add_argument("--repo", type=Path, required=True)
     status.add_argument("--since", default=os.environ.get("SKYNET_COLLECTION_SINCE"),
@@ -175,7 +188,28 @@ def main(argv: Sequence[str] | None = None) -> int:
                                  json_output=arguments.json_output, stdout=sys.stdout)
     if arguments.command == "recon":
         return recon.run(arguments.target, json_output=arguments.json_output, stdout=sys.stdout)
+    if arguments.command == "entities":
+        return entities.run_audit(arguments.repo, json_output=arguments.json_output, stdout=sys.stdout)
+    if arguments.command == "query":
+        return _run_query(arguments.repo, arguments.statement, arguments.format,
+                          arguments.no_header)
     return _unreachable_command(arguments.command)
+
+
+def _run_query(repo: Path, statement: str, output_format: str, no_header: bool) -> int:
+    """Build a current disposable cache, then delegate query formatting to its module."""
+    try:
+        result = cache.build(repo)
+    except cache.CacheError as error:
+        print(f"query: {error}", file=sys.stderr)
+        return error.code
+    arguments = [
+        "--repo", str(repo), "--database", str(result.database), "--query", statement,
+        "--format", output_format,
+    ]
+    if no_header:
+        arguments.append("--no-header")
+    return cache.main(arguments)
 
 
 def _unreachable_command(command: str) -> NoReturn:

@@ -1,38 +1,28 @@
 """T1 route inventory: a static parse of the committed Caddyfile, no live access.
 
 Provenance is static: the vhost→front-door→backend→auth chain is read from `compose/caddy-apps/
-Caddyfile` and resolved with the compose macvlan address map plus the existing `scripts/entity.sh`
-derivation (whose Python replacement is SKY-025 P8, deliberately not rewritten here). Nothing is
-probed; the timestamp records when the parse ran on this checkout. A parse or publication failure
+Caddyfile` and resolved with the compose macvlan address map plus the packaged entity derivation.
+Nothing is probed; the timestamp records when the parse ran on this checkout. A parse or publication failure
 leaves the requested destination untouched.
 """
 
 import json
 import re
 import socket
-import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, TextIO
 
+from skynet import entities
 from skynet.proxmox import CollectionError, publish
 
 SOURCE = "caddyfile static parse (compose/)"
 CADDYFILE = Path("compose/caddy-apps/Caddyfile")
 FRONT_DOOR = "svc/caddy-apps"
 FRONT_DOOR_ALIAS = "HOST_PROXY_APPS"
-ENTITY_TIMEOUT = 30
 VHOST_START = re.compile(r"^([A-Za-z0-9.*_-]+\.aliammar\.net)\s*\{")
 ADDR = re.compile(r"^[0-9A-Za-z][0-9A-Za-z._-]*:[0-9]+$")
 IPV4 = re.compile(r"ipv4_address:\s*(10\.10\.\d{1,3}\.\d{1,3})")
-# Ask the existing entity engine for each guest's IP and canonical id; P8 owns its Python rewrite.
-_ENTITY_SCRIPT = (
-    'source "$1/scripts/entity.sh" || exit 3\n'
-    'while IFS="\t" read -r vmid name; do\n'
-    '  gip="$(vmid_to_ip "$vmid" 2>/dev/null)" || gip=""\n'
-    '  [ -n "$gip" ] && printf "%s\t%s\n" "$gip" "$(guest_id "$vmid" "$name" 2>/dev/null)"\n'
-    'done\n'
-)
 
 
 def _parse_caddy(text: str) -> list[tuple[str, str, str]]:
@@ -85,36 +75,45 @@ def _service_ips(repo: Path) -> dict[str, str]:
 
 
 def _guest_ips(repo: Path) -> dict[str, str]:
-    """Resolve each collected guest's IP to its canonical entity id via scripts/entity.sh."""
-    pairs: list[tuple[int, str]] = []
-    seen: set[tuple[int, str]] = set()
-    for path in sorted((repo / "inventory").glob("proxmox-*.json")):
+    """Resolve collected guests directly through the packaged entity functions."""
+    guest_ip: dict[str, str] = {}
+    declared: tuple[int, ...] = entities.DEFAULT_VLANS
+    slugs: dict[int, str] = entities.DEFAULT_VLAN_SLUGS
+    if (repo / "invariants.json").is_file() and (repo / "lab.json").is_file():
         try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError, UnicodeError):
+            declared, slugs, _, _ = entities.conventions(repo)
+        except entities.EntityError as error:
+            raise CollectionError(str(error), 2) from None
+    try:
+        firewall = entities.firewall_ips(repo) if (repo / "inventory" / "firewall" / "firewall.json").is_file() else set()
+    except entities.EntityError as error:
+        raise CollectionError(str(error), 2) from None
+    for path in sorted((repo / "inventory").glob("proxmox-*.json")):
+        if path.name.endswith("-acl.json"):
             continue
-        for resource in data.get("resources", []) if isinstance(data, dict) else []:
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, UnicodeError):
+            raise CollectionError("guest inventory unavailable", 3) from None
+        if not isinstance(raw, dict) or not isinstance(raw.get("resources"), list):
+            raise CollectionError("malformed guest inventory")
+        for resource in raw["resources"]:
             if not isinstance(resource, dict) or resource.get("type") not in {"qemu", "lxc"}:
                 continue
             vmid, name = resource.get("vmid"), resource.get("name")
-            if isinstance(vmid, int) and not isinstance(vmid, bool) and isinstance(name, str):
-                if (vmid, name) not in seen:
-                    seen.add((vmid, name))
-                    pairs.append((vmid, name))
-    try:
-        result = subprocess.run(
-            ["bash", "-c", _ENTITY_SCRIPT, "entity", str(repo)],
-            input="".join(f"{vmid}\t{name}\n" for vmid, name in pairs),
-            cwd=repo, text=True, capture_output=True, timeout=ENTITY_TIMEOUT)
-    except (OSError, subprocess.SubprocessError):
-        raise CollectionError("entity derivation unavailable") from None
-    if result.returncode != 0:
-        raise CollectionError("entity derivation failed")
-    guest_ip: dict[str, str] = {}
-    for line in result.stdout.splitlines():
-        ip, separator, entity = line.partition("\t")
-        if separator and entity:
-            guest_ip[ip] = entity
+            if type(vmid) is not int or not isinstance(name, str):
+                raise CollectionError("malformed guest inventory")
+            try:
+                ip = entities.vmid_to_ip(vmid, declared)
+            except entities.EntityError as error:
+                if error.code != 2:
+                    continue
+                candidates = [candidate for candidate in entities.candidate_ips(vmid, declared)
+                              if candidate in firewall]
+                if len(candidates) != 1:
+                    continue
+                ip = candidates[0]
+            guest_ip[ip] = entities.guest_id(vmid, name, declared, slugs)
     return guest_ip
 
 

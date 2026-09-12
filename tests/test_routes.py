@@ -5,10 +5,8 @@ from __future__ import annotations
 import io
 import json
 import os
-import subprocess
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -53,24 +51,8 @@ def repo(tmp_path: Path) -> Path:
     return path
 
 
-@pytest.fixture
-def entity(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
-    calls: list[dict[str, Any]] = []
-
-    def run(*args: Any, **kwargs: Any) -> SimpleNamespace:
-        calls.append({"args": args, "kwargs": kwargs})
-        return SimpleNamespace(
-            returncode=0,
-            stdout="10.10.80.37\tguest/authentik-identity-837\n",
-            stderr="",
-        )
-
-    monkeypatch.setattr(routes.subprocess, "run", run)
-    return calls
-
-
 def test_snapshot_records_static_provenance_and_resolves_auth_backend_service_and_host(
-    repo: Path, entity: list[dict[str, Any]], monkeypatch: pytest.MonkeyPatch
+    repo: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(routes.socket, "gethostname", lambda: "ops-vm-vlan90")
 
@@ -97,58 +79,62 @@ def test_snapshot_records_static_provenance_and_resolves_auth_backend_service_an
     assert landing["backend_entity"] == "—"
     assert landing["auth"] == "own-auth/plain"
 
-    assert len(entity) == 1
-    call = entity[0]
-    assert call["args"] == (["bash", "-c", routes._ENTITY_SCRIPT, "entity", str(repo)],)
-    assert call["kwargs"]["cwd"] == repo
-    assert call["kwargs"]["input"] == "837\tauthentik\n"
-    assert call["kwargs"]["timeout"] == routes.ENTITY_TIMEOUT
-    assert call["kwargs"]["text"] is True and call["kwargs"]["capture_output"] is True
 
-
-def test_entity_derivation_failure_is_unavailable_and_retains_previous_bytes(
+def test_snapshot_resolves_ambiguous_guest_from_committed_firewall_fact(
     repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (repo / "inventory" / "proxmox-core.json").write_text(json.dumps({
+        "resources": [{"type": "qemu", "vmid": 1035, "name": "edge"}],
+    }))
+    (repo / "inventory" / "firewall").mkdir()
+    (repo / "inventory" / "firewall" / "firewall.json").write_text(json.dumps({
+        "aliases": [{"type": "host", "content": "10.10.100.35"}], "reservations": [],
+    }))
+    (repo / "compose" / "caddy-apps" / "Caddyfile").write_text(
+        "edge.aliammar.net {\n reverse_proxy 10.10.100.35:8080\n}\n"
+    )
+    monkeypatch.setattr(routes.socket, "gethostname", lambda: "ops-vm-vlan90")
+
+    snapshot = routes.snapshot(repo)
+
+    assert snapshot["routes"][0]["backend_entity"] == "guest/edge-1035"
+
+def test_malformed_guest_inventory_is_unavailable_and_retains_previous_bytes(
+    repo: Path
 ) -> None:
     output = repo / "routes.json"
     previous = b'{"retained":true}\n'
     output.write_bytes(previous)
 
-    def fail(*_args: Any, **_kwargs: Any) -> SimpleNamespace:
-        return SimpleNamespace(returncode=1, stdout="", stderr="synthetic failure")
-
-    monkeypatch.setattr(routes.subprocess, "run", fail)
+    (repo / "inventory" / "proxmox-core.json").write_text("{")
     stream = io.StringIO()
     code = routes.collect(repo, output, json_output=True, stdout=stream)
 
     report = json.loads(stream.getvalue())
-    assert code == 1 and report["outcome"] == "failure"
-    assert "entity derivation failed" in report["reason"]
+    assert code == 3 and report["outcome"] == "unavailable"
+    assert "guest inventory unavailable" in report["reason"]
     assert output.read_bytes() == previous
 
 
-def test_entity_transport_failure_is_unavailable_and_does_not_leak_error(
+def test_malformed_guest_shape_fails_and_does_not_replace_previous_snapshot(
     repo: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     output = repo / "routes.json"
     output.write_text('{"retained":true}\n')
 
-    def fail(*_args: Any, **_kwargs: Any) -> None:
-        raise subprocess.TimeoutExpired("entity", routes.ENTITY_TIMEOUT)
-
-    monkeypatch.setattr(routes.subprocess, "run", fail)
+    (repo / "inventory" / "proxmox-core.json").write_text(json.dumps({"resources": {}}))
     stream = io.StringIO()
     code = routes.collect(repo, output, json_output=True, stdout=stream)
 
     report = json.loads(stream.getvalue())
     assert code == 1 and report["outcome"] == "failure"
-    assert "TimeoutExpired" not in report["reason"]
+    assert "malformed guest inventory" in report["reason"]
     assert output.read_text() == '{"retained":true}\n'
 
 
 def test_missing_caddyfile_is_unavailable_and_retains_previous_bytes(
-    repo: Path, entity: list[dict[str, Any]]
+    repo: Path
 ) -> None:
-    del entity
     caddyfile = repo / routes.CADDYFILE
     caddyfile.unlink()
     assert not caddyfile.exists()
@@ -165,9 +151,8 @@ def test_missing_caddyfile_is_unavailable_and_retains_previous_bytes(
 
 
 def test_empty_caddyfile_is_failure_and_retains_previous_bytes(
-    repo: Path, entity: list[dict[str, Any]]
+    repo: Path
 ) -> None:
-    del entity
     (repo / routes.CADDYFILE).write_text("")
     output = repo / "routes.json"
     previous = b'{"retained":true}\n'
@@ -183,9 +168,8 @@ def test_empty_caddyfile_is_failure_and_retains_previous_bytes(
 
 
 def test_unsupported_caddyfile_is_failure_and_retains_previous_bytes(
-    repo: Path, entity: list[dict[str, Any]]
+    repo: Path
 ) -> None:
-    del entity
     (repo / routes.CADDYFILE).write_text(
         "example.com {\n"
         "    respond \"outside supported route domain\"\n"
@@ -205,9 +189,8 @@ def test_unsupported_caddyfile_is_failure_and_retains_previous_bytes(
 
 
 def test_unclosed_caddy_route_block_is_failure_and_retains_previous_bytes(
-    repo: Path, entity: list[dict[str, Any]]
+    repo: Path
 ) -> None:
-    del entity
     (repo / routes.CADDYFILE).write_text(
         "complete.aliammar.net {\n"
         "    reverse_proxy 10.10.100.11:8080\n"
@@ -229,7 +212,7 @@ def test_unclosed_caddy_route_block_is_failure_and_retains_previous_bytes(
 
 
 def test_publication_failure_keeps_previous_route_snapshot(
-    repo: Path, entity: list[dict[str, Any]], monkeypatch: pytest.MonkeyPatch
+    repo: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     output = repo / "routes.json"
     previous = b'{"retained":true}\n'

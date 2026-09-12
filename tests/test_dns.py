@@ -187,12 +187,29 @@ def test_rendered_service_table_reads_a_and_cname_records(tmp_path: Path) -> Non
     (repo / "bin").mkdir()
     (repo / "scripts").mkdir()
     (repo / "docs" / "generated").mkdir(parents=True)
-    (repo / "lab.json").write_text("{}\n")
+    (repo / "lab.json").write_text(json.dumps({
+        "vlans": {"list": [{"vlan": 10, "name": "Trusted", "slug": "lan"}]},
+        "front_doors": {"aliases": []},
+    }))
+    (repo / "invariants.json").write_text(json.dumps({
+        "entity_conventions": {"declared_vlans": [10], "exceptions": []},
+        "excluded_guests": {"guests": []},
+    }))
     (repo / "bin" / "skynet").write_text("#!/bin/sh\nexit 0\n")
     (repo / "bin" / "skynet").chmod(0o755)
     (repo / "scripts" / "render-docs.sh").write_text(
         (ROOT / "scripts" / "render-docs.sh").read_text())
     (repo / "scripts" / "render-docs.sh").chmod(0o755)
+    (repo / "scripts" / "sql").mkdir()
+    for name in ("build-db.sh", "sql/host-map.sql", "sql/vhosts.sql"):
+        target = repo / "scripts" / name
+        target.parent.mkdir(exist_ok=True)
+        target.write_text((ROOT / "scripts" / name).read_text())
+        target.chmod(0o755 if name == "build-db.sh" else 0o644)
+    (repo / "src" / "skynet").mkdir(parents=True)
+    for name in ("__init__.py", "cache.py", "entities.py"):
+        (repo / "src" / "skynet" / name).write_text(
+            (ROOT / "src" / "skynet" / name).read_text())
     (repo / "inventory" / "dns-zones.json").write_text(json.dumps({
         "collected": "2026-09-09T00:00:00+00:00", "host": "10.10.70.50",
         "zones": [{"name": "aliammar.net"}],

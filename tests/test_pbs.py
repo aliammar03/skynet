@@ -238,13 +238,30 @@ def test_rendered_pbs_block_names_each_unverified_state(tmp_path: Path) -> None:
     (repo / "bin").mkdir()
     (repo / "scripts").mkdir()
     (repo / "docs" / "generated").mkdir(parents=True)
-    (repo / "lab.json").write_text("{}\n")
+    (repo / "lab.json").write_text(json.dumps({
+        "vlans": {"list": [{"vlan": 10, "name": "Trusted", "slug": "lan"}]},
+        "front_doors": {"aliases": []},
+    }))
+    (repo / "invariants.json").write_text(json.dumps({
+        "entity_conventions": {"declared_vlans": [10], "exceptions": []},
+        "excluded_guests": {"guests": []},
+    }))
     (repo / "bin" / "skynet").write_text("#!/bin/sh\nexit 0\n")
     (repo / "bin" / "skynet").chmod(0o755)
     (repo / "scripts" / "render-docs.sh").write_text(
         (ROOT / "scripts" / "render-docs.sh").read_text()
     )
     (repo / "scripts" / "render-docs.sh").chmod(0o755)
+    (repo / "scripts" / "sql").mkdir()
+    for name in ("build-db.sh", "sql/host-map.sql", "sql/vhosts.sql"):
+        target = repo / "scripts" / name
+        target.parent.mkdir(exist_ok=True)
+        target.write_text((ROOT / "scripts" / name).read_text())
+        target.chmod(0o755 if name == "build-db.sh" else 0o644)
+    (repo / "src" / "skynet").mkdir(parents=True)
+    for name in ("__init__.py", "cache.py", "entities.py"):
+        (repo / "src" / "skynet" / name).write_text(
+            (ROOT / "src" / "skynet" / name).read_text())
     (repo / "inventory" / "pbs.json").write_text(json.dumps({
         "datastores": [{
             "store": "unraid", "status": {"used": 1, "total": 2},

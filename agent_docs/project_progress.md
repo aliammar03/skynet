@@ -14,8 +14,8 @@ and each capability earns autonomy through recorded verification and rollback ev
   native SKY-026 construction model are established.
 - **SKY-026 is complete.** Phases 1–5 are accepted and the directive is archived. PR #253 contains the
   accepted final workflow plus this bounded closeout and is awaiting one human merge.
-- Corrective SKY-025 P7 PR #254 is accepted and merged. **P8 is active** on its single numbered-phase
-  branch/PR, with accepted repository progress recorded as P7/24.
+- The corrective route-observation phase is accepted and merged. **The entity/cache phase is active**
+  on its single numbered-phase branch/PR, with accepted repository progress recorded as 7/24.
 
 ## Current Position
 
@@ -48,6 +48,6 @@ merged.
 ## Next Milestone
 
 1. Human-merge accepted PR #253 after this closeout's final CI/base recheck passes.
-2. Complete SKY-025 P8 entity derivation/audit and rebuildable SQLite cache/query on its one phase PR.
+2. Complete entity derivation/audit and rebuildable SQLite cache/query on the current phase PR.
 
 No production authority or live host change is involved in these handoffs.

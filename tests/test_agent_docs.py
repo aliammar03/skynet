@@ -305,21 +305,30 @@ class AgentDocsContractTests(unittest.TestCase):
             for forbidden in FORBIDDEN_OLD_CLOSEOUT:
                 self.assertNotIn(forbidden, text, path)
 
-    def test_sky025_p7_has_one_time_transition_without_closeout_pr(self) -> None:
+    def test_sky025_p7_transition_is_historical_and_not_reusable(self) -> None:
         review = normalized((ROOT / "planning/prompts/review.md").read_text(encoding="utf-8"))
         directive = normalized((ROOT / SKY025_PATH).read_text(encoding="utf-8"))
         disposition = normalized((ROOT / "planning/sky-025-map.md").read_text(encoding="utf-8"))
         prompt_readme = normalized((ROOT / "planning/prompts/README.md").read_text(encoding="utf-8"))
 
-        for text in (review, directive, disposition, prompt_readme):
+        self.assertIn("current_phase: 7", directive)
+        self.assertIn("p7 / 7 of 24", directive)
+        self.assertIn("current accepted progress is **p7 / 7 of 24**", disposition)
+        self.assertIn("p8 is active on its single numbered-phase branch/pr", disposition)
+        self.assertIn("single `phase/sky-025-p8` branch and pr", directive)
+        self.assertIn("one open authored pr", directive)
+        self.assertIn("p8 remains repository-only", directive)
+        self.assertIn("exception cannot be reused by p8+ or by a corrective p7 pr", directive)
+        self.assertIn("normal open-pr review above and never returns to this path", review)
+
+        self.assertIn("do not create a standalone p7 closeout pr", review)
+        self.assertIn("no standalone p7 closeout pr", prompt_readme)
+        for text in (review, prompt_readme):
             self.assertIn("one-time", text)
             for pr in ("#235", "#236", "#237", "#239"):
                 self.assertIn(pr, text)
-
-        self.assertIn("do not create a standalone p7 closeout pr", review)
-        self.assertIn("no standalone p7 closeout pr", directive)
-        self.assertIn("no standalone p7 closeout pr", disposition)
-        self.assertIn("no standalone p7 closeout pr", prompt_readme)
+        self.assertIn("only while the directive still shows p7 pending", prompt_readme)
+        self.assertIn("skynet-legacy-acceptance:v1", review)
         self.assertIn("p8 pr", review)
         self.assertIn("current_phase: 7", review)
 
@@ -346,19 +355,28 @@ class AgentDocsContractTests(unittest.TestCase):
         self.assertIn("one open pr for the numbered phase", prompt_readme)
         self.assertIn("one open authored pr per numbered phase", diary)
 
-    def test_sky025_p8_is_prepared_and_blocked_only_on_valid_p7_accept(self) -> None:
+    def test_sky025_p8_is_active_after_valid_p7_accept(self) -> None:
         directive = normalized((ROOT / SKY025_PATH).read_text(encoding="utf-8"))
         disposition = normalized((ROOT / "planning/sky-025-map.md").read_text(encoding="utf-8"))
         execute = normalized((ROOT / "planning/prompts/execute.md").read_text(encoding="utf-8"))
         progress = normalized((AGENT_DOCS / "project_progress.md").read_text(encoding="utf-8"))
 
-        for text in (directive, disposition, progress):
-            self.assertIn("p8", text)
-            self.assertIn("prepared", text)
-        self.assertIn("not executable until p7 accept", directive)
+        self.assertIn("current_phase: 7", directive)
+        self.assertIn("p7 / 7 of 24", directive)
+        self.assertIn("current action", directive)
+        self.assertIn("single `phase/sky-025-p8` branch and pr", directive)
+        self.assertIn("status:** in progress", directive)
+        self.assertIn("p8 remains repository-only", directive)
+        self.assertIn("one open authored pr", directive)
+        self.assertIn("current accepted progress is **p7 / 7 of 24**", disposition)
+        self.assertIn("p8 is active on its single numbered-phase branch/pr", disposition)
+        self.assertIn("entity/cache phase is active", progress)
+        self.assertIn("7/24", progress)
         self.assertIn("skynet-legacy-acceptance:v1", execute)
         self.assertIn("p7 accept stale/missing", execute)
-        self.assertIn("p8 pr", progress)
+        self.assertIn("only after both checks pass, start from that validated `main`", execute)
+        self.assertIn("current_phase: 7", execute)
+        self.assertIn("do not create a standalone p7 closeout pr", execute)
 
     def test_closure_shapes_and_latest_session_have_one_entry_point(self) -> None:
         construction = (ROOT / "docs/conventions/construction.md").read_text(encoding="utf-8")

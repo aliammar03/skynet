@@ -7,6 +7,8 @@ let
     fileset = lib.fileset.unions [
       (root + "/pyproject.toml")
       (root + "/src")
+      (root + "/lab.json")
+      (root + "/invariants.json")
       (root + "/tests/test_cli.py")
       (root + "/tests/test_proxmox.py")
       (root + "/tests/test_collection.py")
@@ -18,6 +20,8 @@ let
       (root + "/tests/test_certs.py")
       (root + "/tests/test_routes.py")
       (root + "/tests/test_recon.py")
+      (root + "/tests/test_cache.py")
+      (root + "/tests/test_entities.py")
       (root + "/tests/fixtures/proxmox")
       (root + "/tests/fixtures/pbs")
       (root + "/tests/fixtures/dns")
@@ -38,6 +42,9 @@ let
       (root + "/scripts/collect-certs.sh")
       (root + "/scripts/collect-routes.sh")
       (root + "/scripts/recon.sh")
+      (root + "/scripts/build-db.sh")
+      (root + "/scripts/sql/host-map.sql")
+      (root + "/scripts/sql/vhosts.sql")
       (root + "/scripts/render-docs.sh")
     ];
   };

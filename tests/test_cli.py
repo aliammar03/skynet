@@ -142,3 +142,40 @@ def test_missing_refresh_evidence_outside_checkout(run: Run, tmp_path: Path) -> 
     assert report["target"] == "collection"
     assert report["outcome"] == "unavailable"
     assert not result.stderr
+
+
+def _query_repo(tmp_path: Path) -> Path:
+    """Create the smallest authored repository accepted by the disposable cache."""
+    repo = tmp_path / "query-repo"
+    (repo / "inventory").mkdir(parents=True)
+    (repo / "lab.json").write_text(json.dumps({
+        "vlans": {"list": [
+            {"vlan": 10, "name": "Trusted", "slug": "lan"},
+        ]},
+        "front_doors": {"aliases": [
+            {"alias": "HOST_PROXY", "ip": "10.10.10.5", "proxy": "caddy"},
+        ]},
+    }))
+    (repo / "invariants.json").write_text(json.dumps({
+        "entity_conventions": {"declared_vlans": [10], "exceptions": []},
+        "excluded_guests": {"guests": []},
+    }))
+    return repo
+
+
+def test_query_builds_disposable_cache_and_prints_rows(run: Run, tmp_path: Path) -> None:
+    repo = _query_repo(tmp_path)
+    result = run("query", "--repo", str(repo), "SELECT COUNT(*) AS count FROM vlans")
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.splitlines() == ["count", "1"]
+    assert (repo / ".cache/inventory.db").is_file()
+
+
+def test_query_reports_sql_failures(run: Run, tmp_path: Path) -> None:
+    repo = _query_repo(tmp_path)
+    result = run("query", "--repo", str(repo), "SELECT * FROM absent_table")
+
+    assert result.returncode == 1
+    assert "query failed" in result.stderr
