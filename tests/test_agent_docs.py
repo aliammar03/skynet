@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,20 +25,38 @@ ROLE_FILES = (
     "senior_executor.toml",
     "tester.toml",
 )
+SKY025_ACTIVE = Path(
+    "planning/projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md"
+)
+SKY025_ARCHIVE = Path(
+    "planning/archive/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md"
+)
 SKY026_ACTIVE = Path(
     "planning/projects/SKY-026-overhaul-agent-orchestration-around-a-main-worker-swarm.md"
 )
 SKY026_ARCHIVE = Path(
     "planning/archive/SKY-026-overhaul-agent-orchestration-around-a-main-worker-swarm.md"
 )
-SKY026_PATH = SKY026_ACTIVE if (ROOT / SKY026_ACTIVE).exists() else SKY026_ARCHIVE
+
+
+def resolve_lifecycle_path(root: Path, active: Path, archive: Path) -> Path:
+    locations = [path for path in (active, archive) if (root / path).is_file()]
+    if len(locations) != 1:
+        raise AssertionError(
+            f"expected exactly one lifecycle location for {active.name}; found {len(locations)}"
+        )
+    return locations[0]
+
+
+SKY025_PATH = resolve_lifecycle_path(ROOT, SKY025_ACTIVE, SKY025_ARCHIVE)
+SKY026_PATH = resolve_lifecycle_path(ROOT, SKY026_ACTIVE, SKY026_ARCHIVE)
 LIFECYCLE_FILES = (
     "AGENTS.md",
     ".codex/config.toml",
     "docs/conventions/construction.md",
     "runbooks/construction-delegation.md",
     SKY026_PATH.as_posix(),
-    "planning/projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md",
+    SKY025_PATH.as_posix(),
     "planning/prompts/review.md",
     "planning/prompts/README.md",
     "planning/prompts/execute.md",
@@ -92,6 +111,37 @@ class AgentDocsContractTests(unittest.TestCase):
         locations = [ROOT / SKY026_ACTIVE, ROOT / SKY026_ARCHIVE]
         self.assertEqual(sum(path.exists() for path in locations), 1)
         self.assertTrue(ROOT.joinpath(SKY026_PATH).exists())
+
+    def test_sky025_has_exactly_one_lifecycle_location(self) -> None:
+        locations = [ROOT / SKY025_ACTIVE, ROOT / SKY025_ARCHIVE]
+        self.assertEqual(sum(path.exists() for path in locations), 1)
+        self.assertTrue(ROOT.joinpath(SKY025_PATH).exists())
+
+    def test_sky025_path_resolution_survives_archive_move_without_duplicate(self) -> None:
+        source = (ROOT / SKY025_PATH).read_text(encoding="utf-8")
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            active = root / SKY025_ACTIVE
+            archive = root / SKY025_ARCHIVE
+            active.parent.mkdir(parents=True, exist_ok=True)
+            archive.parent.mkdir(parents=True, exist_ok=True)
+
+            active.write_text(source, encoding="utf-8")
+            self.assertEqual(
+                resolve_lifecycle_path(root, SKY025_ACTIVE, SKY025_ARCHIVE),
+                SKY025_ACTIVE,
+            )
+
+            active.replace(archive)
+            self.assertFalse(active.exists())
+            self.assertEqual(
+                resolve_lifecycle_path(root, SKY025_ACTIVE, SKY025_ARCHIVE),
+                SKY025_ARCHIVE,
+            )
+
+            active.write_text(source, encoding="utf-8")
+            with self.assertRaises(AssertionError):
+                resolve_lifecycle_path(root, SKY025_ACTIVE, SKY025_ARCHIVE)
 
     def test_main_and_archivist_ownership_split_is_explicit(self) -> None:
         construction = normalized(
@@ -175,6 +225,31 @@ class AgentDocsContractTests(unittest.TestCase):
         self.assertIn("fetch the latest `skynet-acceptance:v1` marker", execute)
         self.assertIn("never ask ali for hashes", execute)
 
+    def test_legacy_p7_acceptance_is_durable_and_revalidated_before_p8(self) -> None:
+        review = normalized((ROOT / "planning/prompts/review.md").read_text(encoding="utf-8"))
+        execute = normalized((ROOT / "planning/prompts/execute.md").read_text(encoding="utf-8"))
+        prompt_readme = normalized((ROOT / "planning/prompts/README.md").read_text(encoding="utf-8"))
+
+        self.assertIn("skynet-legacy-acceptance:v1", review)
+        self.assertIn("scope=sky-025 p7", review)
+        self.assertIn("integrated_main=<full reviewed main sha>", review)
+        self.assertIn("merged pr #239 conversation", review)
+        self.assertIn("durable handoff", review)
+        self.assertIn("ali never copies or compares its sha", review)
+
+        self.assertIn("fetch the latest valid `skynet-legacy-acceptance:v1` marker", execute)
+        self.assertIn("merged **pr #239**", execute)
+        self.assertIn("do not rely on the previous review chat", execute)
+        self.assertIn("current `main` to equal the marker's `integrated_main`", execute)
+        self.assertIn("p7 accept stale/missing", execute)
+        self.assertIn("do not advance p7 state from a stale marker", execute)
+        self.assertIn("any intervening `main` movement", execute)
+        self.assertIn("fresh one-time p7 mode b review", execute)
+
+        self.assertIn("skynet-legacy-acceptance:v1", prompt_readme)
+        self.assertIn("durable legacy-acceptance anchor", prompt_readme)
+        self.assertIn("any intervening `main` movement makes the legacy accept stale", prompt_readme)
+
     def test_same_pr_closeout_is_bounded_and_no_second_pr(self) -> None:
         construction = normalized(
             (ROOT / "docs/conventions/construction.md").read_text(encoding="utf-8")
@@ -203,7 +278,7 @@ class AgentDocsContractTests(unittest.TestCase):
             Path("docs/conventions/construction.md"),
             Path("runbooks/construction-delegation.md"),
             SKY026_PATH,
-            Path("planning/projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md"),
+            SKY025_PATH,
             Path("planning/prompts/review.md"),
             Path("planning/prompts/execute.md"),
         )
@@ -233,12 +308,7 @@ class AgentDocsContractTests(unittest.TestCase):
 
     def test_sky025_p7_has_one_time_transition_without_closeout_pr(self) -> None:
         review = normalized((ROOT / "planning/prompts/review.md").read_text(encoding="utf-8"))
-        directive = normalized(
-            (
-                ROOT
-                / "planning/projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md"
-            ).read_text(encoding="utf-8")
-        )
+        directive = normalized((ROOT / SKY025_PATH).read_text(encoding="utf-8"))
         disposition = normalized((ROOT / "planning/sky-025-map.md").read_text(encoding="utf-8"))
         prompt_readme = normalized((ROOT / "planning/prompts/README.md").read_text(encoding="utf-8"))
 
@@ -256,12 +326,7 @@ class AgentDocsContractTests(unittest.TestCase):
 
     def test_corrective_p7_pr_uses_normal_open_pr_mode_not_legacy_mode(self) -> None:
         review = normalized((ROOT / "planning/prompts/review.md").read_text(encoding="utf-8"))
-        directive = normalized(
-            (
-                ROOT
-                / "planning/projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md"
-            ).read_text(encoding="utf-8")
-        )
+        directive = normalized((ROOT / SKY025_PATH).read_text(encoding="utf-8"))
         self.assertIn("mode a · normal open-pr review", review)
         self.assertIn("corrective p7 pr", review)
         self.assertIn("never falls back to mode b", review)
@@ -269,12 +334,7 @@ class AgentDocsContractTests(unittest.TestCase):
         self.assertIn("normal lifecycle", directive)
 
     def test_sky025_p8_plus_uses_one_open_pr_per_numbered_phase(self) -> None:
-        directive = normalized(
-            (
-                ROOT
-                / "planning/projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md"
-            ).read_text(encoding="utf-8")
-        )
+        directive = normalized((ROOT / SKY025_PATH).read_text(encoding="utf-8"))
         execute = normalized((ROOT / "planning/prompts/execute.md").read_text(encoding="utf-8"))
         prompt_readme = normalized((ROOT / "planning/prompts/README.md").read_text(encoding="utf-8"))
         diary = normalized((AGENT_DOCS / "project_diary.md").read_text(encoding="utf-8"))
@@ -285,13 +345,8 @@ class AgentDocsContractTests(unittest.TestCase):
         self.assertIn("one open pr for the numbered phase", prompt_readme)
         self.assertIn("one open authored pr per numbered phase", diary)
 
-    def test_sky025_p8_is_prepared_and_blocked_only_on_p7_accept(self) -> None:
-        directive = normalized(
-            (
-                ROOT
-                / "planning/projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md"
-            ).read_text(encoding="utf-8")
-        )
+    def test_sky025_p8_is_prepared_and_blocked_only_on_valid_p7_accept(self) -> None:
+        directive = normalized((ROOT / SKY025_PATH).read_text(encoding="utf-8"))
         disposition = normalized((ROOT / "planning/sky-025-map.md").read_text(encoding="utf-8"))
         execute = normalized((ROOT / "planning/prompts/execute.md").read_text(encoding="utf-8"))
         progress = normalized((AGENT_DOCS / "project_progress.md").read_text(encoding="utf-8"))
@@ -300,7 +355,8 @@ class AgentDocsContractTests(unittest.TestCase):
             self.assertIn("p8", text)
             self.assertIn("prepared", text)
         self.assertIn("not executable until p7 accept", directive)
-        self.assertIn("p7 has just received the one-time legacy accept", execute)
+        self.assertIn("skynet-legacy-acceptance:v1", execute)
+        self.assertIn("p7 accept stale/missing", execute)
         self.assertIn("p8 pr", progress)
 
     def test_closure_shapes_and_latest_session_have_one_entry_point(self) -> None:
