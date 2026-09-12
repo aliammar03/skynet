@@ -19,7 +19,9 @@ differ. It records foundations and constraints, not a dependency inventory or a 
 
 The Python engine is stdlib-first and has no runtime dependencies in `pyproject.toml`. It contains
 the CLI, collection orchestration, Proxmox/PBS/DNS/Docker/OPNsense/Omada readers, certificate probes,
-reconnaissance, doctor reporting, and static route parsing. Nix packages the application and its
+reconnaissance, doctor reporting, static route parsing, packaged entity derivation/audit, and the
+disposable SQLite cache/query projection. Entity functions cover guest, service, node, vhost, and
+network identities; route resolution calls them directly. Nix packages the application and its
 development shell; `deploy-rs`, sops-nix, and disko integrate with NixOS.
 
 ## Build, test, and development tools
@@ -28,8 +30,9 @@ development shell; `deploy-rs`, sops-nix, and disko integrate with NixOS.
 - Ruff enforces Python style and mypy runs in strict mode over `src/skynet`.
 - Nix flake checks package, CLI, deployment schema, and tests; pre-commit and repository gates check
   documentation, invariants, secrets, generated surfaces, and operational contracts.
-- `bin/plan`, `bin/new`, `bin/ops`, and `bin/recall` are operator-facing entry points. Renderers own
-  `inventory/` and `docs/generated/`.
+- `bin/plan`, `bin/new`, `bin/ops`, and `bin/recall` are operator-facing entry points. `bin/ops
+  entities|query` use the packaged audit and query paths after the collection-freshness gate.
+  Renderers own `inventory/` and `docs/generated/`.
 
 ## External services and infrastructure
 
@@ -49,6 +52,12 @@ the internal/public service path.
 - Production OpenTofu uses a single-scope saved plan and the wrapper; bare re-planning apply,
   delete/replace, and unauthorized targets are refused. OPNsense's approved T2 config path is not
   yet implemented; self-leash changes remain T3 and human-merged.
+- The entity audit reads authored conventions plus committed inventory and has no network or mutation
+  path. The cache is a disposable 14-table `.cache/inventory.db` projection: it builds in a temporary
+  file, validates schema/integrity, and atomically replaces the target only on success. A failed build
+  retains the previous bytes, but freshness-gated callers do not treat retained observations as current.
+- `scripts/entity.sh`, `scripts/audit-entities.sh`, and `scripts/build-db.sh` are compatibility
+  forwarders; maintained SQL views remain under `scripts/sql/`.
 - Generated inventory and documentation are machine-owned. Construction runs as the unprivileged
   `aliammar` Unix account and ordinary native construction inherits the no-prompt posture within
   that filesystem/OS boundary. Roles, models, and language grant zero production authority; self-root

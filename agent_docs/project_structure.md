@@ -23,16 +23,22 @@ directories and live inventory are intentionally summarized rather than copied h
 
 ## Modules and responsibilities
 
-The Python CLI dispatches collection, doctor, route, and reconnaissance commands. Collector modules
-own one observation boundary and its validation/publication contract; `collection.py` coordinates the
-default evidence set. Bash scripts own deployment, backup, rendering, invariant, and host procedures.
-Nix owns system/runtime composition, OpenTofu owns declared infrastructure state, Compose owns service
+The Python CLI dispatches collection, doctor, route, reconnaissance, entity-audit, and cache/query
+commands. `entities.py` owns the five-class identity derivation/audit and `routes.py` uses it directly;
+`cache.py` owns the disposable 14-table SQLite projection and queries. Collector modules own one
+observation boundary and its validation/publication contract; `collection.py` coordinates the default
+evidence set. Bash scripts own deployment, backup, rendering, invariant, and host procedures, with
+the entity/audit/cache shell names retained only as forwarding compatibility entries. Nix owns
+system/runtime composition, OpenTofu owns declared infrastructure state, Compose owns service
 definitions, and runbooks explain task-shaped execution.
 
 ## Main interfaces and integration boundaries
 
 - `skynet` CLI / `src/skynet/cli.py` is the local engine interface; collectors write explicit snapshots
-  under `inventory/` and never claim service health merely from collection success.
+  under `inventory/`, `entities` audits committed identity mappings, and `query` rebuilds/queries the
+  disposable cache. `bin/ops entities|query` first requires current collection evidence; direct
+  repository scripts remain useful for deterministic historical tests and do not establish freshness.
+  Collectors never claim service health merely from collection success.
 - Git branch → PR → human merge → Arcane Git Sync → running Compose is the service boundary; `git
   revert` is the normal rollback path.
 - Approved OpenTofu source → one-scope saved plan → `scripts/tofu-apply.sh` is the infrastructure
@@ -42,8 +48,9 @@ definitions, and runbooks explain task-shaped execution.
 
 ## Tests and supporting assets
 
-Python tests mirror the engine modules (`tests/test_*.py`); shell tests cover construction, rendering,
-GitOps rollback, DNS, provisioning, invariants, and repository hygiene. `tests/fixtures/` supplies
+Python tests mirror the engine modules (`tests/test_*.py`), including entity and cache/query behavior;
+shell tests cover construction, rendering, GitOps rollback, DNS, provisioning, invariants, and
+repository hygiene. `tests/fixtures/` supplies
 bounded API/recon data. `templates/` is the source for generated artifact scaffolding. `ca/`,
 `.sops.yaml`, `.githooks/`, and `invariants.json` support trust, encryption, commit checks, and
 machine-enforced hard laws.

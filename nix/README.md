@@ -33,8 +33,11 @@ nix/packages/
 
 The `skynet` command is a Nix-owned Python package exposing a runtime diagnostic, core and network
 Proxmox observations, PBS backup observations, Docker inventory, Technitium DNS zones, default
-collection and receipt-bound
-freshness checks. `bin/skynet` launches the package
+collection and receipt-bound freshness checks, entity derivation/audit, and disposable SQLite
+cache/query operations. `src/skynet/entities.py` owns the five entity classes (guest, service, node,
+vhost, and network); `src/skynet/cache.py` owns the validated 14-table `.cache/inventory.db`
+projection. The database is rebuilt from repository truth and atomically replaced only after schema
+and integrity checks; it is never an authority. `bin/skynet` launches the package
 from the checkout's tracked Git source using offline, lock-preserving Nix evaluation. It never
 falls back to source Python or installs a profile. Build the package and cache its dependencies
 before using default callers; a missing Nix/build prerequisite fails the command.
@@ -171,8 +174,9 @@ successful core and network observations, operate-token ACL, PBS, Docker, DNS, l
 with timezone-aware timestamps.
 Missing, failed, future, stale or mismatched evidence exits 3. Default factual rendering and
 `bin/ops query|entities` require this check. Nightly sets `SKYNET_COLLECTION_SINCE` so a prior
-success cannot satisfy the current pass. Direct repository invariant/entity/SQLite scripts
-operate on historical snapshots for deterministic CI; they do not establish live freshness.
+success cannot satisfy the current pass. Direct repository invariant/entity/SQLite scripts and the
+maintained SQL views operate on historical snapshots for deterministic CI; they do not establish live
+freshness. A failed cache rebuild retains prior cache bytes but does not make them current evidence.
 Explicit-output collectors are isolated: use `collect all` to establish default refresh evidence
 after an isolated collection changes either snapshot.
 

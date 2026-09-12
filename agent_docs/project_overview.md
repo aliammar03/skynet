@@ -26,6 +26,10 @@ root grants, and never-standing T3 access; a construction worker has no producti
   stands.
 - The installable Python package under `src/skynet/` provides the CLI and bounded collectors. Existing
   Bash procedures, Nix modules, OpenTofu, and Compose retain their declared roles.
+- The packaged entity spine derives and audits guest, service, node, vhost, and network identities
+  from authored conventions and observations; route resolution uses the same entity functions. The
+  packaged cache/query module builds a disposable, validated 14-table SQLite projection for SQL
+  views and ad-hoc queries; it is never authority.
 - Arcane reconciles merged Compose changes through Git Sync. Health is verified through scoped read
   paths and inventory is refreshed by machine-owned collectors/renderers.
 - The generated digest is optional recent-activity/episodic/open-thread retrieval and the context map
@@ -61,6 +65,5 @@ root grants, and never-standing T3 access; a construction worker has no producti
   auto-merge.
 - The agent never widens its own leash. Secrets remain encrypted in Git or restrictive local files;
   root access is certificate-grant-only; generated directories are machine-owned.
-- SKY-026 is the current construction contract and completely supersedes SKY-022. Its six `agent_docs`
-  files are distilled memory with explicit Main/Archivist ownership and higher-authority conflict
-  handling.
+- The six `agent_docs/` files are distilled memory with explicit Main/Archivist ownership and
+  higher-authority conflict handling.
