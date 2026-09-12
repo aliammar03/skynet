@@ -36,12 +36,14 @@ prepared P8 entity/cache packet.
 
 ## Verification
 
-- The previous implementation state passed GitHub Actions `checks`: full pytest **282 passed, 1
-  skipped**; Ruff clean; mypy clean across 14 source files; packaged Nix checks passed.
-- Hard invariants, `git diff --check`, entity/digest/rollback/provisioning gates, the construction
-  contract gate, and nightly safety suites passed on that previous state.
-- This FIX must rerun focused lifecycle tests and the full repository gates after all doctrine/prompt/
-  memory/test updates land; this file must be refreshed with the final results before review handoff.
+- Focused lifecycle/agent-doc regression tests pass: **12 passed**. They cover the private-GitHub-Free
+  ACCEPT/race-window contract and prove that a corrective P7 PR uses normal open-PR Mode A rather than
+  the one-time legacy integrated-main Mode B.
+- Full pytest passes: **284 passed, 1 skipped**.
+- Ruff passes; mypy reports no issues across **14 source files**; packaged Nix checks/builds pass.
+- Hard invariants and `git diff --check` pass.
+- Entity, digest, DNS revert, compose rollback, certificate selector, OpenTofu rollback, PVE snapshot,
+  provisioning truth, construction contract, nightly automerge, and nightly sequence gates pass.
 - No production endpoint, credential, root grant, service/timer, inventory, or live infrastructure write
   is involved.
 
@@ -56,9 +58,8 @@ prepared P8 entity/cache packet.
 
 ## Next Entry Point
 
-After final checks pass, Ali starts a **new separate review chat for open PR #253**. If FIX, paste the
-reviewer's prompt back into this session and update the same PR. If `ACCEPT SKY-026`, merge promptly
-unless a repository/PR change is known; known movement of either reviewed revision makes the verdict
-stale and requires fresh review. The private-GitHub-Free race window remains explicit. Then run bounded
-SKY-026 closeout and start the one-time fresh P7 review. After P7 ACCEPT + closeout, begin the prepared
-P8 packet on one open P8 PR.
+Ali starts a **new separate review chat for open PR #253**. If FIX, paste the reviewer's prompt back into
+this session and update the same PR. If `ACCEPT SKY-026`, merge promptly unless a repository/PR change is
+known; known movement of either reviewed revision makes the verdict stale and requires fresh review.
+The private-GitHub-Free race window remains explicit. Then run bounded SKY-026 closeout and start the
+one-time fresh P7 review. After P7 ACCEPT + closeout, begin the prepared P8 packet on one open P8 PR.
