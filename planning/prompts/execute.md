@@ -1,5 +1,5 @@
 ---
-summary: "Execute the authorized SKY-025 phase on one PR; legacy P7 release requires the newest durable #239 verdict to be ACCEPT and still match current main."
+summary: "Execute one SKY-025 phase on one PR; closeout requires the newest durable review verdict to be ACCEPT, and the historical P7 gate fails closed on its newest #239 verdict."
 ---
 
 # Execute SKY-025
@@ -9,33 +9,27 @@ Follow the active SKY-025 directive and
 
 ## 1. Resolve the gate first
 
-Read `agent_docs/`, AGENTS.md, planning/README.md, the active SKY-025 directive, and
+Read `agent_docs/`, `AGENTS.md`, `planning/README.md`, the active SKY-025 directive, and
 `planning/sky-025-map.md` before broad exploration.
 
 If the directive still says **P7 review pending / accepted progress 6 of 24**, do not implement P8 until
-this session independently validates the one-time legacy review state. Do not rely on the previous
-review chat and never ask Ali for a revision hash.
+this session independently validates the one-time legacy review state. Never rely on the previous review
+chat and never ask Ali for a revision hash.
 
 1. Fetch all `skynet-legacy-acceptance:v1` markers from merged **PR #239** and select the **newest**
-   applicable marker by GitHub conversation order. In older wording, "fetch the latest valid
-   `skynet-legacy-acceptance:v1` marker" means this newest review-state marker, not the newest ACCEPT.
+   applicable marker by GitHub conversation order.
 2. Require exactly:
    - `scope=SKY-025 P7`;
    - `anchor_pr=239`;
    - one full `integrated_main` SHA;
-   - **newest marker `verdict=ACCEPT`**.
-3. Resolve current remote `main` yourself immediately before creating/reusing the P8 branch.
-4. Require current `main` to equal the marker's `integrated_main`. Here, "the marker" is the newest
-   applicable marker selected in step 1. If it is absent, malformed, FIX, BLOCKED, or current `main`
-   differs, report **P7 ACCEPT stale/missing**, keep P8 blocked, and do not advance P7 state from a stale
-   marker. Never fall back to an older ACCEPT marker. Any intervening `main` movement after the accepted
-   revision also requires a fresh one-time P7 Mode B review while the legacy gate is still active.
+   - newest marker `verdict=ACCEPT`.
+3. Resolve current remote `main` immediately before creating/reusing the P8 branch.
+4. Require current `main` to equal that marker's `integrated_main`. If the newest marker is absent,
+   malformed, FIX, BLOCKED, or points at another revision, report **P7 ACCEPT stale/missing**, keep P8
+   blocked, and never fall back to an older ACCEPT marker.
 5. Only after both checks pass, start from that validated `main`, use the natural P8 PR, and make its
-   opening bookkeeping record P7 accepted / `current_phase: 7` before P8 implementation. No standalone
-   P7 closeout PR is created.
-
-This means a newer FIX/BLOCKED review on the same integrated revision immediately revokes an older
-ACCEPT, and any later `main` movement also makes the ACCEPT stale. Chat continuity is irrelevant.
+   opening bookkeeping record P7 accepted / `current_phase: 7` before P8 implementation. Do not create
+   a standalone P7 closeout PR.
 
 Otherwise execute the single authorized packet in the directive.
 
@@ -47,8 +41,8 @@ From P8 onward, every numbered phase owns one branch/PR targeting `main`.
 - Reuse an existing phase PR. Never create a second phase PR because work continued in another session.
 - Internal lettered slices stay on that same phase PR and are never merged independently.
 - Preserve unrelated work and existing trust/live boundaries.
-- Never begin the next numbered phase before the current one is externally ACCEPTed and its **same-PR
-  closeout has been human-merged**.
+- Never begin the next numbered phase before the current one is externally ACCEPTed and its same-PR
+  closeout has been human-merged.
 
 Ali never copies, compares, or carries Git revision hashes between chats.
 
@@ -97,28 +91,32 @@ SKY-025 P<N> fix: <outcome>
 
 ## 6. When Ali returns and says `accepted`
 
-This is **accepted closeout mode**, not a new implementation phase and not another PR.
+This is accepted closeout mode on the same PR.
 
-1. Fetch the latest `skynet-acceptance:v1` marker from this PR conversation yourself.
-2. Verify its scope matches this phase/repair, the PR is still open, current target/base equals the
-   marker's reviewed base, and current PR head equals the marker's reviewed head **before** closeout.
-   If any check fails, report ACCEPT stale and require a fresh review. Never ask Ali for hashes.
-3. Apply only bounded closeout bookkeeping on this same PR:
+1. Fetch all `skynet-acceptance:v1` markers from this PR conversation and select the **newest
+   applicable marker by conversation order**. Do not search for the newest ACCEPT.
+2. Require the newest marker to be well formed, match this phase/repair scope, and have
+   `verdict=ACCEPT`. A newer FIX/BLOCKED or malformed applicable marker makes ACCEPT stale even when the
+   base/head are unchanged.
+3. Verify the PR is still open, current target/base equals the marker's reviewed base, and current PR
+   head equals the marker's reviewed head **before** closeout. If any check fails, report ACCEPT stale
+   and require a fresh review. Never ask Ali for hashes.
+4. Apply only bounded closeout bookkeeping on this same PR:
    - mark the accepted directive phase/state;
    - archive/advance planning state as required;
    - update `agent_docs/project_progress.md`, `project_diary.md`, `latest_session_work.md`;
    - append journal closure evidence;
    - run normal generators for closure-derived views when required.
-4. Do **not** change source/runtime/config/tests/invariants/AGENTS/doctrine/runbooks/behavioral docs/stable
+5. Do **not** change source/runtime/config/tests/invariants/AGENTS/doctrine/runbooks/behavioral docs/stable
    agent memory or any substantive implementation surface. If such a change is needed, stop: ACCEPT is
    stale and the same PR needs fresh review after the change.
-5. Prove the marker-head..final-head delta is closeout-only, rerun closure-focused gates plus normal CI,
+6. Prove the marker-head..final-head delta is closeout-only, rerun closure-focused gates plus normal CI,
    and recheck target/base still equals the marker base.
-6. Push the closeout to this same PR, report it ready for **one human merge**, then STOP.
+7. Push the closeout to this same PR, report it ready for **one human merge**, then STOP.
 
-The closeout commit moves the PR head by design; that allowed bookkeeping movement alone does not
-invalidate ACCEPT. Private GitHub Free still leaves a non-atomic race between the final recheck and
-Ali clicking Merge, so prefer prompt merge but do not claim atomicity.
+The closeout commit moves the PR head by design; allowed bookkeeping movement alone does not invalidate
+ACCEPT. Private GitHub Free still leaves a non-atomic race between the final recheck and Ali clicking
+Merge, so prefer prompt merge but do not claim atomicity.
 
 A compact pre-review PR body is enough:
 

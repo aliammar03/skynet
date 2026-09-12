@@ -1,5 +1,5 @@
 ---
-summary: "Fresh SKY-025 review: normal open-PR ACCEPT writes a machine-readable marker, while every one-time P7 Mode B verdict writes durable review state on merged PR #239."
+summary: "Fresh SKY-025 review: every open-PR verdict is durable, newest verdict wins, and the one-time legacy P7 transition uses the same fail-closed rule on merged PR #239."
 ---
 
 # Review SKY-025
@@ -7,66 +7,54 @@ summary: "Fresh SKY-025 review: normal open-PR ACCEPT writes a machine-readable 
 Follow the active SKY-025 directive and
 [`../../docs/conventions/construction.md`](../../docs/conventions/construction.md).
 
-The reviewer is **implementation-read-only**. Ali provides only `P7` or a PR number. Never ask Ali for
-commit hashes. The reviewer's only allowed repository mutation is a machine-readable review comment:
-for Mode A, the ACCEPT marker below; for Mode B, exactly one P7 verdict marker on merged PR #239 for
-every ACCEPT, FIX, or BLOCKED verdict. The reviewer never edits Git content.
+The reviewer is **implementation-read-only**. Ali provides only a PR number, or `P7` for the historical
+one-time transition. Never ask Ali for commit hashes. The reviewer's only repository mutation is the
+machine-readable review-state comment described below. The reviewer never edits Git content.
 
-## Mode A · normal open-PR review
+## Normal open-PR review
 
-Use for:
+Use this for every P8+ numbered phase PR and for any corrective P7 PR.
 
-- every P8+ numbered phase PR; and
-- any bounded corrective P7 PR created after a legacy P7 FIX verdict.
-
-A corrective P7 PR is ordinary open-PR work and never falls back to Mode B.
-
-1. Read `agent_docs/`, AGENTS.md, planning/README.md, the active SKY-025 directive/map, and the target
-   open PR. Inspect relevant callers/contracts/tests as needed.
-2. For P8+, confirm exactly one open PR represents the numbered phase and all internal slices remain on
-   it. For corrective P7, confirm it is the bounded repair created from the legacy FIX.
-3. Resolve from GitHub:
+1. Read `agent_docs/`, `AGENTS.md`, `planning/README.md`, the active SKY-025 directive/map, and the
+   target open PR. Inspect relevant callers/contracts/tests as needed.
+2. Resolve from GitHub:
    - target branch;
    - **reviewed base SHA** = current target-branch tip;
    - **reviewed head SHA** = current PR head.
-4. Review the actual integration result for that base+head pair. Run relevant independent checks. Green
-   CI supports the review but does not substitute for it.
-5. Immediately before verdict, resolve base and head again. If either moved, refresh affected evidence
-   against the new pair before any ACCEPT.
-6. Choose ACCEPT, FIX, or BLOCKED.
-
-### Normal ACCEPT
-
-ACCEPT approves the exact reviewer-resolved base+head pair verified immediately before verdict. Before
-returning the verdict, post exactly one machine-readable acceptance marker to the PR conversation:
+3. Review the actual integration represented by that base+head pair and run proportionate independent
+   checks. Green CI supports review but does not replace it.
+4. Immediately before verdict, resolve base and head again. If either moved, refresh affected evidence
+   against the new pair.
+5. Choose ACCEPT, FIX, or BLOCKED.
+6. Before returning, post exactly one `skynet-acceptance:v1` marker to the PR conversation for that
+   verdict:
 
 ```text
 <!-- skynet-acceptance:v1
 scope=SKY-025 P<N>
-verdict=ACCEPT
+verdict=<ACCEPT|FIX|BLOCKED>
 base=<full reviewed base SHA>
 head=<full reviewed head SHA>
 -->
 ```
 
-For corrective P7 use `scope=SKY-025 P7 corrective`. This comment is audit/handoff metadata only. It
-does not modify Git content. The implementation/fix session must never create this marker itself.
+For corrective P7 use `scope=SKY-025 P7 corrective`.
 
-Ali does **not** copy or compare the marker hashes. After ACCEPT, Ali only tells the original
-implementation/fix session that the PR was accepted. That session fetches the marker itself, verifies
-current base/head still match it, and performs bounded closeout on this **same PR before merge**.
+**Newest applicable marker wins.** Older markers are audit history only. A newer FIX or BLOCKED marker
+supersedes every older ACCEPT, even when base and head are unchanged. A malformed newest applicable
+marker fails closed. The implementation/fix session must never create or forge review-state markers.
+
+### ACCEPT
+
+Ali does not copy or compare hashes. After ACCEPT, Ali tells the original implementation/fix session
+only `accepted`. That session fetches the markers itself, selects the newest applicable one, requires
+`verdict=ACCEPT`, verifies current base/head still match it, and performs bounded closeout on this same
+PR before merge.
 
 Post-ACCEPT closeout may change only the closure bookkeeping envelope defined by construction doctrine:
 directive/archive/planning state, Main-owned deployment-state `agent_docs`, append-only journal closure
-evidence, and generator-owned closure views. The sanctioned closeout commit therefore moves the PR head
-by design and does not itself invalidate ACCEPT. Any reviewed-base movement, unexplained head movement,
-or source/runtime/config/test/invariant/AGENTS/doctrine/runbook/behavioral-doc/stable-memory/substantive
-change invalidates ACCEPT and requires fresh review.
-
-Private GitHub Free still leaves a race window between the final agent recheck and Ali clicking Merge;
-no mechanical/atomic merge-time guarantee is claimed. Prompt merge minimizes but does not remove it.
-Do not require a paid GitHub feature, manual SHA handling, or a read/check helper that falsely claims
-atomicity.
+evidence, and generator-owned closure views. Source/runtime/config/tests/invariants/AGENTS/doctrine/
+runbooks/behavioral docs/stable memory or other substantive changes require fresh review.
 
 Return:
 
@@ -74,15 +62,16 @@ Return:
 ACCEPT SKY-025 P<N>
 PR: #<number> <URL>
 Review binding: base <full SHA>; head <full SHA>
-Acceptance marker: posted to PR
+Review-state marker: posted to PR
 Evidence: <exit criterion → independent result>
-Limitations: private GitHub Free leaves a non-atomic final-recheck-to-merge race; <other limitations or none>
-Next: tell the original implementation/fix session "accepted". It will validate this marker, close out the SAME PR, and hand that same PR back for one human merge.
+Limitations: <explicit limitations or none>
+Next: tell the original implementation/fix session "accepted". It will validate the newest marker, close out the SAME PR, and hand that PR back for one human merge.
 ```
 
-### Normal FIX
+### FIX
 
-Final response must be only one fenced repair prompt:
+The FIX marker posted above immediately revokes any older ACCEPT for the same PR state. Final response
+must be only one fenced repair prompt:
 
 ```text
 Continue the original SKY-025 P<N> implementation/fix session and fix the independent review findings below.
@@ -109,27 +98,17 @@ Then stop. Ali will manually start a fresh review of that PR. The reviewer resol
 
 ### BLOCKED
 
-Report the exact missing prerequisite/evidence. Do not mutate Git content, merge, or release the next
-phase.
+The BLOCKED marker posted above immediately revokes any older ACCEPT for that PR state. Report the exact
+missing prerequisite/evidence. Do not mutate Git content, merge, or release the next phase.
 
-## Mode B · one-time P7 already-merged transition
+## One-time legacy P7 review
 
-Use only for historical P7 implementation already merged in #235, #236, #237 and corrective #239 while
-accepted progress remains 6/24. **Do not use Mode B for a new corrective P7 PR.**
+This exists only for the historical P7 implementation already merged in #235, #236, #237 and #239
+while accepted progress remains 6/24. A new corrective P7 PR uses the normal open-PR review above and
+never returns to this path.
 
-Merged PR **#239 is the durable P7 review-state anchor** because P7 has no open phase PR and #239 is the
-last historical corrective PR. The merged PR #239 conversation is the durable handoff. Every fresh
-Mode B verdict writes one marker there. The newest marker is the complete current legacy-review state;
-older markers are audit history only.
-
-1. Resolve current `main` and record it as the reviewed integrated revision.
-2. Review the complete already-integrated P7 result, including #235, #236, #237, #239 and later commits
-   touching P7-owned surfaces.
-3. Re-run independent checks proportionate to P7 exits.
-4. Immediately before verdict, resolve `main` again. If it moved, inspect the delta and refresh affected
-   evidence before verdict.
-5. Choose ACCEPT, FIX, or BLOCKED.
-6. For **every** Mode B verdict, post exactly one machine-readable marker to merged PR #239:
+Merged PR **#239** is the durable legacy P7 review-state anchor. Every legacy P7 verdict posts exactly
+one marker there:
 
 ```text
 <!-- skynet-legacy-acceptance:v1
@@ -140,19 +119,17 @@ anchor_pr=239
 -->
 ```
 
-The later P8 session uses only the **newest** applicable marker from #239. A newer FIX or BLOCKED marker
-supersedes every older ACCEPT even when `main` has not moved. Ali never copies or compares its SHA;
-Ali never carries marker hashes between chats.
+1. Resolve current `main` and review the complete integrated P7 result, including #235, #236, #237,
+   #239 and later P7-owned changes.
+2. Run proportionate independent checks.
+3. Immediately before verdict, resolve `main` again and refresh affected evidence if it moved.
+4. Post exactly one marker above for ACCEPT, FIX, or BLOCKED.
+
+The newest applicable marker on #239 is authoritative. Older markers are audit history only. A newer
+FIX/BLOCKED supersedes every older ACCEPT. P8 may start only when the newest marker is well formed,
+`verdict=ACCEPT`, and its `integrated_main` still equals current `main`.
 
 ### P7 ACCEPT
-
-ACCEPT approves the exact `integrated_main` recorded in the marker posted above. A fresh P8 execution
-session must fetch the newest `skynet-legacy-acceptance:v1` marker from #239 itself and require both:
-
-- newest marker verdict is `ACCEPT`; and
-- current `main` exactly equals that marker's `integrated_main`.
-
-If either check fails, P8 stays blocked and P7 state does not advance.
 
 Return:
 
@@ -163,22 +140,18 @@ Legacy review-state marker: posted to merged PR #239
 Merged evidence: #235, #236, #237, #239 + <later P7-relevant commits if any>
 Evidence: <exit criterion → independent result>
 Limitations: <explicit unverified items, or none>
-Next: start P8. The P8 session will fetch the newest #239 marker itself; only a newest ACCEPT whose integrated_main still equals current main can release P8. The P8 PR then records P7 accepted / current_phase 7 as opening bookkeeping. Do NOT create a standalone P7 closeout PR.
+Next: start P8. The P8 session will validate the newest #239 marker itself before advancing P7 state.
 ```
 
-Because there is no open P7 PR to close out, the next natural P8 PR carries the small P7 state
-transition instead of manufacturing a bookkeeping-only PR.
+Do not create a standalone P7 closeout PR. The natural P8 PR carries the small P7 accepted /
+`current_phase: 7` transition as opening bookkeeping.
 
 ### P7 FIX
 
-The FIX marker posted above immediately supersedes any older ACCEPT. Return only one fenced repair
-prompt creating **one bounded corrective P7 PR**. Once open, review it with Mode A exactly like future
-phase PRs. It may never return to Mode B. While that repair is outstanding, P8 remains blocked because
-the newest #239 legacy marker is FIX.
+The FIX marker supersedes any older ACCEPT. Return one bounded repair prompt creating **one corrective
+P7 PR**. That corrective PR uses the normal open-PR review above. P8 remains blocked until the repair is
+accepted and merged.
 
 ### P7 BLOCKED
 
-The BLOCKED marker posted above immediately supersedes any older ACCEPT. Report the exact blocker and
-keep P8 blocked. A later fresh Mode B review may post a newer verdict after the blocker is resolved.
-
-No future phase may use Mode B.
+The BLOCKED marker supersedes any older ACCEPT. Report the blocker and keep P8 blocked.

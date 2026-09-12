@@ -7,7 +7,7 @@ summary: "Main directs a specialist worker swarm on Light/Medium/Heavy routes; w
 > Main spends context on decisions that need the whole picture; specialist workers spend context on
 > bounded work. Verification is independent of implementation, and final acceptance review runs
 > against the open authored PR in a fresh operator-started session before human merge; it returns one
-> paste-ready fix prompt or records ACCEPT on that PR.
+> paste-ready fix prompt or records durable verdict state on that PR.
 > Governed by [`../conventions.md`](../conventions.md); production authority stays with the trust tiers.
 
 Tags: **[testable]** = a deterministic gate can assert it; **[manual]** = requires review.
@@ -158,17 +158,21 @@ The reviewer never repairs implementation. FIX returns one complete paste-ready 
 implementation/fix session; that session repairs the same PR, publishes, reports the handoff, and stops
 again. Ali starts another fresh reviewer. Repeat until ACCEPT. `[manual]`
 
-On ACCEPT, the reviewer records the exact last-verified pair in its verdict **and posts one machine-
-readable acceptance marker to the PR conversation**. That PR comment is the reviewer's only repository
-mutation and does not alter Git content. It contains the directive/phase or repair scope, reviewed base
-SHA, reviewed head SHA, and `verdict=ACCEPT`. The implementation/fix session must never create or forge
-an acceptance marker. Ali does not copy, compare, or shuttle hashes; after review Ali only needs to tell
-the original session that the PR was accepted. `[manual]`
+Before returning **any** final verdict, the reviewer posts exactly one machine-readable
+`skynet-acceptance:v1` review-state marker to the PR conversation. That comment is the reviewer's only
+repository mutation and does not alter Git content. It contains the directive/phase or repair scope,
+reviewed base SHA, reviewed head SHA, and `verdict=ACCEPT|FIX|BLOCKED`. The **newest applicable marker by
+GitHub conversation order is authoritative**. Older markers are audit history only; a newer FIX or
+BLOCKED revokes every older ACCEPT even when the reviewed base/head are unchanged, and a malformed
+newest applicable marker fails closed. The implementation/fix session must never create or forge a
+review-state marker. Ali never copies, compares, or shuttles hashes. `[manual]`
 
-The original implementation/fix session then enters **accepted closeout mode on that same PR**. Before
-editing it must fetch the acceptance marker itself, confirm the PR is still open, confirm current base
-matches the reviewed base and current head matches the reviewed head, and confirm no newer substantive
-change exists. If those checks fail, ACCEPT is stale and fresh review is required. `[manual]`
+The original implementation/fix session enters accepted closeout mode only after Ali says `accepted`.
+Before editing it must fetch all applicable `skynet-acceptance:v1` markers itself, select the newest one,
+require `verdict=ACCEPT`, confirm the PR is still open, confirm current base matches the reviewed base and
+current head matches the reviewed head, and confirm no newer substantive change exists. A newest
+FIX/BLOCKED/malformed marker, base/head movement, or other failed check makes ACCEPT stale and requires
+fresh review. `[manual]`
 
 Accepted closeout is deliberately narrow. It may change only closure bookkeeping:
 
@@ -238,7 +242,7 @@ Every substantive closure leaves exactly one `## Next Entry Point` in `latest_se
 | implementation ready | Main records verified implementation state and the open authored PR as pending fresh review | operator-started fresh review of that PR |
 | paused | Main records verified position, pending work, and checks without advancing the phase | the same-phase Continue prompt |
 | blocked | Main records the exact external condition and sets directive/progress status `blocked` | the same-phase Continue prompt naming the unblock condition |
-| accepted closeout | on the same open accepted PR, Main validates the PR acceptance marker, writes only bounded closeout bookkeeping, proves the post-ACCEPT delta is closeout-only, and does not claim merge | human-merge that same PR once; after it lands, begin the next active directive/phase |
+| accepted closeout | on the same open accepted PR, Main validates the newest applicable PR review-state marker, requires ACCEPT, writes only bounded closeout bookkeeping, proves the post-ACCEPT delta is closeout-only, and does not claim merge | human-merge that same PR once; after it lands, begin the next active directive/phase |
 
 At the start of each substantive Medium/Heavy deployment, Main emits
 `<!-- skynet-deployment-start: <deployment_id> -->` in its first commentary message. The ID is unique,

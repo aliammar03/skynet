@@ -210,19 +210,21 @@ class AgentDocsContractTests(unittest.TestCase):
             "latest: missing current acceptance state",
         )
 
-    def test_review_acceptance_posts_marker_and_user_only_says_accepted(self) -> None:
+    def test_review_state_is_durable_and_user_only_says_accepted(self) -> None:
         review = normalized((ROOT / "planning/prompts/review.md").read_text(encoding="utf-8"))
         execute = normalized((ROOT / "planning/prompts/execute.md").read_text(encoding="utf-8"))
 
         self.assertIn("skynet-acceptance:v1", review)
-        self.assertIn("verdict=accept", review)
+        self.assertIn("verdict=<accept|fix|blocked>", review)
         self.assertIn("base=<full reviewed base sha>", review)
         self.assertIn("head=<full reviewed head sha>", review)
-        self.assertIn("post exactly one machine-readable acceptance marker", review)
-        self.assertIn("ali only tells the original", review)
+        self.assertIn("newest applicable marker wins", review)
+        self.assertIn("newer fix or blocked marker", review)
+        self.assertIn("ali tells the original", review)
         self.assertIn("accepted", review)
         self.assertIn("when ali returns and says `accepted`", execute)
-        self.assertIn("fetch the latest `skynet-acceptance:v1` marker", execute)
+        self.assertIn("fetch all `skynet-acceptance:v1` markers", execute)
+        self.assertIn("do not search for the newest accept", execute)
         self.assertIn("never ask ali for hashes", execute)
 
     def test_legacy_p7_acceptance_is_durable_and_revalidated_before_p8(self) -> None:
@@ -233,22 +235,19 @@ class AgentDocsContractTests(unittest.TestCase):
         self.assertIn("skynet-legacy-acceptance:v1", review)
         self.assertIn("scope=sky-025 p7", review)
         self.assertIn("integrated_main=<full reviewed main sha>", review)
-        self.assertIn("merged pr #239 conversation", review)
-        self.assertIn("durable handoff", review)
-        self.assertIn("ali never copies or compares its sha", review)
+        self.assertIn("merged pr **#239**", review)
+        self.assertIn("durable legacy p7 review-state anchor", review)
 
-        self.assertIn("fetch the latest valid `skynet-legacy-acceptance:v1` marker", execute)
+        self.assertIn("skynet-legacy-acceptance:v1", execute)
         self.assertIn("merged **pr #239**", execute)
-        self.assertIn("do not rely on the previous review chat", execute)
-        self.assertIn("current `main` to equal the marker's `integrated_main`", execute)
+        self.assertIn("never rely on the previous review chat", execute)
+        self.assertIn("marker's `integrated_main`", execute)
         self.assertIn("p7 accept stale/missing", execute)
-        self.assertIn("do not advance p7 state from a stale marker", execute)
-        self.assertIn("any intervening `main` movement", execute)
-        self.assertIn("fresh one-time p7 mode b review", execute)
+        self.assertIn("never fall back to an older accept marker", execute)
 
         self.assertIn("skynet-legacy-acceptance:v1", prompt_readme)
-        self.assertIn("durable legacy-acceptance anchor", prompt_readme)
-        self.assertIn("any intervening `main` movement makes the legacy accept stale", prompt_readme)
+        self.assertIn("durable legacy p7 review-state anchor", prompt_readme)
+        self.assertIn("later `main` movement also stales accept", prompt_readme)
 
     def test_same_pr_closeout_is_bounded_and_no_second_pr(self) -> None:
         construction = normalized(
@@ -296,7 +295,7 @@ class AgentDocsContractTests(unittest.TestCase):
             self.assertIn("substantive", text, path)
 
         self.assertIn("head movement alone does **not** invalidate accept", texts["docs/conventions/construction.md"])
-        self.assertIn("reviewed-base movement", texts["planning/prompts/review.md"])
+        self.assertIn("reviewed base", texts["planning/prompts/review.md"])
         self.assertIn("marker-head..final-head", texts["planning/prompts/execute.md"])
 
     def test_lifecycle_surfaces_do_not_reintroduce_old_closeout_sequence(self) -> None:
@@ -322,14 +321,16 @@ class AgentDocsContractTests(unittest.TestCase):
         self.assertIn("no standalone p7 closeout pr", disposition)
         self.assertIn("no standalone p7 closeout pr", prompt_readme)
         self.assertIn("p8 pr", review)
-        self.assertIn("current_phase 7", review)
+        self.assertIn("current_phase: 7", review)
 
-    def test_corrective_p7_pr_uses_normal_open_pr_mode_not_legacy_mode(self) -> None:
+    def test_corrective_p7_pr_uses_normal_review_without_mode_jargon(self) -> None:
         review = normalized((ROOT / "planning/prompts/review.md").read_text(encoding="utf-8"))
         directive = normalized((ROOT / SKY025_PATH).read_text(encoding="utf-8"))
-        self.assertIn("mode a · normal open-pr review", review)
+        self.assertIn("normal open-pr review", review)
         self.assertIn("corrective p7 pr", review)
-        self.assertIn("never falls back to mode b", review)
+        self.assertIn("never returns to this path", review)
+        self.assertNotIn("mode a", review)
+        self.assertNotIn("mode b", review)
         self.assertIn("legacy p7 fix opens one corrective p7 pr", directive)
         self.assertIn("normal lifecycle", directive)
 
