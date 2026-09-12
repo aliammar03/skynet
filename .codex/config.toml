@@ -7,15 +7,20 @@
 # the semantic limits in the doctrine (one persistent Companion, at most one Senior Executor,
 # non-overlapping mutable ownership, no worker-spawns-worker). Codex's own
 # max_concurrent_threads_per_session default applies; do not pin a workflow-owned number as doctrine.
-# Acceptance review is operator-started against the open authored PR in a separate fresh chat/session.
-# The implementation or fix session publishes its authored PR, reports the PR handoff, and stops; it
-# must not start, spawn, or continue into acceptance review itself. The reviewer resolves the target
-# base/main SHA and PR head SHA directly from GitHub, reviews that integration pair, and rechecks both
-# immediately before verdict. ACCEPT approves that exact last-verified pair. If either revision is
-# known to have moved before merge, ACCEPT is stale and fresh review is required. On the intended
-# private-GitHub-Free setup there is no mechanical/atomic guarantee that the pair cannot move after
-# the reviewer's final recheck and before Ali later clicks Merge; prompt human merge minimizes but
-# does not remove that race window. Ali does not supply or compare hashes manually. A future repository
-# configuration with enforceable up-to-date-branch protection or an equivalent atomic guarantee may
-# strengthen this contract, but it is not required today. After human merge, bounded closeout records
-# durable project state/archive.
+#
+# Review lifecycle: implementation/fix publishes one authored PR and stops. Ali manually starts a
+# separate fresh reviewer for that open PR. The reviewer resolves and rechecks target/base SHA + PR
+# head SHA immediately before verdict. ACCEPT records that exact pair and posts a machine-readable
+# acceptance marker to the PR conversation; Ali never copies or compares hashes. Ali then tells the
+# original implementation/fix session only that the PR was accepted. That session validates the marker
+# itself and performs bounded closeout on the SAME PR before merge. Post-ACCEPT Git changes are allowed
+# only for directive/archive/planning state, Main-owned deployment-state agent_docs, append-only journal
+# evidence, and generator-owned closure views. Any source/runtime/config/test/invariant/doctrine/runbook/
+# behavioral-doc/stable-memory or other substantive change invalidates ACCEPT and requires fresh review.
+# The sanctioned closeout commit moves the head by design and is not itself stale; Main proves the
+# accepted-head..final-head delta is closeout-only and rechecks the reviewed base. Then Ali human-merges
+# that same PR once. No closeout-only PR is created.
+#
+# Private GitHub Free still leaves a non-atomic race window between the last agent recheck and Ali's
+# later click-to-merge. Prompt merge minimizes but does not remove it. Do not require a paid GitHub
+# feature, manual SHA handling, or a helper that falsely claims atomic read/check+merge behavior.
