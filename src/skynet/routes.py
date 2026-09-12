@@ -134,10 +134,13 @@ def snapshot(repo: Path) -> dict[str, Any]:
         text = caddyfile.read_text(encoding="utf-8")
     except (OSError, UnicodeError):
         raise CollectionError("route source unavailable", 3) from None
+    parsed_routes = _parse_caddy(text)
+    if not parsed_routes:
+        raise CollectionError("route source contains no supported routes")
     ip2svc = _service_ips(repo)
     guest_ip = _guest_ips(repo)
     routes = []
-    for vhost, backend, fauth in _parse_caddy(text):
+    for vhost, backend, fauth in parsed_routes:
         entity = "—"
         auth = "own-auth/plain"
         if backend:
