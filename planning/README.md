@@ -38,7 +38,7 @@ scratchpad ──▶ ideas ──▶ backlog ──▶ projects ──▶ archiv
 - **PR-gated.** Directives land via PR like all repo changes; the agent never merges its own.
 - **Phases are ~1–2h.** Anything longer is split, and each phase ends with a **close-out**: a PR,
   Main's three agent-memory state updates, raw journal evidence, a frontmatter bump, and one next
-  entry point so the next session cold-starts from `agent_docs/` plus the directive. Do not create a
+  entry point so the next session recovers from `agent_docs/` plus the directive. Do not create a
   second task database.
 - **Reopening is exceptional.** A completed maintenance directive may return from `archive/` to
   `projects/` only on explicit human instruction when the same maintenance domain needs another bounded
@@ -61,11 +61,13 @@ bin/plan show SKY-014                   # print path + open location
 bin/plan list                           # regenerate the roadmap table below
 ```
 
-Each directive carries its own **▶ Execute prompt** and **Continue prompt** (see `TEMPLATE.md`),
-so running or resuming one is a single paste into a fresh session.
+Each directive carries its own execution/review entry points, so running or resuming one is a small
+paste into a fresh session.
 
-For SKY-025, use the [execute/review handoff prompts](prompts/README.md), including their GitHub PR
-bodies and manual merge gates. The directive remains the source for phase scope and model routing.
+For SKY-025, use the [execute/review handoff prompts](prompts/README.md). Current accepted progress is
+P6/24; P7 is the sole already-merged migration review, and P8 is prepared behind that gate. From P8
+onward, one numbered phase owns one open PR; internal slices remain on that PR until fresh pre-merge
+acceptance. Ali never needs to provide commit hashes to a reviewer.
 
 ## Roadmap
 
