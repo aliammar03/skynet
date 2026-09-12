@@ -1,5 +1,5 @@
 ---
-summary: "Execute the authorized SKY-025 phase on one PR; legacy P7 release requires a durable #239 acceptance marker that still matches current main."
+summary: "Execute the authorized SKY-025 phase on one PR; legacy P7 release requires the newest durable #239 verdict to be ACCEPT and still match current main."
 ---
 
 # Execute SKY-025
@@ -13,27 +13,26 @@ Read `agent_docs/`, AGENTS.md, planning/README.md, the active SKY-025 directive,
 `planning/sky-025-map.md` before broad exploration.
 
 If the directive still says **P7 review pending / accepted progress 6 of 24**, do not implement P8 until
-this session independently validates the one-time legacy ACCEPT. Do not rely on the previous review
-chat and never ask Ali for a revision hash.
+this session independently validates the one-time legacy review state. Do not rely on the previous
+review chat and never ask Ali for a revision hash.
 
-1. Fetch the latest valid `skynet-legacy-acceptance:v1` marker from the conversation of merged **PR #239**.
+1. Fetch all `skynet-legacy-acceptance:v1` markers from merged **PR #239** and select the **newest**
+   applicable marker by GitHub conversation order.
 2. Require exactly:
    - `scope=SKY-025 P7`;
-   - `verdict=ACCEPT`;
    - `anchor_pr=239`;
-   - one full `integrated_main` SHA recorded by the reviewer.
+   - one full `integrated_main` SHA;
+   - **newest marker `verdict=ACCEPT`**.
 3. Resolve current remote `main` yourself immediately before creating/reusing the P8 branch.
-4. Require current `main` to equal the marker's `integrated_main`. If the marker is absent, malformed,
-   ambiguous, or current `main` differs, report **P7 ACCEPT stale/missing**, keep P8 blocked, and require
-   a fresh one-time P7 Mode B review on current integrated `main`. Do not classify the movement as safe
-   and do not advance P7 state from a stale marker.
-5. Only after that check passes, start from that validated `main`, use the natural P8 PR, and make its
+4. Require current `main` to equal the newest marker's `integrated_main`. If the newest marker is absent,
+   malformed, FIX, BLOCKED, or current `main` differs, report **P7 review stale/not accepted**, keep P8
+   blocked, and do not advance P7 state. Never fall back to an older ACCEPT marker.
+5. Only after both checks pass, start from that validated `main`, use the natural P8 PR, and make its
    opening bookkeeping record P7 accepted / `current_phase: 7` before P8 implementation. No standalone
    P7 closeout PR is created.
 
-This intentionally treats **any intervening `main` movement** after the accepted integrated revision as
-stale. That conservative equality check guarantees an unreviewed P7-relevant change cannot silently
-release P8 and keeps legacy acceptance independent of chat-transcript continuity.
+This means a newer FIX/BLOCKED review on the same integrated revision immediately revokes an older
+ACCEPT, and any later `main` movement also makes the ACCEPT stale. Chat continuity is irrelevant.
 
 Otherwise execute the single authorized packet in the directive.
 
