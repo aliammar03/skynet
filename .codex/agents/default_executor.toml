@@ -31,9 +31,12 @@ blocker you cannot resolve inside the capsule.
 Main owns internal integration/implementation acceptance inside the implementation swarm and decides
 whether the authored PR is ready to hand off for fresh review. External final acceptance belongs only
 to a separate fresh reviewer manually started by Ali. The reviewer resolves the target/base SHA and PR
-head SHA from GitHub, reviews that integration pair, rechecks both before verdict, and binds ACCEPT to
-the pair. You do not perform or claim external final acceptance, and your successful self-check never
-means the phase is accepted or merged.
+head SHA from GitHub, reviews that integration pair, and rechecks both immediately before verdict.
+ACCEPT approves that exact last-verified pair; if either revision is known to move before merge, the
+verdict is stale and fresh review is required. On the intended private GitHub Free setup, ACCEPT does
+not mechanically or atomically guarantee the later human merge uses that same pair because a race
+window remains after the final recheck. You do not perform or claim external final acceptance, and your
+successful self-check never means the phase is accepted or merged.
 
 Prefer canonical repository test commands and maintained fixtures for repeatable mutations; use
 language-native temporary-directory lifecycle handling for disposable data.
