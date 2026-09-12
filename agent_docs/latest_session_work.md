@@ -5,48 +5,47 @@
 
 ## Detailed Current State
 
-SKY-026 Phase 5 implementation was human-merged in PR #252. Phase 5 is not yet accepted. Open fix PR
-#253 is repairing the review lifecycle discovered by independent review: implementation/fix sessions
-must stop after publishing, external ACCEPT must bind to the reviewer-resolved target/base + PR-head
-integration pair, and Ali must not have to copy commit hashes between sessions. SKY-026 remains
-`in-progress` until a fresh manually started review returns `ACCEPT SKY-026` for the current PR state.
+SKY-026 Phase 5 implementation is merged in PR #252 but not yet externally accepted. Open PR #253 owns
+the final review-lifecycle correction and the migration of SKY-025 onto that lifecycle. SKY-026 remains
+`in-progress` until a fresh manually started reviewer returns `ACCEPT SKY-026` for the current PR state.
+
+SKY-025 accepted progress remains P6/24. P7 implementation/fix PRs #235, #236, #237 and #239 are already
+merged under the former workflow, so P7 has one legacy integrated-main review remaining. The active
+SKY-025 directive has been reduced to current state, one review rule, one 24-phase roadmap, and a
+prepared P8 entity/cache packet.
 
 ## Session Changes
 
-- Phase 5 fresh intake used `agent_docs/` plus SKY-026 and repaired stale handoff against merged Git
-  and installed runtime evidence.
-- A standalone Main-only Light task verified PR #252 state without a worker or mutation. Phase-4
-  records Medium; Phase-3 and Phase-5 record Heavy with one persistent Companion, one Investigator,
-  two concurrent non-overlapping Default Executors, and one independent Tester. Senior Executor was
-  not justified for the bounded packages.
-- The generated digest is optional recent-activity/episodic/open-thread retrieval; the context map is
-  on-demand load-cost routing. The unconsumed `.agent/CHECKPOINT.md` surface and its test/callers are gone.
-- PR #253 now makes acceptance review operator-started and integration-aware: Ali names the PR; the
-  reviewer resolves its current base/main and head revisions from GitHub, reviews that pair, rechecks
-  both before verdict, and treats movement of either as invalidating prior ACCEPT evidence.
-- SKY-025 P7 is explicitly handled as a one-time migration because #235, #236, #237 and corrective
-  #239 were merged before the new pre-merge lifecycle. Its next action is a fresh read-only review of
-  the already-integrated P7 result; a FIX opens a corrective P7 PR and returns to normal pre-merge review.
+- External ACCEPT now binds to a reviewer-resolved target/base + PR-head integration pair. The reviewer
+  resolves/rechecks revisions from GitHub; Ali supplies the PR identity, not commit hashes.
+- SKY-025 P7 has an explicit one-time already-merged review path; FIX creates one corrective P7 PR.
+- From P8 onward, SKY-025 uses one open PR per numbered phase. Internal P8A/P8B-style slices stay on that
+  same PR and are never human-merged independently.
+- The SKY-025 directive and disposition map now carry current execution state only; implementation
+  chronology remains in Git/journal.
+- P8 is prepared: migrate entity derivation/audit plus the rebuildable SQLite cache/query layer to small
+  Python modules while preserving existing identity, freshness, query, and failure semantics.
 
 ## Verification
 
-- Earlier Phase 5 verification passed construction, continuity, digest, documentation drift, repo
-  surface, nightly sequence, Nix build, renderer agreement, full pytest, Ruff and mypy gates.
-- This open review-lifecycle repair must pass its own focused and full repository gates before handoff;
-  the current PR/CI state is higher authority than this summary.
-- No root, production credential, deploy, live infrastructure write, or self-merge is involved.
+- Earlier SKY-026 Phase 5 verification and prior #253 checks were green before this additional SKY-025
+  migration work.
+- The updated PR must pass focused lifecycle tests plus the full pytest, Ruff, mypy, packaged Nix,
+  invariant/construction/shell gates, and `git diff --check` again before review handoff.
+- No production endpoint, credential, root grant, service/timer, inventory, or live infrastructure write
+  is involved.
 
 ## Pending Work and Blockers
 
-- Fresh manual external review of open fix PR #253 is pending after its current checks pass. The
-  reviewer resolves revision hashes directly from GitHub; Ali does not supply or compare them.
-- After accepted human merge, bounded closeout must update durable state/archive surfaces to merged
-  accepted reality; closeout does not automatically start another acceptance review.
+- PR #253 remains open and must receive a fresh external review after the current migration checks pass.
+- After ACCEPT + human merge, bounded SKY-026 closeout must archive SKY-026 and hand current focus back
+  to SKY-025.
+- SKY-025 P8 remains intentionally blocked until the one-time P7 integrated-main review returns ACCEPT
+  and closeout records P7 accepted.
 
 ## Next Entry Point
 
-Ali manually starts a **new separate review chat** for open PR #253 after this fix session reports its
-checks green. Do not resume the implementation/fix session to perform that review. If FIX, paste the
-reviewer's prompt into the original fix session, which updates the same PR and stops again. If
-`ACCEPT SKY-026`, human-merge PR #253 while the reviewer-confirmed integration pair remains current,
-then run the bounded final closeout/archive.
+Ali starts a **new separate review chat for open PR #253** after this implementation/fix session reports
+its checks green. If FIX, paste the reviewer's prompt back into this session and update the same PR. If
+`ACCEPT SKY-026`, human-merge #253, run bounded SKY-026 closeout, then start the one-time fresh P7 review.
+After P7 ACCEPT + closeout, begin the prepared P8 packet on one open P8 PR.
