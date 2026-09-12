@@ -10,37 +10,36 @@ and each capability earns autonomy through recorded verification and rollback ev
 
 ## Overall Progress
 
-- The operating constitution, trust tiers, GitOps loop, generated inventory, runbooks, and directive
-  lifecycle are established.
-- Several infrastructure and engine directives remain active; [`planning/README.md`](../planning/README.md)
-  is the generated roadmap for their exact state.
-- SKY-026 is in progress. Phases 1–4 established Main-directed routes, native specialist roles,
-  batching, repair ownership, independent verification, compact agent memory, Archivist closure,
-  and recorded token accounting. Phase 5 implementation was merged in PR #252; bounded review-handoff
-  fix PR #253 must receive fresh manual acceptance review while still open, before human merge.
+- The constitution, trust tiers, GitOps loop, generated inventory, runbooks, directive lifecycle, and
+  native SKY-026 construction model are established.
+- SKY-026 is in progress. Phases 1–4 are accepted; Phase 5 implementation is merged in PR #252. Open
+  PR #253 contains the final review-lifecycle correction plus the SKY-025 migration to that lifecycle.
+- SKY-025 accepted progress is P6/24. P7 implementation/corrective work is already merged in #235,
+  #236, #237 and #239 under the former workflow, so P7 has one bounded legacy integrated-main review
+  remaining. P8 is prepared but not executable until P7 ACCEPT + closeout.
 
 ## Current Position
 
-SKY-026 Phase 5 implementation is on `main` via merged PR #252. A Main-only Light PR-state task, the
-Phase-4 Medium session, and the Phase-3/Phase-5 Heavy sessions provide traceable route evidence. Heavy
-used two concurrent non-overlapping Executor packages; natural defects returned to their owning
-Executor and the same Tester passed the recheck. The digest and context map have distinct on-demand
-roles, the unused checkpoint is removed, and current construction guidance uses SKY-026 only. Open
-PR #253 owns the remaining review-process correction: implementation/fix sessions stop after publishing
-their PR; Ali manually starts a separate fresh reviewer; that reviewer resolves and rechecks the
-current target/base + PR-head integration pair directly from GitHub. Ali supplies the PR identity,
-not hashes to shuttle between sessions. No production authority or live host is involved.
+Open PR #253 makes external review operator-started and integration-aware: Ali names the PR; the fresh
+reviewer resolves current target/base + PR-head revisions from GitHub, reviews that pair, rechecks both
+before verdict, and invalidates ACCEPT if either moves. Ali never carries hashes between sessions.
 
-SKY-025 has a separate one-time migration issue: its P7 implementation/fix PRs were already merged
-before the new pre-merge lifecycle. The active SKY-025 directive defines one read-only review of the
-already-integrated P7 result; a P7 FIX opens a corrective PR and returns to the normal pre-merge path.
+SKY-025 is fully migrated for future work:
+
+- P7 is the sole already-merged legacy exception;
+- from P8 onward one numbered phase owns one open phase PR;
+- internal slices remain on that same PR and are not separately merged;
+- FIX stays on the same PR; ACCEPT precedes human merge;
+- the active directive/map are lean current-state documents and P8A/P8B are already prepared.
 
 ## Next Milestone
 
-Ali manually starts a fresh separate review of open PR #253. The reviewer resolves the current Git
-revision pair itself. If FIX, return the paste-ready prompt to the original fix session, update the same
-PR, and review again fresh. If `ACCEPT SKY-026`, human-merge #253 while the reviewer-confirmed pair is
-still current, then perform the bounded final closeout: update durable agent memory to the merged
-accepted state, mark Phase 5 done, set `current_phase: 5`, archive the directive through the planning
-lifecycle, refresh the roadmap, and keep authored merge human-only. The closeout does not automatically
-trigger another acceptance review unless it introduces substantive implementation changes.
+1. Freshly review open PR #253. If FIX, repair the same PR and stop again. If `ACCEPT SKY-026`, human-
+   merge it while the reviewer-confirmed integration pair remains current.
+2. Run the bounded SKY-026 post-merge closeout/archive. That closeout hands current construction focus
+   back to SKY-025.
+3. Freshly review SKY-025 P7 using its one-time already-merged transition. No PR number or SHA is needed.
+4. On P7 ACCEPT, bounded closeout records `current_phase: 7` and releases the prepared P8 packet.
+5. Begin P8 on one open `SKY-025 P8` PR.
+
+No production authority or live host change is involved in these handoffs.
