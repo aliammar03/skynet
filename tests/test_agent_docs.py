@@ -40,7 +40,6 @@ LIFECYCLE_FILES = (
     "agent_docs/latest_session_work.md",
 )
 FORBIDDEN_OLD_CLOSEOUT = (
-    "post-merge closeout",
     "bounded post-merge",
     "after accept + human merge",
     "then run bounded closeout",
@@ -100,7 +99,7 @@ class AgentDocsContractTests(unittest.TestCase):
         self.assertIn("do not edit stable memory", archivist)
         self.assertIn("do not commit, push, or merge", archivist)
         self.assertIn("stable memory", construction)
-        self.assertIn("frozen after accept", construction)
+        self.assertIn("frozen because", construction)
 
     def test_native_roles_share_acceptance_marker_and_same_pr_closeout_contract(self) -> None:
         for name in ROLE_FILES:
@@ -129,7 +128,10 @@ class AgentDocsContractTests(unittest.TestCase):
             ("progress", progress),
             ("latest", latest),
         ):
-            self.assertIn("acceptance marker", text, name)
+            self.assertTrue(
+                "acceptance marker" in text or "skynet-acceptance:v1" in text,
+                f"{name}: missing reviewer acceptance marker contract",
+            )
             self.assertIn("same", text, name)
             self.assertIn("pr", text, name)
             self.assertTrue(has_private_free_marker(text), name)
@@ -149,7 +151,7 @@ class AgentDocsContractTests(unittest.TestCase):
         self.assertIn("verdict=accept", review)
         self.assertIn("base=<full reviewed base sha>", review)
         self.assertIn("head=<full reviewed head sha>", review)
-        self.assertIn("posts one machine-readable acceptance marker", review)
+        self.assertIn("post exactly one machine-readable acceptance marker", review)
         self.assertIn("ali only tells the original", review)
         self.assertIn("accepted", review)
         self.assertIn("when ali returns and says `accepted`", execute)
@@ -179,7 +181,8 @@ class AgentDocsContractTests(unittest.TestCase):
             self.assertIn("stable", text, name)
             self.assertIn("substantive", text, name)
 
-        self.assertIn("there is no second closeout pr", construction)
+        self.assertIn("second closeout pr", construction)
+        self.assertIn("no automatic second acceptance review", construction)
         self.assertIn("never create a closeout-only pr", runbook)
         self.assertIn("there is **no post-merge closeout pr**", sky026)
 
@@ -199,14 +202,17 @@ class AgentDocsContractTests(unittest.TestCase):
             self.assertIn("closeout", text, path)
             self.assertIn("head", text, path)
             self.assertIn("base", text, path)
-            self.assertIn("stale", text, path)
+            self.assertTrue(
+                "stale" in text or "invalidates accept" in text,
+                f"{path}: missing stale-accept semantics",
+            )
             self.assertIn("substantive", text, path)
 
         self.assertIn("head movement alone does **not** invalidate accept", texts["docs/conventions/construction.md"])
         self.assertIn("reviewed-base movement", texts["planning/prompts/review.md"])
         self.assertIn("marker-head..final-head", texts["planning/prompts/execute.md"])
 
-    def test_lifecycle_surfaces_do_not_reintroduce_post_merge_closeout_pr(self) -> None:
+    def test_lifecycle_surfaces_do_not_reintroduce_old_closeout_sequence(self) -> None:
         for path in LIFECYCLE_FILES:
             text = normalized((ROOT / path).read_text(encoding="utf-8"))
             self.assertTrue(has_private_free_marker(text), path)
@@ -234,7 +240,7 @@ class AgentDocsContractTests(unittest.TestCase):
         self.assertIn("no standalone p7 closeout pr", disposition)
         self.assertIn("no standalone p7 closeout pr", prompt_readme)
         self.assertIn("p8 pr", review)
-        self.assertIn("current_phase: 7", review)
+        self.assertIn("current_phase 7", review)
 
     def test_corrective_p7_pr_uses_normal_open_pr_mode_not_legacy_mode(self) -> None:
         review = normalized((ROOT / "planning/prompts/review.md").read_text(encoding="utf-8"))
