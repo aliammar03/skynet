@@ -21,7 +21,7 @@ and each capability earns autonomy through recorded verification and rollback ev
 
 ## Current Position
 
-The normal lifecycle is deliberately small:
+The normal lifecycle is deliberately small and ends in **one human merge**:
 
 ```text
 implement/fix → one open PR → fresh review → durable verdict marker
