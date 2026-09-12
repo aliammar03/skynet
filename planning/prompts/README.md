@@ -1,5 +1,5 @@
 ---
-summary: "SKY-025 handoffs: one open PR per numbered phase, fresh review, same-PR accepted closeout, one human merge, no human SHA bookkeeping."
+summary: "SKY-025 handoffs: one open PR per numbered phase, fresh review, same-PR accepted closeout, one human merge, plus durable one-time P7 legacy acceptance on #239."
 ---
 
 # SKY-025 phase handoffs
@@ -61,8 +61,15 @@ P7 implementation/corrective PRs #235, #236, #237 and #239 were already merged b
 became current. P7 therefore gets one fresh review of the already-integrated result on current `main`.
 This is the only merge-first exception.
 
-- ACCEPT → **no standalone P7 closeout PR**. Start P8; the P8 implementation PR records P7 accepted /
-  `current_phase: 7` as opening bookkeeping before P8 implementation.
+Merged PR **#239 is the durable legacy-acceptance anchor**. On P7 ACCEPT, the reviewer posts a
+machine-readable `skynet-legacy-acceptance:v1` marker there containing `scope=SKY-025 P7`,
+`verdict=ACCEPT`, and the exact reviewed `integrated_main` revision. Ali never carries that revision
+between chats.
+
+- ACCEPT → **no standalone P7 closeout PR**. A fresh P8 session fetches the latest valid marker from
+  #239 itself and resolves current `main`. P8 may start only when current `main` exactly equals the
+  marker's accepted integrated revision. Any intervening `main` movement makes the legacy ACCEPT stale
+  and requires another fresh P7 review before P8 can advance P7 state.
 - FIX → one bounded corrective P7 PR. That new PR uses the normal open-PR flow above and never returns
   to legacy integrated-main review.
 
