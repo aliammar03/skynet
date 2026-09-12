@@ -1,5 +1,5 @@
 ---
-summary: "Execute the currently authorized SKY-025 numbered phase on one open phase PR, then stop for fresh review."
+summary: "Execute the authorized SKY-025 phase on one PR; after fresh ACCEPT, close out that same PR and hand it back for one human merge."
 ---
 
 # Execute SKY-025
@@ -12,9 +12,10 @@ Follow the active SKY-025 directive and
 Read `agent_docs/`, AGENTS.md, planning/README.md, the active SKY-025 directive, and
 `planning/sky-025-map.md` before broad exploration.
 
-If the directive still says **P7 review pending / accepted progress 6 of 24**, do not implement P8.
-Return only the current P7 review invocation from the directive. P8 becomes executable only after a
-truthful P7 ACCEPT and bounded closeout records `current_phase: 7`.
+If the directive still says **P7 review pending / accepted progress 6 of 24**, do not implement P8
+unless P7 has just received the one-time legacy ACCEPT. For that legacy ACCEPT, do **not** create a P7
+closeout PR: start the natural P8 PR and make its opening bookkeeping record P7 accepted /
+`current_phase: 7` before P8 implementation.
 
 Otherwise execute the single authorized packet in the directive.
 
@@ -23,36 +24,34 @@ Otherwise execute the single authorized packet in the directive.
 From P8 onward, every numbered phase owns one branch/PR targeting `main`.
 
 - Start from current remote `main` unless an open PR already exists for this numbered phase.
-- If the phase already has an open PR, reuse it. Never create a second phase PR just because work is
-  continuing in another session.
-- Internal lettered slices are bounded working units on the same phase PR. Do not merge them separately.
+- Reuse an existing phase PR. Never create a second phase PR because work continued in another session.
+- Internal lettered slices stay on that same phase PR and are never merged independently.
 - Preserve unrelated work and existing trust/live boundaries.
-- Never begin the next numbered phase before the current one is externally ACCEPTed, human-merged, and
-  closed out.
+- Never begin the next numbered phase before the current one is externally ACCEPTed and its **same-PR
+  closeout has been human-merged**.
 
-The implementation session may record Git revisions as evidence in the PR, but must never ask Ali to
-copy, compare, or carry commit hashes between chats.
+Ali never copies, compares, or carries Git revision hashes between chats.
 
 ## 3. Route and implement
 
 Use the directive's Light/Medium/Heavy recommendation and native SKY-026 construction contract.
-Delegate bounded work through the current native roles when useful. Workers do not merge and gain no
+Delegate bounded work through current native roles when useful. Workers do not merge and gain no
 production authority.
 
 Implement only the authorized phase/slice. Update affected callers, behavioral tests, packaging, and
-current documentation together. If the phase needs more than one internal slice, continue on the same
-open phase PR until the complete numbered phase is implementation-ready.
+current documentation together. If the phase needs multiple internal slices, continue on the same open
+phase PR until the complete numbered phase is implementation-ready.
 
 Do not silently weaken an exit criterion, widen live authority, invent validation, or turn temporary
 migration compatibility into a second permanent engine.
 
 ## 4. Verify
 
-Run the focused checks needed for the changed surface, then the phase's required full gates. Report
-exact commands/results and any skipped or unavailable validation. In Heavy work, use the independent
-Tester contract and return ordinary defects to the owning Executor before handoff.
+Run focused checks for the changed surface, then the phase's required full gates. Report exact results
+and any unavailable validation. In Heavy work, use the independent Tester contract and return ordinary
+defects to the owning Executor before handoff.
 
-## 5. Handoff and STOP
+## 5. Implementation handoff and STOP
 
 When the complete numbered phase is implementation-ready:
 
@@ -62,8 +61,7 @@ When the complete numbered phase is implementation-ready:
 - **STOP**.
 
 Do not start, spawn, or continue into final acceptance review. Ali manually starts a fresh review chat.
-The reviewer resolves the current target/base and PR head directly from GitHub and rechecks them before
-verdict.
+The reviewer resolves current target/base + PR head itself and rechecks both before verdict.
 
 Use PR title:
 
@@ -71,13 +69,38 @@ Use PR title:
 SKY-025 P<N>: <outcome>
 ```
 
-For a reviewer-requested repair, keep the same open PR and title family:
+For reviewer-requested repair, keep the same PR:
 
 ```text
 SKY-025 P<N> fix: <outcome>
 ```
 
-A compact PR body is enough:
+## 6. When Ali returns and says `accepted`
+
+This is **accepted closeout mode**, not a new implementation phase and not another PR.
+
+1. Fetch the latest `skynet-acceptance:v1` marker from this PR conversation yourself.
+2. Verify its scope matches this phase/repair, the PR is still open, current target/base equals the
+   marker's reviewed base, and current PR head equals the marker's reviewed head **before** closeout.
+   If any check fails, report ACCEPT stale and require a fresh review. Never ask Ali for hashes.
+3. Apply only bounded closeout bookkeeping on this same PR:
+   - mark the accepted directive phase/state;
+   - archive/advance planning state as required;
+   - update `agent_docs/project_progress.md`, `project_diary.md`, `latest_session_work.md`;
+   - append journal closure evidence;
+   - run normal generators for closure-derived views when required.
+4. Do **not** change source/runtime/config/tests/invariants/AGENTS/doctrine/runbooks/behavioral docs/stable
+   agent memory or any substantive implementation surface. If such a change is needed, stop: ACCEPT is
+   stale and the same PR needs fresh review after the change.
+5. Prove the marker-head..final-head delta is closeout-only, rerun closure-focused gates plus normal CI,
+   and recheck target/base still equals the marker base.
+6. Push the closeout to this same PR, report it ready for **one human merge**, then STOP.
+
+The closeout commit moves the PR head by design; that allowed bookkeeping movement alone does not
+invalidate ACCEPT. Private GitHub Free still leaves a non-atomic race between the final recheck and
+Ali clicking Merge, so prefer prompt merge but do not claim atomicity.
+
+A compact pre-review PR body is enough:
 
 ```text
 Phase: P<N> <outcome>
@@ -88,5 +111,8 @@ Review status: implementation ready / pending fresh review
 Review handoff: Read planning/prompts/review.md and review SKY-025 PR #<number>.
 ```
 
-If publishing is unavailable, preserve the branch/commit and report the blocker. Do not merge your own
-work.
+After accepted closeout, update the body to state `Review status: ACCEPTED; bounded closeout staged on
+this same PR; ready for one human merge.`
+
+If publishing is unavailable, preserve the branch/commit and report the blocker. Never merge your own
+work and never create a closeout-only PR.
