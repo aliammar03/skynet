@@ -1,5 +1,5 @@
 ---
-summary: "Fresh read-only SKY-025 review: normal open phase PRs bind ACCEPT to reviewer-resolved base+head; P7 has one legacy integrated-main transition."
+summary: "Fresh read-only SKY-025 review: normal open-PR mode approves a reviewer-resolved base+head pair; P7 has one legacy integrated-main transition."
 ---
 
 # Review SKY-025
@@ -9,29 +9,43 @@ Follow the active SKY-025 directive and
 
 The reviewer is read-only. **Ali provides only `P7` or a PR number. Never ask Ali for commit hashes.**
 
-## Mode A · normal P8+ open phase PR
+## Mode A · normal open-PR review
 
-Use this for P8 and every later numbered phase.
+Use this mode for:
+
+- every P8+ numbered phase PR; and
+- any bounded corrective P7 PR created after a legacy P7 FIX verdict.
+
+A corrective P7 PR is ordinary new open-PR work. It never falls back into the one-time integrated-main
+legacy review mode below.
 
 1. Read `agent_docs/`, AGENTS.md, planning/README.md, the active SKY-025 directive/map, and the target
-   open phase PR. Inspect relevant callers/contracts/tests as needed.
-2. Confirm there is exactly one open PR representing the numbered phase. Internal slices must be on
-   this same PR; they must not have been separately merged under the new P8+ workflow.
+   open PR. Inspect relevant callers/contracts/tests as needed.
+2. For a P8+ numbered phase, confirm there is exactly one open PR representing that numbered phase.
+   Internal slices must be on this same PR; they must not have been separately merged under the new
+   workflow. For a corrective P7 PR, confirm the PR is the bounded repair created from the legacy P7 FIX.
 3. Resolve from GitHub:
    - target branch;
    - **reviewed base SHA** = current target-branch tip;
-   - **reviewed head SHA** = current phase PR head.
+   - **reviewed head SHA** = current PR head.
 4. Review the actual integration result for that base+head pair. Run relevant independent checks. CI
    green is supporting evidence, not acceptance by itself.
 5. Immediately before verdict, resolve base and head again. If either moved, refresh the affected
    review against the new pair. GitHub mergeability or an unchanged head alone is insufficient.
-6. Choose ACCEPT, FIX, or BLOCKED against the phase exits.
+6. Choose ACCEPT, FIX, or BLOCKED against the applicable phase/repair exits.
 
 ### Normal ACCEPT
 
-ACCEPT belongs only to the reviewer-resolved base+head pair. The verdict records both as audit evidence,
-but **Ali does not compare or shuttle them**. Human merge is valid only while the pair remains current;
-movement of either requires fresh review.
+ACCEPT approves the exact reviewer-resolved base+head pair verified immediately before the verdict. The
+verdict records both as audit evidence, but **Ali does not compare or shuttle them**. If either revision
+is known to change before merge, the ACCEPT is stale and a fresh review is required.
+
+On the intended private GitHub Free setup, this approval is **not** a mechanical or atomic guarantee
+that the later human merge will use the same pair. A race window remains between the reviewer's final
+recheck/ACCEPT and Ali later clicking Merge. Prompt human merge after ACCEPT reduces that window but
+does not eliminate it. Do not require a paid GitHub upgrade, manual SHA comparison, or a helper that
+claims false atomicity. If future repository configuration provides enforceable up-to-date-branch
+protection or an equivalent atomic guarantee, the doctrine may strengthen this contract then.
 
 Use:
 
@@ -40,9 +54,12 @@ ACCEPT SKY-025 P<N>
 PR: #<number> <URL>
 Review binding (automatic): base <full SHA>; head <full SHA>
 Evidence: <exit criterion → independent result>
-Limitations: <explicit unverified items, or none>
-Next: human-merge this PR, then bounded closeout releases P<N+1>.
+Limitations: private GitHub Free leaves a race window between this final recheck/ACCEPT and later human merge; <other explicit unverified items, or none>
+Next: human-merge this PR promptly if no repository/PR change is known; any known base/head movement makes this ACCEPT stale and requires fresh review. Then run bounded closeout.
 ```
+
+For a corrective P7 PR, the title/verdict may say `SKY-025 P7 corrective`, but it uses this same normal
+open-PR review contract.
 
 ### Normal FIX
 
@@ -78,8 +95,9 @@ phase.
 
 ## Mode B · one-time P7 already-merged transition
 
-Use this only while accepted progress remains 6/24 and #235, #236, #237 and corrective #239 are already
-merged. **Do not require a nonexistent open P7 PR.**
+Use this only for the historical P7 implementation already merged in #235, #236, #237 and corrective
+#239 while accepted progress remains 6/24. **Do not use Mode B for a new corrective P7 PR.** Do not
+require a nonexistent open PR for the historical merged work.
 
 1. Resolve current `main` from GitHub and record it as the reviewed integrated revision.
 2. Review the complete **already-integrated P7 result**, including #235, #236, #237, #239 and any later
@@ -106,8 +124,8 @@ were reviewed pre-merge.
 
 ### P7 FIX
 
-Return only one fenced repair prompt. It must create **one bounded corrective P7 PR**. Once open, that
-corrective PR immediately follows Mode A: fresh pre-merge review, FIX on the same PR, ACCEPT before human
-merge.
+Return only one fenced repair prompt. It must create **one bounded corrective P7 PR**. Once that new PR
+is open, review it with **Mode A, the normal open-PR review**, exactly like a future phase PR: resolve
+and recheck base+head, FIX on the same PR, ACCEPT before human merge. It must never return to Mode B.
 
 No future phase may use Mode B.
