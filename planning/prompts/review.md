@@ -42,7 +42,12 @@ For corrective P7 use `scope=SKY-025 P7 corrective`.
 
 **Newest applicable marker wins.** Older markers are audit history only. A newer FIX or BLOCKED marker
 supersedes every older ACCEPT, even when base and head are unchanged. A malformed newest applicable
-marker fails closed. The implementation/fix session must never create or forge review-state markers.
+marker fails closed. Any superseded or mismatched ACCEPT is stale. The implementation/fix session must
+never create or forge review-state markers.
+
+On **private GitHub Free**, the final agent recheck and Ali's later click-to-merge are not atomic. Prompt
+merge minimizes but does not eliminate that race. Never require Ali to compare hashes or claim the
+review state makes that interval atomic.
 
 ### ACCEPT
 
