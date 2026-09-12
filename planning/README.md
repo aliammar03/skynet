@@ -36,10 +36,15 @@ scratchpad ──▶ ideas ──▶ backlog ──▶ projects ──▶ archiv
 - **Trust tiers.** If a directive touches **T2+/T3** or moves a blast-radius boundary, its plan must
   also PR `docs/system-design.md` — same rule as everywhere else. (`tier_touched` frontmatter flags it.)
 - **PR-gated.** Directives land via PR like all repo changes; the agent never merges its own.
-- **Phases are ~1–2h.** Anything longer is split, and each phase ends with a **close-out**: a PR,
-  Main's three agent-memory state updates, raw journal evidence, a frontmatter bump, and one next
-  entry point so the next session recovers from `agent_docs/` plus the directive. Do not create a
-  second task database.
+- **Phases are ~1–2h.** Anything longer is split. Normal authored phase closure uses the same PR as
+  implementation: implementation/fix publishes one PR and stops → fresh reviewer ACCEPTs and writes
+  the acceptance marker → Ali tells the original session `accepted` → that session writes only bounded
+  closeout bookkeeping on the **same PR** → Ali human-merges that PR once. Do not create a second
+  closeout-only PR. Main's three state-memory files, raw journal evidence, directive/frontmatter state,
+  roadmap/index state, and generator-owned closure views are the normal closeout surfaces. Substantive
+  post-ACCEPT changes require fresh review.
+- **One next entry point.** Every implementation-ready, paused, blocked, or accepted-closeout state
+  leaves exactly one recoverable next step in `latest_session_work.md`. Do not create a second task DB.
 - **Reopening is exceptional.** A completed maintenance directive may return from `archive/` to
   `projects/` only on explicit human instruction when the same maintenance domain needs another bounded
   phase set. Preserve its completed phases/history and permanent ID; never keep duplicate archive and
@@ -66,8 +71,9 @@ paste into a fresh session.
 
 For SKY-025, use the [execute/review handoff prompts](prompts/README.md). Current accepted progress is
 P6/24; P7 is the sole already-merged migration review, and P8 is prepared behind that gate. From P8
-onward, one numbered phase owns one open PR; internal slices remain on that PR until fresh pre-merge
-acceptance. Ali never needs to provide commit hashes to a reviewer.
+onward, one numbered phase owns one open PR; internal slices remain on that PR until fresh acceptance,
+then bounded closeout stays on that **same accepted PR** before one human merge. Ali never provides
+commit hashes to the reviewer or closeout session.
 
 ## Roadmap
 
