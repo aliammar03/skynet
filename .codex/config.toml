@@ -10,6 +10,12 @@
 # Acceptance review is operator-started against the open authored PR in a separate fresh chat/session.
 # The implementation or fix session publishes its authored PR, reports the PR handoff, and stops; it
 # must not start, spawn, or continue into acceptance review itself. The reviewer resolves the target
-# base/main SHA and PR head SHA directly from GitHub, rechecks both before verdict, and binds ACCEPT to
-# that pair. Ali does not supply or compare hashes manually. After ACCEPT, Ali human-merges only while
-# the reviewed pair remains current, then starts bounded closeout for durable project state/archive.
+# base/main SHA and PR head SHA directly from GitHub, reviews that integration pair, and rechecks both
+# immediately before verdict. ACCEPT approves that exact last-verified pair. If either revision is
+# known to have moved before merge, ACCEPT is stale and fresh review is required. On the intended
+# private-GitHub-Free setup there is no mechanical/atomic guarantee that the pair cannot move after
+# the reviewer's final recheck and before Ali later clicks Merge; prompt human merge minimizes but
+# does not remove that race window. Ali does not supply or compare hashes manually. A future repository
+# configuration with enforceable up-to-date-branch protection or an equivalent atomic guarantee may
+# strengthen this contract, but it is not required today. After human merge, bounded closeout records
+# durable project state/archive.
