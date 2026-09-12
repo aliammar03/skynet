@@ -68,6 +68,8 @@ jobs:
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
+      - name: lifecycle contract tests
+        run: nix develop --no-write-lock-file -c pytest -q tests/test_agent_docs.py
       - name: behavioral tests
         run: nix develop --no-write-lock-file -c pytest -q
       - name: lint
