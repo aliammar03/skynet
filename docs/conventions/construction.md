@@ -162,19 +162,31 @@ same PR, publishes it, reports the PR handoff, and stops again; Ali manually sta
 reviewer. The human handoff names the PR, **not a SHA that Ali must shuttle between chats**. Repeat until
 ACCEPT. `[manual]`
 
-`ACCEPT` records and applies only to the reviewer-resolved **base+head pair**. After ACCEPT, Ali
-human-merges that PR only while both target/base and head remain the reviewed pair. Movement of either
-invalidates the verdict and requires fresh review of the resulting integration state before merge.
-Ali is not expected to compare hashes manually; any review/merge helper must resolve them from GitHub.
-After the accepted PR is merged, a bounded closeout updates durable project state, directive/archive,
-and roadmap as required. That closeout does **not** automatically launch another acceptance review
-unless it introduces substantive implementation changes. `[manual]`
+`ACCEPT` is approval of the exact reviewer-resolved **base+head pair** verified immediately before the
+verdict. If either revision is **known** to move before human merge, that ACCEPT is stale and the current
+integration state requires fresh review. Ali is not expected to compare hashes manually; agents own
+revision resolution. `[manual]`
+
+On the intended **private GitHub Free** setup, the current workflow cannot mechanically or atomically
+freeze that reviewed pair between the reviewer's final recheck/ACCEPT and Ali later clicking Merge.
+That post-verdict interval is an unavoidable race window. Prompt human merge after ACCEPT minimizes but
+does not eliminate it, so doctrine must not claim the later merge is guaranteed to use the reviewed
+pair. Do not require a paid GitHub upgrade, manual SHA comparison, or a read-then-merge helper that
+pretends its check and GitHub's merge operation are atomic. If future repository configuration provides
+enforceable up-to-date-branch protection or an equivalent atomic guarantee, this contract may be
+strengthened then; it is not a prerequisite today. `[manual]`
+
+After the PR is human-merged, bounded closeout records the reviewer-approved pair and the actual merged
+result as distinct evidence, then updates durable project state, directive/archive, and roadmap as
+required. That closeout does **not** automatically launch another acceptance review unless it introduces
+substantive implementation changes. `[manual]`
 
 A directive may define a **bounded legacy transition** only for work that was already human-merged
 before this pre-merge lifecycle became current. Such a transition must name the already-merged work and
 a single truthful integrated-state review target; it cannot be used for future implementation. A legacy
 ACCEPT records the integrated revision reviewed and proceeds to bounded closeout. A legacy FIX opens a
-new corrective PR, which immediately returns to the normal pre-merge base+head lifecycle. `[manual]`
+new corrective PR, which immediately returns to the normal open-PR base+head lifecycle and cannot fall
+back into the legacy integrated-state mode. `[manual]`
 
 ## Continuity and truth surfaces
 
@@ -191,13 +203,15 @@ stable memory (`project_overview.md`, `project_core_tech.md`, `project_structure
 docs/runbooks; it never decides acceptance, rewrites Main-owned deployment state during closure, or
 hand-edits generated outputs (`inventory/`, `docs/generated/`). `[manual]`
 
-After a fresh reviewer returns ACCEPT for the current base+head pair and Ali human-merges that accepted
-PR, a bounded closeout Main updates the three state-memory files and active directive from merged
-evidence, performs required planning/archive transitions, and refreshes owned generated views. This is
-the point at which durable memory may say the work is accepted/merged. The closeout records the review
-pair and actual human-merged result as evidence, but ordinary human handoffs need only the PR identity.
-The closeout remains human-merged and does not create an automatic acceptance-review loop unless it
-contains substantive implementation changes. `[manual]`
+After a fresh reviewer approves the exact base+head pair verified immediately before ACCEPT and Ali later
+human-merges the PR, a bounded closeout Main updates the three state-memory files and active directive
+from merged evidence, performs required planning/archive transitions, and refreshes owned generated
+views. This is the point at which durable memory may say the work is accepted/merged. If a base/head
+change was known before merge, the prior ACCEPT was stale and closeout must not treat it as valid.
+On private GitHub Free, closeout must not claim the review atomically guaranteed the merged integration
+pair: it records the reviewer-approved pair and actual human-merged result separately. Ordinary human
+handoffs need only the PR identity. The closeout remains human-merged and does not create an automatic
+acceptance-review loop unless it contains substantive implementation changes. `[manual]`
 
 The generated digest remains the read-time view of recent decisions, open threads, and raw episodes;
 the context map remains the generated routing/load-cost index. Neither generated view is required for
@@ -211,7 +225,7 @@ Every substantive closure leaves exactly one `## Next Entry Point` in `latest_se
 | implementation ready | Main records verified implementation state and the open authored PR as pending fresh review; it does not claim external acceptance or merge | operator-started fresh review of that PR; reviewer resolves the current base/head pair |
 | paused | Main records verified position, pending work, and checks without advancing the phase | the same-phase Continue prompt |
 | blocked | Main records the exact external condition and sets directive/progress status `blocked` | the same-phase Continue prompt naming the unblock condition |
-| accepted + merged | bounded closeout records reviewer ACCEPT for the reviewed base+head pair, actual human-merged PR evidence, final directive/progress/archive state, and reusable lessons | the next active directive/phase entry point |
+| accepted + merged | bounded closeout records the pair approved immediately before ACCEPT, the actual human-merged PR result, final directive/progress/archive state, and reusable lessons; private GitHub Free does not make those two observations atomic | the next active directive/phase entry point |
 
 At the start of each substantive Medium/Heavy deployment, Main emits
 `<!-- skynet-deployment-start: <deployment_id> -->` in its first commentary message. The ID is unique,
