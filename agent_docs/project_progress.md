@@ -12,12 +12,10 @@ and each capability earns autonomy through recorded verification and rollback ev
 
 - The constitution, trust tiers, GitOps loop, generated inventory, runbooks, directive lifecycle, and
   native SKY-026 construction model are established.
-- SKY-026 remains in progress. Phases 1–4 are accepted. Open PR #253 contains the Phase-5 workflow
-  overhaul plus the final review-process repair: every ACCEPT/FIX/BLOCKED verdict is now durable and
-  the newest applicable verdict is authoritative.
-- SKY-025 accepted progress remains P6/24 in repository state. Corrective P7 PR #254 contains the final
-  route-source fail-closed fix and is ready for human merge after fresh acceptance. P8 is prepared and
-  remains blocked until P7 is truthfully closed.
+- **SKY-026 is complete.** Phases 1–5 are accepted and the directive is archived. PR #253 contains the
+  accepted final workflow plus this bounded closeout and is awaiting one human merge.
+- Corrective SKY-025 P7 PR #254 is accepted and merged. SKY-025 repository progress remains P6/24 until
+  the natural P8 PR records P7 accepted / `current_phase: 7` as opening bookkeeping, then implements P8.
 
 ## Current Position
 
@@ -44,15 +42,12 @@ reduces but does not remove that race window. No paid-plan requirement or manual
 the workflow.
 
 SKY-025 uses the same simple rule for corrective P7 and all P8+ PRs. The historical already-merged P7
-path remains a one-time compatibility gate only; once a corrective P7 PR exists, that PR uses normal
-open-PR review and never returns to the legacy path.
+path was a one-time migration bridge; corrective P7 returned to the normal open-PR lifecycle and is now
+merged.
 
 ## Next Milestone
 
-1. Merge accepted corrective P7 PR #254 first.
-2. Fresh-review the repaired current head of PR #253 if following the lifecycle strictly; its older
-   ACCEPT is stale and must not be reused.
-3. Once both land, continue SKY-025 at P8 and record the P7 accepted/current-phase transition in the
-   natural P8 PR as already planned.
+1. Human-merge accepted PR #253 after this closeout's final CI/base recheck passes.
+2. Start SKY-025 P8 from current `main`; its opening bookkeeping records P7 accepted / `current_phase: 7`.
 
 No production authority or live host change is involved in these handoffs.
