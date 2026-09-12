@@ -114,14 +114,20 @@ Executors, Tester, Archivist — own scoped work, each used only where the runti
 that role; concurrency follows platform capacity and non-overlapping ownership. Implementation/fix
 sessions publish their authored PR and stop; Ali manually starts a fresh acceptance review against the
 open PR before human merge. The reviewer resolves the current target/base SHA and PR head SHA directly
-from GitHub, reviews that integration pair, and rechecks both before verdict. A fix returns to the
-original session; ACCEPT permits human merge only while that reviewer-resolved pair remains current.
-Ali supplies the PR identity, not hashes to copy between chats. New procedural code follows
-[the capability convention](docs/conventions/scripts.md); implementation language grants no authority.
-The unprivileged NixOS `aliammar` account is Codex's construction filesystem/OS boundary: ordinary
-account-accessible work runs without approval prompts, while `gh pr merge` and both repository
-`grant-root` spellings are hard-blocked. Native workers inherit that session posture; no role/model
-gains production authority.
+from GitHub, reviews that integration pair, and rechecks both immediately before verdict. ACCEPT
+approves that exact last-verified pair. If either revision is known to move before merge, ACCEPT is
+stale and a fresh review is required. Ali supplies the PR identity, not hashes to copy between chats.
+On the intended private GitHub Free setup, there is an unavoidable race window between the reviewer's
+final recheck/ACCEPT and Ali later clicking Merge: the workflow does not mechanically or atomically
+freeze the reviewed pair through merge. Prompt human merge minimizes but does not eliminate that
+window. Do not require a paid GitHub upgrade, manual SHA comparison, or a helper that falsely claims
+atomicity. A future enforceable up-to-date-branch or equivalent atomic mechanism may strengthen this
+contract, but it is not a prerequisite today. A fix returns to the original implementation/fix session.
+New procedural code follows [the capability convention](docs/conventions/scripts.md); implementation
+language grants no authority. The unprivileged NixOS `aliammar` account is Codex's construction
+filesystem/OS boundary: ordinary account-accessible work runs without approval prompts, while
+`gh pr merge` and both repository `grant-root` spellings are hard-blocked. Native workers inherit that
+session posture; no role/model gains production authority.
 
 ```
 edit compose/<svc>/ → branch → PR → fresh acceptance review → Ali merges
