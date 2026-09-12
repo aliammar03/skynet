@@ -5,84 +5,59 @@
 
 ## Detailed Current State
 
-SKY-026 Phases 1–4 are accepted. Phase 5 remains in progress on open PR #253. The first fresh reviewer
-ACCEPTed the workflow overhaul and posted a `skynet-acceptance:v1` marker; Ali then returned with only
-`accepted`, and Main began the new same-PR closeout exactly as designed.
+Two open PRs are intentionally separate:
 
-That closeout did **not** reach merge-ready state. Final closeout CI exposed a substantive defect in
-`tests/test_agent_docs.py`: several lifecycle tests hard-coded the active SKY-026 path under
-`planning/projects/`, so they failed when valid closeout moved the directive to `planning/archive/`.
-Because repairing tests is a substantive post-ACCEPT change, the previous ACCEPT is stale by doctrine.
-SKY-026 has therefore been returned from archive to `planning/projects/`, with P5 implementation-ready
-and pending one new fresh review.
+- **#254** is the bounded corrective SKY-025 P7 route-source fix. It fails closed when the authored
+  Caddyfile is readable but yields zero supported routes, retains previous route evidence on failure,
+  and keeps backend-less authored `respond` routes valid. Its verification is green and Ali has accepted
+  it for human merge.
+- **#253** is the SKY-026/SKY-025 review-process overhaul. Its last independent review found one defect:
+  normal open-PR review persisted ACCEPT but not later FIX/BLOCKED verdicts, allowing an older ACCEPT to
+  survive a newer rejection on the same revision. The repair now persists every verdict and makes the
+  newest applicable marker authoritative. The old Mode A/Mode B labels are removed from active prompts.
 
-The test repair now resolves SKY-026 from exactly one lifecycle location: active `planning/projects/`
-when in progress, or `planning/archive/` after accepted closeout. It also asserts that both copies cannot
-exist simultaneously. This lets the regression suite verify the same lifecycle contract before and
-after legitimate archive movement instead of accidentally forbidding closeout itself.
+The simplified normal lifecycle is:
 
-SKY-025 accepted progress remains P6/24. Historical P7 implementation/fix PRs #235, #236, #237 and
-#239 are already merged under the former workflow, so P7 has one legacy integrated-main review left.
-P8 is prepared and remains blocked until truthful P7 ACCEPT.
+```text
+implement/fix → open PR → fresh review → durable ACCEPT/FIX/BLOCKED marker
+→ newest applicable verdict wins
+→ only newest ACCEPT may enter bounded closeout on SAME PR
+→ CI/final recheck → Ali merges once
+```
+
+Ali never copies hashes. A newer FIX/BLOCKED or malformed newest marker blocks closeout. Private GitHub
+Free still leaves a non-atomic race window between the final agent recheck and Ali clicking Merge.
+
+SKY-025 repository state remains P6/24 until the accepted P7 corrective PR lands and the planned P8
+opening bookkeeping records P7 accepted/current phase 7. P8 is already prepared behind that gate.
 
 ## Session Changes
 
-The first accepted-closeout attempt established useful evidence even though ACCEPT later became stale:
-
-- Main independently fetched the reviewer acceptance marker and confirmed #253 was open and its then-
-  current base/head matched the marker before any closeout write.
-- The initial post-ACCEPT delta contained only sanctioned bookkeeping: directive archive movement,
-  roadmap state, Main-owned progress/diary/latest memory, and append-only journal evidence.
-- GitHub final closeout CI then failed only because lifecycle tests still referenced the pre-archive
-  SKY-026 path.
-- Main did not create a compatibility duplicate or weaken the archive rule. Instead it treated the
-  necessary test repair as substantive, invalidated ACCEPT, updated the same PR, and restored SKY-026
-  to active in-progress state for fresh review.
-- `tests/test_agent_docs.py` now follows active-or-archived SKY-026 dynamically and guards exact-one-
-  location ownership.
-
-The canonical lifecycle remains:
-
-```text
-implement/fix → open PR → fresh review → ACCEPT marker
-→ Ali tells original session "accepted"
-→ bounded closeout on SAME PR → CI/final recheck → Ali merges once
-```
-
-If closeout itself reveals a substantive defect, that ACCEPT becomes stale and the same PR returns to
-fresh review. There is still no closeout-only PR and no automatic self-review.
-
-Private GitHub Free still leaves a non-atomic race window between the final agent recheck and Ali
-clicking Merge. Prompt merge minimizes but does not eliminate that race.
+- Kept #254 bounded to P7 route-source validation only.
+- Repaired #253 so every normal open-PR verdict writes durable `skynet-acceptance:v1` state.
+- Closeout now selects the newest applicable marker rather than searching for the newest ACCEPT.
+- Added regressions for ACCEPT → newer FIX, ACCEPT → newer BLOCKED, malformed newest marker, and
+  base/head movement.
+- Removed Mode A/Mode B terminology from active SKY-025 review prompts.
+- Updated construction doctrine/runbook to match the same single newest-verdict rule.
 
 ## Verification
 
-- Reviewer marker validation before the first closeout was correct and exact.
-- The reviewed substantive head had passed run #650: lifecycle contracts **14 passed**; full pytest
-  **286 passed, 1 skipped**; Ruff clean; mypy clean across **14 source files**; packaged Nix checks,
-  hard invariants, `git diff --check`, construction, rollback/provisioning, digest, and nightly gates
-  all passed.
-- First closeout run #657 passed hard invariants, `git diff --check`, digest, construction, rollback/
-  provisioning, and nightly gates, but lifecycle tests failed because they hard-coded the active
-  SKY-026 path. That failure is the reason the previous ACCEPT is stale.
-- Repaired current head passed GitHub Actions run **#666**: lifecycle contracts **15 passed**; full
-  pytest **287 passed, 1 skipped**; Ruff clean; mypy clean across **14 source files**; packaged Nix
-  checks passed; hard invariants, `git diff --check`, entity/digest, rollback/provisioning,
-  construction, nightly-automerge, and nightly-sequence gates all passed.
+- #254 exact-head GitHub Actions run #689: **278 passed, 1 skipped**; Ruff clean; mypy clean across 14
+  source files; packaged Nix checks and repository hard-law/rollback/construction gates passed.
+- #253 requires a new CI run on the repaired head; do not reuse its earlier stale ACCEPT marker.
 - No production endpoint, credential, root grant, service/timer, inventory, or live infrastructure
   write occurred.
 
 ## Pending Work and Blockers
 
-- Run one new fresh external review of the current open PR #253 head. Do not reuse the previous
-  acceptance marker.
-- FIX returns to this same implementation session and same PR.
-- On new ACCEPT, Ali returns here with only `accepted`; Main then reruns bounded same-PR closeout and
-  hands #253 back for **one human merge** only if closeout-only delta proof and final CI are green.
-- After #253 lands, run the one-time SKY-025 P7 integrated-main review; P7 ACCEPT releases P8.
+- Merge #254 first once ready at the GitHub UI.
+- Let #253 CI run on the repaired head. If following the review lifecycle strictly, run one fresh review
+  of that head before merging because the prior ACCEPT is stale.
+- After both PRs land, continue SKY-025 at P8. No new review-workflow redesign is needed.
 
 ## Next Entry Point
 
-Start a **new fresh review of open PR #253**. The reviewer resolves the current revisions itself and
-must post a new acceptance marker on ACCEPT. Do not merge #253 on the stale marker. FIX returns here;
-new ACCEPT returns here with only `accepted` for another bounded closeout.
+Finish PR #253 verification. When green, the only remaining process decision is whether to run its fresh
+external review before human merge. Do not reopen review-workflow design; then continue SKY-025 P8 after
+#254 has landed.

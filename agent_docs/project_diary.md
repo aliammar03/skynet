@@ -12,20 +12,22 @@
   bounded workers own assigned context, implementation, verification, or docs. External final
   acceptance belongs only to a separate fresh reviewer manually started by Ali.
 - Fresh review resolves current target/base SHA + PR-head SHA, reviews that integration result, and
-  rechecks both immediately before verdict. On ACCEPT the reviewer posts a machine-readable
-  `skynet-acceptance:v1` marker to the PR conversation containing scope, reviewed base, reviewed head,
-  and verdict. Ali identifies the PR and later says only `accepted`; agents handle revision identities.
-- After ACCEPT, the original implementation/fix session validates the marker and performs **bounded
-  closeout on that same accepted PR before merge**. Allowed post-ACCEPT Git changes are directive/
-  archive/planning state, Main-owned deployment-state `agent_docs`, append-only journal closure evidence,
-  and generator-owned closure views. Source/runtime/config/tests/invariants/AGENTS/doctrine/runbooks/
-  behavioral docs/stable memory or other substantive changes invalidate ACCEPT and require fresh review.
+  rechecks both immediately before verdict. Every final ACCEPT/FIX/BLOCKED verdict is persisted as one
+  machine-readable `skynet-acceptance:v1` marker on the PR. The newest applicable marker is authoritative;
+  a newer FIX/BLOCKED revokes any older ACCEPT even when the reviewed revisions are unchanged.
+- After ACCEPT, the original implementation/fix session validates that the newest applicable marker is
+  still ACCEPT and performs **bounded closeout on that same accepted PR before merge**. Allowed
+  post-ACCEPT Git changes are directive/archive/planning state, Main-owned deployment-state `agent_docs`,
+  append-only journal closure evidence, and generator-owned closure views. Source/runtime/config/tests/
+  invariants/AGENTS/doctrine/runbooks/behavioral docs/stable memory or other substantive changes
+  invalidate ACCEPT and require fresh review.
 - The sanctioned closeout commit moves PR head by design and does not itself invalidate ACCEPT. A
-  reviewed-base movement, unexplained head movement, or substantive post-ACCEPT delta does. Main proves
-  marker-head..final-head is closeout-only; Ali never performs SHA comparison.
+  reviewed-base movement, unexplained head movement, newer non-ACCEPT review-state marker, or
+  substantive post-ACCEPT delta does. Main proves marker-head..final-head is closeout-only; Ali never
+  performs SHA comparison.
 - Normal authored work therefore uses **one PR and one human merge**: implementation → fresh review →
-  ACCEPT marker → same-PR closeout → human merge. There is no closeout-only PR and no automatic second
-  review for a valid closeout-only delta.
+  durable verdict marker → same-PR closeout only when newest verdict is ACCEPT → human merge. There is
+  no closeout-only PR and no automatic second review for a valid closeout-only delta.
 - SKY-026's first real same-PR closeout proved the stale-ACCEPT escape hatch: final CI exposed a
   regression test that assumed the directive could never move from `planning/projects/` to
   `planning/archive/`. Fixing that test was substantive, so the ACCEPT was invalidated and SKY-026
@@ -64,6 +66,8 @@
   it is not closeout anymore and must go back through review.
 - A green pre-ACCEPT suite is not enough to prove the closeout transition itself works; lifecycle tests
   must tolerate legitimate state movement such as an active directive becoming archived.
+- Durable review state must persist negative verdicts too. Otherwise an older ACCEPT can survive a newer
+  FIX/BLOCKED on the exact same revision and incorrectly authorize closeout.
 - The reviewer-owned PR marker plus a machine-checked closeout-only delta gives the implementation
   session enough evidence to close accepted work without making Ali shuttle revision hashes.
 - Token accounting must fail closed when ancestry, the first-commentary boundary, or recorded usage is
