@@ -59,9 +59,9 @@ cannot express a required behavior and Ali separately authorizes that complexity
 
 | Route | Owner | Support | Use |
 |---|---|---|---|
-| Light | Main | none | small bounded work |
-| Medium | Main | Companion / Investigator / Archivist | substantive work Main still implements/verifies |
-| Heavy | Executors + Testers | full topology | decomposable cross-cutting work |
+| **Light** | Main | none | small bounded work |
+| **Medium** | Main | Companion / Investigator / Archivist | substantive work Main still implements/verifies |
+| **Heavy** | Executors + Testers | full topology | decomposable cross-cutting work |
 
 Light is default unless the task/directive selects another route. Main owns architecture, decomposition,
 integration, risk/authority decisions, internal implementation acceptance, and user communication.
@@ -139,33 +139,39 @@ reviewer resolves + reviews + rechecks base/head
 ### Review
 
 Reviewer is implementation-read-only. It may inspect anything needed and run read-only/verification
-work, but never repairs implementation. Its only allowed repository mutation is one ACCEPT marker
-comment on the PR:
+work, but never repairs implementation. Its only allowed repository mutation is exactly one final
+review-state marker comment on the PR for ACCEPT, FIX, or BLOCKED:
 
 ```text
 <!-- skynet-acceptance:v1
 scope=SKY-026
-verdict=ACCEPT
+verdict=<ACCEPT|FIX|BLOCKED>
 base=<full reviewed base SHA>
 head=<full reviewed head SHA>
 -->
 ```
 
 The reviewer resolves current target/base + PR head itself and rechecks both immediately before verdict.
-If either moved before verdict, refresh affected evidence before ACCEPT. Ali never copies or compares
-hashes.
+If either moved before verdict, refresh affected evidence before any final verdict. Ali never copies or
+compares hashes.
+
+The newest applicable `skynet-acceptance:v1` marker by GitHub conversation order is authoritative.
+Older markers are audit history only. A newer FIX or BLOCKED revokes every older ACCEPT even when the
+reviewed base/head are unchanged, and a malformed newest applicable marker fails closed.
 
 ### After Ali says `accepted`
 
 The original implementation/fix session must:
 
-1. fetch the acceptance marker itself;
-2. verify the PR is still open and current base/head equal marker base/head **before** closeout;
-3. apply only closeout bookkeeping on that same PR;
-4. prove marker-head..final-head is closeout-only;
-5. run closure-focused gates and normal CI;
-6. recheck target/base still equals marker base;
-7. report that same PR ready for one human merge and STOP.
+1. fetch all applicable `skynet-acceptance:v1` markers and select the newest applicable marker by GitHub
+   conversation order; do not search for the newest ACCEPT;
+2. require that newest marker to be well formed with `verdict=ACCEPT`;
+3. verify the PR is still open and current base/head equal marker base/head **before** closeout;
+4. apply only closeout bookkeeping on that same PR;
+5. prove marker-head..final-head is closeout-only;
+6. run closure-focused gates and normal CI;
+7. recheck target/base still equals marker base;
+8. report that same PR ready for one human merge and STOP.
 
 Allowed post-ACCEPT Git surfaces:
 
@@ -266,8 +272,8 @@ Fresh review needs only:
 Review open PR #253.
 ```
 
-Reviewer must resolve/recheck Git revisions itself, post the acceptance marker on ACCEPT, and never ask
-Ali to shuttle hashes.
+Reviewer must resolve/recheck Git revisions itself, post the review-state marker for its final verdict,
+and never ask Ali to shuttle hashes.
 
 ## Current next action
 
