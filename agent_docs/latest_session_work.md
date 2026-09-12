@@ -65,16 +65,17 @@ clicking Merge. Prompt merge minimizes but does not eliminate that race.
 - First closeout run #657 passed hard invariants, `git diff --check`, digest, construction, rollback/
   provisioning, and nightly gates, but lifecycle tests failed because they hard-coded the active
   SKY-026 path. That failure is the reason the previous ACCEPT is stale.
-- The repaired #253 head must pass focused lifecycle tests and the full repository suite before another
-  fresh review handoff.
+- Repaired current head passed GitHub Actions run **#665**: lifecycle contracts **15 passed**; full
+  pytest **287 passed, 1 skipped**; Ruff clean; mypy clean across **14 source files**; packaged Nix
+  checks passed; hard invariants, `git diff --check`, entity/digest, rollback/provisioning,
+  construction, nightly-automerge, and nightly-sequence gates all passed.
 - No production endpoint, credential, root grant, service/timer, inventory, or live infrastructure
   write occurred.
 
 ## Pending Work and Blockers
 
-- Wait for green CI on the repaired open PR #253.
-- Then run one new fresh external review of the current PR head. Do not reuse the previous acceptance
-  marker.
+- Run one new fresh external review of the current open PR #253 head. Do not reuse the previous
+  acceptance marker.
 - FIX returns to this same implementation session and same PR.
 - On new ACCEPT, Ali returns here with only `accepted`; Main then reruns bounded same-PR closeout and
   hands #253 back for **one human merge** only if closeout-only delta proof and final CI are green.
@@ -82,6 +83,6 @@ clicking Merge. Prompt merge minimizes but does not eliminate that race.
 
 ## Next Entry Point
 
-With repaired #253 CI green, start a **new fresh review of open PR #253**. The reviewer resolves the
-current revisions itself and must post a new acceptance marker on ACCEPT. Do not merge #253 on the stale
-marker. FIX returns here; new ACCEPT returns here with only `accepted` for another bounded closeout.
+Start a **new fresh review of open PR #253**. The reviewer resolves the current revisions itself and
+must post a new acceptance marker on ACCEPT. Do not merge #253 on the stale marker. FIX returns here;
+new ACCEPT returns here with only `accepted` for another bounded closeout.
