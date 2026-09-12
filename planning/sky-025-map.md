@@ -10,7 +10,8 @@ Current accepted progress is **P6 / 6 of 24**. P7 implementation/corrective work
 **#235, #236, #237 and #239**, but P7 is not yet accepted. **No implementation packet is currently
 released.** The **single current next action** is the one-time fresh read-only review of the
 **already-integrated P7 result** on current `main`. ACCEPT closes P7 and releases the prepared P8
-packet. FIX opens one bounded corrective P7 PR, then uses the normal pre-merge lifecycle.
+packet. FIX opens one bounded corrective P7 PR, which then uses the normal open-PR review lifecycle and
+never returns to the legacy integrated-main review mode.
 
 The reviewer resolves/rechecks Git revisions from GitHub. Ali supplies the phase/PR identity, not hashes.
 
