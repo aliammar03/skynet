@@ -28,16 +28,18 @@ prepared P8 entity/cache packet.
 
 ## Verification
 
-- Earlier SKY-026 Phase 5 verification and prior #253 checks were green before this additional SKY-025
-  migration work.
-- The updated PR must pass focused lifecycle tests plus the full pytest, Ruff, mypy, packaged Nix,
-  invariant/construction/shell gates, and `git diff --check` again before review handoff.
+- GitHub Actions `checks` passed after the SKY-025 migration and lifecycle-regression additions: full
+  pytest **282 passed, 1 skipped**; Ruff clean; mypy clean across 14 source files; packaged Nix checks
+  passed.
+- Hard invariants, `git diff --check`, entity/digest/rollback/provisioning gates, the construction
+  contract gate, and nightly safety suites all passed on the same reviewed branch state.
 - No production endpoint, credential, root grant, service/timer, inventory, or live infrastructure write
   is involved.
 
 ## Pending Work and Blockers
 
-- PR #253 remains open and must receive a fresh external review after the current migration checks pass.
+- PR #253 remains open and must receive a fresh external review. This implementation/fix session does
+  not perform that review or merge the PR.
 - After ACCEPT + human merge, bounded SKY-026 closeout must archive SKY-026 and hand current focus back
   to SKY-025.
 - SKY-025 P8 remains intentionally blocked until the one-time P7 integrated-main review returns ACCEPT
@@ -45,7 +47,7 @@ prepared P8 entity/cache packet.
 
 ## Next Entry Point
 
-Ali starts a **new separate review chat for open PR #253** after this implementation/fix session reports
-its checks green. If FIX, paste the reviewer's prompt back into this session and update the same PR. If
-`ACCEPT SKY-026`, human-merge #253, run bounded SKY-026 closeout, then start the one-time fresh P7 review.
-After P7 ACCEPT + closeout, begin the prepared P8 packet on one open P8 PR.
+Ali starts a **new separate review chat for open PR #253**. If FIX, paste the reviewer's prompt back into
+this session and update the same PR. If `ACCEPT SKY-026`, human-merge #253, run bounded SKY-026 closeout,
+then start the one-time fresh P7 review. After P7 ACCEPT + closeout, begin the prepared P8 packet on one
+open P8 PR.
