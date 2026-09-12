@@ -37,7 +37,7 @@ legacy review mode below.
 ### Normal ACCEPT
 
 ACCEPT approves the exact reviewer-resolved base+head pair verified immediately before the verdict. The
-verdict records both as audit evidence, but **Ali does not compare or shuttle them**. If either revision
+verdict records both as audit evidence, but Ali does not compare or shuttle them. If either revision
 is known to change before merge, the ACCEPT is stale and a fresh review is required.
 
 On the intended private GitHub Free setup, this approval is not a mechanical or atomic guarantee that
