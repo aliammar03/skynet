@@ -17,7 +17,8 @@ this session independently validates the one-time legacy review state. Do not re
 review chat and never ask Ali for a revision hash.
 
 1. Fetch all `skynet-legacy-acceptance:v1` markers from merged **PR #239** and select the **newest**
-   applicable marker by GitHub conversation order.
+   applicable marker by GitHub conversation order. In older wording, "fetch the latest valid
+   `skynet-legacy-acceptance:v1` marker" means this newest review-state marker, not the newest ACCEPT.
 2. Require exactly:
    - `scope=SKY-025 P7`;
    - `anchor_pr=239`;
@@ -25,8 +26,10 @@ review chat and never ask Ali for a revision hash.
    - **newest marker `verdict=ACCEPT`**.
 3. Resolve current remote `main` yourself immediately before creating/reusing the P8 branch.
 4. Require current `main` to equal the newest marker's `integrated_main`. If the newest marker is absent,
-   malformed, FIX, BLOCKED, or current `main` differs, report **P7 review stale/not accepted**, keep P8
-   blocked, and do not advance P7 state. Never fall back to an older ACCEPT marker.
+   malformed, FIX, BLOCKED, or current `main` differs, report **P7 ACCEPT stale/missing**, keep P8
+   blocked, and do not advance P7 state from a stale marker. Never fall back to an older ACCEPT marker.
+   Any intervening `main` movement after the accepted revision also requires a fresh one-time P7 Mode B
+   review while the legacy gate is still active.
 5. Only after both checks pass, start from that validated `main`, use the natural P8 PR, and make its
    opening bookkeeping record P7 accepted / `current_phase: 7` before P8 implementation. No standalone
    P7 closeout PR is created.
