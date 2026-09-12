@@ -6,13 +6,9 @@ summary: "SKY-025 current subsystem dispositions, callers, replacement phases, a
 
 Owned by [the active directive](projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md).
 
-Current accepted progress is **P6 / 6 of 24**. P7 implementation/corrective work is already merged in
-**#235, #236, #237 and #239**, but P7 is not yet accepted. **No implementation packet is currently
-released.** The **single current next action** is the one-time fresh review of the **already-integrated
-P7 result** on current `main`. ACCEPT releases the prepared P8 packet; because historical P7 has no
-open PR, the P8 PR carries the small P7 accepted/`current_phase: 7` transition as opening bookkeeping.
-No standalone P7 closeout PR is created. FIX opens one bounded corrective P7 PR, which then uses the
-normal open-PR review → same-PR closeout → one-human-merge lifecycle and never returns to legacy mode.
+Current accepted progress is **P7 / 7 of 24**. Corrective P7 PR **#254** is accepted and merged.
+P8 is active on its single numbered-phase branch/PR; its entity and disposable-cache slices remain
+working units on that same PR and are never merged independently.
 
 The reviewer resolves/rechecks Git revisions from GitHub. Ali supplies the phase/PR identity, not hashes.
 For normal open PRs, ACCEPT is recorded in a machine-readable PR marker; Ali later says only `accepted`
@@ -30,7 +26,7 @@ This file is a current disposition/caller/blocker map. Implementation chronology
 | PBS + Docker shell collectors | migrate | Python PBS/Docker collectors | backup/container views | P5 accepted; shell forwarding cleanup P22 |
 | DNS + OPNsense shell collectors | migrate | Python DNS + live OPNsense collectors | DNS/firewall/state views | P6 accepted; shell forwarding cleanup P22 |
 | offline OPNsense `config.xml` inventory parser | **deleted** | none | none | retired P6c; config.xml is DR restore material only |
-| Omada/cert/routes/recon shell implementations | migrate | Python observation modules | default collection/status/render/recon | P7 implemented; acceptance pending |
+| Omada/cert/routes/recon shell implementations | migrate | Python observation modules | default collection/status/render/recon | P7 accepted |
 | `scripts/entity.sh` | migrate/delete shell logic | prepared `src/skynet/entities.py` | audit, routes, cache/render/query consumers | P8A |
 | `scripts/audit-entities.sh` | migrate/delete shell logic | Python entity audit | `bin/ops entities`, CI/current diagnostics | P8A |
 | `scripts/build-db.sh` | migrate/delete shell logic | small Python rebuildable-cache module | `bin/ops query`, renderer | P8B |
@@ -64,10 +60,8 @@ callers together and delete duplicate procedural logic.
 
 ## P8 caller map
 
-P8 is prepared but remains blocked until the one-time P7 review returns ACCEPT. After that verdict, the
-P8 PR begins by recording P7 accepted/current_phase 7, then performs P8. From P8 onward, internal slices
-stay on one open numbered-phase PR and are not merged separately. Normal ACCEPT is followed by bounded
-closeout on that same PR and then one human merge.
+P8 is active. Its internal slices stay on one open numbered-phase PR and are not merged separately.
+Normal ACCEPT is followed by bounded closeout on that same PR and then one human merge.
 
 ### P8A · entity derivation/audit
 

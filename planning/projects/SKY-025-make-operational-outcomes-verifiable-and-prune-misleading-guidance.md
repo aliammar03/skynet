@@ -4,9 +4,9 @@ title: Rebuild the Skynet engine in Python
 status: in-progress
 horizon: long
 created: 2026-09-06
-updated: 2026-09-12
+updated: 2026-09-13
 phases: 24
-current_phase: 6
+current_phase: 7
 tier_touched: [T1, T2, T2+, T3]
 related:
   - docs/system-design.md
@@ -22,24 +22,11 @@ related:
 
 ## 1. Current state
 
-Accepted numbered progress is **P6 / 6 of 24**.
+Accepted numbered progress is **P7 / 7 of 24**. The one-time P7 migration review required a corrective
+change; corrective PR **#254** was accepted and merged through the authored-PR lifecycle.
 
-P7 implementation is complete and already merged in PRs **#235, #236, #237 and corrective #239**.
-Those PRs landed under the former post-merge review workflow, so there is no open P7 PR to review.
-P7 is therefore the only legacy migration case.
-
-**Single current next action:** start one fresh P7 review using the one-time already-merged transition in
-[`../prompts/review.md`](../prompts/review.md). The reviewer inspects the **already-integrated P7 result**
-on current `main`, including #235, #236, #237, #239 and later P7-owned changes.
-
-- **P7 ACCEPT** → do **not** create a standalone P7 closeout PR. Start the natural P8 PR; its opening
-  bookkeeping records P7 accepted (`current_phase: 7`) before P8 implementation.
-- **P7 FIX** → open one bounded corrective P7 PR. It then uses the normal open-PR review → same-PR
-  closeout → one-merge lifecycle and never returns to legacy integrated-main mode.
-- No implementation packet is executable until P7 receives a truthful ACCEPT.
-
-P8 is prepared below so work can begin immediately after P7 ACCEPT, with the P7 progress transition
-recorded at the start of the P8 PR instead of manufacturing a bookkeeping-only PR.
+**Current action:** implement the complete P8 entity-spine and rebuildable-query-cache packet on its
+single `phase/sky-025-p8` branch and PR. P8 remains repository-only and requires no live authority.
 
 ## 2. Mandate and boundaries
 
@@ -160,26 +147,11 @@ immediately returns to the normal lifecycle above.
 
 Architecture checkpoints G1/G2 are already behind us. G3–G6 remain at phases 9/14/17/23.
 
-## 5. Current gate and prepared P8 packet
+## 5. Current P8 packet
 
-### 5.1 P7 migration gate — current action
+### Phase 8 — entity spine + rebuildable query cache
 
-Start a fresh review chat with:
-
-```text
-Read planning/prompts/review.md and review SKY-025 P7 using the one-time already-merged transition.
-```
-
-Reviewer resolves current `main` itself, reviews the complete integrated P7 result, and rechecks current
-`main` before verdict. Do not ask Ali for a SHA.
-
-P7 ACCEPT alone releases P8. Because no P7 PR exists, the **P8 PR's opening bookkeeping** updates this
-frontmatter to `current_phase: 7`, aligns Main-owned `agent_docs` + map/roadmap state, and then proceeds
-with P8. No standalone P7 closeout PR is created.
-
-### 5.2 Phase 8 — entity spine + rebuildable query cache
-
-**Status:** prepared, **not executable until P7 ACCEPT**.
+**Status:** in progress.
 
 **Recommended Main:** Heavy. Use one P8 branch/PR for the whole numbered phase. Internal slices are
 working units on that same PR, never separately merged.
@@ -297,8 +269,8 @@ require operation-specific recovery evidence, not blind `git revert`.
 Read planning/prompts/execute.md and execute the next authorized SKY-025 packet.
 ```
 
-Until P7 is accepted, `execute.md` refuses P8 and points to the P7 migration review. After P7 ACCEPT,
-that same invocation starts P8 and records P7 accepted/current_phase 7 as opening P8-PR bookkeeping.
+The current invocation executes P8. Later invocations execute only the next packet released by this
+directive's numbered progress and review state.
 
 ### Review a normal open PR
 

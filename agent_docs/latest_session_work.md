@@ -26,8 +26,8 @@ implement/fix → open PR → fresh review → durable ACCEPT/FIX/BLOCKED marker
 Ali never copies hashes. A newer FIX/BLOCKED or malformed newest marker blocks closeout. Private GitHub
 Free still leaves a non-atomic race window between the final agent recheck and Ali clicking Merge.
 
-SKY-025 repository state remains P6/24 until P8 opens. P8 will record P7 accepted / `current_phase: 7`
-as opening bookkeeping, then continue the Python-first overhaul.
+SKY-025 P8 is active on `phase/sky-025-p8`. Its opening bookkeeping records P7 accepted /
+`current_phase: 7`; implementation now owns the entity spine and rebuildable SQLite query cache.
 
 ## Session Changes
 
@@ -56,4 +56,4 @@ as opening bookkeeping, then continue the Python-first overhaul.
 
 ## Next Entry Point
 
-After final closeout verification passes, human-merge PR #253. Then start SKY-025 P8 from current `main`.
+Complete SKY-025 P8 on its single phase PR, then hand that open PR to a fresh external review.
