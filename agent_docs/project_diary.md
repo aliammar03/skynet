@@ -12,8 +12,12 @@
   plus implementation decisions and integration; bounded workers own their assigned context,
   implementation, verification, or docs. External final acceptance belongs only to a separate fresh
   reviewer manually started by Ali. That reviewer resolves the current target/base SHA and PR head
-  SHA from GitHub, reviews that integration pair, rechecks both before verdict, and binds ACCEPT to
-  the pair. Ali identifies the PR; agents handle revision hashes.
+  SHA from GitHub, reviews that integration pair, and rechecks both immediately before verdict.
+  ACCEPT approves that exact last-verified pair. If either revision is known to move before merge, the
+  verdict is stale and fresh review is required. On the intended private GitHub Free setup there is an
+  unavoidable race window between that final recheck/ACCEPT and the later human merge; ACCEPT is not an
+  atomic merge-time guarantee. Prompt human merge minimizes but does not remove the window. Ali
+  identifies the PR; agents handle revision hashes and Ali never performs manual SHA comparison.
 - Main owns progress, diary, and latest-session memory. Archivist owns assigned overview, technology,
   and structure memory plus assigned current docs; Archivist never decides internal integration
   acceptance or external final acceptance.
@@ -24,16 +28,19 @@
 - Final acceptance review is operator-started. An implementation or fix session publishes its authored
   PR, reports the review handoff, and stops; Ali manually starts each fresh reviewer in a separate chat
   against that open PR. Implementation sessions never launch their own acceptance review or re-review.
-  Movement of either the reviewed base or reviewed head invalidates ACCEPT; GitHub mergeability or an
-  unchanged head alone is insufficient. Only after ACCEPT does Ali human-merge the reviewed PR;
-  durable post-merge state/archive updates are a bounded closeout, not another automatic review.
+  Known movement of either reviewed revision invalidates ACCEPT. Because private GitHub Free does not
+  mechanically freeze the reviewed pair through the later click-to-merge operation, there is a residual
+  race after ACCEPT; this is a documented platform limitation, not a reason to add a paid-plan
+  prerequisite or make Ali compare hashes. Durable post-merge state/archive updates are a bounded
+  closeout, not another automatic review.
 - A directive may define one bounded legacy transition for work already merged before the current
-  pre-merge lifecycle. A legacy FIX must open a corrective PR and return to the normal pre-merge path;
-  the exception cannot authorize future work to bypass review-before-merge.
+  pre-merge lifecycle. A legacy FIX must open a corrective PR and return to the normal open-PR review
+  path; the exception cannot authorize future work to bypass review-before-merge.
 - SKY-025 uses one open authored PR per numbered phase from P8 onward. Internal lettered slices are
   working units on that same phase PR and are not merged separately. The complete numbered phase is
   reviewed once while its PR is open; FIX stays on that PR; ACCEPT precedes human merge. P7 is the
-  sole legacy already-merged exception.
+  sole legacy already-merged exception. Any corrective P7 PR created after a legacy P7 FIX uses the
+  same normal open-PR review mode as P8+ and never returns to the integrated-main legacy mode.
 - The unprivileged NixOS `aliammar` account is the construction filesystem/OS boundary. Native
   construction inherits its no-prompt Codex posture; self-root and authored self-merge are forbidden,
   and production authority remains governed separately by trust-tier contracts.
