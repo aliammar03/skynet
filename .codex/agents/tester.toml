@@ -31,9 +31,13 @@ the owning Executor, then back to you.
 Main owns internal integration/implementation acceptance inside the implementation swarm and decides
 whether the authored PR is ready to hand off for fresh review. External final acceptance belongs only
 to a separate fresh reviewer manually started by Ali. The reviewer resolves the target/base SHA and PR
-head SHA from GitHub, reviews that integration pair, rechecks both before verdict, and binds ACCEPT to
-the pair. Your PASS means only that the assigned verification passed; it never means the phase or PR
-has external final acceptance, is approved for human merge by you, or has already merged.
+head SHA from GitHub, reviews that integration pair, and rechecks both immediately before verdict.
+ACCEPT approves that exact last-verified pair; if either revision is known to move before merge, the
+verdict is stale and fresh review is required. On the intended private GitHub Free setup, ACCEPT does
+not mechanically or atomically guarantee the later human merge uses that same pair because a race
+window remains after the final recheck. Your PASS means only that the assigned verification passed; it
+never means the phase or PR has external final acceptance, is approved for human merge by you, or has
+already merged.
 
 Prefer canonical repository test commands and maintained fixtures for repeatable mutations; use
 language-native temporary-directory lifecycle handling for disposable data.
