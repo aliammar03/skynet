@@ -51,7 +51,7 @@ def test_main_movement_stales_latest_accept() -> None:
 def test_prompts_encode_newest_marker_semantics() -> None:
     review = (ROOT / "planning/prompts/review.md").read_text(encoding="utf-8").lower()
     execute = (ROOT / "planning/prompts/execute.md").read_text(encoding="utf-8").lower()
-    readme = (ROOT / "planning/prompts/readme.md").read_text(encoding="utf-8").lower()
+    readme = (ROOT / "planning/prompts/README.md").read_text(encoding="utf-8").lower()
 
     assert "for **every** mode b verdict" in review
     assert "verdict=<accept|fix|blocked>" in review
