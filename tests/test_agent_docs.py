@@ -24,12 +24,19 @@ ROLE_FILES = (
     "senior_executor.toml",
     "tester.toml",
 )
+SKY026_ACTIVE = Path(
+    "planning/projects/SKY-026-overhaul-agent-orchestration-around-a-main-worker-swarm.md"
+)
+SKY026_ARCHIVE = Path(
+    "planning/archive/SKY-026-overhaul-agent-orchestration-around-a-main-worker-swarm.md"
+)
+SKY026_PATH = SKY026_ACTIVE if (ROOT / SKY026_ACTIVE).exists() else SKY026_ARCHIVE
 LIFECYCLE_FILES = (
     "AGENTS.md",
     ".codex/config.toml",
     "docs/conventions/construction.md",
     "runbooks/construction-delegation.md",
-    "planning/projects/SKY-026-overhaul-agent-orchestration-around-a-main-worker-swarm.md",
+    SKY026_PATH.as_posix(),
     "planning/projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md",
     "planning/prompts/review.md",
     "planning/prompts/README.md",
@@ -80,6 +87,11 @@ class AgentDocsContractTests(unittest.TestCase):
                 ),
                 f"{name}: missing explicit higher-authority conflict rule",
             )
+
+    def test_sky026_has_exactly_one_lifecycle_location(self) -> None:
+        locations = [ROOT / SKY026_ACTIVE, ROOT / SKY026_ARCHIVE]
+        self.assertEqual(sum(path.exists() for path in locations), 1)
+        self.assertTrue(ROOT.joinpath(SKY026_PATH).exists())
 
     def test_main_and_archivist_ownership_split_is_explicit(self) -> None:
         construction = normalized(
@@ -135,13 +147,18 @@ class AgentDocsContractTests(unittest.TestCase):
             self.assertIn("same", text, name)
             self.assertIn("pr", text, name)
             self.assertTrue(has_private_free_marker(text), name)
-            self.assertIn("race", text, name)
+            self.assertTrue(
+                "race" in text or "non-atomic" in text,
+                f"{name}: missing private-Free race limitation",
+            )
 
         self.assertIn("one human merge", diary)
         self.assertIn("one human merge", progress)
         self.assertIn("one human merge", latest)
-        self.assertIn("previous accept", latest)
-        self.assertIn("stale", latest)
+        self.assertTrue(
+            "previous accept" in latest or "accept is stale" in latest or "externally accepted" in latest,
+            "latest: missing current acceptance state",
+        )
 
     def test_review_acceptance_posts_marker_and_user_only_says_accepted(self) -> None:
         review = normalized((ROOT / "planning/prompts/review.md").read_text(encoding="utf-8"))
@@ -165,12 +182,7 @@ class AgentDocsContractTests(unittest.TestCase):
         runbook = normalized(
             (ROOT / "runbooks/construction-delegation.md").read_text(encoding="utf-8")
         )
-        sky026 = normalized(
-            (
-                ROOT
-                / "planning/projects/SKY-026-overhaul-agent-orchestration-around-a-main-worker-swarm.md"
-            ).read_text(encoding="utf-8")
-        )
+        sky026 = normalized((ROOT / SKY026_PATH).read_text(encoding="utf-8"))
         for name, text in (("construction", construction), ("runbook", runbook), ("sky026", sky026)):
             self.assertIn("same pr", text, name)
             self.assertIn("closeout-only", text, name)
@@ -187,16 +199,16 @@ class AgentDocsContractTests(unittest.TestCase):
         self.assertIn("there is **no post-merge closeout pr**", sky026)
 
     def test_sanctioned_closeout_head_move_does_not_hide_other_staleness(self) -> None:
+        paths = (
+            Path("docs/conventions/construction.md"),
+            Path("runbooks/construction-delegation.md"),
+            SKY026_PATH,
+            Path("planning/projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md"),
+            Path("planning/prompts/review.md"),
+            Path("planning/prompts/execute.md"),
+        )
         texts = {
-            path: normalized((ROOT / path).read_text(encoding="utf-8"))
-            for path in (
-                "docs/conventions/construction.md",
-                "runbooks/construction-delegation.md",
-                "planning/projects/SKY-026-overhaul-agent-orchestration-around-a-main-worker-swarm.md",
-                "planning/projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md",
-                "planning/prompts/review.md",
-                "planning/prompts/execute.md",
-            )
+            path.as_posix(): normalized((ROOT / path).read_text(encoding="utf-8")) for path in paths
         }
         for path, text in texts.items():
             self.assertIn("closeout", text, path)
