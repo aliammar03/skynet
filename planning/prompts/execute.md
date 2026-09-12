@@ -1,67 +1,92 @@
 ---
-summary: "Execute one authorized SKY-025 phase or fix packet, publish its authored PR, hand off for manual review, then stop."
+summary: "Execute the currently authorized SKY-025 numbered phase on one open phase PR, then stop for fresh review."
 ---
 
-# Execute one packet
+# Execute SKY-025
 
-> Execution prompt for the [phase handoff workflow](README.md). Follow the active SKY-025 directive
-> and [`../../docs/conventions/construction.md`](../../docs/conventions/construction.md).
+Follow the active SKY-025 directive and
+[`../../docs/conventions/construction.md`](../../docs/conventions/construction.md).
 
-Execute the next authorized SKY-025 packet, or the phase/slice specified by Ali.
+## 1. Resolve the gate first
 
-1. Read `agent_docs/` once with AGENTS.md and planning/README.md before broad exploration. Locate the
-   single active SKY-025 directive by ID (`bin/plan show SKY-025`, or tracked files if that helper has
-   been replaced). Read its current packet, disposition map if present, and relevant conventions.
-   Load other files only as needed.
-2. Resolve current remote main and start a clean branch from it; preserve unrelated local work.
-   Record the base revision as implementation evidence. Verify the phase authorization is merged, its
-   preceding numbered phase accepted, and there is no outstanding FIX/BLOCKED review. Phase 1 is the
-   bootstrap exception: its merged detailed packet needs no predecessor review. If an implementation/fix
-   PR already exists for this packet, inspect and reuse that same branch/PR rather than duplicating it.
-   For remaining slices within an authorized phase, Main details the next bounded packet before work.
-   Completed slices need no independent phase review; preserve human merge and live/grant prerequisites.
-   Never advance to the next numbered phase without phase acceptance.
-3. Confirm the session's model/effort matches the packet. Follow the directive's routing rules;
-   do not claim a model switch or silently substitute an unavailable model. Route the session on a
-   Light/Medium/Heavy route and delegate workers, capsules, ownership, batching, and verification
-   through [`../../docs/conventions/construction.md`](../../docs/conventions/construction.md). The
-   phase table's route is guidance for the Main session, not a second orchestration system.
-4. Implement only this 1–2h packet, including affected callers, tests, and current documentation.
-   Follow its live boundaries and existing authorization. Downtime tolerance does not expand data,
-   credential, or privilege authority. If the scope no longer fits, propose a bounded slice and
-   record unfinished exits; do not quietly expand scope or declare the phase complete.
-5. Verify per the construction convention: in Light/Medium run the packet's meaningful checks
-   yourself; in Heavy evaluate the independent Tester's returned evidence against the exit criteria
-   rather than re-running its checks, and return ordinary defects to the owning Executor. Report exact
-   commands, results, skipped/unavailable checks, and temporary breakage. Do not invent validation or
-   weaken an exit criterion. Escalate unresolved architecture/recovery decisions according to the directive.
-6. Record implementation closeout evidence as the directive requires. Record slice and full-phase status
-   separately; do not increment accepted progress, accept your own phase, or flesh out dependent numbered
-   phases. A completed numbered phase is **implementation ready / pending fresh review**, not accepted.
-   Update Main-owned `agent_docs` state truthfully: an open PR is open, not merged or externally accepted.
-   Commit and push the scoped changes and open the authored PR to main. Never merge it.
-7. Report the PR URL/number, checks/results, limitations, and review handoff, then **STOP**. Do not ask
-   Ali to copy or compare commit hashes. Do not start, spawn, or continue into final acceptance review.
-   Ali manually starts that review in a separate fresh chat; the reviewer resolves the current target
-   base/main and PR-head revisions directly from GitHub and rechecks them before verdict.
+Read `agent_docs/`, AGENTS.md, planning/README.md, the active SKY-025 directive, and
+`planning/sky-025-map.md` before broad exploration.
 
-Use this PR title: `SKY-025 P<N>: <outcome>` (or `SKY-025 P<N> fix: <outcome>`).
-Use these compact PR body fields; replace placeholders with evidence:
+If the directive still says **P7 review pending / accepted progress 6 of 24**, do not implement P8.
+Return only the current P7 review invocation from the directive. P8 becomes executable only after a
+truthful P7 ACCEPT and bounded closeout records `current_phase: 7`.
+
+Otherwise execute the single authorized packet in the directive.
+
+## 2. One numbered phase = one open PR
+
+From P8 onward, every numbered phase owns one branch/PR targeting `main`.
+
+- Start from current remote `main` unless an open PR already exists for this numbered phase.
+- If the phase already has an open PR, reuse it. Never create a second phase PR just because work is
+  continuing in another session.
+- Internal lettered slices are bounded working units on the same phase PR. Do not merge them separately.
+- Preserve unrelated work and existing trust/live boundaries.
+- Never begin the next numbered phase before the current one is externally ACCEPTed, human-merged, and
+  closed out.
+
+The implementation session may record Git revisions as evidence in the PR, but must never ask Ali to
+copy, compare, or carry commit hashes between chats.
+
+## 3. Route and implement
+
+Use the directive's Light/Medium/Heavy recommendation and native SKY-026 construction contract.
+Delegate bounded work through the current native roles when useful. Workers do not merge and gain no
+production authority.
+
+Implement only the authorized phase/slice. Update affected callers, behavioral tests, packaging, and
+current documentation together. If the phase needs more than one internal slice, continue on the same
+open phase PR until the complete numbered phase is implementation-ready.
+
+Do not silently weaken an exit criterion, widen live authority, invent validation, or turn temporary
+migration compatibility into a second permanent engine.
+
+## 4. Verify
+
+Run the focused checks needed for the changed surface, then the phase's required full gates. Report
+exact commands/results and any skipped or unavailable validation. In Heavy work, use the independent
+Tester contract and return ordinary defects to the owning Executor before handoff.
+
+## 5. Handoff and STOP
+
+When the complete numbered phase is implementation-ready:
+
+- update Main-owned `agent_docs` truthfully as **implementation ready / pending fresh review**;
+- commit/push the phase PR;
+- report the PR URL/number, changed files, verification results, and limitations;
+- **STOP**.
+
+Do not start, spawn, or continue into final acceptance review. Ali manually starts a fresh review chat.
+The reviewer resolves the current target/base and PR head directly from GitHub and rechecks them before
+verdict.
+
+Use PR title:
 
 ```text
-Packet: <phase/slice; merged planning/closeout authority or bootstrap directive commit>
-Implementation base: <revision recorded by the implementation session>
-Why and changes: <problem, implemented behavior, affected callers/docs>
-Exit evidence: <each criterion → command/result or explicit gap>
-Limitations: <unverified checks, temporary breakage, recovery/live boundaries>
-Review status: full phase implementation ready / pending fresh review, or slice complete / phase in progress
-Review handoff for a complete numbered phase: Ali manually starts a new fresh review chat for this OPEN PR before merge:
-Read planning/prompts/review.md and review SKY-025 PR #<this PR number>.
-Include earlier merged slice PRs needed to judge the complete numbered phase.
+SKY-025 P<N>: <outcome>
 ```
 
-For an intermediate slice, give an execution continuation for the remaining same-phase work, not an
-independent review invocation. For a FIX, update the same open reviewed PR unless the reviewer explicitly
-identifies a repository-state reason that makes that impossible. Return the PR URL/number and applicable
-handoff, then stop. If publishing is unavailable, preserve the branch/commit and exact PR title/body and
-report the access blocker.
+For a reviewer-requested repair, keep the same open PR and title family:
+
+```text
+SKY-025 P<N> fix: <outcome>
+```
+
+A compact PR body is enough:
+
+```text
+Phase: P<N> <outcome>
+Why/changes: <implemented behavior + affected callers/docs>
+Exit evidence: <criterion → command/result or explicit gap>
+Limitations: <remaining unverified/live/recovery boundaries>
+Review status: implementation ready / pending fresh review
+Review handoff: Read planning/prompts/review.md and review SKY-025 PR #<number>.
+```
+
+If publishing is unavailable, preserve the branch/commit and report the blocker. Do not merge your own
+work.
