@@ -34,8 +34,12 @@ root grants, and never-standing T3 access; a construction worker has no producti
   integration/implementation acceptance and authored-PR readiness inside the implementation session,
   plus implementation decisions and integration. External final acceptance belongs only to a separate
   fresh reviewer manually started by Ali. The reviewer resolves the current target/base SHA and PR
-  head SHA from GitHub, reviews that integration pair, rechecks both before verdict, and binds ACCEPT
-  to the pair. Workers and implementation Main do not claim final acceptance, and Ali does not shuttle
+  head SHA from GitHub, reviews that integration pair, and rechecks both immediately before verdict.
+  ACCEPT approves that exact last-verified pair. If either revision is known to move before human merge,
+  the verdict is stale and fresh review is required. On the intended private GitHub Free setup there is
+  an unavoidable race window after the final recheck: ACCEPT does not mechanically or atomically
+  guarantee the later merge uses the same pair. Prompt human merge minimizes but does not remove that
+  window. Workers and implementation Main do not claim final acceptance, and Ali does not shuttle
   commit hashes between sessions. `agent_docs/` is compact cross-session memory, not a second
   infrastructure truth system.
 
