@@ -1,5 +1,5 @@
 ---
-summary: "Fresh SKY-025 review: normal open-PR ACCEPT writes a machine-readable marker, then the original session closes out that same PR before one human merge; P7 keeps one legacy integrated-main transition."
+summary: "Fresh SKY-025 review: normal open-PR ACCEPT writes a machine-readable marker, while the one-time P7 integrated-main review writes durable legacy acceptance on merged PR #239."
 ---
 
 # Review SKY-025
@@ -8,8 +8,8 @@ Follow the active SKY-025 directive and
 [`../../docs/conventions/construction.md`](../../docs/conventions/construction.md).
 
 The reviewer is **implementation-read-only**. Ali provides only `P7` or a PR number. Never ask Ali for
-commit hashes. The reviewer's only allowed repository mutation is the ACCEPT marker comment described
-below; it never edits Git content.
+commit hashes. The reviewer's only allowed repository mutation is the applicable machine-readable
+ACCEPT marker comment described below; it never edits Git content.
 
 ## Mode A · normal open-PR review
 
@@ -116,6 +116,11 @@ phase.
 Use only for historical P7 implementation already merged in #235, #236, #237 and corrective #239 while
 accepted progress remains 6/24. **Do not use Mode B for a new corrective P7 PR.**
 
+Merged PR **#239 is the durable legacy-acceptance anchor**. It is used only because P7 has no open phase
+PR and already includes the final historical corrective work. A Mode B ACCEPT posts review metadata to
+that existing merged PR conversation; it does not reopen, modify, or merge the PR and does not create a
+bookkeeping PR.
+
 1. Resolve current `main` and record it as the reviewed integrated revision.
 2. Review the complete already-integrated P7 result, including #235, #236, #237, #239 and later commits
    touching P7-owned surfaces.
@@ -126,18 +131,42 @@ accepted progress remains 6/24. **Do not use Mode B for a new corrective P7 PR.*
 
 ### P7 ACCEPT
 
+Immediately before posting ACCEPT, resolve `main` one final time. The exact revision verified at that
+point is the accepted integrated revision. Post exactly one machine-readable marker to the **merged
+PR #239 conversation**:
+
+```text
+<!-- skynet-legacy-acceptance:v1
+scope=SKY-025 P7
+verdict=ACCEPT
+integrated_main=<full reviewed main SHA>
+anchor_pr=239
+-->
+```
+
+This marker is the durable handoff for the later P8 session. Ali never copies or compares its SHA. A
+fresh P8 execution session must fetch the latest valid `skynet-legacy-acceptance:v1` marker from #239
+itself and require current `main` to equal `integrated_main` before it records P7 accepted or starts P8.
+If `main` has moved, the marker is stale regardless of whether the movement is later judged relevant;
+P8 stays blocked until a fresh Mode B review of current integrated P7 posts a new marker. Older markers
+remain audit history and are never reused after a newer review or stale finding.
+
+Return:
+
 ```text
 ACCEPT SKY-025 P7 — one-time legacy transition
 Review binding: integrated main <full SHA>
+Legacy acceptance marker: posted to merged PR #239
 Merged evidence: #235, #236, #237, #239 + <later P7-relevant commits if any>
 Evidence: <exit criterion → independent result>
 Limitations: <explicit unverified items, or none>
-Next: start P8. The P8 implementation PR must record P7 accepted/current_phase 7 as its opening bookkeeping before P8 work. Do NOT create a standalone P7 closeout PR.
+Next: start P8. The P8 session will fetch and validate the #239 legacy marker itself; if current main still matches, the P8 implementation PR records P7 accepted/current_phase 7 as opening bookkeeping before P8 work. Do NOT create a standalone P7 closeout PR.
 ```
 
 This accepts the current integrated P7 result without pretending those historical PRs were reviewed
 pre-merge. Because there is no open P7 PR to close out, the next natural P8 PR carries the small P7
-state transition instead of manufacturing a bookkeeping-only PR.
+state transition instead of manufacturing a bookkeeping-only PR. The durable #239 marker replaces any
+chat-transcript or human hash handoff.
 
 ### P7 FIX
 
