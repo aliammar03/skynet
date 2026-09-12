@@ -164,6 +164,46 @@ def test_missing_caddyfile_is_unavailable_and_retains_previous_bytes(
     assert output.read_bytes() == previous
 
 
+def test_empty_caddyfile_is_failure_and_retains_previous_bytes(
+    repo: Path, entity: list[dict[str, Any]]
+) -> None:
+    del entity
+    (repo / routes.CADDYFILE).write_text("")
+    output = repo / "routes.json"
+    previous = b'{"retained":true}\n'
+    output.write_bytes(previous)
+    stream = io.StringIO()
+
+    code = routes.collect(repo, output, json_output=True, stdout=stream)
+
+    report = json.loads(stream.getvalue())
+    assert code == 1 and report["outcome"] == "failure"
+    assert "no supported routes" in report["reason"]
+    assert output.read_bytes() == previous
+
+
+def test_unsupported_caddyfile_is_failure_and_retains_previous_bytes(
+    repo: Path, entity: list[dict[str, Any]]
+) -> None:
+    del entity
+    (repo / routes.CADDYFILE).write_text(
+        "example.com {\n"
+        "    respond \"outside supported route domain\"\n"
+        "}\n"
+    )
+    output = repo / "routes.json"
+    previous = b'{"retained":true}\n'
+    output.write_bytes(previous)
+    stream = io.StringIO()
+
+    code = routes.collect(repo, output, json_output=True, stdout=stream)
+
+    report = json.loads(stream.getvalue())
+    assert code == 1 and report["outcome"] == "failure"
+    assert "no supported routes" in report["reason"]
+    assert output.read_bytes() == previous
+
+
 def test_unclosed_caddy_route_block_is_failure_and_retains_previous_bytes(
     repo: Path, entity: list[dict[str, Any]]
 ) -> None:
