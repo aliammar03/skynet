@@ -32,6 +32,9 @@
   regression test that assumed the directive could never move from `planning/projects/` to
   `planning/archive/`. Fixing that test was substantive, so the ACCEPT was invalidated and SKY-026
   returned to fresh review instead of disguising the repair as bookkeeping.
+- SKY-026 Phase 5 is now externally accepted after the repaired workflow was reviewed against the
+  post-P7 `main`. Its accepted closeout archives SKY-026, updates only sanctioned state surfaces, and
+  leaves PR #253 awaiting one human merge.
 - Private GitHub Free leaves a residual race between the final agent recheck and Ali clicking Merge;
   the workflow does not claim atomicity and does not require a paid GitHub feature or manual SHA work.
 - Main owns progress, diary, and latest-session memory. Archivist owns assigned overview, technology,
