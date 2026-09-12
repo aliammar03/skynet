@@ -105,5 +105,5 @@ commit hashes to the reviewer or closeout session.
 | SKY-023 | Eliminate documentation drift and shrink operational context | projects | in-progress | 10/10 | 🌱 short |
 | SKY-024 | tofu declares managed core guests — API-driven CT/VM lifecycle, no node SSH | projects | in-progress | 4/6 | 🔭 long |
 | SKY-025 | Rebuild the Skynet engine in Python | projects | in-progress | 6/24 | 🔭 long |
-| SKY-026 | "Overhaul agent orchestration around a Main-directed worker swarm" | archive | done | — | 🔭 long |
+| SKY-026 | "Overhaul agent orchestration around a Main-directed worker swarm" | projects | in-progress | 4/5 | 🔭 long |
 <!-- ROADMAP:END -->
