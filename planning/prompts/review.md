@@ -40,8 +40,8 @@ ACCEPT approves the exact reviewer-resolved base+head pair verified immediately 
 verdict records both as audit evidence, but **Ali does not compare or shuttle them**. If either revision
 is known to change before merge, the ACCEPT is stale and a fresh review is required.
 
-On the intended private GitHub Free setup, this approval is **not** a mechanical or atomic guarantee
-that the later human merge will use the same pair. A race window remains between the reviewer's final
+On the intended private GitHub Free setup, this approval is not a mechanical or atomic guarantee that
+the later human merge will use the same pair. A race window remains between the reviewer's final
 recheck/ACCEPT and Ali later clicking Merge. Prompt human merge after ACCEPT reduces that window but
 does not eliminate it. Do not require a paid GitHub upgrade, manual SHA comparison, or a helper that
 claims false atomicity. If future repository configuration provides enforceable up-to-date-branch
