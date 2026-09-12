@@ -4,7 +4,7 @@ title: "Overhaul agent orchestration around a Main-directed worker swarm"
 status: in-progress
 horizon: long
 created: 2026-09-10
-updated: 2026-09-11
+updated: 2026-09-12
 phases: 5
 current_phase: 4
 tier_touched: [T1]
@@ -273,16 +273,24 @@ gates. The implementation/fix session publishes its authored PR, reports the PR 
 Ali manually starts final acceptance review in a separate fresh session against the **open PR before
 human merge**. Ali supplies the PR identity only; the reviewer resolves the current target/base SHA and
 PR head SHA directly from GitHub, reviews that exact integration pair, and rechecks both immediately
-before verdict. If either moved, the prior integration conclusion is stale and cannot be ACCEPTed until
-the current pair is reviewed. GitHub mergeability, CI green, or an unchanged head alone is not proof
-that the reviewed integration result is unchanged.
+before verdict. If either moved before verdict, the prior integration conclusion is stale and cannot be
+ACCEPTed until the current pair is reviewed. GitHub mergeability, CI green, or an unchanged head alone
+is not proof that the reviewed integration result is unchanged.
 
 Reviewer never repairs SKY-026. Any fixable defect produces only one complete paste-ready fix prompt
 for the original implementation/fix session; that session updates the same PR and stops, then Ali starts
 another fresh review. The human handoff names the PR, not a SHA Ali must copy between sessions.
-`ACCEPT` records and applies only to the reviewer-resolved **base+head pair**; Ali human-merges only
-while that pair remains current. Any movement of either side invalidates the verdict and requires a
-fresh review of the resulting integration state. Any post-merge state/archive work is a bounded
+`ACCEPT` approves the exact reviewer-resolved **base+head pair** verified immediately before verdict.
+If either revision is known to move before human merge, the ACCEPT is stale and fresh review is
+required.
+
+On the intended **private GitHub Free** setup, this review approval cannot mechanically or atomically
+guarantee that the later human merge uses the same pair. There is an unavoidable race window between
+the reviewer's final recheck/ACCEPT and Ali later clicking Merge. Prompt human merge minimizes but does
+not eliminate it. SKY-026 must not require a paid GitHub upgrade, manual SHA comparison, or a helper
+that falsely claims an atomic read/check+merge. If future repository configuration provides enforceable
+up-to-date-branch protection or an equivalent atomic guarantee, this contract may be strengthened then;
+that is not a prerequisite for the current workflow. Post-merge state/archive work is a bounded
 closeout, not an automatic re-review.
 
 ### M · `agent_docs/` ownership and closure split — CHOSEN
@@ -331,12 +339,14 @@ implementation/fix session STOPS
 Ali starts fresh review of OPEN PR
 (reviewer resolves + rechecks base/main + PR-head pair)
         ├── FIX → original session updates same PR → STOP → fresh review
-        └── ACCEPT for reviewed pair
+        └── ACCEPT of the pair verified immediately before verdict
                 ↓
-           human merge while pair remains current
+           prompt human merge if no change is known
+           (private-GitHub-Free race window remains)
                 ↓
        bounded post-merge closeout
-(final accepted/merged state + directive/archive/roadmap)
+(final accepted/merged state + directive/archive/roadmap;
+ reviewed pair + actual merged result recorded separately)
         ↓
 next fresh Main reads agent_docs + active directive
 ```
@@ -551,9 +561,10 @@ agent_docs + active directive
  Ali starts fresh independent review of OPEN PR
  reviewer resolves + rechecks base/main + PR-head pair
           ├── FIX → original session updates same PR → STOP → fresh review
-          └── ACCEPT for reviewed pair
+          └── ACCEPT of pair verified immediately before verdict
                  ↓
-             human merge while pair remains current
+       prompt human merge if no change is known
+       (private-GitHub-Free race window remains)
                  ↓
        bounded final closeout/archive
 ```
@@ -591,10 +602,17 @@ GitHub mergeability, CI green, or an unchanged head alone is insufficient.
 ### PASS
 
 Return a concise `ACCEPT SKY-026` verdict recording the reviewed PR plus both the reviewer-resolved
-base/main SHA and PR head SHA, with critical evidence. Ali may then human-merge that PR only while both
-remain current. Movement of either invalidates the verdict and requires fresh review of the resulting
-integration state. Ali does not manually compare or shuttle hashes; the reviewer/merge helper resolves
-them. After merge, a bounded closeout session performs final bookkeeping/archive held for acceptance;
+base/main SHA and PR head SHA, with critical evidence. ACCEPT is approval of that exact pair as verified
+immediately before the verdict. If either revision is known to change before human merge, the verdict is
+stale and fresh review is required. Ali does not manually compare or shuttle hashes.
+
+On the intended private GitHub Free setup, no current repository mechanism makes the later merge
+atomic with the reviewer's final recheck. There is an unavoidable race window between ACCEPT and Ali's
+later human merge. Prefer prompt merge after ACCEPT to reduce that window, but do not claim this removes
+it or that ACCEPT guarantees the merge-time integration pair. Do not require a paid GitHub upgrade or
+invent a helper that claims false atomicity. A future enforceable up-to-date-branch or equivalent atomic
+mechanism may strengthen this rule later. After merge, a bounded closeout session records the approved
+pair and actual merged result separately and performs final bookkeeping/archive held for acceptance;
 it does not automatically start another acceptance review unless it introduces substantive
 implementation changes.
 
@@ -689,12 +707,16 @@ merge and deterministic gates. Confirm implementation/fix sessions stop after pu
 do not launch acceptance review themselves.
 
 If everything passes, return a concise ACCEPT SKY-026 verdict recording the reviewed PR, reviewed
-base/main SHA, reviewed PR head SHA and critical evidence. That verdict applies only to that pair;
-movement of either requires fresh review before merge. If any fixable defect exists, your FINAL
-RESPONSE MUST BE ONLY ONE fenced text block containing a complete paste-ready fix prompt for the
-original SKY-026 implementation/fix session. Include exact findings, required fixes, verification and
-PR handling, but do not make Ali shuttle revision hashes. The original session fixes the same open PR
-and stops; then Ali manually starts a fresh independent review session.
+base/main SHA, reviewed PR head SHA and critical evidence. That verdict approves only the pair verified
+immediately before verdict. If either revision is known to change before merge, the ACCEPT is stale and
+fresh review is required. State the private-GitHub-Free limitation explicitly: there is an unavoidable
+race window between the final recheck/ACCEPT and later human merge, so ACCEPT is not an atomic guarantee
+of the merge-time integration pair. Prefer prompt merge to reduce the window, but do not ask Ali to
+compare hashes or require a paid GitHub feature. If any fixable defect exists, your FINAL RESPONSE MUST
+BE ONLY ONE fenced text block containing a complete paste-ready fix prompt for the original SKY-026
+implementation/fix session. Include exact findings, required fixes, verification and PR handling, but
+do not make Ali shuttle revision hashes. The original session fixes the same open PR and stops; then Ali
+manually starts a fresh independent review session.
 ```
 
 ## 9. Phase close-out
@@ -713,11 +735,15 @@ Phase 5:
 - Ali manually starts a fresh reviewer for that open PR; the reviewer resolves/rechecks the current
   base/main + PR-head pair from GitHub; FIX returns to the original session, which updates the same PR
   and stops, then Ali starts another fresh review;
-- after `ACCEPT SKY-026`, Ali human-merges only while the reviewer-confirmed pair remains current;
-- one bounded post-merge closeout then marks Phase 5 done, sets `current_phase: 5`, marks the directive
-  done, updates final accepted/merged `agent_docs`, refreshes roadmap, and archives through normal
-  planning lifecycle; that bookkeeping does not automatically trigger another acceptance review unless
-  it introduces substantive implementation changes;
+- after `ACCEPT SKY-026`, prefer prompt human merge if no repository/PR change is known; known movement
+  of either reviewed revision makes ACCEPT stale and requires fresh review. Private GitHub Free leaves
+  an unavoidable race window between the final recheck and later human merge, so no atomic merge-time
+  guarantee is claimed;
+- one bounded post-merge closeout then records the reviewer-approved pair and actual merged result as
+  distinct evidence, marks Phase 5 done, sets `current_phase: 5`, marks the directive done, updates final
+  accepted/merged `agent_docs`, refreshes roadmap, and archives through normal planning lifecycle; that
+  bookkeeping does not automatically trigger another acceptance review unless it introduces substantive
+  implementation changes;
 - SKY-022 remains only inert historical provenance.
 
 ## 10. Status
@@ -740,5 +766,8 @@ Phase 5:
   recorded; the implementation session then incorrectly continued into review instead of stopping.
 - Open bounded fix PR #253 corrects the lifecycle: implementation/fix sessions stop after publishing;
   Ali manually reviews the open PR in a separate fresh chat; the reviewer resolves and rechecks the
-  target/base + PR-head pair itself; ACCEPT precedes human merge; final accepted/merged memory is
-  written only in bounded post-merge closeout. Ali never needs to shuttle commit hashes between chats.
+  target/base + PR-head pair itself immediately before verdict; ACCEPT approves that last-verified pair
+  and known movement makes it stale. The intended private GitHub Free setup leaves an explicit
+  post-verdict race window before later human merge, so SKY-026 claims no atomic merge-time guarantee,
+  requires no paid GitHub feature, and never makes Ali shuttle/compare commit hashes. Final
+  accepted/merged memory is written only in bounded post-merge closeout.
