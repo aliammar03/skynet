@@ -16,7 +16,7 @@ Two open PRs are intentionally separate:
   survive a newer rejection on the same revision. The repair now persists every verdict and makes the
   newest applicable marker authoritative. The old Mode A/Mode B labels are removed from active prompts.
 
-The simplified normal lifecycle is:
+The simplified normal lifecycle ends in **one human merge**:
 
 ```text
 implement/fix → open PR → fresh review → durable ACCEPT/FIX/BLOCKED marker
