@@ -8,12 +8,15 @@ Owned by [the active directive](projects/SKY-025-make-operational-outcomes-verif
 
 Current accepted progress is **P6 / 6 of 24**. P7 implementation/corrective work is already merged in
 **#235, #236, #237 and #239**, but P7 is not yet accepted. **No implementation packet is currently
-released.** The **single current next action** is the one-time fresh read-only review of the
-**already-integrated P7 result** on current `main`. ACCEPT closes P7 and releases the prepared P8
-packet. FIX opens one bounded corrective P7 PR, which then uses the normal open-PR review lifecycle and
-never returns to the legacy integrated-main review mode.
+released.** The **single current next action** is the one-time fresh review of the **already-integrated
+P7 result** on current `main`. ACCEPT releases the prepared P8 packet; because historical P7 has no
+open PR, the P8 PR carries the small P7 accepted/`current_phase: 7` transition as opening bookkeeping.
+No standalone P7 closeout PR is created. FIX opens one bounded corrective P7 PR, which then uses the
+normal open-PR review → same-PR closeout → one-human-merge lifecycle and never returns to legacy mode.
 
 The reviewer resolves/rechecks Git revisions from GitHub. Ali supplies the phase/PR identity, not hashes.
+For normal open PRs, ACCEPT is recorded in a machine-readable PR marker; Ali later says only `accepted`
+to the original session, which validates the marker and closes out that same PR before one human merge.
 
 This file is a current disposition/caller/blocker map. Implementation chronology belongs in Git and
 `journal/`; per-phase progress belongs in the directive.
@@ -61,8 +64,10 @@ callers together and delete duplicate procedural logic.
 
 ## P8 caller map
 
-P8 is prepared but remains blocked until the one-time P7 review returns ACCEPT and closeout records P7.
-From P8 onward, internal slices stay on one open numbered-phase PR and are not merged separately.
+P8 is prepared but remains blocked until the one-time P7 review returns ACCEPT. After that verdict, the
+P8 PR begins by recording P7 accepted/current_phase 7, then performs P8. From P8 onward, internal slices
+stay on one open numbered-phase PR and are not merged separately. Normal ACCEPT is followed by bounded
+closeout on that same PR and then one human merge.
 
 ### P8A · entity derivation/audit
 
