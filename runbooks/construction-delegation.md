@@ -1,5 +1,5 @@
 ---
-summary: "Run substantial construction as Main on a Light/Medium/Heavy route — direct bounded specialist workers, let Testers verify independently, and open the PR without granting production authority."
+summary: "Run substantial construction as Main on a Light/Medium/Heavy route — direct bounded specialist workers, let Testers verify independently, and close accepted work on the same PR before one human merge."
 trigger: "Do a substantial construction task / build X / implement or change X"
 tier: "T1 build-time only"
 executor: "Main directing native Codex specialist workers"
@@ -8,7 +8,7 @@ rollback: "git revert accepted repository changes"
 
 # Runbook — construction delegation
 
-**Tier:** T1 build-time only. The unprivileged `aliammar` account is the filesystem/OS construction boundary; Main and native workers use its ordinary capabilities without approval prompts. Workers receive no secrets, root grant, or production authority. `gh pr merge` and both repository `grant-root` spellings are hard-blocked. The authoritative route, role, capsule, ownership, verification, and repair rules are in [`../docs/conventions/construction.md`](../docs/conventions/construction.md); this runbook is the operational checklist for them.
+**Tier:** T1 build-time only. The unprivileged `aliammar` account is the filesystem/OS construction boundary; Main and native workers use its ordinary capabilities without approval prompts. Workers receive no secrets, root grant, or production authority. `gh pr merge` and both repository `grant-root` spellings are hard-blocked. The authoritative route, role, capsule, ownership, verification, review, and closeout rules are in [`../docs/conventions/construction.md`](../docs/conventions/construction.md); this runbook is the operational checklist for them.
 
 ## Preconditions
 
@@ -28,11 +28,21 @@ trust tiers, destructive actions, root grants, and human merge remain separate a
 4. **Write the capsule.** Open each initial assignment with a deployment-unique Task ID and the role's capsule (context, goal, guidance) — material context, contracts, boundaries, intended outcome, and cautions. Give the Tester acceptance intent, risks, and gates, not a test script. Tell every writer other workers share the repo and must preserve concurrent edits. Follow-ups repeat the Task ID and send only changed parts.
 5. **Coordinate without noise.** Dispatch independent workers that inform one decision together and synthesise once; do not poll or request status-only updates. Spawn a worker only through the native Codex subagent mechanism, and only when the installed or project configuration exposes the requested role with the required model and effort; native workers inherit the no-prompt `aliammar` session posture. If the role is not exposed, stop and report the routing limitation rather than falling back to a legacy role. A worker report is not a merge signal.
 6. **Repair through the owner.** An ordinary defect returns to the owning Executor and the same Tester rechecks it. In Heavy, Main evaluates the returned evidence and decides — it does not run the Tester's checks or make the Executor's edits; after a second evidence-free response, replace the worker or report the limitation. In Light/Medium Main implements and verifies directly.
-7. **Close with one continuation.** Main owns acceptance, directive state, journal evidence, generated-view regeneration, integration decisions, the authored PR, and the three state-memory files (`project_progress.md`, `project_diary.md`, `latest_session_work.md`). Complete advances to the next phase; paused keeps the phase; blocked records the external condition. Every shape leaves exactly one `## Next Entry Point` in latest-session memory. In Light/Medium Main runs declared checks; in Heavy it evaluates Tester evidence. Once Main seals state, one Archivist finishes assigned stable memory/current docs and reports recorded usage with the project skill; it never estimates missing counts or edits Main-owned state. After human merge, a fresh session reviews the merged result and returns a paste-ready fix prompt rather than repairing.
+7. **Publish and stop for fresh review.** Main owns acceptance intent, directive state, journal evidence, generated-view regeneration, integration decisions, the authored PR, and the three state-memory files (`project_progress.md`, `project_diary.md`, `latest_session_work.md`). Before external review, record the open PR as pending fresh review without claiming external acceptance or merge. Once Main seals implementation state, one Archivist may finish assigned stable memory/current docs and report recorded usage; it never estimates missing counts or edits Main-owned state. Main commits, pushes, opens the authored PR, reports its number/URL, and **stops**. Ali manually starts a separate fresh reviewer and supplies only the PR identity.
+8. **Review the open PR.** Reviewer resolves current target/base SHA + PR-head SHA, reviews that exact integration result, and resolves both again immediately before verdict. Before returning ACCEPT, FIX, or BLOCKED, the reviewer posts exactly one machine-readable `skynet-acceptance:v1` review-state marker containing scope, reviewed base, reviewed head, and the verdict. The newest applicable marker wins. A newer FIX/BLOCKED revokes every older ACCEPT even when base/head are unchanged; malformed newest state fails closed. FIX returns one paste-ready prompt; original session repairs the same PR, republishes, and stops for another fresh review. The reviewer does not edit Git content.
+9. **Close accepted work on the same PR.** Ali only tells the original implementation/fix session `accepted`. Main fetches all applicable `skynet-acceptance:v1` markers, selects the newest one, requires `verdict=ACCEPT`, confirms the PR is still open, confirms current base equals reviewed base and current head equals reviewed head, then enters accepted closeout mode. Allowed Git changes are only: accepted directive status/archive move; planning index/roadmap/state-map updates; `agent_docs/project_progress.md`, `project_diary.md`, `latest_session_work.md`; append-only journal closure evidence; and generator-owned closure views refreshed only because state changed. No source/runtime/config/test/invariant/AGENTS/doctrine/runbook/behavioral-doc/stable-memory or other substantive change is allowed. Main proves `reviewed head..final head` is closeout-only. Any newer FIX/BLOCKED/malformed review marker, other unexplained head movement, or reviewed-base movement invalidates ACCEPT and requires fresh review.
+10. **Merge once.** Push the bounded closeout to that same accepted PR, let CI finish, recheck base and closeout-only delta, report the PR ready, and stop. Ali human-merges the same PR once. **Never create a closeout-only PR.** No second acceptance review is required for a valid closeout-only delta. Private GitHub Free still leaves a race window between the final recheck and Ali's click-to-merge; prompt merge minimizes but does not eliminate it. Do not ask Ali to compare hashes and do not invent a helper that claims atomicity.
+
+A directive may define a one-time legacy integrated-state transition only for work already merged before this lifecycle. If that legacy review ACCEPTs and a next implementation PR naturally follows, carry the legacy closeout bookkeeping into the next PR rather than creating a standalone closeout PR. A legacy FIX opens one corrective PR and immediately returns to the normal open-PR lifecycle.
 
 ## Verify
 
-- Each accepted package meets its stated acceptance criteria on the route's own evidence (Main's checks in Light/Medium; the independent Tester's in Heavy); the final PR includes the integrated tests and catalog/convention updates where required.
+- Each implementation package meets its stated acceptance criteria on the route's own evidence (Main's checks in Light/Medium; independent Tester in Heavy).
+- Every external verdict records the reviewer-resolved base+head pair immediately before verdict.
+- Before accepted closeout starts, Main selects the newest applicable review-state marker and requires ACCEPT.
+- Every post-ACCEPT Git change is inside the closeout-only envelope; otherwise fresh review is mandatory.
+- The final accepted PR receives one human merge; there is no post-merge closeout PR.
+- On private GitHub Free, the final recheck-to-click race remains explicit and non-atomic.
 
 ## Rollback
 
@@ -40,5 +50,4 @@ trust tiers, destructive actions, root grants, and human merge remain separate a
 
 ## Evidence
 
-- Retain the capsules, reports, reviewed diffs, verification output, directive/journal closure, token
-  report or exact limitation, and PR.
+- Retain capsules, worker reports, independent verification, reviewer verdict markers, closeout-only delta proof, directive/journal closure, token report or exact limitation, PR, and final merged result. Human handoffs use the PR identity; agents resolve revision hashes themselves.

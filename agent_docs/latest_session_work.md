@@ -1,53 +1,59 @@
 # Latest Session Work
 
 > Derived closure handoff. The active directive, current Git/PR state, and accepted evidence win any
-> conflict; this file is updated by Main after acceptance or a paused/blocked closure.
+> conflict; Main updates this at implementation-ready, paused/blocked, and accepted same-PR closeout.
 
 ## Detailed Current State
 
-SKY-026 Phase 5 implementation is open in PR #252. Its first fresh external review returned a bounded
-evidence fix rather than ACCEPT; the implementation architecture remains unchanged. The directive
-stays `in-progress` until a fresh re-review returns `ACCEPT SKY-026`.
+SKY-026 is externally accepted and in bounded closeout on **PR #253**.
+
+- Corrective SKY-025 P7 PR #254 is accepted and merged into `main`.
+- PR #253 was refreshed against that post-P7 `main`, independently reviewed, and accepted on its exact
+  integration pair.
+- The final review-process rule is simple: every ACCEPT/FIX/BLOCKED verdict is durable, the newest
+  applicable marker wins, and only newest ACCEPT may enter bounded same-PR closeout.
+- SKY-026 is now archived with `status: done` and `current_phase: 5`.
+
+The simplified lifecycle ends in **one human merge**:
+
+```text
+implement/fix → open PR → fresh review → durable ACCEPT/FIX/BLOCKED marker
+→ newest applicable verdict wins
+→ only newest ACCEPT may enter bounded closeout on SAME PR
+→ CI/final recheck → Ali merges once
+```
+
+Ali never copies hashes. A newer FIX/BLOCKED or malformed newest marker blocks closeout. Private GitHub
+Free still leaves a non-atomic race window between the final agent recheck and Ali clicking Merge.
+
+SKY-025 repository state remains P6/24 until P8 opens. P8 will record P7 accepted / `current_phase: 7`
+as opening bookkeeping, then continue the Python-first overhaul.
 
 ## Session Changes
 
-- Fresh intake used `agent_docs/` plus SKY-026 and repaired a real stale handoff against merged Git and
-  installed runtime evidence.
-- A standalone Main-only Light task verified PR #252 state without a worker or mutation. The Phase-4
-  journal records Medium; Phase-3 and Phase-5 episodes record Heavy with one persistent Companion,
-  one Investigator, two concurrent non-overlapping Default Executors, and one independent Tester.
-  Senior Executor was not justified for the bounded packages.
-- The generated digest is now optional recent-activity/episodic/open-thread retrieval; the context map
-  is on-demand load-cost routing. The unconsumed `.agent/CHECKPOINT.md` surface and its test/callers are gone.
-- Current prompts, active planning, AGENTS, doctrine, runbook, renderers, tests, and generated indexes
-  use the SKY-026 ownership and continuity model. Archived/journal provenance remains historical only.
+- Merged current `main` into #253 after #254 landed so acceptance bound to the real post-P7 integration.
+- Repaired the last stale SKY-026 directive wording so it matches the final newest-verdict rule.
+- Fresh review accepted #253 and posted the new `skynet-acceptance:v1` marker.
+- Archived SKY-026 as complete and refreshed planning/Main-owned closeout state only.
+- No source/runtime/config/tests/invariants/AGENTS/doctrine/runbooks/behavioral docs/stable memory were
+  changed after ACCEPT.
 
 ## Verification
 
-- Independent verification passed construction 44/44, continuity 3/3, digest 11/11, documentation
-  drift 8/8, repo surface 12/12, nightly sequence 10/10, Nix build, renderer idempotence/source
-  agreement, and `git diff --check`.
-- Unchanged full-gate evidence passed 277 pytest tests, Ruff, mypy, the other shell gates, and flake
-  evaluation. The same Tester found three natural guidance defects, the original Executor repaired
-  them, and that Tester passed the focused recheck.
-- Installed configuration is activated (`approval_policy = "never"`, `sandbox_mode =
-  "danger-full-access"`), and native child roles executed under the unprivileged account. No root,
-  production credential, deploy, live infrastructure write, or self-merge occurred.
-- Closing Archivist task `sky026_p5_archive_20260911` owned the affected stable-memory/current-doc
-  updates and checked the stable memory. Its one token-report invocation failed closed exactly:
-  `deployment-token-report: deployment marker 'skynet-deployment-start: sky026_phase5_20260910' was not in the first main-agent commentary message`.
-  No usage or price was estimated.
+- #253 pre-closeout exact-head GitHub Actions run #702: lifecycle contracts, full behavioral tests,
+  Ruff, mypy, packaged Nix checks, hard invariants, `git diff --check`, entity/digest/DNS-revert/
+  compose-rollback/cert-selector/OpenTofu-rollback/PVE-snapshot/provisioning-truth/construction/nightly
+  gates all passed.
+- Final closeout CI is still required on the closeout head before human merge.
+- No production endpoint, credential, root grant, service/timer, inventory, or live infrastructure
+  write occurred.
 
 ## Pending Work and Blockers
 
-- Fresh external re-review and human merge are pending; SKY-026 remains `in-progress` until ACCEPT.
-- `pre-commit` is unavailable in both the host and Nix shell. Two temporal-hygiene failures reproduce
-  on clean `HEAD` and are not caused by this phase.
-- The unrelated untracked `inventory/tofu-drift.txt` remains user-owned and untouched.
+- Run final CI and verify the accepted-head → final-head delta contains only sanctioned closeout paths.
+- Recheck `main` still matches the reviewed base.
+- If both pass, PR #253 is ready for one human merge.
 
 ## Next Entry Point
 
-Run the fresh external review prompt again against updated PR #252 from
-[`planning/projects/SKY-026-overhaul-agent-orchestration-around-a-main-worker-swarm.md`](../planning/projects/SKY-026-overhaul-agent-orchestration-around-a-main-worker-swarm.md)
-After `ACCEPT SKY-026`, return for the bounded final close-out and archive; do not merge the authored
-PR from the implementation session.
+After final closeout verification passes, human-merge PR #253. Then start SKY-025 P8 from current `main`.

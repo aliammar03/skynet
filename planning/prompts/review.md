@@ -1,90 +1,85 @@
 ---
-summary: "Independently review a merged SKY-025 phase and either accept it with the next packet or return one paste-ready fix prompt — the reviewer never repairs."
+summary: "Fresh SKY-025 review: every open-PR verdict is durable, newest verdict wins, and the one-time legacy P7 transition uses the same fail-closed rule on merged PR #239."
 ---
 
-# Review merged work and define the next packet
+# Review SKY-025
 
-> Independent review prompt for the [phase handoff workflow](README.md). Follows the active SKY-025
-> directive and the review model in [`../../docs/conventions/construction.md`](../../docs/conventions/construction.md):
-> the reviewer never modifies the implementation.
+Follow the active SKY-025 directive and
+[`../../docs/conventions/construction.md`](../../docs/conventions/construction.md).
 
-In a fresh session using the selected model and effort, review the complete numbered SKY-025 phase, including all its
-implementation slice PRs and any fix PRs. Do not run independent acceptance reviews of slices.
+The reviewer is **implementation-read-only**. Ali provides only a PR number, or `P7` for the historical
+one-time transition. Never ask Ali for commit hashes. The reviewer's only repository mutation is the
+machine-readable review-state comment described below. The reviewer never edits Git content.
 
-1. Read AGENTS.md, planning/README.md, the active SKY-025 directive found by ID, its packet and
-   disposition map if present. Record the selected model/effort when available; review is model-agnostic
-   and does not require a particular model or effort. Use repository evidence rather
-   than an implementation transcript; load relevant callers, contracts and tests as needed. Read-only
-   Investigator workers may gather evidence, but the reviewer owns the verdict.
-2. Verify through GitHub that every supplied implementation/fix PR merged into main. Record their
-   URLs and actual merge SHAs, plus the current main SHA. If unmerged, stop with the missing
-   prerequisite; do not accept a branch result as a merged phase.
-   Confirm every slice of the numbered phase is implemented; otherwise return the same-phase
-   execution continuation without issuing a phase verdict or releasing the next phase.
-   For an ACCEPT or BLOCKED verdict, create an isolated review branch from that main SHA before
-   making any planning edits. A FIX verdict makes no repository changes at all.
-3. Inspect the complete phase and fix diffs against the packet's starting revision, and the actual
-   implementation on current main. Account for intervening commits affecting these surfaces.
-   Check callers, failure handling, doctrine/runbooks and scope, not merely the PR summary.
-   Run relevant checks independently; report commands and unavailable verification explicitly.
-   **Do not modify the implementation and do not author repair commits** — the reviewer never repairs
-   its own findings. Existing live/grant boundaries still apply; review alone grants no production access.
-4. Choose ACCEPT, FIX, or BLOCKED against each exit criterion. CI green alone is insufficient.
-   ACCEPT requires satisfied exits; FIX means one or more concrete, fixable implementation defects;
-   BLOCKED means missing evidence, access, or an unresolved decision prevents judgment. Do not
-   silently waive an exit criterion. There is no reviewer-authored-repair acceptance path: a phase
-   with a fixable defect is FIX, never ACCEPT.
-5. Act on the verdict:
-   - **ACCEPT** — publish the verdict from the review branch in the directive's existing
-     status/progress area, with links and compact evidence, and follow its journal requirements.
-     Update accepted progress, map and roadmap as needed, then flesh out only the next 1–2h packet.
-     At G1–G6 reconsider and prune/reorder the remaining roadmap. After the final phase, follow the
-     completion/archive gate; do not invent another phase.
-   - **BLOCKED** — publish from the review branch: leave accepted progress unchanged and record the
-     blocker, owner and the evidence/decision needed to resume. Do not release a next packet.
-   - **FIX** — make no commit and no PR. Your entire final response is **only** one fenced paste-ready
-     fix prompt for the original implementation session (structure below). Leave accepted progress
-     unchanged. The original session fixes and lands a bounded fix PR; after it merges, a fresh
-     independent reviewer reviews the complete phase again. Repeat until ACCEPT.
-6. Each released (ACCEPT) packet specifies goal, exact files/surfaces, interfaces, exclusions, recommended
-   Main model/effort, check commands and expected results, live/grant boundaries, and exit criteria.
-   Worker routing, capsules, ownership, batching, verification and repair follow
-   [`../../docs/conventions/construction.md`](../../docs/conventions/construction.md); do not restate
-   a second orchestration system. Use the phase table's recommendation unless evidence warrants a
-   change; record the reason. Split oversized work into implementation slices; Main details the
-   remaining slices and review covers the whole numbered phase.
-7. For ACCEPT/BLOCKED, before publishing recheck main. If it moved, inspect relevant changes and
-   refresh affected checks/packet assumptions; record the final reviewed SHA. Commit, push, and open a
-   review PR to main with the planning updates. Do not implement the next phase, and never merge your PR.
+## Normal open-PR review
 
-## ACCEPT or BLOCKED review PR
+Use this for every P8+ numbered phase PR and for any corrective P7 PR.
 
-Use title: `SKY-025 P<N> review: <ACCEPT|BLOCKED>`.
-Use these compact PR body fields:
+1. Read `agent_docs/`, `AGENTS.md`, `planning/README.md`, the active SKY-025 directive/map, and the
+   target open PR. Inspect relevant callers/contracts/tests as needed.
+2. Resolve from GitHub:
+   - target branch;
+   - **reviewed base SHA** = current target-branch tip;
+   - **reviewed head SHA** = current PR head.
+3. Review the actual integration represented by that base+head pair and run proportionate independent
+   checks. Green CI supports review but does not replace it.
+4. Immediately before verdict, resolve base and head again. If either moved, refresh affected evidence
+   against the new pair.
+5. Choose ACCEPT, FIX, or BLOCKED.
+6. Before returning, post exactly one `skynet-acceptance:v1` marker to the PR conversation for that
+   verdict:
 
 ```text
-Reviewed: <implementation/fix PR URLs and full merge SHAs>
-Main reviewed: <full SHA>
-Verdict: <ACCEPT | BLOCKED>
-Evidence: <exit criterion → independent check/result; unavailable checks>
-Findings: <concrete defects with file references, or none>
-Released packet: <next phase/slice; model/effort; or none if blocked/final>
-Checkpoint decisions: <G checkpoint changes and reasons, if applicable>
-Handoff: after Ali merges this planning PR, start a new <assigned model/effort> task:
-Read planning/prompts/execute.md and execute SKY-025 <released packet>.
+<!-- skynet-acceptance:v1
+scope=SKY-025 P<N>
+verdict=<ACCEPT|FIX|BLOCKED>
+base=<full reviewed base SHA>
+head=<full reviewed head SHA>
+-->
 ```
 
-For BLOCKED, replace the execution handoff with the required unblock action and review invocation.
-For final acceptance, report completion instead. Return the PR URL, verdict and handoff. If
-publishing is unavailable, preserve the branch/commit and PR body and report the access blocker.
+For corrective P7 use `scope=SKY-025 P7 corrective`.
 
-## FIX response
+**Newest applicable marker wins.** Older markers are audit history only. A newer FIX or BLOCKED marker
+supersedes every older ACCEPT, even when base and head are unchanged. A malformed newest applicable
+marker fails closed. Any superseded or mismatched ACCEPT is stale. The implementation/fix session must
+never create or forge review-state markers.
 
-On FIX, emit **only** this block, populated with real findings — no preamble, no findings list or
-prose outside it:
+On **private GitHub Free**, the final agent recheck and Ali's later click-to-merge are not atomic. Prompt
+merge minimizes but does not eliminate that race. Never require Ali to compare hashes or claim the
+review state makes that interval atomic.
+
+### ACCEPT
+
+Ali does not copy or compare hashes. After ACCEPT, Ali tells the original implementation/fix session
+only `accepted`. That session fetches the markers itself, selects the newest applicable one, requires
+`verdict=ACCEPT`, verifies current base/head still match it, and performs bounded closeout on this same
+PR before merge.
+
+Post-ACCEPT closeout may change only the closure bookkeeping envelope defined by construction doctrine:
+directive/archive/planning state, Main-owned deployment-state `agent_docs`, append-only journal closure
+evidence, and generator-owned closure views. Source/runtime/config/tests/invariants/AGENTS/doctrine/
+runbooks/behavioral docs/stable memory or other substantive changes require fresh review.
+
+Return:
 
 ```text
-Continue the original SKY-025 implementation session and fix the independent review findings below.
+ACCEPT SKY-025 P<N>
+PR: #<number> <URL>
+Review binding: base <full SHA>; head <full SHA>
+Review-state marker: posted to PR
+Evidence: <exit criterion → independent result>
+Limitations: <explicit limitations or none>
+Next: tell the original implementation/fix session "accepted". It will validate the newest marker, close out the SAME PR, and hand that PR back for one human merge.
+```
+
+### FIX
+
+The FIX marker posted above immediately revokes any older ACCEPT for the same PR state. Final response
+must be only one fenced repair prompt:
+
+```text
+Continue the original SKY-025 P<N> implementation/fix session and fix the independent review findings below.
 Do not redesign unrelated work and do not self-accept the phase.
 
 Review findings:
@@ -94,11 +89,74 @@ Required fixes:
 - <bounded required outcome>
 
 Verification required:
-- <specific affected tests/gates; run the relevant full repo gates after focused checks pass>
+- <specific affected tests/gates>
+- run the relevant full repository gates after focused checks pass
 
 Git/PR handling:
-- create one bounded SKY-025 fix branch/PR from current main; do not merge your own PR.
+- update the same open SKY-025 P<N> PR;
+- do not merge it;
+- after publishing the fix, STOP. Do not launch or continue into acceptance review.
 
-When fixed, report the PR URL/commit, changed files, checks run/results, and any remaining
-limitation. Then stop. The result will be reviewed again in a fresh independent review session.
+When fixed, report the PR URL/number, changed files, checks/results, and any remaining limitation.
+Then stop. Ali will manually start a fresh review of that PR. The reviewer resolves Git revisions itself.
 ```
+
+### BLOCKED
+
+The BLOCKED marker posted above immediately revokes any older ACCEPT for that PR state. Report the exact
+missing prerequisite/evidence. Do not mutate Git content, merge, or release the next phase.
+
+## One-time legacy P7 review
+
+This exists only for the historical P7 implementation already merged in #235, #236, #237 and #239
+while accepted progress remains 6/24. A new corrective P7 PR uses the normal open-PR review above and
+never returns to this path.
+
+Merged PR **#239** is the durable legacy P7 review-state anchor. Every legacy P7 verdict posts exactly
+one marker there:
+
+```text
+<!-- skynet-legacy-acceptance:v1
+scope=SKY-025 P7
+verdict=<ACCEPT|FIX|BLOCKED>
+integrated_main=<full reviewed main SHA>
+anchor_pr=239
+-->
+```
+
+1. Resolve current `main` and review the complete integrated P7 result, including #235, #236, #237,
+   #239 and later P7-owned changes.
+2. Run proportionate independent checks.
+3. Immediately before verdict, resolve `main` again and refresh affected evidence if it moved.
+4. Post exactly one marker above for ACCEPT, FIX, or BLOCKED.
+
+The newest applicable marker on #239 is authoritative. Older markers are audit history only. A newer
+FIX/BLOCKED supersedes every older ACCEPT. P8 may start only when the newest marker is well formed,
+`verdict=ACCEPT`, and its `integrated_main` still equals current `main`.
+
+### P7 ACCEPT
+
+Return:
+
+```text
+ACCEPT SKY-025 P7 — one-time legacy transition
+Review binding: integrated main <full SHA>
+Legacy review-state marker: posted to merged PR #239
+Merged evidence: #235, #236, #237, #239 + <later P7-relevant commits if any>
+Evidence: <exit criterion → independent result>
+Limitations: <explicit unverified items, or none>
+Next: start P8. The P8 session will validate the newest #239 marker itself before advancing P7 state.
+```
+
+Do not create a standalone P7 closeout PR. The natural P8 PR carries the small P7 accepted /
+`current_phase: 7` transition as opening bookkeeping.
+
+### P7 FIX
+
+The FIX marker supersedes any older ACCEPT. Return one bounded repair prompt creating **one corrective
+P7 PR**. That corrective PR uses the normal open-PR review above. P8 remains blocked until the repair is
+accepted and merged.
+
+### P7 BLOCKED
+
+The BLOCKED marker supersedes any older ACCEPT. Report the blocker and keep P8 blocked.

@@ -10,25 +10,45 @@ and each capability earns autonomy through recorded verification and rollback ev
 
 ## Overall Progress
 
-- The operating constitution, trust tiers, GitOps loop, generated inventory, runbooks, and directive
-  lifecycle are established.
-- Several infrastructure and engine directives remain active; [`planning/README.md`](../planning/README.md)
-  is the generated roadmap for their exact state.
-- SKY-026 is in progress. Phases 1–4 established Main-directed routes, native specialist roles,
-  batching, repair ownership, independent verification, compact agent memory, Archivist closure,
-  and recorded token accounting. Phase 5 implementation evidence is ready for fresh external review.
+- The constitution, trust tiers, GitOps loop, generated inventory, runbooks, directive lifecycle, and
+  native SKY-026 construction model are established.
+- **SKY-026 is complete.** Phases 1–5 are accepted and the directive is archived. PR #253 contains the
+  accepted final workflow plus this bounded closeout and is awaiting one human merge.
+- Corrective SKY-025 P7 PR #254 is accepted and merged. **P8 is prepared.** SKY-025 repository progress
+  remains P6/24 until the natural P8 PR records P7 accepted / `current_phase: 7` as opening bookkeeping,
+  then implements P8.
 
 ## Current Position
 
-SKY-026 Phase 5 implementation is open in PR #252. A Main-only Light PR-state task, the Phase-4 Medium
-session, and the Phase-3/Phase-5 Heavy sessions now provide traceable route evidence. Heavy used two
-concurrent non-overlapping Executor packages; natural defects returned to their owning Executor and
-the same Tester passed the recheck. The digest and context map have distinct on-demand roles, the
-unused checkpoint is removed, and current construction guidance uses SKY-026 only. No production
-authority or live host was involved.
+The normal lifecycle is deliberately small and ends in **one human merge**:
+
+```text
+implement/fix → one open PR → fresh review → durable verdict marker
+→ newest verdict must be ACCEPT
+→ Ali says "accepted" → bounded closeout on SAME PR
+→ CI/final recheck → Ali human-merges that PR once
+```
+
+Every final reviewer verdict posts one machine-readable `skynet-acceptance:v1` marker with scope,
+reviewed base, reviewed head, and verdict. The newest applicable marker wins. A newer FIX/BLOCKED or a
+malformed newest marker blocks closeout even if an older ACCEPT exists for the same revisions.
+
+Ali never carries hashes. The original session resolves review state itself before accepted closeout.
+Post-ACCEPT closeout remains limited to directive/archive/planning state, Main-owned deployment-state
+`agent_docs`, append-only journal closure evidence, and generator-owned closure views. Substantive
+post-ACCEPT changes require fresh review.
+
+On private GitHub Free, the final agent recheck and Ali's click-to-merge are not atomic. Prompt merge
+reduces but does not remove that race window. No paid-plan requirement or manual SHA handling is part of
+the workflow.
+
+SKY-025 uses the same simple rule for corrective P7 and all P8+ PRs. The historical already-merged P7
+path was a one-time migration bridge; corrective P7 returned to the normal open-PR lifecycle and is now
+merged.
 
 ## Next Milestone
 
-Run a fresh independent re-review of updated PR #252. After `ACCEPT SKY-026`, perform the bounded
-final close-out: mark Phase 5 done, set `current_phase: 5`, archive the directive through the planning
-lifecycle, refresh the roadmap, and keep authored merge human-only.
+1. Human-merge accepted PR #253 after this closeout's final CI/base recheck passes.
+2. Start SKY-025 P8 from current `main`; its opening bookkeeping records P7 accepted / `current_phase: 7`.
+
+No production authority or live host change is involved in these handoffs.
