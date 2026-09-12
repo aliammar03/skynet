@@ -223,7 +223,7 @@ def _guest_fields(
     declared: set[int],
     slugs: Mapping[int, str],
 ) -> tuple[str, str]:
-    """Derive guest identity through the package's single P8A entity grammar."""
+    """Derive guest identity through the packaged entity grammar."""
     declared_vlans = tuple(sorted(declared))
     try:
         entity_id = entities.guest_id(vmid, name, declared_vlans, dict(slugs))

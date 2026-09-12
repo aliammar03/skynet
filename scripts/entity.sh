@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# entity.sh — temporary source-compatible forwarder to the packaged Python entity functions.
+# entity.sh — forwarding-only compatibility entry for demonstrated legacy shell tests.
 # TIER: T1 — pure functions over authored conventions; no network, secrets, or writes.
-# The remaining build-db caller sources this file during P8. Its shell logic is intentionally gone;
-# P8B migrates that caller and P22 removes this compatibility entry.
+# Entity behavior is owned by the packaged Python functions; removal of this entry is tracked in planning.
 _ENTITY_REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 _entity_python() {
   PYTHONPATH="${_ENTITY_REPO_DIR}/src${PYTHONPATH:+:${PYTHONPATH}}" \
