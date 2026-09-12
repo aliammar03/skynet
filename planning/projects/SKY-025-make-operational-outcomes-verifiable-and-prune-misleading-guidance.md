@@ -28,17 +28,18 @@ P7 implementation is complete and already merged in PRs **#235, #236, #237 and c
 Those PRs landed under the former post-merge review workflow, so there is no open P7 PR to review.
 P7 is therefore the only legacy migration case.
 
-**Single current next action:** start one fresh read-only P7 review using the one-time already-merged
-transition in [`../prompts/review.md`](../prompts/review.md). The reviewer inspects the
-**already-integrated P7 result** on current `main`, including #235, #236, #237, #239 and any later
-P7-owned changes. This does not pretend those PRs were reviewed before merge.
+**Single current next action:** start one fresh P7 review using the one-time already-merged transition in
+[`../prompts/review.md`](../prompts/review.md). The reviewer inspects the **already-integrated P7 result**
+on current `main`, including #235, #236, #237, #239 and later P7-owned changes.
 
-- **P7 ACCEPT** → bounded closeout records P7 accepted (`current_phase: 7`) and releases P8.
-- **P7 FIX** → FIX opens one bounded corrective P7 PR, which then uses the normal open-PR review
-  lifecycle and never returns to the integrated-main legacy mode.
-- No implementation packet is executable until P7 receives that verdict.
+- **P7 ACCEPT** → do **not** create a standalone P7 closeout PR. Start the natural P8 PR; its opening
+  bookkeeping records P7 accepted (`current_phase: 7`) before P8 implementation.
+- **P7 FIX** → open one bounded corrective P7 PR. It then uses the normal open-PR review → same-PR
+  closeout → one-merge lifecycle and never returns to legacy integrated-main mode.
+- No implementation packet is executable until P7 receives a truthful ACCEPT.
 
-P8 is already prepared below so work can begin immediately after a truthful P7 ACCEPT and closeout.
+P8 is prepared below so work can begin immediately after P7 ACCEPT, with the P7 progress transition
+recorded at the start of the P8 PR instead of manufacturing a bookkeeping-only PR.
 
 ## 2. Mandate and boundaries
 
@@ -77,46 +78,56 @@ The subsystem disposition and external/live blockers remain in
 ## 3. Construction and review lifecycle
 
 Construction follows [`../../docs/conventions/construction.md`](../../docs/conventions/construction.md).
-The active phase chooses Light/Medium/Heavy as appropriate; native role definitions under
-`.codex/agents/` define worker models/efforts. Workers gain no production authority and never merge.
+The active phase chooses Light/Medium/Heavy as appropriate; `.codex/agents/` defines worker models and
+efforts. Workers gain no production authority and never merge.
 
-### From P8 onward: one PR per numbered phase
+### From P8 onward: one PR, one review loop, one merge per numbered phase
 
-To remove the old merge-then-review complexity, SKY-025 now uses **one open authored PR per numbered
-phase**.
+Each numbered phase owns **one open authored PR** targeting `main`.
 
 If a phase needs internal slices:
 
 1. create/update the same phase branch and open phase PR;
-2. implement each bounded slice on that same PR;
-3. do **not** human-merge intermediate slices;
-4. when the whole numbered phase is implementation-ready, the implementation/fix session reports the
-   PR and **stops**;
-5. Ali manually starts a fresh reviewer for that PR;
-6. the reviewer resolves the current target/base and PR head from GitHub, reviews that integration
-   pair, then rechecks both immediately before verdict;
-7. FIX returns to the same phase PR and the implementation/fix session stops again;
-8. ACCEPT approves the exact base+head pair verified immediately before verdict; if either revision is
-   known to change before merge, the verdict is stale and fresh review is required;
-9. Ali human-merges promptly when practical; bounded closeout records accepted progress and releases
-   the next phase.
+2. implement all bounded slices on that same PR; never merge slices independently;
+3. when the complete numbered phase is implementation-ready, implementation/fix reports the PR and
+   **stops**;
+4. Ali starts a fresh reviewer for that open PR;
+5. reviewer resolves current target/base + PR head, reviews the integration result, and rechecks both
+   immediately before verdict;
+6. FIX returns to the same PR; original implementation/fix session republishes and stops again;
+7. ACCEPT records the exact last-verified pair and posts a machine-readable `skynet-acceptance:v1`
+   marker to the PR conversation;
+8. Ali tells the original session only `accepted`;
+9. that original session fetches/validates the marker and performs bounded closeout on the **same PR**;
+10. after CI and a final base + closeout-delta recheck, Ali human-merges that same PR **once**.
 
-Ali provides the PR identity, not commit hashes. GitHub mergeability, green CI, or an unchanged PR head
-alone does not prove that the reviewed integration result is unchanged. On the intended private GitHub
-Free setup, there is an unavoidable race window between the reviewer's final recheck/ACCEPT and Ali's
-later human merge. ACCEPT is not a mechanical or atomic guarantee of the merge-time pair. Prompt merge
-reduces but does not eliminate that window. Do not require a paid GitHub upgrade, manual SHA comparison,
-or a helper that falsely claims atomicity. A future enforceable up-to-date-branch or equivalent atomic
-mechanism may strengthen this contract later without being a prerequisite today.
+Ali never copies or compares commit hashes. The accepted closeout may change only:
 
-No future SKY-025 phase may return to the old pattern of merging implementation slices first and only
-reviewing the combined result afterward.
+- accepted phase/directive state and archive/planning state;
+- `agent_docs/project_progress.md`, `project_diary.md`, `latest_session_work.md`;
+- append-only journal closure evidence;
+- generator-owned closure views changed solely by the state transition.
+
+It may not change source/runtime/config/tests/invariants/AGENTS/doctrine/runbooks/behavioral docs/stable
+agent memory or other substantive work. The sanctioned closeout commit moves PR head by design and does
+not itself invalidate ACCEPT. Reviewed-base movement, unexplained head movement, or any substantive
+post-ACCEPT delta makes ACCEPT stale and requires fresh review.
+
+Private GitHub Free leaves a non-atomic race window between the final agent recheck and Ali clicking
+Merge. Prompt merge minimizes but does not remove it. No paid GitHub feature, manual SHA handling, or
+fake-atomic read/check helper is required.
+
+There is **no closeout-only PR** after normal acceptance and no automatic second acceptance review for
+a valid closeout-only delta.
 
 ### P7 migration exception
 
-P7 predates this lifecycle. Its already-merged state gets exactly one read-only integrated-main review.
-That exception exists only to migrate truthful state and cannot be reused by P8+ or by a new corrective
-P7 PR. Any corrective P7 PR created after a legacy FIX uses the normal open-PR base+head review path.
+P7 predates this lifecycle. Its already-merged state gets exactly one integrated-main review. That
+exception cannot be reused by P8+ or by a corrective P7 PR.
+
+Because historical P7 has no open PR, P7 ACCEPT is carried into the next natural P8 PR as opening
+bookkeeping. This avoids a pointless closeout-only PR. A legacy P7 FIX opens one corrective P7 PR and
+immediately returns to the normal lifecycle above.
 
 ## 4. Roadmap
 
@@ -159,16 +170,16 @@ Start a fresh review chat with:
 Read planning/prompts/review.md and review SKY-025 P7 using the one-time already-merged transition.
 ```
 
-The reviewer is read-only. It resolves current `main` itself, reviews the complete integrated P7 result,
-and rechecks current `main` before verdict. Do not ask Ali for a SHA.
+Reviewer resolves current `main` itself, reviews the complete integrated P7 result, and rechecks current
+`main` before verdict. Do not ask Ali for a SHA.
 
-P7 ACCEPT is the only condition that releases P8. The bounded closeout after ACCEPT updates this
-frontmatter to `current_phase: 7`, aligns `agent_docs` + the map/roadmap, and leaves the prepared P8
-packet below as the sole executable work.
+P7 ACCEPT alone releases P8. Because no P7 PR exists, the **P8 PR's opening bookkeeping** updates this
+frontmatter to `current_phase: 7`, aligns Main-owned `agent_docs` + map/roadmap state, and then proceeds
+with P8. No standalone P7 closeout PR is created.
 
 ### 5.2 Phase 8 — entity spine + rebuildable query cache
 
-**Status:** prepared, **not executable until P7 ACCEPT + closeout**.
+**Status:** prepared, **not executable until P7 ACCEPT**.
 
 **Recommended Main:** Heavy. Use one P8 branch/PR for the whole numbered phase. Internal slices are
 working units on that same PR, never separately merged.
@@ -244,9 +255,11 @@ At minimum, before P8 is handed to fresh review:
 - no live endpoint, credential, root grant, service/timer, inventory rewrite, or production mutation is
   required for this phase.
 
-**P8 closeout:** when all P8A/P8B work is complete on the same open P8 PR, implementation stops. Ali
-starts one fresh P8 review. FIX updates that same PR. ACCEPT precedes human merge. Post-merge closeout
-sets `current_phase: 8`, records accepted evidence, and releases P9/G3 planning.
+**P8 closeout:** when all P8A/P8B work is complete on the same open P8 PR, implementation stops and Ali
+starts one fresh P8 review. FIX updates that same PR. ACCEPT posts the acceptance marker; Ali says
+`accepted` to the original session; that session stages P8 closeout (`current_phase: 8`, accepted
+evidence, release P9/G3 planning) on the **same P8 PR**, verifies the post-ACCEPT delta is closeout-only,
+and hands the same PR back for one human merge.
 
 ## 6. Carry-forward correctness cases
 
@@ -284,19 +297,20 @@ require operation-specific recovery evidence, not blind `git revert`.
 Read planning/prompts/execute.md and execute the next authorized SKY-025 packet.
 ```
 
-Until P7 is accepted, `execute.md` must refuse P8 and point to the P7 migration review above.
-After P7 closeout, that same invocation resolves P8 as the sole authorized packet.
+Until P7 is accepted, `execute.md` refuses P8 and points to the P7 migration review. After P7 ACCEPT,
+that same invocation starts P8 and records P7 accepted/current_phase 7 as opening P8-PR bookkeeping.
 
 ### Review a normal open PR
 
-Use this for every P8+ phase PR and for any bounded corrective P7 PR created after a legacy P7 FIX:
+Use for every P8+ phase PR and any corrective P7 PR:
 
 ```text
 Read planning/prompts/review.md and review SKY-025 PR #<number>.
 ```
 
-The reviewer resolves/rechecks base+head itself. Ali never supplies hashes. The one-time already-merged
-P7 transition is separate and cannot be reused for a new corrective P7 PR.
+Reviewer resolves/rechecks base+head itself and posts the acceptance marker on ACCEPT. Ali then returns
+to the original implementation/fix session and says only `accepted`; that session closes out the same
+PR and hands it back for one human merge.
 
 ## 9. Progress authority
 
