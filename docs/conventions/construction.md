@@ -1,12 +1,13 @@
 ---
-summary: "Main directs a specialist worker swarm on Light/Medium/Heavy routes; workers own bounded work, verification is independent, and a fresh session reviews the merged result and returns a fix prompt rather than repairing."
+summary: "Main directs a specialist worker swarm on Light/Medium/Heavy routes; workers own bounded work, verification is independent, and accepted work closes on the same PR before one human merge."
 ---
 
 # Spoke · Construction delegation
 
 > Main spends context on decisions that need the whole picture; specialist workers spend context on
-> bounded work. Verification is independent of implementation, and final acceptance review runs in a
-> fresh session that returns one paste-ready fix prompt — it never repairs.
+> bounded work. Verification is independent of implementation, and final acceptance review runs
+> against the open authored PR in a fresh operator-started session before human merge; it returns one
+> paste-ready fix prompt or records durable verdict state on that PR.
 > Governed by [`../conventions.md`](../conventions.md); production authority stays with the trust tiers.
 
 Tags: **[testable]** = a deterministic gate can assert it; **[manual]** = requires review.
@@ -27,15 +28,16 @@ substantive deployment until it is explicitly changed. `[manual]`
 ## Main is a decision owner, not an extra worker
 
 Main owns task understanding, architecture and cross-package contracts, material causal/root-cause
-decisions, decomposition and worker ownership, integration, risk/authority decisions, final
-acceptance, and user communication. In a substantive **Heavy** deployment Main does **not** routinely
+decisions, decomposition and worker ownership, integration, risk/authority decisions, internal
+integration acceptance, and user communication. External final acceptance belongs to the separate
+fresh review session described below. In a substantive **Heavy** deployment Main does **not** routinely
 write production code or tests, run the Executor's implementation, execute the Tester's verification,
 run ordinary deployment operations, chase routine logs/environment checks, or take a package over
 because its first worker attempt failed. `[manual]`
 
 Main may directly inspect the **smallest** evidence needed for an architecture, scope, risk, causal,
-or acceptance decision. Route the rest. Worker unavailability does not authorise Main to become an
-Executor or Tester — reassign, replace, pause, or report the blocker. `[manual]`
+or internal acceptance decision. Route the rest. Worker unavailability does not authorise Main to become
+an Executor or Tester — reassign, replace, pause, or report the blocker. `[manual]`
 
 ## Roles and defaults
 
@@ -56,8 +58,8 @@ instead). The **Model** and **Effort** are applied per role from its file. The u
 | Archivist | `gpt-5.6-luna` | xhigh | `aliammar` account | one at substantive closure, plus explicit doc assignments |
 
 - **Companion** — persistent, project-centred secretary, **read-only by ownership and instructions**:
-  bounded context intake, large synthesis, and retained
-  operational context. It is not a message bus; workers report to Main.
+  bounded context intake, large synthesis, and retained operational context. It is not a message bus;
+  workers report to Main.
 - **Investigator** — disposable worker for one bounded, unfamiliar project or Internet evidence gap,
   **read-only by ownership and instructions**. It supplies evidence; Main owns the causal decision.
 - **Default Executor** — owns local discovery, implementation, self-check, deployment operations, and
@@ -77,7 +79,7 @@ memory, not runtime or configuration truth: when they conflict, the constitution
 current operational docs, active directive, and accepted evidence win and the memory is corrected.
 Main then builds a compact working-context map:
 
-- **Direct** — decision-critical contracts, interfaces, and evidence Main must inspect itself;
+- **Direct** — decision-critical authoritative contracts, interfaces, and evidence Main must inspect itself;
 - **Companion** — supporting or bulky non-decisive project context, returned as one bounded synthesis;
 - **Investigator** — one bounded unfamiliar project or Internet evidence gap.
 
@@ -90,7 +92,7 @@ decision-critical. `[manual]`
 ## Task capsules
 
 Every initial worker assignment opens with a deployment-unique **Task ID** and the capsule for that
-role. Follow-ups repeat the Task ID and send only changed capsule parts. `[manual]`
+role. Follow-ups repeat Task ID and send only changed capsule parts. `[manual]`
 
 | Role | Capsule parts |
 |---|---|
@@ -138,13 +140,75 @@ construction workers exist. Do not add an LLM wave manager, scheduler, queue, DA
 database, lease/heartbeat service, or custom agent transport unless native Codex genuinely cannot
 express a required behaviour and Ali separately authorises that complexity. `[manual]`
 
-## Fresh external review
+## Fresh external review and same-PR closeout
 
-Executor self-check, Tester verification, and Main acceptance are the internal gates. Final acceptance
-review then runs in a **fresh session outside the swarm**. The reviewer never repairs the work: if it
-finds a fixable defect its entire final response is one complete, paste-ready fix prompt for the
-original implementation session. That session fixes; a fresh reviewer reviews again; repeat until
-ACCEPT. Human merge makes the accepted result effective — authored PRs stay human-merged. `[manual]`
+Executor self-check, Tester verification, and Main internal integration acceptance are the implementation
+gates. The implementation/fix session commits, pushes, opens its authored PR, returns the PR number/URL
+and review handoff, and **stops**. Ali manually starts a separate fresh reviewer against that **open PR
+before human merge**. Ali supplies only the PR identity. The implementation/fix session must not start,
+spawn, or continue into its own acceptance review. `[manual]`
+
+At review start, the reviewer resolves the target branch plus exact **reviewed base SHA + reviewed PR
+head SHA**, evaluates the actual integration represented by that pair, and immediately before verdict
+resolves both again. If either moved before verdict, refresh the affected review before any ACCEPT.
+GitHub mergeability, green CI, or an unchanged head alone does not prove the reviewed integration is
+unchanged. `[manual]`
+
+The reviewer never repairs implementation. FIX returns one complete paste-ready prompt for the original
+implementation/fix session; that session repairs the same PR, publishes, reports the handoff, and stops
+again. Ali starts another fresh reviewer. Repeat until ACCEPT. `[manual]`
+
+Before returning **any** final verdict, the reviewer posts exactly one machine-readable
+`skynet-acceptance:v1` review-state marker to the PR conversation. That comment is the reviewer's only
+repository mutation and does not alter Git content. It contains the directive/phase or repair scope,
+reviewed base SHA, reviewed head SHA, and `verdict=ACCEPT|FIX|BLOCKED`. The **newest applicable marker by
+GitHub conversation order is authoritative**. Older markers are audit history only; a newer FIX or
+BLOCKED revokes every older ACCEPT even when the reviewed base/head are unchanged, and a malformed
+newest applicable marker fails closed. The implementation/fix session must never create or forge a
+review-state marker. Ali never copies, compares, or shuttles hashes. `[manual]`
+
+The original implementation/fix session enters accepted closeout mode only after Ali says `accepted`.
+Before editing it must fetch all applicable `skynet-acceptance:v1` markers itself, select the newest one,
+require `verdict=ACCEPT`, confirm the PR is still open, confirm current base matches the reviewed base and
+current head matches the reviewed head, and confirm no newer substantive change exists. A newest
+FIX/BLOCKED/malformed marker, base/head movement, or other failed check makes ACCEPT stale and requires
+fresh review. `[manual]`
+
+Accepted closeout is deliberately narrow. It may change only closure bookkeeping:
+
+- the accepted directive's status/current-phase fields and its normal move into `planning/archive/`;
+- planning index/roadmap/state-map entries needed to expose the next work;
+- Main-owned `agent_docs/project_progress.md`, `project_diary.md`, and `latest_session_work.md`;
+- append-only `journal/` closure evidence;
+- machine-owned generated planning/context views refreshed by their normal generators solely because
+  the closure state changed.
+
+It may **not** change implementation/source, runtime configuration, tests, invariants, AGENTS/doctrine,
+runbooks, behavioral documentation, stable agent memory, production definitions, or any other
+substantive surface. Any such change invalidates ACCEPT and returns the PR to fresh review. `[manual]`
+
+The sanctioned closeout commits necessarily move the PR head after ACCEPT; that head movement alone
+does **not** invalidate ACCEPT if every post-ACCEPT Git change is inside the closeout envelope above.
+Main must compare the accepted head to the final head itself and prove the delta is closeout-only. A
+base-branch movement from the reviewed base, an unexplained head movement, or any substantive post-
+ACCEPT change still makes ACCEPT stale. Ali never performs that comparison. `[manual]`
+
+After closeout checks pass, Main pushes the closeout to the **same PR**, reports it ready for one final
+human merge, and stops. There is **no second closeout PR and no automatic second acceptance review**.
+Ali human-merges that same PR once. The merged commit therefore publishes both the reviewed substantive
+work and its bounded closeout bookkeeping together. `[manual]`
+
+On the intended **private GitHub Free** setup, the workflow still cannot make the interval between the
+last agent recheck and Ali's click-to-merge atomic. Prompt human merge minimizes but does not eliminate
+that race window. Do not require a paid GitHub upgrade, manual SHA comparison, or a helper that falsely
+claims atomic read/check+merge behavior. A future enforceable up-to-date-branch or equivalent atomic
+mechanism may strengthen this contract. `[manual]`
+
+A directive may define a **bounded legacy transition** only for work already human-merged before this
+pre-merge lifecycle became current. A legacy ACCEPT records the integrated revision reviewed. When a
+next implementation PR already exists naturally, carry the legacy closeout bookkeeping into that next
+PR rather than creating a closeout-only PR. A legacy FIX opens one corrective PR, which immediately
+uses the normal open-PR lifecycle and can never fall back to legacy integrated-state review. `[manual]`
 
 ## Continuity and truth surfaces
 
@@ -153,12 +217,18 @@ higher-authority sources rather than a second runtime/configuration truth tree. 
 overview, core technology, structure, progress, reusable decisions/lessons, and latest-session handoff.
 Summarise and link; do not copy procedures, inventories, raw episodes, or long history. `[testable/manual]`
 
-Main owns acceptance and the deployment-state files `project_progress.md`, `project_diary.md`, and
-`latest_session_work.md`. After acceptance, or when recording a paused/blocked closure, Main updates
-those files and the active directive from verified evidence. The Archivist may update assigned stable
-memory (`project_overview.md`, `project_core_tech.md`, `project_structure.md`) and assigned current
-docs/runbooks; it never decides acceptance, rewrites Main-owned deployment state during closure, or
-hand-edits generated outputs (`inventory/`, `docs/generated/`). `[manual]`
+Main owns implementation-state updates to `project_progress.md`, `project_diary.md`, and
+`latest_session_work.md`. Before external acceptance, Main records the open authored PR as pending fresh
+review and must not claim external acceptance or merge. Archivist may update assigned stable memory
+(`project_overview.md`, `project_core_tech.md`, `project_structure.md`) and assigned current docs/runbooks
+**before review** from verified implementation facts; it never decides acceptance or edits Main-owned
+state. `[manual]`
+
+After external ACCEPT, Main alone performs the bounded same-PR closeout described above. Stable memory,
+AGENTS/doctrine, runbooks, source/config/tests and behavioral docs are frozen because they were part of
+the reviewed substantive work. The closeout state may say externally accepted and awaiting the single
+human merge; it must not claim the PR has already merged. Once that same PR lands on `main`, no extra
+post-merge bookkeeping PR is required. `[manual]`
 
 The generated digest remains the read-time view of recent decisions, open threads, and raw episodes;
 the context map remains the generated routing/load-cost index. Neither generated view is required for
@@ -169,16 +239,17 @@ Every substantive closure leaves exactly one `## Next Entry Point` in `latest_se
 
 | State | Durable closure | One next entry point |
 |---|---|---|
-| complete | Main accepts, advances directive and progress, records reusable lessons plus the raw journal episode, and regenerates owned views | the next-phase Execute/Continue prompt |
+| implementation ready | Main records verified implementation state and the open authored PR as pending fresh review | operator-started fresh review of that PR |
 | paused | Main records verified position, pending work, and checks without advancing the phase | the same-phase Continue prompt |
 | blocked | Main records the exact external condition and sets directive/progress status `blocked` | the same-phase Continue prompt naming the unblock condition |
+| accepted closeout | on the same open accepted PR, Main validates the newest applicable PR review-state marker, requires ACCEPT, writes only bounded closeout bookkeeping, proves the post-ACCEPT delta is closeout-only, and does not claim merge | human-merge that same PR once; after it lands, begin the next active directive/phase |
 
 At the start of each substantive Medium/Heavy deployment, Main emits
 `<!-- skynet-deployment-start: <deployment_id> -->` in its first commentary message. The ID is unique,
-lowercase, underscore-safe working identity—not a task database. After all other closure work is sealed,
-the one closing Archivist runs the project-local `deployment-token-report` skill. It reports only
-recorded rollout counts and cached-input/input/output tokens from Codex session evidence; missing or
-incomplete evidence is a reported limitation. Never estimate usage or price. `[testable/manual]`
+lowercase, underscore-safe working identity—not a task database. After all other pre-review closure work
+is sealed, the one closing Archivist runs the project-local `deployment-token-report` skill. It reports
+only recorded rollout counts and cached-input/input/output tokens from Codex session evidence; missing
+or incomplete evidence is a reported limitation. Never estimate usage or price. `[testable/manual]`
 
 ## Trust and native tooling
 

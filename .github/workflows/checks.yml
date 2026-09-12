@@ -14,6 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: diff-check
+        run: git diff --check HEAD^1 HEAD
       # Hard laws in invariants.json hold against observed inventory and the tracked tree: excluded
       # guests stay unpooled, the managed-pool dial matches, and plaintext secret patterns fail.
       - name: check-invariants
@@ -64,6 +68,8 @@ jobs:
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
+      - name: lifecycle contract tests
+        run: nix develop --no-write-lock-file -c pytest -q tests/test_agent_docs.py
       - name: behavioral tests
         run: nix develop --no-write-lock-file -c pytest -q
       - name: lint

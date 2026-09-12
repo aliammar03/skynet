@@ -1,47 +1,83 @@
 ---
-summary: "SKY-025 handoffs: execute bounded packets, independently review complete numbered phases."
+summary: "SKY-025 handoffs: one open PR per numbered phase, durable newest-verdict review state, same-PR accepted closeout, one human merge, plus the one-time legacy P7 gate."
 ---
 
-# Phase handoffs
+# SKY-025 phase handoffs
 
-> Reusable SKY-025 prompts, governed by [planning](../README.md) and the active directive.
+Governed by the active SKY-025 directive and
+[`../../docs/conventions/construction.md`](../../docs/conventions/construction.md).
 
-| Prompt | Session | Produces |
-|---|---|---|
-| [Execute](execute.md) | New task with the packet's execution model/effort | Implementation or fix PR |
-| [Review](review.md) | Fresh task with the selected model/effort | ACCEPT/BLOCKED review PR, or a paste-ready fix prompt — the reviewer never repairs |
+| Prompt | Use |
+|---|---|
+| [Execute](execute.md) | Implement/repair the currently authorized numbered phase on its one open phase PR, then STOP |
+| [Review](review.md) | Fresh review of an open P8+ phase PR or corrective P7 PR, plus the historical one-time P7 transition |
 
-Select the model and effort when starting each task. Prompts cannot switch the running model or
-launch the next session. Use a fresh task for independent review; do not resume the implementation
-conversation. `agent_docs/` plus the active directive provide compact cross-session orientation; chat
-transcripts are not durable handoff state.
+## Normal open-PR flow
 
-1. After this workflow PR merges, start Phase 1 with the execute invocation below. Its detailed
-   packet in the merged directive is the initial authorization; no preceding review PR is needed.
-2. Review the implementation PR and merge it yourself when ready.
-3. If that PR completes only a slice, continue execution within the same numbered phase; Main
-   details the remaining packet before work. Once the whole phase is implemented
-   and its PRs are merged, start a fresh review with all phase implementation PR URLs.
-4. The reviewer never repairs. ACCEPT publishes a review PR that releases the next packet — merge it
-   when ready. BLOCKED records the blocker and releases nothing until it is resolved and reviewed.
-   FIX returns one paste-ready fix prompt (no review PR) addressed to the original implementation
-   session.
-5. Execute the released packet (ACCEPT) or the fix prompt (FIX) in a new task. After a fix PR merges,
-   review the complete phase again in a fresh session with the original and fix PR URLs. Repeat until
-   accepted.
-
-**Execute invocation** (the agent resolves the next packet; add a phase/slice if desired):
+This applies to every P8+ numbered phase PR and any corrective P7 PR.
 
 ```text
-Read planning/prompts/execute.md and execute the next authorized SKY-025 packet.
+implementation / repair
+        ↓
+one open PR for the numbered phase
+        ↓
+implementation/fix session reports PR + STOP
+        ↓
+Ali starts fresh review
+        ↓
+reviewer resolves + rechecks base/head
+        ↓
+reviewer posts one durable verdict marker
+(ACCEPT / FIX / BLOCKED)
+        ↓
+newest applicable verdict wins
+        ├── FIX/BLOCKED → no closeout
+        └── ACCEPT → Ali tells original session "accepted"
+                         ↓
+              original session validates newest marker
+              + bounded closeout on SAME PR
+                         ↓
+                    CI + final recheck
+                         ↓
+                 Ali human-merges ONCE
 ```
 
-**Review invocation** (replace the URL):
+There is no closeout-only PR after normal acceptance. A newer FIX or BLOCKED marker supersedes every
+older ACCEPT, even for the same base/head. A malformed newest applicable marker fails closed. Only a
+newest well-formed ACCEPT marker whose reviewed base/head still match the live PR can authorize
+closeout.
+
+The reviewer records revision identities; Ali supplies only the PR or phase identity and later the word
+`accepted`. Ali never copies or compares commit hashes.
+
+Private GitHub Free still leaves a non-atomic race between the final agent recheck and Ali's click to
+merge. Prompt merge minimizes but does not remove it.
+
+## One-time legacy P7 transition
+
+P7 implementation/corrective PRs #235, #236, #237 and #239 were already merged before this workflow.
+Merged PR **#239** is the durable legacy P7 review-state anchor. Every legacy P7 review posts one
+`skynet-legacy-acceptance:v1` marker there with `verdict=ACCEPT`, `FIX`, or `BLOCKED` plus the reviewed
+`integrated_main`.
+
+- P8 reads only the newest applicable #239 marker.
+- The newest verdict must be ACCEPT and current `main` must still equal `integrated_main`.
+- Newer FIX/BLOCKED supersedes older ACCEPT; later `main` movement also stales ACCEPT.
+- ACCEPT creates no standalone P7 closeout PR. The natural P8 PR records P7 accepted /
+  `current_phase: 7` as opening bookkeeping.
+- FIX creates one bounded corrective P7 PR. That PR uses the normal open-PR flow above and never returns
+  to the legacy path.
+
+Legacy P7 review invocation, only while the directive still shows P7 pending:
 
 ```text
-Read planning/prompts/review.md and review SKY-025 implementation PR <URL>.
+Read planning/prompts/review.md and review SKY-025 P7 using the one-time legacy transition.
 ```
 
-PR bodies are specified inside each prompt, keeping two reusable files instead of a second template
-system. Every PR targets `main`; planning starts from the merged implementation. No stacked future
-phase PRs, new GitHub Actions, automatic sessions, or automatic merges are needed.
+Normal open-PR review needs only a PR number:
+
+```text
+Read planning/prompts/review.md and review SKY-025 PR #<number>.
+```
+
+Prompts never start another session automatically and authored PRs remain human-merged.

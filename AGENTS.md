@@ -111,17 +111,35 @@ Construction follows [the delegation convention](docs/conventions/construction.m
 route (Light is the default; a directive may select the route) decides how much Main delegates. Main
 owns the decisions and integration while bounded specialist workers — Companion, Investigator,
 Executors, Tester, Archivist — own scoped work, each used only where the runtime actually exposes
-that role; concurrency follows platform capacity and
-non-overlapping ownership, and a fresh session reviews the merged result, returning a paste-ready fix
-prompt rather than repairing. New procedural code follows
-[the capability convention](docs/conventions/scripts.md); implementation language grants no authority.
-The unprivileged NixOS `aliammar` account is Codex's construction filesystem/OS boundary: ordinary
-account-accessible work runs without approval prompts, while `gh pr merge` and both repository
-`grant-root` spellings are hard-blocked. Native workers inherit that session posture; no role/model
-gains production authority.
+that role; concurrency follows platform capacity and non-overlapping ownership.
+
+Implementation/fix sessions publish their authored PR and stop. Ali manually starts a fresh review of
+the open PR. The reviewer resolves and rechecks the current target/base SHA + PR-head SHA immediately
+before verdict. On ACCEPT it records that pair and posts a machine-readable acceptance marker to the PR
+conversation. Ali then only tells the original implementation/fix session that the PR was accepted;
+Ali never copies or compares hashes.
+
+The original session validates the marker itself and performs **bounded closeout on the same accepted
+PR before merge**. Only directive/archive/planning state, Main-owned deployment-state `agent_docs`,
+append-only journal evidence, and generator-owned closure views may change after ACCEPT. Source,
+runtime/config, tests, invariants, AGENTS/doctrine, runbooks, behavioral docs, stable agent memory, or
+any other substantive change invalidates ACCEPT and requires fresh review. The sanctioned closeout
+commit changes the head by design and does not itself invalidate ACCEPT; Main proves the post-ACCEPT
+delta is closeout-only. A changed reviewed base, unexplained head movement, or substantive delta makes
+the verdict stale. After closeout the **same PR is human-merged once**. There is no closeout-only PR.
+
+Private GitHub Free still leaves a race window between the last agent recheck and Ali clicking Merge;
+no current workflow makes that interval atomic. Prompt merge minimizes but does not eliminate it. Do
+not require a paid GitHub upgrade, manual SHA handling, or a helper that falsely claims atomicity.
+New procedural code follows [the capability convention](docs/conventions/scripts.md); implementation
+language grants no authority. The unprivileged NixOS `aliammar` account is Codex's construction
+filesystem/OS boundary: ordinary account-accessible work runs without approval prompts, while
+`gh pr merge` and both repository `grant-root` spellings are hard-blocked. Native workers inherit that
+session posture; no role/model gains production authority.
 
 ```
-edit compose/<svc>/ → branch → PR → Ali merges
+edit compose/<svc>/ → branch → PR → fresh acceptance review
+   → ACCEPT marker → same-PR bounded closeout → Ali merges once
    → Arcane Git Sync polls, pulls, reconciles (project read-only in UI)
    → agent verifies health via Arcane API / docker context, commits refreshed inventory
 ```
