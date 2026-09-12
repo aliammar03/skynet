@@ -160,9 +160,8 @@ class AgentDocsContractTests(unittest.TestCase):
 
         self.assertIn("reviewed base sha", review)
         self.assertIn("reviewed head sha", review)
-        self.assertIn("reviewed base/main:", review)
-        self.assertIn("reviewed pr head:", review)
-        self.assertIn("if either the target/base sha", review)
+        self.assertIn("review binding (automatic): base", review)
+        self.assertIn("if either moved", review)
         self.assertIn("github mergeability", review)
         self.assertIn("unchanged head alone", review)
 
@@ -199,6 +198,60 @@ class AgentDocsContractTests(unittest.TestCase):
         self.assertIn("fix opens one bounded corrective p7 pr", directive)
         self.assertNotIn("p7a omada** as the current executable packet", disposition)
         self.assertIn("no implementation packet is currently released", disposition)
+
+    def test_sky025_p8_plus_uses_one_open_pr_per_numbered_phase(self) -> None:
+        paths = (
+            "planning/prompts/README.md",
+            "planning/prompts/execute.md",
+            "planning/prompts/review.md",
+            "planning/sky-025-map.md",
+            "planning/projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md",
+            "agent_docs/project_diary.md",
+        )
+        texts = {path: normalized((ROOT / path).read_text(encoding="utf-8")) for path in paths}
+
+        for path, text in texts.items():
+            self.assertIn("one", text, path)
+            self.assertIn("pr", text, path)
+
+        directive = texts[
+            "planning/projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md"
+        ]
+        prompt_readme = texts["planning/prompts/README.md"]
+        execute = texts["planning/prompts/execute.md"]
+        review = texts["planning/prompts/review.md"]
+        diary = texts["agent_docs/project_diary.md"]
+
+        self.assertIn("one open authored pr per numbered phase", directive)
+        self.assertIn("do not human-merge intermediate slices", directive)
+        self.assertIn("one open pr for the numbered phase", prompt_readme)
+        self.assertIn("internal lettered slices", execute)
+        self.assertIn("do not merge them separately", execute)
+        self.assertIn("exactly one open pr representing the numbered phase", review)
+        self.assertIn("one open authored pr per numbered phase from p8 onward", diary)
+        self.assertNotIn("intermediate slices may be human-merged", prompt_readme)
+
+    def test_sky025_p8_is_prepared_but_blocked_only_on_p7_acceptance(self) -> None:
+        directive = normalized(
+            (
+                ROOT
+                / "planning/projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md"
+            ).read_text(encoding="utf-8")
+        )
+        disposition = normalized((ROOT / "planning/sky-025-map.md").read_text(encoding="utf-8"))
+        execute = normalized((ROOT / "planning/prompts/execute.md").read_text(encoding="utf-8"))
+        progress = normalized((AGENT_DOCS / "project_progress.md").read_text(encoding="utf-8"))
+
+        for text in (directive, disposition, progress):
+            self.assertIn("p8", text)
+            self.assertIn("prepared", text)
+
+        self.assertIn("p8a", directive)
+        self.assertIn("p8b", directive)
+        self.assertIn("not executable until p7 accept", directive)
+        self.assertIn("do not implement p8", execute)
+        self.assertIn("p7 accept", execute)
+        self.assertIn("begin p8", progress)
 
     def test_closure_shapes_and_latest_session_have_one_entry_point(self) -> None:
         construction = (ROOT / "docs/conventions/construction.md").read_text(
