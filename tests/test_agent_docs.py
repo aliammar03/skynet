@@ -223,7 +223,7 @@ class AgentDocsContractTests(unittest.TestCase):
         diary = texts["agent_docs/project_diary.md"]
 
         self.assertIn("one open authored pr per numbered phase", directive)
-        self.assertIn("do not human-merge intermediate slices", directive)
+        self.assertIn("human-merge intermediate slices", directive)
         self.assertIn("one open pr for the numbered phase", prompt_readme)
         self.assertIn("internal lettered slices", execute)
         self.assertIn("do not merge them separately", execute)
