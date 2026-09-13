@@ -9,6 +9,11 @@ The entity/cache phase is implementation-ready on **PR #255** and pending one fr
 Accepted numbered progress remains 7/24. The authored PR is open and unaccepted; implementation stops
 until a fresh reviewer returns FIX or ACCEPT.
 
+The reviewer records its verdict in a machine-readable acceptance marker. Only the newest applicable
+ACCEPT releases bounded closeout on this same PR before one human merge. Private GitHub Free leaves a
+non-atomic race window between the final recheck and Ali's merge click; prompt merge reduces but does
+not remove it.
+
 The phase replaces shell entity derivation, audit, cache build, and ad-hoc query logic with packaged
 Python. Forwarding-only shell entries remain for demonstrated invariant, renderer, and legacy test
 callers, with later caller cleanup already assigned in planning.
@@ -28,8 +33,11 @@ callers, with later caller cleanup already assigned in planning.
 - Packaged Nix application/check build: passed; installed console tests: 12 passed.
 - Focused entity/cache/route/CLI suites, Ruff, strict mypy, hard invariants, construction, entity,
   repository-surface, and `git diff --check`: passed.
-- No live endpoint, credential, root grant, service/timer, generated inventory/docs rewrite, or
-  production mutation occurred.
+- A complete isolated T1 collection succeeded across all 11 collectors. Freshness, entity audit,
+  representative queries, maintained renderer views, and explicit query failure then passed against
+  those observations; the temporary worktree and outputs were removed.
+- No root grant, T2/T3 action, service/timer change, persistent inventory/docs rewrite, or production
+  mutation occurred.
 
 ## Pending Work and Blockers
 
@@ -38,4 +46,4 @@ callers, with later caller cleanup already assigned in planning.
 
 ## Next Entry Point
 
-Read `planning/prompts/review.md` and review SKY-025 PR #255.
+Read `planning/prompts/review.md` and review PR #255.

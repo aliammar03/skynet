@@ -126,8 +126,8 @@ immediately returns to the normal lifecycle above.
 | 4 | Heavy | Remaining Proxmox/network/ACL collection | accepted |
 | 5 | Heavy | PBS + Docker inventory | accepted |
 | 6 | Heavy | DNS + live OPNsense/firewall observations | accepted |
-| 7 | Heavy | Omada + certs + routes + recon | implementation merged; one-time review pending |
-| 8 | Heavy | Entity derivation/audit + rebuildable SQLite cache/query | prepared below; blocked only on P7 ACCEPT |
+| 7 | Heavy | Omada + certs + routes + recon | accepted |
+| 8 | Heavy | Entity derivation/audit + rebuildable SQLite cache/query | implementation-ready; fresh review pending |
 | 9 | Medium | Docs/digest/context/catalog rendering + journal/recall helpers | deterministic views; G3 |
 | 10 | Heavy | Deployment health + reachability verification | failures/empty/partial/wrong revision fail |
 | 11 | Heavy | Arcane deploy/env/sync + rollback preparation | exact source + truthful failures |

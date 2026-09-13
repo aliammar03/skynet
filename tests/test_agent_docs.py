@@ -206,7 +206,10 @@ class AgentDocsContractTests(unittest.TestCase):
         self.assertIn("one human merge", progress)
         self.assertIn("one human merge", latest)
         self.assertTrue(
-            "previous accept" in latest or "accept is stale" in latest or "externally accepted" in latest,
+            "previous accept" in latest
+            or "accept is stale" in latest
+            or "externally accepted" in latest
+            or "pending one fresh external review" in latest,
             "latest: missing current acceptance state",
         )
 
@@ -314,10 +317,16 @@ class AgentDocsContractTests(unittest.TestCase):
         self.assertIn("current_phase: 7", directive)
         self.assertIn("p7 / 7 of 24", directive)
         self.assertIn("current accepted progress is **p7 / 7 of 24**", disposition)
-        self.assertIn("p8 is active on its single numbered-phase branch/pr", disposition)
-        self.assertIn("single `phase/sky-025-p8` branch and pr", directive)
+        self.assertIn("current action", directive)
+        self.assertIn("p8 implementation is ready on pr **#255** and pending one fresh external review", directive)
+        self.assertIn("implementation-ready / pending fresh review on pr **#255**", directive)
+        self.assertIn(
+            "p8 implementation is ready on pr **#255** and pending one fresh external review",
+            disposition,
+        )
+        self.assertIn("single numbered-phase pr", disposition)
         self.assertIn("one open authored pr", directive)
-        self.assertIn("p8 remains repository-only", directive)
+        self.assertIn("no live authority was used", directive)
         self.assertIn("exception cannot be reused by p8+ or by a corrective p7 pr", directive)
         self.assertIn("normal open-pr review above and never returns to this path", review)
 
@@ -355,7 +364,7 @@ class AgentDocsContractTests(unittest.TestCase):
         self.assertIn("one open pr for the numbered phase", prompt_readme)
         self.assertIn("one open authored pr per numbered phase", diary)
 
-    def test_sky025_p8_is_active_after_valid_p7_accept(self) -> None:
+    def test_sky025_p8_is_implementation_ready_pending_fresh_review(self) -> None:
         directive = normalized((ROOT / SKY025_PATH).read_text(encoding="utf-8"))
         disposition = normalized((ROOT / "planning/sky-025-map.md").read_text(encoding="utf-8"))
         execute = normalized((ROOT / "planning/prompts/execute.md").read_text(encoding="utf-8"))
@@ -364,14 +373,21 @@ class AgentDocsContractTests(unittest.TestCase):
         self.assertIn("current_phase: 7", directive)
         self.assertIn("p7 / 7 of 24", directive)
         self.assertIn("current action", directive)
-        self.assertIn("single `phase/sky-025-p8` branch and pr", directive)
-        self.assertIn("status:** in progress", directive)
-        self.assertIn("p8 remains repository-only", directive)
+        self.assertIn("p8 implementation is ready on pr **#255** and pending one fresh external review", directive)
+        self.assertIn("implementation-ready / pending fresh review on pr **#255**", directive)
+        self.assertIn("no live authority was used", directive)
         self.assertIn("one open authored pr", directive)
         self.assertIn("current accepted progress is **p7 / 7 of 24**", disposition)
-        self.assertIn("p8 is active on its single numbered-phase branch/pr", disposition)
-        self.assertIn("entity/cache phase is active", progress)
-        self.assertIn("7/24", progress)
+        self.assertIn(
+            "p8 implementation is ready on pr **#255** and pending one fresh external review",
+            disposition,
+        )
+        self.assertIn("single numbered-phase pr", disposition)
+        self.assertIn("normal accept is followed by bounded closeout on the same pr and then one human merge", disposition)
+        self.assertIn("entity/cache phase is implementation-ready on pr #255 and pending fresh review", progress)
+        self.assertIn("accepted repository progress remains 7/24", progress)
+        self.assertIn("bounded closeout on same pr", progress)
+        self.assertIn("ali human-merges that pr once", progress)
         self.assertIn("skynet-legacy-acceptance:v1", execute)
         self.assertIn("p7 accept stale/missing", execute)
         self.assertIn("only after both checks pass, start from that validated `main`", execute)

@@ -30,7 +30,7 @@ This file is a current disposition/caller/blocker map. Implementation chronology
 | `scripts/entity.sh` | forwarding compatibility only | `src/skynet/entities.py` | legacy shell entity tests | P8 implemented; removal P22 |
 | `scripts/audit-entities.sh` | forwarding compatibility only | Python entity audit | invariant gate | P8 implemented; removal P22 |
 | `scripts/build-db.sh` | forwarding compatibility only | `src/skynet/cache.py` | renderer, legacy shell cache tests | P8 implemented; removal P22 |
-| `scripts/sql/host-map.sql`, `scripts/sql/vhosts.sql` | retain if useful | SQL query definitions over disposable cache | renderer/query | P8B |
+| `scripts/sql/host-map.sql`, `scripts/sql/vhosts.sql` | retain | SQL query definitions over disposable cache | renderer/query | P8 implemented |
 | rendering/digest/context/catalog shell tools | migrate/prune | Python render/retrieval paths | nightly, humans, agent context | P9 |
 | `deploy-gate.sh`, GitOps deploy/rollback shell logic | migrate | Python verify/deploy/recovery evidence | deployment/restore runbooks | P10–P11 |
 | publishing/DNS coordination shell logic | migrate | Python bounded publishing workflows | Caddy/Auth/DNS runbooks | P12 |

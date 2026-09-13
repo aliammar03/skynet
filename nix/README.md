@@ -36,8 +36,9 @@ Proxmox observations, PBS backup observations, Docker inventory, Technitium DNS 
 collection and receipt-bound freshness checks, entity derivation/audit, and disposable SQLite
 cache/query operations. `src/skynet/entities.py` owns the five entity classes (guest, service, node,
 vhost, and network); `src/skynet/cache.py` owns the validated 14-table `.cache/inventory.db`
-projection. The database is rebuilt from repository truth and atomically replaced only after schema
-and integrity checks; it is never an authority. `bin/skynet` launches the package
+projection. The database is rebuilt from repository truth and atomically published over the target
+only after schema and integrity checks; prior valid bytes survive failure, and it is never an
+authority. `bin/skynet` launches the package
 from the checkout's tracked Git source using offline, lock-preserving Nix evaluation. It never
 falls back to source Python or installs a profile. Build the package and cache its dependencies
 before using default callers; a missing Nix/build prerequisite fails the command.
