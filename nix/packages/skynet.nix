@@ -1,4 +1,4 @@
-{ lib, python3Packages }:
+{ lib, python3Packages, gnugrep, makeWrapper }:
 let
   root = ../..;
   metadata = builtins.fromTOML (builtins.readFile (root + "/pyproject.toml"));
@@ -33,7 +33,12 @@ python3Packages.buildPythonApplication {
   pyproject = true;
   src = source;
   build-system = [ python3Packages.setuptools ];
+  nativeBuildInputs = [ makeWrapper ];
   doCheck = false;
+
+  postFixup = ''
+    wrapProgram "$out/bin/skynet" --prefix PATH : ${lib.makeBinPath [ gnugrep ]}
+  '';
 
   passthru.source = source;
 }

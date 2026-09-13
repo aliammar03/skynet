@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -445,14 +446,26 @@ def render_runbook_catalog(repo: Path, output: Path | None = None) -> Path:
 
 
 def recall(repo: Path, terms: Iterable[str]) -> list[RecallHit]:
-    """Search canonical Markdown memory and rank matching files."""
+    """Search canonical Markdown memory with GNU ERE and rank matching files."""
     expressions = list(terms)
     if not expressions:
         raise MemoryError("recall requires at least one topic", 2)
+    expression = "|".join(expressions)
     try:
-        pattern = re.compile("|".join(expressions), re.IGNORECASE)
-    except re.error as error:
-        raise MemoryError(f"invalid recall expression: {error}", 2) from None
+        validation = subprocess.run(
+            ["grep", "-iEq", "--", expression],
+            input="",
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except OSError as error:
+        raise MemoryError(f"recall grep unavailable: {error}", 3) from None
+    if validation.returncode == 2:
+        detail = validation.stderr.strip() or "GNU ERE rejected expression"
+        raise MemoryError(f"invalid recall expression: {detail}", 2)
+    if validation.returncode not in {0, 1}:
+        raise MemoryError("recall expression validation failed", 3)
     roots = [repo / name for name in ("journal", "docs", "runbooks", "planning")]
     files: set[Path] = {repo / "AGENTS.md", repo / "README.md"}
     for root in roots:
@@ -463,13 +476,22 @@ def recall(repo: Path, terms: Iterable[str]) -> list[RecallHit]:
         if not path.is_file():
             continue
         try:
-            lines = path.read_text(encoding="utf-8").splitlines()
-        except (OSError, UnicodeError):
+            result = subprocess.run(
+                ["grep", "-iIE", "--", expression, str(path)],
+                capture_output=True,
+                check=False,
+            )
+        except OSError as error:
+            raise MemoryError(f"recall grep unavailable: {error}", 3) from None
+        if result.returncode == 1:
             continue
-        matching = [line for line in lines if pattern.search(line)]
-        if not matching:
-            continue
-        excerpt = re.sub(r"\s+", " ", matching[0].strip())[:96]
+        if result.returncode != 0:
+            raise MemoryError(f"{path}: recall search failed", 3)
+        matching = result.stdout.split(b"\n")
+        if matching[-1] == b"":
+            matching.pop()
+        first_match = matching[0].decode("utf-8", errors="replace")
+        excerpt = re.sub(r"\s+", " ", first_match.strip())[:96]
         hits.append(
             RecallHit(
                 path.relative_to(repo), len(matching), token_cost(path), summary(path), excerpt

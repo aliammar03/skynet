@@ -71,7 +71,9 @@ Every PR, including generated-only nightly work, is human-merged during the emba
 the disposable cache, validates its inputs, and publishes factual Obsidian pages only after every page
 is ready. `skynet render digest|context|runbook-catalog --repo <checkout>` regenerates the corresponding
 content-stable view from repository truth. `skynet recall --repo <checkout> <topic> [...]` ranks
-canonical Markdown matches without persisting a summary.
+canonical Markdown matches without persisting a summary. Recall preserves its GNU grep
+case-insensitive extended-regular-expression dialect; the Nix package supplies GNU grep rather than
+interpreting expressions with Python's different regex dialect.
 
 `skynet collect proxmox <core|network> --output <file> [--credentials-file <file>] [--json]` reads
 nodes, resources, pools/members, backup jobs and recent vzdump tasks over verified HTTPS. Default

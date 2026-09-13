@@ -21,10 +21,11 @@ The Python engine is stdlib-first and has no runtime dependencies in `pyproject.
 the CLI, collection orchestration, Proxmox/PBS/DNS/Docker/OPNsense/Omada readers, certificate probes,
 reconnaissance, doctor reporting, static route parsing, packaged entity derivation/audit, and the
 disposable SQLite cache/query projection. `render.py` owns freshness-gated factual pages;
-`memory.py` renders the digest, context map, and runbook catalog and provides read-time recall. Entity
-functions cover guest, service, node, vhost, and network identities; route resolution calls them
-directly. Nix packages the application and its development shell; `deploy-rs`, sops-nix, and disko
-integrate with NixOS.
+`memory.py` renders the digest, context map, and runbook catalog and provides read-time recall with
+case-insensitive GNU grep ERE semantics. The Nix package closure supplies GNU grep. Entity functions
+cover guest, service, node, vhost, and network identities; route resolution calls them directly. Nix
+packages the application and its development shell; `deploy-rs`, sops-nix, and disko integrate with
+NixOS.
 
 ## Build and development tools
 

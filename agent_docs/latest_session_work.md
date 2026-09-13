@@ -26,8 +26,9 @@ remain embargoed; a post-transition review owns the replacement verification arc
   freshness refusal before any page replacement.
 - Made factual publication a complete-tree transaction with backup rollback, preservation of unrelated
   generated pages, and validated node-derived page basenames.
-- Added packaged read-time recall with total-match reporting, a 20-result display cap, and explicit
-  malformed-regex failure while keeping journal creation and writing with their later P21 owner.
+- Added packaged read-time recall with preserved case-insensitive GNU grep ERE semantics, total-match
+  reporting, a 20-result display cap, and explicit malformed-expression failure while keeping journal
+  creation and writing with their later P21 owner.
 - Updated present-tense docs, the P9 directive packet, the migration map, and generator-owned memory
   views for the new command ownership.
 
@@ -40,8 +41,9 @@ remain embargoed; a post-transition review owns the replacement verification arc
 - Normalized old/new factual output matched across all nine pages. Malformed JSON, unsafe node names,
   and an injected second-step publication failure retained the complete prior tree; digest and context
   repeated renders were byte-stable.
-- Recall returned zero cleanly for no matches, rejected malformed regular expressions with exit 2,
-  and matched the compatibility forwarder output.
+- Source and installed recall matched on `[[:space:]]`, `[[:digit:]]+`, ordinary alternation, no-match,
+  ranking, a truthful 23-total/20-displayed cap, generated-directory exclusion, and read-only corpus
+  hashes. Malformed ERE exited 2, and the compatibility forwarder matched packaged output.
 - No root grant, credential access, live collection, T2/T3 action, service/timer change, or production
   mutation occurred.
 
