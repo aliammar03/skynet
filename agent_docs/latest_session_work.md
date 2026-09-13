@@ -5,55 +5,56 @@
 
 ## Detailed Current State
 
-SKY-026 is externally accepted and in bounded closeout on **PR #253**.
+SKY-025 P8 is externally accepted at progress **8/24**. The newest applicable acceptance marker was
+validated against the still-open PR #255, its current head, and the unchanged reviewed base. Bounded
+closeout is staged on that same PR; it is not yet merged.
 
-- Corrective SKY-025 P7 PR #254 is accepted and merged into `main`.
-- PR #253 was refreshed against that post-P7 `main`, independently reviewed, and accepted on its exact
-  integration pair.
-- The final review-process rule is simple: every ACCEPT/FIX/BLOCKED verdict is durable, the newest
-  applicable marker wins, and only newest ACCEPT may enter bounded same-PR closeout.
-- SKY-026 is now archived with `status: done` and `current_phase: 5`.
+Every PR is human-merged during the embargo, including generated-only nightly PRs. The nightly
+auto-merge executor is fail-closed, while the local secret scan and hard-invariant checker remain.
 
-The simplified lifecycle ends in **one human merge**:
-
-```text
-implement/fix → open PR → fresh review → durable ACCEPT/FIX/BLOCKED marker
-→ newest applicable verdict wins
-→ only newest ACCEPT may enter bounded closeout on SAME PR
-→ CI/final recheck → Ali merges once
-```
-
-Ali never copies hashes. A newer FIX/BLOCKED or malformed newest marker blocks closeout. Private GitHub
-Free still leaves a non-atomic race window between the final agent recheck and Ali clicking Merge.
-
-SKY-025 repository state remains P6/24 until P8 opens. P8 will record P7 accepted / `current_phase: 7`
-as opening bookkeeping, then continue the Python-first overhaul.
+The P8 entity/cache implementation remains intact. Repository tests, their fixtures, GitHub workflows,
+and package/pre-commit test execution are removed as one policy change; a post-transition review owns
+the replacement verification architecture.
 
 ## Session Changes
 
-- Merged current `main` into #253 after #254 landed so acceptance bound to the real post-P7 integration.
-- Repaired the last stale SKY-026 directive wording so it matches the final newest-verdict rule.
-- Fresh review accepted #253 and posted the new `skynet-acceptance:v1` marker.
-- Archived SKY-026 as complete and refreshed planning/Main-owned closeout state only.
-- No source/runtime/config/tests/invariants/AGENTS/doctrine/runbooks/behavioral docs/stable memory were
-  changed after ACCEPT.
+- Added packaged entity derivation/audit for guest, service, node, vhost, and network identities.
+- Moved route guest resolution from a Bash subprocess to the entity module.
+- Added an atomic 14-table SQLite projection and packaged query command; failed rebuilds retain the
+  previous valid cache and ordinary query/render callers retain collection freshness gates.
+- Kept the two maintained SQL views and migrated operator/query/renderer callers to Python behavior.
+- Repaired service auditing so valid standalone Docker containers are ignored while malformed labels
+  still fail and undeclared Compose projects remain running-unmapped holes.
+- Removed the repository test tree, GitHub workflows, packaged test phase, and test hook wiring.
+- Suspended nightly auto-merge and recorded the embargo in constitution, doctrine, runbooks, planning,
+  Nix packaging, and agent memory.
+- Reconciled remaining present-tense documentation after independent review: current caller maps no
+  longer name deleted tests, ADR 0004 now states the suspended decision throughout, and all scanned
+  current surfaces agree that every PR is human-merged during the embargo.
+- Validated the newest external ACCEPT marker and advanced bounded phase/planning state to 8/24 without
+  changing accepted implementation, runtime/configuration, doctrine, runbooks, or behavioral docs.
 
 ## Verification
 
-- #253 pre-closeout exact-head GitHub Actions run #702: lifecycle contracts, full behavioral tests,
-  Ruff, mypy, packaged Nix checks, hard invariants, `git diff --check`, entity/digest/DNS-revert/
-  compose-rollback/cert-selector/OpenTofu-rollback/PVE-snapshot/provisioning-truth/construction/nightly
-  gates all passed.
-- Final closeout CI is still required on the closeout head before human merge.
-- No production endpoint, credential, root grant, service/timer, inventory, or live infrastructure
-  write occurred.
+- Retained secret and hard-invariant controls passed; Ruff, strict mypy, package build, shell syntax,
+  diff, and repository-surface checks passed.
+- Current-authority scans found no remaining claim that absent GitHub CI is running or that the
+  nightly may merge during the embargo; generated digest/context views were refreshed normally.
+- Packaged runtime doctor succeeded; direct entity audit reported 39 mapped/excepted/template entities
+  with zero holes, and a representative cache query reported 11 containers.
+- The prior isolated T1 smoke covered all 11 collectors plus freshness, entity, query, renderer, and
+  explicit query-failure paths; it remains historical evidence rather than an active automated gate.
+- No root grant, T2/T3 action, service/timer change, persistent inventory/docs rewrite, or production
+  mutation occurred.
 
 ## Pending Work and Blockers
 
-- Run final CI and verify the accepted-head → final-head delta contains only sanctioned closeout paths.
-- Recheck `main` still matches the reviewed base.
-- If both pass, PR #253 is ready for one human merge.
+- PR #255 remains open and requires Ali's one human merge.
+- Automated regression protection is intentionally unavailable until the post-SKY-025 redesign.
+- `bin/ops entities` truthfully refused stale/missing collection receipts, and `bin/ops hygiene`
+  retained its existing current-authority budget failure (220,996 estimated tokens vs 200,000).
+- Unchanged baseline temporal-hygiene matches and runbook-catalog drift remain outside this phase.
 
 ## Next Entry Point
 
-After final closeout verification passes, human-merge PR #253. Then start SKY-025 P8 from current `main`.
+Human-merge PR #255 once; after it lands, begin P9/G3 from current `main`.

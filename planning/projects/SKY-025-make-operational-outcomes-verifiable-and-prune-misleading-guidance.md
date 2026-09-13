@@ -4,9 +4,9 @@ title: Rebuild the Skynet engine in Python
 status: in-progress
 horizon: long
 created: 2026-09-06
-updated: 2026-09-12
+updated: 2026-09-13
 phases: 24
-current_phase: 6
+current_phase: 8
 tier_touched: [T1, T2, T2+, T3]
 related:
   - docs/system-design.md
@@ -22,24 +22,10 @@ related:
 
 ## 1. Current state
 
-Accepted numbered progress is **P6 / 6 of 24**.
+Accepted numbered progress is **P8 / 8 of 24**.
 
-P7 implementation is complete and already merged in PRs **#235, #236, #237 and corrective #239**.
-Those PRs landed under the former post-merge review workflow, so there is no open P7 PR to review.
-P7 is therefore the only legacy migration case.
-
-**Single current next action:** start one fresh P7 review using the one-time already-merged transition in
-[`../prompts/review.md`](../prompts/review.md). The reviewer inspects the **already-integrated P7 result**
-on current `main`, including #235, #236, #237, #239 and later P7-owned changes.
-
-- **P7 ACCEPT** → do **not** create a standalone P7 closeout PR. Start the natural P8 PR; its opening
-  bookkeeping records P7 accepted (`current_phase: 7`) before P8 implementation.
-- **P7 FIX** → open one bounded corrective P7 PR. It then uses the normal open-PR review → same-PR
-  closeout → one-merge lifecycle and never returns to legacy integrated-main mode.
-- No implementation packet is executable until P7 receives a truthful ACCEPT.
-
-P8 is prepared below so work can begin immediately after P7 ACCEPT, with the P7 progress transition
-recorded at the start of the P8 PR instead of manufacturing a bookkeeping-only PR.
+**Current action:** P8 is externally accepted and bounded closeout is staged on PR **#255**. Ali
+human-merges that same PR once; after it lands, P9/G3 is the next authorized packet.
 
 ## 2. Mandate and boundaries
 
@@ -68,7 +54,10 @@ human merge, protected guests, saved-plan rules, and grant boundaries remain in 
 - Writes must record target, source/plan identity, completed steps, verification, and recovery state.
   A timed-out write is reconciled before any retry.
 - Nix owns production Python packaging. No production pip/npm package ownership.
-- Tests exercise behavioral boundaries with synthetic inputs, disposable paths, and fake external I/O.
+- GitHub CI and automated repository tests are embargoed through SKY-025. Phases record focused
+  manual/build/smoke evidence and verification debt without adding replacement test fragments; a
+  post-transition repository review owns one coherent test architecture. Every PR, including
+  generated-only nightly work, is human-merged during the embargo.
 - Current docs describe current behavior. Raw episodes and superseded process details belong in Git and
   `journal/`, not in this active directive.
 
@@ -99,7 +88,8 @@ If a phase needs internal slices:
    marker to the PR conversation;
 8. Ali tells the original session only `accepted`;
 9. that original session fetches/validates the marker and performs bounded closeout on the **same PR**;
-10. after CI and a final base + closeout-delta recheck, Ali human-merges that same PR **once**.
+10. after retained safety controls and a final base + closeout-delta recheck, Ali human-merges that
+    same PR **once**.
 
 Ali never copies or compares commit hashes. The accepted closeout may change only:
 
@@ -134,14 +124,14 @@ immediately returns to the normal lifecycle above.
 | Phase | Recommended Main | Outcome | Exit evidence |
 |---|---|---|---|
 | 1 | Medium | Repository disposition + Python doctrine | accepted |
-| 2 | Heavy | Installable Python CLI + Nix package/dev/test/lint/type path | accepted |
+| 2 | Heavy | Installable Python CLI + Nix package/dev/lint/type path | accepted |
 | 3 | Medium | Proxmox core collection + default freshness | accepted; G2 |
 | 4 | Heavy | Remaining Proxmox/network/ACL collection | accepted |
 | 5 | Heavy | PBS + Docker inventory | accepted |
 | 6 | Heavy | DNS + live OPNsense/firewall observations | accepted |
-| 7 | Heavy | Omada + certs + routes + recon | implementation merged; one-time review pending |
-| 8 | Heavy | Entity derivation/audit + rebuildable SQLite cache/query | prepared below; blocked only on P7 ACCEPT |
-| 9 | Medium | Docs/digest/context/catalog rendering + journal/recall helpers | deterministic views; G3 |
+| 7 | Heavy | Omada + certs + routes + recon | accepted |
+| 8 | Heavy | Entity derivation/audit + rebuildable SQLite cache/query | accepted |
+| 9 | Medium | Docs/digest/context/catalog rendering + journal/recall helpers | next after PR #255 merges; G3 |
 | 10 | Heavy | Deployment health + reachability verification | failures/empty/partial/wrong revision fail |
 | 11 | Heavy | Arcane deploy/env/sync + rollback preparation | exact source + truthful failures |
 | 12 | Heavy | Publishing: Caddy/Auth/DNS coordination | correct vantages + auth paths |
@@ -152,34 +142,19 @@ immediately returns to the normal lifecycle above.
 | 17 | Medium | Service/guest/core/network restore | isolated restore + T3 labels; G5 |
 | 18 | Medium | Provision/onboard + pins/age identity/workstation grants | custody and access paths agree |
 | 19 | Heavy | OS-aware guest updates + host-local backup/rescue packaging | platform-specific rollback |
-| 20 | Medium | Nightly collect/report/evidence/PR/exact-PR auto-merge gate | one sequence, authority unchanged |
-| 21 | Heavy | Planning/scaffolding + hygiene/invariant gates + CI unification | meaningful deterministic gates |
+| 20 | Medium | Nightly collect/report/evidence + human-review PR path | one sequence; embargo unchanged |
+| 21 | Heavy | Planning/scaffolding + retained hard-safety controls | verification debt remains explicit |
 | 22 | Medium | Whole-repo prune of obsolete scripts/shims/docs/callers | no duplicate implementation |
 | 23 | Heavy | Install/restart Python engine + staged operational acceptance | G6 |
-| 24 | Medium | Cold-start/recovery rehearsal + final fixes/archive | maintained docs/style/context gates restored |
+| 24 | Medium | Cold-start/recovery rehearsal + final fixes/archive | post-transition test/CI redesign handed off |
 
 Architecture checkpoints G1/G2 are already behind us. G3–G6 remain at phases 9/14/17/23.
 
-## 5. Current gate and prepared P8 packet
+## 5. Current P8 packet
 
-### 5.1 P7 migration gate — current action
+### Phase 8 — entity spine + rebuildable query cache
 
-Start a fresh review chat with:
-
-```text
-Read planning/prompts/review.md and review SKY-025 P7 using the one-time already-merged transition.
-```
-
-Reviewer resolves current `main` itself, reviews the complete integrated P7 result, and rechecks current
-`main` before verdict. Do not ask Ali for a SHA.
-
-P7 ACCEPT alone releases P8. Because no P7 PR exists, the **P8 PR's opening bookkeeping** updates this
-frontmatter to `current_phase: 7`, aligns Main-owned `agent_docs` + map/roadmap state, and then proceeds
-with P8. No standalone P7 closeout PR is created.
-
-### 5.2 Phase 8 — entity spine + rebuildable query cache
-
-**Status:** prepared, **not executable until P7 ACCEPT**.
+**Status:** accepted; bounded same-PR closeout staged on PR **#255** for one human merge.
 
 **Recommended Main:** Heavy. Use one P8 branch/PR for the whole numbered phase. Internal slices are
 working units on that same PR, never separately merged.
@@ -194,10 +169,9 @@ Migrate the behavior currently owned by:
 
 - `scripts/entity.sh`
 - `scripts/audit-entities.sh`
-- `tests/entity-test.sh`
-- entity-related callers in `src/skynet/routes.py`, `bin/ops`, current render/query paths, and tests.
+- entity-related callers in `src/skynet/routes.py`, `bin/ops`, and current render/query paths.
 
-Preferred implementation surface: `src/skynet/entities.py` plus CLI wiring/tests. Keep names small;
+Preferred implementation surface: `src/skynet/entities.py` plus CLI wiring. Keep names small;
 do not add an object graph or generic entity framework.
 
 Required behavior:
@@ -224,7 +198,6 @@ Migrate the behavior currently owned by:
 - `scripts/sql/vhosts.sql`
 - `bin/ops query`
 - the database consumer in `scripts/render-docs.sh`
-- affected collection/query regression tests.
 
 Preferred implementation surface: one small Python cache/query module. SQLite remains a disposable
 `.cache/inventory.db` projection of Git/inventory truth, rebuilt from scratch. It is never authority.
@@ -243,15 +216,12 @@ Required behavior:
 
 #### P8 verification
 
-At minimum, before P8 is handed to fresh review:
+At minimum, before P8 is handed to fresh review during the embargo:
 
-- focused entity/cache/query behavioral tests cover normal, ambiguous, exception, stale,
-  running-unmapped, malformed/missing-source, rebuild failure, freshness refusal, and recovery cases;
-- existing entity/query/render consumer behavior is preserved;
-- full `pytest -q`, Ruff, mypy, packaged Nix checks, hard invariants, construction gate, relevant shell
-  gates, and `git diff --check` pass;
-- source and installed-package paths both exercise the Python implementation rather than source-only
-  fallbacks;
+- focused manual entity/cache/query smoke evidence covers normal operation and the review defect;
+- existing entity/query/render consumer behavior is inspected for preservation;
+- Ruff, mypy, package build, hard invariants, secret scan, and `git diff --check` pass;
+- source and installed-package paths are both exercised without recreating a repository test suite;
 - no live endpoint, credential, root grant, service/timer, inventory rewrite, or production mutation is
   required for this phase.
 
@@ -297,8 +267,8 @@ require operation-specific recovery evidence, not blind `git revert`.
 Read planning/prompts/execute.md and execute the next authorized SKY-025 packet.
 ```
 
-Until P7 is accepted, `execute.md` refuses P8 and points to the P7 migration review. After P7 ACCEPT,
-that same invocation starts P8 and records P7 accepted/current_phase 7 as opening P8-PR bookkeeping.
+The current invocation executes P8. Later invocations execute only the next packet released by this
+directive's numbered progress and review state.
 
 ### Review a normal open PR
 

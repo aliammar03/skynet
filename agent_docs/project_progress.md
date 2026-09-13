@@ -14,9 +14,8 @@ and each capability earns autonomy through recorded verification and rollback ev
   native SKY-026 construction model are established.
 - **SKY-026 is complete.** Phases 1–5 are accepted and the directive is archived. PR #253 contains the
   accepted final workflow plus this bounded closeout and is awaiting one human merge.
-- Corrective SKY-025 P7 PR #254 is accepted and merged. **P8 is prepared.** SKY-025 repository progress
-  remains P6/24 until the natural P8 PR records P7 accepted / `current_phase: 7` as opening bookkeeping,
-  then implements P8.
+- **SKY-025 P8 is externally accepted at progress 8/24.** GitHub CI, automated tests, and packaged
+  test execution remain embargoed; bounded closeout is staged on open PR #255 for one human merge.
 
 ## Current Position
 
@@ -26,7 +25,7 @@ The normal lifecycle is deliberately small and ends in **one human merge**:
 implement/fix → one open PR → fresh review → durable verdict marker
 → newest verdict must be ACCEPT
 → Ali says "accepted" → bounded closeout on SAME PR
-→ CI/final recheck → Ali human-merges that PR once
+→ retained safety controls/final recheck → Ali human-merges that PR once
 ```
 
 Every final reviewer verdict posts one machine-readable `skynet-acceptance:v1` marker with scope,
@@ -48,7 +47,7 @@ merged.
 
 ## Next Milestone
 
-1. Human-merge accepted PR #253 after this closeout's final CI/base recheck passes.
-2. Start SKY-025 P8 from current `main`; its opening bookkeeping records P7 accepted / `current_phase: 7`.
+Human-merge PR #255 once. After it lands, begin P9/G3: docs/digest/context/catalog rendering plus
+journal/recall helpers under the continuing test/CI embargo.
 
 No production authority or live host change is involved in these handoffs.

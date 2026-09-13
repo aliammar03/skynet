@@ -97,7 +97,7 @@ finalize() {
   summary="$(git diff --stat "origin/${DEFAULT_BRANCH}...${BRANCH}" -- inventory docs/generated journal compose | tail -25)"
   pr_url="$(gh pr create --base "${DEFAULT_BRANCH}" --head "${BRANCH}" \
     --title "nightly ${BRANCH#inventory/}: report-only maintenance" \
-    --body "Automated report-only nightly: collection, deterministic renders, raw journal evidence, and drift report.\n\n\`\`\`\n${summary}\n\`\`\`\n\nThe merge gate may auto-merge only a generated-only, CI-green PR; otherwise this remains open for review." \
+    --body "Automated report-only nightly: collection, deterministic renders, raw journal evidence, and drift report.\n\n\`\`\`\n${summary}\n\`\`\`\n\nGitHub CI and nightly auto-merge are suspended during SKY-025; this remains open for human review." \
     2>&1 | tail -1)" || pr_url=""
   case "${pr_url}" in
     https://*) echo "opened ${pr_url}"; ./scripts/nightly-automerge.sh "${pr_url}" || true ;;

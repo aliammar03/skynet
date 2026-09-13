@@ -6,13 +6,9 @@ summary: "SKY-025 current subsystem dispositions, callers, replacement phases, a
 
 Owned by [the active directive](projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md).
 
-Current accepted progress is **P6 / 6 of 24**. P7 implementation/corrective work is already merged in
-**#235, #236, #237 and #239**, but P7 is not yet accepted. **No implementation packet is currently
-released.** The **single current next action** is the one-time fresh review of the **already-integrated
-P7 result** on current `main`. ACCEPT releases the prepared P8 packet; because historical P7 has no
-open PR, the P8 PR carries the small P7 accepted/`current_phase: 7` transition as opening bookkeeping.
-No standalone P7 closeout PR is created. FIX opens one bounded corrective P7 PR, which then uses the
-normal open-PR review → same-PR closeout → one-human-merge lifecycle and never returns to legacy mode.
+Current accepted progress is **P8 / 8 of 24**. P8 is externally accepted and bounded closeout is staged
+on PR **#255** for one human merge. After that merge, P9/G3 is the next authorized packet.
+Every PR, including generated-only nightly work, is human-merged during the SKY-025 test/CI embargo.
 
 The reviewer resolves/rechecks Git revisions from GitHub. Ali supplies the phase/PR identity, not hashes.
 For normal open PRs, ACCEPT is recorded in a machine-readable PR marker; Ali later says only `accepted`
@@ -30,11 +26,11 @@ This file is a current disposition/caller/blocker map. Implementation chronology
 | PBS + Docker shell collectors | migrate | Python PBS/Docker collectors | backup/container views | P5 accepted; shell forwarding cleanup P22 |
 | DNS + OPNsense shell collectors | migrate | Python DNS + live OPNsense collectors | DNS/firewall/state views | P6 accepted; shell forwarding cleanup P22 |
 | offline OPNsense `config.xml` inventory parser | **deleted** | none | none | retired P6c; config.xml is DR restore material only |
-| Omada/cert/routes/recon shell implementations | migrate | Python observation modules | default collection/status/render/recon | P7 implemented; acceptance pending |
-| `scripts/entity.sh` | migrate/delete shell logic | prepared `src/skynet/entities.py` | audit, routes, cache/render/query consumers | P8A |
-| `scripts/audit-entities.sh` | migrate/delete shell logic | Python entity audit | `bin/ops entities`, CI/current diagnostics | P8A |
-| `scripts/build-db.sh` | migrate/delete shell logic | small Python rebuildable-cache module | `bin/ops query`, renderer | P8B |
-| `scripts/sql/host-map.sql`, `scripts/sql/vhosts.sql` | retain if useful | SQL query definitions over disposable cache | renderer/query | P8B |
+| Omada/cert/routes/recon shell implementations | migrate | Python observation modules | default collection/status/render/recon | P7 accepted |
+| `scripts/entity.sh` | forwarding compatibility only | `src/skynet/entities.py` | installed/manual callers | P8 implemented; removal P22 |
+| `scripts/audit-entities.sh` | forwarding compatibility only | Python entity audit | invariant gate | P8 implemented; removal P22 |
+| `scripts/build-db.sh` | forwarding compatibility only | `src/skynet/cache.py` | renderer compatibility | P8 implemented; removal P22 |
+| `scripts/sql/host-map.sql`, `scripts/sql/vhosts.sql` | retain | SQL query definitions over disposable cache | renderer/query | P8 implemented |
 | rendering/digest/context/catalog shell tools | migrate/prune | Python render/retrieval paths | nightly, humans, agent context | P9 |
 | `deploy-gate.sh`, GitOps deploy/rollback shell logic | migrate | Python verify/deploy/recovery evidence | deployment/restore runbooks | P10–P11 |
 | publishing/DNS coordination shell logic | migrate | Python bounded publishing workflows | Caddy/Auth/DNS runbooks | P12 |
@@ -46,10 +42,11 @@ This file is a current disposition/caller/blocker map. Implementation chronology
 | bootstrap workstation/Proxmox | retain if rescue-only | human bootstrap/rescue | external recovery | P18/P22/P24 decision |
 | nightly shell orchestration | migrate | one Python nightly sequence | ops timer | P20 |
 | CLI updater competing with Nix | delete | Nix package/config ownership | weekly update timer | P20–P22 |
-| invariant/hygiene shell gates | migrate useful behavior | deterministic Python/current gates | hook, CI, nightly | P21 |
+| invariant/hygiene shell gates | retain only hard safety controls | post-transition redesign | local hook | P21/P24 handoff |
 | `bin/new`, `bin/plan` | migrate executables; retain templates | Python planning/scaffolding helpers | operators | P21 |
 | `.codex/**`, `agent_docs/**` | retain | native SKY-026 construction/continuity | construction sessions | already migrated; no SKY-022 compatibility |
-| `.github/workflows/*`, `.githooks/pre-commit` | retain/adapt | unified deterministic gates | GitHub/local hook | P21 |
+| `.github/workflows/*`, automated tests | delete during embargo | post-transition redesign | none during SKY-025 | post-SKY-025 |
+| `.githooks/pre-commit` | retain/adapt | secret scan + hard invariants only | local hook | P21 |
 | Nix/hosts/flake | retain/adapt | Nix | package/install/timers | throughout; P23 install |
 | OpenTofu declarations/state config | retain | OpenTofu | saved-plan executor | P13–P14/P18 |
 | Compose/Caddy/service payload | retain | Compose/Caddy | Arcane/GitOps | P11–P12/P22 |
@@ -64,10 +61,8 @@ callers together and delete duplicate procedural logic.
 
 ## P8 caller map
 
-P8 is prepared but remains blocked until the one-time P7 review returns ACCEPT. After that verdict, the
-P8 PR begins by recording P7 accepted/current_phase 7, then performs P8. From P8 onward, internal slices
-stay on one open numbered-phase PR and are not merged separately. Normal ACCEPT is followed by bounded
-closeout on that same PR and then one human merge.
+P8 is accepted on PR **#255** and its bounded closeout stays on that one open numbered-phase PR until
+Ali human-merges it once.
 
 ### P8A · entity derivation/audit
 
@@ -75,7 +70,6 @@ Current owners/callers to inspect together:
 
 - `scripts/entity.sh`
 - `scripts/audit-entities.sh`
-- `tests/entity-test.sh`
 - `src/skynet/routes.py` entity resolution
 - `bin/ops entities`
 - entity-related renderer/cache/query callers
@@ -93,7 +87,7 @@ Current owners/callers to inspect together:
 - `scripts/sql/vhosts.sql`
 - `bin/ops query`
 - `scripts/render-docs.sh`
-- relevant collection/query tests
+- current collection/query caller contracts
 - `nix/modules/base.nix` SQLite package/comment ownership
 
 `.cache/inventory.db` remains disposable and rebuilt from repository/inventory truth. No ORM, DB service,

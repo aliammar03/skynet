@@ -1,6 +1,0 @@
-{
-  "rows": [
-    {"device": "igb0", "description": "MGMT", "status": "up", "enabled": "1", "identifier": "lan"},
-    {"device": "igb1", "description": "WAN", "status": "up", "enabled": "1", "identifier": "wan"}
-  ]
-}

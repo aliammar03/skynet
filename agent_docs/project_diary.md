@@ -81,3 +81,8 @@
   and encode prohibited self-actions as deterministic hard blocks.
 - Current planning prompts and active directives are construction callers too; legacy scans that cover
   only role files and doctrine can miss live routing language there.
+- A transition-wide verification architecture should be changed coherently rather than patched phase
+  by phase. During an explicit test embargo, retain hard safety controls, disable unattended merge,
+  record verification debt, and defer one replacement suite to the post-transition review.
+- A living ADR must state the current dial consistently in its Decision and Consequences; preserve
+  superseded rationale as explicitly historical context instead of mixing it with present authority.

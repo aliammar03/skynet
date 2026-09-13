@@ -52,18 +52,20 @@ Use the directive's Light/Medium/Heavy recommendation and native SKY-026 constru
 Delegate bounded work through current native roles when useful. Workers do not merge and gain no
 production authority.
 
-Implement only the authorized phase/slice. Update affected callers, behavioral tests, packaging, and
-current documentation together. If the phase needs multiple internal slices, continue on the same open
-phase PR until the complete numbered phase is implementation-ready.
+Implement only the authorized phase/slice. Update affected callers, packaging, and current
+documentation together. Automated repository tests and GitHub CI remain embargoed throughout
+SKY-025; record focused manual/build evidence and verification debt instead. If the phase needs
+multiple internal slices, continue on the same open phase PR until the complete numbered phase is
+implementation-ready.
 
 Do not silently weaken an exit criterion, widen live authority, invent validation, or turn temporary
 migration compatibility into a second permanent engine.
 
 ## 4. Verify
 
-Run focused checks for the changed surface, then the phase's required full gates. Report exact results
-and any unavailable validation. In Heavy work, use the independent Tester contract and return ordinary
-defects to the owning Executor before handoff.
+Run the retained secret/invariant controls plus focused manual, build, lint, type, and live-read checks
+that do not recreate an automated test suite. Report exact results and unavailable validation. In
+Heavy work, use the independent Tester contract for independent inspection and smoke verification.
 
 ## 5. Implementation handoff and STOP
 
@@ -110,8 +112,8 @@ This is accepted closeout mode on the same PR.
 5. Do **not** change source/runtime/config/tests/invariants/AGENTS/doctrine/runbooks/behavioral docs/stable
    agent memory or any substantive implementation surface. If such a change is needed, stop: ACCEPT is
    stale and the same PR needs fresh review after the change.
-6. Prove the marker-head..final-head delta is closeout-only, rerun closure-focused gates plus normal CI,
-   and recheck target/base still equals the marker base.
+6. Prove the marker-head..final-head delta is closeout-only, rerun the retained closure/safety checks,
+   and recheck target/base still equals the marker base. GitHub CI remains absent during the embargo.
 7. Push the closeout to this same PR, report it ready for **one human merge**, then STOP.
 
 The closeout commit moves the PR head by design; allowed bookkeeping movement alone does not invalidate

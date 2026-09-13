@@ -65,9 +65,10 @@ promotion is a PR to `AGENTS.md` §3 and this file's ladder. **"It felt fine" is
 Nothing graduates until something else does the job the human was doing. Three replacements, in
 ascending order of what they can catch:
 
-- **Deterministic gates** — `invariants.json` + `check-invariants.sh` + CI. Absolute, unarguable, and
-  limited to violations that can be named in advance. Cheapest and most trustworthy; an LLM cannot
-  reason its way past a script that exits 1.
+- **Deterministic gates** — `invariants.json` + `check-invariants.sh` through the retained local hook.
+  GitHub CI is absent during the SKY-025 embargo, so this control does not support unattended action.
+  These gates are limited to violations that can be named in advance; an LLM cannot reason its way
+  past a script that exits 1.
 - **Empirical verification** — plan/dry-run diffs bounded before apply, canary scope, post-change
   health probes, and automatic rollback on failure. Catches *"this change does not work"* without
   anyone having predicted the failure. This is the largest currently-missing piece.

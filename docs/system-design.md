@@ -73,11 +73,11 @@ These are current settings, changed only by a PR here.
   `Permissions.Modify` and node-root privileges. It can technically reach Unraid VM 2020's envelope;
   automated/OpenTofu paths must never target it, and its guest OS remains T3. Exact ACLs and
   exclusions: [access and trust](design/access-and-trust.md).
-- **Merge gate:** human merge for authored changes. The nightly may auto-merge only its own
-  generated-only, CI-green PRs (off switch `OPS_NIGHTLY_AUTOMERGE=0`); see
-  [ADR 0004](decisions/0004-auto-merge-generated-only-nightly-prs.md).
-- **Autonomy:** report-only outside the version-controlled auto-approve list. The nightly's
-  generated-only merge is the sole A4 capability; all other promotions require recorded evidence.
+- **Merge gate:** human merge for every change while GitHub CI and automated repository tests are
+  embargoed during SKY-025. The generated-only nightly auto-merge capability from
+  [ADR 0004](decisions/0004-auto-merge-generated-only-nightly-prs.md) is suspended and fails closed.
+- **Autonomy:** report-only. No A4 capability is active during the SKY-025 test embargo; promotions
+  require a later human-reviewed restoration of coherent evidence and enforcement.
 - **Survival:** verify the survival kit quarterly and drill `disable tokens + qm stop 9090` before
   autonomy day one and on demand.
 

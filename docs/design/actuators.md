@@ -27,7 +27,7 @@ closed when a snapshot cannot be made. An apply/API failure can use that snapsho
 verification failure preserves it for operator recovery. New guests and non-guest resources have no
 automatic inverse, so they remain supervised below A4.
 
-The test suites named by the registry are the durable proof locations:
-`tests/compose-rollback-test.sh`, `tests/tofu-rollback-test.sh`, and
-`tests/dns-revert-test.sh`. Raw rehearsal evidence belongs in the journal; deployment and
-provisioning procedures belong in their runbooks.
+Automated rollback proof is unavailable during the SKY-025 repository-test embargo. Historical raw
+rehearsal evidence remains in the journal, and deployment/provisioning procedures remain in their
+runbooks, but no actuator may claim a new A4 promotion until a post-transition review restores
+coherent failure-case automation.

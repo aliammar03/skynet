@@ -26,14 +26,12 @@ related:
   - hosts/
   - compose/
   - flake.nix
-  - tests/temporal-hygiene-test.sh
-  - tests/documentation-drift-test.sh
   - scripts/hygiene.sh
 ---
 
 # SKY-023 · Eliminate documentation drift and shrink operational context
 
-> **2026-09-07 ownership:** This directive keeps its open P10 classifier/residue and LXC identity close-out. SKY-025 removes conflicting guidance it touches and owns engine-related pruning, preserving the hygiene gates; it does not accept P10 or PR #203.
+> **2026-09-07 ownership:** This directive keeps its open P10 classifier/residue and LXC identity close-out. SKY-025 removes conflicting guidance it touches and owns engine-related pruning. Its repository-test/CI embargo removes the hygiene test gates while retaining the local classifier report; it does not accept P10 or PR #203.
 > See the [SKY-025 disposition map](../sky-025-map.md#adjacent-directive-ownership). This note does not complete any phase.
 
 > Keep Skynet's live repository surface current, lean, and boring. History lives in history-bearing
@@ -70,7 +68,8 @@ An unknown tracked text file is a classification failure, not an implicit exempt
 - **P1–P4:** truth reconciliation, authority ownership, task-shaped runbooks, deterministic drift gates.
 - **P5–P6:** temporal/provenance purge across prose, code, config, OpenTofu, Nix, and runtime labels.
 - **P7:** dead compatibility audit; deleted `envsync`, retained only proven current DR/break-glass paths.
-- **P8:** temporal-hygiene pre-commit/CI gate.
+- **P8:** temporal-hygiene enforcement was delivered; its automated gate is suspended by the SKY-025
+  repository-test/CI embargo.
 - **P9:** `bin/ops hygiene`, context-budget reporting, cold-agent review, and re-archive.
 
 Detailed phase history remains in git and the SKY-023 journal episodes. Do not copy it back into live

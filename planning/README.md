@@ -70,9 +70,9 @@ Each directive carries its own execution/review entry points, so running or resu
 paste into a fresh session.
 
 For SKY-025, use the [execute/review handoff prompts](prompts/README.md). Corrective P7 PR #254 is
-accepted and merged. Repository progress remains P6/24 until the natural P8 PR records P7 accepted /
-`current_phase: 7` as its opening bookkeeping, then implements P8. From P8 onward, one numbered phase
-owns one open PR; internal slices remain on that PR until fresh acceptance, then bounded closeout stays
+accepted and merged. P8 is externally accepted with bounded closeout staged on PR #255; accepted
+progress is P8/24. After that PR is human-merged once, P9/G3 is the next packet. From P8 onward, one
+numbered phase owns one open PR; internal slices remain on that PR until fresh acceptance, then bounded closeout stays
 on that **same accepted PR** before one human merge. Ali never provides commit hashes to the reviewer or
 closeout session.
 
@@ -105,6 +105,6 @@ closeout session.
 | SKY-022 | "Lean multi-agent construction orchestration: lead-driven delegation" | archive | done | — | 🔭 long |
 | SKY-023 | Eliminate documentation drift and shrink operational context | projects | in-progress | 10/10 | 🌱 short |
 | SKY-024 | tofu declares managed core guests — API-driven CT/VM lifecycle, no node SSH | projects | in-progress | 4/6 | 🔭 long |
-| SKY-025 | Rebuild the Skynet engine in Python | projects | in-progress | 6/24 | 🔭 long |
+| SKY-025 | Rebuild the Skynet engine in Python | projects | in-progress | 8/24 | 🔭 long |
 | SKY-026 | "Overhaul agent orchestration around a Main-directed worker swarm" | archive | done | 5/5 | 🔭 long |
 <!-- ROADMAP:END -->

@@ -21,8 +21,9 @@ Tags: **[testable]** = a lint gate could assert it; **[manual]** = holds by revi
   check subprocess results, redact errors, and preserve TLS verification. Reconcile an uncertain write
   before retrying. Record target, source/plan identity, completed steps, and required recovery.
 - **Keep the package small** `[manual]`: stdlib first; dependencies and shared helpers need concrete
-  callers. Nix owns runtime/dependencies; no production pip/npm installs. Test behavioral decisions
-  with fake external boundaries; lint/type-check Python in CI when the package is introduced.
+  callers. Nix owns runtime/dependencies; no production pip/npm installs. During the SKY-025 embargo,
+  record manual/build/smoke evidence without adding tests or CI fragments; the post-transition review
+  owns one coherent replacement verification architecture.
 - **Shell requires a concrete caller or rescue/bootstrap need** `[manual]`. Record its owner and
   removal condition in planning. Existing Bash commands remain the installed implementation.
 

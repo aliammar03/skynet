@@ -18,21 +18,27 @@ directories and live inventory are intentionally summarized rather than copied h
   engine-neutral operational procedures and their catalog.
 - `planning/` holds SKY directives through their lifecycle; `journal/` holds append-only raw episodes;
   `agent_docs/` holds compact derived agent memory.
-- `tests/` holds Python behavior and shell contract tests; `inventory/` and `docs/generated/` are
-  machine-owned outputs and must be changed through their collectors/renderers.
+- `inventory/` and `docs/generated/` are machine-owned outputs and must be changed through their
+  collectors/renderers. No test tree or GitHub workflow is present during the SKY-025 embargo.
 
 ## Modules and responsibilities
 
-The Python CLI dispatches collection, doctor, route, and reconnaissance commands. Collector modules
-own one observation boundary and its validation/publication contract; `collection.py` coordinates the
-default evidence set. Bash scripts own deployment, backup, rendering, invariant, and host procedures.
-Nix owns system/runtime composition, OpenTofu owns declared infrastructure state, Compose owns service
+The Python CLI dispatches collection, doctor, route, reconnaissance, entity-audit, and cache/query
+commands. `entities.py` owns the five-class identity derivation/audit and `routes.py` uses it directly;
+`cache.py` owns the disposable 14-table SQLite projection and queries. Collector modules own one
+observation boundary and its validation/publication contract; `collection.py` coordinates the default
+evidence set. Bash scripts own deployment, backup, rendering, invariant, and host procedures, with
+the entity/audit/cache shell names retained only as forwarding compatibility entries. Nix owns
+system/runtime composition, OpenTofu owns declared infrastructure state, Compose owns service
 definitions, and runbooks explain task-shaped execution.
 
 ## Main interfaces and integration boundaries
 
 - `skynet` CLI / `src/skynet/cli.py` is the local engine interface; collectors write explicit snapshots
-  under `inventory/` and never claim service health merely from collection success.
+  under `inventory/`, `entities` audits committed identity mappings, and `query` rebuilds/queries the
+  disposable cache. `bin/ops entities|query` first requires current collection evidence; direct
+  repository scripts do not establish freshness.
+  Collectors never claim service health merely from collection success.
 - Git branch → PR → human merge → Arcane Git Sync → running Compose is the service boundary; `git
   revert` is the normal rollback path.
 - Approved OpenTofu source → one-scope saved plan → `scripts/tofu-apply.sh` is the infrastructure
@@ -40,10 +46,9 @@ definitions, and runbooks explain task-shaped execution.
 - `docs/system-design.md` is the authority spine. `agent_docs/` distills it and current evidence for
   cold Main intake; it cannot override constitution, runtime, current docs, directives, or evidence.
 
-## Tests and supporting assets
+## Supporting assets and temporary verification boundary
 
-Python tests mirror the engine modules (`tests/test_*.py`); shell tests cover construction, rendering,
-GitOps rollback, DNS, provisioning, invariants, and repository hygiene. `tests/fixtures/` supplies
-bounded API/recon data. `templates/` is the source for generated artifact scaffolding. `ca/`,
-`.sops.yaml`, `.githooks/`, and `invariants.json` support trust, encryption, commit checks, and
-machine-enforced hard laws.
+GitHub CI and automated repository tests are absent for the duration of SKY-025. A post-transition
+review owns the replacement test architecture. `templates/` is the source for generated artifact
+scaffolding. `ca/`, `.sops.yaml`, `.githooks/`, and `invariants.json` support trust, encryption, the
+retained local secret scan, and machine-enforced hard laws.

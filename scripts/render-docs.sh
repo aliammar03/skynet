@@ -44,20 +44,45 @@ fi
 
 # ── host facts — via the rebuildable SQLite join cache ────────────────────────
 # The SQL join is keyed on the entity ID (scripts/sql/host-map.sql over .cache/inventory.db).
-# build-db.sh rebuilds the cache from
-# inventory/*.json each run; git stays truth, the DB is throwaway (gitignored). A running guest wins
-# its IP and carries its entity id; a DNS name that resolves to a lab.json front door is a vhost, not
-# a host (rendered in 30-services). Degrades gracefully if sqlite3 is absent (pre-nixos-rebuild).
+# build-db.sh invokes the Python cache builder on every run; git stays truth, the DB is throwaway
+# (gitignored). A running guest wins its IP and carries its entity id; a DNS name that resolves to a
+# lab.json front door is a vhost, not a host (rendered in 30-services). A failed build is reported
+# non-zero and the renderer never falls back to a retained/stale database.
 # Columns: ip \t name \t source \t entity \t note
-hosts_tsv="$(mktemp)"; trap 'rm -f "${hosts_tsv}"' EXIT
-SQLITE3="${SQLITE3:-sqlite3}"
+hosts_tsv="$(mktemp)"
+vhosts_tsv="$(mktemp)"
+cache_code=0
+trap 'rm -f "${hosts_tsv}" "${vhosts_tsv}"' EXIT
 db="${REPO_DIR}/.cache/inventory.db"
 have_db=0
-if ${SQLITE3} --version >/dev/null 2>&1; then
-  if "${REPO_DIR}/scripts/build-db.sh" >/dev/null 2>&1 && [ -s "${db}" ]; then
-    ${SQLITE3} "${db}" -cmd ".mode tabs" ".read ${REPO_DIR}/scripts/sql/host-map.sql" 2>/dev/null \
-      | sort -t. -k3,3n -k4,4n > "${hosts_tsv}" && have_db=1
+cache_query() {
+  PYTHONPATH="${REPO_DIR}/src${PYTHONPATH:+:${PYTHONPATH}}" \
+    python3 -m skynet.cache --repo "${REPO_DIR}" --database "${db}" \
+    --sql-file "$1" --format tabs --no-header
+}
+if bash "${REPO_DIR}/scripts/build-db.sh" >/dev/null; then
+  if [ -s "${db}" ]; then
+    if host_rows="$(cache_query "${REPO_DIR}/scripts/sql/host-map.sql")"; then
+      if vhost_rows="$(cache_query "${REPO_DIR}/scripts/sql/vhosts.sql")"; then
+        if [ -n "${host_rows}" ]; then
+          printf '%s\n' "${host_rows}" | sort -t. -k3,3n -k4,4n > "${hosts_tsv}"
+        else
+          : > "${hosts_tsv}"
+        fi
+        if [ -n "${vhost_rows}" ]; then printf '%s\n' "${vhost_rows}" > "${vhosts_tsv}"; else : > "${vhosts_tsv}"; fi
+        have_db=1
+      else
+        cache_code=$?
+      fi
+    else
+      cache_code=$?
+    fi
+  else
+    echo "render-docs: cache build reported success but no database was published" >&2
+    cache_code=1
   fi
+else
+  cache_code=$?
 fi
 
 # ── 00 — network map (mermaid, from VLANs present in reservations) ─────────────
@@ -96,7 +121,7 @@ fi
       echo
     done
   elif [ "${have_db}" -eq 0 ]; then
-    echo "> [!warning] Host map pending — \`sqlite3\` not available (run \`nixos-rebuild\`) so the join cache could not be built."
+    echo "> [!warning] Host map pending — the disposable join cache could not be built; retained cache bytes were not used."
   else
     echo "> [!warning] No firewall/DHCP/guest inventory yet — run the collectors."
   fi
@@ -195,8 +220,7 @@ done
     echo
     echo "| Vhost | Front door | Proxy |"
     echo "|-------|-----------|-------|"
-    ${SQLITE3} "${db}" -cmd ".mode tabs" ".read ${REPO_DIR}/scripts/sql/vhosts.sql" 2>/dev/null \
-      | awk -F'\t' '{printf "| %s | `%s` ⚠ | %s |\n", $1, $2, $3}'
+    awk -F'\t' '{printf "| %s | `%s` ⚠ | %s |\n", $1, $2, $3}' "${vhosts_tsv}"
   fi
   # Route resolution chain: vanity name → front door → backend entity → auth mode,
   # from the Caddyfile parse. Answers "where does this actually go" with no manual Caddyfile reading.
@@ -417,3 +441,4 @@ ng="${inv}/network-gear.json"
 
 echo "rendered docs/generated/ from inventory (${ts})"
 ls "${gen}" "${gen}/40-hosts"
+exit "${cache_code}"

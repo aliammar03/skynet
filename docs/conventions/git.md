@@ -7,7 +7,7 @@ summary: "How change enters the repo: one branch per unit of work, one PR per ph
 > How change enters the repo: one branch per unit of work, one PR per phase, and a merge gate the
 > agent never operates on its own PRs. Governed by [`../conventions.md`](../conventions.md).
 
-Tags: **[testable]** = a lint/CI gate could assert it; **[manual]** = holds by review.
+Tags: **[testable]** = a future automated gate could assert it; **[manual]** = holds by review.
 
 ## Branching
 
@@ -24,9 +24,9 @@ Tags: **[testable]** = a lint/CI gate could assert it; **[manual]** = holds by r
 
 - **PRs teach** `[manual]`: the description says *what* changed, *why*, and *what merging causes*.
   Ali is learning git/infra through these — write them as lessons, not changelogs.
-- **Authored PRs are human-merged.** `[manual]` The deterministic nightly gate alone may merge its
-  own generated-only, CI-green PR; all other changes wait for Ali. This is the invariant in
-  [`AGENTS.md`](../../AGENTS.md) §6.
+- **Every PR is human-merged during the SKY-025 embargo.** `[manual]` GitHub CI and automated tests
+  are absent, and the nightly merge gate is suspended. This is the current invariant in
+  [`AGENTS.md`](../../AGENTS.md) §3/§6.
 - **`git revert` is the rollback** `[manual]` — never force-push `main`, never rewrite shared
   history. Arcane and the inventory converge back after a revert.
 

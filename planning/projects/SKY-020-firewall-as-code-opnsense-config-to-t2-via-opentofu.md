@@ -17,7 +17,7 @@ related:
 
 # SKY-020 · Firewall-as-code — OPNsense config to T2 via OpenTofu
 
-> **2026-09-07 ownership:** This directive keeps the future OPNsense writer/provider and self-leash policy implementation. SKY-025 replaces existing reads and saved-plan capabilities only; it does not build the missing firewall actuator.
+> **2026-09-07 ownership:** This directive keeps the future OPNsense writer/provider and self-leash policy implementation. SKY-025 replaces existing reads and saved-plan capabilities only; it does not build the missing firewall actuator. Its test/CI embargo blocks this directive's automated gate/test work until the post-transition review.
 > See the [SKY-025 disposition map](../sky-025-map.md#adjacent-directive-ownership). This note does not complete any phase.
 
 > Make OPNsense firewall config a reviewed `tofu plan`: the agent proposes alias/rule changes as a

@@ -1,9 +1,8 @@
 # Skynet
 
 > A homelab that runs itself — safely. A GitHub repo is the single source of truth, an
-> AI ops agent proposes every authored change as a pull request, and **you** merge it. The only
-> self-merge is the generated-only nightly when CI is green. No authored production change lands
-> without a human hand on the merge button.
+> AI ops agent proposes every authored change as a pull request, and **you** merge it. GitHub CI and
+> automated repository tests are temporarily embargoed during SKY-025, so every PR is human-merged.
 
 **Skynet** is the operations layer for a self-hosted lab: two Proxmox nodes, a PBS backup
 server, Docker hosts, Technitium DNS, and an OPNsense firewall. It's run by an agent on
@@ -65,8 +64,8 @@ flowchart LR
     class G truth;
 ```
 
-Authored work is human-merged; the deterministic gate alone may merge its own generated-only,
-CI-green nightly PR. Something breaks? `git revert`, and Arcane returns to the last good state.
+All work is human-merged during the SKY-025 test embargo. Something breaks? `git revert`, and Arcane
+returns to the last good state.
 
 ---
 
@@ -126,8 +125,8 @@ These are the guarantees that make an autonomous agent safe to keep around:
   scoped T1/T2 slices are defined in the authoritative trust model.
 - ⏱️ **Root always expires by itself.** The CA lives only on the workstation + the printed
   survival kit. The agent literally *cannot* mint its own access.
-- 🙅 **Authored PRs are human-merged.** The nightly gate may self-merge only its own
-  generated-only, CI-green PR; generated dirs (`inventory/`, `docs/generated/`) are never hand-edited.
+- 🙅 **Every PR is human-merged during the SKY-025 embargo.** Nightly self-merge is suspended;
+  generated dirs (`inventory/`, `docs/generated/`) are never hand-edited.
 - 🤫 **No plaintext secrets, ever** — sops-encrypted in git, or agent-readable restrictive local
   files (`0400 aliammar`; lab age key `0640 root:users`). The agent decrypts sops without sudo;
   never put a secret in a commit, terminal transcript, or chat.

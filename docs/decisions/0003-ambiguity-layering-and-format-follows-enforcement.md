@@ -81,8 +81,9 @@ constraints they generate or assert) and what to leave as prose (the judgment ab
 ## Consequences
 
 - **The gap gets closed, not papered over.** SKY-011 Phases 2–3 extract the machine-checkable hard
-  laws into `invariants.json` and enforce them with `scripts/check-invariants.sh` wired into the
-  git-hook/CI path — a deterministic gate that fails a bad PR, replacing "the agent remembering."
+  laws into `invariants.json` and enforce them with `scripts/check-invariants.sh` wired into the local
+  git hook — a deterministic control replacing "the agent remembering." GitHub CI enforcement is
+  suspended during the SKY-025 embargo.
 - **The constitution stays prose, on purpose.** No PR converts `system-design.md §2/§3` to a schema;
   §2 gains only a one-paragraph pointer to this doctrine. Rewriting law into data is now a named
   anti-pattern, not an open temptation.

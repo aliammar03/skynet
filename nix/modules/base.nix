@@ -33,7 +33,7 @@
     rclone
     restic
     jq
-    sqlite # rebuildable inventory.db join cache (scripts/build-db.sh)
+    sqlite # optional CLI inspection of the Python-built disposable inventory.db cache
     curl
     rsync
     docker-compose

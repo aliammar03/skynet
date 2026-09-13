@@ -1,5 +1,5 @@
 {
-  "_comment": "lab.json — AUTHORED judgment facts about the lab that are NOT derivable from collected inventory and must not be baked into code (ADR 0003: authored data with a deterministic consumer lives in data, not in a bash `case`). Read by the entity helper (scripts/entity.sh), the audit (scripts/audit-entities.sh), and the renderer (scripts/render-docs.sh). Everything here is topology/display judgment; hard-law constraints live in invariants.json (which also holds the VMID<->IP law + declared entity exceptions in entity_conventions). Grammar: docs/conventions/naming.md.",
+  "_comment": "lab.json — AUTHORED judgment facts about the lab that are NOT derivable from collected inventory and must not be baked into code (ADR 0003: authored data with a deterministic consumer lives in data, not in a bash `case`). Consumed by the packaged entity/cache and renderer paths. Everything here is topology/display judgment; hard-law constraints live in invariants.json (which also holds the VMID<->IP law + declared entity exceptions in entity_conventions). Grammar: docs/conventions/naming.md.",
 
   "vlans": {
     "_comment": "VLAN display names and short slugs used in entity IDs (guest/<role>-<slug>-<vmid>). VLAN 10 is the trusted client VLAN, VLAN 60 is admin access, and VLAN 40 has no guest slug.",

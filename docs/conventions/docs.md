@@ -103,5 +103,5 @@ contents must meet. The README is the hub for that directory.
 Text defaults to **current authority**; a new operational directory therefore enters the temporal and
 drift checks without a path-list edit. The only file-level exemptions are explicit: `planning/`,
 `journal/`, `docs/history/`, and ADRs are history-bearing; renderer-owned output and inventory are
-generated; tests/fixtures are fixture data; encrypted payloads and binary data are opaque. A path with
+generated; fixture data is non-authoritative; encrypted payloads and binary data are opaque. A path with
 zero or multiple classes fails the gate.

@@ -1,5 +1,6 @@
 -- host-map.sql — the canonical host map as a JOIN over entity keys.
--- jq/awk IP-priority ladder in render-docs.sh. One row per 10.10.0.0/16 IP, best label wins:
+-- Python-built cache projection and this SQL view replace the old jq/awk join. One row per
+-- 10.10.0.0/16 IP, best label wins:
 --   guest (0) > DHCP reservation (1) > single-IP alias (2) > unique-target DNS (4) > role alias (3+n).
 -- A running guest IS the host, so it wins and carries its entity id; a DNS name that resolves to a
 -- front-door IP is a vhost, not a host, and is excluded here (shared target) — see vhosts.sql.

@@ -1,52 +1,11 @@
 #!/usr/bin/env bash
-# Repo pre-commit hook → the deterministic gates. Active when core.hooksPath=.githooks
+# Repo pre-commit hook → the two retained local safety controls. Active when core.hooksPath=.githooks
 # (bootstrap-workstation.sh sets this; or run once: git config core.hooksPath .githooks).
 #   1. secret-scan       — no plaintext secrets enter a commit (AGENTS.md §6, staged tree).
 #   2. check-invariants  — hard laws hold: excluded guests stay unpooled, the managed-pool dial
 #                          matches inventory, and plaintext secrets are rejected.
-#   3. entity-test       — VMID/IP derivation and entity-ID grammar hold against the known-good set.
-#   4. digest-test       — resolved historical threads stay out of the optional recent-activity digest.
-#   5. construction-test — the six native worker role TOMLs parse and carry their full contract
-#                          (name/model/effort/sandbox/description/instructions); sandboxes match
-#                          invariants.json; no legacy role or concurrency cap survives.
-#   6. rollback/provisioning regressions — current executor, snapshot, certificate-selection, and
-#      declared-guest truth stays covered locally as well as in CI.
-# Bypass a false positive with:  git commit --no-verify  (CI re-runs every gate regardless).
+# Automated repository tests and GitHub CI are embargoed for the duration of SKY-025.
 set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 "${ROOT}/scripts/secret-scan.sh"
 "${ROOT}/scripts/check-invariants.sh"
-bash "${ROOT}/tests/entity-test.sh"
-bash "${ROOT}/tests/digest-test.sh"
-bash "${ROOT}/tests/dns-revert-test.sh"
-bash "${ROOT}/tests/compose-rollback-test.sh"
-bash "${ROOT}/tests/cert-selector-test.sh"
-bash "${ROOT}/tests/tofu-rollback-test.sh"
-bash "${ROOT}/tests/pve-snapshot-test.sh"
-bash "${ROOT}/tests/provisioning-truth-test.sh"
-bash "${ROOT}/tests/construction-test.sh"
-bash "${ROOT}/tests/nightly-automerge-test.sh"
-bash "${ROOT}/tests/nightly-sequence-test.sh"
-# Documentation/style/context checks are manual during the repository overhaul.
-# Their maintained replacements must return to automatic enforcement before completion.
-
-# The Python package is checked only when a staged path can affect it. Nix owns all of these tools;
-# a missing Nix installation is a failure, never a silent skipped check.
-python_changed=0
-while IFS= read -r -d '' staged_path; do
-  case "${staged_path}" in
-    pyproject.toml|src/*.py|src/**/*.py|tests/test_*.py|tests/fixtures/proxmox/*|tests/fixtures/pbs/*|tests/fixtures/dns/*|tests/fixtures/opnsense/*|tests/fixtures/omada/*|tests/fixtures/certs/*|tests/fixtures/routes/*|tests/fixtures/recon/*|nix/packages/skynet.nix|flake.nix|bin/skynet|bin/ops|scripts/collect-all.sh|scripts/collect-proxmox.sh|scripts/collect-pbs.sh|scripts/collect-docker.sh|scripts/collect-dns.sh|scripts/collect-opnsense.sh|scripts/collect-network-gear.sh|scripts/collect-certs.sh|scripts/collect-routes.sh|scripts/recon.sh|scripts/render-docs.sh)
-      python_changed=1
-      ;;
-  esac
-done < <(git diff --cached --name-only -z)
-
-if [ "${python_changed}" -eq 1 ]; then
-  command -v nix >/dev/null 2>&1 || {
-    echo "pre-commit: Nix is required for staged Python/package checks" >&2
-    exit 1
-  }
-  nix develop --no-write-lock-file -c pytest -q
-  nix develop --no-write-lock-file -c ruff check src tests/test_*.py
-  nix develop --no-write-lock-file -c mypy src/skynet
-fi

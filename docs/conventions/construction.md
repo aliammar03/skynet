@@ -151,7 +151,8 @@ spawn, or continue into its own acceptance review. `[manual]`
 At review start, the reviewer resolves the target branch plus exact **reviewed base SHA + reviewed PR
 head SHA**, evaluates the actual integration represented by that pair, and immediately before verdict
 resolves both again. If either moved before verdict, refresh the affected review before any ACCEPT.
-GitHub mergeability, green CI, or an unchanged head alone does not prove the reviewed integration is
+GitHub mergeability, any future green CI result, or an unchanged head alone does not prove the
+reviewed integration is
 unchanged. `[manual]`
 
 The reviewer never repairs implementation. FIX returns one complete paste-ready prompt for the original

@@ -88,5 +88,5 @@ things at once and none of the others:
 - **Rationale rides with each constraint.** Every entry carries a one-line `why` so an agent that
   knows *what* is excluded also knows *why* — the guard against a future session "helpfully"
   relaxing it. **`[testable]` — enforced:** `scripts/check-invariants.sh` reads this file and fails
-  a PR that violates it (excluded guest pooled, pool-set drift, plaintext secret), in the pre-commit
-  hook and CI.
+  a PR that violates it (excluded guest pooled, pool-set drift, plaintext secret) through the retained
+  local pre-commit hook. GitHub CI is absent during the SKY-025 embargo.
