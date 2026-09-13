@@ -42,10 +42,11 @@ This file is a current disposition/caller/blocker map. Implementation chronology
 | bootstrap workstation/Proxmox | retain if rescue-only | human bootstrap/rescue | external recovery | P18/P22/P24 decision |
 | nightly shell orchestration | migrate | one Python nightly sequence | ops timer | P20 |
 | CLI updater competing with Nix | delete | Nix package/config ownership | weekly update timer | P20–P22 |
-| invariant/hygiene shell gates | migrate useful behavior | deterministic Python/current gates | hook, CI, nightly | P21 |
+| invariant/hygiene shell gates | retain only hard safety controls | post-transition redesign | local hook | P21/P24 handoff |
 | `bin/new`, `bin/plan` | migrate executables; retain templates | Python planning/scaffolding helpers | operators | P21 |
 | `.codex/**`, `agent_docs/**` | retain | native SKY-026 construction/continuity | construction sessions | already migrated; no SKY-022 compatibility |
-| `.github/workflows/*`, `.githooks/pre-commit` | retain/adapt | unified deterministic gates | GitHub/local hook | P21 |
+| `.github/workflows/*`, automated tests | delete during embargo | post-transition redesign | none during SKY-025 | post-SKY-025 |
+| `.githooks/pre-commit` | retain/adapt | secret scan + hard invariants only | local hook | P21 |
 | Nix/hosts/flake | retain/adapt | Nix | package/install/timers | throughout; P23 install |
 | OpenTofu declarations/state config | retain | OpenTofu | saved-plan executor | P13–P14/P18 |
 | Compose/Caddy/service payload | retain | Compose/Caddy | Arcane/GitOps | P11–P12/P22 |
@@ -69,7 +70,6 @@ Current owners/callers to inspect together:
 
 - `scripts/entity.sh`
 - `scripts/audit-entities.sh`
-- `tests/entity-test.sh`
 - `src/skynet/routes.py` entity resolution
 - `bin/ops entities`
 - entity-related renderer/cache/query callers

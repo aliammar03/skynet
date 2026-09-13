@@ -14,8 +14,9 @@ and each capability earns autonomy through recorded verification and rollback ev
   native SKY-026 construction model are established.
 - **SKY-026 is complete.** Phases 1–5 are accepted and the directive is archived. PR #253 contains the
   accepted final workflow plus this bounded closeout and is awaiting one human merge.
-- **The entity/cache phase is implementation-ready on PR #255 and pending fresh review.** Accepted
-  repository progress remains 7/24 until external ACCEPT and bounded same-PR closeout.
+- **PR #255 is being republished after a repository-wide SKY-025 test embargo change.** GitHub CI,
+  automated tests, and packaged test execution are removed; every PR is human-merged and accepted
+  repository progress remains 7/24 until a fresh external ACCEPT and bounded same-PR closeout.
 
 ## Current Position
 
@@ -25,7 +26,7 @@ The normal lifecycle is deliberately small and ends in **one human merge**:
 implement/fix → one open PR → fresh review → durable verdict marker
 → newest verdict must be ACCEPT
 → Ali says "accepted" → bounded closeout on SAME PR
-→ CI/final recheck → Ali human-merges that PR once
+→ retained safety controls/final recheck → Ali human-merges that PR once
 ```
 
 Every final reviewer verdict posts one machine-readable `skynet-acceptance:v1` marker with scope,

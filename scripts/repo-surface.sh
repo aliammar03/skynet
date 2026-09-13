@@ -15,7 +15,7 @@ repo_surface_classify_path() {
     planning/*) matches+=(planning) ;;
     journal/*|docs/history/*|docs/decisions/*) matches+=(history-evidence) ;;
     docs/generated/*|inventory/*) matches+=(generated) ;;
-    tests/*|fixtures/*) matches+=(fixture-test-data) ;;
+    fixtures/*) matches+=(fixture-data) ;;
     *.sops|*.age|*.gpg|*.asc) matches+=(opaque) ;;
     *) matches+=(current) ;;
   esac

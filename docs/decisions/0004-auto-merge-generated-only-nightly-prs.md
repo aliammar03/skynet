@@ -1,9 +1,13 @@
 # ADR 0004 — Auto-merge generated-only nightly PRs
 
-- **Status:** accepted
+- **Status:** accepted; capability suspended during the SKY-025 test/CI embargo
 - **Date:** 2026-08-20
 
 ## Context
+
+The current constitutional dial suspends this capability while GitHub CI and automated repository
+tests are absent during SKY-025. This ADR preserves the rationale and requirements for any later
+human-reviewed restoration; it is not current merge authority during the embargo.
 
 The deterministic nightly (`scripts/nightly.sh`) opens a PR every night whose diff is purely
 mechanical: refreshed `inventory/`, re-rendered `docs/generated/`, a raw `journal/` episode, and any

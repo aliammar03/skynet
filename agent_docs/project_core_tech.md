@@ -24,12 +24,13 @@ disposable SQLite cache/query projection. Entity functions cover guest, service,
 network identities; route resolution calls them directly. Nix packages the application and its
 development shell; `deploy-rs`, sops-nix, and disko integrate with NixOS.
 
-## Build, test, and development tools
+## Build and development tools
 
-- `pytest` runs the behavioral Python suite; shell contracts live in `tests/*-test.sh`.
-- Ruff enforces Python style and mypy runs in strict mode over `src/skynet`.
-- Nix flake checks package, CLI, deployment schema, and tests; pre-commit and repository gates check
-  documentation, invariants, secrets, generated surfaces, and operational contracts.
+- GitHub CI and automated repository tests are embargoed for the duration of SKY-025. The test tree,
+  package test phase, and workflow definitions are absent until a post-transition review designs one
+  coherent replacement suite.
+- Ruff and strict mypy remain available as manual development tools. Deploy-rs schema validation
+  remains a local flake output; pre-commit retains only secret scanning and hard-invariant checks.
 - `bin/plan`, `bin/new`, `bin/ops`, and `bin/recall` are operator-facing entry points. `bin/ops
   entities|query` use the packaged audit and query paths after the collection-freshness gate.
   Renderers own `inventory/` and `docs/generated/`.

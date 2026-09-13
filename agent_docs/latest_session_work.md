@@ -5,18 +5,16 @@
 
 ## Detailed Current State
 
-The entity/cache phase is implementation-ready on **PR #255** and pending one fresh external review.
-Accepted numbered progress remains 7/24. The authored PR is open and unaccepted; implementation stops
-until a fresh reviewer returns FIX or ACCEPT.
+PR **#255** is being republished after Ali imposed a repository-wide automated-test and GitHub CI
+embargo for the duration of SKY-025. Accepted numbered progress remains 7/24. The earlier ACCEPT is
+stale because this is a substantive post-review change; a fresh review is required after publication.
 
-The reviewer records its verdict in a machine-readable acceptance marker. Only the newest applicable
-ACCEPT releases bounded closeout on this same PR before one human merge. Private GitHub Free leaves a
-non-atomic race window between the final recheck and Ali's merge click; prompt merge reduces but does
-not remove it.
+Every PR is human-merged during the embargo, including generated-only nightly PRs. The nightly
+auto-merge executor is fail-closed, while the local secret scan and hard-invariant checker remain.
 
-The phase replaces shell entity derivation, audit, cache build, and ad-hoc query logic with packaged
-Python. Forwarding-only shell entries remain for demonstrated invariant, renderer, and legacy test
-callers, with later caller cleanup already assigned in planning.
+The P8 entity/cache implementation remains intact. Repository tests, their fixtures, GitHub workflows,
+and package/pre-commit test execution are removed as one policy change; a post-transition review owns
+the replacement verification architecture.
 
 ## Session Changes
 
@@ -27,25 +25,29 @@ callers, with later caller cleanup already assigned in planning.
 - Kept the two maintained SQL views and migrated operator/query/renderer callers to Python behavior.
 - Repaired service auditing so valid standalone Docker containers are ignored while malformed labels
   still fail and undeclared Compose projects remain running-unmapped holes.
-- Updated focused behavior, package, shell-caller, and lifecycle-state tests.
+- Removed the repository test tree, GitHub workflows, packaged test phase, and test hook wiring.
+- Suspended nightly auto-merge and recorded the embargo in constitution, doctrine, runbooks, planning,
+  Nix packaging, and agent memory.
 
 ## Verification
 
-- Supported full Python suite after the review repair: 329 passed.
-- Packaged Nix application/check build: passed; installed console tests: 12 passed.
-- Focused entity/cache/route/CLI/collection suites, Ruff, strict mypy, hard invariants, construction, entity,
-  repository-surface, and `git diff --check`: passed.
-- A complete isolated T1 collection succeeded across all 11 collectors. Freshness, entity audit,
-  representative queries, maintained renderer views, and explicit query failure then passed against
-  those observations; the temporary worktree and outputs were removed.
+- Retained secret and hard-invariant controls passed; Ruff, strict mypy, package build, shell syntax,
+  diff, and repository-surface checks passed.
+- Packaged runtime doctor succeeded; direct entity audit reported 39 mapped/excepted/template entities
+  with zero holes, and a representative cache query reported 11 containers.
+- The prior isolated T1 smoke covered all 11 collectors plus freshness, entity, query, renderer, and
+  explicit query-failure paths; it remains historical evidence rather than an active automated gate.
 - No root grant, T2/T3 action, service/timer change, persistent inventory/docs rewrite, or production
   mutation occurred.
 
 ## Pending Work and Blockers
 
-- Fresh external review of PR #255 is required; internal verification is not external acceptance.
+- Fresh external review of the republished PR #255 is required; the earlier ACCEPT marker is stale.
+- Automated regression protection is intentionally unavailable until the post-SKY-025 redesign.
+- `bin/ops entities` truthfully refused stale/missing collection receipts, and `bin/ops hygiene`
+  retained its existing current-authority budget failure (220,996 estimated tokens vs 200,000).
 - Unchanged baseline temporal-hygiene matches and runbook-catalog drift remain outside this phase.
 
 ## Next Entry Point
 
-Read `planning/prompts/review.md` and review PR #255.
+After publication, start a fresh review of PR #255; do not close out from the stale ACCEPT marker.

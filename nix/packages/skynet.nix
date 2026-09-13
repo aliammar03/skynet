@@ -1,4 +1,4 @@
-{ lib, python3Packages, cacert, openssl, jq, gawk, bash }:
+{ lib, python3Packages }:
 let
   root = ../..;
   metadata = builtins.fromTOML (builtins.readFile (root + "/pyproject.toml"));
@@ -9,27 +9,6 @@ let
       (root + "/src")
       (root + "/lab.json")
       (root + "/invariants.json")
-      (root + "/tests/test_cli.py")
-      (root + "/tests/test_proxmox.py")
-      (root + "/tests/test_collection.py")
-      (root + "/tests/test_pbs.py")
-      (root + "/tests/test_docker.py")
-      (root + "/tests/test_dns.py")
-      (root + "/tests/test_opnsense.py")
-      (root + "/tests/test_omada.py")
-      (root + "/tests/test_certs.py")
-      (root + "/tests/test_routes.py")
-      (root + "/tests/test_recon.py")
-      (root + "/tests/test_cache.py")
-      (root + "/tests/test_entities.py")
-      (root + "/tests/fixtures/proxmox")
-      (root + "/tests/fixtures/pbs")
-      (root + "/tests/fixtures/dns")
-      (root + "/tests/fixtures/opnsense")
-      (root + "/tests/fixtures/omada")
-      (root + "/tests/fixtures/certs")
-      (root + "/tests/fixtures/routes")
-      (root + "/tests/fixtures/recon")
       (root + "/bin/ops")
       (root + "/bin/skynet")
       (root + "/scripts/collect-all.sh")
@@ -55,17 +34,7 @@ python3Packages.buildPythonApplication {
   pyproject = true;
   src = source;
   build-system = [ python3Packages.setuptools ];
-  nativeCheckInputs = (with python3Packages; [ pytest ruff mypy ]) ++ [ openssl jq gawk bash ];
-  doCheck = true;
-
-  checkPhase = ''
-    runHook preCheck
-    export SSL_CERT_FILE=${cacert}/etc/ssl/certs/ca-bundle.crt
-    SKYNET_ENTRYPOINT=module pytest -q tests
-    ruff check src tests/test_*.py
-    mypy src/skynet
-    runHook postCheck
-  '';
+  doCheck = false;
 
   passthru.source = source;
 }

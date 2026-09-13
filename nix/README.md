@@ -46,17 +46,19 @@ before using default callers; a missing Nix/build prerequisite fails the command
 ```bash
 # source development tools, with no pip installation
 nix develop --no-write-lock-file
-pytest -q
-ruff check src tests/test_*.py
+ruff check src
 mypy src/skynet
 
 # build the installable command and run it from anywhere
 nix build --no-write-lock-file --no-link .#skynet
 nix run --no-write-lock-file .#skynet -- doctor --json
 
-# run all packaged behavioral, lint, type, and outside-checkout smoke checks
-nix build --no-write-lock-file --no-link .#checks.x86_64-linux.skynet
+# build the package without the temporarily embargoed repository test phase
+nix build --no-write-lock-file --no-link .#skynet
 ```
+
+GitHub CI and automated repository tests are embargoed for the duration of SKY-025. Deploy-rs schema
+validation remains available through the flake, but it is not a replacement application test suite.
 
 `skynet doctor [--json]` reports the executing package version and Python runtime with
 `scope: runtime`. It is not a lab or service health check.

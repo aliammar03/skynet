@@ -49,21 +49,6 @@ delta() {
   printf '%s%s' "${sign}" "$((after - before))"
 }
 
-report_gate() {
-  local label="$1" command="$2"
-  local output status
-  output="$(mktemp)"
-  if bash "${command}" >"${output}" 2>&1; then
-    status=pass
-  else
-    status=fail
-  fi
-  printf '\n== %s: %s ==\n' "${label}" "${status}"
-  sed 's/^/  /' "${output}"
-  rm -f "${output}"
-  [ "${status}" = pass ]
-}
-
 orphan_candidates() {
   local path references
   while IFS= read -r path; do
@@ -75,8 +60,6 @@ orphan_candidates() {
 echo "== Skynet hygiene (T1, local-only) =="
 failures=0
 repo_surface_check || failures=$((failures + 1))
-report_gate "temporal-hygiene" tests/temporal-hygiene-test.sh || failures=$((failures + 1))
-report_gate "documentation-drift" tests/documentation-drift-test.sh || failures=$((failures + 1))
 
 echo
 echo "== advisory review candidates =="

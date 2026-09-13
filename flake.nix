@@ -84,7 +84,6 @@
         packages = [
           skynet
           pkgs.python3
-          pkgs.python3Packages.pytest
           pkgs.ruff
           pkgs.mypy
           pkgs.openssl
@@ -150,27 +149,8 @@
         };
       };
 
-      # `nix flake check` runs deploy-rs's own schema checks over the node definitions.
-      checks.${system} = (deploy-rs.lib.${system}.deployChecks self.deploy) // {
-        skynet = pkgs.runCommand "skynet-checks" {
-          nativeBuildInputs = [ skynet pkgs.python3Packages.pytest pkgs.openssl pkgs.jq pkgs.gawk pkgs.bash ];
-        } ''
-          outside="$(mktemp -d)"
-          cd "$outside"
-          unset PYTHONPATH
-          export SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
-          skynet --help >/dev/null
-          skynet --version >/dev/null
-          skynet doctor >/dev/null
-          skynet doctor --json >/dev/null
-          if skynet collect >/dev/null 2>&1; then
-            echo "incomplete collect command unexpectedly succeeded" >&2
-            exit 1
-          fi
-          PYTHONPATH=${skynet}/${pkgs.python3.sitePackages} SKYNET_ENTRYPOINT=console \
-            pytest -q -o cache_dir="$outside/.pytest_cache" ${skynet.source}/tests
-          touch "$out"
-        '';
-      };
+      # Deploy-rs schema validation remains available locally; repository tests and GitHub CI are
+      # embargoed for the duration of SKY-025.
+      checks.${system} = deploy-rs.lib.${system}.deployChecks self.deploy;
     };
 }

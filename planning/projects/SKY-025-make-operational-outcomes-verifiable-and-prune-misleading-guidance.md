@@ -55,7 +55,9 @@ human merge, protected guests, saved-plan rules, and grant boundaries remain in 
 - Writes must record target, source/plan identity, completed steps, verification, and recovery state.
   A timed-out write is reconciled before any retry.
 - Nix owns production Python packaging. No production pip/npm package ownership.
-- Tests exercise behavioral boundaries with synthetic inputs, disposable paths, and fake external I/O.
+- GitHub CI and automated repository tests are embargoed through SKY-025. Phases record focused
+  manual/build/smoke evidence and verification debt without adding replacement test fragments; a
+  post-transition repository review owns one coherent test architecture.
 - Current docs describe current behavior. Raw episodes and superseded process details belong in Git and
   `journal/`, not in this active directive.
 
@@ -86,7 +88,8 @@ If a phase needs internal slices:
    marker to the PR conversation;
 8. Ali tells the original session only `accepted`;
 9. that original session fetches/validates the marker and performs bounded closeout on the **same PR**;
-10. after CI and a final base + closeout-delta recheck, Ali human-merges that same PR **once**.
+10. after retained safety controls and a final base + closeout-delta recheck, Ali human-merges that
+    same PR **once**.
 
 Ali never copies or compares commit hashes. The accepted closeout may change only:
 
@@ -140,10 +143,10 @@ immediately returns to the normal lifecycle above.
 | 18 | Medium | Provision/onboard + pins/age identity/workstation grants | custody and access paths agree |
 | 19 | Heavy | OS-aware guest updates + host-local backup/rescue packaging | platform-specific rollback |
 | 20 | Medium | Nightly collect/report/evidence/PR/exact-PR auto-merge gate | one sequence, authority unchanged |
-| 21 | Heavy | Planning/scaffolding + hygiene/invariant gates + CI unification | meaningful deterministic gates |
+| 21 | Heavy | Planning/scaffolding + retained hard-safety controls | verification debt remains explicit |
 | 22 | Medium | Whole-repo prune of obsolete scripts/shims/docs/callers | no duplicate implementation |
 | 23 | Heavy | Install/restart Python engine + staged operational acceptance | G6 |
-| 24 | Medium | Cold-start/recovery rehearsal + final fixes/archive | maintained docs/style/context gates restored |
+| 24 | Medium | Cold-start/recovery rehearsal + final fixes/archive | post-transition test/CI redesign handed off |
 
 Architecture checkpoints G1/G2 are already behind us. G3–G6 remain at phases 9/14/17/23.
 
@@ -166,10 +169,9 @@ Migrate the behavior currently owned by:
 
 - `scripts/entity.sh`
 - `scripts/audit-entities.sh`
-- `tests/entity-test.sh`
-- entity-related callers in `src/skynet/routes.py`, `bin/ops`, current render/query paths, and tests.
+- entity-related callers in `src/skynet/routes.py`, `bin/ops`, and current render/query paths.
 
-Preferred implementation surface: `src/skynet/entities.py` plus CLI wiring/tests. Keep names small;
+Preferred implementation surface: `src/skynet/entities.py` plus CLI wiring. Keep names small;
 do not add an object graph or generic entity framework.
 
 Required behavior:
@@ -196,7 +198,6 @@ Migrate the behavior currently owned by:
 - `scripts/sql/vhosts.sql`
 - `bin/ops query`
 - the database consumer in `scripts/render-docs.sh`
-- affected collection/query regression tests.
 
 Preferred implementation surface: one small Python cache/query module. SQLite remains a disposable
 `.cache/inventory.db` projection of Git/inventory truth, rebuilt from scratch. It is never authority.
@@ -215,15 +216,12 @@ Required behavior:
 
 #### P8 verification
 
-At minimum, before P8 is handed to fresh review:
+At minimum, before P8 is handed to fresh review during the embargo:
 
-- focused entity/cache/query behavioral tests cover normal, ambiguous, exception, stale,
-  running-unmapped, malformed/missing-source, rebuild failure, freshness refusal, and recovery cases;
-- existing entity/query/render consumer behavior is preserved;
-- full `pytest -q`, Ruff, mypy, packaged Nix checks, hard invariants, construction gate, relevant shell
-  gates, and `git diff --check` pass;
-- source and installed-package paths both exercise the Python implementation rather than source-only
-  fallbacks;
+- focused manual entity/cache/query smoke evidence covers normal operation and the review defect;
+- existing entity/query/render consumer behavior is inspected for preservation;
+- Ruff, mypy, package build, hard invariants, secret scan, and `git diff --check` pass;
+- source and installed-package paths are both exercised without recreating a repository test suite;
 - no live endpoint, credential, root grant, service/timer, inventory rewrite, or production mutation is
   required for this phase.
 

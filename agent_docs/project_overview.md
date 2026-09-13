@@ -61,8 +61,8 @@ root grants, and never-standing T3 access; a construction worker has no producti
 ## Major current decisions
 
 - Autonomy is earned per capability on the A0–A5 ladder; irreversible actions and T3 work remain hard
-  checkpoints. Authored changes are human-merged; only the nightly's generated-only green PRs may
-  auto-merge.
+  checkpoints. GitHub CI and automated tests are embargoed during SKY-025, so every PR is human-merged
+  and no A4 capability is active.
 - The agent never widens its own leash. Secrets remain encrypted in Git or restrictive local files;
   root access is certificate-grant-only; generated directories are machine-owned.
 - The six `agent_docs/` files are distilled memory with explicit Main/Archivist ownership and

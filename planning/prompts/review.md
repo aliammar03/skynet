@@ -89,8 +89,8 @@ Required fixes:
 - <bounded required outcome>
 
 Verification required:
-- <specific affected tests/gates>
-- run the relevant full repository gates after focused checks pass
+- <specific manual/build/smoke evidence>
+- run the retained secret and hard-invariant controls
 
 Git/PR handling:
 - update the same open SKY-025 P<N> PR;
