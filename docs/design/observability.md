@@ -69,6 +69,35 @@ Engine and model selection are in `~/.config/skynet-ops/ops.env`.
 Report-only is a constitution dial: the nightly run *observes and proposes*, it does not act
 outside the version-controlled auto-approve list.
 
+## Deployment verification
+
+The packaged command
+`skynet verify deployment <service> <full-revision>` is the report-only observer for one Arcane
+GitOps service. It requires the supplied full 40-hex revision to match exactly in the selected
+service's unambiguous successful Git Sync and running Arcane project. The project must report
+positive equal service/running counts. The sync identity must match the service and
+`compose/<service>/compose.yaml`, and the project must be bound to that sync. The read-only Docker
+observation must be non-empty, identity-matched, and count-equal. Every observed container must be
+running and report `healthy`; a missing healthcheck is a failed verification.
+
+Before probing, the verifier validates the complete canonical route snapshot. Duplicate, malformed,
+partial, or case-ambiguous route evidence fails closed. Declared routes for the service are probed
+from Docker context `docker-dmz` on network `dmz`, resolving the apps front door at
+`10.10.100.35` with the immutable image
+`curlimages/curl:8.16.0@sha256:463eaf6072688fe96ac64fa623fe73e1dbe25d8ad6c34404a669ad3ce1f104b6`.
+TLS must verify and the HTTP response must be 100–499; authentication responses such as 302 or
+401 are reachable outcomes. A service with no declared route is reported as `skipped`, not as an
+unprobed success.
+
+Verification never deploys, restarts, rolls back, edits Git, or changes persistent Arcane/Docker
+configuration. A routed probe creates and removes one ephemeral container and may pull/cache the
+pinned image. Deployment source selection, sync/retry/wait behavior, environment materialization,
+redeploy/restart, and rollback preparation remain owned by the GitOps deployment and recovery
+procedures. When `gitops-deploy.sh --gate` is used, it resolves the exact local head of the selected
+`GITOPS_BRANCH` (default `main`) and passes that revision through the compatibility
+`scripts/deploy-gate.sh`; recovery instead supplies a separate authored `<deploy-commit>` to
+`gitops-rollback.sh --prepare`.
+
 ## Episodic memory — see the memory spoke
 
 Rendered docs answer *what is true now*; they can't answer *how the lab got here, what was tried,

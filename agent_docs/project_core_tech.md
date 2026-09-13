@@ -19,7 +19,8 @@ differ. It records foundations and constraints, not a dependency inventory or a 
 
 The Python engine is stdlib-first and has no runtime dependencies in `pyproject.toml`. It contains
 the CLI, collection orchestration, Proxmox/PBS/DNS/Docker/OPNsense/Omada readers, certificate probes,
-reconnaissance, doctor reporting, static route parsing, packaged entity derivation/audit, and the
+reconnaissance, doctor reporting, static route parsing, packaged entity derivation/audit, deployment
+verification, and the
 disposable SQLite cache/query projection. `render.py` owns freshness-gated factual pages;
 `memory.py` renders the digest, context map, and runbook catalog and provides read-time recall with
 case-insensitive GNU grep ERE semantics. The Nix package closure supplies GNU grep. Entity functions
@@ -63,6 +64,14 @@ the internal/public service path.
   retains the previous bytes, but freshness-gated callers do not treat retained observations as current.
 - The factual renderer checks collection freshness, rejects unsafe node page basenames, and publishes
   a staged whole-tree replacement with rollback to the prior page set on failure.
+- Deployment verification requires one exact full Git revision across Arcane Git Sync and project
+  evidence, complete equal positive project/Docker counts, running healthy containers, and complete
+  canonical routes probed from the Docker DMZ network with verified TLS. It has no deploy or rollback
+  write path; the route probe only creates/removes an ephemeral pinned image container.
+- `gitops-deploy.sh` and `gitops-rollback.sh` retain deployment/recovery orchestration. With
+  `--gate`, the deploy script resolves the selected local `GITOPS_BRANCH` head and the thin
+  `deploy-gate.sh` forwards that exact revision to the packaged verifier; rollback takes a separate
+  authored deploy-commit identity.
 - `scripts/entity.sh`, `scripts/audit-entities.sh`, and `scripts/build-db.sh` are compatibility
   forwarders; maintained SQL views remain under `scripts/sql/`.
 - Generated inventory and documentation are machine-owned. Construction runs as the unprivileged

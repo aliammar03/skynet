@@ -6,7 +6,7 @@ horizon: long
 created: 2026-09-06
 updated: 2026-09-13
 phases: 24
-current_phase: 9
+current_phase: 10
 tier_touched: [T1, T2, T2+, T3]
 related:
   - docs/system-design.md
@@ -22,10 +22,10 @@ related:
 
 ## 1. Current state
 
-Accepted numbered progress is **P9 / 9 of 24**. Architecture checkpoint **G3** is complete.
+Accepted numbered progress is **P10 / 10 of 24**. Architecture checkpoint **G3** is complete.
 
-**Current action:** P9 is externally accepted and bounded closeout is staged on PR **#256**. Ali
-human-merges that same PR once; after it lands, P10 is the next authorized packet.
+**Current action:** P10 is externally accepted and its bounded closeout is staged on PR **#257**.
+Ali must human-merge that PR once; after it lands, P11 is the next authorized implementation packet.
 
 ## 2. Mandate and boundaries
 
@@ -132,8 +132,8 @@ immediately returns to the normal lifecycle above.
 | 7 | Heavy | Omada + certs + routes + recon | accepted |
 | 8 | Heavy | Entity derivation/audit + rebuildable SQLite cache/query | accepted |
 | 9 | Medium | Docs/digest/context/catalog rendering + journal/recall helpers | accepted; G3 |
-| 10 | Heavy | Deployment health + reachability verification | next after PR #256 merges; failures/empty/partial/wrong revision fail |
-| 11 | Heavy | Arcane deploy/env/sync + rollback preparation | exact source + truthful failures |
+| 10 | Heavy | Deployment health + reachability verification | accepted; bounded closeout staged on PR #257 |
+| 11 | Heavy | Arcane deploy/env/sync + rollback preparation | next after PR #257 merges; exact source + truthful failures |
 | 12 | Heavy | Publishing: Caddy/Auth/DNS coordination | correct vantages + auth paths |
 | 13 | Medium | Saved-plan parsing + scope/action/exclusion policy | unsafe plans refused pre-write |
 | 14 | Medium | Snapshot/apply/task completion + partial failure recovery | G4 |
@@ -289,6 +289,61 @@ duplicate logic. Current callers and current operational docs use the packaged i
 generated Markdown rendering, and read-time recall through P9. Bash retained in this surface is only a
 forwarding compatibility entry or the explicitly later-owned nightly/journal orchestration.
 
+## 5b. Current P10 packet
+
+### Phase 10 — deployment health + reachability verification
+
+**Status:** externally accepted; bounded closeout staged on PR **#257** for one human merge.
+
+**Recommended Main:** Heavy. Use one P10 branch/PR for the whole numbered phase.
+
+**Goal:** make one packaged, report-only verifier prove that the requested Arcane GitOps revision is
+live, the complete Compose project is running and healthy, and every declared service route is
+reachable with valid TLS from the DMZ ingress vantage. Verification failure never invokes rollback or
+changes authored/runtime configuration; P11 owns deployment and recovery orchestration.
+
+Required behavior:
+
+- require an explicit full expected Git revision and match it exactly in both the Git Sync and Arcane
+  project observations;
+- require one unambiguous successful Git Sync, the matching running project, positive equal
+  service/running counts, and a non-empty Docker project observation with the same count;
+- require every observed container to be running and healthy; a missing healthcheck is failure;
+- validate the complete canonical route observation before selecting service routes, rejecting empty,
+  partial, malformed, duplicate, or case-ambiguous route evidence;
+- probe each selected route from the Docker `dmz` network through the apps front door with a
+  digest-pinned curl image, valid public TLS, and an HTTP response below 500; authentication responses
+  such as 302/401 are reachable outcomes;
+- report routed and intentionally unrouted services distinctly, preserve safe human/JSON errors, and
+  never expose credential values or remote response bodies;
+- retain `scripts/deploy-gate.sh` only as a thin current-caller forwarder until P22; do not migrate
+  `gitops-deploy.sh` source/retry/env/recovery behavior before P11.
+
+The retained `gitops-deploy.sh --gate` compatibility path validates the selected `GITOPS_BRANCH` and
+passes that exact local branch-head commit to the verifier. It does not derive live identity from the
+newest commit touching `compose/<service>` and has no rollback-candidate argument; recovery identity
+remains separate for P11.
+
+P10 implementation evidence recorded before fresh review:
+
+- the independent Tester passed disposable normal, empty, partial, malformed, wrong-revision,
+  unhealthy, TLS/HTTP, identity, timeout, redaction, and compatibility-forwarder cases;
+- source and Nix-installed paths passed routed and unrouted live smokes;
+- all ten live Arcane projects matched merged P9 revision `c800d58`, all 18 project containers were
+  present/running/healthy, eight service routes passed from the DMZ vantage with TLS result 0, and
+  `caddy-apps`/`cloudflared` were truthfully skipped as unrouted projects;
+- Ruff, strict mypy, Python compile, shell syntax, Nix package build, secret scan, hard invariants, and
+  diff checks passed under the test/CI embargo.
+- after review found the compatibility caller still supplied a service-touch commit, a disposable
+  end-to-end shell harness proved `--gate` forwards branch head `c800d58` when the newest Caddy service
+  commit is `44ae7d3`; the removed legacy `--revert-commit` is rejected with exit 2 and a genuinely
+  wrong verifier revision still exits 1.
+
+**P10 closeout:** the newest applicable acceptance marker records ACCEPT for reviewed base `c800d58`
+and reviewed head `48b62c1`. The original session validated that pair against the open PR, advanced
+`current_phase: 10`, and staged bounded closeout on the same PR. Ali human-merges PR #257 once; P11 is
+the next implementation packet after that merge.
+
 ## 6. Carry-forward correctness cases
 
 The original overhaul review identified these failure classes. Replacements must keep their safeguards
@@ -325,7 +380,7 @@ require operation-specific recovery evidence, not blind `git revert`.
 Read planning/prompts/execute.md and execute the next authorized SKY-025 packet.
 ```
 
-After PR #256 is human-merged once, the next invocation executes P10. Later invocations execute only
+After PR #257 is human-merged once, the next invocation executes P11. Later invocations execute only
 the next packet released by this directive's numbered progress and review state.
 
 ### Review a normal open PR

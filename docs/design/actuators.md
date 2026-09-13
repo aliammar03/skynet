@@ -14,7 +14,7 @@ plans and T3-excluded guests rather than attempting to make them reversible.
 
 | Actuator | Write path | Recovery on failure | Deterministic decision | A4 eligible |
 |---|---|---|---|---|
-| Compose deploy | `gitops-deploy.sh --gate` | `gitops-rollback.sh --prepare` creates a reviewed inverse; no automatic authored revert | `deploy-gate.sh` health verdict | No |
+| Compose deploy | `gitops-deploy.sh` (optional `--gate` resolves the selected local `GITOPS_BRANCH` head and invokes the packaged verifier) | `gitops-rollback.sh <service> <deploy-commit> --prepare` creates a reviewed inverse; no automatic authored revert | `skynet verify deployment <service> <full-revision>` report | No |
 | Existing-guest tofu update | `tofu-apply.sh <saved-plan>` | Snapshot before apply; preserve snapshot for verification/dirty-plan recovery | Post-apply plan and verification | No |
 | Tofu guest create | Approved `tofu-apply.sh <saved-plan>` | None; never auto-destroy partial create | Post-apply plan | No |
 | Tofu non-guest write | Approved `tofu-apply.sh <saved-plan>` | None | Post-apply plan | No |
