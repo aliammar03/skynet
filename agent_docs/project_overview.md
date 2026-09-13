@@ -34,7 +34,8 @@ root grants, and never-standing T3 access; a construction worker has no producti
   views and ad-hoc queries; it is never authority.
 - Arcane reconciles merged Compose changes through Git Sync. The packaged report-only deployment
   verifier matches an exact full revision, complete project/container counts, running healthy
-  containers, and declared DMZ/TLS routes; deployment and recovery scripts retain write ownership.
+  containers, and declared DMZ/TLS routes; `gitops-deploy.sh --gate` supplies the selected local
+  `GITOPS_BRANCH` head, while deployment and recovery scripts retain write ownership.
 - The generated digest is optional recent-activity/episodic/open-thread retrieval and the context map
   is on-demand load-cost routing; packaged rendering also owns factual pages and the runbook catalog.
   Read-time recall ranks canonical Markdown sources. None replaces `agent_docs/` continuity or
@@ -55,8 +56,9 @@ root grants, and never-standing T3 access; a construction worker has no producti
 
 1. A normal authored change uses one PR: implementation → fresh review → ACCEPT marker → same-PR
    bounded closeout → one human merge. Git revert is the normal rollback for GitOps changes.
-2. After a merged Compose revision, `skynet verify deployment <service> <full-revision>` observes
-   Arcane, Docker, and declared ingress without deploying or rolling back.
+2. After a merged Compose revision, `gitops-deploy.sh --gate` resolves the selected local
+   `GITOPS_BRANCH` head and forwards it to `skynet verify deployment <service> <full-revision>`;
+   recovery uses a separate authored deploy-commit identity and neither path auto-rolls back.
 3. A production OpenTofu write is created from an approved revision, inspected as one saved plan,
    and executed through `scripts/tofu-apply.sh` with one declared actuator scope.
 4. T1 collectors gather validated observations; freshness-gated factual rendering stages and safely

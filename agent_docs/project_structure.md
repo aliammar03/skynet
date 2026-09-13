@@ -45,6 +45,8 @@ writer remain Bash-owned P21 work; P9 packages only rendering and read-time retr
 - `skynet verify deployment <service> <full-revision>` is the packaged report-only deployment
   observer. It requires exact Arcane revision identity, complete positive equal project/Docker
   counts, running healthy containers, and complete canonical route evidence with DMZ TLS probes.
+  `gitops-deploy.sh --gate` resolves the selected local `GITOPS_BRANCH` head before forwarding it;
+  rollback preparation takes a separate authored deploy-commit identity.
 - Git branch → PR → human merge → Arcane Git Sync → running Compose is the service boundary; `git
   revert` is the normal rollback path.
 - Approved OpenTofu source → one-scope saved plan → `scripts/tofu-apply.sh` is the infrastructure

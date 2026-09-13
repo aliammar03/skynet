@@ -68,8 +68,10 @@ the internal/public service path.
   evidence, complete equal positive project/Docker counts, running healthy containers, and complete
   canonical routes probed from the Docker DMZ network with verified TLS. It has no deploy or rollback
   write path; the route probe only creates/removes an ephemeral pinned image container.
-- `gitops-deploy.sh` and `gitops-rollback.sh` retain deployment/recovery orchestration; the thin
-  `deploy-gate.sh` compatibility name forwards to the packaged verifier.
+- `gitops-deploy.sh` and `gitops-rollback.sh` retain deployment/recovery orchestration. With
+  `--gate`, the deploy script resolves the selected local `GITOPS_BRANCH` head and the thin
+  `deploy-gate.sh` forwards that exact revision to the packaged verifier; rollback takes a separate
+  authored deploy-commit identity.
 - `scripts/entity.sh`, `scripts/audit-entities.sh`, and `scripts/build-db.sh` are compatibility
   forwarders; maintained SQL views remain under `scripts/sql/`.
 - Generated inventory and documentation are machine-owned. Construction runs as the unprivileged

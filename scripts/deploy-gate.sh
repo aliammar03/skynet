@@ -2,12 +2,12 @@
 # deploy-gate.sh — compatibility forwarder for the packaged, report-only verifier.
 # TIER: T2 PR-gated verification; the route probe has a bounded ephemeral container/cache side effect.
 #
-# Current caller: scripts/gitops-deploy.sh <service> <full-deploy-commit>. The Python verifier
+# Current caller: scripts/gitops-deploy.sh <service> <expected-revision>. The Python verifier
 # owns Arcane/Docker/ingress observations and never invokes rollback or mutates Git/runtime state.
 # Keep this shim until the P22 shell-retirement pass removes the old command name.
 #
 # USAGE:
-#   deploy-gate.sh <service> <full-deploy-commit>
+#   deploy-gate.sh <service> <expected-revision>
 # OPTIONAL:
 #   ARCANE_CREDENTIALS_FILE  literal Arcane credentials path
 #   DOCKER_CONTEXT           read-only Docker context (default docker-dmz)
@@ -15,7 +15,7 @@
 set -euo pipefail
 
 if [ "$#" -ne 2 ]; then
-  echo "usage: deploy-gate.sh <service> <full-deploy-commit>" >&2
+  echo "usage: deploy-gate.sh <service> <expected-revision>" >&2
   exit 2
 fi
 SVC="$1"

@@ -105,6 +105,9 @@
 - Route verification must reject ambiguous canonical inputs before probing. Case-insensitive duplicate
   hostnames and missing route metadata are failed observations, not candidates for normalization or
   best-effort selection.
+- A service-scoped history commit is rollback context, not live deployment identity. A Git Sync
+  verifier must receive the exact selected branch-head revision; rollback candidates stay on the
+  separate recovery path.
 - A transition-wide verification architecture should be changed coherently rather than patched phase
   by phase. During an explicit test embargo, retain hard safety controls, disable unattended merge,
   record verification debt, and defer one replacement suite to the post-transition review.

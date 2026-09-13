@@ -58,8 +58,12 @@ Arcane leaves a populated `.env` untouched on re-sync, so the two coexist.
 2. **PR** with a teaching description (what it is, ports, front door, backup impact). **Ali merges.**
 3. `scripts/gitops-deploy.sh <svc>` — the deployment procedure ensures the source sync,
    materialises `.env`, redeploys, and waits for the project. Its source selection, retry/wait,
-   environment, and recovery behavior remain owned here; the verifier does not perform them.
-4. Verify the exact merged deployment revision with the packaged, report-only observer:
+   environment, and recovery behavior remain owned by this procedure; the verifier does not perform
+   them. Set `GITOPS_BRANCH=<branch>` to select a local source branch. Adding `--gate` resolves the
+   exact full head of that local branch for the selected sync and passes it through the thin
+   `deploy-gate.sh` forwarder. `--revert-commit` is not a supported deploy option.
+4. Verify the exact merged deployment revision with the packaged, report-only observer, either via
+   the `--gate` path above or directly:
 
    ```bash
    skynet verify deployment <svc> <full-revision>
@@ -70,8 +74,9 @@ Arcane leaves a populated `.env` untouched on re-sync, so the two coexist.
    `10.10.100.35`; HTTP 100–499, including 302/401, is acceptable. Unrouted services are reported
    as skipped. The route probe may create/remove an ephemeral container and cache its pinned image.
 5. If verification fails, it reports the failed observation; it does not deploy, restart, or
-   rollback. Prepare a reviewed inverse with `scripts/gitops-rollback.sh <svc> <full-revision> --prepare`,
-   then human-review and merge the rollback PR before Arcane reconciles it.
+   rollback. Prepare a reviewed inverse with `scripts/gitops-rollback.sh <svc> <deploy-commit> --prepare`;
+   `<deploy-commit>` is the authored commit to invert, a separate identity from the verifier's
+   expected branch-head revision. Human-review and merge the rollback PR before Arcane reconciles it.
 
 ## Verify
 
@@ -81,9 +86,10 @@ Arcane leaves a populated `.env` untouched on re-sync, so the two coexist.
 
 ## Rollback
 
-- Use the reviewed rollback PR prepared by `scripts/gitops-rollback.sh`; after its human merge, run
-  `scripts/gitops-deploy.sh <svc>` to reconcile the reverted revision. The verifier never invokes
-  rollback itself.
+- Use the reviewed rollback PR prepared by
+  `scripts/gitops-rollback.sh <svc> <deploy-commit> --prepare`; after its human merge, run
+  `scripts/gitops-deploy.sh <svc>` to reconcile the reverted revision. The verifier's expected
+  revision and the rollback commit are separate inputs, and the verifier never invokes rollback.
 
 ## Evidence
 

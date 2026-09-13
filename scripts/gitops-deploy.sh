@@ -20,22 +20,23 @@
 # AGENTS.md §1), so the .env write goes through a throwaway container that bind-mounts the
 # project dir, and the docker ps health checks run as svc-ops too. No T2+ root grant needed.
 #
-# USAGE: scripts/gitops-deploy.sh <service> [--no-deploy] [--gate] [--revert-commit <sha>]
+# USAGE: scripts/gitops-deploy.sh <service> [--no-deploy] [--gate]
 #   <service>          a directory name under compose/ (e.g. aiostreams)
 #   --no-deploy        materialise .env + ensure the sync, but don't redeploy
-#   --gate             health-gate the deploy: after deploy, deterministically probe
-#                      the service; if it isn't healthy in the window, report rollback required.
-#                      The gate never mutates or direct-pushes the authored checkout.
-#   --revert-commit    the commit --gate reverts on failure (default: the newest commit touching
-#                      compose/<service>/, i.e. this deploy's change)
+#   --gate             after deploy, run the packaged report-only verifier against the exact
+#                      commit at the selected local GITOPS_BRANCH ref. The verifier never mutates
+#                      or direct-pushes the authored checkout and never invokes rollback.
 set -euo pipefail
 
-SVC="${1:?usage: gitops-deploy.sh <service> [--no-deploy] [--gate] [--revert-commit <sha>]}"; shift || true
-NO_DEPLOY=""; GATE=0; REVERT_COMMIT=""
+if [ "$#" -lt 1 ]; then
+  echo "usage: gitops-deploy.sh <service> [--no-deploy] [--gate]" >&2
+  exit 2
+fi
+SVC="$1"; shift
+NO_DEPLOY=""; GATE=0
 while [ "$#" -gt 0 ]; do case "$1" in
   --no-deploy)     NO_DEPLOY="--no-deploy" ;;
   --gate)          GATE=1 ;;
-  --revert-commit) shift; REVERT_COMMIT="${1:?--revert-commit needs a sha}" ;;
   *) echo "gitops-deploy: unknown arg '$1'" >&2; exit 2 ;;
 esac; shift; done
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -44,6 +45,21 @@ COMPOSE_REL="compose/${SVC}/compose.yaml"
 
 [ -f "${SVC_DIR}/compose.yaml" ] || { echo "no compose at ${SVC_DIR}/compose.yaml" >&2; exit 1; }
 
+BRANCH="${GITOPS_BRANCH:-main}"   # override to verify a feature branch
+if ! git -C "${REPO_ROOT}" check-ref-format --branch "${BRANCH}" >/dev/null 2>&1; then
+  echo "gitops-deploy: GITOPS_BRANCH is not a valid branch ref" >&2
+  exit 2
+fi
+EXPECTED_REVISION=""
+if [ "${GATE}" = 1 ]; then
+  if ! EXPECTED_REVISION="$(git -C "${REPO_ROOT}" rev-parse --verify --end-of-options \
+      "refs/heads/${BRANCH}^{commit}" 2>/dev/null)" ||
+     ! [[ "${EXPECTED_REVISION}" =~ ^[0-9a-f]{40}$ ]]; then
+    echo "gitops-deploy: selected local GITOPS_BRANCH ref is unavailable or not a full commit" >&2
+    exit 2
+  fi
+fi
+
 # --- secrets / config -------------------------------------------------------
 ARC_ENV="/opt/skynet-ops/secrets/arcane.env"
 AGE_KEY="/opt/skynet-ops/secrets/age.key"
@@ -51,7 +67,6 @@ set -a; source <(cat "${ARC_ENV}" 2>/dev/null || sudo -n cat "${ARC_ENV}"); set 
 : "${ARCANE_URL:?ARCANE_URL missing from ${ARC_ENV}}"
 : "${ARCANE_TOKEN:?ARCANE_TOKEN missing from ${ARC_ENV}}"
 ENVID="${ARCANE_ENV_ID:-0}"
-BRANCH="${GITOPS_BRANCH:-main}"   # override to verify a feature branch
 # Deploy identity = standing T2 svc-ops (NOT root). The docker host is the Arcane host in ARCANE_URL.
 DOCKER_HOST_NAME="$(printf '%s' "${ARCANE_URL}" | sed -E 's#^https?://([^:/]+).*#\1#')"
 SSH_HOST="svc-ops@${DOCKER_HOST_NAME}"
@@ -172,14 +187,9 @@ if [ -n "${MISSING}" ]; then
   echo "${MISSING}" | sed 's/^/      /' >&2
 fi
 
-# --- health gate (opt-in via --gate) -----------------------------------------
-# Deploy → probe → report rollback required on failure. The gate reuses the creds/ids resolved above
-# (exported so deploy-gate.sh's default probe doesn't re-resolve them); an operator explicitly runs
-# gitops-rollback.sh --prepare in an isolated worktree after the gate reports failure.
+# --- report-only verifier (opt-in via --gate) ---------------------------------
+# Deploy → verify the exact selected local branch-head revision. Recovery remains owned by P11;
+# this call only reports health/reachability and never invokes rollback.
 if [ "${GATE}" = 1 ]; then
-  [ -n "${REVERT_COMMIT}" ] || REVERT_COMMIT="$(git -C "${REPO_ROOT}" log -1 --format=%H -- "compose/${SVC}/")"
-  [ -n "${REVERT_COMMIT}" ] || { echo "==> ${SVC}: --gate: no commit touches compose/${SVC}/ — nothing to revert to" >&2; exit 1; }
-  export ARCANE_URL ARCANE_TOKEN SSH_HOST PROJ
-  export ARCANE_ENV_ID="${ENVID}"
-  exec "${REPO_ROOT}/scripts/deploy-gate.sh" "${SVC}" "${REVERT_COMMIT}"
+  exec "${REPO_ROOT}/scripts/deploy-gate.sh" "${SVC}" "${EXPECTED_REVISION}"
 fi

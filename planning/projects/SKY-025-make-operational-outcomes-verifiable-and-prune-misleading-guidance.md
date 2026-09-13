@@ -319,6 +319,11 @@ Required behavior:
 - retain `scripts/deploy-gate.sh` only as a thin current-caller forwarder until P22; do not migrate
   `gitops-deploy.sh` source/retry/env/recovery behavior before P11.
 
+The retained `gitops-deploy.sh --gate` compatibility path validates the selected `GITOPS_BRANCH` and
+passes that exact local branch-head commit to the verifier. It does not derive live identity from the
+newest commit touching `compose/<service>` and has no rollback-candidate argument; recovery identity
+remains separate for P11.
+
 P10 implementation evidence recorded before fresh review:
 
 - the independent Tester passed disposable normal, empty, partial, malformed, wrong-revision,
@@ -329,6 +334,10 @@ P10 implementation evidence recorded before fresh review:
   `caddy-apps`/`cloudflared` were truthfully skipped as unrouted projects;
 - Ruff, strict mypy, Python compile, shell syntax, Nix package build, secret scan, hard invariants, and
   diff checks passed under the test/CI embargo.
+- after review found the compatibility caller still supplied a service-touch commit, a disposable
+  end-to-end shell harness proved `--gate` forwards branch head `c800d58` when the newest Caddy service
+  commit is `44ae7d3`; the removed legacy `--revert-commit` is rejected with exit 2 and a genuinely
+  wrong verifier revision still exits 1.
 
 **P10 closeout:** implementation stops on PR #257 and Ali starts one fresh P10 review. ACCEPT must be
 recorded on that PR before the original session advances `current_phase: 10` and releases P11 through

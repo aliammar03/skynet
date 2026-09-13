@@ -40,9 +40,12 @@ edit compose/<svc>/ → branch → PR → Ali merges
   manual start (matters during maintenance windows).
 
 Deployment orchestration and recovery remain separate from verification. `gitops-deploy.sh` owns
-source/revision selection, sync polling/retry, environment materialization, and redeploy/restart;
-`gitops-rollback.sh` prepares an explicitly reviewed inverse. The packaged verifier is report-only,
-and `scripts/deploy-gate.sh` is only its compatibility forwarder.
+source selection, sync polling/retry, environment materialization, and redeploy/restart. With
+`--gate`, it resolves the exact 40-hex head of local `refs/heads/$GITOPS_BRANCH` (default `main`)
+for the selected sync and passes that revision to the packaged verifier through
+`scripts/deploy-gate.sh`. The verifier call accepts only the service and expected revision;
+recovery uses a separate `<deploy-commit>` identity, and `gitops-rollback.sh` prepares an explicitly
+reviewed inverse after an operator chooses to recover.
 
 Service recovery follows [`restore-service.md`](../../runbooks/restore-service.md); its restore
 revision includes the matching `.env.git` and `.env.sops` files. See [backup strategy](../backup-strategy.md).

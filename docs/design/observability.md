@@ -93,7 +93,10 @@ Verification never deploys, restarts, rolls back, edits Git, or changes persiste
 configuration. A routed probe creates and removes one ephemeral container and may pull/cache the
 pinned image. Deployment source selection, sync/retry/wait behavior, environment materialization,
 redeploy/restart, and rollback preparation remain owned by the GitOps deployment and recovery
-procedures; the compatibility `scripts/deploy-gate.sh` only forwards to this packaged command.
+procedures. When `gitops-deploy.sh --gate` is used, it resolves the exact local head of the selected
+`GITOPS_BRANCH` (default `main`) and passes that revision through the compatibility
+`scripts/deploy-gate.sh`; recovery instead supplies a separate authored `<deploy-commit>` to
+`gitops-rollback.sh --prepare`.
 
 ## Episodic memory — see the memory spoke
 
