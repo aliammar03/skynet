@@ -24,7 +24,7 @@ directories and live inventory are intentionally summarized rather than copied h
 ## Modules and responsibilities
 
 The Python CLI dispatches collection, doctor, route, reconnaissance, entity-audit, cache/query,
-rendering, and recall commands. `entities.py` owns the five-class identity derivation/audit and
+rendering, deployment verification, and recall commands. `entities.py` owns the five-class identity derivation/audit and
 `routes.py` uses it directly; `cache.py` owns the disposable 14-table SQLite projection and queries;
 `render.py` owns factual Markdown pages; `memory.py` owns digest/context/catalog rendering and
 read-time recall. Collector modules own one observation boundary and its validation/publication
@@ -42,6 +42,9 @@ writer remain Bash-owned P21 work; P9 packages only rendering and read-time retr
   disposable cache. `bin/ops entities|query` first requires current collection evidence; direct
   repository scripts do not establish freshness.
   Collectors never claim service health merely from collection success.
+- `skynet verify deployment <service> <full-revision>` is the packaged report-only deployment
+  observer. It requires exact Arcane revision identity, complete positive equal project/Docker
+  counts, running healthy containers, and complete canonical route evidence with DMZ TLS probes.
 - Git branch → PR → human merge → Arcane Git Sync → running Compose is the service boundary; `git
   revert` is the normal rollback path.
 - Approved OpenTofu source → one-scope saved plan → `scripts/tofu-apply.sh` is the infrastructure

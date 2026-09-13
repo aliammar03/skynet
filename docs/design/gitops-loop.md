@@ -22,7 +22,9 @@ Two private GitHub repos:
 ```
 edit compose/<svc>/ → branch → PR → Ali merges
    → Arcane Git Sync polls, pulls, reconciles (project read-only in the UI)
-   → agent verifies health via Arcane API / docker context, commits refreshed inventory
+   → `skynet verify deployment <svc> <full-revision>` observes revision, project/container health,
+     and declared ingress routes (report-only)
+   → agent commits refreshed inventory
 ```
 
 - **One Arcane Git Sync per project dir**, auto-sync on; Arcane's own auto-update polling **off**
@@ -37,6 +39,11 @@ edit compose/<svc>/ → branch → PR → Ali merges
 - Auto-sync **only redeploys projects already running** — a stopped project updates on its next
   manual start (matters during maintenance windows).
 
+Deployment orchestration and recovery remain separate from verification. `gitops-deploy.sh` owns
+source/revision selection, sync polling/retry, environment materialization, and redeploy/restart;
+`gitops-rollback.sh` prepares an explicitly reviewed inverse. The packaged verifier is report-only,
+and `scripts/deploy-gate.sh` is only its compatibility forwarder.
+
 Service recovery follows [`restore-service.md`](../../runbooks/restore-service.md); its restore
 revision includes the matching `.env.git` and `.env.sops` files. See [backup strategy](../backup-strategy.md).
 
@@ -47,4 +54,6 @@ repos, first-class docker-compose manager) watches the repo and opens one PR per
 notes embedded. Arcane's auto-update stays off for git-synced projects.
 
 Review updates through their Renovate PRs, then deploy through [`deploy-service.md`](../../runbooks/deploy-service.md).
-An unhealthy deployment is reverted in git and Arcane converges to that revision.
+If deployment verification reports an unhealthy result, prepare a reviewed inverse with
+[`gitops-rollback.sh`](../../scripts/gitops-rollback.sh), human-merge its PR, and let Arcane
+converge to that revision; the verifier never invokes rollback.

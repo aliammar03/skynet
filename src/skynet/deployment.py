@@ -43,7 +43,13 @@ _REVISION = re.compile(r"[0-9a-f]{40}", re.IGNORECASE)
 _SERVICE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
 _CONTEXT = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
 _ENVIRONMENT = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
-_HOST = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?\.aliammar\.net")
+_HOST = re.compile(
+    r"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+aliammar\.net"
+)
+_ENTITY = re.compile(
+    r"(?:svc|guest)/[A-Za-z0-9][A-Za-z0-9_.:-]*|host:[A-Za-z0-9][A-Za-z0-9_.:-]*"
+)
+_AUTH_VALUES = frozenset({"own-auth/plain", "forward_auth (authentik)", "identity (authentik)"})
 _ASSIGNMENT = re.compile(
     r"\s*(ARCANE_URL|ARCANE_TOKEN|ARCANE_ENV_ID|ARCANE_AUTH_HEADER)="
     r"(?:'([^']*)'|\"([^\"]*)\"|([^\s'\"]+))\s*(?:#.*)?"
@@ -125,7 +131,7 @@ def credentials(path: Path = DEFAULT_CREDENTIALS, *, environment_id: str | None 
     selected_environment = environment_id if environment_id is not None else values.get(
         "ARCANE_ENV_ID", DEFAULT_ENVIRONMENT_ID
     )
-    if not _ENVIRONMENT.fullmatch(selected_environment):
+    if not isinstance(selected_environment, str) or not _ENVIRONMENT.fullmatch(selected_environment):
         raise VerificationError("invalid Arcane environment id", 3)
     auth_header = values.get("ARCANE_AUTH_HEADER", "X-API-Key")
     # The current Arcane API contract uses this header. Keep the file extensible enough to carry
@@ -435,21 +441,44 @@ def _route_vhosts(repo: Path, service: str) -> list[str]:
         raise VerificationError("malformed route observation", 3)
     route_rows = data["routes"]
     counts = data.get("counts")
-    if isinstance(counts, dict) and counts.get("routes") != len(route_rows):
+    if not isinstance(counts, dict):
+        raise VerificationError("malformed route observation", 3)
+    route_count = counts.get("routes")
+    if type(route_count) is not int:
+        raise VerificationError("malformed route observation", 3)
+    if route_count <= 0 or route_count != len(route_rows):
         raise VerificationError("partial route observation", 3)
     vhosts: list[str] = []
+    seen_vhosts: set[str] = set()
     for route in route_rows:
         if not isinstance(route, dict):
             raise VerificationError("malformed route observation", 3)
-        vhost, entity = route.get("vhost"), route.get("backend_entity")
-        if not isinstance(vhost, str) or not _HOST.fullmatch(vhost) or not isinstance(entity, str):
+        vhost, backend, entity = (
+            route.get("vhost"), route.get("backend"), route.get("backend_entity")
+        )
+        if (
+            not isinstance(vhost, str)
+            or not _HOST.fullmatch(vhost)
+            or not isinstance(backend, str)
+            or not routes.ADDR.fullmatch(backend)
+            or not isinstance(entity, str)
+            or not _ENTITY.fullmatch(entity)
+            or not entity
+            or "front_door" not in route
+            or "front_door_alias" not in route
+            or route["front_door_alias"] != routes.FRONT_DOOR_ALIAS
+            or not isinstance(route.get("auth"), str)
+            or route["auth"] not in _AUTH_VALUES
+        ):
             raise VerificationError("malformed route observation", 3)
-        front_door = route.get("front_door", routes.FRONT_DOOR)
-        if front_door != routes.FRONT_DOOR:
+        if route["front_door"] != routes.FRONT_DOOR:
             raise VerificationError("route front door mismatch", 1)
+        if vhost in seen_vhosts:
+            raise VerificationError("duplicate route vhost", 1)
+        seen_vhosts.add(vhost)
         if entity == f"svc/{service}":
             vhosts.append(vhost)
-    return list(dict.fromkeys(vhosts))
+    return vhosts
 
 
 def _probe_route(context: str, vhost: str, timeout: float) -> tuple[int, int]:

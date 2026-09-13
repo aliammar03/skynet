@@ -67,6 +67,13 @@ Every PR, including generated-only nightly work, is human-merged during the emba
 `skynet doctor [--json]` reports the executing package version and Python runtime with
 `scope: runtime`. It is not a lab or service health check.
 
+`skynet verify deployment <service> <full-revision>` is the packaged, report-only deployment
+observer. It matches the exact revision in Arcane Git Sync and project observations, requires
+complete positive equal project/Docker counts and running healthy containers, and probes every
+declared route from the Docker DMZ network with verified TLS. It never deploys or rolls back; a
+routed check may create/remove an ephemeral pinned curl container and cache its image. Deployment
+and recovery orchestration remain in the GitOps scripts and runbooks.
+
 `skynet render docs --repo <checkout>` requires receipt-bound current collection evidence, rebuilds
 the disposable cache, validates its inputs, and publishes factual Obsidian pages only after every page
 is ready. `skynet render digest|context|runbook-catalog --repo <checkout>` regenerates the corresponding

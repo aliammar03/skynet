@@ -69,9 +69,9 @@ bin/plan list                           # regenerate the roadmap table below
 Each directive carries its own execution/review entry points, so running or resuming one is a small
 paste into a fresh session.
 
-For SKY-025, use the [execute/review handoff prompts](prompts/README.md). P9/G3 is externally accepted
-with bounded closeout staged on PR #256; accepted progress is P9/24. After that PR is human-merged
-once, P10 is the next packet. From P8 onward, one numbered phase owns one open PR; internal slices
+For SKY-025, use the [execute/review handoff prompts](prompts/README.md). P9/G3 is accepted and merged;
+accepted progress is P9/24. P10 is implementation-ready on PR #257 and awaits fresh review. From P8
+onward, one numbered phase owns one open PR; internal slices
 remain on that PR until fresh acceptance, then bounded closeout stays
 on that **same accepted PR** before one human merge. Ali never provides commit hashes to the reviewer or
 closeout session.

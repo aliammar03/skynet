@@ -62,6 +62,9 @@
 - SKY-025 P9 is externally accepted on reviewed base `250bb48` and head `b89affd`. Its same-PR bounded
   closeout advances accepted progress to 9/24 and completes G3 without changing accepted substantive
   surfaces; PR #256 remains for one human merge before P10 begins.
+- P10 verification is report-only: it requires one exact Arcane revision across Git Sync and project
+  evidence, reconciles positive complete Arcane/Docker counts, rejects missing healthchecks, and proves
+  declared routes from the DMZ vantage with verified TLS. Deployment, retry, and recovery remain P11.
 - The unprivileged NixOS `aliammar` account is the construction filesystem/OS boundary. Native
   construction inherits its no-prompt Codex posture; self-root and authored self-merge are forbidden,
   and production authority remains governed separately by trust-tier contracts.
@@ -96,6 +99,12 @@
   so rollback proves the complete prior tree is retained.
 - A regex dialect is part of a command's behavioral interface. Moving orchestration between languages
   must retain the prior matching engine or explicitly migrate callers and recorded expressions.
+- Docker's flattened `.Labels` rendering is not a safe comma-separated data format because label values
+  themselves may contain commas. Inspect one bounded label or its exact token instead of parsing every
+  unrelated label value.
+- Route verification must reject ambiguous canonical inputs before probing. Case-insensitive duplicate
+  hostnames and missing route metadata are failed observations, not candidates for normalization or
+  best-effort selection.
 - A transition-wide verification architecture should be changed coherently rather than patched phase
   by phase. During an explicit test embargo, retain hard safety controls, disable unattended merge,
   record verification debt, and defer one replacement suite to the post-transition review.

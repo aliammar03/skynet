@@ -67,6 +67,11 @@ flowchart LR
 All work is human-merged during the SKY-025 test embargo. Something breaks? `git revert`, and Arcane
 returns to the last good state.
 
+After Arcane reconciles a merged service revision, use the packaged report-only check
+`skynet verify deployment <service> <full-revision>` to verify exact revision identity, complete
+healthy containers, and declared ingress routes. Deployment and rollback remain separate GitOps
+procedures.
+
 ---
 
 ## Trust tiers — the blast-radius dial
@@ -144,6 +149,7 @@ The full checklist is in [`AGENTS.md §6`](AGENTS.md).
 bin/ops nightly          # the report-only maintenance pass (also runs on a systemd timer)
 bin/ops collect          # refresh machine inventory (T1, read-only)
 bin/ops hygiene          # local-only repository hygiene and context-budget report (T1)
+skynet verify deployment <service> <full-revision>  # report-only live deployment verification
 bin/grant-root <host> 2h # human mints an auto-expiring root cert for the agent
 bin/plan idea "…"        # capture future work as a Skynet Directive
 ```

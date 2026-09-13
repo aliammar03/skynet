@@ -32,8 +32,9 @@ root grants, and never-standing T3 access; a construction worker has no producti
   from authored conventions and observations; route resolution uses the same entity functions. The
   packaged cache/query module builds a disposable, validated 14-table SQLite projection for SQL
   views and ad-hoc queries; it is never authority.
-- Arcane reconciles merged Compose changes through Git Sync. Health is verified through scoped read
-  paths and inventory is refreshed by machine-owned collectors/renderers.
+- Arcane reconciles merged Compose changes through Git Sync. The packaged report-only deployment
+  verifier matches an exact full revision, complete project/container counts, running healthy
+  containers, and declared DMZ/TLS routes; deployment and recovery scripts retain write ownership.
 - The generated digest is optional recent-activity/episodic/open-thread retrieval and the context map
   is on-demand load-cost routing; packaged rendering also owns factual pages and the runbook catalog.
   Read-time recall ranks canonical Markdown sources. None replaces `agent_docs/` continuity or
@@ -54,11 +55,13 @@ root grants, and never-standing T3 access; a construction worker has no producti
 
 1. A normal authored change uses one PR: implementation → fresh review → ACCEPT marker → same-PR
    bounded closeout → one human merge. Git revert is the normal rollback for GitOps changes.
-2. A production OpenTofu write is created from an approved revision, inspected as one saved plan,
+2. After a merged Compose revision, `skynet verify deployment <service> <full-revision>` observes
+   Arcane, Docker, and declared ingress without deploying or rolling back.
+3. A production OpenTofu write is created from an approved revision, inspected as one saved plan,
    and executed through `scripts/tofu-apply.sh` with one declared actuator scope.
-3. T1 collectors gather validated observations; freshness-gated factual rendering stages and safely
+4. T1 collectors gather validated observations; freshness-gated factual rendering stages and safely
    replaces the machine-owned page set. Generated output is never hand-edited.
-4. A substantive construction session begins with `agent_docs/` plus its active directive, routes
+5. A substantive construction session begins with `agent_docs/` plus its active directive, routes
    evidence to bounded workers, performs independent checks, and stops after publishing its open PR.
    Review runs separately; accepted closeout returns to the original session and stays on the same PR.
 

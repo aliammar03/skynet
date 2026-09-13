@@ -24,8 +24,8 @@ related:
 
 Accepted numbered progress is **P9 / 9 of 24**. Architecture checkpoint **G3** is complete.
 
-**Current action:** P9 is externally accepted and bounded closeout is staged on PR **#256**. Ali
-human-merges that same PR once; after it lands, P10 is the next authorized packet.
+**Current action:** P9 is accepted and merged. P10 is implementation-ready on PR **#257** and awaits
+one fresh external review; accepted numbered progress remains P9 until that review and same-PR closeout.
 
 ## 2. Mandate and boundaries
 
@@ -132,7 +132,7 @@ immediately returns to the normal lifecycle above.
 | 7 | Heavy | Omada + certs + routes + recon | accepted |
 | 8 | Heavy | Entity derivation/audit + rebuildable SQLite cache/query | accepted |
 | 9 | Medium | Docs/digest/context/catalog rendering + journal/recall helpers | accepted; G3 |
-| 10 | Heavy | Deployment health + reachability verification | next after PR #256 merges; failures/empty/partial/wrong revision fail |
+| 10 | Heavy | Deployment health + reachability verification | implementation-ready on PR #257; fresh review pending |
 | 11 | Heavy | Arcane deploy/env/sync + rollback preparation | exact source + truthful failures |
 | 12 | Heavy | Publishing: Caddy/Auth/DNS coordination | correct vantages + auth paths |
 | 13 | Medium | Saved-plan parsing + scope/action/exclusion policy | unsafe plans refused pre-write |
@@ -288,6 +288,51 @@ duplicate logic. Current callers and current operational docs use the packaged i
 **G3 exit:** the packaged application is the single procedural owner for collection, entity/cache/query,
 generated Markdown rendering, and read-time recall through P9. Bash retained in this surface is only a
 forwarding compatibility entry or the explicitly later-owned nightly/journal orchestration.
+
+## 5b. Current P10 packet
+
+### Phase 10 — deployment health + reachability verification
+
+**Status:** implementation-ready on PR **#257**; fresh external review pending.
+
+**Recommended Main:** Heavy. Use one P10 branch/PR for the whole numbered phase.
+
+**Goal:** make one packaged, report-only verifier prove that the requested Arcane GitOps revision is
+live, the complete Compose project is running and healthy, and every declared service route is
+reachable with valid TLS from the DMZ ingress vantage. Verification failure never invokes rollback or
+changes authored/runtime configuration; P11 owns deployment and recovery orchestration.
+
+Required behavior:
+
+- require an explicit full expected Git revision and match it exactly in both the Git Sync and Arcane
+  project observations;
+- require one unambiguous successful Git Sync, the matching running project, positive equal
+  service/running counts, and a non-empty Docker project observation with the same count;
+- require every observed container to be running and healthy; a missing healthcheck is failure;
+- validate the complete canonical route observation before selecting service routes, rejecting empty,
+  partial, malformed, duplicate, or case-ambiguous route evidence;
+- probe each selected route from the Docker `dmz` network through the apps front door with a
+  digest-pinned curl image, valid public TLS, and an HTTP response below 500; authentication responses
+  such as 302/401 are reachable outcomes;
+- report routed and intentionally unrouted services distinctly, preserve safe human/JSON errors, and
+  never expose credential values or remote response bodies;
+- retain `scripts/deploy-gate.sh` only as a thin current-caller forwarder until P22; do not migrate
+  `gitops-deploy.sh` source/retry/env/recovery behavior before P11.
+
+P10 implementation evidence recorded before fresh review:
+
+- the independent Tester passed disposable normal, empty, partial, malformed, wrong-revision,
+  unhealthy, TLS/HTTP, identity, timeout, redaction, and compatibility-forwarder cases;
+- source and Nix-installed paths passed routed and unrouted live smokes;
+- all ten live Arcane projects matched merged P9 revision `c800d58`, all 18 project containers were
+  present/running/healthy, eight service routes passed from the DMZ vantage with TLS result 0, and
+  `caddy-apps`/`cloudflared` were truthfully skipped as unrouted projects;
+- Ruff, strict mypy, Python compile, shell syntax, Nix package build, secret scan, hard invariants, and
+  diff checks passed under the test/CI embargo.
+
+**P10 closeout:** implementation stops on PR #257 and Ali starts one fresh P10 review. ACCEPT must be
+recorded on that PR before the original session advances `current_phase: 10` and releases P11 through
+bounded same-PR closeout.
 
 ## 6. Carry-forward correctness cases
 

@@ -14,9 +14,12 @@
 #   ARCANE_ENV_ID            explicit Arcane environment id, forwarded as data only
 set -euo pipefail
 
-SVC="${1:?usage: deploy-gate.sh <service> <full-deploy-commit>}"
-REVISION="${2:?need the full 40-hex deploy commit to verify}"
-[ "$#" -eq 2 ] || { echo "deploy-gate: expected exactly service and full revision" >&2; exit 2; }
+if [ "$#" -ne 2 ]; then
+  echo "usage: deploy-gate.sh <service> <full-deploy-commit>" >&2
+  exit 2
+fi
+SVC="$1"
+REVISION="$2"
 
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SELF_DIR}/.." && pwd)"

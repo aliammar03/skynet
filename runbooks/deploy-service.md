@@ -2,13 +2,14 @@
 summary: "Deploy or update a service through the Arcane GitOps loop: edit compose then PR then Arcane reconciles."
 trigger: "Deploy or update a service"
 tier: "T2 PR-gated"
-executor: "scripts/gitops-deploy.sh and Arcane Git Sync"
+executor: "scripts/gitops-deploy.sh, Arcane Git Sync, and skynet verify deployment"
 rollback: "git revert"
 ---
 
 # Runbook — deploy / update a service (Arcane GitOps, the skynet way)
 
-**Tier:** T2 (PR-gated). **Executor:** `scripts/gitops-deploy.sh` + Arcane Git Sync. **Rollback:** `git revert`.
+**Tier:** T2 (PR-gated). **Executor:** `scripts/gitops-deploy.sh` + Arcane Git Sync +
+`skynet verify deployment`. **Rollback:** `git revert`.
 
 ## Preconditions
 
@@ -55,17 +56,34 @@ Arcane leaves a populated `.env` untouched on re-sync, so the two coexist.
 1. **Branch** `deploy/<svc>`; edit `compose/<svc>/*` per the standard. Validate:
    `cd compose/<svc> && printf '…dummy…' > .env && docker compose config -q && rm .env`.
 2. **PR** with a teaching description (what it is, ports, front door, backup impact). **Ali merges.**
-3. `scripts/gitops-deploy.sh <svc>` — ensures the sync, materialises `.env`, redeploys, health-checks.
-   For a branch verification, use `GITOPS_BRANCH=<branch> scripts/gitops-deploy.sh <svc>`.
-4. If red → `git revert`, re-run `gitops-deploy.sh <svc>`.
+3. `scripts/gitops-deploy.sh <svc>` — the deployment procedure ensures the source sync,
+   materialises `.env`, redeploys, and waits for the project. Its source selection, retry/wait,
+   environment, and recovery behavior remain owned here; the verifier does not perform them.
+4. Verify the exact merged deployment revision with the packaged, report-only observer:
+
+   ```bash
+   skynet verify deployment <svc> <full-revision>
+   ```
+
+   It checks the complete Arcane/Docker project at that revision, all container health, and every
+   declared route. Routed checks use the Docker `dmz` network and verified TLS through
+   `10.10.100.35`; HTTP 100–499, including 302/401, is acceptable. Unrouted services are reported
+   as skipped. The route probe may create/remove an ephemeral container and cache its pinned image.
+5. If verification fails, it reports the failed observation; it does not deploy, restart, or
+   rollback. Prepare a reviewed inverse with `scripts/gitops-rollback.sh <svc> <full-revision> --prepare`,
+   then human-review and merge the rollback PR before Arcane reconciles it.
 
 ## Verify
 
-- `scripts/gitops-deploy.sh <svc>` completes, the service healthcheck is healthy, and the expected route works from its intended vantage.
+- `skynet verify deployment <svc> <full-revision>` succeeds. This requires exact revision identity,
+  complete positive equal Arcane and Docker counts, every container running and healthy, and all
+  declared routes reachable with valid TLS; a service with no declared route is explicitly skipped.
 
 ## Rollback
 
-- Revert the merged compose change and run `scripts/gitops-deploy.sh <svc>` to reconcile it.
+- Use the reviewed rollback PR prepared by `scripts/gitops-rollback.sh`; after its human merge, run
+  `scripts/gitops-deploy.sh <svc>` to reconcile the reverted revision. The verifier never invokes
+  rollback itself.
 
 ## Evidence
 
