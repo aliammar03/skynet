@@ -48,7 +48,7 @@ Rules `[manual]`:
 - **Use the fixed task shape:** `Preconditions` → `Steps` → `Verify` → `Rollback` → `Evidence`
   `[testable]`. Keep doctrine in its authoritative document and raw history in `journal/`.
 - **Every runbook is rendered into `runbooks/README.md`** `[testable]` by
-  `scripts/render-runbook-catalog.sh`; leaf frontmatter is the catalog source.
+  `skynet render runbook-catalog`; leaf frontmatter is the catalog source.
 
 ## Journal — episodic memory (`journal/`)
 
@@ -74,7 +74,7 @@ the [default-lean discipline](../design/memory.md).
 
 - **`summary` is the source; the map shows it.** A loadable *without* a `summary:` falls back to its
   first `# heading` in the map — so nothing is invisible, but an authored line is better.
-- **Load cost is computed at render time, not stored.** `scripts/render-context-map.sh` derives the
+- **Load cost is computed at render time, not stored.** `skynet render context` derives the
   `~tokens` column itself (content bytes ÷ 4) when it builds the map. Do not maintain a `tokens:` line.
 
 ## README-as-catalog `[manual]`

@@ -41,7 +41,7 @@ prepare() {
 
   export SKYNET_COLLECTION_SINCE="$(date --iso-8601=ns)"
   step collection ./scripts/collect-all.sh
-  step render-docs ./scripts/render-docs.sh
+  step render-docs ./bin/skynet render docs --repo "${REPO_DIR}"
 
   # Drift is evidence, not an actuator. An unavailable plan is recorded in the generated report.
   {
@@ -82,8 +82,8 @@ finalize() {
   # The journal is intentionally before these two renders so the optional recent-activity digest
   # includes this run and the on-demand context map reflects the new episodic-store size.
   write_journal
-  step render-digest ./scripts/render-digest.sh
-  step render-context-map ./scripts/render-context-map.sh
+  step render-digest ./bin/skynet render digest --repo "${REPO_DIR}"
+  step render-context-map ./bin/skynet render context --repo "${REPO_DIR}"
 
   git add -A inventory docs/generated journal
   if git diff --cached --quiet; then

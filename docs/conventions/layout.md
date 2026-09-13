@@ -69,7 +69,7 @@ carry their artifact's rules (fill the `TODO`s). `bin/plan` owns its lifecycle t
 ## Generated — never hand-edit `[testable]`
 
 `inventory/**` and `docs/generated/**` are written by collectors/renderers. Change the
-collector or `scripts/render-docs.sh`, never the output. Enforced socially today, mechanically by
+collector or `skynet render docs`, never the output. Enforced socially today, mechanically by
 the parked lint gate.
 
 ## `invariants.json` — authored constraint, not generated `[testable]`

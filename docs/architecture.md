@@ -38,6 +38,6 @@ included — from a laptop and a phone hotspot.
   rollback and are not A4-eligible. The wrapper refuses delete/replace plans.
 - **App-data backup:** nightly restic of `/opt/docker/appdata` → rclone → Google Drive.
 - **Guest backup:** vzdump → PBS → nightly `rclone sync` of the datastore → Google Drive.
-- **Docs:** `render-docs.sh` turns `inventory/*.json` + firewall config into `docs/generated/` (Obsidian).
+- **Docs:** `skynet render docs` turns validated inventory into `docs/generated/` (Obsidian).
 
 See the per-topic detail in `runbooks/`.

@@ -33,7 +33,7 @@ never hand-maintained. This is a **workstation** setup; it touches nothing in th
 ## Notes
 
 - **Read-only by contract.** `docs/generated/` is machine-owned. If you want to change what a
-  page shows, edit `scripts/render-docs.sh` (factual pages) or the nightly prompt in
+  page shows, edit the `skynet render docs` implementation (factual pages) or the nightly prompt in
   `runbooks/nightly.md` (the narrative) — never the output files; the next render overwrites them.
 - **Shared versus local metadata.** The shared `.obsidian` appearance, app, graph, and plugin-enable
   settings are committed. Your open tabs/layout (`workspace*.json`) and installed plugin files are

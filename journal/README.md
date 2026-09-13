@@ -77,4 +77,5 @@ current operational docs, active directives, and accepted evidence win conflicts
 retrieval; the generated [context map](../docs/generated/07-context-map.md) is on-demand load-cost
 routing. Neither is required for cold-session continuity or a source of truth.
 
-For raw history, grep and read the dated files: `grep -ri "<topic>" journal/`.
+For raw history, run `skynet recall --repo <checkout> <topic>` to rank canonical matches, then open
+only the relevant dated files. A direct `grep -ri "<topic>" journal/` remains the simplest fallback.

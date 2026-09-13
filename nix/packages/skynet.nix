@@ -24,7 +24,6 @@ let
       (root + "/scripts/build-db.sh")
       (root + "/scripts/sql/host-map.sql")
       (root + "/scripts/sql/vhosts.sql")
-      (root + "/scripts/render-docs.sh")
     ];
   };
 in

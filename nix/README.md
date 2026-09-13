@@ -33,10 +33,13 @@ nix/packages/
 
 The `skynet` command is a Nix-owned Python package exposing a runtime diagnostic, core and network
 Proxmox observations, PBS backup observations, Docker inventory, Technitium DNS zones, default
-collection and receipt-bound freshness checks, entity derivation/audit, and disposable SQLite
-cache/query operations. `src/skynet/entities.py` owns the five entity classes (guest, service, node,
-vhost, and network); `src/skynet/cache.py` owns the validated 14-table `.cache/inventory.db`
-projection. The database is rebuilt from repository truth and atomically published over the target
+collection and receipt-bound freshness checks, entity derivation/audit, disposable SQLite
+cache/query operations, generated Markdown rendering, and read-time recall. `src/skynet/entities.py`
+owns the five entity classes (guest, service, node, vhost, and network); `src/skynet/cache.py` owns
+the validated 14-table `.cache/inventory.db` projection; `src/skynet/render.py` owns factual views;
+and `src/skynet/memory.py` owns digest/context/catalog views plus recall. Factual rendering builds
+every page before publishing, so malformed input or cache failure leaves prior generated pages
+unchanged. The database is rebuilt from repository truth and atomically published over the target
 only after schema and integrity checks; prior valid bytes survive failure, and it is never an
 authority. `bin/skynet` launches the package
 from the checkout's tracked Git source using offline, lock-preserving Nix evaluation. It never
@@ -63,6 +66,12 @@ Every PR, including generated-only nightly work, is human-merged during the emba
 
 `skynet doctor [--json]` reports the executing package version and Python runtime with
 `scope: runtime`. It is not a lab or service health check.
+
+`skynet render docs --repo <checkout>` requires receipt-bound current collection evidence, rebuilds
+the disposable cache, validates its inputs, and publishes factual Obsidian pages only after every page
+is ready. `skynet render digest|context|runbook-catalog --repo <checkout>` regenerates the corresponding
+content-stable view from repository truth. `skynet recall --repo <checkout> <topic> [...]` ranks
+canonical Markdown matches without persisting a summary.
 
 `skynet collect proxmox <core|network> --output <file> [--credentials-file <file>] [--json]` reads
 nodes, resources, pools/members, backup jobs and recent vzdump tasks over verified HTTPS. Default

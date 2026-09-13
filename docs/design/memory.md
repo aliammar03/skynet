@@ -35,8 +35,8 @@ not a fresh-session requirement or source of truth; its human counterpart is `05
   `bin/new journal`; correct an entry with a new one that links back. Write raw; summarize only when
   reading.
 - **ADRs:** one amended-in-place record for each non-trivial settled decision.
-- **Generated retrieval:** `scripts/render-digest.sh` derives the recent-activity/episodic digest from
-  git and the journal; `scripts/render-context-map.sh` derives the on-demand load-cost index. Both
+- **Generated retrieval:** `skynet render digest` derives the recent-activity/episodic digest from
+  git and the journal; `skynet render context` derives the on-demand load-cost index. Both
   views are caches, never truth.
 
 The repository's memory is portable across engines and rebuildable from git. Private engine memory

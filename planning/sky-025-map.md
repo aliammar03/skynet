@@ -6,8 +6,8 @@ summary: "SKY-025 current subsystem dispositions, callers, replacement phases, a
 
 Owned by [the active directive](projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md).
 
-Current accepted progress is **P8 / 8 of 24**. P8 is externally accepted and bounded closeout is staged
-on PR **#255** for one human merge. After that merge, P9/G3 is the next authorized packet.
+Current accepted progress is **P8 / 8 of 24**. PR **#255** is merged; P9/G3 is the active packet on
+its own phase branch/PR.
 Every PR, including generated-only nightly work, is human-merged during the SKY-025 test/CI embargo.
 
 The reviewer resolves/rechecks Git revisions from GitHub. Ali supplies the phase/PR identity, not hashes.
@@ -31,7 +31,8 @@ This file is a current disposition/caller/blocker map. Implementation chronology
 | `scripts/audit-entities.sh` | forwarding compatibility only | Python entity audit | invariant gate | P8 implemented; removal P22 |
 | `scripts/build-db.sh` | forwarding compatibility only | `src/skynet/cache.py` | renderer compatibility | P8 implemented; removal P22 |
 | `scripts/sql/host-map.sql`, `scripts/sql/vhosts.sql` | retain | SQL query definitions over disposable cache | renderer/query | P8 implemented |
-| rendering/digest/context/catalog shell tools | migrate/prune | Python render/retrieval paths | nightly, humans, agent context | P9 |
+| rendering/digest/context/catalog shell tools | forwarding compatibility only | Python render/retrieval paths | nightly, humans, agent context | P9 implementation; removal P22 |
+| `bin/recall` | forwarding compatibility only | packaged read-time recall | humans, agent context | P9 implementation; removal P22 |
 | `deploy-gate.sh`, GitOps deploy/rollback shell logic | migrate | Python verify/deploy/recovery evidence | deployment/restore runbooks | P10–P11 |
 | publishing/DNS coordination shell logic | migrate | Python bounded publishing workflows | Caddy/Auth/DNS runbooks | P12 |
 | Tofu env/apply + snapshot execution shell logic | migrate | Python saved-plan/policy/execution | provisioning/publishing | P13–P14 |
@@ -61,8 +62,7 @@ callers together and delete duplicate procedural logic.
 
 ## P8 caller map
 
-P8 is accepted on PR **#255** and its bounded closeout stays on that one open numbered-phase PR until
-Ali human-merges it once.
+P8 is accepted and human-merged on PR **#255**.
 
 ### P8A · entity derivation/audit
 
@@ -92,6 +92,19 @@ Current owners/callers to inspect together:
 
 `.cache/inventory.db` remains disposable and rebuilt from repository/inventory truth. No ORM, DB service,
 migrations framework, or second authority tree.
+
+## P9 caller map
+
+Current owners/callers to migrate together:
+
+- `scripts/render-docs.sh` → packaged factual renderer; `scripts/nightly.sh` calls the package;
+- `scripts/render-digest.sh` and `scripts/render-context-map.sh` → packaged content-stable renderers;
+- `scripts/render-runbook-catalog.sh` → packaged frontmatter catalog renderer;
+- `bin/recall` → packaged read-time retrieval;
+- current observability/memory/docs conventions and the Nix package description.
+
+The raw journal and nightly journal append remain authored evidence. General `bin/new` scaffolding stays
+with P21. Thin forwarding entries remain only for compatibility until P22.
 
 ## External installs and live/recovery blockers
 

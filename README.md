@@ -102,7 +102,7 @@ skynet/
 ├── ca/                  SSH CA & agent PUBLIC keys (trust anchors; privates never here)
 ├── compose/             one dir per service — the "skynet way" Arcane git-syncs
 ├── docs/                design & how-it-works ── system-design.md is the master design (+ design/ spokes)
-│   └── generated/       🤖 machine-written by render-docs.sh — never hand-edit
+│   └── generated/       🤖 machine-written by packaged renderers — never hand-edit
 ├── inventory/           🤖 machine-collected JSON truth (Proxmox, DNS, firewall…)
 ├── planning/            Skynet Directives (SKY-###) — where future work is born
 ├── runbooks/            step-by-step procedures any agent can execute
