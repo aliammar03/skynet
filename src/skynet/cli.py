@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import NoReturn
 
-from skynet import cache, certs, entities, installed_version, memory, omada, recon, render, routes
+from skynet import cache, certs, deployment, entities, installed_version, memory, omada, recon, render, routes
 from skynet.collection import collect_all, collection_status
 from skynet.dns import DEFAULT_CREDENTIALS as DNS_DEFAULT_CREDENTIALS, collect as collect_dns
 from skynet.doctor import write_report
@@ -32,6 +32,36 @@ def build_parser() -> argparse.ArgumentParser:
         dest="json_output",
         help="write one runtime report object as JSON",
     )
+    verification = commands.add_parser("verify", help="verify a live deployment without mutating it")
+    verifiers = verification.add_subparsers(dest="verification", required=True)
+    deploy = verifiers.add_parser(
+        "deployment", aliases=("deploy",),
+        help="verify one Arcane GitOps service, its containers, and declared ingress routes",
+    )
+    deploy.add_argument("service", help="Compose service/project name")
+    deploy.add_argument("expected_revision", help="full 40-hex Git commit expected live")
+    deploy.add_argument(
+        "--credentials-file", "--arcane-credentials", "--arcane-credentials-file",
+        type=Path, dest="credentials_file", default=deployment.DEFAULT_CREDENTIALS,
+        help="literal ARCANE_URL/ARCANE_TOKEN[/ARCANE_AUTH_HEADER/ARCANE_ENV_ID] assignments",
+    )
+    deploy.add_argument(
+        "--context", "--docker-context", dest="docker_context", default=deployment.DEFAULT_CONTEXT,
+        help="read-only Docker context used for project and DMZ probes",
+    )
+    deploy.add_argument(
+        "--environment-id", "--env-id", dest="environment_id",
+        help="Arcane environment id (defaults to ARCANE_ENV_ID or 0)",
+    )
+    deploy.add_argument(
+        "--repo", type=Path, default=Path.cwd(),
+        help="checkout containing compose/caddy-apps/Caddyfile (default: current directory)",
+    )
+    deploy.add_argument(
+        "--timeout", type=float, default=deployment.DEFAULT_TIMEOUT,
+        help="per-observation timeout in seconds (1–300)",
+    )
+    deploy.add_argument("--json", action="store_true", dest="json_output")
     collection = commands.add_parser("collect", help="collect observations, not service health")
     sources = collection.add_subparsers(dest="source", required=True)
     all_sources = sources.add_parser("all", help="refresh inventory with per-collector outcomes")
@@ -173,6 +203,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     if arguments.command == "doctor":
         write_report(json_output=arguments.json_output, stdout=sys.stdout)
         return 0
+    if arguments.command == "verify":
+        if arguments.verification in {"deployment", "deploy"}:
+            return deployment.run(
+                arguments.service,
+                arguments.expected_revision,
+                arguments.credentials_file,
+                arguments.docker_context,
+                arguments.repo,
+                environment_id=arguments.environment_id,
+                timeout=arguments.timeout,
+                json_output=arguments.json_output,
+                stdout=sys.stdout,
+            )
+        return _unreachable_command(arguments.verification)
     if arguments.command == "collect":
         if arguments.source == "all":
             return collect_all(arguments.repo, arguments.credentials_file,
