@@ -59,6 +59,9 @@
 - Packaged P9 recall preserves the original scout's case-insensitive GNU grep ERE dialect. Python owns
   orchestration, ranking, and output while the Nix closure supplies GNU grep for expression validation
   and matching; `bin/recall` remains only a compatibility forwarder.
+- SKY-025 P9 is externally accepted on reviewed base `250bb48` and head `b89affd`. Its same-PR bounded
+  closeout advances accepted progress to 9/24 and completes G3 without changing accepted substantive
+  surfaces; PR #256 remains for one human merge before P10 begins.
 - The unprivileged NixOS `aliammar` account is the construction filesystem/OS boundary. Native
   construction inherits its no-prompt Codex posture; self-root and authored self-merge are forbidden,
   and production authority remains governed separately by trust-tier contracts.

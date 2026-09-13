@@ -6,7 +6,7 @@ horizon: long
 created: 2026-09-06
 updated: 2026-09-13
 phases: 24
-current_phase: 8
+current_phase: 9
 tier_touched: [T1, T2, T2+, T3]
 related:
   - docs/system-design.md
@@ -22,10 +22,10 @@ related:
 
 ## 1. Current state
 
-Accepted numbered progress is **P8 / 8 of 24**.
+Accepted numbered progress is **P9 / 9 of 24**. Architecture checkpoint **G3** is complete.
 
-**Current action:** PR **#255** is human-merged. Implement the single P9/G3 packet on its own open PR;
-accepted progress remains P8 until P9 receives fresh external review and same-PR closeout.
+**Current action:** P9 is externally accepted and bounded closeout is staged on PR **#256**. Ali
+human-merges that same PR once; after it lands, P10 is the next authorized packet.
 
 ## 2. Mandate and boundaries
 
@@ -131,8 +131,8 @@ immediately returns to the normal lifecycle above.
 | 6 | Heavy | DNS + live OPNsense/firewall observations | accepted |
 | 7 | Heavy | Omada + certs + routes + recon | accepted |
 | 8 | Heavy | Entity derivation/audit + rebuildable SQLite cache/query | accepted |
-| 9 | Medium | Docs/digest/context/catalog rendering + journal/recall helpers | next after PR #255 merges; G3 |
-| 10 | Heavy | Deployment health + reachability verification | failures/empty/partial/wrong revision fail |
+| 9 | Medium | Docs/digest/context/catalog rendering + journal/recall helpers | accepted; G3 |
+| 10 | Heavy | Deployment health + reachability verification | next after PR #256 merges; failures/empty/partial/wrong revision fail |
 | 11 | Heavy | Arcane deploy/env/sync + rollback preparation | exact source + truthful failures |
 | 12 | Heavy | Publishing: Caddy/Auth/DNS coordination | correct vantages + auth paths |
 | 13 | Medium | Saved-plan parsing + scope/action/exclusion policy | unsafe plans refused pre-write |
@@ -148,13 +148,13 @@ immediately returns to the normal lifecycle above.
 | 23 | Heavy | Install/restart Python engine + staged operational acceptance | G6 |
 | 24 | Medium | Cold-start/recovery rehearsal + final fixes/archive | post-transition test/CI redesign handed off |
 
-Architecture checkpoints G1/G2 are already behind us. G3–G6 remain at phases 9/14/17/23.
+Architecture checkpoints G1–G3 are already behind us. G4–G6 remain at phases 14/17/23.
 
 ## 5. Current P8 packet
 
 ### Phase 8 — entity spine + rebuildable query cache
 
-**Status:** accepted; bounded same-PR closeout staged on PR **#255** for one human merge.
+**Status:** accepted and human-merged on PR **#255**.
 
 **Recommended Main:** Heavy. Use one P8 branch/PR for the whole numbered phase. Internal slices are
 working units on that same PR, never separately merged.
@@ -235,7 +235,7 @@ and hands the same PR back for one human merge.
 
 ### Phase 9 — generated views + read-time recall
 
-**Status:** implementation in progress after merged P8 PR **#255**.
+**Status:** accepted; bounded same-PR closeout staged on PR **#256** for one human merge.
 
 **Recommended Main:** Medium. Use one P9 branch/PR for the whole numbered phase.
 
@@ -325,8 +325,8 @@ require operation-specific recovery evidence, not blind `git revert`.
 Read planning/prompts/execute.md and execute the next authorized SKY-025 packet.
 ```
 
-The current invocation executes P8. Later invocations execute only the next packet released by this
-directive's numbered progress and review state.
+After PR #256 is human-merged once, the next invocation executes P10. Later invocations execute only
+the next packet released by this directive's numbered progress and review state.
 
 ### Review a normal open PR
 

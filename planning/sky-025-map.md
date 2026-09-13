@@ -6,8 +6,9 @@ summary: "SKY-025 current subsystem dispositions, callers, replacement phases, a
 
 Owned by [the active directive](projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md).
 
-Current accepted progress is **P8 / 8 of 24**. PR **#255** is merged; P9/G3 is the active packet on
-its own phase branch/PR.
+Current accepted progress is **P9 / 9 of 24** and architecture checkpoint G3 is complete. P9 is
+externally accepted with bounded closeout staged on PR **#256** for one human merge; P10 begins only
+after that merge.
 Every PR, including generated-only nightly work, is human-merged during the SKY-025 test/CI embargo.
 
 The reviewer resolves/rechecks Git revisions from GitHub. Ali supplies the phase/PR identity, not hashes.
@@ -31,8 +32,8 @@ This file is a current disposition/caller/blocker map. Implementation chronology
 | `scripts/audit-entities.sh` | forwarding compatibility only | Python entity audit | invariant gate | P8 implemented; removal P22 |
 | `scripts/build-db.sh` | forwarding compatibility only | `src/skynet/cache.py` | renderer compatibility | P8 implemented; removal P22 |
 | `scripts/sql/host-map.sql`, `scripts/sql/vhosts.sql` | retain | SQL query definitions over disposable cache | renderer/query | P8 implemented |
-| rendering/digest/context/catalog shell tools | forwarding compatibility only | Python render/retrieval paths | nightly, humans, agent context | P9 implementation; removal P22 |
-| `bin/recall` | forwarding compatibility only | packaged read-time recall | humans, agent context | P9 implementation; removal P22 |
+| rendering/digest/context/catalog shell tools | forwarding compatibility only | Python render/retrieval paths | nightly, humans, agent context | P9 accepted; removal P22 |
+| `bin/recall` | forwarding compatibility only | packaged read-time recall | humans, agent context | P9 accepted; removal P22 |
 | `deploy-gate.sh`, GitOps deploy/rollback shell logic | migrate | Python verify/deploy/recovery evidence | deployment/restore runbooks | P10–P11 |
 | publishing/DNS coordination shell logic | migrate | Python bounded publishing workflows | Caddy/Auth/DNS runbooks | P12 |
 | Tofu env/apply + snapshot execution shell logic | migrate | Python saved-plan/policy/execution | provisioning/publishing | P13–P14 |
@@ -94,6 +95,9 @@ Current owners/callers to inspect together:
 migrations framework, or second authority tree.
 
 ## P9 caller map
+
+P9 is accepted on PR **#256**; its bounded closeout stays on that open numbered-phase PR until Ali
+human-merges it once.
 
 Current owners/callers to migrate together:
 

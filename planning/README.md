@@ -69,10 +69,10 @@ bin/plan list                           # regenerate the roadmap table below
 Each directive carries its own execution/review entry points, so running or resuming one is a small
 paste into a fresh session.
 
-For SKY-025, use the [execute/review handoff prompts](prompts/README.md). Corrective P7 PR #254 is
-accepted and merged. P8 is externally accepted with bounded closeout staged on PR #255; accepted
-progress is P8/24. After that PR is human-merged once, P9/G3 is the next packet. From P8 onward, one
-numbered phase owns one open PR; internal slices remain on that PR until fresh acceptance, then bounded closeout stays
+For SKY-025, use the [execute/review handoff prompts](prompts/README.md). P9/G3 is externally accepted
+with bounded closeout staged on PR #256; accepted progress is P9/24. After that PR is human-merged
+once, P10 is the next packet. From P8 onward, one numbered phase owns one open PR; internal slices
+remain on that PR until fresh acceptance, then bounded closeout stays
 on that **same accepted PR** before one human merge. Ali never provides commit hashes to the reviewer or
 closeout session.
 
@@ -104,7 +104,7 @@ closeout session.
 | SKY-021 | NixOS-in-LXC: prove the container path and set the new-CT default | archive | done | — | 🌱 short |
 | SKY-022 | "Lean multi-agent construction orchestration: lead-driven delegation" | archive | done | — | 🔭 long |
 | SKY-023 | Eliminate documentation drift and shrink operational context | projects | in-progress | 10/10 | 🌱 short |
-| SKY-024 | tofu declares managed core guests — API-driven CT/VM lifecycle, no node SSH | projects | in-progress | 4/6 | 🔭 long |
-| SKY-025 | Rebuild the Skynet engine in Python | projects | in-progress | 8/24 | 🔭 long |
-| SKY-026 | "Overhaul agent orchestration around a Main-directed worker swarm" | archive | done | 5/5 | 🔭 long |
+| SKY-024 | tofu declares managed core guests — API-driven CT/VM lifecycle, no node SSH | projects | in-progress | 4/6 | 🌱 short |
+| SKY-025 | Rebuild the Skynet engine in Python | projects | in-progress | 9/24 | 🔭 long |
+| SKY-026 | "Overhaul agent orchestration around a Main-directed worker swarm" | archive | done | — | 🔭 long |
 <!-- ROADMAP:END -->

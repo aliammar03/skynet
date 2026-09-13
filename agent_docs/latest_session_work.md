@@ -5,9 +5,9 @@
 
 ## Detailed Current State
 
-SKY-025 P8 is externally accepted and merged at progress **8/24**. P9 implementation is ready on open
-PR #256 and awaits a fresh external review. Accepted directive progress remains 8/24 until an ACCEPT
-marker and same-PR bounded closeout advance it.
+SKY-025 P9 is externally accepted at progress **9/24**, completing architecture checkpoint G3. The
+newest applicable ACCEPT marker was validated against open PR #256, its reviewed head, and the
+unchanged reviewed base. Bounded closeout is staged on that same PR; it is not yet merged.
 
 Every PR is human-merged during the embargo, including generated-only nightly PRs. The nightly
 auto-merge executor is fail-closed, while the local secret scan and hard-invariant checker remain.
@@ -31,6 +31,9 @@ remain embargoed; a post-transition review owns the replacement verification arc
   creation and writing with their later P21 owner.
 - Updated present-tense docs, the P9 directive packet, the migration map, and generator-owned memory
   views for the new command ownership.
+- Validated the newest external ACCEPT marker and advanced only bounded phase/planning state to 9/24;
+  accepted implementation, runtime/configuration, doctrine, runbooks, behavioral docs, and stable
+  memory remain unchanged after review.
 
 ## Verification
 
@@ -49,11 +52,11 @@ remain embargoed; a post-transition review owns the replacement verification arc
 
 ## Pending Work and Blockers
 
-- PR #256 remains open and requires a fresh external review before any accepted closeout.
+- PR #256 remains open and requires Ali's one human merge.
 - Automated regression protection is intentionally unavailable until the post-SKY-025 redesign.
 - Committed collection evidence is stale, so the installed factual renderer truthfully refuses it;
   the successful factual smoke used isolated receipt-consistent evidence.
 
 ## Next Entry Point
 
-Freshly review SKY-025 P9 on open PR #256 using `planning/prompts/review.md`.
+Human-merge PR #256 once; after it lands, begin SKY-025 P10 from current `main`.
