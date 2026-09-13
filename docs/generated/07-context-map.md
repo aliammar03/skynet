@@ -1,7 +1,7 @@
 ---
 title: Context Map
 summary: On-demand load-cost and context-routing index.
-author: skynet-ops (render-context-map.sh)
+author: skynet-ops (skynet render context)
 tags: [skynet, generated, agent, context-map]
 ---
 
@@ -28,7 +28,7 @@ additional reads. Everything below is **on-demand**: open a *file*, not a sectio
 | `runbooks/dr/DR-network-node.md` | T3 | Network node or OPNsense is dead | 554 | Recover when server-proxmox-network is dead — OPNsense and routing gone. |
 | `runbooks/dr/pci-passthrough.md` | T3 | NIC passthrough for OPNsense | 789 | Re-establish NIC passthrough for VM 5001 (OPNsense) after a rebuild. |
 | `runbooks/dr/survival-kit.md` | T3 | Prepare or verify the off-site survival kit | 564 | What lives on paper and in the password manager, outside Skynet, to bootstrap recovery. |
-| `runbooks/nightly.md` | T1 read + generated-only PR | Run the nightly / nightly timer | 1621 | The report-only nightly maintenance run on both engine paths, and what it refreshes. |
+| `runbooks/nightly.md` | T1 read + generated-only PR | Run the nightly / nightly timer | 1630 | The report-only nightly maintenance run on both engine paths, and what it refreshes. |
 | `runbooks/provision-lxc.md` | Supervised T2 saved-plan create | Set up / deploy a new LXC for X | 723 | Provision a NixOS core-managed LXC from merged source and an explicitly approved saved plan; creates are supervised T2 without automatic rollback. |
 | `runbooks/provision-vm.md` | Supervised T2 saved-plan create + T2+ root grant | Set up a VM for X, hardened, with restic | 723 | Provision a VM from merged source and an explicitly approved saved plan; creates are supervised T2 without automatic rollback. |
 | `runbooks/publish-service.md` | T2 PR-gated | Publish or expose a service | 471 | Choose the runbook for publishing a service through apps Caddy, Authentik, or the Cloudflare Tunnel. |
@@ -48,9 +48,9 @@ additional reads. Everything below is **on-demand**: open a *file*, not a sectio
 | `docs/design/disaster-recovery.md` | 601 | The survival kit and how each node-loss scenario is recovered; the step-by-step procedures live in runbooks/dr/. |
 | `docs/design/gitops-loop.md` | 682 | How a service change becomes a running container via Arcane, with git-revert rollback and image pinning + Renovate. |
 | `docs/design/identity-and-proxy.md` | 882 | The current two-door proxy, split-DNS, Authentik boundary, and Cloudflare Tunnel public path. |
-| `docs/design/memory.md` | 602 | How Skynet keeps portable semantic, procedural, episodic, and working memory without overloading a fresh agent. |
+| `docs/design/memory.md` | 673 | How Skynet keeps portable semantic, procedural, episodic, and working memory without overloading a fresh agent. |
 | `docs/design/network.md` | 1554 | Where Skynet sits, how it's addressed on VLAN 90, and the firewall rules bounding its reach to exactly what it needs. |
-| `docs/design/observability.md` | 1356 | How machine state becomes human-readable docs, and how the nightly run keeps the picture current. |
+| `docs/design/observability.md` | 1407 | How machine state becomes human-readable docs, and how the nightly run keeps the picture current. |
 | `docs/design/secrets.md` | 922 | How Skynet holds secrets with sops+age and materializes GitOps service env from .env.git plus .env.sops. |
 
 ## Conventions — `docs/conventions/`
@@ -59,9 +59,9 @@ additional reads. Everything below is **on-demand**: open a *file*, not a sectio
 |---|--:|---|
 | `docs/conventions/compose.md` | 1085 | The single 'skynet way' every service's compose conforms to, so the fleet is uniform and Arcane's GitOps loop can own it. |
 | `docs/conventions/construction.md` | 5096 | Main directs a specialist worker swarm on Light/Medium/Heavy routes; workers own bounded work, verification is independent, and accepted work closes on the same PR before one human merge. |
-| `docs/conventions/docs.md` | 1691 | How Skynet's prose is structured: hub-and-spoke, ADRs, runbooks, README-as-catalog, and loadable summary/trigger frontmatter. |
+| `docs/conventions/docs.md` | 1688 | How Skynet's prose is structured: hub-and-spoke, ADRs, runbooks, README-as-catalog, and loadable summary/trigger frontmatter. |
 | `docs/conventions/git.md` | 608 | How change enters the repo: one branch per unit of work, one PR per phase, and the agent never merging its own PRs. |
-| `docs/conventions/layout.md` | 1522 | Where each kind of artifact lives, and the minimum files each must have to be well-formed. |
+| `docs/conventions/layout.md` | 1521 | Where each kind of artifact lives, and the minimum files each must have to be well-formed. |
 | `docs/conventions/metadata.md` | 670 | The structured fields machines read: directive frontmatter, service-catalog entries, and the compose label/tag namespaces. |
 | `docs/conventions/naming.md` | 1905 | The one naming grammar — VMIDs, IPs, hostnames, slugs, branches — so a name is predictable and machine-validatable. |
 | `docs/conventions/scripts.md` | 1097 | Capability contracts, Python procedural code, existing Bash entry points, and verified TLS. |
@@ -71,9 +71,9 @@ additional reads. Everything below is **on-demand**: open a *file*, not a sectio
 | Path | ~tok | Summary |
 |---|--:|---|
 | `compose/README.md` | 1519 | The compose/ service catalog and the Arcane GitOps deployment loop every project follows. |
-| `journal/README.md` | 1213 | The episodic journal format — session/incident/decision records, the Graveyard, and the write-raw/read-summarize rule. |
-| `planning/README.md` | 2077 | Where future work lives as SKY-### directives: the scratchpad→ideas→backlog→projects→archive lifecycle, bin/plan, and the roadmap. |
-| `runbooks/README.md` | 1508 | Catalog of task-shaped, engine-neutral operational procedures. Rendered from runbook frontmatter. |
+| `journal/README.md` | 1244 | The episodic journal format — session/incident/decision records, the Graveyard, and the write-raw/read-summarize rule. |
+| `planning/README.md` | 2066 | Where future work lives as SKY-### directives: the scratchpad→ideas→backlog→projects→archive lifecycle, bin/plan, and the roadmap. |
+| `runbooks/README.md` | 1509 | Catalog of task-shaped, engine-neutral operational procedures. Rendered from runbook frontmatter. |
 | `templates/README.md` | 395 | The golden templates (compose, script, runbook, ADR, journal) that bin/new stamps so new artifacts inherit the house style. |
 
 ## Generated views — `docs/generated/` (machine-owned; edit the renderer, not these)
@@ -82,7 +82,7 @@ additional reads. Everything below is **on-demand**: open a *file*, not a sectio
 |---|--:|---|
 | `docs/generated/00-network-map.md` | 449 | Network map |
 | `docs/generated/05-state-of-the-lab.md` | 1581 | State of the Lab |
-| `docs/generated/06-agent-digest.md` | 1550 | Recent-activity, episodic, and open-thread retrieval view. |
+| `docs/generated/06-agent-digest.md` | 1544 | Recent-activity, episodic, and open-thread retrieval view. |
 | `docs/generated/10-vlans.md` | 794 | VLANs |
 | `docs/generated/20-firewall.md` | 2206 | Firewall |
 | `docs/generated/50-network-gear.md` | 507 | Network gear (Omada estate) |
@@ -91,13 +91,13 @@ additional reads. Everything below is **on-demand**: open a *file*, not a sectio
 
 ## Episodic memory — retrieve by topic, don't browse
 
-- `journal/` — 127 raw episodes, ≈ 146526 tok total. Retrieve by topic: `bin/recall <topic>` or `grep -ri "<topic>" journal/`; use `06-agent-digest.md` when recent activity, open threads, or episode pointers are useful. **Do not load the whole store.**
+- `journal/` — 130 raw episodes, ≈ 149349 tok total. Retrieve by topic: `skynet recall --repo <checkout> <topic>` or `grep -ri "<topic>" journal/`; use `06-agent-digest.md` when recent activity, open threads, or episode pointers are useful. **Do not load the whole store.**
 
 ---
-**On-demand corpus:** ≈ **56842** tok across 53 files — but you load a *row* (≈ tens of tok) to choose, then one file.
-_A cache — regenerable from git via `render-context-map.sh`; never a source of truth._
+**On-demand corpus:** ≈ **56984** tok across 53 files — but you load a *row* (≈ tens of tok) to choose, then one file.
+_A cache — regenerable from git via `skynet render context`; never a source of truth._
 
-> [!note] Generated by `scripts/render-context-map.sh` from each loadable's frontmatter.
+> [!note] Generated by `skynet render context` from each loadable's frontmatter.
 > Do not hand-edit. Content-stable (diffs only on real change). The **map of what you can
 > load and what it costs** — read a ROW, then open only the one file you need. The
 > on-demand index complements normal `agent_docs/` + active-directive continuity ([[memory]]).

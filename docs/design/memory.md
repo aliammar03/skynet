@@ -28,6 +28,9 @@ For additional retrieval, use the generated [context map](../generated/07-contex
 to select one relevant document by path, trigger, and load cost. Use the generated [agent digest](../generated/06-agent-digest.md)
 only when recent decisions, open threads, or raw episode pointers are useful. The digest is a cache,
 not a fresh-session requirement or source of truth; its human counterpart is `05-state-of-the-lab.md`.
+Use `skynet recall --repo <checkout> <topic> [...]` for ranked canonical-source retrieval. Terms are
+OR-joined and interpreted as case-insensitive GNU extended regular expressions, preserving the
+original scout dialect; generated derivatives are excluded and no retrieval result is persisted.
 
 ## Durable records
 
@@ -35,8 +38,8 @@ not a fresh-session requirement or source of truth; its human counterpart is `05
   `bin/new journal`; correct an entry with a new one that links back. Write raw; summarize only when
   reading.
 - **ADRs:** one amended-in-place record for each non-trivial settled decision.
-- **Generated retrieval:** `scripts/render-digest.sh` derives the recent-activity/episodic digest from
-  git and the journal; `scripts/render-context-map.sh` derives the on-demand load-cost index. Both
+- **Generated retrieval:** `skynet render digest` derives the recent-activity/episodic digest from
+  git and the journal; `skynet render context` derives the on-demand load-cost index. Both
   views are caches, never truth.
 
 The repository's memory is portable across engines and rebuildable from git. Private engine memory

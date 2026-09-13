@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import NoReturn
 
-from skynet import cache, certs, entities, installed_version, omada, recon, routes
+from skynet import cache, certs, entities, installed_version, memory, omada, recon, render, routes
 from skynet.collection import collect_all, collection_status
 from skynet.dns import DEFAULT_CREDENTIALS as DNS_DEFAULT_CREDENTIALS, collect as collect_dns
 from skynet.doctor import write_report
@@ -138,6 +138,27 @@ def build_parser() -> argparse.ArgumentParser:
                        help="query output format (default: plain)")
     query.add_argument("--no-header", action="store_true",
                        help="omit query column names")
+    rendering = commands.add_parser("render", help="render generated views from repository truth")
+    renderers = rendering.add_subparsers(dest="renderer", required=True)
+    factual = renderers.add_parser("docs", help="render freshness-gated factual inventory pages")
+    factual.add_argument("--repo", type=Path, required=True)
+    factual.add_argument("--output", type=Path)
+    factual.add_argument("--since", default=os.environ.get("SKYNET_COLLECTION_SINCE"))
+    digest = renderers.add_parser("digest", help="render the recent-activity retrieval view")
+    digest.add_argument("--repo", type=Path, required=True)
+    digest.add_argument("--output", type=Path)
+    digest.add_argument("--journal", type=Path)
+    context = renderers.add_parser("context", help="render the on-demand context routing index")
+    context.add_argument("--repo", type=Path, required=True)
+    context.add_argument("--output", type=Path)
+    catalog = renderers.add_parser(
+        "runbook-catalog", help="render the runbook frontmatter catalog"
+    )
+    catalog.add_argument("--repo", type=Path, required=True)
+    catalog.add_argument("--output", type=Path)
+    recall = commands.add_parser("recall", help="rank canonical Markdown sources for a topic")
+    recall.add_argument("--repo", type=Path, required=True)
+    recall.add_argument("terms", nargs="+", help="case-insensitive regular expressions, OR-joined")
     status = commands.add_parser("collect-status", help="require fresh successful inventory observations")
     status.add_argument("--repo", type=Path, required=True)
     status.add_argument("--since", default=os.environ.get("SKYNET_COLLECTION_SINCE"),
@@ -193,6 +214,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     if arguments.command == "query":
         return _run_query(arguments.repo, arguments.statement, arguments.format,
                           arguments.no_header)
+    if arguments.command == "render":
+        return _run_render(arguments)
+    if arguments.command == "recall":
+        try:
+            return memory.print_recall(arguments.repo, arguments.terms, sys.stdout)
+        except memory.MemoryError as error:
+            print(f"recall: {error}", file=sys.stderr)
+            return error.code
     return _unreachable_command(arguments.command)
 
 
@@ -210,6 +239,36 @@ def _run_query(repo: Path, statement: str, output_format: str, no_header: bool) 
     if no_header:
         arguments.append("--no-header")
     return cache.main(arguments)
+
+
+def _run_render(arguments: argparse.Namespace) -> int:
+    """Dispatch one deterministic generated-view renderer."""
+    try:
+        if arguments.renderer == "docs":
+            status = collection_status(
+                arguments.repo, since=arguments.since, json_output=False, stdout=sys.stderr
+            )
+            if status != 0:
+                return status
+            result = render.render_docs(arguments.repo, arguments.output)
+            print(f"render-docs: wrote {len(result.pages)} page(s) under {result.output}")
+            return 0
+        if arguments.renderer == "digest":
+            path = memory.render_digest(arguments.repo, arguments.output, arguments.journal)
+        elif arguments.renderer == "context":
+            path = memory.render_context(arguments.repo, arguments.output)
+        elif arguments.renderer == "runbook-catalog":
+            path = memory.render_runbook_catalog(arguments.repo, arguments.output)
+        else:
+            return _unreachable_command(arguments.renderer)
+        print(f"render-{arguments.renderer}: wrote {path}")
+        return 0
+    except (memory.MemoryError, render.RenderError) as error:
+        print(f"render-{arguments.renderer}: {error}", file=sys.stderr)
+        return error.code
+    except (KeyError, OSError, OverflowError, TypeError, UnicodeError, ValueError):
+        print(f"render-{arguments.renderer}: malformed or unavailable source", file=sys.stderr)
+        return 3
 
 
 def _unreachable_command(command: str) -> NoReturn:

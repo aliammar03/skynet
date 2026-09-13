@@ -6,7 +6,7 @@ horizon: long
 created: 2026-09-06
 updated: 2026-09-13
 phases: 24
-current_phase: 8
+current_phase: 9
 tier_touched: [T1, T2, T2+, T3]
 related:
   - docs/system-design.md
@@ -22,10 +22,10 @@ related:
 
 ## 1. Current state
 
-Accepted numbered progress is **P8 / 8 of 24**.
+Accepted numbered progress is **P9 / 9 of 24**. Architecture checkpoint **G3** is complete.
 
-**Current action:** P8 is externally accepted and bounded closeout is staged on PR **#255**. Ali
-human-merges that same PR once; after it lands, P9/G3 is the next authorized packet.
+**Current action:** P9 is externally accepted and bounded closeout is staged on PR **#256**. Ali
+human-merges that same PR once; after it lands, P10 is the next authorized packet.
 
 ## 2. Mandate and boundaries
 
@@ -131,8 +131,8 @@ immediately returns to the normal lifecycle above.
 | 6 | Heavy | DNS + live OPNsense/firewall observations | accepted |
 | 7 | Heavy | Omada + certs + routes + recon | accepted |
 | 8 | Heavy | Entity derivation/audit + rebuildable SQLite cache/query | accepted |
-| 9 | Medium | Docs/digest/context/catalog rendering + journal/recall helpers | next after PR #255 merges; G3 |
-| 10 | Heavy | Deployment health + reachability verification | failures/empty/partial/wrong revision fail |
+| 9 | Medium | Docs/digest/context/catalog rendering + journal/recall helpers | accepted; G3 |
+| 10 | Heavy | Deployment health + reachability verification | next after PR #256 merges; failures/empty/partial/wrong revision fail |
 | 11 | Heavy | Arcane deploy/env/sync + rollback preparation | exact source + truthful failures |
 | 12 | Heavy | Publishing: Caddy/Auth/DNS coordination | correct vantages + auth paths |
 | 13 | Medium | Saved-plan parsing + scope/action/exclusion policy | unsafe plans refused pre-write |
@@ -148,13 +148,13 @@ immediately returns to the normal lifecycle above.
 | 23 | Heavy | Install/restart Python engine + staged operational acceptance | G6 |
 | 24 | Medium | Cold-start/recovery rehearsal + final fixes/archive | post-transition test/CI redesign handed off |
 
-Architecture checkpoints G1/G2 are already behind us. G3–G6 remain at phases 9/14/17/23.
+Architecture checkpoints G1–G3 are already behind us. G4–G6 remain at phases 14/17/23.
 
 ## 5. Current P8 packet
 
 ### Phase 8 — entity spine + rebuildable query cache
 
-**Status:** accepted; bounded same-PR closeout staged on PR **#255** for one human merge.
+**Status:** accepted and human-merged on PR **#255**.
 
 **Recommended Main:** Heavy. Use one P8 branch/PR for the whole numbered phase. Internal slices are
 working units on that same PR, never separately merged.
@@ -231,6 +231,64 @@ starts one fresh P8 review. FIX updates that same PR. ACCEPT posts the acceptanc
 evidence, release P9/G3 planning) on the **same P8 PR**, verifies the post-ACCEPT delta is closeout-only,
 and hands the same PR back for one human merge.
 
+## 5a. Current P9 packet
+
+### Phase 9 — generated views + read-time recall
+
+**Status:** accepted; bounded same-PR closeout staged on PR **#256** for one human merge.
+
+**Recommended Main:** Medium. Use one P9 branch/PR for the whole numbered phase.
+
+**Goal:** replace the remaining shell implementation of factual docs, digest, context-map, and runbook
+catalog rendering plus read-time recall with small packaged Python paths. Preserve generated-view
+ownership, collection freshness, raw append-only journal truth, deterministic retrieval semantics,
+and explicit failures. Do not migrate the nightly journal writer or general `bin/new` scaffolding;
+those remain P20/P21 work.
+
+#### P9A · factual and catalog rendering
+
+Migrate `scripts/render-docs.sh`, its nightly caller, and `scripts/render-runbook-catalog.sh` while
+retaining the P8 SQLite host-map/vhost queries. Factual rendering must require receipt-bound current
+collection evidence, preserve the existing Obsidian page set and entity-keyed relationships, and never
+fall back to retained cache bytes. Malformed input, cache/query failure, or page-generation failure must
+return non-success and leave prior generated pages unchanged; stale host pages are removed only after a
+successful completed render. Catalog rows remain derived from leaf frontmatter in deterministic order.
+
+#### P9B · digest, context map, and recall
+
+Migrate `scripts/render-digest.sh`, `scripts/render-context-map.sh`, and `bin/recall`.
+
+- Digest and context outputs remain content-stable and atomically published.
+- The digest preserves ADR ordering, open-directive pointers, same-day journal ordering by explicit
+  `time`, append-only `resolves` handling, explicit-open follow-ups, truthful unknown status, and the
+  seven most recent raw episode pointers without mechanically summarizing episodes.
+- The context map preserves its explicit loadable sets, frontmatter/heading fallback, pipe escaping,
+  byte-derived token estimates, generated-view exclusion of itself, and topic-retrieval pointer for the
+  journal rather than enumerating the episodic store.
+- Recall excludes generated derivatives, OR-joins case-insensitive regular-expression terms, ranks by
+  match count then load cost/path, caps displayed results without misreporting the total, writes nothing,
+  and rejects malformed expressions explicitly.
+- The raw journal, `scripts/nightly.sh` journal append, templates, `bin/new`, and semantic retrieval
+  ambitions under SKY-006 remain outside this migration.
+
+Thin shell compatibility entries may forward to the packaged command until P22, but may not retain
+duplicate logic. Current callers and current operational docs use the packaged interface.
+
+#### P9/G3 verification
+
+- Focused manual source and installed-package smoke covers each renderer and recall.
+- Normal, empty/no-match, malformed-regex, stale-evidence, malformed-input, and failed-render
+  preservation paths are exercised without creating a replacement automated test suite.
+- Digest, context map, and runbook catalog are regenerated by their owners; factual pages are
+  regenerated only when current collection evidence is available.
+- Ruff, strict mypy, package build, hard invariants, secret scan, shell syntax, and `git diff --check`
+  pass; unavailable evidence is reported explicitly.
+- No credential, root grant, live write, service/timer change, or T2/T3 mutation is required.
+
+**G3 exit:** the packaged application is the single procedural owner for collection, entity/cache/query,
+generated Markdown rendering, and read-time recall through P9. Bash retained in this surface is only a
+forwarding compatibility entry or the explicitly later-owned nightly/journal orchestration.
+
 ## 6. Carry-forward correctness cases
 
 The original overhaul review identified these failure classes. Replacements must keep their safeguards
@@ -267,8 +325,8 @@ require operation-specific recovery evidence, not blind `git revert`.
 Read planning/prompts/execute.md and execute the next authorized SKY-025 packet.
 ```
 
-The current invocation executes P8. Later invocations execute only the next packet released by this
-directive's numbered progress and review state.
+After PR #256 is human-merged once, the next invocation executes P10. Later invocations execute only
+the next packet released by this directive's numbered progress and review state.
 
 ### Review a normal open PR
 

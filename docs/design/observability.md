@@ -9,7 +9,7 @@ summary: "How machine state becomes human-readable docs, and how the nightly run
 
 ## Inventory → human-readable docs
 
-`scripts/render-docs.sh` turns `inventory/*.json` + parsed firewall config into
+`skynet render docs` turns validated `inventory/*.json` observations into
 [`../generated/`](../generated/) — Obsidian-flavored markdown with frontmatter, callouts,
 wikilinks, and **Mermaid diagrams Obsidian renders natively**, drawn from live data and never
 hand-maintained:
@@ -49,7 +49,10 @@ schema is atomically replaced and receipt-bound. The remaining shell readers ret
 existing evidence limitations. Collection timestamps
 describe observations, not live service-health verification.
 Failed initial marker publication also invalidates previous success for default queries and
-rendering. Remaining reader processes are stopped and reaped before collection advances; uncertain
+rendering. Factual pages are built in a staged copy before the generated tree is replaced as one
+publication unit; replacement failure rolls the prior tree back, and render/cache/input failure leaves
+the previous page set unchanged. Remaining reader processes are
+stopped and reaped before collection advances; uncertain
 cleanup blocks another collection pending local process recovery. The package's
 [evidence and process contract](../../nix/README.md) defines storage and recovery behavior.
 
@@ -71,9 +74,9 @@ outside the version-controlled auto-approve list.
 Rendered docs answer *what is true now*; they can't answer *how the lab got here, what was tried,
 what failed*. That **episodic** memory — the [`journal/`](../../journal/README.md) and its generated
 recent-activity/episodic/open-thread retrieval view — is its own domain, designed in the [memory](memory.md)
-spoke. The only part that lives here is the *rendering*: `scripts/render-digest.sh` produces the agent
+spoke. The only part that lives here is the *rendering*: `skynet render digest` produces the agent
 digest [`../generated/06-agent-digest.md`](../generated/06-agent-digest.md) alongside the other nightly
-pages (deterministic, content-stable), while `scripts/render-context-map.sh` produces the on-demand
+pages (deterministic, content-stable), while `skynet render context` produces the on-demand
 load-cost/context-routing index [`../generated/07-context-map.md`](../generated/07-context-map.md).
 The human narrative
 [`05-state-of-the-lab.md`](../generated/05-state-of-the-lab.md) is the agent-authored counterpart.

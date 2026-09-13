@@ -1,52 +1,6 @@
 #!/usr/bin/env bash
-# recall — read-time retrieval: grep Skynet's canonical memory for a topic and rank what to open.
-#   TIER: T1 (read-only — greps journal/ + docs/ + runbooks/ + planning/; never writes).
-#   USAGE: bin/recall <topic> [more terms...]
-#     Prints the files that mention the topic, ranked by relevance, each with its ~token cost and
-#     one-line summary — so a cold session or context worker opens only the few that matter,
-#     distills them in a THROWAWAY window, and returns just the conclusion to the main context.
-#     It never persists a summary (ADR 0002): the raw journal/docs stay the source of truth; the
-#     distillation lives for one query. Any engine can run it. Token cost is computed from bytes;
-#     `summary:` frontmatter supplies the label when present.
+# recall — compatibility entry for the packaged read-time retrieval helper.
+# TIER: T1 local read-only. USAGE: bin/recall <topic> [more terms...]
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "${REPO_DIR}"
-
-[ "${1:-}" ] || { echo "usage: bin/recall <topic> [more terms...]" >&2; exit 2; }
-# OR-join the terms into one case-insensitive regex (broad recall).
-re="$1"; shift || true; for t in "$@"; do re="${re}|${t}"; done
-
-SEARCH="journal docs runbooks planning AGENTS.md README.md"
-
-fm()   { awk -v k="$2" 'NR==1&&$0=="---"{f=1;next} f&&$0=="---"{exit} f{if($0 ~ ("^" k ":")){sub("^" k ":[[:space:]]*","");gsub(/^"|"$/,"");print;exit}}' "$1"; }
-toks() { local b; b=$(wc -c < "$1"); echo $(( b / 4 )); }
-summ() { local s; s=$(fm "$1" summary); [ -n "$s" ] || s=$(fm "$1" title); [ -n "$s" ] || s=$(grep -m1 '^# ' "$1" 2>/dev/null | sed -E 's/^#+[[:space:]]*//'); printf '%s' "${s:-—}"; }
-
-# matching files (skip the machine-owned generated/ derivatives and .git)
-mapfile -t hits < <(grep -rilIE --include='*.md' --exclude-dir=generated --exclude-dir=.git -- "$re" $SEARCH 2>/dev/null | sort -u)
-
-if [ "${#hits[@]}" -eq 0 ]; then
-  printf 'recall "%s" — no matches. Try broader/other terms, or grep -ri manually.\n' "$re"
-  exit 0
-fi
-
-# rank: most hits first, then cheapest to open among equals
-rows=""
-for f in "${hits[@]}"; do
-  [ -e "$f" ] || continue
-  n=$(grep -icE -- "$re" "$f" || true)
-  rows+="${n}	$(toks "$f")	${f}"$'\n'
-done
-
-printf 'recall "%s" — %s file(s) mention it (ranked; open the top few, distill, do NOT load all):\n\n' "$re" "${#hits[@]}"
-printf '%s' "$rows" | sort -t$'\t' -k1,1nr -k2,2n | head -n 20 | while IFS=$'\t' read -r n t f; do
-  [ -n "$f" ] || continue
-  printf '  %2s hit(s) · ~%5s tok · %s\n' "$n" "$t" "$f"
-  printf '              %s\n' "$(summ "$f")"
-  line=$(grep -im1 -E -- "$re" "$f" 2>/dev/null | sed -E 's/^[[:space:]]+//; s/[[:space:]]+/ /g' | cut -c1-96)
-  [ -n "$line" ] && printf '              ↳ %s\n' "$line"
-  printf '\n'
-done
-
-printf 'Retrieval rule: open only what you need, summarize in a throwaway window, return the conclusion.\n'
-printf 'Never persist that summary — the raw source stays truth (ADR 0002); it lives for one query.\n'
+exec "${REPO_DIR}/bin/skynet" recall --repo "${REPO_DIR}" "$@"

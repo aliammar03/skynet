@@ -20,9 +20,12 @@ differ. It records foundations and constraints, not a dependency inventory or a 
 The Python engine is stdlib-first and has no runtime dependencies in `pyproject.toml`. It contains
 the CLI, collection orchestration, Proxmox/PBS/DNS/Docker/OPNsense/Omada readers, certificate probes,
 reconnaissance, doctor reporting, static route parsing, packaged entity derivation/audit, and the
-disposable SQLite cache/query projection. Entity functions cover guest, service, node, vhost, and
-network identities; route resolution calls them directly. Nix packages the application and its
-development shell; `deploy-rs`, sops-nix, and disko integrate with NixOS.
+disposable SQLite cache/query projection. `render.py` owns freshness-gated factual pages;
+`memory.py` renders the digest, context map, and runbook catalog and provides read-time recall with
+case-insensitive GNU grep ERE semantics. The Nix package closure supplies GNU grep. Entity functions
+cover guest, service, node, vhost, and network identities; route resolution calls them directly. Nix
+packages the application and its development shell; `deploy-rs`, sops-nix, and disko integrate with
+NixOS.
 
 ## Build and development tools
 
@@ -31,9 +34,10 @@ development shell; `deploy-rs`, sops-nix, and disko integrate with NixOS.
   coherent replacement suite.
 - Ruff and strict mypy remain available as manual development tools. Deploy-rs schema validation
   remains a local flake output; pre-commit retains only secret scanning and hard-invariant checks.
-- `bin/plan`, `bin/new`, `bin/ops`, and `bin/recall` are operator-facing entry points. `bin/ops
-  entities|query` use the packaged audit and query paths after the collection-freshness gate.
-  Renderers own `inventory/` and `docs/generated/`.
+- `bin/plan`, `bin/new`, and `bin/ops` are operator-facing entry points. `bin/ops entities|query`
+  use the packaged audit and query paths after the collection-freshness gate. `bin/recall` and the
+  `scripts/render-*.sh` commands are compatibility forwarders to the Python package. Renderers own
+  `inventory/` and `docs/generated/`; nightly factual rendering invokes `bin/skynet` directly.
 
 ## External services and infrastructure
 
@@ -57,6 +61,8 @@ the internal/public service path.
   path. The cache is a disposable 14-table `.cache/inventory.db` projection: it builds in a temporary
   file, validates schema/integrity, and atomically replaces the target only on success. A failed build
   retains the previous bytes, but freshness-gated callers do not treat retained observations as current.
+- The factual renderer checks collection freshness, rejects unsafe node page basenames, and publishes
+  a staged whole-tree replacement with rollback to the prior page set on failure.
 - `scripts/entity.sh`, `scripts/audit-entities.sh`, and `scripts/build-db.sh` are compatibility
   forwarders; maintained SQL views remain under `scripts/sql/`.
 - Generated inventory and documentation are machine-owned. Construction runs as the unprivileged

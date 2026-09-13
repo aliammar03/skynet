@@ -14,8 +14,8 @@ directories and live inventory are intentionally summarized rather than copied h
   NixOS packaging, modules, and host definitions; `flake.nix` composes build/deploy outputs.
 - `compose/<service>/` holds GitOps service manifests and encrypted environment inputs; `tofu/` holds
   declarative infrastructure sources; `secrets/` holds encrypted per-host material.
-- `scripts/` holds procedures and collectors; `bin/` holds operator entry points; `runbooks/` holds
-  engine-neutral operational procedures and their catalog.
+- `scripts/` holds retained procedures, collectors, and compatibility forwarders; `bin/` holds
+  operator entry points; `runbooks/` holds engine-neutral procedures and their generated catalog.
 - `planning/` holds SKY directives through their lifecycle; `journal/` holds append-only raw episodes;
   `agent_docs/` holds compact derived agent memory.
 - `inventory/` and `docs/generated/` are machine-owned outputs and must be changed through their
@@ -23,14 +23,17 @@ directories and live inventory are intentionally summarized rather than copied h
 
 ## Modules and responsibilities
 
-The Python CLI dispatches collection, doctor, route, reconnaissance, entity-audit, and cache/query
-commands. `entities.py` owns the five-class identity derivation/audit and `routes.py` uses it directly;
-`cache.py` owns the disposable 14-table SQLite projection and queries. Collector modules own one
-observation boundary and its validation/publication contract; `collection.py` coordinates the default
-evidence set. Bash scripts own deployment, backup, rendering, invariant, and host procedures, with
-the entity/audit/cache shell names retained only as forwarding compatibility entries. Nix owns
-system/runtime composition, OpenTofu owns declared infrastructure state, Compose owns service
-definitions, and runbooks explain task-shaped execution.
+The Python CLI dispatches collection, doctor, route, reconnaissance, entity-audit, cache/query,
+rendering, and recall commands. `entities.py` owns the five-class identity derivation/audit and
+`routes.py` uses it directly; `cache.py` owns the disposable 14-table SQLite projection and queries;
+`render.py` owns factual Markdown pages; `memory.py` owns digest/context/catalog rendering and
+read-time recall. Collector modules own one observation boundary and its validation/publication
+contract; `collection.py` coordinates the default evidence set. Bash retains deployment, backup,
+invariant, and host procedures. Entity/audit/cache/render/recall shell names are compatibility
+forwarders, including the nightly call into the packaged factual renderer. Nix owns system/runtime
+composition, OpenTofu owns declared infrastructure state, Compose owns service definitions, and
+runbooks explain task-shaped execution. Raw journal creation through `bin/new` and the nightly journal
+writer remain Bash-owned P21 work; P9 packages only rendering and read-time retrieval.
 
 ## Main interfaces and integration boundaries
 

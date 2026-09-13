@@ -12,10 +12,10 @@ and each capability earns autonomy through recorded verification and rollback ev
 
 - The constitution, trust tiers, GitOps loop, generated inventory, runbooks, directive lifecycle, and
   native SKY-026 construction model are established.
-- **SKY-026 is complete.** Phases 1–5 are accepted and the directive is archived. PR #253 contains the
-  accepted final workflow plus this bounded closeout and is awaiting one human merge.
-- **SKY-025 P8 is externally accepted at progress 8/24.** GitHub CI, automated tests, and packaged
-  test execution remain embargoed; bounded closeout is staged on open PR #255 for one human merge.
+- **SKY-026 is complete.** Phases 1–5 are accepted, PR #253 is merged, and the directive is archived.
+- **SKY-025 P9 is externally accepted at progress 9/24 and G3 is complete.** Bounded closeout is
+  staged on open PR #256 for one human merge. GitHub CI, automated tests, and packaged test execution
+  remain embargoed.
 
 ## Current Position
 
@@ -47,7 +47,7 @@ merged.
 
 ## Next Milestone
 
-Human-merge PR #255 once. After it lands, begin P9/G3: docs/digest/context/catalog rendering plus
-journal/recall helpers under the continuing test/CI embargo.
+Human-merge PR #256 once. After it lands, begin P10: deployment health and reachability verification
+whose failures, empty/partial observations, and wrong revision must fail closed.
 
 No production authority or live host change is involved in these handoffs.
