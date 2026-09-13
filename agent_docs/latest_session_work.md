@@ -5,10 +5,10 @@
 
 ## Detailed Current State
 
-SKY-025 P9 is accepted and merged at progress **9/24**, with architecture checkpoint G3 complete.
-P10 deployment health and reachability verification is implementation-ready on open PR #257 and
-awaits a fresh external re-review after its revision-identity caller fix. Accepted progress remains
-9/24 until that review and same-PR closeout.
+SKY-025 P10 deployment health and reachability verification is externally accepted at progress
+**10/24**, with architecture checkpoint G3 complete. The newest applicable PR marker records ACCEPT
+for base `c800d58` and reviewed head `48b62c1`; bounded closeout is staged on open PR #257 for one
+human merge.
 
 The packaged verifier requires the exact expected revision in Arcane Git Sync and project evidence,
 complete positive project/container counts, all-running/all-healthy containers, and valid canonical
@@ -48,14 +48,12 @@ rolls back, or changes authored/runtime configuration.
 
 ## Pending Work and Blockers
 
-- PR #257 is open in draft while pre-review documentation is sealed; it must be marked ready and then
-  reviewed in a fresh session.
+- PR #257 remains open with accepted bounded closeout staged; Ali must human-merge it once.
 - Automated regression protection remains intentionally unavailable until the post-SKY-025 redesign.
 - P11 still owns exact-source deployment orchestration, wait/retry behavior, environment
   materialization, and recovery preparation.
-- The independent review's revision-identity finding is fixed and independently re-verified; PR #257
-  needs a new fresh review against its updated head.
+- P11 must start only after PR #257 lands on current `main`.
 
 ## Next Entry Point
 
-Manually start a fresh review of SKY-025 PR #257 after it is marked ready.
+Human-merge SKY-025 PR #257 once. After it lands, start P11 from current `main`.

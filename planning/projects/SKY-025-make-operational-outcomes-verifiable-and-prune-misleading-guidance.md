@@ -6,7 +6,7 @@ horizon: long
 created: 2026-09-06
 updated: 2026-09-13
 phases: 24
-current_phase: 9
+current_phase: 10
 tier_touched: [T1, T2, T2+, T3]
 related:
   - docs/system-design.md
@@ -22,10 +22,10 @@ related:
 
 ## 1. Current state
 
-Accepted numbered progress is **P9 / 9 of 24**. Architecture checkpoint **G3** is complete.
+Accepted numbered progress is **P10 / 10 of 24**. Architecture checkpoint **G3** is complete.
 
-**Current action:** P9 is accepted and merged. P10 is implementation-ready on PR **#257** and awaits
-one fresh external review; accepted numbered progress remains P9 until that review and same-PR closeout.
+**Current action:** P10 is externally accepted and its bounded closeout is staged on PR **#257**.
+Ali must human-merge that PR once; after it lands, P11 is the next authorized implementation packet.
 
 ## 2. Mandate and boundaries
 
@@ -132,8 +132,8 @@ immediately returns to the normal lifecycle above.
 | 7 | Heavy | Omada + certs + routes + recon | accepted |
 | 8 | Heavy | Entity derivation/audit + rebuildable SQLite cache/query | accepted |
 | 9 | Medium | Docs/digest/context/catalog rendering + journal/recall helpers | accepted; G3 |
-| 10 | Heavy | Deployment health + reachability verification | implementation-ready on PR #257; fresh review pending |
-| 11 | Heavy | Arcane deploy/env/sync + rollback preparation | exact source + truthful failures |
+| 10 | Heavy | Deployment health + reachability verification | accepted; bounded closeout staged on PR #257 |
+| 11 | Heavy | Arcane deploy/env/sync + rollback preparation | next after PR #257 merges; exact source + truthful failures |
 | 12 | Heavy | Publishing: Caddy/Auth/DNS coordination | correct vantages + auth paths |
 | 13 | Medium | Saved-plan parsing + scope/action/exclusion policy | unsafe plans refused pre-write |
 | 14 | Medium | Snapshot/apply/task completion + partial failure recovery | G4 |
@@ -293,7 +293,7 @@ forwarding compatibility entry or the explicitly later-owned nightly/journal orc
 
 ### Phase 10 — deployment health + reachability verification
 
-**Status:** implementation-ready on PR **#257**; fresh external review pending.
+**Status:** externally accepted; bounded closeout staged on PR **#257** for one human merge.
 
 **Recommended Main:** Heavy. Use one P10 branch/PR for the whole numbered phase.
 
@@ -339,9 +339,10 @@ P10 implementation evidence recorded before fresh review:
   commit is `44ae7d3`; the removed legacy `--revert-commit` is rejected with exit 2 and a genuinely
   wrong verifier revision still exits 1.
 
-**P10 closeout:** implementation stops on PR #257 and Ali starts one fresh P10 review. ACCEPT must be
-recorded on that PR before the original session advances `current_phase: 10` and releases P11 through
-bounded same-PR closeout.
+**P10 closeout:** the newest applicable acceptance marker records ACCEPT for reviewed base `c800d58`
+and reviewed head `48b62c1`. The original session validated that pair against the open PR, advanced
+`current_phase: 10`, and staged bounded closeout on the same PR. Ali human-merges PR #257 once; P11 is
+the next implementation packet after that merge.
 
 ## 6. Carry-forward correctness cases
 
@@ -379,7 +380,7 @@ require operation-specific recovery evidence, not blind `git revert`.
 Read planning/prompts/execute.md and execute the next authorized SKY-025 packet.
 ```
 
-After PR #256 is human-merged once, the next invocation executes P10. Later invocations execute only
+After PR #257 is human-merged once, the next invocation executes P11. Later invocations execute only
 the next packet released by this directive's numbered progress and review state.
 
 ### Review a normal open PR

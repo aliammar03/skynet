@@ -13,9 +13,9 @@ and each capability earns autonomy through recorded verification and rollback ev
 - The constitution, trust tiers, GitOps loop, generated inventory, runbooks, directive lifecycle, and
   native SKY-026 construction model are established.
 - **SKY-026 is complete.** Phases 1–5 are accepted, PR #253 is merged, and the directive is archived.
-- **SKY-025 P9 is accepted and merged; accepted progress remains 9/24 and G3 is complete.** P10 is
-  implementation-ready on open PR #257 and awaits fresh external review. GitHub CI, automated tests,
-  and packaged test execution remain embargoed.
+- **SKY-025 P10 is externally accepted; accepted progress is 10/24 and G3 is complete.** Its bounded
+  closeout is staged on open PR #257 for one human merge. GitHub CI, automated tests, and packaged test
+  execution remain embargoed.
 
 ## Current Position
 
@@ -47,5 +47,5 @@ merged.
 
 ## Next Milestone
 
-Manually start a fresh review of SKY-025 PR #257. P10 cannot advance accepted progress or release P11
-until the newest applicable review marker is ACCEPT and bounded closeout is staged on that same PR.
+Human-merge SKY-025 PR #257 once. After it lands, begin P11 from current `main`; P11 owns Arcane
+deployment/environment/sync and rollback preparation, while P10 remains report-only verification.

@@ -6,8 +6,9 @@ summary: "SKY-025 current subsystem dispositions, callers, replacement phases, a
 
 Owned by [the active directive](projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md).
 
-Current accepted progress is **P9 / 9 of 24** and architecture checkpoint G3 is complete. P9 is merged.
-P10 is implementation-ready on PR **#257** and awaits fresh external review.
+Current accepted progress is **P10 / 10 of 24** and architecture checkpoint G3 is complete. P10 is
+externally accepted and its bounded closeout is staged on PR **#257** for one human merge. P11 is next
+after that merge.
 Every PR, including generated-only nightly work, is human-merged during the SKY-025 test/CI embargo.
 
 The reviewer resolves/rechecks Git revisions from GitHub. Ali supplies the phase/PR identity, not hashes.
@@ -33,7 +34,7 @@ This file is a current disposition/caller/blocker map. Implementation chronology
 | `scripts/sql/host-map.sql`, `scripts/sql/vhosts.sql` | retain | SQL query definitions over disposable cache | renderer/query | P8 implemented |
 | rendering/digest/context/catalog shell tools | forwarding compatibility only | Python render/retrieval paths | nightly, humans, agent context | P9 accepted; removal P22 |
 | `bin/recall` | forwarding compatibility only | packaged read-time recall | humans, agent context | P9 accepted; removal P22 |
-| `deploy-gate.sh`, GitOps deploy/rollback shell logic | migrate | Python deployment verifier; deploy/recovery follows | deployment/restore runbooks | P10 implementation-ready; P11 orchestration |
+| `deploy-gate.sh`, GitOps deploy/rollback shell logic | migrate | Python deployment verifier; deploy/recovery follows | deployment/restore runbooks | P10 accepted; P11 orchestration next after PR #257 merges |
 | publishing/DNS coordination shell logic | migrate | Python bounded publishing workflows | Caddy/Auth/DNS runbooks | P12 |
 | Tofu env/apply + snapshot execution shell logic | migrate | Python saved-plan/policy/execution | provisioning/publishing | P13–P14 |
 | restic provision/backup shell logic | migrate | Python host-local backup/provisioning | host-local units | P15/P19 |

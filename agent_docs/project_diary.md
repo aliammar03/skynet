@@ -65,6 +65,9 @@
 - P10 verification is report-only: it requires one exact Arcane revision across Git Sync and project
   evidence, reconciles positive complete Arcane/Docker counts, rejects missing healthchecks, and proves
   declared routes from the DMZ vantage with verified TLS. Deployment, retry, and recovery remain P11.
+- SKY-025 P10 is externally accepted on reviewed base `c800d58` and head `48b62c1`. The original
+  session validated the newest applicable ACCEPT marker after the earlier FIX marker, advanced accepted
+  progress to 10/24, and staged only bounded closeout on PR #257; one human merge remains before P11.
 - The unprivileged NixOS `aliammar` account is the construction filesystem/OS boundary. Native
   construction inherits its no-prompt Codex posture; self-root and authored self-merge are forbidden,
   and production authority remains governed separately by trust-tier contracts.
