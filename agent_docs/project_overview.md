@@ -15,7 +15,7 @@ and the Python operations engine so an agent can safely operate the lab through 
 ## Scope
 
 The repository covers NixOS hosts and modules, Proxmox/PBS envelopes, Docker services, DNS, firewall
-and network observations, identity/proxy publication, backups, secrets, runbooks, planning, tests,
+and network observations, identity/proxy publication, backups, secrets, runbooks, planning,
 and episodic evidence. The current trust boundary is T1 read, scoped T2 operation, time-limited T2+
 root grants, and never-standing T3 access; a construction worker has no production authority.
 

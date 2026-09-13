@@ -125,8 +125,8 @@ These are the guarantees that make an autonomous agent safe to keep around:
   scoped T1/T2 slices are defined in the authoritative trust model.
 - ⏱️ **Root always expires by itself.** The CA lives only on the workstation + the printed
   survival kit. The agent literally *cannot* mint its own access.
-- 🙅 **Authored PRs are human-merged.** The nightly gate may self-merge only its own
-  generated-only, CI-green PR; generated dirs (`inventory/`, `docs/generated/`) are never hand-edited.
+- 🙅 **Every PR is human-merged during the SKY-025 embargo.** Nightly self-merge is suspended;
+  generated dirs (`inventory/`, `docs/generated/`) are never hand-edited.
 - 🤫 **No plaintext secrets, ever** — sops-encrypted in git, or agent-readable restrictive local
   files (`0400 aliammar`; lab age key `0640 root:users`). The agent decrypts sops without sudo;
   never put a secret in a commit, terminal transcript, or chat.

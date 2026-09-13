@@ -9,6 +9,7 @@ Owned by [the active directive](projects/SKY-025-make-operational-outcomes-verif
 Current accepted progress is **P7 / 7 of 24**. Corrective P7 PR **#254** is accepted and merged.
 P8 implementation is ready on PR **#255** and pending one fresh external review. Its entity and
 disposable-cache slices remain on that single numbered-phase PR and are never merged independently.
+Every PR, including generated-only nightly work, is human-merged during the SKY-025 test/CI embargo.
 
 The reviewer resolves/rechecks Git revisions from GitHub. Ali supplies the phase/PR identity, not hashes.
 For normal open PRs, ACCEPT is recorded in a machine-readable PR marker; Ali later says only `accepted`
@@ -27,9 +28,9 @@ This file is a current disposition/caller/blocker map. Implementation chronology
 | DNS + OPNsense shell collectors | migrate | Python DNS + live OPNsense collectors | DNS/firewall/state views | P6 accepted; shell forwarding cleanup P22 |
 | offline OPNsense `config.xml` inventory parser | **deleted** | none | none | retired P6c; config.xml is DR restore material only |
 | Omada/cert/routes/recon shell implementations | migrate | Python observation modules | default collection/status/render/recon | P7 accepted |
-| `scripts/entity.sh` | forwarding compatibility only | `src/skynet/entities.py` | legacy shell entity tests | P8 implemented; removal P22 |
+| `scripts/entity.sh` | forwarding compatibility only | `src/skynet/entities.py` | installed/manual callers | P8 implemented; removal P22 |
 | `scripts/audit-entities.sh` | forwarding compatibility only | Python entity audit | invariant gate | P8 implemented; removal P22 |
-| `scripts/build-db.sh` | forwarding compatibility only | `src/skynet/cache.py` | renderer, legacy shell cache tests | P8 implemented; removal P22 |
+| `scripts/build-db.sh` | forwarding compatibility only | `src/skynet/cache.py` | renderer compatibility | P8 implemented; removal P22 |
 | `scripts/sql/host-map.sql`, `scripts/sql/vhosts.sql` | retain | SQL query definitions over disposable cache | renderer/query | P8 implemented |
 | rendering/digest/context/catalog shell tools | migrate/prune | Python render/retrieval paths | nightly, humans, agent context | P9 |
 | `deploy-gate.sh`, GitOps deploy/rollback shell logic | migrate | Python verify/deploy/recovery evidence | deployment/restore runbooks | P10–P11 |
@@ -87,7 +88,7 @@ Current owners/callers to inspect together:
 - `scripts/sql/vhosts.sql`
 - `bin/ops query`
 - `scripts/render-docs.sh`
-- relevant collection/query tests
+- current collection/query caller contracts
 - `nix/modules/base.nix` SQLite package/comment ownership
 
 `.cache/inventory.db` remains disposable and rebuilt from repository/inventory truth. No ORM, DB service,

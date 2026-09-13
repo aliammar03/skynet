@@ -59,6 +59,7 @@ nix build --no-write-lock-file --no-link .#skynet
 
 GitHub CI and automated repository tests are embargoed for the duration of SKY-025. Deploy-rs schema
 validation remains available through the flake, but it is not a replacement application test suite.
+Every PR, including generated-only nightly work, is human-merged during the embargo.
 
 `skynet doctor [--json]` reports the executing package version and Python runtime with
 `scope: runtime`. It is not a lab or service health check.
@@ -178,7 +179,7 @@ with timezone-aware timestamps.
 Missing, failed, future, stale or mismatched evidence exits 3. Default factual rendering and
 `bin/ops query|entities` require this check. Nightly sets `SKYNET_COLLECTION_SINCE` so a prior
 success cannot satisfy the current pass. Direct repository invariant/entity/SQLite scripts and the
-maintained SQL views operate on historical snapshots for deterministic CI; they do not establish live
+maintained SQL views can inspect retained snapshots manually; they do not establish live
 freshness. A failed cache rebuild retains prior cache bytes but does not make them current evidence.
 Explicit-output collectors are isolated: use `collect all` to establish default refresh evidence
 after an isolated collection changes either snapshot.

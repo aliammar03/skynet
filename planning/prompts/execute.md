@@ -112,8 +112,8 @@ This is accepted closeout mode on the same PR.
 5. Do **not** change source/runtime/config/tests/invariants/AGENTS/doctrine/runbooks/behavioral docs/stable
    agent memory or any substantive implementation surface. If such a change is needed, stop: ACCEPT is
    stale and the same PR needs fresh review after the change.
-6. Prove the marker-head..final-head delta is closeout-only, rerun closure-focused gates plus normal CI,
-   and recheck target/base still equals the marker base.
+6. Prove the marker-head..final-head delta is closeout-only, rerun the retained closure/safety checks,
+   and recheck target/base still equals the marker base. GitHub CI remains absent during the embargo.
 7. Push the closeout to this same PR, report it ready for **one human merge**, then STOP.
 
 The closeout commit moves the PR head by design; allowed bookkeeping movement alone does not invalidate

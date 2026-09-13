@@ -16,13 +16,13 @@ machine-readable review-state comment described below. The reviewer never edits 
 Use this for every P8+ numbered phase PR and for any corrective P7 PR.
 
 1. Read `agent_docs/`, `AGENTS.md`, `planning/README.md`, the active SKY-025 directive/map, and the
-   target open PR. Inspect relevant callers/contracts/tests as needed.
+   target open PR. Inspect relevant callers, contracts, retained controls, and manual evidence.
 2. Resolve from GitHub:
    - target branch;
    - **reviewed base SHA** = current target-branch tip;
    - **reviewed head SHA** = current PR head.
 3. Review the actual integration represented by that base+head pair and run proportionate independent
-   checks. Green CI supports review but does not replace it.
+   inspection, build, and smoke checks. GitHub CI/tests are absent during the SKY-025 embargo.
 4. Immediately before verdict, resolve base and head again. If either moved, refresh affected evidence
    against the new pair.
 5. Choose ACCEPT, FIX, or BLOCKED.

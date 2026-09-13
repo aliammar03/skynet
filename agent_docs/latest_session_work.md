@@ -28,11 +28,16 @@ the replacement verification architecture.
 - Removed the repository test tree, GitHub workflows, packaged test phase, and test hook wiring.
 - Suspended nightly auto-merge and recorded the embargo in constitution, doctrine, runbooks, planning,
   Nix packaging, and agent memory.
+- Reconciled remaining present-tense documentation after independent review: current caller maps no
+  longer name deleted tests, ADR 0004 now states the suspended decision throughout, and all scanned
+  current surfaces agree that every PR is human-merged during the embargo.
 
 ## Verification
 
 - Retained secret and hard-invariant controls passed; Ruff, strict mypy, package build, shell syntax,
   diff, and repository-surface checks passed.
+- Current-authority scans found no remaining claim that absent GitHub CI is running or that the
+  nightly may merge during the embargo; generated digest/context views were refreshed normally.
 - Packaged runtime doctor succeeded; direct entity audit reported 39 mapped/excepted/template entities
   with zero holes, and a representative cache query reported 11 containers.
 - The prior isolated T1 smoke covered all 11 collectors plus freshness, entity, query, renderer, and

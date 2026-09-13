@@ -99,9 +99,10 @@ coherent replacement evidence suite.
 
 ## 4. The deployment loop (Arcane-driven)
 
-**Review evidence budget:** For repository reviews, start with the diff, callers, contracts, and
-relevant tests. Model names or Codex configuration changes alone do not trigger documentation
-research. Verify routing through installed harness metadata and dry-runs. Consult external
+**Review evidence budget:** For repository reviews during the SKY-025 embargo, start with the diff,
+callers, contracts, retained controls, and manual evidence. Model names or Codex configuration changes
+alone do not trigger documentation research. Verify routing through installed harness metadata and
+dry-runs. Consult external
 documentation only to resolve a specific unanswered question; state that question first and fetch
 only the relevant section. Keep tool output bounded and avoid rereading inspected material.
 

@@ -1,78 +1,66 @@
 # ADR 0004 — Auto-merge generated-only nightly PRs
 
-- **Status:** accepted; capability suspended during the SKY-025 test/CI embargo
+- **Status:** suspended during the SKY-025 test/CI embargo
 - **Date:** 2026-08-20
 
 ## Context
 
-The current constitutional dial suspends this capability while GitHub CI and automated repository
-tests are absent during SKY-025. This ADR preserves the rationale and requirements for any later
-human-reviewed restoration; it is not current merge authority during the embargo.
+The current constitutional dial requires human merge for every PR. GitHub CI and automated
+repository tests are absent during SKY-025, so the evidence required for unattended merge does not
+exist. `scripts/nightly-automerge.sh` is a fail-closed compatibility stub, and
+`OPS_NIGHTLY_AUTOMERGE` has no enabling effect during the embargo.
 
-The deterministic nightly (`scripts/nightly.sh`) opens a PR every night whose diff is purely
-mechanical: refreshed `inventory/`, re-rendered `docs/generated/`, a raw `journal/` episode, and any
-re-encrypted `compose/*/.env.sops`. Nothing in it is *authored* — no human or LLM reasoned about the
-content; it is a snapshot of observed truth plus regenerated views. Under the standing "human merges
-every PR" gate, these accumulated as an un-drained backlog (e.g. #89 on top of earlier ones). A
-merge queue nobody empties is not a safety control — it is latency that trains everyone to rubber-stamp,
-which is worse than an honest auto-merge.
+This ADR originally addressed a backlog of mechanical nightly PRs. The nightly writes refreshed
+`inventory/`, re-rendered `docs/generated/`, append-only journal evidence, and sometimes encrypted
+`compose/*/.env.sops`. Requiring repeated human merges for that generated-only class created latency
+and encouraged rubber-stamp review. The repository is private on GitHub Free, so enforced branch
+protection was unavailable and the safety gate had to live in version-controlled code.
 
-The constitution already anticipated this exact step. `docs/system-design.md` §2b records the merge
-gate as a *version-controlled dial*, not an absolute, and names its **foreseeable first loosening**:
-"the agent auto-merging docs-only PRs." This ADR takes that step, widened slightly from "docs-only"
-to "generated-only" so it also covers the encrypted env layer the same nightly produces.
-
-Constraints that shape the decision:
-
-- **Never self-merge authored change.** The "agent never merges its own PR" invariant exists to stop
-  a buggy or compromised agent pushing reasoned changes (code, compose, routes, design) to `main`
-  unreviewed. That protection must survive intact; only the mechanical class is exempted.
-- **No server-side backstop.** The repo is private on a free GitHub plan, where branch-protection
-  rulesets are **not enforced**. Upgrading (Pro/Team) or going public were both rejected — the repo
-  carries lab topology and sops blobs and is correctly private. So the gate has to live in our code,
-  not GitHub's.
-- **CI already runs the hard gates on every PR** (`.github/workflows/checks.yml`: secret-scan,
-  check-invariants) — the same deterministic checks as the pre-commit hook.
+The former capability was deliberately narrower than authored self-merge. It required the supplied
+open PR to be the exact nightly PR, every changed path to be generated-only, a non-empty all-green CI
+result, and an unchanged head through the merge call. Authored design, code, Compose, runbook,
+ingress, and publishing changes were never eligible.
 
 ## Decision
 
-The nightly may **self-merge the PR it just opened**, but only when *both* hold:
+The generated-only nightly auto-merge capability is **suspended** for the duration of SKY-025. Every
+PR, including a nightly generated-only PR, remains open until Ali reviews and merges it.
 
-1. **Path allowlist** — every changed path is under `inventory/`, `docs/generated/`, `journal/`, or
-   matches `compose/*/.env.sops` (encrypted env). One path outside → the PR is left open for a human.
-2. **Green CI** — `gh pr checks --watch` blocks until every check completes and passes; a red or
-   never-arriving check → left open.
+The compatibility executor must:
 
-Enforced in the shared dumb gate `scripts/nightly-automerge.sh`, called by the deterministic
-`scripts/nightly.sh` finalizer. `bin/ops nightly` may invoke an agent only for optional narrative and
-grant-audit work; it never owns the PR or merge lifecycle. Keeping the decision in one
-path-filter-plus-`gh pr checks` executor is the point: it never depends on the engine's judgement. Guarded by `OPS_NIGHTLY_AUTOMERGE`
-(default on; `=0` disables without a code change or revert). The dial position moves in
-`docs/system-design.md` §2b and the change is registered as the first entry on the `AGENTS.md` §3
-auto-approve list.
+1. perform no GitHub lookup or mutation;
+2. contain no `gh pr merge` or other merge path;
+3. report that auto-merge is suspended and leave the PR open;
+4. ignore any legacy `OPS_NIGHTLY_AUTOMERGE` value as an enabling signal.
 
-> **Amendment (2026-08-30):** originally enforced only in `scripts/nightly.sh`, which runs solely as
-> the fallback when the engines fail. Since the nightly normally succeeds via the agent path, that
-> path opened generated-only PRs and left them all open — the exact backlog this ADR set out to
-> drain (#113/#115/#116). Fixed by extracting the gate to `scripts/nightly-automerge.sh` and calling
-> it from both paths. The policy (generated-only + green CI) is unchanged; only the plumbing is.
+Restoration requires a human-merged constitutional change to `docs/system-design.md` and `AGENTS.md`.
+That change must restore one coherent, non-vacuous verification architecture and a deterministic
+executor that proves all of the following before mutation:
 
-Everything **authored** — design, code, compose, runbooks, ingress/publish rules — stays
-human-merged, unchanged.
+- the caller supplied the exact open nightly PR and expected head;
+- every changed path is under `inventory/`, `docs/generated/`, `journal/`, or matches
+  `compose/*/.env.sops`;
+- at least one required CI check exists and every required check passed;
+- the PR identity, branch, and head remain unchanged through a head-bound merge call;
+- any missing, pending, failed, malformed, or changing evidence leaves the PR open.
+
+The historical `OPS_NIGHTLY_AUTOMERGE=0` off-switch may return only with that reviewed restoration;
+it is not the current enforcement mechanism.
+
+## Historical implementation note
+
+The capability was first placed only in `scripts/nightly.sh`. On 2026-08-30 it was extracted into
+`scripts/nightly-automerge.sh` so both deterministic and agent-assisted nightly paths could call one
+literal path/CI/head gate. That plumbing drained generated-only backlog PRs #113, #115, and #116.
+The current embargo replaces that executor with the fail-closed stub without erasing the rationale or
+the safeguards a future implementation must recover.
 
 ## Consequences
 
-- The nightly backlog drains itself; a generated snapshot lands on `main` within minutes of a green
-  CI run, so `inventory/` and `docs/generated/` track reality without a human in the loop for content
-  they never edit anyway.
-- The safety property is **code, not trust**: the allowlist is a literal path filter and the green-gate
-  is `gh pr checks`' own exit status. A regression in either fails *closed* (PR stays open) — the pre-change
-  behaviour — never open (an unreviewed authored merge).
-- Because there is no branch protection, the green-gate is the *only* thing standing between the nightly
-  and `main`. If CI is ever misconfigured to pass vacuously, this path would merge on a false green.
-  Mitigation: the same checks gate the pre-commit hook and every human PR, so a vacuous-pass CI is a
-  lab-wide problem we would notice, not one unique to auto-merge.
-- A human can still hand-push a broken commit to `main` (nothing blocks it), but CI runs on push and
-  flags it red. That risk is unchanged by this ADR.
-- `OPS_NIGHTLY_AUTOMERGE=0` is the instant off-switch; `git revert` of the enabling PR is the durable
-  one. The leash stays in git.
+- No A4 capability is active during SKY-025; all PRs require human merge.
+- Nightly generated evidence may accumulate as open PRs until Ali reviews it.
+- No absent or vacuous CI state can be interpreted as green evidence.
+- The local secret scan and hard-invariant checker remain safety controls, but they do not authorize
+  unattended merge.
+- Historical auto-merge evidence remains in Git and the journal; it is not current authority.
+- A future restoration is a new reviewed dial change, not automatic reactivation when SKY-025 ends.

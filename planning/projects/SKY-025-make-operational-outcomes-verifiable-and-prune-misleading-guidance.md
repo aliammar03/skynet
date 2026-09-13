@@ -57,7 +57,8 @@ human merge, protected guests, saved-plan rules, and grant boundaries remain in 
 - Nix owns production Python packaging. No production pip/npm package ownership.
 - GitHub CI and automated repository tests are embargoed through SKY-025. Phases record focused
   manual/build/smoke evidence and verification debt without adding replacement test fragments; a
-  post-transition repository review owns one coherent test architecture.
+  post-transition repository review owns one coherent test architecture. Every PR, including
+  generated-only nightly work, is human-merged during the embargo.
 - Current docs describe current behavior. Raw episodes and superseded process details belong in Git and
   `journal/`, not in this active directive.
 
@@ -124,7 +125,7 @@ immediately returns to the normal lifecycle above.
 | Phase | Recommended Main | Outcome | Exit evidence |
 |---|---|---|---|
 | 1 | Medium | Repository disposition + Python doctrine | accepted |
-| 2 | Heavy | Installable Python CLI + Nix package/dev/test/lint/type path | accepted |
+| 2 | Heavy | Installable Python CLI + Nix package/dev/lint/type path | accepted |
 | 3 | Medium | Proxmox core collection + default freshness | accepted; G2 |
 | 4 | Heavy | Remaining Proxmox/network/ACL collection | accepted |
 | 5 | Heavy | PBS + Docker inventory | accepted |
@@ -142,7 +143,7 @@ immediately returns to the normal lifecycle above.
 | 17 | Medium | Service/guest/core/network restore | isolated restore + T3 labels; G5 |
 | 18 | Medium | Provision/onboard + pins/age identity/workstation grants | custody and access paths agree |
 | 19 | Heavy | OS-aware guest updates + host-local backup/rescue packaging | platform-specific rollback |
-| 20 | Medium | Nightly collect/report/evidence/PR/exact-PR auto-merge gate | one sequence, authority unchanged |
+| 20 | Medium | Nightly collect/report/evidence + human-review PR path | one sequence; embargo unchanged |
 | 21 | Heavy | Planning/scaffolding + retained hard-safety controls | verification debt remains explicit |
 | 22 | Medium | Whole-repo prune of obsolete scripts/shims/docs/callers | no duplicate implementation |
 | 23 | Heavy | Install/restart Python engine + staged operational acceptance | G6 |
