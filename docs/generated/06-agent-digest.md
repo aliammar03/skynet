@@ -31,7 +31,7 @@ directive; this generated page is optional recent-activity and episodic retrieva
 - **SKY-020** (projects · in-progress · 1/6) — Firewall-as-code — OPNsense config to T2 via OpenTofu
 - **SKY-023** (projects · in-progress · 10/10) — Eliminate documentation drift and shrink operational context
 - **SKY-024** (projects · in-progress · 4/6) — tofu declares managed core guests — API-driven CT/VM lifecycle, no node SSH
-- **SKY-025** (projects · in-progress · 7/24) — Rebuild the Skynet engine in Python
+- **SKY-025** (projects · in-progress · 8/24) — Rebuild the Skynet engine in Python
 - **SKY-002** (ideas · draft) — Ongoing backup strategy for CT 240 (PBS host)
 - **SKY-004** (ideas · draft) — Reactive operations: event-driven layer + drift-as-signal
 - **SKY-012** (ideas · draft) — Runbooks as executable capabilities
@@ -50,17 +50,17 @@ directive; this generated page is optional recent-activity and episodic retrieva
 - The current installed Home Manager generation still reports `approval OnRequest`; the authored target must be human-merged and activated through the normal declarative path before the live user configuration changes. — _2026-09-10 session_
 - After activation, run one fresh native-child smoke test, then continue SKY-026 Phase 5. — _2026-09-10 session_
 - After activation, directly write and remove harmless probes in `.agents/` and `.codex/`; the current pre-merge session could verify their configuration contracts but not their live writes. — _2026-09-10 session_
-- _7 historical episode(s) have unclassified follow-ups; status unknown, not promoted as current work._
+- _8 historical episode(s) have unclassified follow-ups; status unknown, not promoted as current work._
 
 ## 📓 Recent episodes
 
+- **2026-09-13** · session · [[2026-09-13-session-sky-025-p8-accepted-same-pr-closeout|SKY-025 P8 accepted same-PR closeout]]
 - **2026-09-13** · session · [[2026-09-13-session-sky-025-p8-embargo-documentation-reconciliation|SKY-025 P8 embargo documentation reconciliation]]
 - **2026-09-13** · decision · [[2026-09-13-decision-sky-025-repository-test-and-github-ci-embargo|SKY-025 repository test and GitHub CI embargo]]
 - **2026-09-13** · session · [[2026-09-13-session-sky-025-p8-non-compose-label-review-fix|SKY-025 P8 non-Compose label review fix]]
 - **2026-09-13** · session · [[2026-09-13-session-sky-025-p8-live-t1-smoke-tests|SKY-025 P8 live T1 smoke tests]]
 - **2026-09-13** · session · [[2026-09-13-session-sky-025-p8-entity-spine-and-query-cache-implementation|SKY-025 P8 entity spine and query cache implementation]]
 - **2026-09-13** · session · [[2026-09-13-session-sky-026-final-accepted-closeout|SKY-026 final accepted closeout]]
-- **2026-09-12** · session · [[2026-09-12-session-sky-026-closeout-invalidated-by-lifecycle-test|SKY-026 closeout invalidated by lifecycle test]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · on-demand load-cost map: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._

@@ -14,9 +14,8 @@ and each capability earns autonomy through recorded verification and rollback ev
   native SKY-026 construction model are established.
 - **SKY-026 is complete.** Phases 1–5 are accepted and the directive is archived. PR #253 contains the
   accepted final workflow plus this bounded closeout and is awaiting one human merge.
-- **PR #255 is being republished after a repository-wide SKY-025 test embargo change.** GitHub CI,
-  automated tests, and packaged test execution are removed; every PR is human-merged and accepted
-  repository progress remains 7/24 until a fresh external ACCEPT and bounded same-PR closeout.
+- **SKY-025 P8 is externally accepted at progress 8/24.** GitHub CI, automated tests, and packaged
+  test execution remain embargoed; bounded closeout is staged on open PR #255 for one human merge.
 
 ## Current Position
 
@@ -48,7 +47,7 @@ merged.
 
 ## Next Milestone
 
-Start one fresh external review of PR #255. FIX returns to the same PR; ACCEPT releases bounded
-closeout on that PR before one human merge.
+Human-merge PR #255 once. After it lands, begin P9/G3: docs/digest/context/catalog rendering plus
+journal/recall helpers under the continuing test/CI embargo.
 
 No production authority or live host change is involved in these handoffs.

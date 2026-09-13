@@ -6,9 +6,8 @@ summary: "SKY-025 current subsystem dispositions, callers, replacement phases, a
 
 Owned by [the active directive](projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md).
 
-Current accepted progress is **P7 / 7 of 24**. Corrective P7 PR **#254** is accepted and merged.
-P8 implementation is ready on PR **#255** and pending one fresh external review. Its entity and
-disposable-cache slices remain on that single numbered-phase PR and are never merged independently.
+Current accepted progress is **P8 / 8 of 24**. P8 is externally accepted and bounded closeout is staged
+on PR **#255** for one human merge. After that merge, P9/G3 is the next authorized packet.
 Every PR, including generated-only nightly work, is human-merged during the SKY-025 test/CI embargo.
 
 The reviewer resolves/rechecks Git revisions from GitHub. Ali supplies the phase/PR identity, not hashes.
@@ -62,8 +61,8 @@ callers together and delete duplicate procedural logic.
 
 ## P8 caller map
 
-P8 implementation is ready on PR **#255**. Its internal slices stay on that one open numbered-phase
-PR. Normal ACCEPT is followed by bounded closeout on the same PR and then one human merge.
+P8 is accepted on PR **#255** and its bounded closeout stays on that one open numbered-phase PR until
+Ali human-merges it once.
 
 ### P8A · entity derivation/audit
 

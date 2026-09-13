@@ -5,9 +5,9 @@
 
 ## Detailed Current State
 
-PR **#255** is being republished after Ali imposed a repository-wide automated-test and GitHub CI
-embargo for the duration of SKY-025. Accepted numbered progress remains 7/24. The earlier ACCEPT is
-stale because this is a substantive post-review change; a fresh review is required after publication.
+SKY-025 P8 is externally accepted at progress **8/24**. The newest applicable acceptance marker was
+validated against the still-open PR #255, its current head, and the unchanged reviewed base. Bounded
+closeout is staged on that same PR; it is not yet merged.
 
 Every PR is human-merged during the embargo, including generated-only nightly PRs. The nightly
 auto-merge executor is fail-closed, while the local secret scan and hard-invariant checker remain.
@@ -31,6 +31,8 @@ the replacement verification architecture.
 - Reconciled remaining present-tense documentation after independent review: current caller maps no
   longer name deleted tests, ADR 0004 now states the suspended decision throughout, and all scanned
   current surfaces agree that every PR is human-merged during the embargo.
+- Validated the newest external ACCEPT marker and advanced bounded phase/planning state to 8/24 without
+  changing accepted implementation, runtime/configuration, doctrine, runbooks, or behavioral docs.
 
 ## Verification
 
@@ -47,7 +49,7 @@ the replacement verification architecture.
 
 ## Pending Work and Blockers
 
-- Fresh external review of the republished PR #255 is required; the earlier ACCEPT marker is stale.
+- PR #255 remains open and requires Ali's one human merge.
 - Automated regression protection is intentionally unavailable until the post-SKY-025 redesign.
 - `bin/ops entities` truthfully refused stale/missing collection receipts, and `bin/ops hygiene`
   retained its existing current-authority budget failure (220,996 estimated tokens vs 200,000).
@@ -55,4 +57,4 @@ the replacement verification architecture.
 
 ## Next Entry Point
 
-After publication, start a fresh review of PR #255; do not close out from the stale ACCEPT marker.
+Human-merge PR #255 once; after it lands, begin P9/G3 from current `main`.

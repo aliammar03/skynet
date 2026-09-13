@@ -6,7 +6,7 @@ horizon: long
 created: 2026-09-06
 updated: 2026-09-13
 phases: 24
-current_phase: 7
+current_phase: 8
 tier_touched: [T1, T2, T2+, T3]
 related:
   - docs/system-design.md
@@ -22,11 +22,10 @@ related:
 
 ## 1. Current state
 
-Accepted numbered progress is **P7 / 7 of 24**. The one-time P7 migration review required a corrective
-change; corrective PR **#254** was accepted and merged through the authored-PR lifecycle.
+Accepted numbered progress is **P8 / 8 of 24**.
 
-**Current action:** P8 implementation is ready on PR **#255** and pending one fresh external review.
-No live authority was used; implementation/fix work stops until review returns FIX or ACCEPT.
+**Current action:** P8 is externally accepted and bounded closeout is staged on PR **#255**. Ali
+human-merges that same PR once; after it lands, P9/G3 is the next authorized packet.
 
 ## 2. Mandate and boundaries
 
@@ -131,8 +130,8 @@ immediately returns to the normal lifecycle above.
 | 5 | Heavy | PBS + Docker inventory | accepted |
 | 6 | Heavy | DNS + live OPNsense/firewall observations | accepted |
 | 7 | Heavy | Omada + certs + routes + recon | accepted |
-| 8 | Heavy | Entity derivation/audit + rebuildable SQLite cache/query | implementation-ready; fresh review pending |
-| 9 | Medium | Docs/digest/context/catalog rendering + journal/recall helpers | deterministic views; G3 |
+| 8 | Heavy | Entity derivation/audit + rebuildable SQLite cache/query | accepted |
+| 9 | Medium | Docs/digest/context/catalog rendering + journal/recall helpers | next after PR #255 merges; G3 |
 | 10 | Heavy | Deployment health + reachability verification | failures/empty/partial/wrong revision fail |
 | 11 | Heavy | Arcane deploy/env/sync + rollback preparation | exact source + truthful failures |
 | 12 | Heavy | Publishing: Caddy/Auth/DNS coordination | correct vantages + auth paths |
@@ -155,7 +154,7 @@ Architecture checkpoints G1/G2 are already behind us. G3–G6 remain at phases 9
 
 ### Phase 8 — entity spine + rebuildable query cache
 
-**Status:** implementation-ready / pending fresh review on PR **#255**.
+**Status:** accepted; bounded same-PR closeout staged on PR **#255** for one human merge.
 
 **Recommended Main:** Heavy. Use one P8 branch/PR for the whole numbered phase. Internal slices are
 working units on that same PR, never separately merged.
