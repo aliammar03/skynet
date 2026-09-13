@@ -142,6 +142,50 @@ def test_running_unmapped_guest_fails_but_vhost_and_network_unresolved_are_infor
     assert record(report, "net/unknown")["bucket"] == "unlisted"
 
 
+def test_unlabeled_docker_containers_are_ignored_but_compose_projects_are_audited(
+    tmp_path: Path,
+) -> None:
+    repo = write_repo(tmp_path, guests=[])
+    (repo / "inventory" / "docker-dmz.json").write_text(json.dumps({
+        "host": "docker-dmz",
+        "containers": [
+            {},
+            {"Labels": ""},
+            {"Labels": "com.docker.compose.service=web"},
+            {"Labels": "com.docker.compose.project=books"},
+        ],
+    }))
+    report = entities.audit(repo)
+    assert report["outcome"] == "success"
+    assert record(report, "svc/books")["bucket"] == "matched"
+    assert [row["entity_id"] for row in report["records"] if row["class"] == "service"] == ["svc/books"]
+
+
+@pytest.mark.parametrize("labels", [[], {}, 42])
+def test_malformed_docker_labels_are_rejected(tmp_path: Path, labels: Any) -> None:
+    repo = write_repo(tmp_path, guests=[])
+    (repo / "inventory" / "docker-dmz.json").write_text(json.dumps({
+        "host": "docker-dmz",
+        "containers": [{"Labels": labels}],
+    }))
+    with pytest.raises(entities.EntityError, match="malformed container labels"):
+        entities.audit(repo)
+
+
+def test_running_undeclared_compose_project_fails_audit(tmp_path: Path) -> None:
+    repo = write_repo(tmp_path, guests=[])
+    (repo / "inventory" / "docker-dmz.json").write_text(json.dumps({
+        "host": "docker-dmz",
+        "containers": [{"Labels": "com.docker.compose.project=outside"}],
+    }))
+    report = entities.audit(repo)
+    assert report["outcome"] == "failure"
+    assert report["holes"] == ["svc/outside"]
+    outside = record(report, "svc/outside")
+    assert outside["bucket"] == "running-unmapped"
+    assert "no compose/outside/ in git" in outside["note"]
+
+
 @pytest.mark.parametrize("missing", ["invariants.json", "lab.json", "inventory/firewall/firewall.json"])
 def test_audit_fails_explicitly_for_missing_required_sources(tmp_path: Path, missing: str) -> None:
     repo = write_repo(tmp_path, guests=[])

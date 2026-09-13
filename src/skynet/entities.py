@@ -441,10 +441,10 @@ def _service_records(repo: Path, vlans: tuple[int, ...], slugs: dict[int, str], 
             hosted = guest_id(vmid, name, vlans, slugs)
         for raw in containers:
             container = _object(raw, path)
-            labels = _string(container.get("Labels"), path, "container labels")
+            labels = _string(container.get("Labels"), path, "container labels", required=False)
             match = _PROJECT.search(labels)
             if match is None or not match[1]:
-                raise EntityError(f"malformed compose project label in {path}")
+                continue
             project = match[1]
             key = (project, host)
             if key in seen:

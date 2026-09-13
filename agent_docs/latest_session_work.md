@@ -25,13 +25,15 @@ callers, with later caller cleanup already assigned in planning.
 - Added an atomic 14-table SQLite projection and packaged query command; failed rebuilds retain the
   previous valid cache and ordinary query/render callers retain collection freshness gates.
 - Kept the two maintained SQL views and migrated operator/query/renderer callers to Python behavior.
+- Repaired service auditing so valid standalone Docker containers are ignored while malformed labels
+  still fail and undeclared Compose projects remain running-unmapped holes.
 - Updated focused behavior, package, shell-caller, and lifecycle-state tests.
 
 ## Verification
 
-- Supported full Python suite: 324 passed.
+- Supported full Python suite after the review repair: 329 passed.
 - Packaged Nix application/check build: passed; installed console tests: 12 passed.
-- Focused entity/cache/route/CLI suites, Ruff, strict mypy, hard invariants, construction, entity,
+- Focused entity/cache/route/CLI/collection suites, Ruff, strict mypy, hard invariants, construction, entity,
   repository-surface, and `git diff --check`: passed.
 - A complete isolated T1 collection succeeded across all 11 collectors. Freshness, entity audit,
   representative queries, maintained renderer views, and explicit query failure then passed against
