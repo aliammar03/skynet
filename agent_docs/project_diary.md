@@ -52,6 +52,10 @@
   phase PR. A normal phase is reviewed while open, then closed out on that same accepted PR and merged
   once. P7 is the sole already-merged legacy exception; P7 ACCEPT is recorded as opening bookkeeping in
   the P8 PR, while corrective P7 uses the normal open-PR lifecycle.
+- SKY-025 P9 keeps journal creation and the nightly journal writer in Bash for their later P21 owner;
+  P9 owns journal-derived rendering and read-time recall. Its packaged factual renderer publishes the
+  complete generated page tree with rollback, validates node-derived page basenames, and retains the
+  collection freshness gate before reading the P8 cache.
 - The unprivileged NixOS `aliammar` account is the construction filesystem/OS boundary. Native
   construction inherits its no-prompt Codex posture; self-root and authored self-merge are forbidden,
   and production authority remains governed separately by trust-tier contracts.
@@ -81,6 +85,9 @@
   and encode prohibited self-actions as deterministic hard blocks.
 - Current planning prompts and active directives are construction callers too; legacy scans that cover
   only role files and doctrine can miss live routing language there.
+- Filesystem publication boundaries need adversarial evidence as well as content parity: validate
+  source-derived filenames before joining paths, and exercise a failure after the old tree has moved
+  so rollback proves the complete prior tree is retained.
 - A transition-wide verification architecture should be changed coherently rather than patched phase
   by phase. During an explicit test embargo, retain hard safety controls, disable unattended merge,
   record verification debt, and defer one replacement suite to the post-transition review.

@@ -5,56 +5,53 @@
 
 ## Detailed Current State
 
-SKY-025 P8 is externally accepted at progress **8/24**. The newest applicable acceptance marker was
-validated against the still-open PR #255, its current head, and the unchanged reviewed base. Bounded
-closeout is staged on that same PR; it is not yet merged.
+SKY-025 P8 is externally accepted and merged at progress **8/24**. P9 implementation is ready on open
+PR #256 and awaits a fresh external review. Accepted directive progress remains 8/24 until an ACCEPT
+marker and same-PR bounded closeout advance it.
 
 Every PR is human-merged during the embargo, including generated-only nightly PRs. The nightly
 auto-merge executor is fail-closed, while the local secret scan and hard-invariant checker remain.
 
-The P8 entity/cache implementation remains intact. Repository tests, their fixtures, GitHub workflows,
-and package/pre-commit test execution are removed as one policy change; a post-transition review owns
-the replacement verification architecture.
+The P9 package now owns generated factual views, digest, context map, runbook catalog, and read-time
+recall. Repository tests, their fixtures, GitHub workflows, and package/pre-commit test execution
+remain embargoed; a post-transition review owns the replacement verification architecture.
 
 ## Session Changes
 
-- Added packaged entity derivation/audit for guest, service, node, vhost, and network identities.
-- Moved route guest resolution from a Bash subprocess to the entity module.
-- Added an atomic 14-table SQLite projection and packaged query command; failed rebuilds retain the
-  previous valid cache and ordinary query/render callers retain collection freshness gates.
-- Kept the two maintained SQL views and migrated operator/query/renderer callers to Python behavior.
-- Repaired service auditing so valid standalone Docker containers are ignored while malformed labels
-  still fail and undeclared Compose projects remain running-unmapped holes.
-- Removed the repository test tree, GitHub workflows, packaged test phase, and test hook wiring.
-- Suspended nightly auto-merge and recorded the embargo in constitution, doctrine, runbooks, planning,
-  Nix packaging, and agent memory.
-- Reconciled remaining present-tense documentation after independent review: current caller maps no
-  longer name deleted tests, ADR 0004 now states the suspended decision throughout, and all scanned
-  current surfaces agree that every PR is human-merged during the embargo.
-- Validated the newest external ACCEPT marker and advanced bounded phase/planning state to 8/24 without
-  changing accepted implementation, runtime/configuration, doctrine, runbooks, or behavioral docs.
+- Added packaged render commands for factual docs, digest, context map, and runbook catalog while
+  retaining the old shell command names as forwarding compatibility shims.
+- Routed current nightly rendering through the package and removed the factual shell implementation
+  from the Nix fileset.
+- Preserved all nine factual page contracts and the P8 SQLite query path, including the collection
+  freshness refusal before any page replacement.
+- Made factual publication a complete-tree transaction with backup rollback, preservation of unrelated
+  generated pages, and validated node-derived page basenames.
+- Added packaged read-time recall with total-match reporting, a 20-result display cap, and explicit
+  malformed-regex failure while keeping journal creation and writing with their later P21 owner.
+- Updated present-tense docs, the P9 directive packet, the migration map, and generator-owned memory
+  views for the new command ownership.
 
 ## Verification
 
-- Retained secret and hard-invariant controls passed; Ruff, strict mypy, package build, shell syntax,
-  diff, and repository-surface checks passed.
-- Current-authority scans found no remaining claim that absent GitHub CI is running or that the
-  nightly may merge during the embargo; generated digest/context views were refreshed normally.
-- Packaged runtime doctor succeeded; direct entity audit reported 39 mapped/excepted/template entities
-  with zero holes, and a representative cache query reported 11 containers.
-- The prior isolated T1 smoke covered all 11 collectors plus freshness, entity, query, renderer, and
-  explicit query-failure paths; it remains historical evidence rather than an active automated gate.
-- No root grant, T2/T3 action, service/timer change, persistent inventory/docs rewrite, or production
+- Ruff, strict mypy, the Nix package build, shell syntax, secret scan, hard invariants, and diff checks
+  passed under the test/CI embargo.
+- The installed package rendered digest/context/catalog views, refused stale committed factual
+  evidence, and rendered all nine pages from disposable receipt-consistent evidence.
+- Normalized old/new factual output matched across all nine pages. Malformed JSON, unsafe node names,
+  and an injected second-step publication failure retained the complete prior tree; digest and context
+  repeated renders were byte-stable.
+- Recall returned zero cleanly for no matches, rejected malformed regular expressions with exit 2,
+  and matched the compatibility forwarder output.
+- No root grant, credential access, live collection, T2/T3 action, service/timer change, or production
   mutation occurred.
 
 ## Pending Work and Blockers
 
-- PR #255 remains open and requires Ali's one human merge.
+- PR #256 remains open and requires a fresh external review before any accepted closeout.
 - Automated regression protection is intentionally unavailable until the post-SKY-025 redesign.
-- `bin/ops entities` truthfully refused stale/missing collection receipts, and `bin/ops hygiene`
-  retained its existing current-authority budget failure (220,996 estimated tokens vs 200,000).
-- Unchanged baseline temporal-hygiene matches and runbook-catalog drift remain outside this phase.
+- Committed collection evidence is stale, so the installed factual renderer truthfully refuses it;
+  the successful factual smoke used isolated receipt-consistent evidence.
 
 ## Next Entry Point
 
-Human-merge PR #255 once; after it lands, begin P9/G3 from current `main`.
+Freshly review SKY-025 P9 on open PR #256 using `planning/prompts/review.md`.

@@ -24,8 +24,10 @@ root grants, and never-standing T3 access; a construction worker has no producti
 - Git is operational truth. Declarative Nix, OpenTofu, Compose, Caddy, encrypted secrets, policy,
   inventory, and documentation rebuild from the repository; backups restore payload after the system
   stands.
-- The installable Python package under `src/skynet/` provides the CLI and bounded collectors. Existing
-  Bash procedures, Nix modules, OpenTofu, and Compose retain their declared roles.
+- The installable Python package under `src/skynet/` provides the CLI, bounded collectors, factual
+  and derived Markdown renderers, and read-time recall. Legacy render and recall shell commands are
+  compatibility forwarders; Bash procedures, Nix modules, OpenTofu, and Compose retain their other
+  declared roles.
 - The packaged entity spine derives and audits guest, service, node, vhost, and network identities
   from authored conventions and observations; route resolution uses the same entity functions. The
   packaged cache/query module builds a disposable, validated 14-table SQLite projection for SQL
@@ -33,7 +35,9 @@ root grants, and never-standing T3 access; a construction worker has no producti
 - Arcane reconciles merged Compose changes through Git Sync. Health is verified through scoped read
   paths and inventory is refreshed by machine-owned collectors/renderers.
 - The generated digest is optional recent-activity/episodic/open-thread retrieval and the context map
-  is on-demand load-cost routing; neither replaces `agent_docs/` continuity or authoritative sources.
+  is on-demand load-cost routing; packaged rendering also owns factual pages and the runbook catalog.
+  Read-time recall ranks canonical Markdown sources. None replaces `agent_docs/` continuity or
+  authoritative sources.
 - Construction is a native Main-directed Light/Medium/Heavy worker swarm. Main owns internal
   implementation acceptance and PR readiness. External final acceptance belongs only to a fresh
   reviewer manually started by Ali. The reviewer resolves/rechecks target/base SHA + PR-head SHA and,
@@ -52,8 +56,8 @@ root grants, and never-standing T3 access; a construction worker has no producti
    bounded closeout → one human merge. Git revert is the normal rollback for GitOps changes.
 2. A production OpenTofu write is created from an approved revision, inspected as one saved plan,
    and executed through `scripts/tofu-apply.sh` with one declared actuator scope.
-3. T1 collectors gather validated observations, publish atomically, and render machine-owned views;
-   generated output is never hand-edited.
+3. T1 collectors gather validated observations; freshness-gated factual rendering stages and safely
+   replaces the machine-owned page set. Generated output is never hand-edited.
 4. A substantive construction session begins with `agent_docs/` plus its active directive, routes
    evidence to bounded workers, performs independent checks, and stops after publishing its open PR.
    Review runs separately; accepted closeout returns to the original session and stays on the same PR.

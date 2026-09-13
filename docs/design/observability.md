@@ -49,8 +49,9 @@ schema is atomically replaced and receipt-bound. The remaining shell readers ret
 existing evidence limitations. Collection timestamps
 describe observations, not live service-health verification.
 Failed initial marker publication also invalidates previous success for default queries and
-rendering. Factual pages are built completely before atomically replacing individual outputs; a
-render/cache/input failure leaves the previous page set unchanged. Remaining reader processes are
+rendering. Factual pages are built in a staged copy before the generated tree is replaced as one
+publication unit; replacement failure rolls the prior tree back, and render/cache/input failure leaves
+the previous page set unchanged. Remaining reader processes are
 stopped and reaped before collection advances; uncertain
 cleanup blocks another collection pending local process recovery. The package's
 [evidence and process contract](../../nix/README.md) defines storage and recovery behavior.
