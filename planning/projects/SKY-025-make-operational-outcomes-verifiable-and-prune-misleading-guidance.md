@@ -24,9 +24,9 @@ related:
 
 Accepted numbered progress is **P10 / 10 of 24**. Architecture checkpoint **G3** is complete.
 
-**Current action:** P11 implementation is ready on `phase/sky-025-p11-deploy` and pending fresh
-external review. Accepted progress remains P10 until the P11 review records ACCEPT and the original
-session performs bounded closeout on the same PR.
+**Current action:** P11 implementation is ready on PR **#259** and pending fresh external review.
+Accepted progress remains P10 until the P11 review records ACCEPT and the original session performs
+bounded closeout on that same PR.
 
 ## 2. Mandate and boundaries
 
@@ -348,7 +348,7 @@ and reviewed head `48b62c1`. The original session validated that pair against th
 
 ### Phase 11 — Arcane deploy/env/sync + rollback preparation
 
-**Status:** implementation ready on `phase/sky-025-p11-deploy`; pending fresh external review.
+**Status:** implementation ready on PR **#259**; pending fresh external review.
 
 **Recommended Main:** Heavy. One P11 branch/PR owns the complete numbered phase.
 

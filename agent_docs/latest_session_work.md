@@ -6,7 +6,7 @@
 ## Detailed Current State
 
 SKY-025 P11 Arcane deployment/environment/sync and rollback preparation is implementation-ready on
-`phase/sky-025-p11-deploy` and pending fresh external review. Accepted progress remains **10/24** and
+PR **#259** and pending fresh external review. Accepted progress remains **10/24** and
 architecture checkpoint G3 remains complete.
 
 The packaged deployment owner selects and reports one exact local branch head, reconciles unique
@@ -46,12 +46,11 @@ unless explicitly asked to prepare an isolated local review branch; it never pus
 
 ## Pending Work and Blockers
 
-- The P11 branch must be published as one open PR and reviewed in a fresh session before acceptance.
+- P11 PR #259 must be reviewed in a fresh session before acceptance.
 - Successful live deployment evidence is blocked by Arcane's rejected GitHub repository credential;
   changing that credential is outside this phase's authorized scope.
 - Automated regression protection remains intentionally unavailable until the post-SKY-025 redesign.
 
 ## Next Entry Point
 
-Open/reuse the SKY-025 P11 PR, then read `planning/prompts/review.md` and review that open PR in a
-fresh session.
+Read `planning/prompts/review.md` and review SKY-025 PR #259 in a fresh session.

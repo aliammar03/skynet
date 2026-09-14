@@ -7,7 +7,7 @@ summary: "SKY-025 current subsystem dispositions, callers, replacement phases, a
 Owned by [the active directive](projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md).
 
 Current accepted progress is **P10 / 10 of 24** and architecture checkpoint G3 is complete. P11
-implementation is ready on `phase/sky-025-p11-deploy` and pending fresh external review; accepted
+implementation is ready on PR **#259** and pending fresh external review; accepted
 progress does not advance before same-PR accepted closeout.
 Every PR, including generated-only nightly work, is human-merged during the SKY-025 test/CI embargo.
 
