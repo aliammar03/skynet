@@ -23,9 +23,13 @@ payload data, then `skynet deploy service` for service configuration and runtime
 
 ### Restore container data
 
-1. Through an authorized T2 Arcane operation, pause the exact Git Sync and stop its stack. Docker
-   context and `svc-ops` SSH inspection are read-only in this runbook; do not use them to stop or
-   mutate containers. A separately authorized break-glass write must be documented before any such
+1. Through an authorized T2 Arcane operation, keep `autoSync=false` for the exact Git Sync. If this
+   is the first handoff from legacy auto-sync, disable it while old source and environment still
+   agree; verify the deployed Arcane maximum sync duration and wait at least that long, never less
+   than five minutes, then confirm the expected old revision and runtime before continuing. The
+   setting cannot cancel an admitted sync. Stop the exact stack through Arcane. Docker context and
+   `svc-ops` SSH inspection are read-only in this runbook; do not use them to stop or mutate
+   containers. A separately authorized break-glass write must be documented before any such
    Docker-host mutation.
 2. On the affected host under its root grant, source its restic environment, list snapshots, and
    restore only the service paths:
@@ -44,19 +48,20 @@ payload data, then `skynet deploy service` for service configuration and runtime
    attached local branch containing the matching `compose/<svc>/compose.yaml`, `.env.git`, and
    `.env.sops`. Keep the active checkout's branch history intact; do not restore one file into a
    detached worktree because deployment source identity is a branch head.
-4. Through an authorized T2 Arcane operation, re-enable the exact Git Sync before deployment.
-   Confirm its repository, branch, `compose/<svc>/compose.yaml` path, `syncDirectory=true`, and
-   `autoSync=true`; do not invoke the packaged deploy while the sync is paused.
+4. Confirm the existing Arcane sync still has the exact repository, branch, and
+   `compose/<svc>/compose.yaml` path, with `syncDirectory=true` and `autoSync=false`. Leave
+   scheduled sync disabled; do not manually sync or redeploy outside the packaged owner.
 5. Reconcile the selected configuration with the packaged owner:
 
    ```bash
    skynet deploy service <svc> --repo <checkout> --branch <branch>
    ```
 
-   The command resolves and reports the exact local 40-hex branch head, pulls that source through the
-   exact Arcane sync/project, materializes the environment through SSH stdin, atomically replaces the
-   remote `.env` with mode `0600`, redeploys, and requires complete positive Arcane/Docker counts
-   with every container running, non-restarting, and healthy. Add `--gate` only for the separate
+   The command resolves and reports the exact local 40-hex branch head, materializes and atomically
+   replaces the remote `.env` with mode `0600` through SSH stdin, then repoints/syncs source and
+   explicitly redeploys. Arcane's manual source sync can itself redeploy a running project; the
+   environment is installed first. The command requires complete positive Arcane/Docker counts with
+   every container running, non-restarting, and healthy. Add `--gate` only for the separate
    report-only P10 route/TLS check. A data restore using current configuration may use the current
    branch instead.
 6. Check application-level consistency. For an inconsistent hot database copy,
@@ -72,7 +77,7 @@ Targeted archive recovery is verified. Full core-node-loss recovery remains unve
 
 ## Verify
 
-- Git Sync is resumed.
+- Git Sync remains configured with `autoSync=false`.
 - The deploy outcome records the exact source branch/revision/repository and reports
   `verification=runtime-complete` (or the explicit gate result).
 - Arcane and Docker show the selected service at that source with equal positive counts and every

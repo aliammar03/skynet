@@ -75,8 +75,14 @@ compose/<svc>/
 
 ## The loop
 
-- **One Arcane Git Sync per project dir; auto-sync on; Arcane auto-update off** for git-synced
-  projects `[manual]`. Deploy via `skynet deploy service <svc>`; prepare recovery with
+- **One Arcane Git Sync per project dir; `autoSync=false`; Arcane auto-update off** for Git-synced
+  projects `[manual]`. The packaged command is the sole source-activation owner. A legacy sync must
+  be migrated and quiesced while its old source and environment still agree; changing `autoSync`
+  cannot cancel an already-admitted run. Deploy via `skynet deploy service <svc>`; it installs the
+  selected environment before repointing or manually syncing source. A manual source sync may
+  redeploy a running project, so do not sync outside the packaged owner. `--no-deploy` prepares the
+  environment only and does not select or activate source. Missing syncs require supervised bootstrap.
+  For migration wait and old-runtime verification, follow the deploy runbook. Prepare recovery with
   `skynet rollback service <svc> <deploy-commit> --prepare`. The rollback command leaves push and
   human merge to the operator. The retained shell names are temporary compatibility forwarders to
   P22. See [`../design/gitops-loop.md`](../design/gitops-loop.md) and

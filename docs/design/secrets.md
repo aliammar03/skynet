@@ -65,10 +65,14 @@ renames it to `.env`. A non-regular source, symlink, path mismatch, malformed ow
 stream leaves the operation failed/ambiguous for inspection; it is never reported as a successful
 environment replacement.
 
-Every service declares `env_file: .env` so Docker Compose consumes this materialized file. Arcane
-owns Git Sync and project lifecycle; the packaged deployment owner owns environment materialization.
-The retained [`gitops-deploy.sh`](../../scripts/gitops-deploy.sh) name is a temporary compatibility
-forwarder to `skynet deploy service` for P22 removal, not a second secret path.
+Every service declares `env_file: .env` so Docker Compose consumes this materialized file. The
+packaged deployment requires an existing Git Sync with `autoSync=false` and installs `.env` before
+repointing or manually syncing source, because Arcane's manual sync may redeploy a running project.
+It does not change scheduled-sync controls or bootstrap a missing project. `--no-deploy` prepares
+only the environment and does not activate source. This preserves the same age-key custody and
+SSH-stdin boundary described above. The retained [`gitops-deploy.sh`](../../scripts/gitops-deploy.sh)
+name is a temporary compatibility forwarder to `skynet deploy service` for P22 removal, not a second
+secret path.
 
 ## Operations
 

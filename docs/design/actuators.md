@@ -23,13 +23,17 @@ automatic authored inverse, so it is not A4 eligible.
 | OPNsense config | No live actuator | None | — | No |
 
 The packaged Compose deployment binds service source bytes and executable modes to one exact local
-branch-head identity before any Arcane write, then validates Arcane repository/sync/project identity,
-source pull, environment replacement, and complete runtime health. Redeploy succeeds only after its
-bounded NDJSON stream ends with a terminal success frame. Sync creation, branch repoint, and source
-pull are bounded and reconcile an ambiguous write before retry, with at most three attempts each. A
-failed or ambiguous stage reports completed steps,
-`verification`, and `recovery`; it never implies that an earlier write was undone. `cloudflared`
-restart is limited to the reconciled container IDs and is followed by the same health checks.
+branch-head identity before any Arcane write, then requires one existing exact repository/sync/project
+identity with `autoSync=false`. It installs the selected environment before branch repoint or manual
+source sync; Arcane's manual sync may itself redeploy a running project, followed by the command's
+explicit bounded NDJSON redeploy. Scheduled sync remains disabled and the package does not bootstrap
+missing projects. A legacy auto-sync project requires a one-time T2 migration and timed quiescence
+while old source/environment still agree; disabling auto-sync cannot cancel an admitted run. Follow
+the [deploy runbook](../../runbooks/deploy-service.md) for the duration and old-runtime check. A
+failed or ambiguous stage reports completed steps, `verification`, and `recovery`; it never implies
+that an earlier write was undone. `--no-deploy` prepares environment only, with source unselected.
+`cloudflared` restart is limited to the reconciled container IDs and is followed by the same health
+checks.
 
 The optional P10 gate is separate and report-only. It can fail after runtime success without changing
 the runtime, and it never invokes rollback. Arcane is the GitOps reconciler, not a rollback executor.

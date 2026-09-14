@@ -32,15 +32,19 @@ root grants, and never-standing T3 access; a construction worker has no producti
   from authored conventions and observations; route resolution uses the same entity functions. The
   packaged cache/query module builds a disposable, validated 14-table SQLite projection for SQL
   views and ad-hoc queries; it is never authority.
-- Arcane reconciles Compose changes through Git Sync. `skynet deploy service` is the packaged write
-  owner: it reports the exact selected branch head and normalized repository, binds
-  Compose/environment bytes and executable modes to that revision before Arcane writes, validates
-  unique Arcane repository/sync/project identity, materializes `.env` via stdin-only SSH and atomic
-  0600 replacement, and requires complete project/container health. Its opt-in `--gate` runs the
-  separate report-only P10 verifier for exact revision and DMZ/TLS routes. A live deploy plus gate
-  has passed for `librespeed`; PR #259 still awaits fresh review. `skynet rollback service` is
-  report-only by default and can prepare an isolated reviewed inverse; neither path auto-rolls back.
-  The old shell names are temporary compatibility forwarders for P22.
+- Arcane reconciles Compose projects through Git Sync. `skynet deploy service` is the packaged
+  source/environment activation owner: it reports the exact selected branch head and normalized
+  repository, binds Compose/environment bytes and executable modes to that revision, requires one
+  existing unique sync/project with `autoSync=false`, installs `.env` by stdin-only SSH and atomic
+  `0600` replacement before branch repoint/manual sync, then requires complete runtime health. Arcane
+  manual sync may redeploy a running project; scheduled sync stays disabled. `--no-deploy` prepares
+  environment only. A legacy auto-sync service must be migrated and quiesced while old source and
+  environment still agree under the deploy runbook's timed migration check. Its opt-in `--gate` runs
+  the separate report-only P10 verifier for exact revision and DMZ/TLS routes. A live deploy plus
+  gate has passed for `librespeed`; PR #259 still
+  awaits fresh review. `skynet rollback service` is report-only by default and can prepare an
+  isolated reviewed inverse; neither path auto-rolls back. The old shell names are temporary
+  compatibility forwarders for P22.
 - The generated digest is optional recent-activity/episodic/open-thread retrieval and the context map
   is on-demand load-cost routing; packaged rendering also owns factual pages and the runbook catalog.
   Read-time recall ranks canonical Markdown sources. None replaces `agent_docs/` continuity or

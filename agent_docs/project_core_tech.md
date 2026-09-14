@@ -71,15 +71,18 @@ the internal/public service path.
   write path; the route probe only creates/removes an ephemeral pinned image container.
 - `skynet deploy service` owns source selection and binds service bytes/modes to the exact revision
   before Arcane writes; changed or missing selected inputs, extra local service inputs, symlinks,
-  and non-regular files fail closed. It owns
-  unique Arcane repository/sync/project validation, stdin-only off-host environment delivery,
-  atomic remote 0600 replacement, bounded reconciliation/retries, terminal-success NDJSON redeploy
-  handling, complete runtime health, and the bounded `cloudflared` restart. It reports exact local
-  branch/revision/repository identity. Its opt-in `--gate` runs the separate
-  report-only packaged verifier. `skynet rollback service` is report-only by default and can prepare
-  an isolated reviewed inverse; it refuses protected or mixed-project changes and never pushes or
-  merges. `gitops-deploy.sh` and `gitops-rollback.sh` are temporary compatibility forwarders for
-  P22.
+  and non-regular files fail closed. It requires one exact existing Arcane repository/sync/project
+  with `autoSync=false`, delivers the environment off-host via stdin and atomically replaces remote
+  `.env` at mode 0600 before branch repoint/manual source sync. Arcane's manual sync may redeploy a
+  running project; the command then uses its bounded NDJSON explicit redeploy and requires complete
+  runtime health. It reports exact local branch/revision/repository identity; `--no-deploy` prepares
+  environment only, and missing sync/project bootstrap is refused. A legacy auto-sync service must
+  be migrated and quiesced under the deploy runbook's timed check while old source/environment agree.
+  `cloudflared` restarts only its
+  reconciled container IDs. Its opt-in `--gate` runs the separate report-only packaged verifier.
+  `skynet rollback service` is report-only by default and can prepare an isolated reviewed inverse;
+  it refuses protected or mixed-project changes and never pushes or merges. `gitops-deploy.sh` and
+  `gitops-rollback.sh` are temporary compatibility forwarders for P22.
 - `scripts/entity.sh`, `scripts/audit-entities.sh`, and `scripts/build-db.sh` are compatibility
   forwarders; maintained SQL views remain under `scripts/sql/`.
 - Generated inventory and documentation are machine-owned. Construction runs as the unprivileged

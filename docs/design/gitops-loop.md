@@ -22,7 +22,7 @@ Two private GitHub repositories carry operational truth:
 ```
 edit compose/<service>/ → branch → PR → Ali merges
    → `skynet deploy service <service>` selects one local branch head
-   → Arcane Git Sync reconciles the exact source and project
+   → command installs that revision's environment before its manual source sync
    → complete Arcane/Docker runtime health
    → optional `--gate` runs the separate P10 report-only route verifier
    → agent records the outcome and refreshes inventory when requested
@@ -56,17 +56,17 @@ worktree, changed in content or mode, or a local service input absent from the r
 all source paths must be non-symlink regular files. Environment materialization and Compose
 deployment consume these bound bytes, not a later worktree read.
 
-The Arcane write contract is exact and unique:
+The Arcane identity contract is exact and unique:
 
 - the normalized origin matches exactly one repository returned by
   `/api/customize/git-repositories`;
 - the selected environment (credential `ARCANE_ENV_ID`, `--environment-id`, or `0`) has exactly
-  one sync for the service, with matching `name`, `projectName`, `repositoryId`, `branch`, and
+  one sync for the service, with matching `name`, `projectName`, `repositoryId`, and
   `composePath=compose/<service>/compose.yaml`;
-- the sync must have `syncDirectory=true` and `autoSync=true`; a missing sync is created with
-  `syncInterval=180`, while an existing sync is only repointed when its branch differs;
-- the sync pull must report `lastSyncStatus=success` and the exact selected commit; the bound
-  project must report `gitOpsManagedBy=<sync-id>`, that same `lastSyncCommit`, path
+- the sync must have `syncDirectory=true` and `autoSync=false`; a missing sync is refused because
+  first activation cannot be sequenced safely by this command. The packaged command is the sole
+  source-activation owner, and Arcane scheduled sync stays disabled;
+- the bound project must report `gitOpsManagedBy=<sync-id>`, its current `lastSyncCommit`, path
   `/opt/docker/arcane-projects/<service>`, and a positive `serviceCount`.
 
 Duplicate, missing, malformed, mixed, or mismatched repository/sync/project identities fail closed.
@@ -77,6 +77,17 @@ host is the Arcane URL hostname reached as `svc-ops`; the deploy path does not g
 
 ## Environment and runtime reconciliation
 
+The sync's `autoSync=false` state is a precondition; deployment validates it and fails closed if
+scheduled activation is enabled. It does not change this control. A one-time migration for a legacy
+`autoSync=true` project must happen through the T2 Arcane interface while the old source and old
+environment are still coherent: disable scheduled sync, wait at least the configured maximum sync
+duration (verify it for the deployed Arcane version and wait no less than five minutes), then confirm
+the project remains on the expected old revision with its expected runtime before merging or
+exposing a revision that couples new Compose source to new environment data. Disabling `autoSync`
+cannot cancel a run already admitted. If the maximum duration or old source/runtime cannot be
+verified, stop before merge. After handoff, scheduled sync remains off and this command owns
+activation. No T3 access is needed.
+
 The package materializes the environment from the already-bound `.env.git` and optional
 `.env.sops` bytes. It runs `sops -d` locally with `SOPS_AGE_KEY_FILE` set to the local age-key path
 and supplies the selected encrypted bytes over stdin; plaintext output stays in memory and is sent to
@@ -85,22 +96,30 @@ command argument, or report. On the exact Arcane project path, a pinned
 BusyBox writer creates a same-directory temporary file, applies the observed project UID:GID,
 sets mode `0600`, and atomically renames it to `.env`; an owner or path mismatch is refused.
 
-After environment replacement, normal deployment consumes Arcane's redeploy response as a bounded
-NDJSON stream. It requires one terminal `done=true` frame, rejects malformed, failed, or incomplete
-streams, and never exposes progress frames or response bodies. It then waits for
-`status=running` with `runningCount=serviceCount`. It then observes the exact Compose project label
-over SSH: the container set must be non-empty and count-equal, every container must be
-`Running=true`, `Restarting=false`, and report `Health.Status=healthy`. Missing health is failure,
-not success. `--no-deploy` stops after source sync and environment replacement and reports
-`verification=source-and-environment-only (--no-deploy)`; it does not claim runtime health.
+After environment replacement, normal deployment repoints the exact sync to the selected branch if
+needed and requests a manual source sync. Arcane may redeploy an already-running project during that
+sync. The command then always requests an explicit bounded NDJSON redeploy as well, so environment-
+only changes are applied even when source sync filters out a second activation. It requires the
+terminal `done=true` frame, then verifies that sync selected the exact revision and checks runtime
+health: Arcane must report `status=running` with `runningCount=serviceCount`, and unprivileged SSH
+must observe a non-empty, count-equal container set for the exact Compose project, with every container
+`Running=true`, `Restarting=false`, and `Health.Status=healthy`. Missing health is failure, not
+success.
+
+`--no-deploy` validates the existing disabled-sync owner and atomically prepares the selected
+revision's environment, then stops. It does not repoint the source branch, request a source sync, or
+redeploy; it reports `environment-prepared; source-not-activated (--no-deploy)` and makes no source
+or runtime-health claim. Treat this as an intermediate preparation: do not manually sync/redeploy
+the project before a normal packaged deployment completes. The command supports existing projects;
+initial sync/project bootstrap is a separate supervised capability.
 
 `cloudflared` has one additional bounded action: after count reconciliation, the package restarts
 only the exact container IDs returned for that Compose project, then repeats Arcane/runtime health
 and requires the same ID set. It never restarts unrelated containers.
 
-Sync create, branch repoint, and source pull each use at most three bounded attempts. Ambiguous
-writes are reconciled by rereading the exact repository/sync/project state before a retry. A final
-ambiguous or failed write is reported as such; the package never claims success from a request alone.
+Branch repoint and source pull each use at most three bounded attempts. Ambiguous writes are
+reconciled by rereading the exact repository/sync/project state before a retry. A final ambiguous or
+failed write is reported as such; the package never claims success from a request alone.
 Each result reports `status`, completed steps, `verification`, and `recovery`. A runtime or gate
 failure remains a failed operation with explicit inspect-before-retry guidance; no automatic
 authored revert, destroy, or rollback is attempted.

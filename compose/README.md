@@ -106,9 +106,15 @@ service inputs, symlinks, and non-regular files fail closed. Sops runs on vm-sky
 selected encrypted bytes via stdin and sends plaintext to the exact project only over the SSH
 process's stdin; it is not written to a local temporary file. A pinned writer atomically replaces
 the remote `.env`, owned by the observed project UID:GID and mode `0600`. Every service still declares
-`env_file: .env` so those values reach it. Arcane leaves a populated `.env` untouched on re-sync;
-auto-sync only redeploys already-running projects (a stopped one updates on next manual start).
+`env_file: .env` so those values reach it. The packaged command is the only source-activation owner:
+its existing Git Sync must have `autoSync=false`, and the command installs `.env` before repointing
+or manually syncing source. Arcane's manual sync may redeploy an already-running project, so do not
+start a sync outside the packaged command. `--no-deploy` prepares `.env` only; complete a normal
+packaged deployment before source activation. Missing sync/project bootstrap is not supported. The
+deploy runbook covers the one-time migration: disable auto-sync while old source/environment agree, wait
+the deployed Arcane maximum (never less than five minutes), and confirm the old revision/runtime
+before exposing coupled changes.
 
 Restore the selected `.env.git`/`.env.sops` revision with `skynet deploy service <svc>`; the
-packaged command rematerializes the effective file and redeploys it. The retained
+packaged command rematerializes the effective file before source activation and runtime checks. The retained
 `scripts/gitops-deploy.sh` name is only a temporary compatibility forwarder to P22.

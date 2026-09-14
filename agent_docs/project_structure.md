@@ -46,14 +46,18 @@ recovery procedures.
   Collectors never claim service health merely from collection success.
 - `skynet deploy service <service>` is the packaged deployment owner. It resolves and reports an
   exact local branch head/repository, binds service files to that revision before Arcane writes,
-  validates unique Arcane contracts, delivers the environment over SSH stdin with atomic remote
-  0600 replacement, and requires complete runtime health. Its
-  optional `--gate` invokes the separate report-only `skynet verify deployment <service>
-  <full-revision>` observer (exact revision, complete counts/health, canonical DMZ/TLS routes).
-  `skynet rollback service` is report-only by default; `--prepare` creates an isolated review branch
-  from a separate authored deploy-commit identity and never pushes or merges.
-- Git branch → PR → human merge → Arcane Git Sync → running Compose is the service boundary; `git
-  revert` is the normal rollback path.
+  validates one existing unique Arcane contract with `autoSync=false`, delivers the environment over
+  SSH stdin with atomic remote 0600 replacement before branch repoint/manual sync, then requires
+  complete runtime health. Arcane manual sync may redeploy a running project. `--no-deploy` prepares
+  environment only; missing sync/project bootstrap is refused. A legacy auto-sync service must be
+  migrated and quiesced under the deploy runbook's timed check while old source/environment agree.
+  Its optional `--gate` invokes the separate
+  report-only `skynet verify deployment <service> <full-revision>` observer (exact revision, complete
+  counts/health, canonical DMZ/TLS routes). `skynet rollback service` is report-only by default;
+  `--prepare` creates an isolated review branch from a separate authored deploy-commit identity and
+  never pushes or merges.
+- Git branch → PR → human merge → packaged environment/source activation → running Compose is the
+  service boundary; `git revert` is the normal rollback path.
 - Approved OpenTofu source → one-scope saved plan → `scripts/tofu-apply.sh` is the infrastructure
   write boundary. Proxmox, DNS, Cloudflare, and host access remain tier-scoped.
 - `docs/system-design.md` is the authority spine. `agent_docs/` distills it and current evidence for

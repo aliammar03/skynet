@@ -532,65 +532,68 @@ def _sync_candidates(client: ArcaneWriter, service: str) -> list[dict[str, Any]]
     return [row for row in rows if row.get("name") == service or row.get("projectName") == service]
 
 
-def _validate_sync(
-    sync: dict[str, Any], service: str, repository_id: str, branch: str, compose_path: str
-) -> tuple[str, str | None]:
+def _validate_sync_identity(
+    sync: dict[str, Any], service: str, repository_id: str, compose_path: str
+) -> tuple[str, str]:
     expected = {
         "name": service,
         "projectName": service,
         "repositoryId": repository_id,
-        "branch": branch,
         "composePath": compose_path,
     }
     for key, value in expected.items():
         if sync.get(key) != value:
-            if key == "branch":
-                raise GitOpsError("Arcane sync branch mismatch", 1)
             raise GitOpsError("Arcane sync identity mismatch", 1)
     if "syncDirectory" not in sync or "autoSync" not in sync:
         raise GitOpsError("malformed Arcane sync controls", 3)
-    if sync["syncDirectory"] is not True or sync["autoSync"] is not True:
+    if sync["syncDirectory"] is not True or type(sync["autoSync"]) is not bool:
         raise GitOpsError("Arcane sync controls mismatch", 1)
+    if sync["autoSync"] is not False:
+        raise GitOpsError("Arcane automatic source activation must already be disabled", 1)
     sync_id = _identifier(sync.get("id"), "malformed Arcane sync identity")
     raw_project = sync.get("projectId")
-    project_id = (
-        None
-        if raw_project in {None, ""}
-        else _identifier(raw_project, "malformed Arcane project identity")
-    )
+    if raw_project in {None, ""}:
+        raise GitOpsError("Arcane project identity unavailable", 1)
+    project_id = _identifier(raw_project, "malformed Arcane project identity")
     return sync_id, project_id
 
 
-def _exact_sync(
-    client: ArcaneWriter, service: str, repository_id: str, branch: str, compose_path: str
-) -> tuple[dict[str, Any], str, str | None]:
+def _existing_sync(
+    client: ArcaneWriter, service: str, repository_id: str, compose_path: str
+) -> tuple[dict[str, Any], str, str]:
     candidates = _sync_candidates(client, service)
     if not candidates:
-        raise GitOpsError("Arcane sync identity missing", 1)
+        raise GitOpsError(
+            "Arcane sync identity missing; initial sync is not safe for this command", 1
+        )
     if len(candidates) != 1:
         raise GitOpsError("Arcane sync identity ambiguous", 1)
     sync_id = _identifier(candidates[0].get("id"), "malformed Arcane sync identity")
     detail = _sync_detail(client, sync_id)
-    _, project_id = _validate_sync(detail, service, repository_id, branch, compose_path)
+    _, project_id = _validate_sync_identity(detail, service, repository_id, compose_path)
     return detail, sync_id, project_id
 
 
-def _await_exact_sync(
+def _await_sync_branch(
     client: ArcaneWriter,
     service: str,
     repository_id: str,
     branch: str,
     compose_path: str,
-) -> tuple[dict[str, Any], str, str | None]:
-    """Bound reconciliation after a create/repoint write that may still be settling."""
+) -> tuple[dict[str, Any], str, str]:
+    """Bound reconciliation after a branch-repoint write."""
     deadline = time.monotonic() + client.timeout
     last_error: GitOpsError | None = None
     while True:
         try:
-            return _exact_sync(client, service, repository_id, branch, compose_path)
+            detail, sync_id, project_id = _existing_sync(
+                client, service, repository_id, compose_path
+            )
+            if detail.get("branch") != branch:
+                raise GitOpsError("Arcane sync branch mismatch", 1)
+            return detail, sync_id, project_id
         except GitOpsError as error:
             if error.reason not in {
-                "Arcane sync identity missing",
                 "Arcane sync branch mismatch",
                 "Arcane API unavailable",
             }:
@@ -602,93 +605,49 @@ def _await_exact_sync(
         time.sleep(min(0.5, client.timeout / 5))
 
 
-def _create_or_repoint_sync(
+def _repoint_sync(
     client: ArcaneWriter,
     service: str,
     repository_id: str,
     branch: str,
     compose_path: str,
     outcome: Outcome,
-) -> str:
-    candidates = _sync_candidates(client, service)
-    if len(candidates) > 1:
-        raise GitOpsError("Arcane sync identity is ambiguous", 1)
-    if not candidates:
-        body = {
-            "name": service,
-            "projectName": service,
-            "repositoryId": repository_id,
-            "branch": branch,
-            "composePath": compose_path,
-            "syncDirectory": True,
-            "autoSync": True,
-            "syncInterval": 180,
-        }
-        sync_id = ""
-        for attempt in range(3):
-            try:
-                client.request("POST", f"/environments/{client.environment_id}/gitops-syncs", body)
-            except GitOpsError as error:
-                if not error.ambiguous:
-                    raise
-                outcome.recovery = "create-reconciliation-required-after-ambiguous-write"
-            try:
-                _, sync_id, _ = _await_exact_sync(
-                    client, service, repository_id, branch, compose_path
+    sync_id: str,
+    current: dict[str, Any],
+) -> dict[str, Any]:
+    """Select the requested branch after env install while auto-sync remains disabled."""
+    if current.get("branch") == branch:
+        return current
+    for attempt in range(3):
+        try:
+            client.request(
+                "PUT",
+                f"/environments/{client.environment_id}/gitops-syncs/{sync_id}",
+                {"branch": branch},
+            )
+        except GitOpsError as error:
+            if not error.ambiguous:
+                raise
+            outcome.recovery = "repoint-reconciliation-required-after-ambiguous-write"
+        try:
+            detail, _, _ = _await_sync_branch(
+                client, service, repository_id, branch, compose_path
+            )
+            if outcome.recovery != "not-needed":
+                outcome.recovery = "repoint-reconciled-after-ambiguous-write"
+            outcome.completed_steps.append("sync-repointed")
+            return detail
+        except GitOpsError as error:
+            if error.reason not in {
+                "Arcane sync branch mismatch",
+                "Arcane API unavailable",
+            } or attempt == 2:
+                outcome.recovery = (
+                    "sync repoint unresolved; inspect the exact service sync before retry"
                 )
-                if outcome.recovery != "not-needed":
-                    outcome.recovery = "create-reconciled-after-ambiguous-write"
-                break
-            except GitOpsError as error:
-                if error.reason != "Arcane sync identity missing" or attempt == 2:
-                    outcome.recovery = (
-                        "sync creation unresolved; inspect the exact service sync before retry"
-                    )
-                    raise
-                outcome.recovery = "create-retried-after-reconciliation"
-        if not sync_id:
-            raise GitOpsError("Arcane sync creation could not be reconciled", 3)
-        outcome.completed_steps.append("sync-created")
-        return sync_id
-    sync_id = _identifier(candidates[0].get("id"), "malformed Arcane sync identity")
-    current = _sync_detail(client, sync_id)
-    fixed = {
-        "name": service,
-        "projectName": service,
-        "repositoryId": repository_id,
-        "composePath": compose_path,
-    }
-    if any(current.get(key) != value for key, value in fixed.items()):
-        raise GitOpsError("Arcane sync identity mismatch", 1)
-    if current.get("branch") != branch:
-        for attempt in range(3):
-            try:
-                client.request(
-                    "PUT",
-                    f"/environments/{client.environment_id}/gitops-syncs/{sync_id}",
-                    {"branch": branch},
-                )
-            except GitOpsError as error:
-                if not error.ambiguous:
-                    raise
-                outcome.recovery = "repoint-reconciliation-required-after-ambiguous-write"
-            try:
-                _await_exact_sync(client, service, repository_id, branch, compose_path)
-                if outcome.recovery != "not-needed":
-                    outcome.recovery = "repoint-reconciled-after-ambiguous-write"
-                break
-            except GitOpsError as error:
-                if error.reason != "Arcane sync branch mismatch" or attempt == 2:
-                    outcome.recovery = (
-                        "sync repoint unresolved; inspect the exact service sync before retry"
-                    )
-                    raise
-                outcome.recovery = "repoint-retried-after-reconciliation"
-        outcome.completed_steps.append("sync-repointed")
-    else:
-        _validate_sync(current, service, repository_id, branch, compose_path)
-        outcome.completed_steps.append("sync-selected")
-    return sync_id
+                raise
+            outcome.recovery = "repoint-retried-after-reconciliation"
+    raise AssertionError("unreachable")
 
 
 def _sync_detail(client: ArcaneWriter, sync_id: str) -> dict[str, Any]:
@@ -701,12 +660,13 @@ def _sync_detail(client: ArcaneWriter, sync_id: str) -> dict[str, Any]:
 def _pull(
     client: ArcaneWriter, sync_id: str, revision: str, timeout: float, outcome: Outcome
 ) -> dict[str, Any]:
+    """Activate source, reconciling a bounded ambiguous write from observed state."""
     path = f"/environments/{client.environment_id}/gitops-syncs/{sync_id}/sync"
     prior_recovery = outcome.recovery
     for attempt in range(3):
         outcome.recovery = "source pull requested; outcome not yet reconciled"
         try:
-            client.request("POST", path)
+            result = client.request("POST", path)
         except GitOpsError as error:
             detail = _sync_detail(client, sync_id)
             if (
@@ -717,8 +677,26 @@ def _pull(
                 outcome.completed_steps.append("source-synced")
                 return detail
             if not error.ambiguous or attempt == 2:
-                outcome.recovery = "source pull unresolved; inspect its commit/status before retry"
+                outcome.recovery = (
+                    "source activation unresolved; inspect its commit/status before retry"
+                )
                 raise
+            outcome.recovery = "pull-retried-after-reconciliation"
+            continue
+        if not isinstance(result, dict) or result.get("success") is not True:
+            detail = _sync_detail(client, sync_id)
+            if (
+                detail.get("lastSyncStatus") == "success"
+                and detail.get("lastSyncCommit") == revision
+            ):
+                outcome.recovery = "pull-reconciled-after-ambiguous-write"
+                outcome.completed_steps.append("source-synced")
+                return detail
+            if attempt == 2:
+                outcome.recovery = (
+                    "source activation response unresolved; inspect its commit/status before retry"
+                )
+                raise GitOpsError("malformed Arcane source sync result", 3, ambiguous=True)
             outcome.recovery = "pull-retried-after-reconciliation"
             continue
         deadline = time.monotonic() + timeout
@@ -738,7 +716,7 @@ def _pull(
                 break
             time.sleep(min(1.0, timeout / 5))
         if attempt == 2:
-            outcome.recovery = "source pull failed; inspect its commit/status before retry"
+            outcome.recovery = "source activation failed; inspect its commit/status before retry"
             raise GitOpsError("Arcane source sync did not reach selected branch head", 1)
         outcome.recovery = "pull-retried-after-reconciliation"
     raise AssertionError("unreachable")
@@ -752,9 +730,11 @@ def _project(client: ArcaneWriter, project_id: str) -> dict[str, Any]:
 
 
 def _project_identity(
-    detail: dict[str, Any], sync_id: str, revision: str, service: str
+    detail: dict[str, Any], sync_id: str, revision: str | None, service: str
 ) -> tuple[str, int]:
-    if detail.get("gitOpsManagedBy") != sync_id or detail.get("lastSyncCommit") != revision:
+    if detail.get("gitOpsManagedBy") != sync_id or (
+        revision is not None and detail.get("lastSyncCommit") != revision
+    ):
         raise GitOpsError("Arcane project source identity mismatch", 1)
     path = detail.get("path")
     if (
@@ -989,10 +969,12 @@ def _deploy_failure_recovery(outcome: Outcome) -> str:
         return "cloudflared restart completed; post-restart verification failed; inspect runtime"
     if "redeploy-requested" in steps:
         return "redeploy requested; runtime verification incomplete; inspect exact project before retry"
+    if "source-synced" in steps:
+        return "source activated; runtime verification incomplete; inspect exact project before retry"
     if "environment-replaced" in steps:
-        return "environment replaced; redeploy not confirmed; inspect exact project before retry"
-    if steps & {"sync-created", "sync-repointed", "source-synced"}:
-        return "Arcane source state changed; environment replacement not confirmed; inspect before retry"
+        return "environment prepared; source activation not confirmed; inspect exact project before retry"
+    if "sync-repointed" in steps:
+        return "Arcane source branch changed; environment replacement not confirmed; inspect before retry"
     return "no write attempted"
 
 
@@ -1001,8 +983,10 @@ def _finalize_deploy_recovery(outcome: Outcome) -> None:
     steps = set(outcome.completed_steps)
     if "runtime-reconciled" in steps or "redeploy-requested" in steps:
         outcome.recovery = _deploy_failure_recovery(outcome)
-    elif "environment-replaced" in steps and not outcome.recovery.startswith(
-        "redeploy-outcome-ambiguous"
+    elif "environment-replaced" in steps and not (
+        outcome.recovery.startswith("redeploy-outcome-ambiguous")
+        or outcome.recovery.startswith("source activation")
+        or outcome.recovery.startswith("sync repoint")
     ):
         outcome.recovery = _deploy_failure_recovery(outcome)
     elif "source-synced" in steps and (
@@ -1011,7 +995,7 @@ def _finalize_deploy_recovery(outcome: Outcome) -> None:
         or "retried" in outcome.recovery
     ):
         outcome.recovery = _deploy_failure_recovery(outcome)
-    elif steps & {"sync-created", "sync-repointed"} and (
+    elif "sync-repointed" in steps and (
         outcome.recovery == "not-needed" or "reconciled" in outcome.recovery
     ):
         outcome.recovery = _deploy_failure_recovery(outcome)
@@ -1103,13 +1087,12 @@ def deploy_service(
         repository_id = _repository_id(client, origin)
         outcome.completed_steps.append("repository-selected")
         compose_path = f"compose/{service}/compose.yaml"
-        sync_id = _create_or_repoint_sync(
-            client, service, repository_id, branch, compose_path, outcome
+        sync, sync_id, project_id = _existing_sync(
+            client, service, repository_id, compose_path
         )
-        sync = _pull(client, sync_id, revision, timeout, outcome)
-        project_id = _identifier(sync.get("projectId"), "Arcane project identity unavailable")
+        outcome.completed_steps.append("activation-owner-verified")
         project = _project(client, project_id)
-        project_path, service_count = _project_identity(project, sync_id, revision, service)
+        project_path, _ = _project_identity(project, sync_id, None, service)
         content, key_count = _environment_bytes(service_inputs, age_key, timeout)
         host = _ssh_host(creds.url)
         try:
@@ -1118,9 +1101,7 @@ def deploy_service(
             if error.ambiguous:
                 outcome.recovery = "environment replacement outcome ambiguous; inspect the exact project .env before retry"
             else:
-                outcome.recovery = (
-                    "environment replacement failed after source sync; inspect the exact project"
-                )
+                outcome.recovery = "environment replacement failed; source activation was not requested"
             raise
         outcome.completed_steps.append("environment-replaced")
         outcome.detail.update(
@@ -1133,19 +1114,33 @@ def deploy_service(
         )
         if no_deploy:
             outcome.status = "success"
-            outcome.verification = "source-and-environment-only (--no-deploy)"
+            outcome.verification = "environment-prepared; source-not-activated (--no-deploy)"
             _emit(outcome, json_output=json_output, stdout=stdout)
             return 0
+        sync = _repoint_sync(
+            client,
+            service,
+            repository_id,
+            branch,
+            compose_path,
+            outcome,
+            sync_id,
+            sync,
+        )
+        sync = _pull(client, sync_id, revision, timeout, outcome)
+        if _identifier(sync.get("projectId"), "Arcane project identity unavailable") != project_id:
+            raise GitOpsError("Arcane project identity changed during source activation", 1)
+        outcome.completed_steps.append("source-sync-redeploy-accounted")
         try:
-            client.redeploy(f"/environments/{client.environment_id}/projects/{project_id}/redeploy")
+            client.redeploy(
+                f"/environments/{client.environment_id}/projects/{project_id}/redeploy"
+            )
         except GitOpsError as error:
             if error.ambiguous:
                 outcome.recovery = "redeploy-outcome-ambiguous; inspect before retry"
             raise
         outcome.completed_steps.append("redeploy-requested")
         _, expected_count = _wait_running(client, project_id, sync_id, revision, service, timeout)
-        if expected_count != service_count:
-            raise GitOpsError("remote running container set is partial or mismatched", 1)
         ids = _remote_containers(host, service, expected_count, timeout)
         if service == "cloudflared":
             # Restart only IDs returned by the exact Compose project label, after count reconciliation.

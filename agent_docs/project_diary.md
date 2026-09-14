@@ -80,6 +80,10 @@
 - A named Git branch is not source identity unless the deployed service inputs match that exact tree.
   P11 binds `compose.yaml`, `.env.git`, and `.env.sops` bytes and executable modes to the selected
   revision before any Arcane write and rejects dirty, untracked, symlinked, or mismatched inputs.
+- Arcane manual and scheduled Git Sync share an activation path that may redeploy a running project.
+  P11 therefore requires `autoSync=false` to be established and drained while old source and old
+  environment still agree, before a coupled revision is exposed. Deployment installs the selected
+  environment before its manual sync; `--no-deploy` never selects or activates source.
 - The unprivileged NixOS `aliammar` account is the construction filesystem/OS boundary. Native
   construction inherits its no-prompt Codex posture; self-root and authored self-merge are forbidden,
   and production authority remains governed separately by trust-tier contracts.
@@ -123,6 +127,9 @@
 - A service-scoped history commit is rollback context, not live deployment identity. A Git Sync
   verifier must receive the exact selected branch-head revision; rollback candidates stay on the
   separate recovery path.
+- Turning off a scheduler is not proof that admitted work stopped. When an API exposes no in-flight
+  lease state, migration needs a pre-change drain interval at least as long as the executor's maximum
+  run plus an observation of the still-coherent old revision/runtime.
 - A transition-wide verification architecture should be changed coherently rather than patched phase
   by phase. During an explicit test embargo, retain hard safety controls, disable unattended merge,
   record verification debt, and defer one replacement suite to the post-transition review.

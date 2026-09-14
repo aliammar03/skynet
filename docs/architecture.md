@@ -32,9 +32,12 @@ included — from a laptop and a phone hotspot.
 
 - **Deploy:** edit `compose/<svc>/` → PR → merge → `skynet deploy service <svc>` resolves the exact
   selected local branch head, verifies the Compose/environment inputs match that revision before
-  any Arcane write, materializes `.env` from `.env.git` + decrypted `.env.sops` over a stdin-only SSH
-  stream, and asks Arcane to reconcile. The command waits for complete Arcane and Docker runtime
-  health. Its opt-in `--gate` runs the separate packaged, report-only
+  any Arcane write, requires an existing unique sync with `autoSync=false`, materializes `.env` from
+  `.env.git` + decrypted `.env.sops` over a stdin-only SSH stream, then repoints and manually syncs
+  source before explicit redeploy and complete Arcane/Docker runtime health checks. Arcane's manual
+  sync can itself redeploy a running project; scheduled sync stays disabled. A legacy auto-sync
+  project must pass the deploy runbook's timed quiescence and old-revision/runtime check before
+  coupled changes are merged. Its opt-in `--gate` runs the separate packaged, report-only
   `skynet verify deployment <service> <full-revision>` check for exact revision identity, healthy
   project/container state, and declared ingress routes. Recovery is prepared with
   `skynet rollback service <svc> <deploy-commit> --prepare`; no path auto-rolls back. The retained

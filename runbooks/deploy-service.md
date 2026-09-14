@@ -22,6 +22,13 @@ automatically rolls back.
 - `compose/<service>/compose.yaml` is present, digest-pins every image, declares `env_file: .env`,
   has a healthcheck for every container, and keeps non-secret defaults in `.env.git` and secrets in
   `.env.sops`.
+- Before any source/environment-coupled revision is merged or exposed, migrate a legacy sync with
+  `autoSync=true` through the T2 Arcane interface: set `autoSync=false` while the old source and old
+  environment still agree. Verify the deployed Arcane version's maximum sync duration and wait at
+  least that long, never less than five minutes, then confirm that the project remains on the
+  expected old revision and its expected runtime. Disabling the control does not cancel an admitted
+  run. If the duration or old source/runtime cannot be verified, do not merge/expose the revision.
+  This one-time change uses no T3 access.
 
 ## Steps
 
@@ -52,30 +59,34 @@ content and executable modes to blobs in that selected commit. It fails closed i
 is missing from the worktree or differs in content or mode, if an extra local service input is
 present, or if any input is a symlink or not a regular file.
 
-The command then selects exactly one matching Arcane repository, service sync, and project. The sync
-must point to `compose/<service>/compose.yaml`, the selected branch, and the matching repository;
-`syncDirectory` and `autoSync` must both be true. A missing sync is created with the bounded default
-interval; an existing sync is only repointed when its branch differs. Missing, duplicate, malformed,
-or mismatched identities fail closed.
+The command then selects exactly one matching Arcane repository, existing service sync, and project.
+The sync must point to `compose/<service>/compose.yaml`, the matching repository, and have
+`syncDirectory=true` plus `autoSync=false`. These are preconditions: the command does not toggle
+scheduled sync. A missing sync or project is refused because this path cannot safely bootstrap a
+first activation.
 
-The selected source is pulled until Arcane reports the exact branch head. The package materializes
-the effective environment from the bound `.env.git` and optional `.env.sops` bytes: sops decrypts the
-selected encrypted bytes via stdin locally with `SOPS_AGE_KEY_FILE`, and plaintext crosses to the
-off-host project only through SSH stdin. A pinned writer replaces the exact project `.env`
-atomically, preserving the observed project owner and mode `0600`. No plaintext temporary file,
-argument, report, or transcript is used.
+The package first materializes the effective environment from the bound `.env.git` and optional
+`.env.sops` bytes: sops decrypts the selected encrypted bytes via stdin locally with
+`SOPS_AGE_KEY_FILE`, and plaintext crosses to the off-host project only through SSH stdin. A pinned
+writer replaces the exact project `.env` atomically, preserving the observed project owner and mode
+`0600`. No plaintext temporary file, argument, report, or transcript is used. Only after this write
+does normal deployment repoint the sync, if needed, and request its manual source sync. Arcane may
+redeploy an already-running project during that sync. The command always follows with an explicit
+bounded redeploy so environment-only changes are applied as well.
 
-Normal deployment consumes Arcane's bounded NDJSON redeploy stream and requires its terminal
-`done=true` success frame. Malformed, failed, or incomplete streams fail closed; progress frames and
-response bodies are not exposed. It then waits for the project to report `running` with equal
-positive service/running counts. It then inspects the exact Compose project over unprivileged SSH:
-the container set must be non-empty and count-equal, every container must be running, not restarting,
-and report `Health.Status=healthy`. A missing healthcheck is failure. For `cloudflared`, only the
-reconciled project container IDs are restarted, then the same Arcane/runtime checks and unchanged ID
-set are required.
+Manual source sync may redeploy a running project. The command's explicit redeploy consumes
+Arcane's bounded NDJSON stream and requires its terminal `done=true` success frame. Malformed,
+failed, or incomplete streams fail closed; progress frames and response bodies are not exposed. It
+then waits for the project to report `running` with equal positive service/running counts and
+inspects the exact Compose project over unprivileged SSH: the container set must be non-empty and
+count-equal, every container must be running, not restarting, and report `Health.Status=healthy`. A
+missing healthcheck is failure. For `cloudflared`, only the reconciled project container IDs are
+restarted, then the same Arcane/runtime checks and unchanged ID set are required.
 
-Use `--no-deploy` only when source sync and environment replacement are the intended scope. Its
-success means `source-and-environment-only (--no-deploy)`, not a healthy runtime.
+`--no-deploy` stops after atomically preparing the selected environment. It does not repoint the
+source branch, manually sync source, request a redeploy, or verify runtime. Its verification is
+`environment-prepared; source-not-activated (--no-deploy)`. Treat it as intermediate preparation;
+do not manually sync/redeploy the project before a normal packaged deployment completes.
 
 ### Optional P10 report-only gate
 
@@ -89,10 +100,10 @@ rollback.
 
 The result is truthful structured evidence. With `--json`, retain `status`, `source`,
 `completed_steps`, `verification`, `recovery`, `reason` when present, and non-secret `detail` fields.
-Sync creation, branch repoint, and source pull use at most three bounded attempts; ambiguous writes
-are reread and reconciled before retry. A failed/ambiguous outcome identifies what completed and what
-must be inspected before retrying. The command never implies that Arcane or a failed gate reverted
-the service.
+Branch repoint and source pull use at most three bounded attempts; ambiguous writes are reread and
+reconciled before retry. A failed/ambiguous outcome identifies what completed and what must be
+inspected before retrying. The command never implies that Arcane or a failed gate reverted the
+service.
 
 ## Verify
 

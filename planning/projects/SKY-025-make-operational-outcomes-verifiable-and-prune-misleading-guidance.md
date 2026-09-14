@@ -369,6 +369,18 @@ revision `f8072b3`, atomically replaced its 10-key environment as `1000:1000` mo
 Arcane's redeploy stream, reconciled one healthy container, and passed the report-only route gate with
 HTTP 200 and verified TLS. No root grant or T3 action occurred.
 
+The first external review returned FIX because Arcane source sync could redeploy a running project
+before the selected revision's environment was installed. The repair makes `autoSync=false` a
+standing precondition established and drained before a coupled revision is exposed, refuses unsafe
+initial-sync bootstrap, installs the bound environment before branch repoint/manual sync, and makes
+`--no-deploy` environment-only with no source activation. A disposable Arcane-equivalent OLD/OLD to
+NEW/NEW reproduction passed six deploy cases: normal activation observed NEW environment at both the
+manual-sync and explicit-redeploy boundaries; `--no-deploy`; enabled-auto-sync refusal before writes;
+failed sync; reconciled ambiguous sync; and unresolved ambiguity without false completion. The
+affected exact-revision, atomicity/redaction, timeout/process-tree, health, gate, cloudflared,
+rollback, forwarder, and package-closure checks also passed. The same PR remains pending a fresh
+external review.
+
 ## 6. Carry-forward correctness cases
 
 The original overhaul review identified these failure classes. Replacements must keep their safeguards
