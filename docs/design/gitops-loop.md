@@ -50,6 +50,12 @@ origin to the reported `source.repository`. The structured outcome always carrie
 `source.branch`, `source.revision`, and `source.repository`; retain these fields as the source
 identity for the operation.
 
+Before any Arcane write, deployment binds `compose.yaml`, `.env.git`, and optional `.env.sops`
+content and executable modes to blobs in that selected revision. A selected input missing from the
+worktree, changed in content or mode, or a local service input absent from the revision fails closed;
+all source paths must be non-symlink regular files. Environment materialization and Compose
+deployment consume these bound bytes, not a later worktree read.
+
 The Arcane write contract is exact and unique:
 
 - the normalized origin matches exactly one repository returned by
@@ -71,14 +77,17 @@ host is the Arcane URL hostname reached as `svc-ops`; the deploy path does not g
 
 ## Environment and runtime reconciliation
 
-The package reads regular, non-symlink `.env.git` and optional `.env.sops` files from the selected
-checkout. It runs `sops -d` locally with `SOPS_AGE_KEY_FILE` set to the local age-key path, then
-sends the effective bytes to the host only through the SSH process's stdin. Plaintext is not written
-to a local temporary file, command argument, or report. On the exact Arcane project path, a pinned
+The package materializes the environment from the already-bound `.env.git` and optional
+`.env.sops` bytes. It runs `sops -d` locally with `SOPS_AGE_KEY_FILE` set to the local age-key path
+and supplies the selected encrypted bytes over stdin; plaintext output stays in memory and is sent to
+the host only through the SSH process's stdin. Plaintext is not written to a local temporary file,
+command argument, or report. On the exact Arcane project path, a pinned
 BusyBox writer creates a same-directory temporary file, applies the observed project UID:GID,
 sets mode `0600`, and atomically renames it to `.env`; an owner or path mismatch is refused.
 
-After environment replacement, normal deployment requests the exact project redeploy and waits for
+After environment replacement, normal deployment consumes Arcane's redeploy response as a bounded
+NDJSON stream. It requires one terminal `done=true` frame, rejects malformed, failed, or incomplete
+streams, and never exposes progress frames or response bodies. It then waits for
 `status=running` with `runningCount=serviceCount`. It then observes the exact Compose project label
 over SSH: the container set must be non-empty and count-equal, every container must be
 `Running=true`, `Restarting=false`, and report `Health.Status=healthy`. Missing health is failure,

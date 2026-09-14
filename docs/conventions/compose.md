@@ -68,7 +68,9 @@ compose/<svc>/
 - `skynet deploy service <svc>` **materialises** the effective `.env` = `.env.git` + `sops -d
   .env.sops`. Decryption runs on the ops VM; plaintext crosses to the exact Arcane project only
   through SSH stdin, where a pinned writer atomically replaces `.env` with mode `0600`. The age key
-  never leaves the ops VM. Full flow: `compose/README.md` and
+  never leaves the ops VM. Before any Arcane write, deployment binds `compose.yaml`, `.env.git`, and
+  optional `.env.sops` bytes and executable modes to the selected Git revision; mismatched or unsafe
+  worktree inputs fail closed. Full flow: `compose/README.md` and
   [`../design/secrets.md`](../design/secrets.md).
 
 ## The loop

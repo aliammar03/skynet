@@ -49,11 +49,14 @@ Each service's reproducible environment has two repository inputs:
 - **`.env.sops`** — secret assignments encrypted to the lab age recipient; optional when no secrets
   are needed.
 
-The effective `.env` is not Arcane's `project.env` layer. `skynet deploy service` reads the two
-inputs from the selected checkout, runs `sops -d --input-type dotenv --output-type dotenv` on
-vm-skynet-ops with `SOPS_AGE_KEY_FILE`, and concatenates the bounded output in memory. Plaintext is
-sent to the off-host project only through the SSH command's stdin; it is never placed in a local
-temporary file, command argument, log, or JSON outcome. The age key stays on vm-skynet-ops.
+The effective `.env` is not Arcane's `project.env` layer. Before any Arcane write,
+`skynet deploy service` binds `compose.yaml`, `.env.git`, and optional `.env.sops` bytes and
+executable modes to the selected Git revision. Changed or missing selected inputs, extra local
+service inputs, symlinks, and non-regular files fail closed. Sops receives the selected `.env.sops`
+bytes over stdin and runs locally on
+vm-skynet-ops with `SOPS_AGE_KEY_FILE`; the bounded plaintext output is concatenated in memory.
+Plaintext is sent to the off-host project only through the SSH command's stdin; it is never placed in
+a local temporary file, command argument, log, or JSON outcome. The age key stays on vm-skynet-ops.
 
 The remote writer is constrained to the exact Arcane project path
 `/opt/docker/arcane-projects/<service>`. It verifies the path's numeric owner, uses a pinned BusyBox

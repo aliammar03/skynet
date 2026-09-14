@@ -33,10 +33,12 @@ root grants, and never-standing T3 access; a construction worker has no producti
   packaged cache/query module builds a disposable, validated 14-table SQLite projection for SQL
   views and ad-hoc queries; it is never authority.
 - Arcane reconciles Compose changes through Git Sync. `skynet deploy service` is the packaged write
-  owner: it reports the exact selected local branch head and normalized repository, validates unique
-  Arcane repository/sync/project identity, materializes `.env` via stdin-only SSH and atomic 0600
-  replacement, and requires complete project/container health. Its opt-in `--gate` runs the separate
-  report-only P10 verifier for exact revision and DMZ/TLS routes. `skynet rollback service` is
+  owner: it reports the exact selected branch head and normalized repository, binds
+  Compose/environment bytes and executable modes to that revision before Arcane writes, validates
+  unique Arcane repository/sync/project identity, materializes `.env` via stdin-only SSH and atomic
+  0600 replacement, and requires complete project/container health. Its opt-in `--gate` runs the
+  separate report-only P10 verifier for exact revision and DMZ/TLS routes. A live deploy plus gate
+  has passed for `librespeed`; PR #259 still awaits fresh review. `skynet rollback service` is
   report-only by default and can prepare an isolated reviewed inverse; neither path auto-rolls back.
   The old shell names are temporary compatibility forwarders for P22.
 - The generated digest is optional recent-activity/episodic/open-thread retrieval and the context map

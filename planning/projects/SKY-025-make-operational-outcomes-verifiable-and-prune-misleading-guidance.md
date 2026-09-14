@@ -362,11 +362,12 @@ legacy shell names are thin forwarders for P22 removal.
 **Exit evidence:** the independent Tester passed disposable success, failure, malformed/partial,
 ambiguous-write, timeout/process-tree, environment, cloudflared, gate, rollback, CLI-forwarder, and
 package-closure cases after focused repairs. Ruff, strict mypy, Python compilation, shell syntax,
-offline Nix build, hard invariants, secret scan, and diff checks pass under the test/CI embargo. An
-approved live `librespeed` source-pull smoke used the standing T2 Arcane path and failed closed before
-environment replacement or redeploy because Arcane's registered Git repository credential was
-rejected by GitHub; successful live deployment remains unavailable evidence until that external
-credential is repaired through its authorized boundary.
+offline Nix build, hard invariants, secret scan, and diff checks pass under the test/CI embargo. The
+registered Arcane GitHub credential was repaired without exposing or persisting its value, and
+Arcane's connection test passed. An approved live `librespeed` run then selected/synced exact `main`
+revision `f8072b3`, atomically replaced its 10-key environment as `1000:1000` mode `0600`, consumed
+Arcane's redeploy stream, reconciled one healthy container, and passed the report-only route gate with
+HTTP 200 and verified TLS. No root grant or T3 action occurred.
 
 ## 6. Carry-forward correctness cases
 

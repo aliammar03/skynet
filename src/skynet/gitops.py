@@ -273,6 +273,63 @@ def _local_source(repo: Path, branch: str, timeout: float) -> tuple[str, str]:
     return revision, _normalize_repository(origin)
 
 
+def _revision_blob(
+    repo: Path, revision: str, relative: str, timeout: float
+) -> tuple[bytes, bool] | None:
+    listing = _run(
+        ["git", "-C", str(repo), "ls-tree", "-z", revision, "--", relative],
+        timeout,
+        reason="selected revision service inputs unavailable",
+    ).stdout
+    if not listing:
+        return None
+    if not listing.endswith(b"\0") or listing.count(b"\0") != 1:
+        raise GitOpsError("malformed selected revision service input", 3)
+    try:
+        metadata, observed = listing[:-1].split(b"\t", 1)
+        mode, kind, object_id = metadata.decode("ascii").split()
+        observed_path = observed.decode("utf-8")
+    except (UnicodeError, ValueError):
+        raise GitOpsError("malformed selected revision service input", 3) from None
+    if (
+        observed_path != relative
+        or kind != "blob"
+        or mode not in {"100644", "100755"}
+        or not re.fullmatch(r"[0-9a-f]{40,64}", object_id)
+    ):
+        raise GitOpsError("selected revision service input is not a regular file", 2)
+    content = _run(
+        ["git", "-C", str(repo), "cat-file", "blob", object_id],
+        timeout,
+        reason="selected revision service input unavailable",
+    ).stdout
+    return content, mode == "100755"
+
+
+def _bind_service_inputs(
+    repo: Path, service_dir: Path, service: str, revision: str, timeout: float
+) -> dict[str, bytes]:
+    """Bind deploy bytes to the selected revision before any Arcane mutation."""
+    bound: dict[str, bytes] = {}
+    for name, required in (("compose.yaml", True), (".env.git", False), (".env.sops", False)):
+        relative = f"compose/{service}/{name}"
+        selected = _revision_blob(repo, revision, relative, timeout)
+        local = service_dir / name
+        present = _regular_source(local, required=required or selected is not None)
+        if selected is None:
+            if present:
+                raise GitOpsError("untracked service input is absent from selected revision", 2)
+            continue
+        if not present:
+            raise GitOpsError("selected revision service input is absent from worktree", 2)
+        local_bytes, local_executable = _read_regular_source(local)
+        selected_bytes, selected_executable = selected
+        if local_bytes != selected_bytes or local_executable != selected_executable:
+            raise GitOpsError("worktree service input differs from selected revision", 2)
+        bound[name] = local_bytes
+    return bound
+
+
 def _normalize_repository(value: str) -> str:
     value = value.removesuffix(".git").rstrip("/")
     if value.startswith("git@") and ":" in value:
@@ -367,6 +424,74 @@ class ArcaneWriter:
 
     def get(self, path: str) -> Any:
         return self.request("GET", path)
+
+    def redeploy(self, path: str) -> None:
+        """Consume Arcane v2's bounded NDJSON redeploy stream without exposing its body."""
+        parsed = urllib.parse.urlsplit(self.url)
+        if parsed.hostname is None:
+            raise GitOpsError("invalid Arcane write endpoint", 3)
+        if parsed.scheme == "https":
+            connection: http.client.HTTPConnection = http.client.HTTPSConnection(
+                parsed.hostname, parsed.port, timeout=self.timeout, context=self.tls_context
+            )
+        else:
+            connection = http.client.HTTPConnection(
+                parsed.hostname, parsed.port, timeout=self.timeout
+            )
+        base_path = parsed.path.rstrip("/")
+        target = f"{base_path}/api{path}"
+        deadline = time.monotonic() + self.timeout
+        raw = bytearray()
+        try:
+            connection.request(
+                "POST",
+                target,
+                headers={
+                    self.auth_header: self.token,
+                    "Accept": "application/x-ndjson",
+                },
+            )
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError
+            if connection.sock is not None:
+                connection.sock.settimeout(remaining)
+            response = connection.getresponse()
+            if response.status < 200 or response.status >= 300:
+                raise GitOpsError("Arcane redeploy outcome is ambiguous", 3, ambiguous=True)
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError
+                if connection.sock is not None:
+                    connection.sock.settimeout(remaining)
+                chunk = response.read(min(8192, MAX_RESPONSE + 1 - len(raw)))
+                if not chunk:
+                    break
+                raw.extend(chunk)
+                if len(raw) > MAX_RESPONSE:
+                    raise GitOpsError("Arcane redeploy response exceeded bound", 3, ambiguous=True)
+        except GitOpsError:
+            raise
+        except (OSError, http.client.HTTPException, TimeoutError, ValueError):
+            raise GitOpsError("Arcane redeploy outcome is ambiguous", 3, ambiguous=True) from None
+        finally:
+            connection.close()
+        try:
+            text = bytes(raw).decode("utf-8")
+            lines = text.splitlines()
+            if not lines or any(not line for line in lines):
+                raise ValueError
+            frames = [json.loads(line) for line in lines]
+        except (UnicodeError, ValueError):
+            raise GitOpsError("malformed Arcane redeploy stream", 3, ambiguous=True) from None
+        if any(not isinstance(frame, dict) for frame in frames):
+            raise GitOpsError("malformed Arcane redeploy stream", 3, ambiguous=True)
+        if any("error" in frame for frame in frames):
+            raise GitOpsError("Arcane redeploy stream reported an error", 1, ambiguous=True)
+        terminals = [index for index, frame in enumerate(frames) if frame.get("done") is True]
+        if terminals != [len(frames) - 1]:
+            raise GitOpsError("Arcane redeploy stream missing terminal success", 3, ambiguous=True)
 
 
 def _identifier(value: Any, reason: str) -> str:
@@ -649,24 +774,21 @@ def _project_identity(
     return path, service_count
 
 
-def _environment_bytes(service_dir: Path, age_key: Path, timeout: float) -> tuple[bytes, int]:
+def _environment_bytes(
+    inputs: dict[str, bytes], age_key: Path, timeout: float
+) -> tuple[bytes, int]:
     chunks: list[bytes] = []
-    plain = service_dir / ".env.git"
-    encrypted = service_dir / ".env.sops"
-    if _regular_source(plain):
-        try:
-            value = plain.read_bytes()
-        except OSError:
-            raise GitOpsError("service environment source unavailable", 3) from None
-        if len(value) > MAX_OUTPUT:
-            raise GitOpsError("service environment source exceeded bound", 3)
+    value = inputs.get(".env.git")
+    if value is not None:
         chunks.append(value.rstrip(b"\n") + b"\n")
-    if _regular_source(encrypted):
+    encrypted = inputs.get(".env.sops")
+    if encrypted is not None:
         env = os.environ.copy()
         env["SOPS_AGE_KEY_FILE"] = str(age_key)
         result = _run(
-            ["sops", "-d", "--input-type", "dotenv", "--output-type", "dotenv", str(encrypted)],
+            ["sops", "-d", "--input-type", "dotenv", "--output-type", "dotenv", "/dev/stdin"],
             timeout,
+            input_bytes=encrypted,
             reason="service secrets could not be decrypted",
             env=env,
         )
@@ -695,6 +817,36 @@ def _regular_source(path: Path, *, required: bool = False) -> bool:
     if not stat.S_ISREG(mode):
         raise GitOpsError("service source must be a non-symlink regular file", 2)
     return True
+
+
+def _read_regular_source(path: Path) -> tuple[bytes, bool]:
+    """Read one bounded regular file through a no-follow descriptor."""
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError:
+        raise GitOpsError("worktree service input unavailable", 3) from None
+    try:
+        source_stat = os.fstat(descriptor)
+        if not stat.S_ISREG(source_stat.st_mode):
+            raise GitOpsError("service source must be a non-symlink regular file", 2)
+        if source_stat.st_size > MAX_OUTPUT:
+            raise GitOpsError("worktree service input exceeded bound", 3)
+        chunks: list[bytes] = []
+        retained = 0
+        while True:
+            chunk = os.read(descriptor, min(8192, MAX_OUTPUT + 1 - retained))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            retained += len(chunk)
+            if retained > MAX_OUTPUT:
+                raise GitOpsError("worktree service input exceeded bound", 3)
+        return b"".join(chunks), bool(source_stat.st_mode & 0o111)
+    except OSError:
+        raise GitOpsError("worktree service input unavailable", 3) from None
+    finally:
+        os.close(descriptor)
 
 
 def _regular_directory(path: Path) -> None:
@@ -936,8 +1088,8 @@ def deploy_service(
         service_dir = repo / "compose" / service
         _regular_directory(repo / "compose")
         _regular_directory(service_dir)
-        _regular_source(service_dir / "compose.yaml", required=True)
         revision, origin = _local_source(repo, branch, timeout)
+        service_inputs = _bind_service_inputs(repo, service_dir, service, revision, timeout)
         outcome.source = {"branch": branch, "revision": revision, "repository": origin}
         creds = deployment.credentials(credentials_file, environment_id=environment_id)
         client = ArcaneWriter(
@@ -958,7 +1110,7 @@ def deploy_service(
         project_id = _identifier(sync.get("projectId"), "Arcane project identity unavailable")
         project = _project(client, project_id)
         project_path, service_count = _project_identity(project, sync_id, revision, service)
-        content, key_count = _environment_bytes(service_dir, age_key, timeout)
+        content, key_count = _environment_bytes(service_inputs, age_key, timeout)
         host = _ssh_host(creds.url)
         try:
             owner = _write_environment(host, project_path, content, timeout)
@@ -985,9 +1137,7 @@ def deploy_service(
             _emit(outcome, json_output=json_output, stdout=stdout)
             return 0
         try:
-            client.request(
-                "POST", f"/environments/{client.environment_id}/projects/{project_id}/redeploy"
-            )
+            client.redeploy(f"/environments/{client.environment_id}/projects/{project_id}/redeploy")
         except GitOpsError as error:
             if error.ambiguous:
                 outcome.recovery = "redeploy-outcome-ambiguous; inspect before retry"

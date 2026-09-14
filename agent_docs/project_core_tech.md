@@ -69,10 +69,13 @@ the internal/public service path.
   evidence, complete equal positive project/Docker counts, running healthy containers, and complete
   canonical routes probed from the Docker DMZ network with verified TLS. It has no deploy or rollback
   write path; the route probe only creates/removes an ephemeral pinned image container.
-- `skynet deploy service` owns source selection, unique Arcane repository/sync/project validation,
-  stdin-only off-host environment delivery, atomic remote 0600 replacement, bounded
-  reconciliation/retries, complete runtime health, and the bounded `cloudflared` restart. It
-  reports exact local branch/revision/repository identity. Its opt-in `--gate` runs the separate
+- `skynet deploy service` owns source selection and binds service bytes/modes to the exact revision
+  before Arcane writes; changed or missing selected inputs, extra local service inputs, symlinks,
+  and non-regular files fail closed. It owns
+  unique Arcane repository/sync/project validation, stdin-only off-host environment delivery,
+  atomic remote 0600 replacement, bounded reconciliation/retries, terminal-success NDJSON redeploy
+  handling, complete runtime health, and the bounded `cloudflared` restart. It reports exact local
+  branch/revision/repository identity. Its opt-in `--gate` runs the separate
   report-only packaged verifier. `skynet rollback service` is report-only by default and can prepare
   an isolated reviewed inverse; it refuses protected or mixed-project changes and never pushes or
   merges. `gitops-deploy.sh` and `gitops-rollback.sh` are temporary compatibility forwarders for

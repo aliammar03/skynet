@@ -74,6 +74,12 @@
 - A timed-out or otherwise ambiguous Arcane/source/environment write is reread before retry and remains
   an explicit inspect-before-retry recovery state when it cannot be reconciled. Completed write steps
   are not collapsed into a generic failure.
+- Arcane project redeploy is a streamed NDJSON operation rather than an ordinary API envelope. The
+  deploy owner requires a bounded, valid stream ending in one terminal success frame; transport,
+  malformed, error, or missing-terminal outcomes stay ambiguous until runtime is observed.
+- A named Git branch is not source identity unless the deployed service inputs match that exact tree.
+  P11 binds `compose.yaml`, `.env.git`, and `.env.sops` bytes and executable modes to the selected
+  revision before any Arcane write and rejects dirty, untracked, symlinked, or mismatched inputs.
 - The unprivileged NixOS `aliammar` account is the construction filesystem/OS boundary. Native
   construction inherits its no-prompt Codex posture; self-root and authored self-merge are forbidden,
   and production authority remains governed separately by trust-tier contracts.

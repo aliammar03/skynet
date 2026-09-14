@@ -45,8 +45,9 @@ recovery procedures.
   repository scripts do not establish freshness.
   Collectors never claim service health merely from collection success.
 - `skynet deploy service <service>` is the packaged deployment owner. It resolves and reports an
-  exact local branch head/repository, validates unique Arcane contracts, delivers the environment
-  over SSH stdin with atomic remote 0600 replacement, and requires complete runtime health. Its
+  exact local branch head/repository, binds service files to that revision before Arcane writes,
+  validates unique Arcane contracts, delivers the environment over SSH stdin with atomic remote
+  0600 replacement, and requires complete runtime health. Its
   optional `--gate` invokes the separate report-only `skynet verify deployment <service>
   <full-revision>` observer (exact revision, complete counts/health, canonical DMZ/TLS routes).
   `skynet rollback service` is report-only by default; `--prepare` creates an isolated review branch

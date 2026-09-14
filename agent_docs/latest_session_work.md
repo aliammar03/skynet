@@ -39,16 +39,16 @@ unless explicitly asked to prepare an isolated local review branch; it never pus
   after five focused defects were repaired.
 - Ruff, strict mypy, Python compile, shell syntax, offline Nix package build, secret scan, hard
   invariants, and diff checks passed under the test/CI embargo.
-- The approved live T2 smoke targeted only `librespeed` on `vm-docker-dmz`. Both source and Nix-package
-  entry paths failed closed at Arcane source pull because the registered GitHub repository credential
-  was rejected; no `.env` replacement, redeploy, restart, rollback branch, root grant, or T3 action
-  occurred.
+- The registered Arcane GitHub credential was updated from the authenticated local GitHub CLI without
+  printing or persisting its value; Arcane's repository connection test passed. The approved live T2
+  `librespeed` run then synced exact `main` revision `f8072b3`, atomically replaced its 10-key
+  environment as `1000:1000` mode `0600`, consumed the redeploy operation stream, reconciled one
+  healthy container, and passed the P10 route gate with HTTP 200 and verified TLS. No root grant or T3
+  action occurred.
 
 ## Pending Work and Blockers
 
 - P11 PR #259 must be reviewed in a fresh session before acceptance.
-- Successful live deployment evidence is blocked by Arcane's rejected GitHub repository credential;
-  changing that credential is outside this phase's authorized scope.
 - Automated regression protection remains intentionally unavailable until the post-SKY-025 redesign.
 
 ## Next Entry Point

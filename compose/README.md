@@ -100,9 +100,12 @@ only applies to Arcane's *non-GitOps* projects. A GitOps project just runs `dock
 against whatever `.env` is on disk.
 
 So `skynet deploy service` **materialises** the effective `.env` = `.env.git` + `sops -d .env.sops`.
-Sops runs on vm-skynet-ops and sends plaintext to the exact project only over the SSH process's
-stdin; it is not written to a local temporary file. A pinned writer atomically replaces the remote
-`.env`, owned by the observed project UID:GID and mode `0600`. Every service still declares
+Before any Arcane write, it binds `compose.yaml`, `.env.git`, and optional `.env.sops` content and
+executable modes to the selected local Git revision; missing or changed selected inputs, extra local
+service inputs, symlinks, and non-regular files fail closed. Sops runs on vm-skynet-ops against the
+selected encrypted bytes via stdin and sends plaintext to the exact project only over the SSH
+process's stdin; it is not written to a local temporary file. A pinned writer atomically replaces
+the remote `.env`, owned by the observed project UID:GID and mode `0600`. Every service still declares
 `env_file: .env` so those values reach it. Arcane leaves a populated `.env` untouched on re-sync;
 auto-sync only redeploys already-running projects (a stopped one updates on next manual start).
 

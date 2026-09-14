@@ -22,10 +22,12 @@ automatic authored inverse, so it is not A4 eligible.
 | NixOS deployment | deploy-rs / `nixos-rebuild` | deploy-rs magic rollback | Activation health check | Yes |
 | OPNsense config | No live actuator | None | — | No |
 
-The packaged Compose deployment validates one exact local branch-head identity, Arcane repository/
-sync/project identity, source pull, environment replacement, and complete runtime health. Sync
-creation, branch repoint, and source pull are bounded and reconcile an ambiguous write before retry,
-with at most three attempts each. A failed or ambiguous stage reports completed steps,
+The packaged Compose deployment binds service source bytes and executable modes to one exact local
+branch-head identity before any Arcane write, then validates Arcane repository/sync/project identity,
+source pull, environment replacement, and complete runtime health. Redeploy succeeds only after its
+bounded NDJSON stream ends with a terminal success frame. Sync creation, branch repoint, and source
+pull are bounded and reconcile an ambiguous write before retry, with at most three attempts each. A
+failed or ambiguous stage reports completed steps,
 `verification`, and `recovery`; it never implies that an earlier write was undone. `cloudflared`
 restart is limited to the reconciled container IDs and is followed by the same health checks.
 

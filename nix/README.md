@@ -69,11 +69,13 @@ Every PR, including generated-only nightly work, is human-merged during the emba
 
 `skynet deploy service <service>` is the packaged Arcane GitOps deployment owner. It resolves the
 exact local 40-hex head of `GITOPS_BRANCH` or `--branch` (default `main`), reports its branch,
-revision, and normalized repository identity, validates one exact Arcane repository/sync/project,
-materializes `.env` from `.env.git` plus local sops decryption over an SSH stdin stream, atomically
-replaces the exact remote `.env` with mode `0600`, redeploys, and requires complete positive
-Arcane/Docker counts with every container running, non-restarting, and healthy. `cloudflared`
-restarts only its reconciled project container IDs and is checked again.
+revision, and normalized repository identity, and binds the service Compose/environment bytes and
+executable modes to that revision before any Arcane write. It validates one exact Arcane
+repository/sync/project, materializes `.env` from the bound `.env.git` plus sops decryption via
+stdin, atomically replaces the exact remote `.env` with mode `0600`, requires terminal success from
+Arcane's bounded NDJSON redeploy stream, and checks complete positive Arcane/Docker counts with
+every container running, non-restarting, and healthy. `cloudflared` restarts only its reconciled
+project container IDs and is checked again.
 
 `skynet verify deployment <service> <full-revision>` is the separate packaged, report-only P10
 observer. It matches the exact revision in Arcane Git Sync and project observations, requires

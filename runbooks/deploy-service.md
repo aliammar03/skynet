@@ -47,6 +47,11 @@ The default checkout is the current directory. Without `--branch`, the command u
 and normalized Git `source.repository`. Keep that identity with the deployment evidence; do not
 substitute a short SHA, remote label, or a later branch head.
 
+Before any Arcane write, the command binds `compose.yaml`, `.env.git`, and optional `.env.sops`
+content and executable modes to blobs in that selected commit. It fails closed if a selected input
+is missing from the worktree or differs in content or mode, if an extra local service input is
+present, or if any input is a symlink or not a regular file.
+
 The command then selects exactly one matching Arcane repository, service sync, and project. The sync
 must point to `compose/<service>/compose.yaml`, the selected branch, and the matching repository;
 `syncDirectory` and `autoSync` must both be true. A missing sync is created with the bounded default
@@ -54,12 +59,15 @@ interval; an existing sync is only repointed when its branch differs. Missing, d
 or mismatched identities fail closed.
 
 The selected source is pulled until Arcane reports the exact branch head. The package materializes
-the effective environment from `.env.git` and optional `.env.sops`: sops decrypts locally with
-`SOPS_AGE_KEY_FILE`, and plaintext crosses to the off-host project only through SSH stdin. A pinned
-writer replaces the exact project `.env` atomically, preserving the observed project owner and mode
-`0600`. No plaintext temporary file, argument, report, or transcript is used.
+the effective environment from the bound `.env.git` and optional `.env.sops` bytes: sops decrypts the
+selected encrypted bytes via stdin locally with `SOPS_AGE_KEY_FILE`, and plaintext crosses to the
+off-host project only through SSH stdin. A pinned writer replaces the exact project `.env`
+atomically, preserving the observed project owner and mode `0600`. No plaintext temporary file,
+argument, report, or transcript is used.
 
-Normal deployment requests a redeploy and waits for the project to report `running` with equal
+Normal deployment consumes Arcane's bounded NDJSON redeploy stream and requires its terminal
+`done=true` success frame. Malformed, failed, or incomplete streams fail closed; progress frames and
+response bodies are not exposed. It then waits for the project to report `running` with equal
 positive service/running counts. It then inspects the exact Compose project over unprivileged SSH:
 the container set must be non-empty and count-equal, every container must be running, not restarting,
 and report `Health.Status=healthy`. A missing healthcheck is failure. For `cloudflared`, only the
