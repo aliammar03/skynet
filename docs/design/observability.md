@@ -91,12 +91,14 @@ unprobed success.
 
 Verification never deploys, restarts, rolls back, edits Git, or changes persistent Arcane/Docker
 configuration. A routed probe creates and removes one ephemeral container and may pull/cache the
-pinned image. Deployment source selection, sync/retry/wait behavior, environment materialization,
-redeploy/restart, and rollback preparation remain owned by the GitOps deployment and recovery
-procedures. When `gitops-deploy.sh --gate` is used, it resolves the exact local head of the selected
-`GITOPS_BRANCH` (default `main`) and passes that revision through the compatibility
-`scripts/deploy-gate.sh`; recovery instead supplies a separate authored `<deploy-commit>` to
-`gitops-rollback.sh --prepare`.
+pinned image. Deployment source selection, sync/retry/wait behavior, secure environment
+materialization, redeploy/restart, and rollback preparation belong to the packaged
+`skynet deploy service` and `skynet rollback service` procedures. The retained shell names are
+temporary compatibility forwarders for P22 removal. Deployment reports the exact local branch head
+and normalized repository identity it selected; the verifier accepts a separate expected revision.
+The deploy command's optional `--gate` runs this observer after runtime reconciliation; it is a
+separate report-only P10 check and cannot trigger rollback. Recovery preparation instead supplies a
+separate authored `<deploy-commit>` to `skynet rollback service --prepare`.
 
 ## Episodic memory — see the memory spoke
 

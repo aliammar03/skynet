@@ -4,7 +4,7 @@ title: Rebuild the Skynet engine in Python
 status: in-progress
 horizon: long
 created: 2026-09-06
-updated: 2026-09-13
+updated: 2026-09-15
 phases: 24
 current_phase: 10
 tier_touched: [T1, T2, T2+, T3]
@@ -24,8 +24,9 @@ related:
 
 Accepted numbered progress is **P10 / 10 of 24**. Architecture checkpoint **G3** is complete.
 
-**Current action:** P10 is externally accepted and its bounded closeout is staged on PR **#257**.
-Ali must human-merge that PR once; after it lands, P11 is the next authorized implementation packet.
+**Current action:** P11 implementation is ready on `phase/sky-025-p11-deploy` and pending fresh
+external review. Accepted progress remains P10 until the P11 review records ACCEPT and the original
+session performs bounded closeout on the same PR.
 
 ## 2. Mandate and boundaries
 
@@ -132,8 +133,8 @@ immediately returns to the normal lifecycle above.
 | 7 | Heavy | Omada + certs + routes + recon | accepted |
 | 8 | Heavy | Entity derivation/audit + rebuildable SQLite cache/query | accepted |
 | 9 | Medium | Docs/digest/context/catalog rendering + journal/recall helpers | accepted; G3 |
-| 10 | Heavy | Deployment health + reachability verification | accepted; bounded closeout staged on PR #257 |
-| 11 | Heavy | Arcane deploy/env/sync + rollback preparation | next after PR #257 merges; exact source + truthful failures |
+| 10 | Heavy | Deployment health + reachability verification | accepted and human-merged on PR #257 |
+| 11 | Heavy | Arcane deploy/env/sync + rollback preparation | implementation ready; pending fresh review |
 | 12 | Heavy | Publishing: Caddy/Auth/DNS coordination | correct vantages + auth paths |
 | 13 | Medium | Saved-plan parsing + scope/action/exclusion policy | unsafe plans refused pre-write |
 | 14 | Medium | Snapshot/apply/task completion + partial failure recovery | G4 |
@@ -341,8 +342,31 @@ P10 implementation evidence recorded before fresh review:
 
 **P10 closeout:** the newest applicable acceptance marker records ACCEPT for reviewed base `c800d58`
 and reviewed head `48b62c1`. The original session validated that pair against the open PR, advanced
-`current_phase: 10`, and staged bounded closeout on the same PR. Ali human-merges PR #257 once; P11 is
-the next implementation packet after that merge.
+`current_phase: 10`, and staged bounded closeout on the same PR. PR #257 was subsequently human-merged.
+
+## 5c. Current P11 packet
+
+### Phase 11 — Arcane deploy/env/sync + rollback preparation
+
+**Status:** implementation ready on `phase/sky-025-p11-deploy`; pending fresh external review.
+
+**Recommended Main:** Heavy. One P11 branch/PR owns the complete numbered phase.
+
+**Outcome:** the packaged `skynet deploy service` command now owns exact local branch-head selection,
+unique Arcane repository/sync/project reconciliation, stdin-only environment materialization with an
+atomic remote `0600` replacement, bounded source-write reconciliation, complete runtime health, and
+the opt-in report-only P10 gate. `skynet rollback service` separately validates or prepares an
+isolated human-reviewed revert branch and never pushes, merges, or automatically rolls back. The two
+legacy shell names are thin forwarders for P22 removal.
+
+**Exit evidence:** the independent Tester passed disposable success, failure, malformed/partial,
+ambiguous-write, timeout/process-tree, environment, cloudflared, gate, rollback, CLI-forwarder, and
+package-closure cases after focused repairs. Ruff, strict mypy, Python compilation, shell syntax,
+offline Nix build, hard invariants, secret scan, and diff checks pass under the test/CI embargo. An
+approved live `librespeed` source-pull smoke used the standing T2 Arcane path and failed closed before
+environment replacement or redeploy because Arcane's registered Git repository credential was
+rejected by GitHub; successful live deployment remains unavailable evidence until that external
+credential is repaired through its authorized boundary.
 
 ## 6. Carry-forward correctness cases
 
@@ -380,8 +404,9 @@ require operation-specific recovery evidence, not blind `git revert`.
 Read planning/prompts/execute.md and execute the next authorized SKY-025 packet.
 ```
 
-After PR #257 is human-merged once, the next invocation executes P11. Later invocations execute only
-the next packet released by this directive's numbered progress and review state.
+The current invocation publishes the implementation-ready P11 PR and stops. The next invocation is a
+fresh external review of that open PR; later implementation invocations execute only the packet
+released by this directive's numbered progress and durable review state.
 
 ### Review a normal open PR
 

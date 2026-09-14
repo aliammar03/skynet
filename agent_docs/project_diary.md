@@ -67,7 +67,13 @@
   declared routes from the DMZ vantage with verified TLS. Deployment, retry, and recovery remain P11.
 - SKY-025 P10 is externally accepted on reviewed base `c800d58` and head `48b62c1`. The original
   session validated the newest applicable ACCEPT marker after the earlier FIX marker, advanced accepted
-  progress to 10/24, and staged only bounded closeout on PR #257; one human merge remains before P11.
+  progress to 10/24, and staged only bounded closeout on PR #257; that PR was subsequently human-merged.
+- P11 separates three identities: the exact selected local branch head is deployment source, the P10
+  verifier receives that full revision, and recovery receives the authored deploy commit to invert.
+  Packaged deploy never guesses one identity from another and packaged rollback never pushes or merges.
+- A timed-out or otherwise ambiguous Arcane/source/environment write is reread before retry and remains
+  an explicit inspect-before-retry recovery state when it cannot be reconciled. Completed write steps
+  are not collapsed into a generic failure.
 - The unprivileged NixOS `aliammar` account is the construction filesystem/OS boundary. Native
   construction inherits its no-prompt Codex posture; self-root and authored self-merge are forbidden,
   and production authority remains governed separately by trust-tier contracts.

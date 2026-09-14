@@ -43,16 +43,19 @@ grep -R image compose/<svc>/                            # pinned image in git
 | lastSync old / never | Git Sync paused, or wrong branch tracked | check the sync is enabled and tracks `main` |
 | synced OK, image not applied | compose invalid, or image pull failed | `docker` events/logs on the host; the pin exists? |
 | synced, container up, still wrong | **drift** — a manual change on the host | reconcile it back into `compose/` (it's an orphan) |
-| env-dependent failure | wrapper materialization — `.env.git` + decrypted `.env.sops` → effective `.env` | [secrets](../../docs/design/secrets.md); did `gitops-deploy.sh` write it? |
+| env-dependent failure | packaged materialization — `.env.git` + decrypted `.env.sops` → effective `.env` | [secrets](../../docs/design/secrets.md); did `skynet deploy service` replace the exact project `.env`? |
 | PR "merged" but not on `main` | merged to the wrong base / not merged | fix the merge; Arcane only tracks `main` |
 
 ### Fix declaratively
 
-Make **git** correct — fix the compose, the pin, or the env layer → branch → PR → Ali merges → Arcane
-polls, pulls, reconciles (project stays read-only in the UI). Verify health via the Arcane API /
-`docker context`, then commit refreshed inventory. Rollback is `git revert`; Arcane converges back.
-Only if Arcane itself is down is `ssh svc-ops@<host>` + `docker context` the break-glass path — and even
-then, reconcile any imperative change back into git the same session.
+Make **git** correct — fix the compose, the pin, or the env layer → branch → PR → Ali merges. Run
+`skynet deploy service <svc> --branch <branch>` to select and report the exact local branch head,
+reconcile its Arcane sync/project, materialize `.env`, and require complete runtime health. Add
+`--gate` only for the separate report-only route verifier. Verify health via the Arcane API /
+`docker context`, then commit refreshed inventory. Recovery is a reviewed inverse prepared with
+`skynet rollback service <svc> <deploy-commit> --prepare`; Arcane only converges after that branch is
+human-merged. Only if Arcane itself is down is `ssh svc-ops@<host>` + `docker context` the break-glass
+path — and even then, reconcile any imperative change back into git the same session.
 
 ## Verify
 
@@ -62,8 +65,9 @@ reconcile any imperative change back into git in the same session.
 
 ## Rollback
 
-Revert the compose/configuration PR and let Arcane converge to the previous declared state. Do not
-repair drift with an unrecorded host mutation.
+Prepare and human-merge a rollback branch with `skynet rollback service <svc> <deploy-commit>
+--prepare`, then run `skynet deploy service <svc>` against the merged branch. Do not repair drift with
+an unrecorded host mutation; Arcane is not a rollback executor.
 
 ## Evidence
 

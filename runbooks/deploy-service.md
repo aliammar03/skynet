@@ -1,96 +1,124 @@
 ---
-summary: "Deploy or update a service through the Arcane GitOps loop: edit compose then PR then Arcane reconciles."
+summary: "Deploy or update one Compose service with the packaged Arcane GitOps owner and complete runtime reconciliation."
 trigger: "Deploy or update a service"
 tier: "T2 PR-gated"
-executor: "scripts/gitops-deploy.sh, Arcane Git Sync, and skynet verify deployment"
-rollback: "git revert"
+executor: "skynet deploy service, Arcane Git Sync, and optional skynet verify deployment"
+rollback: "skynet rollback service <service> <deploy-commit> --prepare, then review and human-merge"
 ---
 
-# Runbook — deploy / update a service (Arcane GitOps, the skynet way)
+# Runbook — deploy / update a service
 
-**Tier:** T2 (PR-gated). **Executor:** `scripts/gitops-deploy.sh` + Arcane Git Sync +
-`skynet verify deployment`. **Rollback:** `git revert`.
+**Tier:** T2 (PR-gated). **Executor:** `skynet deploy service` + Arcane Git Sync. **Rollback:**
+prepare a reviewed inverse with `skynet rollback service`; the command never pushes, merges, or
+automatically rolls back.
 
 ## Preconditions
 
-- Identify the service, its persistent data, its intended ingress, and whether it needs encrypted configuration.
+- Identify the service, persistent data, intended ingress, and whether encrypted configuration is
+  needed.
+- The Compose change is on a branch that follows the PR and human-merge policy. The operator has
+  the scoped Arcane credential file (default `/opt/skynet-ops/secrets/arcane.env`) and local age key
+  (default `/opt/skynet-ops/secrets/age.key`). Never print either or any decrypted value.
+- `compose/<service>/compose.yaml` is present, digest-pins every image, declares `env_file: .env`,
+  has a healthcheck for every container, and keeps non-secret defaults in `.env.git` and secrets in
+  `.env.sops`.
 
 ## Steps
 
 ### Apply the service standard
 
+Use the Compose rules in [`../docs/conventions/compose.md`](../docs/conventions/compose.md). Validate
+the manifest locally with a dummy environment in a disposable checkout; do not commit plaintext
+`.env`.
+
+### Deploy with the packaged owner
+
+Run from the checkout whose local branch should be reconciled:
+
+```bash
+skynet deploy service <service> [--repo <checkout>] [--branch <branch>] \
+  [--credentials-file <file>] [--age-key <file>] [--environment-id <id>] \
+  [--timeout <1..300>] [--no-deploy] [--gate] [--json]
 ```
-compose/<svc>/compose.yaml   # pinned image DIGESTS, env_file: .env, STRUCTURAL only
-compose/<svc>/.env.git       # non-secret config, committed plaintext
-compose/<svc>/.env.sops      # secrets only (sops+age); omit if the service has none
-```
 
-- **No inline `environment:` config** — put config in `.env.git`, not scattered in compose
-  (structural keys like a computed `REDIS_URL` that interpolate a secret are the exception).
-- **One role tag** via `x-arcane.tags` (`media`/`ai`/`books`/`bookmarks`/…, stable colour per
-  role — see compose README). Arcane applies it on sync; `gitops-deploy.sh` reports/warns.
-- **A healthcheck on every service** (image built-in or compose-declared) so Arcane reports
-  `(healthy)` and dependents can use `condition: service_healthy`. Match the probe to the image's
-  tools (curl/wget/node/bash-`/dev/tcp`) — see the compose README table. `gitops-deploy.sh` warns
-  if any service lacks one.
-- **No Docker file-secrets, no `*.txt` secrets.** One secret store: `.env.sops`.
-- **Volumes:** simple file data → absolute `/opt/docker/appdata/<svc>/<role>` bind mounts
-  (swept by `backup-restic.sh`). Database engines → **named** volumes, each labelled
-  `skynet.service: <svc>` + `skynet.backup: protect|ephemeral` + `skynet.managed: gitops`
-  (restic backs up the `protect` ones directly). Never relative in-project-dir data. Volume
-  labels are immutable — to change them, recreate the volume (`down` → `docker volume rm` →
-  redeploy). When switching a named volume to a bind mount, remove the orphan.
+The default checkout is the current directory. Without `--branch`, the command uses
+`GITOPS_BRANCH` when set, otherwise `main`. Before writing to Arcane it resolves the exact local
+`refs/heads/<branch>` commit and reports the lowercase 40-hex `source.revision`, `source.branch`,
+and normalized Git `source.repository`. Keep that identity with the deployment evidence; do not
+substitute a short SHA, remote label, or a later branch head.
 
-### Materialize the runtime environment
+The command then selects exactly one matching Arcane repository, service sync, and project. The sync
+must point to `compose/<service>/compose.yaml`, the selected branch, and the matching repository;
+`syncDirectory` and `autoSync` must both be true. A missing sync is created with the bounded default
+interval; an existing sync is only repointed when its branch differs. Missing, duplicate, malformed,
+or mismatched identities fail closed.
 
-Arcane's **GitOps** sync copies `compose.yaml` (and the compose dir, incl. subdirs) from git and
-owns the project lifecycle — but it does **NOT** merge `.env.git`/`project.env` into `.env`
-(that layering is only for non-GitOps projects). `docker compose` just reads whatever `.env` is on
-disk. So `scripts/gitops-deploy.sh` **materialises** the effective `.env` = `.env.git` +
-`sops -d .env.sops`, written `0600` and owned by Arcane's project UID, decrypted on vm-skynet-ops
-(the age key never leaves it).
-Arcane leaves a populated `.env` untouched on re-sync, so the two coexist.
+The selected source is pulled until Arcane reports the exact branch head. The package materializes
+the effective environment from `.env.git` and optional `.env.sops`: sops decrypts locally with
+`SOPS_AGE_KEY_FILE`, and plaintext crosses to the off-host project only through SSH stdin. A pinned
+writer replaces the exact project `.env` atomically, preserving the observed project owner and mode
+`0600`. No plaintext temporary file, argument, report, or transcript is used.
 
-### Deploy or update an existing service
+Normal deployment requests a redeploy and waits for the project to report `running` with equal
+positive service/running counts. It then inspects the exact Compose project over unprivileged SSH:
+the container set must be non-empty and count-equal, every container must be running, not restarting,
+and report `Health.Status=healthy`. A missing healthcheck is failure. For `cloudflared`, only the
+reconciled project container IDs are restarted, then the same Arcane/runtime checks and unchanged ID
+set are required.
 
-1. **Branch** `deploy/<svc>`; edit `compose/<svc>/*` per the standard. Validate:
-   `cd compose/<svc> && printf '…dummy…' > .env && docker compose config -q && rm .env`.
-2. **PR** with a teaching description (what it is, ports, front door, backup impact). **Ali merges.**
-3. `scripts/gitops-deploy.sh <svc>` — the deployment procedure ensures the source sync,
-   materialises `.env`, redeploys, and waits for the project. Its source selection, retry/wait,
-   environment, and recovery behavior remain owned by this procedure; the verifier does not perform
-   them. Set `GITOPS_BRANCH=<branch>` to select a local source branch. Adding `--gate` resolves the
-   exact full head of that local branch for the selected sync and passes it through the thin
-   `deploy-gate.sh` forwarder. `--revert-commit` is not a supported deploy option.
-4. Verify the exact merged deployment revision with the packaged, report-only observer, either via
-   the `--gate` path above or directly:
+Use `--no-deploy` only when source sync and environment replacement are the intended scope. Its
+success means `source-and-environment-only (--no-deploy)`, not a healthy runtime.
 
-   ```bash
-   skynet verify deployment <svc> <full-revision>
-   ```
+### Optional P10 report-only gate
 
-   It checks the complete Arcane/Docker project at that revision, all container health, and every
-   declared route. Routed checks use the Docker `dmz` network and verified TLS through
-   `10.10.100.35`; HTTP 100–499, including 302/401, is acceptable. Unrouted services are reported
-   as skipped. The route probe may create/remove an ephemeral container and cache its pinned image.
-5. If verification fails, it reports the failed observation; it does not deploy, restart, or
-   rollback. Prepare a reviewed inverse with `scripts/gitops-rollback.sh <svc> <deploy-commit> --prepare`;
-   `<deploy-commit>` is the authored commit to invert, a separate identity from the verifier's
-   expected branch-head revision. Human-review and merge the rollback PR before Arcane reconciles it.
+Add `--gate` only when the separate P10 verification is wanted. After runtime reconciliation it runs
+`skynet verify deployment <service> <full-revision>` using the read-only `docker-dmz` context. The
+gate checks exact Arcane/project revision identity, complete equal project/Docker counts, all
+container health, and every declared route from the `dmz` network with verified TLS. It accepts HTTP
+100–499, including 302/401; an undeclared route is `skipped`. It never deploys, restarts, edits Git,
+or rolls back. A gate failure leaves the healthy runtime in place and is reported as no automatic
+rollback.
+
+The result is truthful structured evidence. With `--json`, retain `status`, `source`,
+`completed_steps`, `verification`, `recovery`, `reason` when present, and non-secret `detail` fields.
+Sync creation, branch repoint, and source pull use at most three bounded attempts; ambiguous writes
+are reread and reconciled before retry. A failed/ambiguous outcome identifies what completed and what
+must be inspected before retrying. The command never implies that Arcane or a failed gate reverted
+the service.
 
 ## Verify
 
-- `skynet verify deployment <svc> <full-revision>` succeeds. This requires exact revision identity,
-  complete positive equal Arcane and Docker counts, every container running and healthy, and all
-  declared routes reachable with valid TLS; a service with no declared route is explicitly skipped.
+- `skynet deploy service` reports success with `verification=runtime-complete`, or
+  `runtime-complete-and-gate-passed` when `--gate` was selected.
+- The source fields identify the exact local branch head and repository.
+- Arcane and Docker show one matching project at that revision, with complete positive counts and
+  every container running, non-restarting, and healthy.
+- If the service declares ingress, the optional gate records each route result and TLS verification.
 
 ## Rollback
 
-- Use the reviewed rollback PR prepared by
-  `scripts/gitops-rollback.sh <svc> <deploy-commit> --prepare`; after its human merge, run
-  `scripts/gitops-deploy.sh <svc>` to reconcile the reverted revision. The verifier's expected
-  revision and the rollback commit are separate inputs, and the verifier never invokes rollback.
+If deployment or the optional gate fails, inspect the exact project and outcome first. Prepare a
+reviewable inverse for the authored deployment commit (a separate identity from the verifier's
+expected revision):
+
+```bash
+skynet rollback service <service> <deploy-commit> --prepare --repo <checkout>
+```
+
+Rollback without `--prepare` is report-only validation. Preparation refuses protected constitutional
+or gate paths, commits that do not touch the selected service, mixed Compose projects, and unsafe
+changed-path observations. It creates a unique local `rollback/<service>-<first-12-hex-of-revision>`
+branch from the attached base, creates a revert
+commit in a temporary isolated worktree, and cleans that worktree. Conflicts retain the worktree for
+manual resolution. Nothing is pushed or merged; review
+and human-merge the branch, then run `skynet deploy service` against the merged branch so Arcane
+converges.
+
+The retained `scripts/gitops-deploy.sh` and `scripts/gitops-rollback.sh` commands are temporary
+compatibility forwarders to these packaged commands for P22 removal.
 
 ## Evidence
 
-- Include the compose validation, deploy/health result, persistent-data impact, and any refreshed inventory in the PR or journal record.
+Record the package outcome (including source identity, completed steps, verification, recovery, and
+any reason), the Compose PR, persistent-data impact, and any refreshed inventory. Do not record
+credential values or decrypted environment content.

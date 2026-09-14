@@ -15,8 +15,8 @@ compose/<service>/
 digest-pinned images · `env_file: .env` · non-secret config in committed `.env.git` ·
 secrets only in `.env.sops` · **a healthcheck on every service** (below) · deployed via Arcane
 GitOps Sync from this repo. No inline compose config, no file-based `.txt` docker secrets. Deploy
-with `scripts/gitops-deploy.sh <svc>` — see `runbooks/deploy-service.md` for how the effective
-`.env` is materialised (Arcane GitOps does not merge `.env.git`/`project.env`).
+with `skynet deploy service <svc>` — see `runbooks/deploy-service.md` for the exact source,
+environment, and runtime contract (Arcane GitOps does not merge `.env.git`/`project.env`).
 
 ### Healthchecks — one per service
 
@@ -33,7 +33,8 @@ port-open when the image lacks an HTTP client. Use whatever tool the image actua
 | `bash` only | `["CMD","bash","-c","exec 3<>/dev/tcp/127.0.0.1/<port>"]` (TCP port-open) |
 
 Standard timing: `interval: 30s, timeout: 10s, retries: 3, start_period: 10–30s`.
-`gitops-deploy.sh` warns after every deploy if any service has no health status.
+`skynet deploy service` treats a missing health status as a failed runtime observation; it does not
+turn a successful source sync into a health claim.
 
 ### Volume standard — the decision (apply to EVERY mount a service needs)
 
@@ -53,8 +54,8 @@ Rules that make it unambiguous:
 
 ### Role tag — one `x-arcane` tag per service
 
-Every service declares **exactly one role tag** in its compose so Arcane's UI groups the fleet
-at a glance (Arcane applies `x-arcane.tags` automatically on GitOps sync — `sources: [compose]`):
+Every service declares **exactly one role tag** in its compose so Arcane can group the fleet at a
+glance. This is Compose metadata, not a release or Git tag; deployment does not create tags.
 
 ```yaml
 x-arcane:
@@ -73,8 +74,8 @@ Role → colour (keep it consistent so a colour always means the same role):
 | `bookmarks` | orange | karakeep |
 
 One role per service (it's a *category*, not a severity — no `critical`/`important` tags). New
-roles are fine; give each its own stable colour. `scripts/gitops-deploy.sh` reports the applied
-tag after every deploy and warns if a service is untagged.
+roles are fine; give each its own stable colour. The packaged deployment command does not report or
+create role/release tags; the declaration remains reviewable in the Compose revision.
 
 ### Volume labels — the `skynet.*` namespace
 
@@ -98,11 +99,13 @@ project lifecycle, but it does **not** merge `.env.git`/`project.env` into `.env
 only applies to Arcane's *non-GitOps* projects. A GitOps project just runs `docker compose`
 against whatever `.env` is on disk.
 
-So `scripts/gitops-deploy.sh` **materialises** the effective `.env` = `.env.git` +
-`sops -d .env.sops`, written `0600` and owned by Arcane's project UID, decrypted on
-vm-skynet-ops. Every service still declares `env_file: .env` so those values reach it. Arcane
-leaves a populated `.env` untouched on re-sync; auto-sync only redeploys already-running projects
-(a stopped one updates on next manual start).
+So `skynet deploy service` **materialises** the effective `.env` = `.env.git` + `sops -d .env.sops`.
+Sops runs on vm-skynet-ops and sends plaintext to the exact project only over the SSH process's
+stdin; it is not written to a local temporary file. A pinned writer atomically replaces the remote
+`.env`, owned by the observed project UID:GID and mode `0600`. Every service still declares
+`env_file: .env` so those values reach it. Arcane leaves a populated `.env` untouched on re-sync;
+auto-sync only redeploys already-running projects (a stopped one updates on next manual start).
 
-Restore the selected `.env.git`/`.env.sops` revision with `scripts/gitops-deploy.sh <svc>`; the
-wrapper rematerializes the effective file and redeploys it.
+Restore the selected `.env.git`/`.env.sops` revision with `skynet deploy service <svc>`; the
+packaged command rematerializes the effective file and redeploys it. The retained
+`scripts/gitops-deploy.sh` name is only a temporary compatibility forwarder to P22.

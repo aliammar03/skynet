@@ -67,12 +67,27 @@ Every PR, including generated-only nightly work, is human-merged during the emba
 `skynet doctor [--json]` reports the executing package version and Python runtime with
 `scope: runtime`. It is not a lab or service health check.
 
-`skynet verify deployment <service> <full-revision>` is the packaged, report-only deployment
+`skynet deploy service <service>` is the packaged Arcane GitOps deployment owner. It resolves the
+exact local 40-hex head of `GITOPS_BRANCH` or `--branch` (default `main`), reports its branch,
+revision, and normalized repository identity, validates one exact Arcane repository/sync/project,
+materializes `.env` from `.env.git` plus local sops decryption over an SSH stdin stream, atomically
+replaces the exact remote `.env` with mode `0600`, redeploys, and requires complete positive
+Arcane/Docker counts with every container running, non-restarting, and healthy. `cloudflared`
+restarts only its reconciled project container IDs and is checked again.
+
+`skynet verify deployment <service> <full-revision>` is the separate packaged, report-only P10
 observer. It matches the exact revision in Arcane Git Sync and project observations, requires
 complete positive equal project/Docker counts and running healthy containers, and probes every
-declared route from the Docker DMZ network with verified TLS. It never deploys or rolls back; a
-routed check may create/remove an ephemeral pinned curl container and cache its image. Deployment
-and recovery orchestration remain in the GitOps scripts and runbooks.
+declared route from the Docker DMZ network with verified TLS. A routed check may create/remove an
+ephemeral pinned curl container and cache its image. `skynet deploy service --gate` opts into this
+observer after runtime reconciliation; it never triggers rollback.
+
+`skynet rollback service <service> <deploy-commit>` is report-only by default. With `--prepare`, it
+validates protected/mixed-project scope, creates a revert commit in a temporary isolated worktree
+on a unique review branch, cleans the worktree, and leaves push/review/human merge to the operator.
+Neither packaged path automatically reverts or claims that Arcane rolled anything back. The
+retained `gitops-deploy.sh` and `gitops-rollback.sh` names are temporary compatibility forwarders
+for P22 removal.
 
 `skynet render docs --repo <checkout>` requires receipt-bound current collection evidence, rebuilds
 the disposable cache, validates its inputs, and publishes factual Obsidian pages only after every page

@@ -43,17 +43,21 @@ ssh svc-ops@<docker-host> docker inspect --format '{{json .State.Health}}' <svc>
 | `unhealthy`, app "up" | healthcheck command wrong, or a dependency (DB) not ready | run the healthcheck cmd by hand; check the depended-on container |
 | Env/secret missing at boot | `.env` layering broke | see below |
 
-**Env / secret materialization** (the usual silent cause): `gitops-deploy.sh` builds the effective
-`.env` from `.env.git` **+** decrypted `.env.sops`. A missing key means decryption/materialization
-failed or the key was omitted from git. Confirm both source layers and the effective file — details in
-[gitops-loop](../../docs/design/gitops-loop.md) + [secrets](../../docs/design/secrets.md).
+**Env / secret materialization** (the usual silent cause): `skynet deploy service` builds the
+effective `.env` from `.env.git` **+** decrypted `.env.sops` and replaces the exact project file. A
+missing key means decryption/materialization failed or the key was omitted from git. Confirm both
+source layers and the effective file without printing values — details in [gitops-loop](../../docs/design/gitops-loop.md)
++ [secrets](../../docs/design/secrets.md).
 
 ### Fix declaratively
 
 Edit `compose/<svc>/` — pin the image, correct the healthcheck, set `mem_limit`, fix the env key (secret
-values only ever go into `.env.sops`) — then **branch → PR → Ali merges → Arcane reconciles**. Verify
-health via the Arcane API / `docker context`, then commit refreshed inventory. Rollback is `git revert`;
-Arcane rolls it back. Break-glass only: `ssh svc-ops@<host>` + `docker context` to look, never to mutate.
+values only ever go into `.env.sops`) — then **branch → PR → Ali merges**. Run
+`skynet deploy service <svc>` to select the merged branch head, materialize its environment, and
+require complete runtime health. Verify via the Arcane API / `docker context`, then commit refreshed
+inventory. If the deploy or optional report-only gate fails, prepare a reviewed inverse with
+`skynet rollback service <svc> <deploy-commit> --prepare`; Arcane only converges after human merge.
+Break-glass only: `ssh svc-ops@<host>` + `docker context` to look, never to mutate.
 
 ## Verify
 
@@ -63,8 +67,9 @@ the reconciled project without drift.
 
 ## Rollback
 
-Revert the compose PR and let Arcane reconcile the previous image/configuration. Break-glass docker
-access is inspection only and must not become the rollback mechanism.
+Use `skynet rollback service <svc> <deploy-commit> --prepare`, review and human-merge the inverse,
+then deploy the merged branch. Break-glass docker access is inspection only and must not become the
+rollback mechanism; Arcane does not perform rollbacks.
 
 ## Evidence
 

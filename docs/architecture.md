@@ -30,11 +30,14 @@ included — from a laptop and a phone hotspot.
 
 ## Data flows
 
-- **Deploy:** edit `compose/<svc>/` → PR → merge → `gitops-deploy.sh` materializes `.env`
-  from `.env.git` + decrypted `.env.sops` → Arcane reconciles. Then the packaged, report-only
-  `skynet verify deployment <service> <full-revision>` checks exact revision identity, complete
-  healthy project/container state, and declared ingress routes. Deployment and recovery orchestration
-  remain in the GitOps scripts and runbooks.
+- **Deploy:** edit `compose/<svc>/` → PR → merge → `skynet deploy service <svc>` resolves the exact
+  selected local branch head, materializes `.env` from `.env.git` + decrypted `.env.sops` over a
+  stdin-only SSH stream, and asks Arcane to reconcile. The command waits for complete Arcane and
+  Docker runtime health. Its opt-in `--gate` runs the separate packaged, report-only
+  `skynet verify deployment <service> <full-revision>` check for exact revision identity, healthy
+  project/container state, and declared ingress routes. Recovery is prepared with
+  `skynet rollback service <svc> <deploy-commit> --prepare`; no path auto-rolls back. The retained
+  shell names are temporary compatibility forwarders to P22.
 - **OpenTofu:** authored source PR → human merge → reviewed saved plan →
   `TOFU_APPLY_SCOPE=proxmox-core scripts/tofu-apply.sh <planfile>`; no production bare apply.
   New-guest creates run as supervised T2 actions with explicit approval; they have no automatic

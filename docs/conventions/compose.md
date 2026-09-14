@@ -65,12 +65,17 @@ compose/<svc>/
 - **`.env.sops`** = secrets only, sops+age — keys visible in diffs, values encrypted `[testable]`.
 - **Secrets never appear in `.env.git`, `compose.yaml`, or plaintext `.env`/`project.env`**
   `[testable]` (pre-commit `secret-scan.sh` enforces).
-- `scripts/gitops-deploy.sh` **materialises** the effective `.env` = `.env.git` + `sops -d
-  .env.sops`, written `0600`, decrypted on the ops VM (the age key never leaves it). Full flow:
-  `compose/README.md` and [`../design/secrets.md`](../design/secrets.md).
+- `skynet deploy service <svc>` **materialises** the effective `.env` = `.env.git` + `sops -d
+  .env.sops`. Decryption runs on the ops VM; plaintext crosses to the exact Arcane project only
+  through SSH stdin, where a pinned writer atomically replaces `.env` with mode `0600`. The age key
+  never leaves the ops VM. Full flow: `compose/README.md` and
+  [`../design/secrets.md`](../design/secrets.md).
 
 ## The loop
 
 - **One Arcane Git Sync per project dir; auto-sync on; Arcane auto-update off** for git-synced
-  projects `[manual]`. Deploy via `scripts/gitops-deploy.sh <svc>`; rollback is `git revert`. See
-  [`../design/gitops-loop.md`](../design/gitops-loop.md) and `runbooks/deploy-service.md`.
+  projects `[manual]`. Deploy via `skynet deploy service <svc>`; prepare recovery with
+  `skynet rollback service <svc> <deploy-commit> --prepare`. The rollback command leaves push and
+  human merge to the operator. The retained shell names are temporary compatibility forwarders to
+  P22. See [`../design/gitops-loop.md`](../design/gitops-loop.md) and
+  [`../../runbooks/deploy-service.md`](../../runbooks/deploy-service.md).

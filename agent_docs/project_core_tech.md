@@ -9,8 +9,9 @@ differ. It records foundations and constraints, not a dependency inventory or a 
 ## Languages and runtimes
 
 - Python 3.12+ powers the installable `skynet` package and its `skynet` CLI.
-- Bash remains the installed implementation for operator entry points, collectors, deploy/backup
-  procedures, and compatibility callers that still have a concrete owner.
+- Bash remains the installed implementation for collectors, backup/host procedures, and retained
+  compatibility callers. Service deployment/recovery procedures are owned by the packaged Python
+  CLI; the old deploy/rollback shell names only forward to it for temporary P22 compatibility.
 - Nix/NixOS declares the ops VM and LXC systems; HCL/OpenTofu declares scoped infrastructure state.
 - YAML/TOML/JSON, Compose manifests, Caddy configuration, Markdown, and sops-encrypted environment
   files carry declarative configuration, metadata, policy, and documentation.
@@ -68,10 +69,14 @@ the internal/public service path.
   evidence, complete equal positive project/Docker counts, running healthy containers, and complete
   canonical routes probed from the Docker DMZ network with verified TLS. It has no deploy or rollback
   write path; the route probe only creates/removes an ephemeral pinned image container.
-- `gitops-deploy.sh` and `gitops-rollback.sh` retain deployment/recovery orchestration. With
-  `--gate`, the deploy script resolves the selected local `GITOPS_BRANCH` head and the thin
-  `deploy-gate.sh` forwards that exact revision to the packaged verifier; rollback takes a separate
-  authored deploy-commit identity.
+- `skynet deploy service` owns source selection, unique Arcane repository/sync/project validation,
+  stdin-only off-host environment delivery, atomic remote 0600 replacement, bounded
+  reconciliation/retries, complete runtime health, and the bounded `cloudflared` restart. It
+  reports exact local branch/revision/repository identity. Its opt-in `--gate` runs the separate
+  report-only packaged verifier. `skynet rollback service` is report-only by default and can prepare
+  an isolated reviewed inverse; it refuses protected or mixed-project changes and never pushes or
+  merges. `gitops-deploy.sh` and `gitops-rollback.sh` are temporary compatibility forwarders for
+  P22.
 - `scripts/entity.sh`, `scripts/audit-entities.sh`, and `scripts/build-db.sh` are compatibility
   forwarders; maintained SQL views remain under `scripts/sql/`.
 - Generated inventory and documentation are machine-owned. Construction runs as the unprivileged

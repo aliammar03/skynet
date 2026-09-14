@@ -28,12 +28,14 @@ rendering, deployment verification, and recall commands. `entities.py` owns the 
 `routes.py` uses it directly; `cache.py` owns the disposable 14-table SQLite projection and queries;
 `render.py` owns factual Markdown pages; `memory.py` owns digest/context/catalog rendering and
 read-time recall. Collector modules own one observation boundary and its validation/publication
-contract; `collection.py` coordinates the default evidence set. Bash retains deployment, backup,
-invariant, and host procedures. Entity/audit/cache/render/recall shell names are compatibility
-forwarders, including the nightly call into the packaged factual renderer. Nix owns system/runtime
+contract; `collection.py` coordinates the default evidence set. The packaged CLI owns service
+deployment and recovery; Bash retains backup, invariant, and host procedures plus temporary
+deployment/rollback compatibility forwarders. Entity/audit/cache/render/recall shell names remain
+compatibility forwarders, including the nightly call into the packaged factual renderer. Nix owns system/runtime
 composition, OpenTofu owns declared infrastructure state, Compose owns service definitions, and
 runbooks explain task-shaped execution. Raw journal creation through `bin/new` and the nightly journal
-writer remain Bash-owned P21 work; P9 packages only rendering and read-time retrieval.
+writer remain Bash-owned; the package owns rendering, read-time retrieval, and service deployment/
+recovery procedures.
 
 ## Main interfaces and integration boundaries
 
@@ -42,11 +44,13 @@ writer remain Bash-owned P21 work; P9 packages only rendering and read-time retr
   disposable cache. `bin/ops entities|query` first requires current collection evidence; direct
   repository scripts do not establish freshness.
   Collectors never claim service health merely from collection success.
-- `skynet verify deployment <service> <full-revision>` is the packaged report-only deployment
-  observer. It requires exact Arcane revision identity, complete positive equal project/Docker
-  counts, running healthy containers, and complete canonical route evidence with DMZ TLS probes.
-  `gitops-deploy.sh --gate` resolves the selected local `GITOPS_BRANCH` head before forwarding it;
-  rollback preparation takes a separate authored deploy-commit identity.
+- `skynet deploy service <service>` is the packaged deployment owner. It resolves and reports an
+  exact local branch head/repository, validates unique Arcane contracts, delivers the environment
+  over SSH stdin with atomic remote 0600 replacement, and requires complete runtime health. Its
+  optional `--gate` invokes the separate report-only `skynet verify deployment <service>
+  <full-revision>` observer (exact revision, complete counts/health, canonical DMZ/TLS routes).
+  `skynet rollback service` is report-only by default; `--prepare` creates an isolated review branch
+  from a separate authored deploy-commit identity and never pushes or merges.
 - Git branch → PR → human merge → Arcane Git Sync → running Compose is the service boundary; `git
   revert` is the normal rollback path.
 - Approved OpenTofu source → one-scope saved plan → `scripts/tofu-apply.sh` is the infrastructure

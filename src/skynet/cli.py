@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import NoReturn
 
-from skynet import cache, certs, deployment, entities, installed_version, memory, omada, recon, render, routes
+from skynet import cache, certs, deployment, entities, gitops, installed_version, memory, omada, recon, render, routes
 from skynet.collection import collect_all, collection_status
 from skynet.dns import DEFAULT_CREDENTIALS as DNS_DEFAULT_CREDENTIALS, collect as collect_dns
 from skynet.doctor import write_report
@@ -62,6 +62,28 @@ def build_parser() -> argparse.ArgumentParser:
         help="per-observation timeout in seconds (1–300)",
     )
     deploy.add_argument("--json", action="store_true", dest="json_output")
+    deploy_command = commands.add_parser("deploy", help="operate one Arcane GitOps service")
+    deploy_targets = deploy_command.add_subparsers(dest="deploy_target", required=True)
+    deploy_service = deploy_targets.add_parser("service", help="deploy one Compose service")
+    deploy_service.add_argument("service", help="Compose service/project name")
+    deploy_service.add_argument("--repo", type=Path, default=Path.cwd())
+    deploy_service.add_argument("--branch", default=os.environ.get("GITOPS_BRANCH", gitops.DEFAULT_BRANCH))
+    deploy_service.add_argument("--credentials-file", type=Path, default=deployment.DEFAULT_CREDENTIALS)
+    deploy_service.add_argument("--age-key", type=Path, default=gitops.DEFAULT_AGE_KEY)
+    deploy_service.add_argument("--environment-id")
+    deploy_service.add_argument("--timeout", type=float, default=gitops.DEFAULT_TIMEOUT)
+    deploy_service.add_argument("--no-deploy", action="store_true")
+    deploy_service.add_argument("--gate", action="store_true")
+    deploy_service.add_argument("--json", action="store_true", dest="json_output")
+    rollback_command = commands.add_parser("rollback", help="prepare reviewable recovery state")
+    rollback_targets = rollback_command.add_subparsers(dest="rollback_target", required=True)
+    rollback_service = rollback_targets.add_parser("service", help="report or prepare a service rollback")
+    rollback_service.add_argument("service", help="Compose service/project name")
+    rollback_service.add_argument("revision", help="full deploy commit to revert")
+    rollback_service.add_argument("--repo", type=Path, default=Path.cwd())
+    rollback_service.add_argument("--prepare", action="store_true")
+    rollback_service.add_argument("--timeout", type=float, default=gitops.DEFAULT_TIMEOUT)
+    rollback_service.add_argument("--json", action="store_true", dest="json_output")
     collection = commands.add_parser("collect", help="collect observations, not service health")
     sources = collection.add_subparsers(dest="source", required=True)
     all_sources = sources.add_parser("all", help="refresh inventory with per-collector outcomes")
@@ -217,6 +239,24 @@ def main(argv: Sequence[str] | None = None) -> int:
                 stdout=sys.stdout,
             )
         return _unreachable_command(arguments.verification)
+    if arguments.command == "deploy":
+        if arguments.deploy_target == "service":
+            return gitops.deploy_service(
+                arguments.service, repo=arguments.repo, branch=arguments.branch,
+                credentials_file=arguments.credentials_file, age_key=arguments.age_key,
+                environment_id=arguments.environment_id, timeout=arguments.timeout,
+                no_deploy=arguments.no_deploy, gate=arguments.gate,
+                json_output=arguments.json_output, stdout=sys.stdout,
+            )
+        return _unreachable_command(arguments.deploy_target)
+    if arguments.command == "rollback":
+        if arguments.rollback_target == "service":
+            return gitops.rollback_service(
+                arguments.service, arguments.revision, repo=arguments.repo,
+                prepare=arguments.prepare, timeout=arguments.timeout,
+                json_output=arguments.json_output, stdout=sys.stdout,
+            )
+        return _unreachable_command(arguments.rollback_target)
     if arguments.command == "collect":
         if arguments.source == "all":
             return collect_all(arguments.repo, arguments.credentials_file,
