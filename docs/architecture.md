@@ -7,8 +7,7 @@ the design wins.
 ## One-paragraph model
 
 One VM (`vm-skynet-ops`, 10.10.90.90, VLAN 90) hosts a **replaceable** agentic AI runtime.
-The GitHub repo `skynet` is machine-readable truth; **Arcane GitOps** is the deployment
-executor; secrets are **sops+age**-encrypted in git; **restic → Google Drive** backs up app
+The GitHub repo `skynet` is machine-readable truth; **immutable Skynet Compose generations** are the deployment boundary; secrets are **sops+age**-encrypted in git; **restic → Google Drive** backs up app
 data and **PBS → Google Drive** backs up guests. Hands-on host work uses **auto-expiring,
 certificate-based root grants**. A disaster runbook can rebuild the network node — OPNsense
 included — from a laptop and a phone hotspot.
@@ -19,7 +18,7 @@ included — from a laptop and a phone hotspot.
 |---|---|---|
 | GitHub `skynet` | Operational truth (compose, runbooks, inventory, docs) | — |
 | GitHub `skynet-opnsense` | Auto-pushed `config.xml` — firewall/router truth that survives the router | — |
-| Arcane | GitOps reconciler for docker compose projects (host 10.10.100.15) | T2 |
+| Arcane | Docker UI/observation and emergency human tool on 10.10.100.15 | T2 |
 | Proxmox core / network | Hypervisors; `ops-managed` pools plus the core-node managed guest-envelope exception are the write boundary | T1 read / T2 managed envelope |
 | PBS (10.10.20.40) | Guest backups, client-side encrypted | T1 / T2 |
 | Technitium (10.10.70.50/.51) | Split-horizon DNS; zones editable at T2 | T2 zones |
@@ -30,18 +29,15 @@ included — from a laptop and a phone hotspot.
 
 ## Data flows
 
-- **Deploy:** edit `compose/<svc>/` → PR → merge → `skynet deploy service <svc>` resolves the exact
-  selected local branch head, verifies the Compose/environment inputs match that revision before
-  any Arcane write, requires an existing unique sync with `autoSync=false`, materializes `.env` from
-  `.env.git` + decrypted `.env.sops` over a stdin-only SSH stream, then repoints and manually syncs
-  source before explicit redeploy and complete Arcane/Docker runtime health checks. Arcane's manual
-  sync can itself redeploy a running project; scheduled sync stays disabled. A legacy auto-sync
-  project must pass the deploy runbook's timed quiescence and old-revision/runtime check before
-  coupled changes are merged. Its opt-in `--gate` runs the separate packaged, report-only
-  `skynet verify deployment <service> <full-revision>` check for exact revision identity, healthy
-  project/container state, and declared ingress routes. Recovery is prepared with
-  `skynet rollback service <svc> <deploy-commit> --prepare`; no path auto-rolls back. The retained
-  shell names are temporary compatibility forwarders to P22.
+- **Deploy:** edit `compose/<svc>/` → reviewed PR → human merge → `skynet deploy service <svc>`
+  reads exact Git branch-head objects, prepares a complete immutable protected generation with
+  stdin-only layered `.env`, directly activates it through `svc-ops` Docker Compose under a host
+  lock, independently proves Docker generation identity/complete health/DMZ route/TLS, and promotes
+  verified `stable`. An active failed candidate leaves old stable as the rollback candidate.
+  Existing Arcane `autoSync=true` is a pre-write refusal until disabled, drained, and old running
+  revision verified. `skynet rollback service <svc> --apply` explicitly reactivates a retained
+  generation without editing authored Git. No P11 path automatically rolls back; shell names remain
+  thin forwarders until P22.
 - **OpenTofu:** authored source PR → human merge → reviewed saved plan →
   `TOFU_APPLY_SCOPE=proxmox-core scripts/tofu-apply.sh <planfile>`; no production bare apply.
   New-guest creates run as supervised T2 actions with explicit approval; they have no automatic

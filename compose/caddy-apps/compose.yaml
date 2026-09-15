@@ -12,14 +12,13 @@ services:
     # wget, used by the healthcheck below. Pinned to an exact digest (Renovate bumps).
     image: ghcr.io/caddybuilds/caddy-cloudflare:2.11.4-alpine@sha256:6497a315a0177e8515d1c4a33c075e8d5a2a35a3f4f9701c3a0cf9ddf3db8821
     restart: unless-stopped
-    # --watch makes Caddy auto-reload when the Caddyfile changes on disk. Arcane's GitOps
-    # sync updates this ro-mounted file in place, so a merged route change reloads itself —
-    # no container recreate or manual `caddy reload` needed to publish a new site.
+    # --watch handles Caddyfile changes visible in this selected generation. A new reviewed route
+    # activates a new immutable generation through direct Compose and is independently verified.
     command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile", "--watch"]
     env_file:
       - .env
     volumes:
-      # Routes live in git: Arcane GitOps syncs the whole dir, so this ro-mount
+      # Routes live in git: Skynet prepares the whole committed dir, so this ro-mount
       # carries the Caddyfile to the container. Change a route = edit + PR + deploy.
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       # ACME account keys + issued certs. MUST persist — otherwise Caddy re-issues

@@ -5,67 +5,59 @@
 
 ## Detailed Current State
 
-SKY-025 P11 Arcane deployment/environment/sync and rollback preparation has its latest review's FIX
-findings repaired on PR **#259** and is pending fresh external review. Accepted progress remains **10/24** and
-architecture checkpoint G3 remains complete.
+SKY-025 P11 is implementation-ready on existing PR **#259** and pending a completely fresh external
+review. Accepted progress remains **10/24** and architecture checkpoint G3 remains complete. The old
+ACCEPT reviewed the superseded Arcane Git Sync architecture and is stale after substantive head
+movement.
 
-The packaged deployment owner selects and reports one exact local branch head, requires a unique
-existing Arcane sync whose scheduled activation was already disabled and drained, streams the effective
-environment without a plaintext local file, atomically replaces the exact remote project `.env` before
-manual source activation, reconciles ambiguous source writes, and requires complete runtime health.
-Its optional gate invokes the separate report-only P10 verifier. Packaged rollback remains report-only
-unless explicitly asked to prepare an isolated local review branch; it never pushes or merges.
+The packaged deployment owner resolves one exact local branch head, prepares its complete service
+subtree and layered environment as an immutable protected generation, activates it directly through
+the existing `svc-ops` Docker Compose path under a per-service lock, verifies Docker generation
+identity, complete health, and DMZ/TLS routes, and only then promotes stable. Arcane is observation
+and a migration guard; enabled auto-sync refuses activation before a Compose write. Runtime rollback
+activates and verifies a retained generation and never changes authored Git.
 
 ## Session Changes
 
-- Added packaged `skynet deploy service` and `skynet rollback service` owners with safe human/JSON
-  outcomes and exact source/completed-step/verification/recovery evidence.
-- Replaced shell evaluation, unbounded requests, local plaintext env staging, truncating remote writes,
-  ambiguous first-match identity, and masked redeploy/restart failures with literal parsing, bounded
-  reconciliation, stdin-only secret transit, atomic replacement, unique identity, and failed-closed
-  runtime checks.
-- Kept P10 verification separate and report-only; `--gate` supplies the selected local branch-head
-  revision only after runtime reconciliation.
-- Reduced the two legacy GitOps scripts to thin packaged-command forwarders and added the required Nix
-  runtime closure for Git, SSH, and sops.
-- Updated current design, runbooks, Compose/Nix guidance, and stable agent memory for the packaged
-  owner and explicit human-reviewed recovery boundary.
+- Added `generation.py`, `activation.py`, and `deploy.py` as the small synchronous deployment owner;
+  removed the Arcane repository/sync/redeploy implementation from `gitops.py`.
+- Made preparation read Git objects from the exact selected branch head, reject unsafe trees, decrypt
+  only in local memory, stream plaintext through bounded SSH stdin, validate Compose in remote staging,
+  and atomically publish an immutable generation with a non-secret release manifest.
+- Added protected filesystem state, atomic mutable metadata, operation records, remote `flock`, Docker
+  label reconciliation, same-generation recovery, independent verification, stable promotion, and
+  explicit retained-generation rollback.
+- Adapted P10 verification from Arcane Git Sync identity to release-manifest and independently observed
+  Docker generation identity while retaining its complete health and route/TLS safety contract.
+- Reduced the legacy deploy and rollback shell names to thin package forwarders, updated the Nix
+  closure, current design/runbooks/Compose guidance, directive/map, ADR, and agent memory.
 - Preserved all pre-existing generated/inventory/drift worktree entries outside P11 ownership.
-- Repaired the review-found source/environment race: `autoSync=false` is now a standing precondition,
-  missing-sync bootstrap fails closed, manual sync happens only after the selected environment is
-  installed, and `--no-deploy` never repoints or activates source.
-- Repaired source-sync admission handling: ambiguous POST/response and non-terminal deadline outcomes
-  stop after one POST with inspect-before-retry guidance; bounded retry requires positively newer
-  terminal failure evidence. Later failures after `source-synced` report that activation occurred.
 
 ## Verification
 
-- The independent Tester passed disposable Arcane HTTP/redirect/redaction, sync create/repoint/pull,
-  deploy/no-deploy/gate, cloudflared target, env stdin/atomicity, process-tree timeout, malformed and
-  ambiguous evidence, rollback report/prepare/conflict/cleanup, and compatibility-forwarder cases
-  after five focused defects were repaired.
-- Ruff, strict mypy, Python compile, shell syntax, offline Nix package build, secret scan, hard
-  invariants, and diff checks passed under the test/CI embargo.
-- A disposable Arcane-equivalent OLD/OLD to NEW/NEW harness passed six normal/no-deploy/refusal/
-  failed/ambiguous deploy cases and the affected exact-revision, env atomicity/redaction,
-  timeout/process-tree, runtime-health, gate, cloudflared, rollback, forwarder, and package-closure
-  checks. NEW source was observed only with NEW environment.
-- Focused disposable probes passed admitted-but-unobserved ambiguity, non-terminal timeout,
-  terminal-only retry, empty completion-marker refusal, and truthful post-sync identity failure.
-- The registered Arcane GitHub credential was updated from the authenticated local GitHub CLI without
-  printing or persisting its value; Arcane's repository connection test passed. The approved live T2
-  `librespeed` run then synced exact `main` revision `f8072b3`, atomically replaced its 10-key
-  environment as `1000:1000` mode `0600`, consumed the redeploy operation stream, reconciled one
-  healthy container, and passed the P10 route gate with HTTP 200 and verified TLS. No root grant or T3
-  action occurred.
+- Independent Testers passed the required disposable preparation, activation/reconciliation,
+  verification/promotion, rollback, and integration cases after their findings were repaired. These
+  include dirty-tree isolation, atomic failure, secret custody, idempotence, path safety, lock and
+  dual-writer refusal, coherent OLD→NEW application, transport ambiguity, same-generation recovery,
+  stale metadata, incomplete/unhealthy projects, failed-candidate retention, and no Git mutation.
+- The live T2 `librespeed` canary used the existing `svc-ops` Docker capability and persistent protected
+  home. Arcane auto-sync was disabled and drained, the old exact revision was verified, and direct
+  activation used revision `f8072b390c10957a572eda4aa112da0583e46796`.
+- The first live verification saw health still starting and correctly withheld promotion. A later
+  same-generation reconciliation verified one healthy generation container and the route at HTTP 200
+  with TLS result 0, then promoted stable. A subsequent deployment reused the generation without
+  changing its container or release manifest; state ended `active=stable` with `previous=null` and
+  the retained `.env` at mode `0600`.
+- Focused source and installed-package smokes plus Ruff, strict mypy, Python compilation, shell syntax,
+  offline Nix build, secret scan, hard invariants, and diff checks cover the embargoed gate surface.
 
 ## Pending Work and Blockers
 
-- The one-time T2 migration of legacy `autoSync=true` records must be performed and drained while old
-  source/environment still agree before a coupled service revision is exposed.
-- P11 PR #259 must be reviewed in a fresh session before acceptance.
+- P11 PR #259 requires a completely fresh review; the prior ACCEPT is unusable for this architecture.
+- Other services retain a deliberate migration guard and refuse direct activation while Arcane
+  auto-sync remains enabled. P11 did not mass-migrate them.
 - Automated regression protection remains intentionally unavailable until the post-SKY-025 redesign.
 
 ## Next Entry Point
 
-Read `planning/prompts/review.md` and review SKY-025 PR #259 in a fresh session.
+Read planning/prompts/review.md and review SKY-025 PR #259.

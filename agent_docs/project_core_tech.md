@@ -44,10 +44,10 @@ NixOS.
 ## External services and infrastructure
 
 The runtime observes or operates declared boundaries for both Proxmox nodes, PBS, Docker hosts via
-Arcane and unprivileged SSH, Technitium zones, scoped Authentik applications/providers, Cloudflare
-DNS records for `aliammar.net`, OPNsense read-only diagnostics, and Omada inventory. GitHub provides
-the review/merge boundary; Arcane provides GitOps reconciliation; Caddy and Cloudflare Tunnel provide
-the internal/public service path.
+unprivileged `svc-ops` SSH/Compose and optional Arcane observation, Technitium zones, scoped
+Authentik applications/providers, Cloudflare DNS records for `aliammar.net`, OPNsense read-only
+diagnostics, and Omada inventory. GitHub provides the review/merge boundary; Skynet owns direct
+Compose activation; Caddy and Cloudflare Tunnel provide the internal/public service path.
 
 ## Important technical constraints
 
@@ -65,27 +65,21 @@ the internal/public service path.
   retains the previous bytes, but freshness-gated callers do not treat retained observations as current.
 - The factual renderer checks collection freshness, rejects unsafe node page basenames, and publishes
   a staged whole-tree replacement with rollback to the prior page set on failure.
-- Deployment verification requires one exact full Git revision across Arcane Git Sync and project
-  evidence, complete equal positive project/Docker counts, running healthy containers, and complete
-  canonical routes probed from the Docker DMZ network with verified TLS. It has no deploy or rollback
-  write path; the route probe only creates/removes an ephemeral pinned image container.
-- `skynet deploy service` owns source selection and binds service bytes/modes to the exact revision
-  before Arcane writes; changed or missing selected inputs, extra local service inputs, symlinks,
-  and non-regular files fail closed. It requires one exact existing Arcane repository/sync/project
-  with `autoSync=false`, delivers the environment off-host via stdin and atomically replaces remote
-  `.env` at mode 0600 before branch repoint/manual source sync. Arcane's manual sync may redeploy a
-  running project; ambiguous or non-terminal source-sync outcomes never trigger a second POST without
-  authoritative terminal evidence, while a normally returned POST followed by newer terminal
-  failure evidence may retry within the bound. The command then uses its bounded NDJSON explicit
-  redeploy and requires complete runtime health. It reports exact local branch/revision/repository
-  identity; `--no-deploy` prepares environment only, and missing sync/project bootstrap is refused.
-  A `source-synced` completed step means source activation occurred even if a later consistency,
-  redeploy, runtime, or gate check fails. A legacy auto-sync service must
-  be migrated and quiesced under the deploy runbook's timed check while old source/environment agree.
-  `cloudflared` restarts only its
-  reconciled container IDs. Its opt-in `--gate` runs the separate report-only packaged verifier.
-  `skynet rollback service` is report-only by default and can prepare an isolated reviewed inverse;
-  it refuses protected or mixed-project changes and never pushes or merges. `gitops-deploy.sh` and
+- Deployment verification requires one exact full Git revision in the selected generation manifest,
+  stable Compose project identity, complete equal positive Compose/Docker service counts, every
+  container identified by independent generation metadata, running healthy containers with required
+  healthchecks, and canonical routes probed from the Docker DMZ network with verified TLS. It has no
+  deployment write path; the route probe only creates/removes its bounded ephemeral pinned-image
+  container. Direct activation and promotion are owned by `activation.py` and `deploy.py`.
+- `skynet deploy prepare` reads Git objects at one exact branch head, stages the complete service
+  subtree and layered environment, validates Compose expansion from the generation, and atomically
+  publishes an immutable protected generation. `skynet deploy service` acquires the remote per-service
+  `flock`, reconciles operation/state/Docker evidence, refuses enabled Arcane auto-sync, activates
+  directly with stable project identity, verifies independently, and promotes stable only after
+  success. A timed-out activation remains unresolved until lock/runtime reconciliation; only the
+  same generation may resume. `skynet deploy status` is report-only. `skynet rollback service` is
+  report-only by default and `--apply` activates a retained generation through the same path without
+  branch, commit, push, merge, or authored-source mutation. `gitops-deploy.sh` and
   `gitops-rollback.sh` are temporary compatibility forwarders for P22.
 - `scripts/entity.sh`, `scripts/audit-entities.sh`, and `scripts/build-db.sh` are compatibility
   forwarders; maintained SQL views remain under `scripts/sql/`.

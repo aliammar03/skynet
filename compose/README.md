@@ -1,26 +1,25 @@
 ---
-summary: "The compose/ service catalog and the Arcane GitOps deployment loop every project follows."
+summary: "The Compose service catalog and immutable Skynet generation deployment loop."
 ---
 
-# compose — one dir per service, Arcane git-syncs each
+# compose — one dir per service, deployed as immutable Skynet generations
 
 ```
 compose/<service>/
-├── compose.yaml   # pinned image DIGESTS; env_file: .env; Arcane makes this read-only in its UI
-├── .env.git       # NON-secret config, committed plaintext — Arcane's git layer
+├── compose.yaml   # pinned image DIGESTS; env_file: .env; complete generation input
+├── .env.git       # NON-secret config, committed plaintext — non-secret revision input
 └── .env.sops      # secrets ONLY, sops+age (keys visible in diffs, values encrypted)
 ```
 
 **The canonical "skynet way" for every service** (the standard this repo enforces):
 digest-pinned images · `env_file: .env` · non-secret config in committed `.env.git` ·
-secrets only in `.env.sops` · **a healthcheck on every service** (below) · deployed via Arcane
-GitOps Sync from this repo. No inline compose config, no file-based `.txt` docker secrets. Deploy
+secrets only in `.env.sops` · **a healthcheck on every service** (below) · deployed by direct Docker Compose from an immutable Git-revision generation. No inline compose config, no file-based `.txt` docker secrets. Deploy
 with `skynet deploy service <svc>` — see `runbooks/deploy-service.md` for the exact source,
-environment, and runtime contract (Arcane GitOps does not merge `.env.git`/`project.env`).
+environment, and runtime contract (Arcane does not own the generation).
 
 ### Healthchecks — one per service
 
-Every service **must** report health (so Arcane shows `(healthy)` and dependents can wait on
+Every service **must** report health (so Docker shows `(healthy)` and dependents can wait on
 `condition: service_healthy`). Either the image ships a built-in `HEALTHCHECK` (e.g. aiostreams,
 karakeep-web) or the compose declares one. Prefer a real endpoint probe; fall back to a TCP
 port-open when the image lacks an HTTP client. Use whatever tool the image actually has:
@@ -34,7 +33,7 @@ port-open when the image lacks an HTTP client. Use whatever tool the image actua
 
 Standard timing: `interval: 30s, timeout: 10s, retries: 3, start_period: 10–30s`.
 `skynet deploy service` treats a missing health status as a failed runtime observation; it does not
-turn a successful source sync into a health claim.
+turn successful Compose application into a health claim.
 
 ### Volume standard — the decision (apply to EVERY mount a service needs)
 
@@ -42,7 +41,7 @@ turn a successful source sync into a health claim.
 |---|---|---|---|
 | a **standalone DB-engine** container's storage — mongo, postgres, standalone redis, **meilisearch**, typesense, elasticsearch… | **named volume** | `<role>` (docker-managed; compose prefixes `<svc>_`) | **required** — see labels below |
 | **everything else** — app data, configs, uploads, media, an app's **embedded SQLite** | **bind mount** | `/opt/docker/appdata/<svc>/<role>` | none (located by path; in the restic appdata sweep) |
-| a **repo-tracked** config/code file (init scripts, patches) | relative mount | `./…:…:ro` (GitOps-synced) | none |
+| a **repo-tracked** config/code file (init scripts, patches) | relative mount | `./…:…:ro` (generation-contained) | none |
 
 Rules that make it unambiguous:
 - `<svc>` = the compose dir name (lowercase). `<role>` = a short purpose noun: `data`, `config`,
@@ -85,36 +84,33 @@ create role/release tags; the declaration remains reviewable in the Compose revi
 |---|---|---|
 | `skynet.service` | the service name | groups a volume to its service (`docker volume ls --filter label=skynet.service=<svc>`). Organizational today; A4 restore tooling will use it. |
 | `skynet.backup` | `protect` \| `ephemeral` | **the backup intent** — `protect` = source of truth, `backup-restic.sh` pulls it into the backup; `ephemeral` = cache/index/regenerable, skipped. |
-| `skynet.managed` | `gitops` | marks the volume as owned by this repo's GitOps flow (vs a hand-made stray). |
+| `skynet.managed` | `gitops` | retained label for repo-authored service ownership; Arcane does not own deployment. |
 
 Reads like a sentence: *skynet: protect this, it's aiometadata's, managed by gitops.*
 Bind mounts need no labels (found by their `/opt/docker/appdata/<svc>/…` path). The vocabulary is
 open to extend later (`skynet.backup: snapshot`, a `skynet.tier` for retention) without breaking
 `protect`/`ephemeral`.
 
-## How env reaches a container (Arcane GitOps)
+## How env reaches a container (Skynet generation)
 
-Arcane's GitOps sync copies `compose.yaml` (and the compose dir, incl. subdirs) and owns the
-project lifecycle, but it does **not** merge `.env.git`/`project.env` into `.env` — that layering
-only applies to Arcane's *non-GitOps* projects. A GitOps project just runs `docker compose`
-against whatever `.env` is on disk.
+`skynet deploy prepare <svc>` selects one exact full local branch-head Git revision and copies the
+complete committed `compose/<svc>/` runtime subtree, including relative config/code files, into a
+protected remote staging generation. It constructs effective `.env` = `.env.git` + locally decrypted
+`.env.sops` in memory and streams plaintext only through bounded SSH stdin. No local plaintext
+file, argv, report, retained subprocess output, or plaintext hash is made. The selected published
+generation retains `.env` at mode `0600`; Compose validation runs against that generation before it
+becomes prepared. Dirty or untracked checkout bytes are never selected.
 
-So `skynet deploy service` **materialises** the effective `.env` = `.env.git` + `sops -d .env.sops`.
-Before any Arcane write, it binds `compose.yaml`, `.env.git`, and optional `.env.sops` content and
-executable modes to the selected local Git revision; missing or changed selected inputs, extra local
-service inputs, symlinks, and non-regular files fail closed. Sops runs on vm-skynet-ops against the
-selected encrypted bytes via stdin and sends plaintext to the exact project only over the SSH
-process's stdin; it is not written to a local temporary file. A pinned writer atomically replaces
-the remote `.env`, owned by the observed project UID:GID and mode `0600`. Every service still declares
-`env_file: .env` so those values reach it. The packaged command is the only source-activation owner:
-its existing Git Sync must have `autoSync=false`, and the command installs `.env` before repointing
-or manually syncing source. Arcane's manual sync may redeploy an already-running project, so do not
-start a sync outside the packaged command. `--no-deploy` prepares `.env` only; complete a normal
-packaged deployment before source activation. Missing sync/project bootstrap is not supported. The
-deploy runbook covers the one-time migration: disable auto-sync while old source/environment agree, wait
-the deployed Arcane maximum (never less than five minutes), and confirm the old revision/runtime
-before exposing coupled changes.
+`skynet deploy service <svc>` activates the immutable generation through direct Docker Compose as
+`svc-ops`, with a stable project name and the selected directory as Compose working location.
+A per-service host lock and Docker generation-label reconciliation precede mutation. Independent
+complete health and DMZ route/TLS verification must pass before `stable` promotion. A failed
+candidate may be active while the previous stable remains the explicit rollback candidate. An
+existing Arcane Git Sync with `autoSync=true` is a pre-write refusal; disable and drain its scheduled
+writes while old source/environment agree and verify the old live revision before first takeover.
+Arcane may display the externally managed project as UI observation but does not sync or redeploy it.
 
-Restore the selected `.env.git`/`.env.sops` revision with `skynet deploy service <svc>`; the
-packaged command rematerializes the effective file before source activation and runtime checks. The retained
-`scripts/gitops-deploy.sh` name is only a temporary compatibility forwarder to P22.
+`skynet deploy status <svc>` is report-only. `skynet rollback service <svc> [--to <full-revision>]`
+reports the retained candidate; `--apply` explicitly reactivates and verifies it without editing
+Git. Correct authored source separately through a reviewed PR. The old `scripts/gitops-deploy.sh`
+and `scripts/gitops-rollback.sh` names are thin forwarders until P22.

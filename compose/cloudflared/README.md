@@ -43,5 +43,6 @@ bind-mounted read-only. To create or restore the tunnel credential:
 
 The tunnel runs on `vm-docker-dmz`. Publishing an app is one `ingress` line in
 [`config.yml`](config.yml) + a public DNS record, merged and
-reconciled by Arcane. Rollback is `git revert` (Arcane converges back), or `docker compose down` for
-the break-glass path.
+activated as an immutable Skynet generation with `skynet deploy service cloudflared`. Runtime
+rollback explicitly activates and verifies a retained generation; authored correction is a separate
+reviewed PR. `docker compose` through the standing Docker context remains the break-glass path.

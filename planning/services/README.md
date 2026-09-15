@@ -9,7 +9,7 @@ run it, image/compose notes, and its secrets / DNS / backup needs up front.
 
 The bar for the Skynet way is set by the agent's `skynet-service-standard` memory and
 [`docs/conventions.md`](../../docs/conventions.md): digest-pinned images, `env_file: .env`,
-secrets in `.env.sops`, a healthcheck on every service, deployed via Arcane GitOps.
+secrets in `.env.sops`, a healthcheck on every service, deployed as an immutable Skynet Compose generation.
 
 **→ Out:** when we commit to onboarding one, `bin/plan start SKY-###` turns the sketch into a
 real [`../projects/`](../projects/) directive with the actual deployment phases.

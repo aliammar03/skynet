@@ -2,14 +2,14 @@
 summary: "Publish a service with no native login behind Authentik forward-auth on apps Caddy."
 trigger: "Put a no-login service behind Authentik"
 tier: "T2 PR-gated"
-executor: "apps Caddy GitOps, guarded DNS saved-plan, scoped Authentik API"
+executor: "verified apps Caddy generation activation, guarded DNS saved-plan, scoped Authentik API"
 rollback: "git revert the route; Authentik/DNS deletion is separately approved"
 ---
 
 # Runbook — internal route (Authentik forward-auth)
 
 **Tier:** T2 (PR-gated) for the Caddy route, DNS, and scoped Authentik Applications/Providers
-operations. **Executor:** apps Caddy GitOps sync, the guarded DNS plan, and the scoped Authentik
+operations. **Executor:** verified `skynet deploy service caddy-apps`, the guarded DNS plan, and the scoped Authentik
 API. **Rollback:** revert the route by PR; remove Authentik objects only as an explicitly approved
 separate action.
 
@@ -141,7 +141,7 @@ dig +short <svc>.aliammar.net @10.10.70.50  # expect 10.10.100.35
 
 ## Rollback
 
-Revert the Caddyfile block by PR and let Arcane reconcile. Authentik and DNS deletion are separate
+Revert the Caddyfile block by PR and deploy its verified generation. Authentik and DNS deletion are separate
 hard checkpoints; do not send delete plans through `scripts/tofu-apply.sh`. If cleanup is approved,
 remove the application first and provider second with scoped-token calls. Leave the Technitium
 record visible until its compliant delete path exists.

@@ -25,7 +25,8 @@ Tags: **[testable]** = a lint gate could assert it; **[manual]** = holds by revi
   record manual/build/smoke evidence without adding tests or CI fragments; the post-transition review
   owns one coherent replacement verification architecture.
 - **Shell requires a concrete caller or rescue/bootstrap need** `[manual]`. Record its owner and
-  removal condition in planning. Existing Bash commands remain the installed implementation.
+  removal condition in planning. Replaced Bash names are thin forwarding compatibility entries
+  until their caller/removal phase; the packaged Python owner supplies procedural behavior.
 
 ## Existing Bash scripts
 

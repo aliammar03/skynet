@@ -1,11 +1,11 @@
 ---
-summary: "How Skynet holds secrets with sops+age and safely materializes GitOps service environments."
+summary: "How Skynet holds secrets with sops+age and safely materializes immutable Compose generation environments."
 ---
 
 # Spoke · Secrets
 
 > How Skynet keeps secret values encrypted in Git and delivers a service environment to the exact
-> Arcane project. Governed by [`../system-design.md`](../system-design.md).
+> protected Compose generation. Governed by [`../system-design.md`](../system-design.md).
 
 ## The master secret
 
@@ -41,38 +41,28 @@ lab master key ──decrypts──▶ per-CT age key ──decrypts──▶ th
 - LXC provisioning injects the same identity to `/var/lib/sops-nix/age.key` (`0400 root`) before
   the first deploy; see [`provision-lxc.md`](../../runbooks/provision-lxc.md).
 
-## GitOps service environment
+## Compose generation environment
 
-Each service's reproducible environment has two repository inputs:
+Each service has two authored inputs at one exact full Git revision:
 
-- **`.env.git`** — committed non-secret defaults.
-- **`.env.sops`** — secret assignments encrypted to the lab age recipient; optional when no secrets
-  are needed.
+- `.env.git` — committed non-secret defaults;
+- `.env.sops` — optional secret assignments encrypted to the lab age recipient.
 
-The effective `.env` is not Arcane's `project.env` layer. Before any Arcane write,
-`skynet deploy service` binds `compose.yaml`, `.env.git`, and optional `.env.sops` bytes and
-executable modes to the selected Git revision. Changed or missing selected inputs, extra local
-service inputs, symlinks, and non-regular files fail closed. Sops receives the selected `.env.sops`
-bytes over stdin and runs locally on
-vm-skynet-ops with `SOPS_AGE_KEY_FILE`; the bounded plaintext output is concatenated in memory.
-Plaintext is sent to the off-host project only through the SSH command's stdin; it is never placed in
-a local temporary file, command argument, log, or JSON outcome. The age key stays on vm-skynet-ops.
+The packaged `skynet deploy prepare` owner reads Git objects, not dirty checkout bytes. It layers
+those selected inputs in local memory. sops receives the revision's ciphertext over bounded stdin
+and decrypts on `vm-skynet-ops` with `SOPS_AGE_KEY_FILE`; the age key never leaves that host. Secret
+plaintext travels only through bounded SSH stdin to the protected remote generation staging area.
+The staging `.env` is mode `0600`; only the selected published generation persists it inside
+`/home/svc-ops/.local/state/skynet-deploy/<service>/generations/<full-revision>/`. No local plaintext
+file, argv, retained subprocess output, report, journal, commit, or JSON contains it. The public
+release manifest may record Git blob and ciphertext identities but never secret values or a hash of
+effective plaintext. A low-entropy secret must not become guessable through a published hash.
 
-The remote writer is constrained to the exact Arcane project path
-`/opt/docker/arcane-projects/<service>`. It verifies the path's numeric owner, uses a pinned BusyBox
-image to create a same-directory temporary file, applies that owner, sets mode `0600`, and atomically
-renames it to `.env`. A non-regular source, symlink, path mismatch, malformed owner, or failed
-stream leaves the operation failed/ambiguous for inspection; it is never reported as a successful
-environment replacement.
-
-Every service declares `env_file: .env` so Docker Compose consumes this materialized file. The
-packaged deployment requires an existing Git Sync with `autoSync=false` and installs `.env` before
-repointing or manually syncing source, because Arcane's manual sync may redeploy a running project.
-It does not change scheduled-sync controls or bootstrap a missing project. `--no-deploy` prepares
-only the environment and does not activate source. This preserves the same age-key custody and
-SSH-stdin boundary described above. The retained [`gitops-deploy.sh`](../../scripts/gitops-deploy.sh)
-name is a temporary compatibility forwarder to `skynet deploy service` for P22 removal, not a second
-secret path.
+Compose uses `env_file: .env` relative to that generation. Preparation validates Compose expansion
+against its own effective environment before atomic publication. Direct activation runs Compose from
+the immutable generation. Arcane `project.env` and Git Sync are not secret or deployment authority;
+enabled legacy auto-sync is refused before Docker mutation. The retained `gitops-deploy.sh` shell
+name is a temporary packaged-command forwarder until P22.
 
 ## Operations
 

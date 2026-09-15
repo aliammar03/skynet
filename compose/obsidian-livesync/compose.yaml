@@ -13,15 +13,8 @@ services:
   couchdb:
     image: couchdb:3.5.0@sha256:1c0a30a54535377bc9ae23f42efb1ca4e92abe796f78ec98b768ac1d5874cc1b
     restart: unless-stopped
-    # Deliver the repo-tracked CORS/tuning config WITHOUT letting couchdb's root
-    # entrypoint chown the host git file. The entrypoint runs `find /opt/couchdb
-    # \! -user couchdb -exec chown couchdb` — so a live bind mount UNDER /opt/couchdb
-    # flips the HOST file's owner to uid 5984, which then breaks Arcane's GitOps sync
-    # ("promote staged project directory: openat local.ini: permission denied", since
-    # Arcane runs as uid 1000). So we mount local.ini read-only at a NEUTRAL path
-    # (outside /opt/couchdb, never chowned) and copy it into local.d/ at startup —
-    # couchdb only ever chowns the container-internal copy. Verified: host file stays
-    # 1000:1000 and the config (single_node, CORS, require_valid_user) loads.
+    # Mount tracked CORS/tuning config outside /opt/couchdb so its entrypoint cannot chown the
+    # immutable host generation file; copy it into the container's local.d/ at startup.
     entrypoint:
       - /bin/bash
       - -c

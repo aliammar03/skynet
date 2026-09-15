@@ -14,8 +14,9 @@ summary: "The current two-door proxy, split-DNS, Authentik boundary, and Cloudfl
 | Management Caddy | `10.10.60.35`, VLAN 60 | T3 | Sensitive infrastructure; admin-workstation-only |
 | Apps Caddy | `10.10.100.35`, VLAN 100 | T2 | Everyday services; app-client VLANs |
 
-Skynet operates the apps Caddy GitOps stack, not Management Caddy. Routes are explicit Caddyfile
-entries, deployed through the normal reviewed PR → Arcane reconciliation loop. Caddy routes by
+Skynet operates the apps Caddy Compose stack, not Management Caddy. Routes are explicit Caddyfile
+entries, deployed through the normal reviewed PR → immutable generation → direct Compose activation
+and verification loop. Caddy routes by
 `IP:port`, has no Docker socket, and is the only path from app clients to declared origins.
 
 ## DNS and TLS
@@ -45,7 +46,7 @@ rules are in [network](network.md). The publish runbook owns the concrete route 
 
 ## Public path
 
-`compose/cloudflared/` is a T2 GitOps connector at `10.10.100.33`. It has no inbound firewall rule:
+`compose/cloudflared/` is a T2 Compose connector at `10.10.100.33`. It has no inbound firewall rule:
 it dials Cloudflare outbound and forwards every permitted public request to Apps Caddy at
 `https://10.10.100.35`, preserving TLS to the origin.
 
@@ -64,7 +65,7 @@ transit Cloudflare.
 
 `svc-ops` has Docker-group access on the DMZ host, which is effectively host-root. Therefore the
 sanctioned route/auth change is guarded by the human merge gate, network segmentation confines
-origins to internal app clients, and Arcane reconciliation restores tracked configuration. The
+origins to internal app clients, and verified generation activation restores tracked configuration. The
 nightly collector reads committed routes; it does not compare live Caddy configuration with git.
-Diagnose suspected live-route drift through Arcane; no route is automatically reverted from an
+Diagnose suspected live-route drift through Docker generation evidence; no route is automatically reverted from an
 observation alone.

@@ -1,11 +1,11 @@
 ---
-summary: "The single 'skynet way' every service's compose conforms to, so the fleet is uniform and Arcane's GitOps loop can own it."
+summary: "The single 'skynet way' every service's compose conforms to, so the fleet is uniform and Skynet generations can deploy it."
 ---
 
 # Spoke · Compose & the "skynet way" for services
 
-> The single standard every service conforms to, so the whole fleet looks identical and Arcane's
-> GitOps loop can own it. Governed by [`../conventions.md`](../conventions.md).
+> The standard every service conforms to so Skynet generations can deploy it uniformly. Governed by
+> [`../conventions.md`](../conventions.md).
 
 This spoke is the **canonical rule statement**. The co-located [`compose/README.md`](../../compose/README.md)
 carries the worked reference — healthcheck probe table per image, exact label semantics, the env
@@ -19,7 +19,7 @@ Tags: **[testable]** = a lint gate could assert it; **[manual]** = holds by revi
 ```
 compose/<svc>/
 ├── compose.yaml   # pinned image DIGESTS; env_file: .env; STRUCTURAL only
-├── .env.git       # NON-secret config, committed plaintext (Arcane's git layer)
+├── .env.git       # NON-secret committed defaults
 └── .env.sops      # secrets ONLY, sops+age; omit if the service has none
 ```
 
@@ -36,7 +36,7 @@ compose/<svc>/
 - **No inline `environment:` config** `[manual]` — config lives in `.env.git`, not scattered in
   compose. Exception: a structural key that interpolates a secret (e.g. a computed `REDIS_URL`).
 - **A healthcheck on every service** `[testable]` — image built-in `HEALTHCHECK` or a
-  compose-declared one, so Arcane reports `(healthy)` and dependents can wait on
+  compose-declared one, so Docker reports `(healthy)` and dependents can wait on
   `condition: service_healthy`. Match the probe to the image's tools; standard timing
   `interval: 30s, timeout: 10s, retries: 3, start_period: 10–30s`. See the probe table in
   `compose/README.md`.
@@ -51,39 +51,38 @@ compose/<svc>/
 |---|---|---|---|
 | a **standalone DB-engine** container's storage (mongo, postgres, redis, meilisearch, …) | **named volume** | `<role>` (compose prefixes `<svc>_`) | **required** (below) |
 | **everything else** (app data, configs, uploads, media, embedded SQLite) | **bind mount** | `/opt/docker/appdata/<svc>/<role>` | none (found by path) |
-| a **repo-tracked** config/code file | relative mount | `./…:…:ro` (GitOps-synced) | none |
+| a **repo-tracked** config/code file | relative mount | `./…:…:ro` (generation-contained) | none |
 
 - **Every bind mount gets a `<role>` subdir**, even single-volume services `[manual]`
   (`…/calibre/config`, never `…/calibre`). Don't repeat `<svc>` in `<role>`.
 - **Every named volume carries all three `skynet.*` labels** `[testable]`:
-  `skynet.service=<svc>`, `skynet.backup=protect|ephemeral`, `skynet.managed=gitops`. Reads as a
-  sentence: *protect this, it's `<svc>`'s, managed by gitops.* Bind mounts need no labels.
+  `skynet.service=<svc>`, `skynet.backup=protect|ephemeral`, `skynet.managed=gitops`. The retained
+  `gitops` label means repo-authored service ownership; it does not grant Arcane sync authority.
+  Bind mounts need no labels.
 
 ## Env layering & secrets
 
-- **`.env.git`** = non-secret defaults, committed plaintext (Arcane's git layer).
+- **`.env.git`** = non-secret defaults, committed plaintext (committed non-secret input).
 - **`.env.sops`** = secrets only, sops+age — keys visible in diffs, values encrypted `[testable]`.
 - **Secrets never appear in `.env.git`, `compose.yaml`, or plaintext `.env`/`project.env`**
   `[testable]` (pre-commit `secret-scan.sh` enforces).
-- `skynet deploy service <svc>` **materialises** the effective `.env` = `.env.git` + `sops -d
-  .env.sops`. Decryption runs on the ops VM; plaintext crosses to the exact Arcane project only
-  through SSH stdin, where a pinned writer atomically replaces `.env` with mode `0600`. The age key
-  never leaves the ops VM. Before any Arcane write, deployment binds `compose.yaml`, `.env.git`, and
-  optional `.env.sops` bytes and executable modes to the selected Git revision; mismatched or unsafe
-  worktree inputs fail closed. Full flow: `compose/README.md` and
-  [`../design/secrets.md`](../design/secrets.md).
+- `skynet deploy prepare <svc>` reads only Git objects at an exact full local branch-head revision,
+  stages the complete runtime subtree remotely, materialises effective `.env` from `.env.git` plus
+  decrypted `.env.sops` in local memory, and streams plaintext through bounded SSH stdin only. The
+  selected immutable generation alone retains `.env`, mode `0600`, inside the protected state tree.
+  Neither a local temporary plaintext file, argv, output, report, commit, nor plaintext hash is made.
+  `skynet deploy service <svc>` activates that exact generation and promotes it only after complete
+  independent verification. See `compose/README.md` and [`../design/secrets.md`](../design/secrets.md).
 
 ## The loop
 
-- **One Arcane Git Sync per project dir; `autoSync=false`; Arcane auto-update off** for Git-synced
-  projects `[manual]`. The packaged command is the sole source-activation owner. A legacy sync must
-  be migrated and quiesced while its old source and environment still agree; changing `autoSync`
-  cannot cancel an already-admitted run. Deploy via `skynet deploy service <svc>`; it installs the
-  selected environment before repointing or manually syncing source. A manual source sync may
-  redeploy a running project, so do not sync outside the packaged owner. `--no-deploy` prepares the
-  environment only and does not select or activate source. Missing syncs require supervised bootstrap.
-  For migration wait and old-runtime verification, follow the deploy runbook. Prepare recovery with
-  `skynet rollback service <svc> <deploy-commit> --prepare`. The rollback command leaves push and
-  human merge to the operator. The retained shell names are temporary compatibility forwarders to
-  P22. See [`../design/gitops-loop.md`](../design/gitops-loop.md) and
+- **One deployment owner per service** `[manual]`: Skynet's packaged synchronous generation path uses
+  the standing `svc-ops` Docker-host T2 capability, a per-service `flock`, direct Compose with a
+  stable project name, Docker generation labels, complete health/route verification, and atomic stable
+  promotion. Arcane remains UI/observation; an existing Git Sync with `autoSync=true` is a pre-write
+  refusal. Disable and drain legacy scheduling while old source/environment agree and verify the old
+  live revision before first takeover. Do not delete disabled sync metadata by guesswork. Roll back
+  only on explicit `skynet rollback service <svc> [--to <full-revision>] --apply`; authored Git
+  correction goes through a normal reviewed PR. The shell names are forwarders until P22. See
+  [`../design/gitops-loop.md`](../design/gitops-loop.md) and
   [`../../runbooks/deploy-service.md`](../../runbooks/deploy-service.md).

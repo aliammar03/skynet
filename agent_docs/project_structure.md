@@ -12,7 +12,8 @@ directories and live inventory are intentionally summarized rather than copied h
   hold the operating contract, constitution, domain design, doctrine, and settled decisions.
 - `src/skynet/` and `pyproject.toml` hold the installable Python engine; `nix/` and `hosts/` hold
   NixOS packaging, modules, and host definitions; `flake.nix` composes build/deploy outputs.
-- `compose/<service>/` holds GitOps service manifests and encrypted environment inputs; `tofu/` holds
+- `compose/<service>/` holds authored service manifests and encrypted environment inputs for immutable
+  generations; `tofu/` holds
   declarative infrastructure sources; `secrets/` holds encrypted per-host material.
 - `scripts/` holds retained procedures, collectors, and compatibility forwarders; `bin/` holds
   operator entry points; `runbooks/` holds engine-neutral procedures and their generated catalog.
@@ -24,7 +25,8 @@ directories and live inventory are intentionally summarized rather than copied h
 ## Modules and responsibilities
 
 The Python CLI dispatches collection, doctor, route, reconnaissance, entity-audit, cache/query,
-rendering, deployment verification, and recall commands. `entities.py` owns the five-class identity derivation/audit and
+rendering, deployment preparation/activation/status/rollback, deployment verification, and recall
+commands. `entities.py` owns the five-class identity derivation/audit and
 `routes.py` uses it directly; `cache.py` owns the disposable 14-table SQLite projection and queries;
 `render.py` owns factual Markdown pages; `memory.py` owns digest/context/catalog rendering and
 read-time recall. Collector modules own one observation boundary and its validation/publication
@@ -44,23 +46,16 @@ recovery procedures.
   disposable cache. `bin/ops entities|query` first requires current collection evidence; direct
   repository scripts do not establish freshness.
   Collectors never claim service health merely from collection success.
-- `skynet deploy service <service>` is the packaged deployment owner. It resolves and reports an
-  exact local branch head/repository, binds service files to that revision before Arcane writes,
-  validates one existing unique Arcane contract with `autoSync=false`, delivers the environment over
-  SSH stdin with atomic remote 0600 replacement before branch repoint/manual sync, then requires
-  complete runtime health. Arcane manual sync may redeploy a running project. Ambiguous or
-  non-terminal source-sync outcomes stop with inspect-before-retry recovery and no second POST;
-  only positively newer terminal failure evidence permits a bounded retry. `source-synced` means
-  source activation occurred even when a later stage fails. `--no-deploy` prepares environment only;
-  missing sync/project bootstrap is refused. A legacy auto-sync service must be
-  migrated and quiesced under the deploy runbook's timed check while old source/environment agree.
-  Its optional `--gate` invokes the separate
-  report-only `skynet verify deployment <service> <full-revision>` observer (exact revision, complete
-  counts/health, canonical DMZ/TLS routes). `skynet rollback service` is report-only by default;
-  `--prepare` creates an isolated review branch from a separate authored deploy-commit identity and
-  never pushes or merges.
-- Git branch → PR → human merge → packaged environment/source activation → running Compose is the
-  service boundary; `git revert` is the normal rollback path.
+- `skynet deploy prepare <service>` reads an exact local branch head and publishes a complete immutable
+  generation; `skynet deploy service <service>` acquires the per-service remote lock, reconciles state
+  and Docker, refuses enabled Arcane auto-sync, directly activates the generation, independently
+  verifies identity/complete health/routes, and promotes stable. `skynet deploy status` reports only.
+  `skynet rollback service <service>` reports a retained candidate by default and `--apply` reuses the
+  same activation/verification path without changing Git. The old shell deploy/rollback names are
+  temporary forwarders until P22.
+- Git branch → PR → human merge → exact-revision generation → direct Compose activation → independent
+  verification → stable promotion is the service boundary. Arcane remains UI/observation; its legacy
+  auto-sync must be disabled and drained before first takeover.
 - Approved OpenTofu source → one-scope saved plan → `scripts/tofu-apply.sh` is the infrastructure
   write boundary. Proxmox, DNS, Cloudflare, and host access remain tier-scoped.
 - `docs/system-design.md` is the authority spine. `agent_docs/` distills it and current evidence for

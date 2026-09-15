@@ -457,7 +457,7 @@ def _service_records(repo: Path, vlans: tuple[int, ...], slugs: dict[int, str], 
             else:
                 records.append(_record(identity, "service", status="running",
                                        bucket="running-unmapped", hosted_on=hosted,
-                                       note=f"no compose/{project}/ in git — deployed outside the GitOps loop",
+                                       note=f"no compose/{project}/ in git — deployed outside Skynet generations",
                                        host=host))
                 holes.append(identity)
     for project in sorted(compose_dirs):

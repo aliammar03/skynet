@@ -17,7 +17,7 @@ payload data, then `skynet deploy service` for service configuration and runtime
 - Identify the service/guest, recovery point, paths, configuration branch, and narrowest required
   grant/token. Preserve a current recovery point before replacement where feasible.
 - Keep restic/PBS credentials and decrypted service environment values out of commands, output, and
-  evidence. The package's default Arcane and age files are restrictive local files.
+  evidence. The package's age key and optional Arcane migration credential are restrictive local files.
 
 ## Steps
 
@@ -44,26 +44,25 @@ payload data, then `skynet deploy service` for service configuration and runtime
 
    `--include` prevents replacing unrelated service data. `--tag manual` selects pre-change
    snapshots; `--tag scheduled` selects nightly snapshots.
-3. If the recovery point requires historical configuration, represent that configuration on an
-   attached local branch containing the matching `compose/<svc>/compose.yaml`, `.env.git`, and
-   `.env.sops`. Keep the active checkout's branch history intact; do not restore one file into a
-   detached worktree because deployment source identity is a branch head.
-4. Confirm the existing Arcane sync still has the exact repository, branch, and
-   `compose/<svc>/compose.yaml` path, with `syncDirectory=true` and `autoSync=false`. Leave
-   scheduled sync disabled; do not manually sync or redeploy outside the packaged owner.
-5. Reconcile the selected configuration with the packaged owner:
+3. If the recovery point needs historical configuration, use an attached local branch whose
+   head contains the matching `compose/<svc>/compose.yaml`, `.env.git`, `.env.sops`, and relative
+   runtime files. Keep the current branch history intact; the full branch-head Git revision is the
+   authored generation identity.
+4. Check `skynet deploy status <svc>` and any legacy Arcane sync. Enabled auto-sync is a pre-write
+   refusal; disable/drain it while old source and environment agree, then verify old running
+   revision before first generation takeover. A disabled record can remain.
+5. Reconcile configuration with the packaged owner:
 
    ```bash
    skynet deploy service <svc> --repo <checkout> --branch <branch>
    ```
 
-   The command resolves and reports the exact local 40-hex branch head, materializes and atomically
-   replaces the remote `.env` with mode `0600` through SSH stdin, then repoints/syncs source and
-   explicitly redeploys. Arcane's manual source sync can itself redeploy a running project; the
-   environment is installed first. The command requires complete positive Arcane/Docker counts with
-   every container running, non-restarting, and healthy. Add `--gate` only for the separate
-   report-only P10 route/TLS check. A data restore using current configuration may use the current
-   branch instead.
+   The command prepares a complete immutable generation from the selected exact Git revision,
+   streams effective `.env` by SSH stdin into the protected remote generation at mode `0600`,
+   activates directly through Docker Compose, and requires independent complete container/health
+   and DMZ route/TLS verification before stable promotion. A data restore using current
+   configuration may select the current branch. A failed candidate does not erase the prior
+   stable rollback candidate.
 6. Check application-level consistency. For an inconsistent hot database copy,
    add an appropriate dump pre-hook before relying on a filesystem restore.
 
@@ -77,20 +76,17 @@ Targeted archive recovery is verified. Full core-node-loss recovery remains unve
 
 ## Verify
 
-- Git Sync remains configured with `autoSync=false`.
-- The deploy outcome records the exact source branch/revision/repository and reports
-  `verification=runtime-complete` (or the explicit gate result).
-- Arcane and Docker show the selected service at that source with equal positive counts and every
-  container running, non-restarting, and healthy.
+- `skynet deploy status` reconciles state pointers and Docker generation labels to one complete
+  running generation; old `stable` remains available until the new generation is verified.
+- The deploy outcome records the exact full Git revision and independent health/route result.
 - Application data consistency matches the selected recovery point.
 
 ## Rollback
 
-Stop if the point is wrong or verification fails. Preserve the pre-restore data and configuration
-for operator recovery; do not layer another restore over it. The deployment command does not
-automatically revert a failed restore or gate. If a declarative inverse is required, prepare it with
-`skynet rollback service <svc> <deploy-commit> --prepare`, review and human-merge it, then deploy the
-merged branch.
+Stop if the point is wrong or verification fails. Preserve pre-restore payload data and the retained
+stable generation. Use `skynet rollback service <svc> [--to <retained-full-revision>] --apply` only
+under an explicit runtime rollback plan; the command independently verifies before promotion and
+does not edit Git. Correct authored source separately with a normal reviewed PR.
 
 ## Evidence
 

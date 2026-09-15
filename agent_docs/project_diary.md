@@ -62,32 +62,44 @@
 - SKY-025 P9 is externally accepted on reviewed base `250bb48` and head `b89affd`. Its same-PR bounded
   closeout advances accepted progress to 9/24 and completes G3 without changing accepted substantive
   surfaces; PR #256 remains for one human merge before P10 begins.
-- P10 verification is report-only: it requires one exact Arcane revision across Git Sync and project
-  evidence, reconciles positive complete Arcane/Docker counts, rejects missing healthchecks, and proves
-  declared routes from the DMZ vantage with verified TLS. Deployment, retry, and recovery remain P11.
+- P10 was accepted as a report-only verifier with complete-container, healthcheck, canonical-route,
+  DMZ, TLS, bounded-output, and failure safety properties. P11 retains those properties while
+  superseding P10's Arcane Git Sync identity observation with immutable release-manifest and Docker
+  generation evidence.
 - SKY-025 P10 is externally accepted on reviewed base `c800d58` and head `48b62c1`. The original
   session validated the newest applicable ACCEPT marker after the earlier FIX marker, advanced accepted
   progress to 10/24, and staged only bounded closeout on PR #257; that PR was subsequently human-merged.
-- P11 separates three identities: the exact selected local branch head is deployment source, the P10
-  verifier receives that full revision, and recovery receives the authored deploy commit to invert.
-  Packaged deploy never guesses one identity from another and packaged rollback never pushes or merges.
-- A timed-out or otherwise ambiguous Arcane/source/environment write is reread before retry and remains
-  an explicit inspect-before-retry recovery state when it cannot be reconciled. Completed write steps
-  are not collapsed into a generic failure.
-- Arcane's last completed source-sync record is not an in-flight lease or operation identity. An
-  ambiguous manual-sync POST or non-terminal deadline therefore cannot consume another POST; only a
-  normally returned request followed by a changed, nonempty completion timestamp with terminal
-  failure can justify a bounded retry.
-- Arcane project redeploy is a streamed NDJSON operation rather than an ordinary API envelope. The
-  deploy owner requires a bounded, valid stream ending in one terminal success frame; transport,
-  malformed, error, or missing-terminal outcomes stay ambiguous until runtime is observed.
-- A named Git branch is not source identity unless the deployed service inputs match that exact tree.
-  P11 binds `compose.yaml`, `.env.git`, and `.env.sops` bytes and executable modes to the selected
-  revision before any Arcane write and rejects dirty, untracked, symlinked, or mismatched inputs.
-- Arcane manual and scheduled Git Sync share an activation path that may redeploy a running project.
-  P11 therefore requires `autoSync=false` to be established and drained while old source and old
-  environment still agree, before a coupled revision is exposed. Deployment installs the selected
-  environment before its manual sync; `--no-deploy` never selects or activates source.
+- P11 release identity is the exact full local branch-head revision. Preparation reads Git objects,
+  never dirty worktree bytes, and records only non-secret Git/tree/blob/ciphertext identities. The
+  effective environment is decrypted in local memory, streamed through bounded SSH stdin, and
+  persists only as the selected protected remote generation's mode-`0600` `.env`.
+- A generation is immutable after atomic publication. Mutable operation and promotion state uses
+  bounded atomic replacement; `active` describes observed runtime intent, `stable` means independently
+  verified, and `previous` retains the stable generation immediately before the current stable.
+- Direct Compose activation uses the stable service project name from each immutable generation under
+  a remote per-service `flock`. Docker working-directory/config labels independently identify the
+  generation; a pointer alone never proves runtime identity.
+- Transport loss leaves activation unresolved. A later invocation first observes the lock and Docker
+  state; only the same immutable generation may converge while ambiguity remains, and a different
+  generation is refused.
+- Arcane is an observation and emergency-human surface. An enabled legacy auto-sync is a pre-write
+  refusal; takeover requires disable-and-drain evidence plus verification of the old live revision.
+  Skynet does not mutate repository branches, trigger manual source sync, or use sync status as
+  deployment authority.
+- Verification promotes stable only after the exact generation, stable project identity, complete
+  nonduplicated service set, running state, required healthy healthchecks, and declared DMZ/TLS/HTTP
+  routes all pass. A failed candidate can remain active while the prior stable stays recorded, and P11
+  never rolls it back automatically.
+- Runtime rollback explicitly activates and verifies a retained generation through the same path. It
+  creates no branch, commit, push, merge, or authored-source mutation and reports intentional runtime/
+  authored-Git divergence after success.
+- The `librespeed` live canary proved the existing `svc-ops` Docker path, protected persistent state,
+  migration guard, direct activation, health-before-promotion, same-generation recovery, Docker
+  generation identity, DMZ HTTP/TLS verification, stable truth, and idempotent reuse. The initial
+  health-starting result correctly withheld promotion.
+- P11's previous external ACCEPT covered the removed Arcane Git Sync architecture. Its substantive
+  redesign makes that verdict stale; accepted numbered progress remains P10 until PR #259 receives a
+  completely fresh external review and later bounded same-PR closeout.
 - The unprivileged NixOS `aliammar` account is the construction filesystem/OS boundary. Native
   construction inherits its no-prompt Codex posture; self-root and authored self-merge are forbidden,
   and production authority remains governed separately by trust-tier contracts.

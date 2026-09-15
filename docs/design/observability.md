@@ -72,33 +72,27 @@ outside the version-controlled auto-approve list.
 ## Deployment verification
 
 The packaged command
-`skynet verify deployment <service> <full-revision>` is the report-only observer for one Arcane
-GitOps service. It requires the supplied full 40-hex revision to match exactly in the selected
-service's unambiguous successful Git Sync and running Arcane project. The project must report
-positive equal service/running counts. The sync identity must match the service and
-`compose/<service>/compose.yaml`, and the project must be bound to that sync. The read-only Docker
-observation must be non-empty, identity-matched, and count-equal. Every observed container must be
-running and report `healthy`; a missing healthcheck is a failed verification.
+`skynet verify deployment <service> <full-revision>` is the report-only observer for one
+selected immutable Compose generation. It matches the supplied full revision to the retained
+non-secret `release.json`, requires the expected stable Compose project name, and independently
+matches every actual project container's Compose working-directory/config-file labels to that exact
+generation. The expected Compose service set must be positive and complete with no missing,
+duplicate, extra, mixed, stopped, restarting, unhealthy, or healthcheck-less required container.
+Arcane Git Sync/project identity is not deployment evidence.
 
 Before probing, the verifier validates the complete canonical route snapshot. Duplicate, malformed,
 partial, or case-ambiguous route evidence fails closed. Declared routes for the service are probed
 from Docker context `docker-dmz` on network `dmz`, resolving the apps front door at
 `10.10.100.35` with the immutable image
 `curlimages/curl:8.16.0@sha256:463eaf6072688fe96ac64fa623fe73e1dbe25d8ad6c34404a669ad3ce1f104b6`.
-TLS must verify and the HTTP response must be 100–499; authentication responses such as 302 or
-401 are reachable outcomes. A service with no declared route is reported as `skipped`, not as an
-unprobed success.
+TLS must verify and HTTP response must be 100–499; authentication responses such as 302 or 401
+prove reachability. A service with no declared route is `skipped`, never an unprobed success.
 
-Verification never deploys, restarts, rolls back, edits Git, or changes persistent Arcane/Docker
-configuration. A routed probe creates and removes one ephemeral container and may pull/cache the
-pinned image. Deployment source selection, sync/retry/wait behavior, secure environment
-materialization, redeploy/restart, and rollback preparation belong to the packaged
-`skynet deploy service` and `skynet rollback service` procedures. The retained shell names are
-temporary compatibility forwarders for P22 removal. Deployment reports the exact local branch head
-and normalized repository identity it selected; the verifier accepts a separate expected revision.
-The deploy command's optional `--gate` runs this observer after runtime reconciliation; it is a
-separate report-only P10 check and cannot trigger rollback. Recovery preparation instead supplies a
-separate authored `<deploy-commit>` to `skynet rollback service --prepare`.
+Verification never deploys, restarts, rolls back, edits Git, or changes persistent Docker/Arcane
+configuration. A routed probe creates/removes one ephemeral container and may pull/cache its pinned
+image. `skynet deploy service` always invokes independent verification before atomic stable
+promotion; route failure leaves old `stable` intact and reports the retained rollback candidate.
+The retained shell names are temporary packaged-command forwarders until P22.
 
 ## Episodic memory — see the memory spoke
 

@@ -82,8 +82,9 @@ its logical size — read it from PBS's GC log, never from `df` (see runbook).
 
 ## Recovery objectives (informal)
 
-- **App data / a single service:** minutes-to-an-hour. `restic restore` the selected snapshot +
-  `gitops-deploy.sh` redeploy. The procedure is verified for aiometadata (Mongo + SQLite).
+- **App data / a single service:** minutes-to-an-hour. `restic restore` the selected snapshot,
+  then use `skynet deploy service <service>` to prepare and verify the immutable Compose generation.
+  The procedure is verified for aiometadata (Mongo + SQLite).
 - **A guest:** a PBS restore into `ops-managed` (T2). Fast while PBS is alive.
 - **PBS itself gone (core node dead):** pull the datastore back from Drive (L5), stand PBS up,
   restore guests. Targeted archive recovery is verified; rebuilding PBS and booting a guest after a

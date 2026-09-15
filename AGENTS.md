@@ -36,7 +36,7 @@ failure case, and performed by something dumber than you.
 | Tier | Scope | Mechanism | Standing? |
 |---|---|---|---|
 | **T1 Read** | Both Proxmox nodes, PBS, Docker hosts, DNS, firewall state (**OPNsense read-only API + git mirror**), Omada controller | Read-only API tokens; scoped OPNsense read + mirrored config.xml | Always |
-| **T2 Operate** | `ops-managed` pools on both nodes, core-managed guest envelopes, Docker hosts via Arcane + unprivileged SSH, Technitium zones, scoped Authentik Applications/Providers, Cloudflare DNS records (`aliammar.net`), approved **OPNsense firewall config** (aliases/rules) boundary — minus the self-leash set | Scoped write tokens, `svc-ops` SSH, agent-readable materialized secret files, Technitium scoped token, scoped Authentik token, Arcane API key, Cloudflare scoped `DNS:Edit` token; OPNsense write mechanism not yet available | Yes where implemented — changes PR-gated |
+| **T2 Operate** | `ops-managed` pools on both nodes, core-managed guest envelopes, Docker hosts through unprivileged `svc-ops` SSH/Compose, Arcane observation and migration controls, Technitium zones, scoped Authentik Applications/Providers, Cloudflare DNS records (`aliammar.net`), approved **OPNsense firewall config** (aliases/rules) boundary — minus the self-leash set | Scoped write tokens, `svc-ops` SSH, agent-readable materialized secret files, Technitium scoped token, scoped Authentik token, Arcane API key, Cloudflare scoped `DNS:Edit` token; OPNsense write mechanism not yet available | Yes where implemented — changes PR-gated |
 | **T2+ Root grant** | Root shell on workload hosts (diagnose, harden, provision, OS updates) | SSH user-CA certificate, per-host principal, auto-expiring | Grant only; expires by itself |
 | **T3 Privileged** | OPNsense *node root / account / cert admin / reboot / self-leash rules*, Management Caddy, Authentik administration (flows/policies/users/settings/keys), Proxmox node root, Unraid root, Technitium *server settings*, Cloudflare *account / Access / tunnel config / zone settings* | Dormant alias `ROLE_OPS_PRIV_TARGETS` + per-session credentials | **Never standing** |
 
@@ -97,7 +97,7 @@ coherent replacement evidence suite.
 
 ---
 
-## 4. The deployment loop (Arcane-driven)
+## 4. The deployment loop (Skynet generations)
 
 **Review evidence budget:** For repository reviews during the SKY-025 embargo, start with the diff,
 callers, contracts, retained controls, and manual evidence. Model names or Codex configuration changes
@@ -139,13 +139,16 @@ session posture; no role/model gains production authority.
 ```
 edit compose/<svc>/ → branch → PR → fresh acceptance review
    → ACCEPT marker → same-PR bounded closeout → Ali merges once
-   → Arcane Git Sync polls, pulls, reconciles (project read-only in UI)
-   → agent verifies health via Arcane API / docker context, commits refreshed inventory
+   → `skynet deploy service` prepares one exact Git revision as an immutable Compose generation
+   → direct `svc-ops` Docker Compose activation under a per-service lock
+   → independent Docker generation/health/DMZ route verification promotes stable
+   → agent commits refreshed inventory when requested
 ```
 
-- Rollback = `git revert`; Arcane converges back. SSH + `docker context` is the break-glass path.
-- **Loop mechanics** — one Git Sync per project, `gitops-deploy.sh` materializing effective `.env`
-  from `.env.git` + decrypted `.env.sops`, image pinning — live in
+- Runtime rollback activates and verifies a retained stable generation on explicit request. Authored
+  Git correction remains a normal reviewed PR. SSH + `docker context` is the break-glass path.
+- **Loop mechanics** — exact Git-source preparation, immutable generation state, stdin-only effective
+  `.env` from `.env.git` + decrypted `.env.sops`, direct Compose activation, image pinning — live in
   [gitops-loop](docs/design/gitops-loop.md) + [secrets](docs/design/secrets.md). Load them when you
   touch a deploy, not before.
 - **Every production OpenTofu write uses the saved-plan executor.** Author the source change and get

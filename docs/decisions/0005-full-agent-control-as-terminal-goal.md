@@ -87,8 +87,9 @@ A capability may reach **A4** only if its rollback is:
 3. **independent of the agent** — performed by a dumb executor that works even when the agent's
    judgement is the thing that failed.
 
-Clause 3 is the load-bearing one. `git revert` → Arcane reconciles is safe *because the reconciler is
-dumb and separate*. deploy-rs magic-rollback is safe for the same reason. A "rollback" that requires
+Clause 3 is the load-bearing one. deploy-rs magic-rollback is safe because its executor is dumb and
+separate. P11's explicit retained-generation rollback is supervised recovery, not an A4 automatic
+rollback. A "rollback" that requires
 the agent to notice, diagnose, and act correctly is not a rollback — it is the same failing component
 asked to grade itself. **Every actuator admitted to A4 must sit behind a dumb reconciler or an
 automatic rollback.**

@@ -1,5 +1,5 @@
 # Caddyfile — the apps front door (T2). The ENTIRE apps ingress, in one reviewable
-# file. Add/change a route = edit here → PR → Ali merges → Arcane reconciles.
+# file. Add/change a route = edit here → PR → Ali merges → Skynet activates a verified generation.
 # See runbooks/publish-service.md and docs/design/identity-and-proxy.md.
 {
 	# ACME account contact (non-secret; lives in .env.git).

@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import NoReturn
 
-from skynet import cache, certs, deployment, entities, gitops, installed_version, memory, omada, recon, render, routes
+from skynet import cache, certs, deploy, deployment, entities, installed_version, memory, omada, recon, render, routes
 from skynet.collection import collect_all, collection_status
 from skynet.dns import DEFAULT_CREDENTIALS as DNS_DEFAULT_CREDENTIALS, collect as collect_dns
 from skynet.doctor import write_report
@@ -34,55 +34,79 @@ def build_parser() -> argparse.ArgumentParser:
     )
     verification = commands.add_parser("verify", help="verify a live deployment without mutating it")
     verifiers = verification.add_subparsers(dest="verification", required=True)
-    deploy = verifiers.add_parser(
+    deployment_verify = verifiers.add_parser(
         "deployment", aliases=("deploy",),
-        help="verify one Arcane GitOps service, its containers, and declared ingress routes",
+        help="verify one exact Compose generation, its containers, and declared ingress routes",
     )
-    deploy.add_argument("service", help="Compose service/project name")
-    deploy.add_argument("expected_revision", help="full 40-hex Git commit expected live")
-    deploy.add_argument(
-        "--credentials-file", "--arcane-credentials", "--arcane-credentials-file",
-        type=Path, dest="credentials_file", default=deployment.DEFAULT_CREDENTIALS,
-        help="literal ARCANE_URL/ARCANE_TOKEN[/ARCANE_AUTH_HEADER/ARCANE_ENV_ID] assignments",
-    )
-    deploy.add_argument(
+    deployment_verify.add_argument("service", help="Compose service/project name")
+    deployment_verify.add_argument("expected_revision", help="full 40-hex Git commit expected live")
+    deployment_verify.add_argument(
         "--context", "--docker-context", dest="docker_context", default=deployment.DEFAULT_CONTEXT,
-        help="read-only Docker context used for project and DMZ probes",
+        help="Docker context used for generation observation and bounded DMZ probes",
     )
-    deploy.add_argument(
-        "--environment-id", "--env-id", dest="environment_id",
-        help="Arcane environment id (defaults to ARCANE_ENV_ID or 0)",
-    )
-    deploy.add_argument(
+    deployment_verify.add_argument(
         "--repo", type=Path, default=Path.cwd(),
         help="checkout containing compose/caddy-apps/Caddyfile (default: current directory)",
     )
-    deploy.add_argument(
+    deployment_verify.add_argument(
         "--timeout", type=float, default=deployment.DEFAULT_TIMEOUT,
         help="per-observation timeout in seconds (1–300)",
     )
-    deploy.add_argument("--json", action="store_true", dest="json_output")
-    deploy_command = commands.add_parser("deploy", help="operate one Arcane GitOps service")
+    deployment_verify.add_argument("--json", action="store_true", dest="json_output")
+    deploy_command = commands.add_parser("deploy", help="prepare, activate, or inspect immutable Compose generations")
     deploy_targets = deploy_command.add_subparsers(dest="deploy_target", required=True)
+    deploy_prepare = deploy_targets.add_parser("prepare", help="prepare one exact Git generation without activation")
+    deploy_prepare.add_argument("service", help="Compose service/project name")
+    deploy_prepare.add_argument("--repo", type=Path, default=Path.cwd())
+    deploy_prepare.add_argument("--branch", default=os.environ.get("GITOPS_BRANCH", deploy.DEFAULT_BRANCH))
+    deploy_prepare.add_argument("--age-key", type=Path, default=deploy.DEFAULT_AGE_KEY)
+    deploy_prepare.add_argument("--host", default=deploy.DEFAULT_HOST)
+    deploy_prepare.add_argument("--state-root", type=Path, default=deploy.DEFAULT_STATE_ROOT)
+    deploy_prepare.add_argument("--timeout", type=float, default=deploy.DEFAULT_TIMEOUT)
+    deploy_prepare.add_argument("--json", action="store_true", dest="json_output")
     deploy_service = deploy_targets.add_parser("service", help="deploy one Compose service")
     deploy_service.add_argument("service", help="Compose service/project name")
     deploy_service.add_argument("--repo", type=Path, default=Path.cwd())
-    deploy_service.add_argument("--branch", default=os.environ.get("GITOPS_BRANCH", gitops.DEFAULT_BRANCH))
-    deploy_service.add_argument("--credentials-file", type=Path, default=deployment.DEFAULT_CREDENTIALS)
-    deploy_service.add_argument("--age-key", type=Path, default=gitops.DEFAULT_AGE_KEY)
-    deploy_service.add_argument("--environment-id")
-    deploy_service.add_argument("--timeout", type=float, default=gitops.DEFAULT_TIMEOUT)
-    deploy_service.add_argument("--no-deploy", action="store_true")
-    deploy_service.add_argument("--gate", action="store_true")
+    deploy_service.add_argument("--branch", default=os.environ.get("GITOPS_BRANCH", deploy.DEFAULT_BRANCH))
+    deploy_service.add_argument(
+        "--credentials-file", "--arcane-credentials", type=Path,
+        default=deploy.DEFAULT_ARCANE_CREDENTIALS,
+        help="read-only Arcane credential file used for the migration guard",
+    )
+    deploy_service.add_argument("--age-key", type=Path, default=deploy.DEFAULT_AGE_KEY)
+    deploy_service.add_argument(
+        "--migration-evidence", type=Path,
+        help="bounded non-secret JSON proof of disabled/drained legacy Arcane sync",
+    )
+    deploy_service.add_argument("--environment-id", "--env-id")
+    deploy_service.add_argument("--host", default=deploy.DEFAULT_HOST)
+    deploy_service.add_argument("--state-root", type=Path, default=deploy.DEFAULT_STATE_ROOT)
+    deploy_service.add_argument("--context", "--docker-context", dest="context", default=deploy.DEFAULT_CONTEXT)
+    deploy_service.add_argument("--timeout", type=float, default=deploy.DEFAULT_TIMEOUT)
     deploy_service.add_argument("--json", action="store_true", dest="json_output")
-    rollback_command = commands.add_parser("rollback", help="prepare reviewable recovery state")
+    deploy_status = deploy_targets.add_parser("status", help="report generation and actual runtime state")
+    deploy_status.add_argument("service", help="Compose service/project name")
+    deploy_status.add_argument("--host", default=deploy.DEFAULT_HOST)
+    deploy_status.add_argument("--state-root", type=Path, default=deploy.DEFAULT_STATE_ROOT)
+    deploy_status.add_argument("--timeout", type=float, default=deploy.DEFAULT_TIMEOUT)
+    deploy_status.add_argument("--json", action="store_true", dest="json_output")
+    rollback_command = commands.add_parser("rollback", help="inspect or apply a retained runtime generation")
     rollback_targets = rollback_command.add_subparsers(dest="rollback_target", required=True)
-    rollback_service = rollback_targets.add_parser("service", help="report or prepare a service rollback")
+    rollback_service = rollback_targets.add_parser("service", help="report or apply a retained service generation")
     rollback_service.add_argument("service", help="Compose service/project name")
-    rollback_service.add_argument("revision", help="full deploy commit to revert")
+    rollback_service.add_argument("--to", dest="revision", help="explicit retained full Git revision")
     rollback_service.add_argument("--repo", type=Path, default=Path.cwd())
-    rollback_service.add_argument("--prepare", action="store_true")
-    rollback_service.add_argument("--timeout", type=float, default=gitops.DEFAULT_TIMEOUT)
+    rollback_service.add_argument(
+        "--credentials-file", "--arcane-credentials", type=Path,
+        default=deploy.DEFAULT_ARCANE_CREDENTIALS,
+        help="read-only Arcane credential file used for the migration guard",
+    )
+    rollback_service.add_argument("--environment-id", "--env-id")
+    rollback_service.add_argument("--host", default=deploy.DEFAULT_HOST)
+    rollback_service.add_argument("--state-root", type=Path, default=deploy.DEFAULT_STATE_ROOT)
+    rollback_service.add_argument("--context", "--docker-context", dest="context", default=deploy.DEFAULT_CONTEXT)
+    rollback_service.add_argument("--apply", action="store_true")
+    rollback_service.add_argument("--timeout", type=float, default=deploy.DEFAULT_TIMEOUT)
     rollback_service.add_argument("--json", action="store_true", dest="json_output")
     collection = commands.add_parser("collect", help="collect observations, not service health")
     sources = collection.add_subparsers(dest="source", required=True)
@@ -230,30 +254,45 @@ def main(argv: Sequence[str] | None = None) -> int:
             return deployment.run(
                 arguments.service,
                 arguments.expected_revision,
-                arguments.credentials_file,
                 arguments.docker_context,
                 arguments.repo,
-                environment_id=arguments.environment_id,
                 timeout=arguments.timeout,
                 json_output=arguments.json_output,
                 stdout=sys.stdout,
             )
         return _unreachable_command(arguments.verification)
     if arguments.command == "deploy":
+        if arguments.deploy_target == "prepare":
+            return deploy.prepare_service(
+                arguments.service, repo=arguments.repo, branch=arguments.branch,
+                age_key=arguments.age_key, host=arguments.host, state_root=arguments.state_root,
+                timeout=arguments.timeout,
+                json_output=arguments.json_output, stdout=sys.stdout,
+            )
         if arguments.deploy_target == "service":
-            return gitops.deploy_service(
+            return deploy.deploy_service(
                 arguments.service, repo=arguments.repo, branch=arguments.branch,
                 credentials_file=arguments.credentials_file, age_key=arguments.age_key,
-                environment_id=arguments.environment_id, timeout=arguments.timeout,
-                no_deploy=arguments.no_deploy, gate=arguments.gate,
+                environment_id=arguments.environment_id, migration_evidence=arguments.migration_evidence,
+                host=arguments.host, state_root=arguments.state_root, context=arguments.context,
+                timeout=arguments.timeout,
+                json_output=arguments.json_output, stdout=sys.stdout,
+            )
+        if arguments.deploy_target == "status":
+            return deploy.status_service(
+                arguments.service, host=arguments.host, state_root=arguments.state_root,
+                timeout=arguments.timeout,
                 json_output=arguments.json_output, stdout=sys.stdout,
             )
         return _unreachable_command(arguments.deploy_target)
     if arguments.command == "rollback":
         if arguments.rollback_target == "service":
-            return gitops.rollback_service(
-                arguments.service, arguments.revision, repo=arguments.repo,
-                prepare=arguments.prepare, timeout=arguments.timeout,
+            return deploy.rollback_service(
+                arguments.service, to=arguments.revision, apply=arguments.apply,
+                repo=arguments.repo, credentials_file=arguments.credentials_file,
+                environment_id=arguments.environment_id, host=arguments.host,
+                state_root=arguments.state_root, context=arguments.context,
+                timeout=arguments.timeout,
                 json_output=arguments.json_output, stdout=sys.stdout,
             )
         return _unreachable_command(arguments.rollback_target)

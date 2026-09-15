@@ -1,54 +1,41 @@
 ---
-summary: "The current write actuators, deterministic recovery paths, and A4 eligibility of each capability."
+summary: "Current write actuators, recovery paths, and A4 eligibility."
 ---
 
-# Spoke · Actuators & rollback executors
+# Spoke · Actuators and rollback executors
 
-> The current registry of write paths and their recovery boundaries. Governed by
-> [`../system-design.md`](../system-design.md) and the reversibility test in
+> Write-path registry governed by [`../system-design.md`](../system-design.md) and
 > [ADR 0005](../decisions/0005-full-agent-control-as-terminal-goal.md).
 
-Unattended action requires an automatic, failure-tested rollback performed by a deterministic
-executor, not an LLM. Irreversible work remains a hard checkpoint. The current Compose path has no
-automatic authored inverse, so it is not A4 eligible.
+Unattended A4 action requires an automatic, failure-tested rollback performed by a deterministic
+executor rather than the same LLM. Irreversible work remains a hard checkpoint. The current Compose
+path is supervised T2 with explicit human-controlled runtime rollback and is not A4 eligible.
 
-| Actuator | Write path | Recovery on failure | Deterministic decision | A4 eligible |
+| Actuator | Write path | Recovery on failure | Verification | A4 eligible |
 |---|---|---|---|---|
-| Compose deploy | `skynet deploy service <service>` | No automatic rollback; inspect the exact outcome, then prepare a reviewed inverse with `skynet rollback service <service> <deploy-commit> --prepare` | Runtime reconciliation; optional `--gate` invokes the packaged report-only verifier | No |
-| Existing-guest tofu update | `tofu-apply.sh <saved-plan>` | Snapshot before apply; preserve snapshot for verification/dirty-plan recovery | Post-apply plan and verification | No |
+| Compose deploy | `skynet deploy service <service>` | Preserve old stable; inspect active/operation/Docker identity; explicitly `skynet rollback service ... --apply` to a retained generation | Independent exact generation, complete health, DMZ route/TLS gate before promotion | No |
+| Existing-guest tofu update | `tofu-apply.sh <saved-plan>` | Snapshot before apply; preserve for verification/dirty-plan recovery | Post-apply plan and verification | No |
 | Tofu guest create | Approved `tofu-apply.sh <saved-plan>` | None; never auto-destroy partial create | Post-apply plan | No |
 | Tofu non-guest write | Approved `tofu-apply.sh <saved-plan>` | None | Post-apply plan | No |
-| Cloudflare DNS break-glass | `cf-dns-route.sh` | `dns-revert.sh undo` replays a captured complete-record inverse | Inverse capture must succeed before mutation | Yes, executor only |
+| Cloudflare DNS break-glass | `cf-dns-route.sh` | `dns-revert.sh undo` replays complete-record inverse | Inverse capture before mutation | Yes, executor only |
 | NixOS deployment | deploy-rs / `nixos-rebuild` | deploy-rs magic rollback | Activation health check | Yes |
 | OPNsense config | No live actuator | None | — | No |
 
-The packaged Compose deployment binds service source bytes and executable modes to one exact local
-branch-head identity before any Arcane write, then requires one existing exact repository/sync/project
-identity with `autoSync=false`. It installs the selected environment before branch repoint or manual
-source sync; Arcane's manual sync may itself redeploy a running project, followed by the command's
-explicit bounded NDJSON redeploy. Scheduled sync remains disabled and the package does not bootstrap
-missing projects. A legacy auto-sync project requires a one-time T2 migration and timed quiescence
-while old source/environment still agree; disabling auto-sync cannot cancel an admitted run. Follow
-the [deploy runbook](../../runbooks/deploy-service.md) for the duration and old-runtime check. A
-manual source-sync request with an ambiguous outcome, or a non-terminal completion deadline, stops
-without a second POST because Arcane exposes no in-flight operation lease; only positively newer
-terminal failure evidence after a normally returned POST can permit a bounded retry. A failed or
-ambiguous stage reports completed steps, `verification`, and `recovery`; once `source-synced` is
-recorded, recovery states that source activation occurred. It never implies that an earlier write was
-undone. `--no-deploy` prepares environment only, with source unselected.
-`cloudflared` restart is limited to the reconciled container IDs and is followed by the same health
-checks.
+Compose preparation reads one exact Git revision and atomically publishes a validated immutable
+remote generation; failure leaves running and stable state untouched. The packaged owner activates
+through direct `svc-ops` Docker Compose under remote `flock`, first refusing enabled Arcane auto-sync
+and reconciling actual Docker generation labels against operation/pointer state. `active` may be an
+unverified candidate while `stable` remains the old verified generation. Timed-out activation is
+unresolved until the old lock releases and Docker evidence is inspected; only convergence to the
+same immutable generation can resume over a partial application. A different generation is refused
+over ambiguity.
 
-The optional P10 gate is separate and report-only. It can fail after runtime success without changing
-the runtime, and it never invokes rollback. Arcane is the GitOps reconciler, not a rollback executor.
+Verification and promotion are separate: Docker Compose accepting a change cannot move `stable`.
+Failure preserves the old stable rollback candidate; no automatic rollback occurs. Explicit retained
+generation runtime rollback activates, independently verifies, and promotes the selected generation
+without Git branch/commit/push/merge. Authored source correction is a normal reviewed PR. Arcane may
+observe projects but Git Sync is not a deployment or rollback executor. A disabled legacy sync can
+remain; enabled scheduling is a pre-write refusal until drained and old runtime revision is proved.
 
-Rollback defaults to report-only validation. `--prepare` creates a temporary isolated worktree from
-the attached base branch, creates a revert commit on a unique local
-`rollback/<service>-<first-12-hex-of-revision>` branch, cleans the worktree, and leaves push/review/
-human merge to the operator. Protected paths,
-mixed-Compose-project commits, and commits outside the selected service are refused. Nothing is
-pushed or merged by the command.
-
-Automated rollback proof is unavailable during the SKY-025 repository-test embargo. Historical raw
-rehearsal evidence remains in the journal, and no actuator may claim a new A4 promotion until a
-post-transition review restores coherent failure-case automation.
+Automatic rollback proof is unavailable during the SKY-025 test/CI embargo; no new A4 promotion can
+be claimed until coherent failure-case automation is restored and human-merged.

@@ -32,22 +32,19 @@ root grants, and never-standing T3 access; a construction worker has no producti
   from authored conventions and observations; route resolution uses the same entity functions. The
   packaged cache/query module builds a disposable, validated 14-table SQLite projection for SQL
   views and ad-hoc queries; it is never authority.
-- Arcane reconciles Compose projects through Git Sync. `skynet deploy service` is the packaged
-  source/environment activation owner: it reports the exact selected branch head and normalized
-  repository, binds Compose/environment bytes and executable modes to that revision, requires one
-  existing unique sync/project with `autoSync=false`, installs `.env` by stdin-only SSH and atomic
-  `0600` replacement before branch repoint/manual sync, then requires complete runtime health. Arcane
-  manual sync may redeploy a running project; scheduled sync stays disabled. `--no-deploy` prepares
-  environment only. Ambiguous or non-terminal source-sync outcomes stop without a second POST and
-  require inspect-before-retry; only a normally returned POST followed by newer terminal failure
-  evidence can consume a bounded retry. A `source-synced` step means source activation occurred,
-  including when a later stage fails. A legacy auto-sync service must be migrated and quiesced while
-  old source and environment still agree under the deploy runbook's timed migration check. Its opt-in
-  `--gate` runs the separate report-only P10 verifier for exact revision and DMZ/TLS routes. A live deploy plus
-  gate has passed for `librespeed`; PR #259 still
-  awaits fresh review. `skynet rollback service` is report-only by default and can prepare an
-  isolated reviewed inverse; neither path auto-rolls back. The old shell names are temporary
-  compatibility forwarders for P22.
+- Skynet owns Compose deployment through `skynet deploy`: it resolves one exact local branch-head
+  revision, prepares a complete immutable generation on the Docker host, activates it directly with
+  Compose under a per-service lock, independently verifies Docker generation identity, complete
+  health, and DMZ/TLS routes, then promotes stable. The persistent state root is
+  `/home/svc-ops/.local/state/skynet-deploy`; the existing `svc-ops` home is mode `0700` and the
+  Docker host provides the documented T2 Docker/Compose capability. Effective `.env` plaintext is
+  streamed by bounded SSH stdin and persists only in the selected generation at mode `0600`.
+  Arcane is UI/observation and emergency human tooling; enabled legacy Git Sync auto-sync is a
+  pre-write refusal and must be disabled and drained before first takeover. A live `librespeed`
+  canary on exact revision `f8072b390c10957a572eda4aa112da0583e46796` passed direct activation,
+  health, Docker label identity, DMZ HTTP 200/TLS verification result 0, stable promotion, and
+  same-generation idempotence. `skynet rollback service` explicitly activates and verifies a retained
+  generation without changing Git; the old shell names are temporary compatibility forwarders for P22.
 - The generated digest is optional recent-activity/episodic/open-thread retrieval and the context map
   is on-demand load-cost routing; packaged rendering also owns factual pages and the runbook catalog.
   Read-time recall ranks canonical Markdown sources. None replaces `agent_docs/` continuity or
@@ -67,11 +64,13 @@ root grants, and never-standing T3 access; a construction worker has no producti
 ## Main workflows
 
 1. A normal authored change uses one PR: implementation → fresh review → ACCEPT marker → same-PR
-   bounded closeout → one human merge. Git revert is the normal rollback for GitOps changes.
-2. After a merged Compose revision, `skynet deploy service <service>` resolves the selected local
-   branch head, reconciles Arcane and complete runtime health, and optionally runs the separate
-   report-only P10 gate; recovery uses `skynet rollback service <service> <deploy-commit> --prepare`
-   with a separate authored commit identity and neither path auto-rolls back.
+   bounded closeout → one human merge. Authored correction uses a reviewed Git change; runtime
+   rollback uses a retained generation and does not edit Git.
+2. After a Compose revision is human-merged, `skynet deploy service <service>` resolves the exact
+   branch head, prepares and activates its immutable generation, independently verifies the running
+   project and routes, then promotes stable. `skynet deploy prepare` is preparation only;
+   `skynet deploy status` is report-only. `skynet rollback service` is report-only unless `--apply`
+   explicitly selects a retained generation.
 3. A production OpenTofu write is created from an approved revision, inspected as one saved plan,
    and executed through `scripts/tofu-apply.sh` with one declared actuator scope.
 4. T1 collectors gather validated observations; freshness-gated factual rendering stages and safely

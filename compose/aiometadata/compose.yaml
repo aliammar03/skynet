@@ -3,7 +3,7 @@ name: aiometadata
 # Consolidated onto the skynet way: no Docker file-secrets. All secrets live in
 # .env.sops (single store) and reach services as env vars / ${JIKAN_*} interpolation
 # from the materialised .env. jikan config files (.env.compose, mongo-init.js,
-# RepositoryQuery.php) are committed under ./jikan and synced by Arcane GitOps.
+# RepositoryQuery.php) are committed under ./jikan and included in the immutable generation.
 
 x-arcane:
   tags:

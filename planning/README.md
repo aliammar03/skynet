@@ -70,7 +70,8 @@ Each directive carries its own execution/review entry points, so running or resu
 paste into a fresh session.
 
 For SKY-025, use the [execute/review handoff prompts](prompts/README.md). Accepted progress is P10/24;
-P11 implementation is ready on PR #259 and pending a fresh review of that open phase PR. From
+P11 is being reworked on existing PR #259 into immutable Compose generations and direct activation;
+its prior Arcane-design ACCEPT is stale and a completely fresh review is required. From
 P8 onward, one numbered phase owns one open PR; internal slices remain on that PR until fresh acceptance,
 then bounded closeout stays
 on that **same accepted PR** before one human merge. Ali never provides commit hashes to the reviewer or

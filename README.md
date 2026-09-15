@@ -22,8 +22,10 @@ repo** — OPNsense included.
   vendor-neutral contract. Codex CLI reads it natively; Claude Code, Goose, and Amp honor it.
   *Any agent that can read a file and run bash can operate Skynet.* Swapping engines changes one
   line in [`bin/ops`](bin).
-- **GitOps deploys.** [Arcane](https://arcane.ofkm.dev) watches this repo and reconciles Docker to
-  match it. You merge a PR; the lab converges. Rollback is `git revert`.
+- **Reviewed generations deploy.** The packaged Skynet command prepares one exact Git revision as an
+  immutable Compose generation, directly activates it through `svc-ops`, verifies health/routes,
+  and promotes it to stable. [Arcane](https://arcane.ofkm.dev) remains a Docker UI. Explicit runtime
+  rollback switches to a retained verified generation; authored correction is a reviewed PR.
 - **Humans hold the keys.** Secrets are sops-encrypted in git. Root on a host exists **only**
   inside an auto-expiring SSH certificate — and the CA private key never leaves the workstation.
   The agent *requests*; the human *types*.
@@ -53,9 +55,9 @@ flowchart LR
     A["🧠 Agent<br/>proposes"] -->|opens PR| P["🔀 Pull Request"]
     P -->|reviews & merges| H["👤 Ali (human)"]
     H -->|merged to main| G["📓 GitHub<br/>source of truth"]
-    G -->|Git Sync polls| R["⚙️ Arcane<br/>GitOps executor"]
-    R -->|reconciles| D["🐳 Docker hosts"]
-    D -->|health via API| A
+    G -->|exact revision| R["📦 Skynet<br/>immutable generation"]
+    R -->|direct Compose activation| D["🐳 Docker hosts"]
+    D -->|independent health & route proof| A
     A -->|commits refreshed inventory| G
 
     classDef human fill:#f9d71c,stroke:#333,color:#000;
@@ -64,13 +66,12 @@ flowchart LR
     class G truth;
 ```
 
-All work is human-merged during the SKY-025 test embargo. Something breaks? `git revert`, and Arcane
-returns to the last good state.
-
-After Arcane reconciles a merged service revision, use the packaged report-only check
-`skynet verify deployment <service> <full-revision>` to verify exact revision identity, complete
-healthy containers, and declared ingress routes. Deployment and rollback remain separate GitOps
-procedures.
+All authored work is human-merged during the SKY-025 test embargo. A merged Compose change
+becomes an immutable generation only when `skynet deploy service <service>` prepares and activates
+its exact revision. The command reconciles Docker generation labels, verifies complete healthy
+containers and declared DMZ/TLS routes, then promotes stable. It refuses enabled legacy Arcane
+auto-sync before mutation. A failed candidate retains old stable state; runtime rollback is an
+explicit retained-generation activation, with authored-source correction through a reviewed PR.
 
 ---
 

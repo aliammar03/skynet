@@ -6,9 +6,10 @@ summary: "SKY-025 current subsystem dispositions, callers, replacement phases, a
 
 Owned by [the active directive](projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md).
 
-Current accepted progress is **P10 / 10 of 24** and architecture checkpoint G3 is complete. P11
-implementation is ready on PR **#259** and pending fresh external review; accepted
-progress does not advance before same-PR accepted closeout.
+Current accepted progress is **P10 / 10 of 24** and architecture checkpoint G3 is complete. P11 is
+implementation-ready on existing PR **#259** as immutable Compose generations and direct activation.
+The prior Arcane Git Sync ACCEPT is stale after substantive head movement. Accepted progress does not
+advance before a completely fresh external review and later same-PR accepted closeout.
 Every PR, including generated-only nightly work, is human-merged during the SKY-025 test/CI embargo.
 
 The reviewer resolves/rechecks Git revisions from GitHub. Ali supplies the phase/PR identity, not hashes.
@@ -34,7 +35,7 @@ This file is a current disposition/caller/blocker map. Implementation chronology
 | `scripts/sql/host-map.sql`, `scripts/sql/vhosts.sql` | retain | SQL query definitions over disposable cache | renderer/query | P8 implemented |
 | rendering/digest/context/catalog shell tools | forwarding compatibility only | Python render/retrieval paths | nightly, humans, agent context | P9 accepted; removal P22 |
 | `bin/recall` | forwarding compatibility only | packaged read-time recall | humans, agent context | P9 accepted; removal P22 |
-| `deploy-gate.sh`, GitOps deploy/rollback shell logic | forwarding compatibility only | packaged deployment verifier plus `skynet deploy service` / `skynet rollback service` | deployment/restore runbooks | P10 accepted; P11 implementation ready; shell removal P22 |
+| `deploy-gate.sh`, GitOps deploy/rollback shell logic | forwarding compatibility only | generation-aware verifier plus direct Compose `skynet deploy service` / `skynet rollback service` | deployment/restore runbooks | P10 accepted; P11 implementation-ready on #259; shell removal P22 |
 | publishing/DNS coordination shell logic | migrate | Python bounded publishing workflows | Caddy/Auth/DNS runbooks | P12 |
 | Tofu env/apply + snapshot execution shell logic | migrate | Python saved-plan/policy/execution | provisioning/publishing | P13–P14 |
 | restic provision/backup shell logic | migrate | Python host-local backup/provisioning | host-local units | P15/P19 |
@@ -51,7 +52,7 @@ This file is a current disposition/caller/blocker map. Implementation chronology
 | `.githooks/pre-commit` | retain/adapt | secret scan + hard invariants only | local hook | P21 |
 | Nix/hosts/flake | retain/adapt | Nix | package/install/timers | throughout; P23 install |
 | OpenTofu declarations/state config | retain | OpenTofu | saved-plan executor | P13–P14/P18 |
-| Compose/Caddy/service payload | retain | Compose/Caddy | Arcane/GitOps | P11–P12/P22 |
+| Compose/Caddy/service payload | retain | Compose/Caddy | immutable Skynet generations; Arcane UI only | P11–P12/P22 |
 | `inventory/**`, `docs/generated/**` | retain contracts; machine-regenerate | owning collectors/renderers | status/cache/render/context | never hand-edit |
 | current docs/runbooks | retain/adapt/prune | one current authority per rule | humans/agents | throughout; P22/P24 cleanup |
 | decisions/history/journal/archive | retain as history | Git/journal | retrieval only | never current runtime authority |
@@ -118,7 +119,7 @@ These are blockers for later live phases, not reasons to keep shell implementati
 |---|---|
 | Ops VM checkout/install | identify active checkout/package/service/timer path before P23 activation |
 | host-local restic/PBS transfer scripts/units | inventory installed versions, enabled instances, paths, and required packages before P15/P16/P19 |
-| Arcane Git Sync / Docker mounts | identify actual sync command/revision/materialized env/mounts before P11 |
+| Docker host generation takeover | prove `svc-ops` Docker Compose capability, persistent protected state, Docker generation labels, disabled/drained Arcane auto-sync, and old live revision before P11 canary |
 | workstation grant helper + CA custody | verify independent workstation access/rebuild path before first destructive/recovery-dependent phase |
 | `/opt/skynet-ops` persistent cert/mirror/state paths | preserve required state and prove recovery before P17/P23/P24 |
 | sops/age materialization | preserve current custody/materialization; never read private secret contents for planning |
