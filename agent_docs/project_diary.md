@@ -74,6 +74,10 @@
 - A timed-out or otherwise ambiguous Arcane/source/environment write is reread before retry and remains
   an explicit inspect-before-retry recovery state when it cannot be reconciled. Completed write steps
   are not collapsed into a generic failure.
+- Arcane's last completed source-sync record is not an in-flight lease or operation identity. An
+  ambiguous manual-sync POST or non-terminal deadline therefore cannot consume another POST; only a
+  normally returned request followed by a changed, nonempty completion timestamp with terminal
+  failure can justify a bounded retry.
 - Arcane project redeploy is a streamed NDJSON operation rather than an ordinary API envelope. The
   deploy owner requires a bounded, valid stream ending in one terminal success frame; transport,
   malformed, error, or missing-terminal outcomes stay ambiguous until runtime is observed.
@@ -130,6 +134,8 @@
 - Turning off a scheduler is not proof that admitted work stopped. When an API exposes no in-flight
   lease state, migration needs a pre-change drain interval at least as long as the executor's maximum
   run plus an observation of the still-coherent old revision/runtime.
+- Completed-step evidence outranks generic stage ordering in recovery text. Once `source-synced` is
+  recorded, every later failure must say source activation occurred, even before explicit redeploy.
 - A transition-wide verification architecture should be changed coherently rather than patched phase
   by phase. During an explicit test embargo, retain hard safety controls, disable unattended merge,
   record verification debt, and defer one replacement suite to the post-transition review.

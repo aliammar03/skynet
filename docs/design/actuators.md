@@ -30,8 +30,12 @@ explicit bounded NDJSON redeploy. Scheduled sync remains disabled and the packag
 missing projects. A legacy auto-sync project requires a one-time T2 migration and timed quiescence
 while old source/environment still agree; disabling auto-sync cannot cancel an admitted run. Follow
 the [deploy runbook](../../runbooks/deploy-service.md) for the duration and old-runtime check. A
-failed or ambiguous stage reports completed steps, `verification`, and `recovery`; it never implies
-that an earlier write was undone. `--no-deploy` prepares environment only, with source unselected.
+manual source-sync request with an ambiguous outcome, or a non-terminal completion deadline, stops
+without a second POST because Arcane exposes no in-flight operation lease; only positively newer
+terminal failure evidence after a normally returned POST can permit a bounded retry. A failed or
+ambiguous stage reports completed steps, `verification`, and `recovery`; once `source-synced` is
+recorded, recovery states that source activation occurred. It never implies that an earlier write was
+undone. `--no-deploy` prepares environment only, with source unselected.
 `cloudflared` restart is limited to the reconciled container IDs and is followed by the same health
 checks.
 

@@ -100,10 +100,15 @@ rollback.
 
 The result is truthful structured evidence. With `--json`, retain `status`, `source`,
 `completed_steps`, `verification`, `recovery`, `reason` when present, and non-secret `detail` fields.
-Branch repoint and source pull use at most three bounded attempts; ambiguous writes are reread and
-reconciled before retry. A failed/ambiguous outcome identifies what completed and what must be
-inspected before retrying. The command never implies that Arcane or a failed gate reverted the
-service.
+Branch repoint uses at most three bounded attempts; ambiguous branch-repoint writes are reread and
+reconciled before a retry. A manual source-sync POST is single-admission because Arcane exposes only
+the last completed sync result, not an operation identity or in-flight lease. If the request/response
+is ambiguous, or completion remains non-terminal through the deadline, the command issues no second
+POST and reports explicit inspect-before-retry recovery. Only a normally returned POST followed by
+positively newer terminal `failed`/`error` evidence permits a bounded source-sync retry. If
+`completed_steps` contains `source-synced`, recovery says source activation occurred even when a
+later consistency, redeploy, runtime, or gate check fails. The command never implies that Arcane or a
+failed gate reverted the service.
 
 ## Verify
 

@@ -381,6 +381,16 @@ affected exact-revision, atomicity/redaction, timeout/process-tree, health, gate
 rollback, forwarder, and package-closure checks also passed. The same PR remains pending a fresh
 external review.
 
+A subsequent external review returned FIX because an ambiguous or non-terminal manual source-sync
+POST could be repeated even though Arcane exposes no operation identity or in-flight lease. The
+repair now stops after one POST for ambiguous admission/response or non-terminal deadline and emits
+inspect-before-retry recovery. A bounded retry is possible only after a normally returned POST and a
+changed, nonempty completion timestamp positively records terminal `failed`/`error`. Recovery also
+prioritizes `source-synced`, so a later project-identity or runtime failure states that source was
+activated. Disposable probes proved one-POST ambiguity and timeout, terminal-only retry, empty-marker
+refusal, truthful post-sync identity failure, and the retained environment-first/no-deploy/disabled-
+auto-sync sequencing. The same PR remains pending another fresh external review.
+
 ## 6. Carry-forward correctness cases
 
 The original overhaul review identified these failure classes. Replacements must keep their safeguards

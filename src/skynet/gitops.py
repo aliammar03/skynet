@@ -660,45 +660,38 @@ def _sync_detail(client: ArcaneWriter, sync_id: str) -> dict[str, Any]:
 def _pull(
     client: ArcaneWriter, sync_id: str, revision: str, timeout: float, outcome: Outcome
 ) -> dict[str, Any]:
-    """Activate source, reconciling a bounded ambiguous write from observed state."""
+    """Activate source without duplicating an operation whose admission is unknown."""
     path = f"/environments/{client.environment_id}/gitops-syncs/{sync_id}/sync"
     prior_recovery = outcome.recovery
     for attempt in range(3):
+        before = _sync_detail(client, sync_id)
+        before_completed_at = before.get("lastSyncAt")
         outcome.recovery = "source pull requested; outcome not yet reconciled"
         try:
             result = client.request("POST", path)
         except GitOpsError as error:
-            detail = _sync_detail(client, sync_id)
-            if (
-                detail.get("lastSyncStatus") == "success"
-                and detail.get("lastSyncCommit") == revision
-            ):
-                outcome.recovery = "pull-reconciled-after-ambiguous-write"
-                outcome.completed_steps.append("source-synced")
-                return detail
-            if not error.ambiguous or attempt == 2:
+            if error.ambiguous:
                 outcome.recovery = (
                     "source activation unresolved; inspect its commit/status before retry"
                 )
-                raise
-            outcome.recovery = "pull-retried-after-reconciliation"
-            continue
+                # Arcane exposes the last completed sync, not an operation identity or
+                # in-flight lease. Observe once for the operator, but never infer that
+                # this POST was rejected or completed from that uncorrelated record.
+                try:
+                    _sync_detail(client, sync_id)
+                except GitOpsError:
+                    pass
+                raise GitOpsError(
+                    "Arcane source sync admission or completion is unresolved",
+                    error.code,
+                    ambiguous=True,
+                ) from None
+            raise
         if not isinstance(result, dict) or result.get("success") is not True:
-            detail = _sync_detail(client, sync_id)
-            if (
-                detail.get("lastSyncStatus") == "success"
-                and detail.get("lastSyncCommit") == revision
-            ):
-                outcome.recovery = "pull-reconciled-after-ambiguous-write"
-                outcome.completed_steps.append("source-synced")
-                return detail
-            if attempt == 2:
-                outcome.recovery = (
-                    "source activation response unresolved; inspect its commit/status before retry"
-                )
-                raise GitOpsError("malformed Arcane source sync result", 3, ambiguous=True)
-            outcome.recovery = "pull-retried-after-reconciliation"
-            continue
+            outcome.recovery = (
+                "source activation response unresolved; inspect its commit/status before retry"
+            )
+            raise GitOpsError("malformed Arcane source sync result", 3, ambiguous=True)
         deadline = time.monotonic() + timeout
         while True:
             detail = _sync_detail(client, sync_id)
@@ -711,14 +704,28 @@ def _pull(
                     outcome.recovery = "source pull reconciled after retry"
                 return detail
             if status in {"failed", "error"}:
-                break
+                observed_completed_at = detail.get("lastSyncAt")
+                terminal_advanced = (
+                    isinstance(observed_completed_at, str)
+                    and bool(observed_completed_at)
+                    and observed_completed_at != before_completed_at
+                )
+                if terminal_advanced:
+                    if attempt < 2:
+                        outcome.recovery = "pull-retried-after-observed-terminal-failure"
+                        break
+                    outcome.recovery = (
+                        "source activation failed; inspect its commit/status before retry"
+                    )
+                    raise GitOpsError("Arcane source sync did not reach selected branch head", 1)
             if time.monotonic() >= deadline:
-                break
+                outcome.recovery = (
+                    "source activation unresolved; inspect its commit/status before retry"
+                )
+                raise GitOpsError(
+                    "Arcane source sync completion remained non-terminal", 1, ambiguous=True
+                )
             time.sleep(min(1.0, timeout / 5))
-        if attempt == 2:
-            outcome.recovery = "source activation failed; inspect its commit/status before retry"
-            raise GitOpsError("Arcane source sync did not reach selected branch head", 1)
-        outcome.recovery = "pull-retried-after-reconciliation"
     raise AssertionError("unreachable")
 
 
@@ -983,16 +990,12 @@ def _finalize_deploy_recovery(outcome: Outcome) -> None:
     steps = set(outcome.completed_steps)
     if "runtime-reconciled" in steps or "redeploy-requested" in steps:
         outcome.recovery = _deploy_failure_recovery(outcome)
+    elif "source-synced" in steps:
+        outcome.recovery = _deploy_failure_recovery(outcome)
     elif "environment-replaced" in steps and not (
         outcome.recovery.startswith("redeploy-outcome-ambiguous")
         or outcome.recovery.startswith("source activation")
         or outcome.recovery.startswith("sync repoint")
-    ):
-        outcome.recovery = _deploy_failure_recovery(outcome)
-    elif "source-synced" in steps and (
-        outcome.recovery == "not-needed"
-        or "reconciled" in outcome.recovery
-        or "retried" in outcome.recovery
     ):
         outcome.recovery = _deploy_failure_recovery(outcome)
     elif "sync-repointed" in steps and (

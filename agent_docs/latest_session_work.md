@@ -5,7 +5,7 @@
 
 ## Detailed Current State
 
-SKY-025 P11 Arcane deployment/environment/sync and rollback preparation has its first review's FIX
+SKY-025 P11 Arcane deployment/environment/sync and rollback preparation has its latest review's FIX
 findings repaired on PR **#259** and is pending fresh external review. Accepted progress remains **10/24** and
 architecture checkpoint G3 remains complete.
 
@@ -34,6 +34,9 @@ unless explicitly asked to prepare an isolated local review branch; it never pus
 - Repaired the review-found source/environment race: `autoSync=false` is now a standing precondition,
   missing-sync bootstrap fails closed, manual sync happens only after the selected environment is
   installed, and `--no-deploy` never repoints or activates source.
+- Repaired source-sync admission handling: ambiguous POST/response and non-terminal deadline outcomes
+  stop after one POST with inspect-before-retry guidance; bounded retry requires positively newer
+  terminal failure evidence. Later failures after `source-synced` report that activation occurred.
 
 ## Verification
 
@@ -47,6 +50,8 @@ unless explicitly asked to prepare an isolated local review branch; it never pus
   failed/ambiguous deploy cases and the affected exact-revision, env atomicity/redaction,
   timeout/process-tree, runtime-health, gate, cloudflared, rollback, forwarder, and package-closure
   checks. NEW source was observed only with NEW environment.
+- Focused disposable probes passed admitted-but-unobserved ambiguity, non-terminal timeout,
+  terminal-only retry, empty completion-marker refusal, and truthful post-sync identity failure.
 - The registered Arcane GitHub credential was updated from the authenticated local GitHub CLI without
   printing or persisting its value; Arcane's repository connection test passed. The approved live T2
   `librespeed` run then synced exact `main` revision `f8072b3`, atomically replaced its 10-key

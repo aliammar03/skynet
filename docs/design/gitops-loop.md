@@ -117,9 +117,15 @@ initial sync/project bootstrap is a separate supervised capability.
 only the exact container IDs returned for that Compose project, then repeats Arcane/runtime health
 and requires the same ID set. It never restarts unrelated containers.
 
-Branch repoint and source pull each use at most three bounded attempts. Ambiguous writes are
-reconciled by rereading the exact repository/sync/project state before a retry. A final ambiguous or
-failed write is reported as such; the package never claims success from a request alone.
+Branch repoint uses at most three bounded attempts; an ambiguous branch-repoint write is reread and
+reconciled before a retry. Manual source sync is different: Arcane exposes only its last completed
+sync result, not an operation identity or in-flight lease. The package therefore issues one source-
+sync POST for an admitted operation and never retries after an ambiguous request/response or a
+non-terminal completion deadline. Those outcomes are unresolved and require inspect-before-retry
+recovery. A normally returned POST followed by positively newer terminal `failed`/`error` evidence
+is the only retryable source-sync failure, and retries remain bounded. A successful selected revision
+records `source-synced`; later failures must report that source activation occurred. The package never
+claims success from a request alone.
 Each result reports `status`, completed steps, `verification`, and `recovery`. A runtime or gate
 failure remains a failed operation with explicit inspect-before-retry guidance; no automatic
 authored revert, destroy, or rollback is attempted.

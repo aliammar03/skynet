@@ -74,9 +74,13 @@ the internal/public service path.
   and non-regular files fail closed. It requires one exact existing Arcane repository/sync/project
   with `autoSync=false`, delivers the environment off-host via stdin and atomically replaces remote
   `.env` at mode 0600 before branch repoint/manual source sync. Arcane's manual sync may redeploy a
-  running project; the command then uses its bounded NDJSON explicit redeploy and requires complete
-  runtime health. It reports exact local branch/revision/repository identity; `--no-deploy` prepares
-  environment only, and missing sync/project bootstrap is refused. A legacy auto-sync service must
+  running project; ambiguous or non-terminal source-sync outcomes never trigger a second POST without
+  authoritative terminal evidence, while a normally returned POST followed by newer terminal
+  failure evidence may retry within the bound. The command then uses its bounded NDJSON explicit
+  redeploy and requires complete runtime health. It reports exact local branch/revision/repository
+  identity; `--no-deploy` prepares environment only, and missing sync/project bootstrap is refused.
+  A `source-synced` completed step means source activation occurred even if a later consistency,
+  redeploy, runtime, or gate check fails. A legacy auto-sync service must
   be migrated and quiesced under the deploy runbook's timed check while old source/environment agree.
   `cloudflared` restarts only its
   reconciled container IDs. Its opt-in `--gate` runs the separate report-only packaged verifier.

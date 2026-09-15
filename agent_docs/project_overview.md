@@ -38,9 +38,12 @@ root grants, and never-standing T3 access; a construction worker has no producti
   existing unique sync/project with `autoSync=false`, installs `.env` by stdin-only SSH and atomic
   `0600` replacement before branch repoint/manual sync, then requires complete runtime health. Arcane
   manual sync may redeploy a running project; scheduled sync stays disabled. `--no-deploy` prepares
-  environment only. A legacy auto-sync service must be migrated and quiesced while old source and
-  environment still agree under the deploy runbook's timed migration check. Its opt-in `--gate` runs
-  the separate report-only P10 verifier for exact revision and DMZ/TLS routes. A live deploy plus
+  environment only. Ambiguous or non-terminal source-sync outcomes stop without a second POST and
+  require inspect-before-retry; only a normally returned POST followed by newer terminal failure
+  evidence can consume a bounded retry. A `source-synced` step means source activation occurred,
+  including when a later stage fails. A legacy auto-sync service must be migrated and quiesced while
+  old source and environment still agree under the deploy runbook's timed migration check. Its opt-in
+  `--gate` runs the separate report-only P10 verifier for exact revision and DMZ/TLS routes. A live deploy plus
   gate has passed for `librespeed`; PR #259 still
   awaits fresh review. `skynet rollback service` is report-only by default and can prepare an
   isolated reviewed inverse; neither path auto-rolls back. The old shell names are temporary

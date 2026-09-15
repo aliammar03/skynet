@@ -48,8 +48,11 @@ recovery procedures.
   exact local branch head/repository, binds service files to that revision before Arcane writes,
   validates one existing unique Arcane contract with `autoSync=false`, delivers the environment over
   SSH stdin with atomic remote 0600 replacement before branch repoint/manual sync, then requires
-  complete runtime health. Arcane manual sync may redeploy a running project. `--no-deploy` prepares
-  environment only; missing sync/project bootstrap is refused. A legacy auto-sync service must be
+  complete runtime health. Arcane manual sync may redeploy a running project. Ambiguous or
+  non-terminal source-sync outcomes stop with inspect-before-retry recovery and no second POST;
+  only positively newer terminal failure evidence permits a bounded retry. `source-synced` means
+  source activation occurred even when a later stage fails. `--no-deploy` prepares environment only;
+  missing sync/project bootstrap is refused. A legacy auto-sync service must be
   migrated and quiesced under the deploy runbook's timed check while old source/environment agree.
   Its optional `--gate` invokes the separate
   report-only `skynet verify deployment <service> <full-revision>` observer (exact revision, complete
