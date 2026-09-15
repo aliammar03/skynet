@@ -27,8 +27,10 @@ Tags: **[testable]** = a future automated gate could assert it; **[manual]** = h
 - **Every PR is human-merged during the SKY-025 embargo.** `[manual]` GitHub CI and automated tests
   are absent, and the nightly merge gate is suspended. This is the current invariant in
   [`AGENTS.md`](../../AGENTS.md) §3/§6.
-- **`git revert` is the rollback** `[manual]` — never force-push `main`, never rewrite shared
-  history. Arcane and the inventory converge back after a revert.
+- **Authored correction uses a reviewed PR** `[manual]` — `git revert` may form a corrective source
+  change; never force-push `main` or rewrite shared history. An emergency Compose runtime rollback
+  explicitly activates and verifies a retained Skynet generation without modifying Git. Runtime and
+  authored state may diverge until the correction PR is human-merged and deployed.
 
 ## Commit messages
 

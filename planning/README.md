@@ -69,10 +69,11 @@ bin/plan list                           # regenerate the roadmap table below
 Each directive carries its own execution/review entry points, so running or resuming one is a small
 paste into a fresh session.
 
-For SKY-025, use the [execute/review handoff prompts](prompts/README.md). P10 is externally accepted;
-accepted progress is P10/24 and bounded closeout is staged on PR #257 for one human merge. P11 is the
-next implementation packet after that merge. From P8 onward, one numbered phase owns one open PR; internal slices
-remain on that PR until fresh acceptance, then bounded closeout stays
+For SKY-025, use the [execute/review handoff prompts](prompts/README.md). Accepted progress is P10/24;
+P11 is being reworked on existing PR #259 into immutable Compose generations and direct activation;
+its prior Arcane-design ACCEPT is stale and a completely fresh review is required. From
+P8 onward, one numbered phase owns one open PR; internal slices remain on that PR until fresh acceptance,
+then bounded closeout stays
 on that **same accepted PR** before one human merge. Ali never provides commit hashes to the reviewer or
 closeout session.
 

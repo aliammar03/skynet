@@ -33,7 +33,7 @@ cmd_service() {
   need templates/compose
   cp -r templates/compose "$dest"
   find "$dest" -type f -exec sed -i "s/__SVC__/$(sed_rep "$slug")/g" {} +
-  echo "created ${dest}/ — fill every TODO, then deploy: scripts/gitops-deploy.sh ${slug}"
+  echo "created ${dest}/ — fill every TODO, then deploy: skynet deploy service ${slug}"
 }
 
 cmd_script() {

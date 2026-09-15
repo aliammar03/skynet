@@ -1,62 +1,102 @@
 ---
-summary: "How a service change becomes a running container via Arcane, with git-revert rollback and image pinning + Renovate."
+summary: "Exact-Git-revision Compose generations, direct activation, deployment state, and runtime rollback."
 ---
 
-# Spoke · The GitOps loop
+# Spoke · Compose deployment loop
 
-> How a change to a service becomes a running container, and how versions stay pinned and current.
-> Governed by [`../system-design.md`](../system-design.md). Compose rules: [conventions](../conventions.md).
+> How a reviewed service revision becomes running containers. Governed by
+> [`../system-design.md`](../system-design.md), the Compose rules in
+> [`../conventions/compose.md`](../conventions/compose.md), and secret custody in
+> [`secrets.md`](secrets.md).
 
-## The truth model
+Git is the authored source of system truth. The full local branch-head commit is the canonical
+release identity. The packaged synchronous `skynet deploy` owner reads Git objects at that exact
+commit; dirty or untracked worktree bytes never become release input.
 
-Two private GitHub repos:
-
-- **`skynet`** — operational truth: `AGENTS.md`, `.sops.yaml`, `docs/`, `inventory/` (auto-generated
-  JSON, never hand-edited), `compose/<svc>/`, `scripts/`, `runbooks/`, `bin/ops`.
-- **`skynet-opnsense`** — automatic pushes from the OPNsense **os-git-backup** plugin: every
-  firewall change auto-commits `config.xml`. Complete firewall/DHCP/alias truth with zero standing
-  management-plane access — and, critically for DR, **the router config survives the router**.
-
-## The loop
-
-```
-edit compose/<svc>/ → branch → PR → Ali merges
-   → Arcane Git Sync polls, pulls, reconciles (project read-only in the UI)
-   → `skynet verify deployment <svc> <full-revision>` observes revision, project/container health,
-     and declared ingress routes (report-only)
-   → agent commits refreshed inventory
+```text
+reviewed Git revision -> protected immutable generation -> direct Docker Compose activation
+  -> independent Docker/health/DMZ-route verification -> stable promotion
 ```
 
-- **One Arcane Git Sync per project dir**, auto-sync on; Arcane's own auto-update polling **off**
-  for git-synced projects (one reconciler, one truth).
-- **Rollback = `git revert`.** A failed health gate does not mutate its checkout. The explicit,
-  review-branch rollback executor is [`gitops-rollback.sh`](../../scripts/gitops-rollback.sh);
-  its decision and limits are in [actuators](actuators.md). SSH + `docker context` is break-glass
-  access when Arcane is unavailable.
-- **Env materialization** belongs to `gitops-deploy.sh`: committed `.env.git` + decrypted
-  `.env.sops` → effective `0600` `.env`. Arcane GitOps does not merge `project.env`; every service
-  consumes the wrapper-built file through `env_file: .env`.
-- Auto-sync **only redeploys projects already running** — a stopped project updates on its next
-  manual start (matters during maintenance windows).
+Arcane remains a Docker UI, observation surface, and emergency human tool. Arcane repositories,
+Git Sync branch mutation, manual source-sync POSTs, sync polling, and sync-triggered redeploys are not
+deployment authority. An existing sync with `autoSync=true` is a pre-write refusal. A disabled legacy
+sync may remain during transition; its schedule must be disabled and drained while old source and
+old environment agree, and the running old revision must be verified before first takeover. The
+takeover evidence names the exact old Compose service set. Docker labels must match that whole set
+and the legacy project/config path under the lock; the agent does not gain read access to Arcane's
+protected checkout.
 
-Deployment orchestration and recovery remain separate from verification. `gitops-deploy.sh` owns
-source selection, sync polling/retry, environment materialization, and redeploy/restart. With
-`--gate`, it resolves the exact 40-hex head of local `refs/heads/$GITOPS_BRANCH` (default `main`)
-for the selected sync and passes that revision to the packaged verifier through
-`scripts/deploy-gate.sh`. The verifier call accepts only the service and expected revision;
-recovery uses a separate `<deploy-commit>` identity, and `gitops-rollback.sh` prepares an explicitly
-reviewed inverse after an operator chooses to recover.
+## Generation and state
 
-Service recovery follows [`restore-service.md`](../../runbooks/restore-service.md); its restore
-revision includes the matching `.env.git` and `.env.sops` files. See [backup strategy](../backup-strategy.md).
+`/home/svc-ops/.local/state/skynet-deploy/<service>/` is on the persistent Docker host. The existing
+mode-`0700` `svc-ops` home protects the state root without a root bootstrap. Its layout is:
 
-## Image pinning & updates
+```text
+<service>/
+  generations/<full-git-revision>/  # complete runtime subtree, .env, release.json
+  operations/<operation-id>.json    # non-secret steps, state, reconciliation evidence
+  active                            # generation believed running, reconciled against Docker
+  stable-state.json                 # stable + previous changed in one atomic replacement
+  deploy.lock                       # per-service host flock
+```
 
-Every `compose.yaml` pins an **exact version tag**. **Renovate** (Mend's free GitHub App, private
-repos, first-class docker-compose manager) watches the repo and opens one PR per bump with release
-notes embedded. Arcane's auto-update stays off for git-synced projects.
+Preparation stages the complete committed `compose/<service>/` runtime subtree and validates it
+with Docker Compose against its own effective `.env`. Only a completely valid staging directory is
+published atomically. Git `100644` files are retained as mode `0644`, Git `100755` files as `0755`,
+and generation runtime directories as `0755`; the surrounding service/state directories remain
+protected at `0700`. `release.json` records schema, service, full revision, Git tree/Compose/blob
+identities, optional `.env.git` blob, optional `.env.sops` ciphertext blob, and preparation time.
+It contains no secret values or hash of effective plaintext. A retained generation is immutable;
+re-preparation of the same revision verifies manifest identity plus every expected byte and mode,
+then reuses it or fails on conflict.
 
-Review updates through their Renovate PRs, then deploy through [`deploy-service.md`](../../runbooks/deploy-service.md).
-If deployment verification reports an unhealthy result, prepare a reviewed inverse with
-[`gitops-rollback.sh`](../../scripts/gitops-rollback.sh), human-merge its PR, and let Arcane
-converge to that revision; the verifier never invokes rollback.
+The effective `.env` is `.env.git` plus locally decrypted `.env.sops` from the exact commit.
+Plaintext stays in local process memory and crosses to the remote staging directory only through
+bounded SSH stdin. Only the selected retained generation contains it, mode `0600` inside the protected tree.
+Neither argv, local temporary files, human/JSON reports, retained subprocess output, nor Git commits
+contain plaintext.
+
+## Activation and verification
+
+Before mutation, the owner acquires remote `flock`, inspects operation/pointer state and actual
+Compose containers, reconciles any interrupted activation, and refuses a different generation while
+state is unresolved. It also refuses enabled Arcane auto-sync. Compose runs from the selected
+immutable directory with explicit stable project identity `-p <service>` and `compose.yaml` there.
+Relative mounts and environment paths therefore resolve inside the same generation.
+
+The `active` pointer is a belief, never proof. Docker Compose project/config-file/working-directory
+labels independently identify the generation each container runs. A complete one-generation project
+can be reconciled; missing, partial, mixed, stopped, or label-ambiguous project state cannot establish
+success. A timed-out transport records unresolved activation, checks the old lock on the next call,
+then reconciles Docker before any retry. Once the lock is free, applying the **same** immutable target
+can resume convergence. A different target cannot pass unresolved state.
+
+Independent verification checks release manifest revision, stable project name, exact complete
+Compose service set, container-generation labels, running/healthy status and required healthchecks.
+Declared ingress routes and Compose address mappings are read from the same exact Git revision being
+verified, so dirty checkout bytes cannot remove a required probe. They retain P10's `dmz` vantage,
+TLS validation, and HTTP gate. Arcane observation is not required. Docker accepting Compose only
+changes `active`; only successful independent
+verification atomically promotes `stable`. Promotion retains the old stable as `previous`.
+
+```text
+candidate B activated, verification pending/failed: active=B, stable=A
+B verified and promoted:                  active=B, stable=B, previous=A
+```
+
+Verification failure reports the retained rollback candidate and leaves old stable metadata intact.
+P11 never rolls back automatically.
+
+## Runtime rollback
+
+`skynet rollback service <service>` is report-only until `--apply` is explicit. It selects an
+unambiguous retained previous stable generation or an explicit full `--to` revision. Before activation,
+`--apply` requires that historical commit locally, reconstructs its complete service subtree and
+effective environment, and compares the retained manifest, bytes, and modes directly. A mismatch or
+missing Git object refuses before Compose mutation; plaintext environment is neither hashed nor
+reported. The validated candidate then uses the same lock/reconciliation, Compose activation,
+verification, and promotion path. It never creates a
+branch or commit, pushes, merges, or changes authored Git state. After successful runtime rollback,
+runtime and Git may intentionally diverge; correct authored source by the ordinary reviewed PR path.
+The old shell command names are thin package forwarders until P22.

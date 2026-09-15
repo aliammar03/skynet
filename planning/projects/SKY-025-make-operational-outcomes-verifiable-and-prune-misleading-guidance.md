@@ -4,7 +4,7 @@ title: Rebuild the Skynet engine in Python
 status: in-progress
 horizon: long
 created: 2026-09-06
-updated: 2026-09-13
+updated: 2026-09-15
 phases: 24
 current_phase: 10
 tier_touched: [T1, T2, T2+, T3]
@@ -24,8 +24,10 @@ related:
 
 Accepted numbered progress is **P10 / 10 of 24**. Architecture checkpoint **G3** is complete.
 
-**Current action:** P10 is externally accepted and its bounded closeout is staged on PR **#257**.
-Ali must human-merge that PR once; after it lands, P11 is the next authorized implementation packet.
+**Current action:** P11 is implementation-ready on existing PR **#259** with immutable Compose
+generations, direct activation, deployment state, and human-controlled runtime rollback. Prior review
+of the Arcane Git Sync design is stale after substantive head movement. Accepted progress remains P10;
+the same PR now requires a completely fresh external review.
 
 ## 2. Mandate and boundaries
 
@@ -132,8 +134,8 @@ immediately returns to the normal lifecycle above.
 | 7 | Heavy | Omada + certs + routes + recon | accepted |
 | 8 | Heavy | Entity derivation/audit + rebuildable SQLite cache/query | accepted |
 | 9 | Medium | Docs/digest/context/catalog rendering + journal/recall helpers | accepted; G3 |
-| 10 | Heavy | Deployment health + reachability verification | accepted; bounded closeout staged on PR #257 |
-| 11 | Heavy | Arcane deploy/env/sync + rollback preparation | next after PR #257 merges; exact source + truthful failures |
+| 10 | Heavy | Deployment health + reachability verification | accepted and human-merged on PR #257 |
+| 11 | Heavy | Immutable Compose generations, direct activation, deployment state, human-controlled runtime rollback | implementation-ready on PR #259; pending fresh review |
 | 12 | Heavy | Publishing: Caddy/Auth/DNS coordination | correct vantages + auth paths |
 | 13 | Medium | Saved-plan parsing + scope/action/exclusion policy | unsafe plans refused pre-write |
 | 14 | Medium | Snapshot/apply/task completion + partial failure recovery | G4 |
@@ -319,10 +321,10 @@ Required behavior:
 - retain `scripts/deploy-gate.sh` only as a thin current-caller forwarder until P22; do not migrate
   `gitops-deploy.sh` source/retry/env/recovery behavior before P11.
 
-The retained `gitops-deploy.sh --gate` compatibility path validates the selected `GITOPS_BRANCH` and
-passes that exact local branch-head commit to the verifier. It does not derive live identity from the
-newest commit touching `compose/<service>` and has no rollback-candidate argument; recovery identity
-remains separate for P11.
+Historical P10 evidence showed that the then-retained `gitops-deploy.sh --gate` compatibility path
+validated `GITOPS_BRANCH` and passed its exact local branch head to the verifier. P11 supersedes that
+caller: the shell name is now only a forwarder to immutable-generation deployment, and Git Sync is no
+longer runtime identity or recovery authority.
 
 P10 implementation evidence recorded before fresh review:
 
@@ -341,8 +343,80 @@ P10 implementation evidence recorded before fresh review:
 
 **P10 closeout:** the newest applicable acceptance marker records ACCEPT for reviewed base `c800d58`
 and reviewed head `48b62c1`. The original session validated that pair against the open PR, advanced
-`current_phase: 10`, and staged bounded closeout on the same PR. Ali human-merges PR #257 once; P11 is
-the next implementation packet after that merge.
+`current_phase: 10`, and staged bounded closeout on the same PR. PR #257 was subsequently human-merged.
+
+P10's accepted health, complete-container, canonical-route, DMZ/TLS/HTTP, and bounded reporting
+properties remain the safety contract. P11 supersedes only its old Arcane Git Sync source-identity
+observation with retained release-manifest and independently observed Docker generation identity.
+
+## 5c. Current P11 packet
+
+### Phase 11 — immutable Compose generations, direct activation, deployment state, and human-controlled runtime rollback
+
+**Status:** implementation-ready on existing PR **#259**, pending completely fresh external review;
+accepted progress remains P10. The prior external ACCEPT reviewed the old Arcane Git Sync design and
+is stale after substantive PR-head movement.
+
+**Recommended Main:** Heavy. One P11 branch/PR owns the complete numbered phase. Main owns the
+architecture and integration; bounded Executors implement non-overlapping packages and independent
+Testers verify them. Construction grants no production authority.
+
+**Outcome:** one packaged synchronous owner resolves an exact local branch-head revision, prepares the
+complete `compose/<service>/` Git subtree and layered effective environment as an immutable protected
+remote generation, activates that generation through `svc-ops` Docker Compose under a per-service
+`flock`, reconciles actual Docker generation identity against filesystem state, independently proves
+complete health and DMZ route/TLS reachability, and atomically promotes the verified generation to
+stable. `active` may be a failed candidate while `stable` remains the old verified generation.
+`previous` retains the stable generation immediately preceding the current stable one. A report-only
+status and explicit retained-generation runtime rollback use the same reconciliation, activation, and
+verification path. Rollback neither edits Git nor runs automatically in P11.
+
+**State and authority:** `/home/svc-ops/.local/state/skynet-deploy/<service>/` on the persistent Docker
+host contains immutable `generations/<full-revision>/`, non-secret operation records, `active`,
+`stable`, `previous`, and `deploy.lock`. The protected `svc-ops` home is the existing persistence
+boundary. Generation preparation streams plaintext only through bounded SSH stdin to the selected
+remote `.env` at mode `0600`; the local process holds decrypted bytes in memory only. Release manifests
+contain Git/blob/ciphertext identity, never plaintext values or plaintext hashes. Arcane is an optional
+UI and migration observation surface, not a source or deployment authority.
+
+**Migration precondition:** before any direct Compose mutation, inspect Arcane's existing sync for this
+service. `autoSync=true` is a pre-write refusal. Disable and drain any scheduled sync while old source
+and environment agree, and verify the currently running old revision before first takeover. Do not
+delete a disabled legacy sync by guesswork. Remaining services transition deliberately as they change;
+P11 live proof is limited to `librespeed` if the current T2 plan and host capability permit it.
+
+**Required focused exit evidence:** exact Git-source and dirty-worktree isolation; atomic failed
+preparation; stdin-only secret custody and remote `0600`; idempotent retained generation; malformed
+service/path/symlink rejection; Compose validation; lock exclusion and enabled-auto-sync refusal;
+coherent OLD/OLD → NEW/NEW application; ambiguous transport reconciliation and same-generation
+recovery; Docker label contract and stale-pointer refusal; complete container/health/route gate;
+verification-only promotion and failed-candidate rollback candidate; retained runtime rollback with
+no Git mutation; thin shell forwarders; source and installed CLI smoke; Ruff, strict mypy, Python
+compilation, shell syntax, offline Nix build, installed launcher/closure, secret scan, hard invariants,
+and `git diff --check`. Use focused disposable/manual probes under the SKY-025 test/CI embargo, not a
+replacement repository test suite.
+
+The latest FIX repair additionally proves Git-mode preservation (`100644` → `0644`, `100755` →
+`0755`), non-root cloudflared relative-config access with `.env` still `0600`, retained byte/environment/
+mode tamper refusal, historical rollback reconstruction from an exact local commit before activation,
+missing-object refusal, route selection from the expected revision despite dirty worktree changes,
+and default/explicit rollback-host normalization that preserves the fixed `svc-ops` activation user
+while refusing malformed or foreign-user spellings.
+
+**Live proof:** focused disposable fixtures passed before the authorized `librespeed` canary. The host
+retained its documented unprivileged `svc-ops` Docker/Compose capability and protected persistent home.
+Arcane auto-sync was disabled and drained, the old live revision was verified, and exact revision
+`f8072b390c10957a572eda4aa112da0583e46796` was prepared and directly activated. The first verification
+observed health still starting and withheld promotion. Same-generation reconciliation then proved one
+healthy exact-generation container, HTTP 200 with TLS result 0 from the DMZ route vantage, and promoted
+stable. A subsequent same-generation deployment preserved container identity and release-manifest
+mtime; final state was `active=stable` with `previous=null` and `.env` mode `0600`. Arcane continued to
+display the externally managed project as observation only. No root grant, T3 action, or mass migration
+occurred.
+
+**Next entry point at implementation-ready:** `Read planning/prompts/review.md and review SKY-025 PR
+#259.` The reviewer must resolve current base and head anew. This construction session stops after
+pushing the coherent same-PR rework and handoff. No ACCEPT marker or accepted closeout belongs here.
 
 ## 6. Carry-forward correctness cases
 
@@ -380,8 +454,9 @@ require operation-specific recovery evidence, not blind `git revert`.
 Read planning/prompts/execute.md and execute the next authorized SKY-025 packet.
 ```
 
-After PR #257 is human-merged once, the next invocation executes P11. Later invocations execute only
-the next packet released by this directive's numbered progress and review state.
+The current invocation publishes the implementation-ready P11 PR and stops. The next invocation is a
+fresh external review of that open PR; later implementation invocations execute only the packet
+released by this directive's numbered progress and durable review state.
 
 ### Review a normal open PR
 

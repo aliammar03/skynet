@@ -5,55 +5,73 @@
 
 ## Detailed Current State
 
-SKY-025 P10 deployment health and reachability verification is externally accepted at progress
-**10/24**, with architecture checkpoint G3 complete. The newest applicable PR marker records ACCEPT
-for base `c800d58` and reviewed head `48b62c1`; bounded closeout is staged on open PR #257 for one
-human merge.
+SKY-025 P11 is implementation-ready on existing PR **#259** after repairing the fresh review's FIX
+findings and is pending another completely fresh external review. Accepted progress remains **10/24**
+and architecture checkpoint G3 remains complete. The old ACCEPT reviewed the superseded Arcane Git
+Sync architecture and is stale after substantive head movement.
 
-The packaged verifier requires the exact expected revision in Arcane Git Sync and project evidence,
-complete positive project/container counts, all-running/all-healthy containers, and valid canonical
-route evidence. Declared service routes are tested from the Docker DMZ network with verified TLS;
-unrouted infrastructure projects are reported as skipped. It is report-only and never deploys,
-rolls back, or changes authored/runtime configuration.
+The packaged deployment owner resolves one exact local branch head, prepares its complete service
+subtree and layered environment as an immutable protected generation, activates it directly through
+the existing `svc-ops` Docker Compose path under a per-service lock, verifies Docker generation
+identity, complete health, and DMZ/TLS routes, and only then promotes stable. Arcane is observation
+and a migration guard; enabled auto-sync refuses activation before a Compose write. Runtime rollback
+activates and verifies a retained generation and never changes authored Git.
 
 ## Session Changes
 
-- Added `skynet verify deployment <service> <expected-revision>` with safe human and JSON outcomes.
-- Reconciled Arcane sync/project identity and revision, Arcane service/running counts, and Docker
-  project container health; empty, partial, missing-healthcheck, malformed, and mismatched evidence
-  fails closed.
-- Reused the packaged static route owner, validated its complete canonical schema, and probed each
-  selected route from the correct DMZ vantage using an immutable curl image.
-- Reduced `scripts/deploy-gate.sh` to a thin packaged-command forwarder. `gitops-deploy.sh` remains
-  P11-owned; P10 does not invoke the rollback executor.
-- Fixed the retained `gitops-deploy.sh --gate` caller to pass the exact selected local branch-head
-  revision. Removed its obsolete `--revert-commit` option so recovery identity cannot become verifier
-  identity; P11 still owns recovery preparation.
-- Preserved 33 pre-existing inventory/generated/drift worktree entries outside P10 ownership.
+- Added `generation.py`, `activation.py`, and `deploy.py` as the small synchronous deployment owner;
+  removed the Arcane repository/sync/redeploy implementation from `gitops.py`.
+- Made preparation read Git objects from the exact selected branch head, reject unsafe trees, decrypt
+  only in local memory, stream plaintext through bounded SSH stdin, validate Compose in remote staging,
+  and atomically publish an immutable generation with a non-secret release manifest.
+- Added protected filesystem state, atomic mutable metadata, operation records, remote `flock`, Docker
+  label reconciliation, same-generation recovery, independent verification, stable promotion, and
+  explicit retained-generation rollback.
+- Adapted P10 verification from Arcane Git Sync identity to release-manifest and independently observed
+  Docker generation identity while retaining its complete health and route/TLS safety contract.
+- Reduced the legacy deploy and rollback shell names to thin package forwarders, updated the Nix
+  closure, current design/runbooks/Compose guidance, directive/map, ADR, and agent memory.
+- Preserved all pre-existing generated/inventory/drift worktree entries outside P11 ownership.
+- Preserved committed runtime modes in published generations while keeping `.env` and metadata
+  protected; retained reuse now rejects byte or mode drift.
+- Required `rollback --apply` to reconstruct the selected historical commit and compare its complete
+  subtree, effective environment, modes, and manifest before activation.
+- Bound deployment route selection and Compose address mapping to the exact expected Git revision so
+  dirty worktree edits cannot turn a required route into `skipped`.
+- Normalized rollback's default/fixed-user activation host through generation's existing bare-host
+  boundary before historical validation; activation still admits only the `svc-ops` SSH identity.
 
 ## Verification
 
-- The independent Tester passed disposable normal, empty, partial, malformed, wrong-revision,
-  unhealthy, identity, TLS/HTTP, timeout, redaction, and forwarding cases after three focused repair
-  cycles; no material verification gap remains in its scope.
-- Source and Nix-installed paths passed routed and unrouted live smokes. All ten Arcane projects matched
-  revision `c800d58`; all 18 project containers were present/running/healthy; eight routes returned
-  acceptable application/auth status with TLS result 0; `caddy-apps` and `cloudflared` were skipped as
-  unrouted.
-- Ruff, strict mypy, Python compile, shell syntax, offline Nix package build, secret scan, hard
-  invariants, and staged/unstaged diff checks passed under the test/CI embargo.
-- Production work used the standing Arcane credential and Docker context for read/verification only.
-  Routed probes created and removed ephemeral containers and cached one digest-pinned curl image. No
-  deploy, restart, rollback, root grant, persistent configuration change, or T3 action occurred.
+- Independent Testers passed the required disposable preparation, activation/reconciliation,
+  verification/promotion, rollback, and integration cases after their findings were repaired. These
+  include dirty-tree isolation, atomic failure, secret custody, idempotence, path safety, lock and
+  dual-writer refusal, coherent OLD→NEW application, transport ambiguity, same-generation recovery,
+  stale metadata, incomplete/unhealthy projects, failed-candidate retention, and no Git mutation.
+- The live T2 `librespeed` canary used the existing `svc-ops` Docker capability and persistent protected
+  home. Arcane auto-sync was disabled and drained, the old exact revision was verified, and direct
+  activation used revision `f8072b390c10957a572eda4aa112da0583e46796`.
+- The first live verification saw health still starting and correctly withheld promotion. A later
+  same-generation reconciliation verified one healthy generation container and the route at HTTP 200
+  with TLS result 0, then promoted stable. A subsequent deployment reused the generation without
+  changing its container or release manifest; state ended `active=stable` with `previous=null` and
+  the retained `.env` at mode `0600`.
+- Focused source and installed-package smokes plus Ruff, strict mypy, Python compilation, shell syntax,
+  offline Nix build, secret scan, hard invariants, and diff checks cover the embargoed gate surface.
+- The latest independent repair evidence covers non-root `0644` config access, retained executable
+  mode, exact `.env` mode, retained content/environment/mode tamper refusal, missing historical object,
+  pre-activation rollback refusal, zero Git mutation, and dirty-worktree route isolation. The pinned
+  cloudflared image was independently inspected with configured user `65532:65532`.
+- Source and installed-package rollback CLI probes cover the default host, supported bare and
+  `svc-ops@` overrides, foreign-user/malformed refusal, and unchanged report-only behavior.
 
 ## Pending Work and Blockers
 
-- PR #257 remains open with accepted bounded closeout staged; Ali must human-merge it once.
+- P11 PR #259 requires a completely fresh review; the prior ACCEPT is unusable for this architecture.
+- Other services retain a deliberate migration guard and refuse direct activation while Arcane
+  auto-sync remains enabled. P11 did not mass-migrate them.
 - Automated regression protection remains intentionally unavailable until the post-SKY-025 redesign.
-- P11 still owns exact-source deployment orchestration, wait/retry behavior, environment
-  materialization, and recovery preparation.
-- P11 must start only after PR #257 lands on current `main`.
 
 ## Next Entry Point
 
-Human-merge SKY-025 PR #257 once. After it lands, start P11 from current `main`.
+Read planning/prompts/review.md and review SKY-025 PR #259.

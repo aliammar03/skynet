@@ -1,4 +1,4 @@
-# arcane-manager — the Arcane GitOps controller ITSELF (the tool that syncs every other project).
+# arcane-manager — the Arcane Docker UI/controller (not Skynet deployment authority).
 # BOOTSTRAP component: deployed by hand, NOT reconciled by its own Git Sync (a controller must not
 # restart itself mid-reconcile). Captured here for rebuild-from-git (AGENTS.md §6) and to make it a
 # declared entity. It runs on the managed host; see README.md for its current deployment boundary.
@@ -27,7 +27,7 @@ services:
       TZ: Asia/Karachi
 
     # docker.sock = root-equivalent on THIS host (the reason relocation moves to remote management,
-    # arcane-projects is the Git-Synced project tree; /app/data is Arcane's own state.
+    # arcane-projects retains legacy disabled sync trees; /app/data is Arcane's own state.
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /opt/docker/appdata/arcane-manager:/app/data

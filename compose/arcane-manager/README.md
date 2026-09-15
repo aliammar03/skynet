@@ -1,34 +1,19 @@
-# arcane-manager — the Arcane GitOps controller
+# arcane-manager — Docker UI and emergency human tool
 
-This is **Arcane itself** — the tool that watches this repo's `compose/` and reconciles every *other*
-project onto the docker hosts (the deployment loop in AGENTS.md §4). It is captured here as a
-declared, rebuildable component rather than an undocumented host-local service.
+Arcane is declared here for rebuild-from-git. It can display and inspect Docker projects and may
+help a human during an emergency; its Git repositories, Git Sync branch controls, source-sync POSTs,
+and scheduled redeploys are not Skynet deployment authority. Existing disabled legacy sync records
+may remain during deliberate per-service migration. Any `autoSync=true` record for a target service
+blocks direct Skynet generation activation until the documented disable-and-drain procedure completes.
 
-## Two things make it different from every other project here
+Arcane itself is a bootstrap component on `guest/docker-dmz-10015`. It is not reconciled by its own
+Git Sync and remains a separately supervised human operation; do not add it as an Arcane project to
+make it manage itself. The Docker socket, host binding, and persistent `/app/data` state define its
+current boundary.
 
-1. **It is a bootstrap component — NOT reconciled by its own Git Sync.** A controller that
-   git-reconciles itself would restart mid-reconcile on its own updates. So it is deployed and
-   updated **by hand** (break-glass), and this directory is its source of truth, not a sync target.
-   Do not add it as an Arcane project.
-2. **It runs on the managed host.** Arcane runs inside `guest/docker-dmz-10015` (VLAN 100) and
-   manages that host through a local `docker.sock`. Its host, socket mount, and port binding define
-   its current deployment boundary.
-
-## Env layering (same as every project; assembled manually because it is not synced)
-
-Effective `.env` = `.env.git` (committed, non-secret) + decrypt(`.env.sops`) (JWT_SECRET,
-ENCRYPTION_KEY). At deploy time on the host:
-
-```
-cat .env.git > .env
-sops -d .env.sops >> .env        # needs the age key at /opt/skynet-ops/secrets/age.key
-docker compose up -d
-```
-
-`ENCRYPTION_KEY` is load-bearing: it encrypts Arcane's stored state under `/app/data`. Keep the
-sops copy authoritative so a rebuild preserves stored credentials.
-
-## Not captured on purpose
-
-The runtime's GPU-library defaults (`NVIDIA_*`, `ROCR_*`, `HIP_*`, `ONEAPI_*`, and
-`LD_LIBRARY_PATH`) are image configuration, not Arcane configuration, and are excluded here.
+Its authored `.env.git` and encrypted `.env.sops` define the effective environment.
+`ENCRYPTION_KEY` is load-bearing because it protects stored Arcane state; preserve the encrypted
+copy for rebuild. Handle its bootstrap environment under its separate approved procedure and keep
+plaintext out of commits, transcripts, and reports. Skynet's P11 Compose generation path is the
+owner for Skynet-managed services; this bootstrap exception does not authorize another deployment
+engine for those services.

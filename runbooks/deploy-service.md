@@ -1,96 +1,105 @@
 ---
-summary: "Deploy or update a service through the Arcane GitOps loop: edit compose then PR then Arcane reconciles."
+summary: "Deploy one exact reviewed Compose revision as an immutable Skynet generation and promote only after independent verification."
 trigger: "Deploy or update a service"
-tier: "T2 PR-gated"
-executor: "scripts/gitops-deploy.sh, Arcane Git Sync, and skynet verify deployment"
-rollback: "git revert"
+tier: "Supervised T2 PR-gated"
+executor: "skynet deploy prepare/service/status and direct svc-ops Docker Compose"
+rollback: "skynet rollback service <service> [--to <full-revision>] --apply; then reviewed authored-source correction"
 ---
 
-# Runbook — deploy / update a service (Arcane GitOps, the skynet way)
+# Runbook — deploy / update a service
 
-**Tier:** T2 (PR-gated). **Executor:** `scripts/gitops-deploy.sh` + Arcane Git Sync +
-`skynet verify deployment`. **Rollback:** `git revert`.
+**Tier:** supervised T2, PR-gated. The operator plans the intended service/revision, Docker host,
+and retained stable rollback generation before a live write; approval covers that stated scope.
+The packaged command performs preparation, activation, and verification without per-command approval.
 
 ## Preconditions
 
-- Identify the service, its persistent data, its intended ingress, and whether it needs encrypted configuration.
+- The Compose change has followed the normal PR and human-merge policy. Select an exact local
+  branch-head commit; a dirty worktree is not release input.
+- `compose/<service>/compose.yaml` declares digest-pinned images, `env_file: .env`, and a real
+  healthcheck for each required container. `.env.git` contains non-secret defaults; optional
+  `.env.sops` contains encrypted secrets. Keep the age key local and never print credentials or
+  decrypted values.
+- The documented standing `svc-ops` Docker-host SSH path must provide Docker Compose and access to
+  its persistent protected state. No new Docker/root grant is implied.
+- Inspect any Arcane Git Sync for this service. If `autoSync=true`, disable it through the existing
+  T2 Arcane interface **while old source and old environment still agree**. Verify the deployed
+  maximum sync duration, wait at least that duration and never less than five minutes, then confirm
+  the currently running old revision and container/route state. Disabling auto-sync does not cancel
+  a run already admitted. If drain duration or old runtime revision cannot be proved, stop before
+  direct activation. A disabled legacy sync can remain as observational metadata.
 
-## Steps
+For a service's first Skynet takeover, record that non-secret evidence in a bounded JSON file. The
+old service list comes from Compose at the exact old revision and must match the running containers'
+Compose service labels. This lets `svc-ops` prove a complete legacy project without gaining access to
+Arcane's protected source directory.
 
-### Apply the service standard
-
+```json
+{
+  "schema": 1,
+  "service": "<service>",
+  "sync_present": true,
+  "auto_sync_disabled": true,
+  "drained": true,
+  "old_revision": "<full-old-revision>",
+  "old_runtime_verified": true,
+  "legacy_working_dir": "/opt/docker/arcane-projects/<service>",
+  "old_services": ["<compose-service>"],
+  "recorded_at": "<UTC timestamp>"
+}
 ```
-compose/<svc>/compose.yaml   # pinned image DIGESTS, env_file: .env, STRUCTURAL only
-compose/<svc>/.env.git       # non-secret config, committed plaintext
-compose/<svc>/.env.sops      # secrets only (sops+age); omit if the service has none
+
+The file contains identities and booleans only. Do not put environment values, credentials, request
+bodies, or probe response bodies in it. A new project with no Arcane sync and no existing containers
+does not need migration evidence.
+
+## Prepare and deploy
+
+```bash
+skynet deploy prepare <service> [--repo <checkout>] [--branch <branch>] [--json]
+skynet deploy status <service> [--json]
+skynet deploy service <service> [--repo <checkout>] [--branch <branch>] \
+  [--migration-evidence <non-secret-json>] [--json]
 ```
 
-- **No inline `environment:` config** — put config in `.env.git`, not scattered in compose
-  (structural keys like a computed `REDIS_URL` that interpolate a secret are the exception).
-- **One role tag** via `x-arcane.tags` (`media`/`ai`/`books`/`bookmarks`/…, stable colour per
-  role — see compose README). Arcane applies it on sync; `gitops-deploy.sh` reports/warns.
-- **A healthcheck on every service** (image built-in or compose-declared) so Arcane reports
-  `(healthy)` and dependents can use `condition: service_healthy`. Match the probe to the image's
-  tools (curl/wget/node/bash-`/dev/tcp`) — see the compose README table. `gitops-deploy.sh` warns
-  if any service lacks one.
-- **No Docker file-secrets, no `*.txt` secrets.** One secret store: `.env.sops`.
-- **Volumes:** simple file data → absolute `/opt/docker/appdata/<svc>/<role>` bind mounts
-  (swept by `backup-restic.sh`). Database engines → **named** volumes, each labelled
-  `skynet.service: <svc>` + `skynet.backup: protect|ephemeral` + `skynet.managed: gitops`
-  (restic backs up the `protect` ones directly). Never relative in-project-dir data. Volume
-  labels are immutable — to change them, recreate the volume (`down` → `docker volume rm` →
-  redeploy). When switching a named volume to a bind mount, remove the orphan.
+`prepare` reads only Git objects at one full branch-head revision and atomically publishes a complete
+valid immutable generation. It streams the layered effective environment from local memory through
+SSH stdin to a protected remote `.env` at mode `0600`; it never activates containers. Preparing the
+same revision again verifies and reuses the retained generation. Committed regular files retain
+deterministic Git semantics (`100644` → `0644`, `100755` → `0755`) and runtime directories are `0755`;
+any retained byte or mode drift is a conflict.
 
-### Materialize the runtime environment
+`service` prepares, locks and reconciles the actual Docker project, checks Arcane scheduling, activates
+from the selected generation with the stable project name, independently verifies the exact generation,
+complete running healthy containers, and declared `dmz`/TLS/HTTP routes, then promotes `stable`.
+Successful Docker Compose application alone is not deployment success.
 
-Arcane's **GitOps** sync copies `compose.yaml` (and the compose dir, incl. subdirs) from git and
-owns the project lifecycle — but it does **NOT** merge `.env.git`/`project.env` into `.env`
-(that layering is only for non-GitOps projects). `docker compose` just reads whatever `.env` is on
-disk. So `scripts/gitops-deploy.sh` **materialises** the effective `.env` = `.env.git` +
-`sops -d .env.sops`, written `0600` and owned by Arcane's project UID, decrypted on vm-skynet-ops
-(the age key never leaves it).
-Arcane leaves a populated `.env` untouched on re-sync, so the two coexist.
+If transport times out, status is unresolved: check whether the previous lock remains held, inspect
+runtime labels and operation evidence after it releases, and resume only the **same** generation if
+safe. A partial or mixed project requires recovery before any different-generation deployment.
+A failed candidate may remain `active` while old `stable` remains the explicit rollback candidate.
+There is no automatic rollback in P11.
 
-### Deploy or update an existing service
+## Verify and recover
 
-1. **Branch** `deploy/<svc>`; edit `compose/<svc>/*` per the standard. Validate:
-   `cd compose/<svc> && printf '…dummy…' > .env && docker compose config -q && rm .env`.
-2. **PR** with a teaching description (what it is, ports, front door, backup impact). **Ali merges.**
-3. `scripts/gitops-deploy.sh <svc>` — the deployment procedure ensures the source sync,
-   materialises `.env`, redeploys, and waits for the project. Its source selection, retry/wait,
-   environment, and recovery behavior remain owned by this procedure; the verifier does not perform
-   them. Set `GITOPS_BRANCH=<branch>` to select a local source branch. Adding `--gate` resolves the
-   exact full head of that local branch for the selected sync and passes it through the thin
-   `deploy-gate.sh` forwarder. `--revert-commit` is not a supported deploy option.
-4. Verify the exact merged deployment revision with the packaged, report-only observer, either via
-   the `--gate` path above or directly:
+```bash
+skynet deploy status <service> [--json]
+skynet verify deployment <service> <full-revision> [--json]
+skynet rollback service <service> [--to <retained-full-revision>]       # report only
+skynet rollback service <service> [--to <retained-full-revision>] --apply
+```
 
-   ```bash
-   skynet verify deployment <svc> <full-revision>
-   ```
+`verify deployment` is read-only except its bounded ephemeral route probe container. It reads route
+and Compose address declarations from the expected Git revision rather than checkout bytes, and checks the
+release manifest, Docker Compose project and generation labels, exact complete service set, all
+required running healthy containers, and canonical declared routes from the `dmz` ingress vantage
+with verifying TLS. An undeclared route is recorded as skipped. Arcane is optional UI observation.
 
-   It checks the complete Arcane/Docker project at that revision, all container health, and every
-   declared route. Routed checks use the Docker `dmz` network and verified TLS through
-   `10.10.100.35`; HTTP 100–499, including 302/401, is acceptable. Unrouted services are reported
-   as skipped. The route probe may create/remove an ephemeral container and cache its pinned image.
-5. If verification fails, it reports the failed observation; it does not deploy, restart, or
-   rollback. Prepare a reviewed inverse with `scripts/gitops-rollback.sh <svc> <deploy-commit> --prepare`;
-   `<deploy-commit>` is the authored commit to invert, a separate identity from the verifier's
-   expected branch-head revision. Human-review and merge the rollback PR before Arcane reconciles it.
-
-## Verify
-
-- `skynet verify deployment <svc> <full-revision>` succeeds. This requires exact revision identity,
-  complete positive equal Arcane and Docker counts, every container running and healthy, and all
-  declared routes reachable with valid TLS; a service with no declared route is explicitly skipped.
-
-## Rollback
-
-- Use the reviewed rollback PR prepared by
-  `scripts/gitops-rollback.sh <svc> <deploy-commit> --prepare`; after its human merge, run
-  `scripts/gitops-deploy.sh <svc>` to reconcile the reverted revision. The verifier's expected
-  revision and the rollback commit are separate inputs, and the verifier never invokes rollback.
-
-## Evidence
-
-- Include the compose validation, deploy/health result, persistent-data impact, and any refreshed inventory in the PR or journal record.
+Rollback requires a retained generation identity (or one unambiguous `previous` candidate). With
+`--apply`, the exact historical commit must exist locally; Skynet reconstructs that commit's complete
+service tree and effective environment and directly compares retained bytes, modes, and manifest
+before any Compose mutation. It then activates through the same locked Compose/verification path and
+promotes only if verification succeeds.
+It does not create a branch, commit, push, merge, or modify authored source. Report runtime/Git
+divergence and correct source by a separate normal reviewed PR. Record the operation and raw evidence
+in `journal/`; refresh generated inventory through its normal collector when needed.

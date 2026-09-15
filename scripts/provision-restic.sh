@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # provision-restic.sh — provision a host for restic → Google Drive backups (docs/backup-strategy.md L3, A4.5).
 #
-# Orchestrated FROM vm-skynet-ops over SSH (like gitops-deploy.sh). One command turns a fresh
+# Orchestrated FROM vm-skynet-ops over SSH. One command turns a fresh
 # host into a backed-up one: installs restic+rclone, stages secrets 0600, generates the repo
 # password ON the host, writes the backup selection, deploys backup-restic.sh + the systemd
 # timer, and inits the repo. Handles docker hosts and/or any folders of your choosing.

@@ -1,4 +1,4 @@
-{ lib, python3Packages, gnugrep, makeWrapper }:
+{ lib, python3Packages, docker, gitMinimal, gnugrep, makeWrapper, openssh, sops }:
 let
   root = ../..;
   metadata = builtins.fromTOML (builtins.readFile (root + "/pyproject.toml"));
@@ -37,7 +37,7 @@ python3Packages.buildPythonApplication {
   doCheck = false;
 
   postFixup = ''
-    wrapProgram "$out/bin/skynet" --prefix PATH : ${lib.makeBinPath [ gnugrep ]}
+    wrapProgram "$out/bin/skynet" --prefix PATH : ${lib.makeBinPath [ docker gitMinimal gnugrep openssh sops ]}
   '';
 
   passthru.source = source;

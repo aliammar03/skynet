@@ -8,8 +8,11 @@ rollback: "See the selected leaf"
 
 # Runbook — publish a service
 
-**Tier:** T2 (PR-gated). **Executor:** choose and follow one leaf below. **Rollback:** use the
-selected leaf's rollback procedure.
+**Tier:** T2 (PR-gated). **Executor:** choose and follow one leaf below; deploy the affected Compose
+service with `skynet deploy service`, which includes independent runtime/route verification before
+stable promotion. **Rollback:** use the selected leaf's rollback procedure and, for service
+configuration, explicitly reactivate a retained generation with `skynet rollback service ... --apply`;
+correct authored source through a reviewed PR.
 
 ## Preconditions
 

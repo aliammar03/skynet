@@ -43,28 +43,34 @@ ssh svc-ops@<docker-host> docker inspect --format '{{json .State.Health}}' <svc>
 | `unhealthy`, app "up" | healthcheck command wrong, or a dependency (DB) not ready | run the healthcheck cmd by hand; check the depended-on container |
 | Env/secret missing at boot | `.env` layering broke | see below |
 
-**Env / secret materialization** (the usual silent cause): `gitops-deploy.sh` builds the effective
-`.env` from `.env.git` **+** decrypted `.env.sops`. A missing key means decryption/materialization
-failed or the key was omitted from git. Confirm both source layers and the effective file — details in
-[gitops-loop](../../docs/design/gitops-loop.md) + [secrets](../../docs/design/secrets.md).
+**Env / secret materialization** (the usual silent cause): `skynet deploy service` builds the
+effective `.env` from `.env.git` **+** decrypted `.env.sops` and replaces the exact project file. A
+missing key means decryption/materialization failed or the key was omitted from git. Confirm both
+source layers and the effective file without printing values — details in [gitops-loop](../../docs/design/gitops-loop.md)
++ [secrets](../../docs/design/secrets.md).
 
 ### Fix declaratively
 
-Edit `compose/<svc>/` — pin the image, correct the healthcheck, set `mem_limit`, fix the env key (secret
-values only ever go into `.env.sops`) — then **branch → PR → Ali merges → Arcane reconciles**. Verify
-health via the Arcane API / `docker context`, then commit refreshed inventory. Rollback is `git revert`;
-Arcane rolls it back. Break-glass only: `ssh svc-ops@<host>` + `docker context` to look, never to mutate.
+Edit `compose/<svc>/` — pin the image, correct the healthcheck, set `mem_limit`, or fix an env key
+(secret values only in `.env.sops`) — then branch → PR → Ali merges. Run
+`skynet deploy service <svc>` against that exact merged branch head. The command prepares one
+coherent immutable generation, directly activates it under lock, and requires complete Docker
+container/health and DMZ route/TLS verification before stable promotion. Arcane may display the
+externally managed project but is not the deployment verifier. Refresh inventory through its
+normal collector. If verification fails, inspect `skynet deploy status`; old `stable` remains the
+explicit runtime rollback candidate. Do not treat a failed activation as an authored Git revert.
 
 ## Verify
 
-Confirm the service remains running, reports healthy where a healthcheck exists, and its image,
-configuration, and effective non-secret environment match the merged compose state. Arcane should report
-the reconciled project without drift.
+`skynet verify deployment <svc> <full-revision>` proves the selected release manifest, complete
+Docker generation identity and health, and any declared ingress route from the DMZ vantage with
+verifying TLS. A missing healthcheck is a failure.
 
 ## Rollback
 
-Revert the compose PR and let Arcane reconcile the previous image/configuration. Break-glass docker
-access is inspection only and must not become the rollback mechanism.
+Explicitly run `skynet rollback service <svc> [--to <retained-full-revision>] --apply` to restore a
+known generation under the same verification path. This does not change Git; correct authored source
+through a reviewed PR. Record Docker/operation evidence in the journal.
 
 ## Evidence
 

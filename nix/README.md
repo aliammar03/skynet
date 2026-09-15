@@ -67,12 +67,26 @@ Every PR, including generated-only nightly work, is human-merged during the emba
 `skynet doctor [--json]` reports the executing package version and Python runtime with
 `scope: runtime`. It is not a lab or service health check.
 
-`skynet verify deployment <service> <full-revision>` is the packaged, report-only deployment
-observer. It matches the exact revision in Arcane Git Sync and project observations, requires
-complete positive equal project/Docker counts and running healthy containers, and probes every
-declared route from the Docker DMZ network with verified TLS. It never deploys or rolls back; a
-routed check may create/remove an ephemeral pinned curl container and cache its image. Deployment
-and recovery orchestration remain in the GitOps scripts and runbooks.
+`skynet deploy prepare <service>` reads the exact full local branch-head Git revision and stages a
+complete immutable Compose generation in the persistent protected `svc-ops` state tree. The layered
+effective `.env` is decrypted locally in memory and streamed through bounded SSH stdin; only the
+selected remote generation retains it, mode `0600`. `skynet deploy service <service>` uses direct
+Docker Compose under a per-service host lock, reconciles Docker generation metadata, checks legacy
+Arcane `autoSync=false`, independently verifies complete running healthy containers and declared
+DMZ/TLS routes, then atomically promotes `stable`. Arcane may observe the project but has no source
+sync or redeploy authority. `skynet deploy status` is report-only. A failed candidate may remain
+`active` while old `stable` remains the explicit rollback candidate.
+
+`skynet verify deployment <service> <full-revision>` retains P10's read-only complete-container,
+health, and DMZ/TLS/HTTP gate while using the selected generation release manifest and Docker Compose
+labels for exact source identity. A routed probe may create/remove a bounded ephemeral pinned curl
+container and cache its image. Arcane observation is not required for correctness.
+
+`skynet rollback service <service> [--to <retained-full-revision>]` reports the retained candidate;
+`--apply` explicitly reactivates, verifies, and promotes that generation without creating a Git
+branch/commit, push, or merge. Runtime and authored Git may intentionally diverge; correct source by
+a normal reviewed PR. The old `gitops-deploy.sh` and `gitops-rollback.sh` names are temporary thin
+forwarders for P22 removal.
 
 `skynet render docs --repo <checkout>` requires receipt-bound current collection evidence, rebuilds
 the disposable cache, validates its inputs, and publishes factual Obsidian pages only after every page

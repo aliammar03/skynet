@@ -9,8 +9,9 @@ differ. It records foundations and constraints, not a dependency inventory or a 
 ## Languages and runtimes
 
 - Python 3.12+ powers the installable `skynet` package and its `skynet` CLI.
-- Bash remains the installed implementation for operator entry points, collectors, deploy/backup
-  procedures, and compatibility callers that still have a concrete owner.
+- Bash remains the installed implementation for collectors, backup/host procedures, and retained
+  compatibility callers. Service deployment/recovery procedures are owned by the packaged Python
+  CLI; the old deploy/rollback shell names only forward to it for temporary P22 compatibility.
 - Nix/NixOS declares the ops VM and LXC systems; HCL/OpenTofu declares scoped infrastructure state.
 - YAML/TOML/JSON, Compose manifests, Caddy configuration, Markdown, and sops-encrypted environment
   files carry declarative configuration, metadata, policy, and documentation.
@@ -43,10 +44,10 @@ NixOS.
 ## External services and infrastructure
 
 The runtime observes or operates declared boundaries for both Proxmox nodes, PBS, Docker hosts via
-Arcane and unprivileged SSH, Technitium zones, scoped Authentik applications/providers, Cloudflare
-DNS records for `aliammar.net`, OPNsense read-only diagnostics, and Omada inventory. GitHub provides
-the review/merge boundary; Arcane provides GitOps reconciliation; Caddy and Cloudflare Tunnel provide
-the internal/public service path.
+unprivileged `svc-ops` SSH/Compose and optional Arcane observation, Technitium zones, scoped
+Authentik applications/providers, Cloudflare DNS records for `aliammar.net`, OPNsense read-only
+diagnostics, and Omada inventory. GitHub provides the review/merge boundary; Skynet owns direct
+Compose activation; Caddy and Cloudflare Tunnel provide the internal/public service path.
 
 ## Important technical constraints
 
@@ -64,14 +65,25 @@ the internal/public service path.
   retains the previous bytes, but freshness-gated callers do not treat retained observations as current.
 - The factual renderer checks collection freshness, rejects unsafe node page basenames, and publishes
   a staged whole-tree replacement with rollback to the prior page set on failure.
-- Deployment verification requires one exact full Git revision across Arcane Git Sync and project
-  evidence, complete equal positive project/Docker counts, running healthy containers, and complete
-  canonical routes probed from the Docker DMZ network with verified TLS. It has no deploy or rollback
-  write path; the route probe only creates/removes an ephemeral pinned image container.
-- `gitops-deploy.sh` and `gitops-rollback.sh` retain deployment/recovery orchestration. With
-  `--gate`, the deploy script resolves the selected local `GITOPS_BRANCH` head and the thin
-  `deploy-gate.sh` forwards that exact revision to the packaged verifier; rollback takes a separate
-  authored deploy-commit identity.
+- Deployment verification requires one exact full Git revision in the selected generation manifest,
+  stable Compose project identity, complete equal positive Compose/Docker service counts, every
+  container identified by independent generation metadata, running healthy containers with required
+  healthchecks, and canonical routes read from the exact expected Git revision and probed from the
+  Docker DMZ network with verified TLS. It has no
+  deployment write path; the route probe only creates/removes its bounded ephemeral pinned-image
+  container. Direct activation and promotion are owned by `activation.py` and `deploy.py`.
+- `skynet deploy prepare` reads Git objects at one exact branch head, stages the complete service
+  subtree and layered environment, validates Compose expansion from the generation, and atomically
+  publishes an immutable protected generation while preserving deterministic `0644`/`0755` Git runtime
+  modes and keeping `.env`/metadata `0600`. `skynet deploy service` acquires the remote per-service
+  `flock`, reconciles operation/state/Docker evidence, refuses enabled Arcane auto-sync, activates
+  directly with stable project identity, verifies independently, and promotes stable only after
+  success. A timed-out activation remains unresolved until lock/runtime reconciliation; only the
+  same generation may resume. `skynet deploy status` is report-only. `skynet rollback service` is
+  report-only by default and `--apply` first reconstructs the exact historical commit and compares all
+  retained bytes, modes, environment, and manifest before activating through the same path, without
+  branch, commit, push, merge, or authored-source mutation. `gitops-deploy.sh` and
+  `gitops-rollback.sh` are temporary compatibility forwarders for P22.
 - `scripts/entity.sh`, `scripts/audit-entities.sh`, and `scripts/build-db.sh` are compatibility
   forwarders; maintained SQL views remain under `scripts/sql/`.
 - Generated inventory and documentation are machine-owned. Construction runs as the unprivileged

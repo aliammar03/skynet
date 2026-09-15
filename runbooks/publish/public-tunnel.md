@@ -2,7 +2,7 @@
 summary: "Add Cloudflare Tunnel and public DNS exposure to an already-working internal route."
 trigger: "Expose an internally published service to the public internet"
 tier: "T2 PR-gated"
-executor: "cloudflared GitOps restart and guarded Cloudflare DNS saved-plan"
+executor: "verified cloudflared generation activation and guarded Cloudflare DNS saved-plan"
 rollback: "git revert ingress; public DNS deletion is a separate checkpoint"
 ---
 
@@ -26,9 +26,9 @@ rollback: "git revert ingress; public DNS deletion is a separate checkpoint"
    ```
    `originServerName` makes Caddy select the hostname certificate.
 2. A forward-auth service also needs a public `auth.aliammar.net` route. Its Caddy vhost must reject tunnel traffic to `/if/admin/*` while leaving login APIs/flows accessible; include the app, auth route, and their CNAMEs in the PR. Require MFA or a passkey for the public Authentik account.
-3. Open the exposure PR and wait for Ali to merge. Restart the connector from merged source:
+3. Open the exposure PR and wait for Ali to merge. Activate and verify the connector generation from merged source:
    ```bash
-   scripts/gitops-deploy.sh cloudflared
+   skynet deploy service cloudflared
    ```
    Confirm the tunnel is ready with four connections. The SSH Docker restart is break-glass only.
 4. Generate, show, approve, and apply the derived Cloudflare DNS plan:

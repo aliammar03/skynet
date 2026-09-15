@@ -16,7 +16,8 @@ own future work; and the [`journal/`](../journal/README.md) owns evidence and in
 ## 1. System and terminal goal
 
 `vm-skynet-ops` is a replaceable agent runtime: NixOS VMID 9090, static `10.10.90.90` on VLAN 90.
-Git is operational truth; Arcane reconciles GitOps services; encrypted secrets, inventory, docs,
+Git is authored operational truth; Skynet prepares immutable Compose generations from exact Git
+revisions and directly activates, verifies, and promotes them; encrypted secrets, inventory, docs,
 and policy rebuild from git; backups restore payload only after the system stands up. Details are in
 [network](design/network.md), [gitops loop](design/gitops-loop.md),
 [secrets](design/secrets.md), and [disaster recovery](design/disaster-recovery.md).
@@ -88,7 +89,7 @@ The detailed token, ACL, and principal design is [access and trust](design/acces
 | Tier | Scope | Standing? |
 |---|---|---|
 | **T1 Read** | Proxmox, PBS, Docker, DNS, Omada, and OPNsense diagnostics | Yes, read-only |
-| **T2 Operate** | Managed envelopes, Docker through Arcane/unprivileged SSH, Technitium zones, scoped Authentik app/provider CRUD, `aliammar.net` DNS records, backup/snapshot, saved-plan guest changes | Yes where implemented; PR-gated |
+| **T2 Operate** | Managed envelopes, Docker through `svc-ops` unprivileged SSH and optional Arcane observation, Technitium zones, scoped Authentik app/provider CRUD, `aliammar.net` DNS records, backup/snapshot, saved-plan guest changes | Yes where implemented; PR-gated |
 | **T2+ Root** | Workload-host root shell | Only a time-limited grant |
 | **T3 Privileged** | Management planes and all self-leash changes | Never standing |
 
@@ -127,7 +128,7 @@ construction role or language change confers no production authority.
 | [access-and-trust](design/access-and-trust.md) | Credentials, ACLs, grants, and tier boundaries |
 | [actuators](design/actuators.md) | Write paths and rollback eligibility |
 | [disaster-recovery](design/disaster-recovery.md) | Recovery architecture and survival kit |
-| [gitops-loop](design/gitops-loop.md) | Service reconciliation and rollback |
+| [gitops-loop](design/gitops-loop.md) | Exact-revision Compose generations, direct activation, verification, and rollback |
 | [identity-and-proxy](design/identity-and-proxy.md) | DNS, proxy, Authentik, and public path |
 | [memory](design/memory.md) | Portable memory and default-lean retrieval |
 | [network](design/network.md) | Placement and reachability boundary |

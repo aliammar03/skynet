@@ -27,7 +27,7 @@ rock-solid, and not one of them because of how it's written down:
 
 - the signing CA private key lives on Ali's workstation ⇒ the agent *cannot* mint root — guaranteed
   by physics, not by policy or format;
-- `git revert` → Arcane reconciles ⇒ rollback is deterministic because a non-LLM executor performs it;
+- deploy-rs magic rollback ⇒ host-activation rollback is deterministic because a non-LLM executor performs it;
 - the render scripts are the only writer of `docs/generated/` and `inventory/` ⇒ "never hand-edit
   generated dirs" is structurally true, enforced by the pipeline, not by memory.
 

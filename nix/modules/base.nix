@@ -56,7 +56,7 @@
     iperf3 # throughput between hosts
   ];
 
-  # Arcane (on docker-dmz) owns the services; NixOS owns the daemon. The ops VM runs the
+  # Skynet's exact-revision generations own the services; NixOS owns the daemon. The ops VM runs the
   # docker CLI/daemon to reach remote contexts. docker-group ≈ root — see ops-user.nix.
   virtualisation.docker.enable = true;
 

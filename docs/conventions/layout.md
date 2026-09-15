@@ -22,7 +22,7 @@ Tags: **[testable]** = a lint gate could assert it; **[manual]** = holds by revi
 | `invariants.json` | **Authored** machine-checkable hard laws (the constraint layer) — read by the enforcement gate | design |
 | `docs/history/*.md` | Build log + original plan (lineage) | history |
 | `journal/<YYYY>/*.md` | **Episodic memory** — raw append-only session/incident/decision episodes | memory |
-| `compose/<svc>/` | One dir per service (the GitOps loop) | ops |
+| `compose/<svc>/` | One authored dir per service (immutable generation deployment) | ops |
 | `scripts/*.sh` | Procedures runbooks/entry-points call | ops |
 | `bin/*` | Operator-facing entry points (`plan`, `new`, `ops`, `grant-root`, `agent`) | ops |
 | `src/skynet/`, `pyproject.toml`, `nix/packages/skynet.nix` | Installable Python operations application, package metadata, and source-filtered Nix build | ops |

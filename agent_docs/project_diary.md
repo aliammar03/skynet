@@ -62,12 +62,51 @@
 - SKY-025 P9 is externally accepted on reviewed base `250bb48` and head `b89affd`. Its same-PR bounded
   closeout advances accepted progress to 9/24 and completes G3 without changing accepted substantive
   surfaces; PR #256 remains for one human merge before P10 begins.
-- P10 verification is report-only: it requires one exact Arcane revision across Git Sync and project
-  evidence, reconciles positive complete Arcane/Docker counts, rejects missing healthchecks, and proves
-  declared routes from the DMZ vantage with verified TLS. Deployment, retry, and recovery remain P11.
+- P10 was accepted as a report-only verifier with complete-container, healthcheck, canonical-route,
+  DMZ, TLS, bounded-output, and failure safety properties. P11 retains those properties while
+  superseding P10's Arcane Git Sync identity observation with immutable release-manifest and Docker
+  generation evidence.
 - SKY-025 P10 is externally accepted on reviewed base `c800d58` and head `48b62c1`. The original
   session validated the newest applicable ACCEPT marker after the earlier FIX marker, advanced accepted
-  progress to 10/24, and staged only bounded closeout on PR #257; one human merge remains before P11.
+  progress to 10/24, and staged only bounded closeout on PR #257; that PR was subsequently human-merged.
+- P11 release identity is the exact full local branch-head revision. Preparation reads Git objects,
+  never dirty worktree bytes, and records only non-secret Git/tree/blob/ciphertext identities. The
+  effective environment is decrypted in local memory, streamed through bounded SSH stdin, and
+  persists only as the selected protected remote generation's mode-`0600` `.env`.
+- A generation is immutable after atomic publication. Mutable operation and promotion state uses
+  bounded atomic replacement; `active` describes observed runtime intent, `stable` means independently
+  verified, and `previous` retains the stable generation immediately before the current stable.
+- Direct Compose activation uses the stable service project name from each immutable generation under
+  a remote per-service `flock`. Docker working-directory/config labels independently identify the
+  generation; a pointer alone never proves runtime identity.
+- Transport loss leaves activation unresolved. A later invocation first observes the lock and Docker
+  state; only the same immutable generation may converge while ambiguity remains, and a different
+  generation is refused.
+- Arcane is an observation and emergency-human surface. An enabled legacy auto-sync is a pre-write
+  refusal; takeover requires disable-and-drain evidence plus verification of the old live revision.
+  Skynet does not mutate repository branches, trigger manual source sync, or use sync status as
+  deployment authority.
+- Verification promotes stable only after the exact generation, stable project identity, complete
+  nonduplicated service set, running state, required healthy healthchecks, and declared DMZ/TLS/HTTP
+  routes all pass. A failed candidate can remain active while the prior stable stays recorded, and P11
+  never rolls it back automatically.
+- Runtime rollback explicitly activates and verifies a retained generation through the same path. It
+  creates no branch, commit, push, merge, or authored-source mutation and reports intentional runtime/
+  authored-Git divergence after success.
+- Generation publication preserves reviewed Git regular-file modes as `0644`/`0755`, with traversable
+  runtime directories and specifically protected `.env`/metadata. Retained reuse compares modes as
+  well as bytes; runtime rollback additionally reconstructs the exact historical commit and effective
+  environment before activation rather than trusting a directory or manifest claim.
+- Deployment route verification reads Caddy route source and Compose service-address inputs from the
+  exact expected revision. Dirty or stale checkout bytes cannot suppress a route required by that
+  release; P10's canonical evidence and DMZ/TLS/HTTP probe contract remains unchanged.
+- The `librespeed` live canary proved the existing `svc-ops` Docker path, protected persistent state,
+  migration guard, direct activation, health-before-promotion, same-generation recovery, Docker
+  generation identity, DMZ HTTP/TLS verification, stable truth, and idempotent reuse. The initial
+  health-starting result correctly withheld promotion.
+- P11's previous external ACCEPT covered the removed Arcane Git Sync architecture. Its substantive
+  redesign makes that verdict stale; accepted numbered progress remains P10 until PR #259 receives a
+  completely fresh external review and later bounded same-PR closeout.
 - The unprivileged NixOS `aliammar` account is the construction filesystem/OS boundary. Native
   construction inherits its no-prompt Codex posture; self-root and authored self-merge are forbidden,
   and production authority remains governed separately by trust-tier contracts.
@@ -111,6 +150,11 @@
 - A service-scoped history commit is rollback context, not live deployment identity. A Git Sync
   verifier must receive the exact selected branch-head revision; rollback candidates stay on the
   separate recovery path.
+- Turning off a scheduler is not proof that admitted work stopped. When an API exposes no in-flight
+  lease state, migration needs a pre-change drain interval at least as long as the executor's maximum
+  run plus an observation of the still-coherent old revision/runtime.
+- Completed-step evidence outranks generic stage ordering in recovery text. Once `source-synced` is
+  recorded, every later failure must say source activation occurred, even before explicit redeploy.
 - A transition-wide verification architecture should be changed coherently rather than patched phase
   by phase. During an explicit test embargo, retain hard safety controls, disable unattended merge,
   record verification debt, and defer one replacement suite to the post-transition review.
