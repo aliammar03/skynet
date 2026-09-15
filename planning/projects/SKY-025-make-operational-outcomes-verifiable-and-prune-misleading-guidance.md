@@ -399,7 +399,9 @@ replacement repository test suite.
 The latest FIX repair additionally proves Git-mode preservation (`100644` → `0644`, `100755` →
 `0755`), non-root cloudflared relative-config access with `.env` still `0600`, retained byte/environment/
 mode tamper refusal, historical rollback reconstruction from an exact local commit before activation,
-missing-object refusal, and route selection from the expected revision despite dirty worktree changes.
+missing-object refusal, route selection from the expected revision despite dirty worktree changes,
+and default/explicit rollback-host normalization that preserves the fixed `svc-ops` activation user
+while refusing malformed or foreign-user spellings.
 
 **Live proof:** focused disposable fixtures passed before the authorized `librespeed` canary. The host
 retained its documented unprivileged `svc-ops` Docker/Compose capability and protected persistent home.

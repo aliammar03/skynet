@@ -38,6 +38,8 @@ activates and verifies a retained generation and never changes authored Git.
   subtree, effective environment, modes, and manifest before activation.
 - Bound deployment route selection and Compose address mapping to the exact expected Git revision so
   dirty worktree edits cannot turn a required route into `skipped`.
+- Normalized rollback's default/fixed-user activation host through generation's existing bare-host
+  boundary before historical validation; activation still admits only the `svc-ops` SSH identity.
 
 ## Verification
 
@@ -60,6 +62,8 @@ activates and verifies a retained generation and never changes authored Git.
   mode, exact `.env` mode, retained content/environment/mode tamper refusal, missing historical object,
   pre-activation rollback refusal, zero Git mutation, and dirty-worktree route isolation. The pinned
   cloudflared image was independently inspected with configured user `65532:65532`.
+- Source and installed-package rollback CLI probes cover the default host, supported bare and
+  `svc-ops@` overrides, foreign-user/malformed refusal, and unchanged report-only behavior.
 
 ## Pending Work and Blockers
 

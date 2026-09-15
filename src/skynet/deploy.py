@@ -1001,7 +1001,7 @@ def rollback_service(
             candidate,
             repo=repo,
             age_key=age_key,
-            host=host or generation.DEFAULT_HOST,
+            host=_generation_host(host),
             state_root=str(state_root),
             timeout=timeout,
         )
