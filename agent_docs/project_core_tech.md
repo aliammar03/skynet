@@ -68,17 +68,20 @@ Compose activation; Caddy and Cloudflare Tunnel provide the internal/public serv
 - Deployment verification requires one exact full Git revision in the selected generation manifest,
   stable Compose project identity, complete equal positive Compose/Docker service counts, every
   container identified by independent generation metadata, running healthy containers with required
-  healthchecks, and canonical routes probed from the Docker DMZ network with verified TLS. It has no
+  healthchecks, and canonical routes read from the exact expected Git revision and probed from the
+  Docker DMZ network with verified TLS. It has no
   deployment write path; the route probe only creates/removes its bounded ephemeral pinned-image
   container. Direct activation and promotion are owned by `activation.py` and `deploy.py`.
 - `skynet deploy prepare` reads Git objects at one exact branch head, stages the complete service
   subtree and layered environment, validates Compose expansion from the generation, and atomically
-  publishes an immutable protected generation. `skynet deploy service` acquires the remote per-service
+  publishes an immutable protected generation while preserving deterministic `0644`/`0755` Git runtime
+  modes and keeping `.env`/metadata `0600`. `skynet deploy service` acquires the remote per-service
   `flock`, reconciles operation/state/Docker evidence, refuses enabled Arcane auto-sync, activates
   directly with stable project identity, verifies independently, and promotes stable only after
   success. A timed-out activation remains unresolved until lock/runtime reconciliation; only the
   same generation may resume. `skynet deploy status` is report-only. `skynet rollback service` is
-  report-only by default and `--apply` activates a retained generation through the same path without
+  report-only by default and `--apply` first reconstructs the exact historical commit and compares all
+  retained bytes, modes, environment, and manifest before activating through the same path, without
   branch, commit, push, merge, or authored-source mutation. `gitops-deploy.sh` and
   `gitops-rollback.sh` are temporary compatibility forwarders for P22.
 - `scripts/entity.sh`, `scripts/audit-entities.sh`, and `scripts/build-db.sh` are compatibility

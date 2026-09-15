@@ -135,7 +135,7 @@ immediately returns to the normal lifecycle above.
 | 8 | Heavy | Entity derivation/audit + rebuildable SQLite cache/query | accepted |
 | 9 | Medium | Docs/digest/context/catalog rendering + journal/recall helpers | accepted; G3 |
 | 10 | Heavy | Deployment health + reachability verification | accepted and human-merged on PR #257 |
-| 11 | Heavy | Immutable Compose generations, direct activation, deployment state, human-controlled runtime rollback | rework on PR #259; pending fresh review after implementation |
+| 11 | Heavy | Immutable Compose generations, direct activation, deployment state, human-controlled runtime rollback | implementation-ready on PR #259; pending fresh review |
 | 12 | Heavy | Publishing: Caddy/Auth/DNS coordination | correct vantages + auth paths |
 | 13 | Medium | Saved-plan parsing + scope/action/exclusion policy | unsafe plans refused pre-write |
 | 14 | Medium | Snapshot/apply/task completion + partial failure recovery | G4 |
@@ -395,6 +395,11 @@ no Git mutation; thin shell forwarders; source and installed CLI smoke; Ruff, st
 compilation, shell syntax, offline Nix build, installed launcher/closure, secret scan, hard invariants,
 and `git diff --check`. Use focused disposable/manual probes under the SKY-025 test/CI embargo, not a
 replacement repository test suite.
+
+The latest FIX repair additionally proves Git-mode preservation (`100644` → `0644`, `100755` →
+`0755`), non-root cloudflared relative-config access with `.env` still `0600`, retained byte/environment/
+mode tamper refusal, historical rollback reconstruction from an exact local commit before activation,
+missing-object refusal, and route selection from the expected revision despite dirty worktree changes.
 
 **Live proof:** focused disposable fixtures passed before the authorized `librespeed` canary. The host
 retained its documented unprivileged `svc-ops` Docker/Compose capability and protected persistent home.

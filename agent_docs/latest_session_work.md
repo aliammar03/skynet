@@ -5,10 +5,10 @@
 
 ## Detailed Current State
 
-SKY-025 P11 is implementation-ready on existing PR **#259** and pending a completely fresh external
-review. Accepted progress remains **10/24** and architecture checkpoint G3 remains complete. The old
-ACCEPT reviewed the superseded Arcane Git Sync architecture and is stale after substantive head
-movement.
+SKY-025 P11 is implementation-ready on existing PR **#259** after repairing the fresh review's FIX
+findings and is pending another completely fresh external review. Accepted progress remains **10/24**
+and architecture checkpoint G3 remains complete. The old ACCEPT reviewed the superseded Arcane Git
+Sync architecture and is stale after substantive head movement.
 
 The packaged deployment owner resolves one exact local branch head, prepares its complete service
 subtree and layered environment as an immutable protected generation, activates it directly through
@@ -32,6 +32,12 @@ activates and verifies a retained generation and never changes authored Git.
 - Reduced the legacy deploy and rollback shell names to thin package forwarders, updated the Nix
   closure, current design/runbooks/Compose guidance, directive/map, ADR, and agent memory.
 - Preserved all pre-existing generated/inventory/drift worktree entries outside P11 ownership.
+- Preserved committed runtime modes in published generations while keeping `.env` and metadata
+  protected; retained reuse now rejects byte or mode drift.
+- Required `rollback --apply` to reconstruct the selected historical commit and compare its complete
+  subtree, effective environment, modes, and manifest before activation.
+- Bound deployment route selection and Compose address mapping to the exact expected Git revision so
+  dirty worktree edits cannot turn a required route into `skipped`.
 
 ## Verification
 
@@ -50,6 +56,10 @@ activates and verifies a retained generation and never changes authored Git.
   the retained `.env` at mode `0600`.
 - Focused source and installed-package smokes plus Ruff, strict mypy, Python compilation, shell syntax,
   offline Nix build, secret scan, hard invariants, and diff checks cover the embargoed gate surface.
+- The latest independent repair evidence covers non-root `0644` config access, retained executable
+  mode, exact `.env` mode, retained content/environment/mode tamper refusal, missing historical object,
+  pre-activation rollback refusal, zero Git mutation, and dirty-worktree route isolation. The pinned
+  cloudflared image was independently inspected with configured user `65532:65532`.
 
 ## Pending Work and Blockers
 

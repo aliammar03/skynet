@@ -85,8 +85,10 @@ Targeted archive recovery is verified. Full core-node-loss recovery remains unve
 
 Stop if the point is wrong or verification fails. Preserve pre-restore payload data and the retained
 stable generation. Use `skynet rollback service <svc> [--to <retained-full-revision>] --apply` only
-under an explicit runtime rollback plan; the command independently verifies before promotion and
-does not edit Git. Correct authored source separately with a normal reviewed PR.
+under an explicit runtime rollback plan. The historical commit must exist in the local repository;
+the command reconstructs and compares its exact retained bytes, effective environment, modes, and
+manifest before activation, independently verifies before promotion, and does not edit Git. Correct
+authored source separately with a normal reviewed PR.
 
 ## Evidence
 

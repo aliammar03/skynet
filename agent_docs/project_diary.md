@@ -93,6 +93,13 @@
 - Runtime rollback explicitly activates and verifies a retained generation through the same path. It
   creates no branch, commit, push, merge, or authored-source mutation and reports intentional runtime/
   authored-Git divergence after success.
+- Generation publication preserves reviewed Git regular-file modes as `0644`/`0755`, with traversable
+  runtime directories and specifically protected `.env`/metadata. Retained reuse compares modes as
+  well as bytes; runtime rollback additionally reconstructs the exact historical commit and effective
+  environment before activation rather than trusting a directory or manifest claim.
+- Deployment route verification reads Caddy route source and Compose service-address inputs from the
+  exact expected revision. Dirty or stale checkout bytes cannot suppress a route required by that
+  release; P10's canonical evidence and DMZ/TLS/HTTP probe contract remains unchanged.
 - The `librespeed` live canary proved the existing `svc-ops` Docker path, protected persistent state,
   migration guard, direct activation, health-before-promotion, same-generation recovery, Docker
   generation identity, DMZ HTTP/TLS verification, stable truth, and idempotent reuse. The initial

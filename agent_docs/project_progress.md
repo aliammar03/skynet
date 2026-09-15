@@ -14,9 +14,9 @@ and each capability earns autonomy through recorded verification and rollback ev
   native SKY-026 construction model are established.
 - **SKY-026 is complete.** Phases 1–5 are accepted, PR #253 is merged, and the directive is archived.
 - **SKY-025 accepted progress is 10/24 and G3 is complete.** P10 is merged. The redesigned P11 is
-  implementation-ready on PR #259 and pending a completely fresh external review. The old ACCEPT
-  covered a different Arcane Git Sync design and is stale. GitHub CI, automated tests, and packaged
-  test execution remain embargoed.
+  implementation-ready on PR #259 after repairing the latest FIX findings and is pending a completely
+  fresh external review. The old ACCEPT covered a different Arcane Git Sync design and is stale.
+  GitHub CI, automated tests, and packaged test execution remain embargoed.
 
 ## Current Position
 

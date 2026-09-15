@@ -45,4 +45,7 @@ The tunnel runs on `vm-docker-dmz`. Publishing an app is one `ingress` line in
 [`config.yml`](config.yml) + a public DNS record, merged and
 activated as an immutable Skynet generation with `skynet deploy service cloudflared`. Runtime
 rollback explicitly activates and verifies a retained generation; authored correction is a separate
-reviewed PR. `docker compose` through the standing Docker context remains the break-glass path.
+reviewed PR. The pinned image declares `65532:65532`; generation preparation therefore retains the
+committed `config.yml` as mode `0644` so the non-root process can read its relative bind mount while
+keeping `.env` mode `0600`. `docker compose` through the standing Docker context remains the
+break-glass path.

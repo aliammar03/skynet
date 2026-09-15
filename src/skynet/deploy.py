@@ -951,6 +951,7 @@ def rollback_service(
     to: str | None = None,
     apply: bool = False,
     repo: Path = Path.cwd(),
+    age_key: Path = DEFAULT_AGE_KEY,
     credentials_file: Path = DEFAULT_ARCANE_CREDENTIALS,
     environment_id: str | None = None,
     host: str | None = None,
@@ -978,7 +979,7 @@ def rollback_service(
         outcome.completed_steps.append("state-observed")
         candidate = _rollback_candidate(snapshot, to)
         retained_generation = _retained_generation(snapshot, candidate)
-        outcome.completed_steps.append("retained-generation-verified")
+        outcome.completed_steps.append("retained-generation-observed")
         outcome.source["revision"] = candidate
         outcome.detail.update(
             {
@@ -995,6 +996,21 @@ def rollback_service(
             outcome.recovery = "use --apply to activate and verify the retained generation"
             _emit(outcome, json_output=json_output, stdout=stdout)
             return 0
+        validated_generation = generation.validate_retained_generation(
+            service,
+            candidate,
+            repo=repo,
+            age_key=age_key,
+            host=host or generation.DEFAULT_HOST,
+            state_root=str(state_root),
+            timeout=timeout,
+        )
+        outcome.completed_steps.append("retained-generation-revalidated")
+        outcome.detail["retained_generation"] = {
+            "revision": validated_generation.revision,
+            "retained": True,
+            "exact_git_revalidated": True,
+        }
         pipeline = _pipeline(
             service,
             candidate,
@@ -1042,7 +1058,7 @@ def rollback_service(
             outcome.detail["verification_evidence"] = _public_verification(error.verification_result)
         _emit(outcome, json_output=json_output, stdout=stdout)
         return error.code
-    except (DeployError, activation.ActivationError) as error:
+    except (DeployError, activation.ActivationError, generation.GenerationError) as error:
         safe = error if isinstance(error, DeployError) else _error(error, "runtime rollback failed")
         outcome.reason = safe.reason
         outcome.recovery = "inspect active/stable state before retry" if safe.ambiguous else "runtime unchanged or requires inspection"

@@ -65,7 +65,9 @@ skynet deploy service <service> [--repo <checkout>] [--branch <branch>] \
 `prepare` reads only Git objects at one full branch-head revision and atomically publishes a complete
 valid immutable generation. It streams the layered effective environment from local memory through
 SSH stdin to a protected remote `.env` at mode `0600`; it never activates containers. Preparing the
-same revision again verifies and reuses the retained generation.
+same revision again verifies and reuses the retained generation. Committed regular files retain
+deterministic Git semantics (`100644` → `0644`, `100755` → `0755`) and runtime directories are `0755`;
+any retained byte or mode drift is a conflict.
 
 `service` prepares, locks and reconciles the actual Docker project, checks Arcane scheduling, activates
 from the selected generation with the stable project name, independently verifies the exact generation,
@@ -87,13 +89,17 @@ skynet rollback service <service> [--to <retained-full-revision>]       # report
 skynet rollback service <service> [--to <retained-full-revision>] --apply
 ```
 
-`verify deployment` is read-only except its bounded ephemeral route probe container. It checks the
+`verify deployment` is read-only except its bounded ephemeral route probe container. It reads route
+and Compose address declarations from the expected Git revision rather than checkout bytes, and checks the
 release manifest, Docker Compose project and generation labels, exact complete service set, all
 required running healthy containers, and canonical declared routes from the `dmz` ingress vantage
 with verifying TLS. An undeclared route is recorded as skipped. Arcane is optional UI observation.
 
-Rollback requires a retained generation identity (or one unambiguous `previous` candidate), activates
-it through the same locked Compose/verification path, and promotes it only if verification succeeds.
+Rollback requires a retained generation identity (or one unambiguous `previous` candidate). With
+`--apply`, the exact historical commit must exist locally; Skynet reconstructs that commit's complete
+service tree and effective environment and directly compares retained bytes, modes, and manifest
+before any Compose mutation. It then activates through the same locked Compose/verification path and
+promotes only if verification succeeds.
 It does not create a branch, commit, push, merge, or modify authored source. Report runtime/Git
 divergence and correct source by a separate normal reviewed PR. Record the operation and raw evidence
 in `journal/`; refresh generated inventory through its normal collector when needed.

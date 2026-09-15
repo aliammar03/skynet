@@ -644,14 +644,21 @@ def _containers(
     return observations
 
 
-def _route_vhosts(repo: Path, service: str) -> list[str]:
-    """Parse the committed route map and return all vhosts targeting this service."""
+def _route_vhosts(
+    repo: Path,
+    service: str,
+    expected_revision: str,
+    timeout: float,
+) -> list[str]:
+    """Parse the exact release route map and return vhosts targeting this service."""
     try:
-        data = routes.snapshot(repo)
+        data = routes.snapshot(repo, revision=expected_revision, timeout=timeout)
     except Exception:
         raise VerificationError("route observation unavailable", 3) from None
     if not isinstance(data, dict) or not isinstance(data.get("routes"), list) or not data["routes"]:
         raise VerificationError("malformed route observation", 3)
+    if data.get("source_revision") != expected_revision:
+        raise VerificationError("route observation revision mismatch", 1)
     route_rows = data["routes"]
     counts = data.get("counts")
     if not isinstance(counts, dict):
@@ -811,7 +818,7 @@ def snapshot(
         timeout,
         generation_dir=selected_generation,
     )
-    vhosts = _route_vhosts(checkout, service)
+    vhosts = _route_vhosts(checkout, service, expected_revision, timeout)
     route_results: list[dict[str, int | str]] = []
     for vhost in vhosts:
         status, tls_result = _probe_route(context, vhost, timeout)

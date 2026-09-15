@@ -96,6 +96,7 @@ def build_parser() -> argparse.ArgumentParser:
     rollback_service.add_argument("service", help="Compose service/project name")
     rollback_service.add_argument("--to", dest="revision", help="explicit retained full Git revision")
     rollback_service.add_argument("--repo", type=Path, default=Path.cwd())
+    rollback_service.add_argument("--age-key", type=Path, default=deploy.DEFAULT_AGE_KEY)
     rollback_service.add_argument(
         "--credentials-file", "--arcane-credentials", type=Path,
         default=deploy.DEFAULT_ARCANE_CREDENTIALS,
@@ -289,7 +290,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         if arguments.rollback_target == "service":
             return deploy.rollback_service(
                 arguments.service, to=arguments.revision, apply=arguments.apply,
-                repo=arguments.repo, credentials_file=arguments.credentials_file,
+                repo=arguments.repo, age_key=arguments.age_key,
+                credentials_file=arguments.credentials_file,
                 environment_id=arguments.environment_id, host=arguments.host,
                 state_root=arguments.state_root, context=arguments.context,
                 timeout=arguments.timeout,

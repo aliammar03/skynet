@@ -43,10 +43,13 @@ mode-`0700` `svc-ops` home protects the state root without a root bootstrap. Its
 
 Preparation stages the complete committed `compose/<service>/` runtime subtree and validates it
 with Docker Compose against its own effective `.env`. Only a completely valid staging directory is
-published atomically. `release.json` records schema, service, full revision, Git tree/Compose/blob
+published atomically. Git `100644` files are retained as mode `0644`, Git `100755` files as `0755`,
+and generation runtime directories as `0755`; the surrounding service/state directories remain
+protected at `0700`. `release.json` records schema, service, full revision, Git tree/Compose/blob
 identities, optional `.env.git` blob, optional `.env.sops` ciphertext blob, and preparation time.
 It contains no secret values or hash of effective plaintext. A retained generation is immutable;
-re-preparation of the same revision verifies manifest identity and reuses it or fails on conflict.
+re-preparation of the same revision verifies manifest identity plus every expected byte and mode,
+then reuses it or fails on conflict.
 
 The effective `.env` is `.env.git` plus locally decrypted `.env.sops` from the exact commit.
 Plaintext stays in local process memory and crosses to the remote staging directory only through
@@ -71,8 +74,10 @@ can resume convergence. A different target cannot pass unresolved state.
 
 Independent verification checks release manifest revision, stable project name, exact complete
 Compose service set, container-generation labels, running/healthy status and required healthchecks.
-Declared ingress routes retain P10's `dmz` vantage, TLS validation, and HTTP gate. Arcane observation
-is not required. Docker accepting Compose only changes `active`; only successful independent
+Declared ingress routes and Compose address mappings are read from the same exact Git revision being
+verified, so dirty checkout bytes cannot remove a required probe. They retain P10's `dmz` vantage,
+TLS validation, and HTTP gate. Arcane observation is not required. Docker accepting Compose only
+changes `active`; only successful independent
 verification atomically promotes `stable`. Promotion retains the old stable as `previous`.
 
 ```text
@@ -86,8 +91,12 @@ P11 never rolls back automatically.
 ## Runtime rollback
 
 `skynet rollback service <service>` is report-only until `--apply` is explicit. It selects an
-unambiguous retained previous stable generation or an explicit full `--to` revision, then uses the
-same lock/reconciliation, Compose activation, verification, and promotion path. It never creates a
+unambiguous retained previous stable generation or an explicit full `--to` revision. Before activation,
+`--apply` requires that historical commit locally, reconstructs its complete service subtree and
+effective environment, and compares the retained manifest, bytes, and modes directly. A mismatch or
+missing Git object refuses before Compose mutation; plaintext environment is neither hashed nor
+reported. The validated candidate then uses the same lock/reconciliation, Compose activation,
+verification, and promotion path. It never creates a
 branch or commit, pushes, merges, or changes authored Git state. After successful runtime rollback,
 runtime and Git may intentionally diverge; correct authored source by the ordinary reviewed PR path.
 The old shell command names are thin package forwarders until P22.

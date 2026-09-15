@@ -572,7 +572,9 @@ def _payload(runtime_files: Mapping[str, tuple[bytes, int]], environment: bytes)
             for directory in sorted(directories, key=lambda item: (item.count("/"), item)):
                 info = tarfile.TarInfo(directory + "/")
                 info.type = tarfile.DIRTYPE
-                info.mode = 0o700
+                # Runtime directories must be traversable by non-root containers.  The
+                # remote transaction normalizes these to the same deterministic mode.
+                info.mode = 0o755
                 info.mtime = 0
                 stream.addfile(info)
             for path in sorted(all_files):
@@ -666,6 +668,78 @@ def _ssh_command(host: str, timeout: float, command: str) -> list[str]:
     ]
 
 
+def _remote_mode_functions() -> str:
+    """Return shell helpers shared by publication and retained validation.
+
+    The archive carries Git's regular-file execute bit.  The host normalizes all runtime
+    directories and regular files to a small, deterministic set so a host umask cannot make
+    a retained generation differ from a freshly prepared one.  ``.env`` and the public release
+    manifest are the two intentionally private files.
+    """
+    return r'''check_tree_modes() {
+  tree=$1
+  [ "$(stat -c '%a' -- "$tree")" = 755 ] || return 1
+  if ! find "$tree" -mindepth 1 -type d -exec sh -c '
+    for path do
+      [ "$(stat -c "%a" -- "$path")" = 755 ] || exit 1
+    done
+  ' sh {} +; then
+    return 1
+  fi
+  if ! find "$tree" -type f -exec sh -c '
+    tree=$1
+    shift
+    for path do
+      mode=$(stat -c "%a" -- "$path") || exit 1
+      relative=${path#"$tree"/}
+      if [ "$relative" = .env ] || [ "$relative" = release.json ]; then
+        [ "$mode" = 600 ] || exit 1
+      else
+        [ "$mode" = 644 ] || [ "$mode" = 755 ] || exit 1
+      fi
+    done
+  ' sh "$tree" {} +; then
+    return 1
+  fi
+}
+
+compare_tree_modes() {
+  left=$1
+  right=$2
+  if ! find "$left" -type d -exec sh -c '
+    left=$1
+    right=$2
+    shift 2
+    for path do
+      relative=${path#"$left"/}
+      if [ "$path" = "$left" ]; then
+        target=$right
+      else
+        target=$right/$relative
+      fi
+      [ -d "$target" ] && [ ! -L "$target" ] || exit 1
+      [ "$(stat -c "%a" -- "$path")" = "$(stat -c "%a" -- "$target")" ] || exit 1
+    done
+  ' sh "$left" "$right" {} +; then
+    return 1
+  fi
+  if ! find "$left" -type f -exec sh -c '
+    left=$1
+    right=$2
+    shift 2
+    for path do
+      relative=${path#"$left"/}
+      target=$right/$relative
+      [ -f "$target" ] && [ ! -L "$target" ] || exit 1
+      [ "$(stat -c "%a" -- "$path")" = "$(stat -c "%a" -- "$target")" ] || exit 1
+    done
+  ' sh "$left" "$right" {} +; then
+    return 1
+  fi
+}
+'''
+
+
 def _remote_prepare_script(
     service: str, revision: str, state_root: str, release_json: str
 ) -> str:
@@ -674,11 +748,13 @@ def _remote_prepare_script(
     service_arg = shlex.quote(service)
     revision_arg = shlex.quote(revision)
     release_arg = shlex.quote(release_json.rstrip("\n"))
+    mode_functions = _remote_mode_functions()
     return f"""set -eu
 root={root}
 service={service_arg}
 revision={revision_arg}
 expected_release={release_arg}
+{mode_functions}
 uid=$(id -u) || exit 44
 gid=$(id -g) || exit 44
 state_parent="$root"
@@ -744,15 +820,18 @@ chmod 700 -- "$generations" || exit 70
 stage=$(mktemp -d "$base/.generation-stage.XXXXXX") || exit 71
 cleanup() {{ rm -rf -- "$stage"; }}
 trap cleanup 0 1 2 3 15
-tar -xf - -C "$stage" --no-same-owner --no-same-permissions --no-overwrite-dir || exit 72
+tar -xf - -C "$stage" --no-same-owner --no-overwrite-dir || exit 72
 if [ -n "$(find "$stage" -type l -print -quit)" ]; then exit 73; fi
 [ -f "$stage/compose.yaml" ] && [ ! -L "$stage/compose.yaml" ] || exit 74
 [ -f "$stage/.env" ] && [ ! -L "$stage/.env" ] || exit 75
 docker compose --project-name "$service" --project-directory "$stage" --env-file "$stage/.env" -f "$stage/compose.yaml" config --quiet >/dev/null 2>&1 || exit 78
-find "$stage" -type d -exec chmod 700 {{}} + || exit 76
-find "$stage" -type f -exec chmod 600 {{}} + || exit 77
-printf '%s\\n' "$expected_release" > "$stage/release.json" || exit 79
-chmod 600 -- "$stage/release.json" || exit 80
+find "$stage" -type d -exec chmod 755 {{}} + || exit 76
+find "$stage" -type f -perm /111 -exec chmod 755 {{}} + || exit 77
+find "$stage" -type f ! -perm /111 -exec chmod 644 {{}} + || exit 78
+chmod 755 -- "$stage" || exit 79
+chmod 600 -- "$stage/.env" || exit 80
+printf '%s\\n' "$expected_release" > "$stage/release.json" || exit 81
+chmod 600 -- "$stage/release.json" || exit 82
 target="$generations/$revision"
 same_release() {{
   [ -d "$target" ] && [ ! -L "$target" ] || return 1
@@ -760,19 +839,17 @@ same_release() {{
   target_owner=$(stat -c '%u:%g' -- "$target") || return 1
   [ "$target_owner" = "$uid:$gid" ] || return 1
   target_mode=$(stat -c '%a' -- "$target") || return 1
-  [ "$target_mode" = 700 ] || return 1
+  [ "$target_mode" = 755 ] || return 1
   for required_file in compose.yaml .env release.json; do
     required_path="$target/$required_file"
     [ -f "$required_path" ] && [ ! -L "$required_path" ] || return 1
     required_owner=$(stat -c '%u:%g' -- "$required_path") || return 1
     [ "$required_owner" = "$uid:$gid" ] || return 1
-    required_mode=$(stat -c '%a' -- "$required_path") || return 1
-    [ "$required_mode" = 600 ] || return 1
   done
   if [ -n "$(find "$target" -mindepth 1 ! \\( -type d -o -type f \\) -print -quit)" ]; then return 1; fi
   if [ -n "$(find "$target" ! -uid "$uid" -print -quit)" ]; then return 1; fi
-  if [ -n "$(find "$target" -type d ! -perm 700 -print -quit)" ]; then return 1; fi
-  if [ -n "$(find "$target" -type f ! -perm 600 -print -quit)" ]; then return 1; fi
+  if ! check_tree_modes "$target"; then return 1; fi
+  if ! compare_tree_modes "$stage" "$target"; then return 1; fi
   if ! diff -qr --exclude=release.json -- "$stage" "$target" >/dev/null 2>&1; then return 1; fi
   docker compose --project-name "$service" --project-directory "$target" --env-file "$target/.env" -f "$target/compose.yaml" config --quiet >/dev/null 2>&1 || return 1
   expected_identity=$(sed -E 's/,"prepared_at":"[^\"]+"}}$//' "$stage/release.json") || return 1
@@ -784,7 +861,7 @@ if [ -e "$target" ] || [ -L "$target" ]; then
     cleanup
     trap - 0 1 2 3 15
     printf '%s\\n' GENERATION_REUSED
-    cat -- "$target/release.json" || exit 81
+    cat -- "$target/release.json" || exit 83
     exit 0
   fi
   exit 66
@@ -799,7 +876,7 @@ if same_release; then
   cleanup
   trap - 0 1 2 3 15
   printf '%s\\n' GENERATION_REUSED
-  cat -- "$target/release.json" || exit 83
+  cat -- "$target/release.json" || exit 85
   exit 0
 fi
 exit 67
@@ -836,6 +913,141 @@ def _publish(
         raise GenerationError("remote generation result is malformed", 3, ambiguous=True)
     release = _validated_remote_release(output, marker_line, expected_release)
     return marker_line == "GENERATION_REUSED", release
+
+
+def _remote_validate_script(
+    service: str, revision: str, state_root: str, release_json: str
+) -> str:
+    """Return a read-only retained-generation comparison transaction.
+
+    The expected archive is reconstructed from Git and the effective environment before this
+    script is called.  It is unpacked only into a host-local staging directory, compared byte-for-
+    byte and mode-for-mode with the retained generation, and removed by the exit trap.  No Docker
+    mutation or generation publication is performed here.
+    """
+    root = shlex.quote(state_root)
+    service_arg = shlex.quote(service)
+    revision_arg = shlex.quote(revision)
+    release_arg = shlex.quote(release_json.rstrip("\n"))
+    mode_functions = _remote_mode_functions()
+    return f"""set -eu
+root={root}
+service={service_arg}
+revision={revision_arg}
+expected_release={release_arg}
+{mode_functions}
+uid=$(id -u) || exit 44
+gid=$(id -g) || exit 44
+state_parent="$root"
+while [ ! -e "$state_parent" ] && [ ! -L "$state_parent" ]; do
+  next_parent=$(dirname -- "$state_parent") || exit 41
+  [ "$next_parent" != "$state_parent" ] || exit 42
+  state_parent="$next_parent"
+done
+[ -d "$state_parent" ] && [ ! -L "$state_parent" ] || exit 43
+resolved_parent=$(readlink -f -- "$state_parent") || exit 44
+[ "$resolved_parent" = "$state_parent" ] || exit 45
+parent_owner=$(stat -c '%u:%g' -- "$state_parent") || exit 46
+[ "$parent_owner" = "$uid:$gid" ] || exit 47
+parent_mode=$(stat -c '%a' -- "$state_parent") || exit 48
+parent_restricted=${{parent_mode#?}}
+case "$parent_restricted" in *[2367]*) exit 49;; esac
+if [ "$state_parent" = "$root" ]; then
+  relative_root=
+else
+  relative_root=${{root#"$state_parent"/}}
+fi
+path="$state_parent"
+old_ifs="$IFS"
+IFS=/
+set -- $relative_root
+IFS="$old_ifs"
+for component in "$@"; do
+  path="$path/$component"
+  [ -d "$path" ] && [ ! -L "$path" ] || exit 50
+  component_owner=$(stat -c '%u:%g' -- "$path") || exit 51
+  [ "$component_owner" = "$uid:$gid" ] || exit 52
+  component_mode=$(stat -c '%a' -- "$path") || exit 53
+  component_restricted=${{component_mode#?}}
+  case "$component_restricted" in *[2367]*) exit 54;; esac
+done
+[ "$path" = "$root" ] || exit 57
+[ -d "$root" ] && [ ! -L "$root" ] || exit 58
+[ "$(stat -c '%a' -- "$root")" = 700 ] || exit 59
+[ "$(stat -c '%u:%g' -- "$root")" = "$uid:$gid" ] || exit 60
+base="$root/$service"
+[ -d "$base" ] && [ ! -L "$base" ] || exit 61
+[ "$(stat -c '%a' -- "$base")" = 700 ] || exit 62
+[ "$(stat -c '%u:%g' -- "$base")" = "$uid:$gid" ] || exit 63
+generations="$base/generations"
+[ -d "$generations" ] && [ ! -L "$generations" ] || exit 64
+[ "$(stat -c '%a' -- "$generations")" = 700 ] || exit 65
+target="$generations/$revision"
+[ -d "$target" ] && [ ! -L "$target" ] || exit 66
+[ "$(stat -c '%u:%g' -- "$target")" = "$uid:$gid" ] || exit 67
+[ -f "$target/compose.yaml" ] && [ ! -L "$target/compose.yaml" ] || exit 68
+[ -f "$target/.env" ] && [ ! -L "$target/.env" ] || exit 69
+[ -f "$target/release.json" ] && [ ! -L "$target/release.json" ] || exit 70
+if [ -n "$(find "$target" -type l -print -quit)" ]; then exit 71; fi
+if [ -n "$(find "$target" -mindepth 1 ! \\( -type d -o -type f \\) -print -quit)" ]; then exit 72; fi
+if [ -n "$(find "$target" ! -uid "$uid" -print -quit)" ]; then exit 73; fi
+if ! check_tree_modes "$target"; then exit 74; fi
+stage=$(mktemp -d "$base/.generation-validate.XXXXXX") || exit 75
+cleanup() {{ rm -rf -- "$stage"; }}
+trap cleanup 0 1 2 3 15
+tar -xf - -C "$stage" --no-same-owner --no-overwrite-dir || exit 76
+if [ -n "$(find "$stage" -type l -print -quit)" ]; then exit 77; fi
+[ -f "$stage/compose.yaml" ] && [ ! -L "$stage/compose.yaml" ] || exit 78
+[ -f "$stage/.env" ] && [ ! -L "$stage/.env" ] || exit 79
+find "$stage" -type d -exec chmod 755 {{}} + || exit 80
+find "$stage" -type f -perm /111 -exec chmod 755 {{}} + || exit 81
+find "$stage" -type f ! -perm /111 -exec chmod 644 {{}} + || exit 82
+chmod 755 -- "$stage" || exit 83
+chmod 600 -- "$stage/.env" || exit 84
+printf '%s\\n' "$expected_release" > "$stage/release.json" || exit 85
+chmod 600 -- "$stage/release.json" || exit 86
+if ! check_tree_modes "$stage"; then exit 87; fi
+if ! compare_tree_modes "$stage" "$target"; then exit 88; fi
+if ! diff -qr --exclude=release.json -- "$stage" "$target" >/dev/null 2>&1; then exit 89; fi
+if ! cmp -s -- "$stage/.env" "$target/.env"; then exit 90; fi
+expected_identity=$(sed -E 's/,"prepared_at":"[^\\"]+"}}$//' "$stage/release.json") || exit 91
+actual_identity=$(sed -E 's/,"prepared_at":"[^\\"]+"}}$//' "$target/release.json") || exit 92
+[ -n "$actual_identity" ] && [ "$actual_identity" = "$expected_identity" ] || exit 93
+docker compose --project-name "$service" --project-directory "$target" --env-file "$target/.env" -f "$target/compose.yaml" config --quiet >/dev/null 2>&1 || exit 94
+printf '%s\\n' GENERATION_VALIDATED
+cat -- "$target/release.json" || exit 95
+"""
+
+
+def _validate_remote(
+    payload: bytes,
+    service: str,
+    revision: str,
+    state_root: str,
+    host: str,
+    release_json: str,
+    expected_release: Mapping[str, object],
+    timeout: float,
+) -> dict[str, object]:
+    """Compare one exact Git-derived archive with an existing remote generation."""
+    script = _remote_validate_script(service, revision, state_root, release_json)
+    try:
+        output = _run(
+            _ssh_command(host, timeout, script),
+            timeout + SSH_GRACE,
+            input_bytes=payload,
+            reason="retained generation validation failed",
+            max_output=MAX_RELEASE_BYTES,
+        )
+    except GenerationError as error:
+        raise GenerationError(error.reason, error.code, ambiguous=False) from None
+    try:
+        marker_line = output.split(b"\n", 1)[0].decode("ascii")
+    except (IndexError, UnicodeDecodeError):
+        raise GenerationError("retained generation result is malformed", 3) from None
+    if marker_line != "GENERATION_VALIDATED":
+        raise GenerationError("retained generation validation failed", 1)
+    return _validated_remote_release(output, marker_line, expected_release)
 
 
 def prepare_generation(
@@ -913,6 +1125,50 @@ def prepare_revision(
     )
 
 
+def validate_retained_generation(
+    service: str,
+    revision: str,
+    *,
+    repo: Path,
+    age_key: Path = DEFAULT_AGE_KEY,
+    host: str = DEFAULT_HOST,
+    state_root: str = DEFAULT_STATE_ROOT,
+    timeout: float = DEFAULT_TIMEOUT,
+) -> PreparedGeneration:
+    """Revalidate a retained generation against one exact historical Git commit.
+
+    This path intentionally does not resolve or compare a branch head, publish a generation, or
+    invoke Docker mutation.  It reconstructs the service tree and layered environment from the
+    requested commit, then compares the remote retained tree's bytes, modes, and public manifest.
+    The returned object is a validation result with ``reused=True`` for callers that want the
+    retained generation's public identity.
+    """
+    service = _validate_service(service)
+    revision = _validate_revision(revision)
+    host = _validate_host(host)
+    state_root = _validate_state_root(state_root)
+    timeout = _validate_timeout(timeout)
+    if not repo.is_dir():
+        raise GenerationError("Git checkout is unavailable", 3)
+    _ensure_commit(repo, revision, timeout)
+    bundle = _source_bundle(repo, service, revision, timeout)
+    environment = _environment(bundle.env_git, bundle.env_sops, age_key, timeout)
+    payload = _payload(bundle.runtime_files, environment)
+    manifest, release_json = _release(bundle.identity)
+    retained_release = _validate_remote(
+        payload,
+        service,
+        revision,
+        state_root,
+        host,
+        release_json,
+        manifest,
+        timeout,
+    )
+    path = f"{state_root}/{service}/generations/{revision}"
+    return PreparedGeneration(service, revision, path, retained_release, True, bundle.identity)
+
+
 prepare = prepare_generation
 
 
@@ -929,4 +1185,5 @@ __all__: Final = [
     "prepare_generation",
     "prepare_revision",
     "resolve_revision",
+    "validate_retained_generation",
 ]
