@@ -205,7 +205,7 @@ services:
         max-file: "3"
 
   jikan_typesense:
-    image: docker.io/typesense/typesense:0.24.1@sha256:9bcff2b829f12074426ca044b56160ca9d777a0c488303469143dd9f8259d4dd
+    image: docker.io/typesense/typesense:0.25.2@sha256:1ddbb28a52b0b8be31237ec718df1c9bc895c5626b26c10fa3f340f684e81488
     restart: unless-stopped
     init: true
     environment:
