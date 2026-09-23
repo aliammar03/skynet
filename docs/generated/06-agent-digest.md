@@ -14,6 +14,7 @@ directive; this generated page is optional recent-activity and episodic retrieva
 
 ## 🧷 Recent decisions
 
+- **[[0008-git-model-for-docker-and-opentofu|ADR 0008]]** — One git model for Docker services and OpenTofu · proposed — implemented by SKY-025 Phases 13 and 15; becomes accepted when both land · 2026-09-23
 - **[[0007-local-tests-review-tiers-agent-agnostic-construction|ADR 0007]]** — Local tests, Light/Full review tiers, agent-agnostic construction · accepted · 2026-09-23
 - **[[0006-opnsense-read-is-t1-write-stays-t3|ADR 0006]]** — OPNsense tiered: read+diagnostics T1, config T2 (PR-gated via tofu), self-leash & reboot T3 · accepted · 2026-09-01
 - **[[0005-full-agent-control-as-terminal-goal|ADR 0005]]** — Full agent control is the terminal goal; autonomy is earned, reversible, and never self-granted · accepted · 2026-08-28
@@ -26,7 +27,7 @@ directive; this generated page is optional recent-activity and episodic retrieva
 
 **Directives in flight** (not done/abandoned):
 
-- **SKY-025** (projects · in-progress · 10/17) — Rebuild the Skynet engine in Python
+- **SKY-025** (projects · in-progress · 10/18) — Rebuild the Skynet engine in Python
 - **SKY-005** (backlog · approved) — Imperative ops discipline: recon toolkit, diagnosis library, lab bench
 - **SKY-006** (backlog · approved) — Agent episodic memory: journal + retrieval
 - **SKY-018** (backlog · approved) — Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain
@@ -39,22 +40,24 @@ directive; this generated page is optional recent-activity and episodic retrieva
 - **SKY-016** (ideas · draft) — Harden the service-deployment workflow: verify reachability not just health, plus scaffolding helpers
 - **SKY-017** (ideas · draft) — The road to full agent control: verification, proving ground, and an evidence-earned ratchet
 - **SKY-019** (ideas · draft) — Relocate the Arcane controller off the DMZ to a dedicated Management docker VM, managing docker hosts remotely
+- **SKY-027** (ideas · draft) — One deployment model: NixOS Docker host with compose2nix, deploy-rs and sops-nix
 
 **Explicit durable follow-ups:**
 
+- ADR 0008 becomes accepted only when SKY-025 Phases 13 and 15 land; AGENTS.md §4 and the constitution change with those phases (human-merged). — _2026-09-23 decision_
 - Ali: add grant-root deny/ask rules for opencode in nix/home/aliammar.nix, then list it in invariants.json construction.engines. — _2026-09-23 decision_
 - Nix changes (devshell + base python3.withPackages pytest) were not built in the authoring container (no nix); verify with `nix develop` and a rebuild on the ops VM. — _2026-09-23 decision_
 - _95 historical episode(s) have unclassified follow-ups; status unknown, not promoted as current work._
 
 ## 📓 Recent episodes
 
+- **2026-09-23** · decision · [[2026-09-23-decision-deployment-model-review-adr-0008-git-model-health-monitor-sky-027|Deployment model review: ADR 0008 git model, health monitor, SKY-027]]
 - **2026-09-23** · decision · [[2026-09-23-decision-fold-streamlining-into-the-overhaul-directive-limit-deterministic-nightly-docs-budget|Fold streamlining into the overhaul: directive limit, deterministic nightly, docs budget]]
 - **2026-09-23** · decision · [[2026-09-23-decision-process-overhaul-tests-back-review-tiers-agent-agnostic-construction|Process overhaul: tests back, review tiers, agent-agnostic construction]]
 - **2026-09-13** · session · [[2026-09-13-session-sky-025-p10-accepted-same-pr-closeout|SKY-025 P10 accepted same-PR closeout]]
 - **2026-09-13** · session · [[2026-09-13-session-sky-025-p10-revision-identity-review-fix|SKY-025 P10 revision identity review fix]]
 - **2026-09-13** · session · [[2026-09-13-session-sky-025-p10-implementation-ready|SKY-025 P10 implementation ready]]
 - **2026-09-13** · session · [[2026-09-13-session-sky-025-p9-accepted-same-pr-closeout|SKY-025 P9 accepted same-PR closeout]]
-- **2026-09-13** · session · [[2026-09-13-session-sky-025-p9-gnu-ere-recall-review-fix|SKY-025 P9 GNU ERE recall review fix]]
 
 ---
 _Human narrative: [[05-state-of-the-lab]] · on-demand load-cost map: [[07-context-map]] · full episodic log: [[README|journal/]]. This digest is a cache — regenerable from git, never a source of truth._

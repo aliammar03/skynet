@@ -99,6 +99,7 @@ Handoff prompts for any directive live in [`prompts/`](prompts/README.md).
 | SKY-022 | "Lean multi-agent construction orchestration: lead-driven delegation" | archive | done | — | 🔭 long |
 | SKY-023 | Eliminate documentation drift and shrink operational context | archive | done | — | 🌱 short |
 | SKY-024 | tofu declares managed core guests — API-driven CT/VM lifecycle, no node SSH | backlog | approved | — | 🌱 short |
-| SKY-025 | Rebuild the Skynet engine in Python | projects | in-progress | 10/17 | 🔭 long |
+| SKY-025 | Rebuild the Skynet engine in Python | projects | in-progress | 10/18 | 🔭 long |
 | SKY-026 | "Overhaul agent orchestration around a Main-directed worker swarm" | archive | done | — | 🔭 long |
+| SKY-027 | "One deployment model: NixOS Docker host with compose2nix, deploy-rs and sops-nix" | ideas | draft | — | 🔭 long |
 <!-- ROADMAP:END -->
