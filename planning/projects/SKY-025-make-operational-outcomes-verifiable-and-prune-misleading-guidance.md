@@ -23,7 +23,9 @@ related:
 
 **Current:** phases 1–10 done (every read-only path is Python: collection, entities, cache,
 rendering, recall, deployment verification). The process overhaul is in: local pytest suite,
-`bin/check`, Light/Full review tiers, agent-agnostic construction, this block as the only tracker.
+`bin/check`, Light/Full review tiers, agent-agnostic construction, this block as the only tracker,
+a two-active-directive limit (SKY-023 archived; SKY-005/006/018/020/024 parked in the backlog),
+a docs-only context budget, and weekly batched Renovate image updates.
 
 **Next:** Phase 11 — purge and consolidate. Review: Light.
 
@@ -37,6 +39,8 @@ SKY-025 is finished when every box holds:
 - [ ] One `skynet` command on PATH. No forwarding scripts, no `bin/skynet`, no `bin/ops`.
 - [ ] Shell only on the allowlist below; everything else with branching logic is Python.
 - [ ] Nightly, deploy, publish, Tofu apply, backup, and restore run through Python on the ops VM.
+- [ ] The nightly is deterministic (no AI engine), runs `bin/check` on `main`, and opens a PR only
+      when inventory changed beyond timestamps.
 - [ ] `bin/check` passes, with a failure-case test for every write path.
 - [ ] One cold-start rebuild from git alone has been rehearsed and recorded.
 - [ ] Docs and runbooks reference only commands that exist.
@@ -78,6 +82,7 @@ and human merge all hold throughout.
 | `bin/skynet` | the Nix package puts `skynet` on PATH |
 | `scripts/nightly-automerge.sh` | suspended capability stub |
 | `scripts/update-clis.sh` | Nix owns CLI packages |
+| `bin/ops` engine layer (`OPS_ENGINE*`, Codex/Claude fallback) | the nightly is deterministic; agent runs are started on purpose, not by the timer |
 
 Everything else in `scripts/` and `bin/` is ported by the phase that owns it below.
 
@@ -86,13 +91,13 @@ Everything else in `scripts/` and `bin/` is ported by the phase that owns it bel
 | # | Phase | Review | Outcome | Exit evidence |
 |---|---|---|---|---|
 | 1–10 | Python CLI, collectors, entities, cache, rendering, recall, deploy verification | — | done | merged through PR #257 |
-| 11 | Purge and consolidate | Light | forwarders gone; shared collector core | nothing calls a deleted path; `skynet collect all` works live |
+| 11 | Purge and consolidate | Light | forwarders gone; shared collector core; `skynet plan`/`skynet new` | nothing calls a deleted path; `skynet collect all` works live |
 | 12 | Census and gates | Full | live facts recorded; gates in Python | blocker table filled; `skynet check` replaces the shell gates, same failures caught |
 | 13 | Write-path skeleton + deploy/publish | Full | Arcane deploy, env materialization, Caddy/Auth/DNS publish | real deploy; forced failure rolls back |
 | 14 | OpenTofu saved-plan execution | Full | plan policy, snapshot, apply, verify, restore | delete/protected-guest/mixed-scope plans refused; injected apply failure restores the snapshot |
 | 15 | Backup, restore, PBS off-site | Full | restic selection/consistency, PBS transfer guards, service/guest restore | empty-source transfer refused; isolated restore of one service |
 | 16 | Provision, onboard, OS updates | Full | provision/onboard, pins, age identity, OS-aware updates | one guest provisioned and updated; failed update stops with rollback |
-| 17 | Cutover | Full | Python nightly, install on ops VM, final prune, cold start | every "Done means" box ticked; directive archived |
+| 17 | Cutover | Full | deterministic Python nightly, install on ops VM, final prune, cold start | every "Done means" box ticked; directive archived |
 
 ### Phase 11 — Purge and consolidate   `[ ]` · review: Light
 
@@ -103,7 +108,13 @@ Everything else in `scripts/` and `bin/` is ported by the phase that owns it bel
    One credential-value rule for every collector.
 4. Collectors return result objects; `collect_all` loops over one collector list instead of
    re-parsing each collector's stdout JSON.
-5. Existing tests stay green; add tests for the shared module.
+5. Port `bin/plan` and `bin/new` to `skynet plan …` / `skynet new …` (roadmap regeneration,
+   stage moves, template stamping) with tests; delete the shell versions.
+6. Rename the proof-era `lxc-proof` identity on the production NixOS LXC bootstrap artifact
+   (carried from SKY-023 P10).
+7. Triage `planning/scratchpad/`: each note becomes an idea directive, moves to `journal/`, or is
+   deleted. Ali's personal notes stay unless Ali says otherwise.
+8. Existing tests stay green; add tests for the shared module.
 
 ### Phase 12 — Census and gates   `[ ]` · review: Full
 
@@ -121,13 +132,26 @@ Everything else in `scripts/` and `bin/` is ported by the phase that owns it bel
 | 17 | ignored local state (`.cache`, Tofu state/provider cache) classed as recovery-critical or rebuildable |
 | 15 | one independent rebuild/access path proven from the survival kit |
 
-### Phases 13–17
+### Phases 13–16
 
 Each follows the write-path shape above and the Full tier. Port the owning shell scripts
 (`gitops-deploy.sh`, `gitops-rollback.sh`, `deploy-gate.sh`, `cf-dns-route.sh`, `dns-revert.sh`,
 `tofu-env.sh`, `tofu-apply.sh`, `pve-snapshot.sh`, `provision-restic.sh`, `ct-age-identity.sh`,
-`onboard-host.sh`, `pin-cert.sh`, `skynet-ops-ssh-certs.sh`, `nightly.sh`, `hygiene.sh`,
-`repo-surface.sh`, `bin/ops`, `bin/plan`, `bin/new`) and delete them in the same PR.
+`onboard-host.sh`, `pin-cert.sh`, `skynet-ops-ssh-certs.sh`) and delete them in the same PR.
+
+### Phase 17 — Cutover   `[ ]` · review: Full
+
+1. **Deterministic nightly.** `skynet nightly` replaces `nightly.sh` and `bin/ops`: collect, render,
+   report, PR. No AI engine is invoked by the timer; delete the `OPS_ENGINE*` layer and its env docs.
+2. **PR only on real change.** Compare inventory ignoring `collected`/`attempted` timestamps and
+   hashes of unchanged snapshots; open a PR only when observed state changed. Freshness receipts
+   are still written locally so `collect-status` keeps proving recency. The nightly writes a
+   journal episode only on failure or real drift.
+3. **Nightly `bin/check` on `main`.** A red result leads the nightly report and opens nothing else.
+4. Port `hygiene.sh` and `repo-surface.sh` into `skynet check`; delete them.
+5. Install on the ops VM (package, services, timers), run the staged acceptance, and rehearse one
+   cold-start rebuild from git alone.
+6. Tick every "Done means" box and archive this directive.
 
 ## Carry-forward correctness cases
 
@@ -144,6 +168,7 @@ Each needs a test in `tests/` by the phase that owns it.
 | F7 | empty/wrong PBS source cannot drive destructive mirror behavior | 15 |
 | F8 | stale/missing collectors cannot look current | 3–9 ✓ (tested) |
 | F9 | package/config ownership stays singular | 11, 17 |
+| F12 | an unchanged lab produces no nightly PR; a red `bin/check` on `main` is reported, never hidden | 17 |
 | F10–F11 | one authority per rule; docs, help, runbooks stay truthful | every phase |
 
 ## Live and recovery boundaries
@@ -155,7 +180,9 @@ writes need operation-specific recovery evidence, not a blind `git revert`.
 
 ## Adjacent directives
 
-SKY-025 replaces existing substrate only. New features stay with their directives: diagnosis
+SKY-025 replaces existing substrate only. SKY-005, SKY-006, SKY-018, SKY-020, and SKY-024 are
+parked in `backlog/` under the two-active-directive limit; one may be started alongside SKY-025.
+New features stay with their directives: diagnosis
 practice (SKY-005), semantic retrieval (SKY-006), runbook capabilities (SKY-012), renderer features
 (SKY-015), extra deployment features (SKY-016), autonomy promotions (SKY-017), eight-layer semantics
 (SKY-018), OPNsense write path (SKY-020), documentation hygiene (SKY-023), guest declarations

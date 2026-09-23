@@ -1,17 +1,17 @@
 ---
 id: SKY-020
 title: Firewall-as-code — OPNsense config to T2 via OpenTofu
-status: in-progress
+status: approved
 horizon: long
 created: 2026-09-01
-updated: 2026-09-01
+updated: 2026-09-23
 phases: 6
 current_phase: 1
 tier_touched: [T2, T3]   # moves the OPNsense boundary — the constitution PR is ADR 0006 / PR #137.
 related:
   - docs/system-design.md
   - docs/decisions/0006-opnsense-read-is-t1-write-stays-t3.md
-  - planning/projects/SKY-018-eight-layer-reconciliation-entity-spine-the-analyze-phase-and-the-verification-toolchain.md
+  - planning/backlog/SKY-018-eight-layer-reconciliation-entity-spine-the-analyze-phase-and-the-verification-toolchain.md
   - "[[opnsense-readonly-and-gitbackup]]"
 ---
 

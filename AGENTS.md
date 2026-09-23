@@ -156,9 +156,8 @@ edit compose/<svc>/ → branch → PR (bin/check + tier review) → Ali merges o
 
 Non-trivial additions and overhauls are captured as **Skynet Directives** (`SKY-###`) in
 [`planning/`](planning/README.md) — its README owns the mechanics: the
-`scratchpad→ideas→backlog→projects→archive` lifecycle, `bin/plan`, each directive's **▶ Execute** /
-**Continue** prompts, and ~1–2h phases that end in a close-out. Load it when you mint, run, or resume
-one. A directive touching **T2+/T3** or a blast-radius boundary must also PR `docs/system-design.md`
+`scratchpad→ideas→backlog→projects→archive` lifecycle, `bin/plan`, one PR per phase, and the limit of
+**two active directives**. Load it when you mint, run, or resume one. A directive touching **T2+/T3** or a blast-radius boundary must also PR `docs/system-design.md`
 — the constitution (its invariants still apply).
 
 ---

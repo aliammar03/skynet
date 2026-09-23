@@ -1,10 +1,10 @@
 ---
 id: SKY-018
 title: "Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain"
-status: in-progress
+status: approved
 horizon: long
 created: 2026-08-28
-updated: 2026-09-03
+updated: 2026-09-23
 phases: 12
 current_phase: 6
 tier_touched: [T1, T2]   # Mostly T1 (derive, collect, render, check). P4 EXTENDS the T1 read surface

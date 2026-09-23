@@ -21,12 +21,12 @@ related:               # authoritative files this directive touches
   `bin/plan` stamps this file for every new directive and auto-fills id / title / created /
   updated / status / horizon — so editing THIS file raises the floor for all future plans.
   The conventions that keep directives uniform (all proven in SKY-001 / SKY-003):
-    • Sizing — one phase ≈ 1–2h (fits one session). Anything longer ⇒ split it.
+    • Sizing — one phase = one reviewable PR. Anything bigger ⇒ split it.
     • Decisions — one block per decision in §2; mark the winner (CHOSEN); keep the roads
       not taken so nobody re-litigates them.
     • Checkpoints — flag every T3 / destructive / credential / leaves-scope step as a
       ⚠ hard checkpoint (Ali acts; the agent stops and waits).
-    • Close-out — every phase ends with §5: PR + Main state-memory update + raw journal evidence + frontmatter bump.
+    • One PR per phase — it carries the work, `bin/check` evidence, its tier, and the §4 Status update.
     • Frontmatter — keep parsed keys value-only (NO inline `#` on title/phases/current_phase);
       `current_phase` = last COMPLETED phase (0 = not started); bump `phases` as you add them.
 -->

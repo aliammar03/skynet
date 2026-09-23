@@ -1,10 +1,10 @@
 ---
 id: SKY-005
 title: Imperative ops discipline: recon toolkit, diagnosis library, lab bench
-status: in-progress
+status: approved
 horizon: short
 created: 2026-08-17
-updated: 2026-08-20
+updated: 2026-09-23
 phases: 3
 current_phase: 2
 tier_touched: [T1, T2, T2+]   # recon is T1; diagnosis uses existing root grants (T2+); bench is

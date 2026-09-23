@@ -39,6 +39,9 @@ scratchpad ──▶ ideas ──▶ backlog ──▶ projects ──▶ archiv
 - **One phase, one PR.** A phase is sized to one reviewable PR. The PR carries the work, the
   `bin/check` evidence, its review tier ([construction](../docs/conventions/construction.md)), and
   the directive's own status update — so merge is completion. There is no closeout step or PR.
+- **At most two active directives.** `projects/` holds no more than two directives at once (a test in
+  `tests/` enforces it). To start a third, finish, archive, or park one in `backlog/` first — parked
+  directives keep their ID, phase boxes, and history.
 - **The directive is the only progress tracker.** Its frontmatter (`status`, `current_phase`) and
   its `## Status` block say where things stand and what runs next. No parallel state files.
 - **Reopening is exceptional.** A completed maintenance directive may return from `archive/` to
@@ -76,8 +79,8 @@ Handoff prompts for any directive live in [`prompts/`](prompts/README.md).
 | SKY-002 | Ongoing backup strategy for CT 240 (PBS host) | ideas | draft | — | 🌱 short |
 | SKY-003 | Apps reverse proxy + Authentik SSO ingress | archive | done | — | 🌱 short |
 | SKY-004 | Reactive operations: event-driven layer + drift-as-signal | ideas | draft | — | 🔭 long |
-| SKY-005 | Imperative ops discipline: recon toolkit, diagnosis library, lab bench | projects | in-progress | 2/3 | 🌱 short |
-| SKY-006 | Agent episodic memory: journal + retrieval | projects | in-progress | 2/3 | 🌱 short |
+| SKY-005 | Imperative ops discipline: recon toolkit, diagnosis library, lab bench | backlog | approved | — | 🌱 short |
+| SKY-006 | Agent episodic memory: journal + retrieval | backlog | approved | — | 🌱 short |
 | SKY-007 | NixOS host definition, piloted on the ops VM | archive | done | — | 🔭 long |
 | SKY-008 | OpenTofu provisioning layer: VM and CT lifecycle plus DNS | archive | done | — | 🔭 long |
 | SKY-009 | Convention bedrock: doctrine spine and golden templates | archive | done | — | 🌱 short |
@@ -89,13 +92,13 @@ Handoff prompts for any directive live in [`prompts/`](prompts/README.md).
 | SKY-015 | Inventory renderer overhaul: proxy-aware service annotation, canonical host map, reverse-proxy route inventory | ideas | draft | — | 🔭 long |
 | SKY-016 | Harden the service-deployment workflow: verify reachability not just health, plus scaffolding helpers | ideas | draft | — | 🌱 short |
 | SKY-017 | The road to full agent control: verification, proving ground, and an evidence-earned ratchet | ideas | draft | — | 🔭 long |
-| SKY-018 | "Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain" | projects | in-progress | 6/12 | 🔭 long |
+| SKY-018 | "Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain" | backlog | approved | — | 🔭 long |
 | SKY-019 | Relocate the Arcane controller off the DMZ to a dedicated Management docker VM, managing docker hosts remotely | ideas | draft | — | 🔭 long |
-| SKY-020 | Firewall-as-code — OPNsense config to T2 via OpenTofu | projects | in-progress | 1/6 | 🔭 long |
+| SKY-020 | Firewall-as-code — OPNsense config to T2 via OpenTofu | backlog | approved | — | 🔭 long |
 | SKY-021 | NixOS-in-LXC: prove the container path and set the new-CT default | archive | done | — | 🌱 short |
 | SKY-022 | "Lean multi-agent construction orchestration: lead-driven delegation" | archive | done | — | 🔭 long |
-| SKY-023 | Eliminate documentation drift and shrink operational context | projects | in-progress | 10/10 | 🌱 short |
-| SKY-024 | tofu declares managed core guests — API-driven CT/VM lifecycle, no node SSH | projects | in-progress | 4/6 | 🌱 short |
+| SKY-023 | Eliminate documentation drift and shrink operational context | archive | done | — | 🌱 short |
+| SKY-024 | tofu declares managed core guests — API-driven CT/VM lifecycle, no node SSH | backlog | approved | — | 🌱 short |
 | SKY-025 | Rebuild the Skynet engine in Python | projects | in-progress | 10/17 | 🔭 long |
 | SKY-026 | "Overhaul agent orchestration around a Main-directed worker swarm" | archive | done | — | 🔭 long |
 <!-- ROADMAP:END -->

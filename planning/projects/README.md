@@ -2,9 +2,9 @@
 
 scratchpad ▸ ideas ▸ backlog ▸ **`projects`** ▸ archive
 
-**This is what you actually run.** Every directive here is fully planned: sized phases (~1–2h
-each), per-phase exit criteria, a paste-and-go **▶ Execute prompt**, and **Continue prompt**
-resume hooks so a fresh session can cold-start mid-project without losing the thread.
+**This is what you actually run — at most two at a time.** Every directive here is fully planned:
+one-PR phases with exit evidence and a review tier, and a `## Status` block naming the next phase,
+so a fresh session cold-starts from [`../prompts/`](../prompts/README.md) without losing the thread.
 
 The workflow, start to finish:
 

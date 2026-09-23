@@ -1,10 +1,10 @@
 ---
 id: SKY-023
 title: Eliminate documentation drift and shrink operational context
-status: in-progress
+status: done
 horizon: short
 created: 2026-09-04
-updated: 2026-09-06
+updated: 2026-09-23
 phases: 10
 current_phase: 10
 tier_touched: [T1, T2]
@@ -30,6 +30,10 @@ related:
 ---
 
 # SKY-023 · Eliminate documentation drift and shrink operational context
+
+> **2026-09-23 closed:** Phases 1–9 done. The P10 residue (`.codex/` provenance, pre-commit narration) was
+> removed by the SKY-025 process overhaul (PR #260); the remaining `lxc-proof` → production LXC identity
+> rename moved to SKY-025 Phase 11. Archived under the two-active-directive limit.
 
 > **2026-09-07 ownership:** This directive keeps its open P10 classifier/residue and LXC identity close-out. SKY-025 removes conflicting guidance it touches and owns engine-related pruning. Its repository-test/CI embargo removes the hygiene test gates while retaining the local classifier report; it does not accept P10 or PR #203.
 > See the [SKY-025 adjacent directives](../projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md#adjacent-directives). This note does not complete any phase.

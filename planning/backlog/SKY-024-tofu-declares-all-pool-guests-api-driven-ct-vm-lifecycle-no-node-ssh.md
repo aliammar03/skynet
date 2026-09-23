@@ -1,10 +1,10 @@
 ---
 id: SKY-024
 title: tofu declares managed core guests — API-driven CT/VM lifecycle, no node SSH
-status: in-progress
+status: approved
 horizon: short
 created: 2026-09-04
-updated: 2026-09-05
+updated: 2026-09-23
 phases: 6
 current_phase: 4
 tier_touched: [T2, T3]   # T3: consolidating the agent's Proxmox identity (tofu → operate token) +

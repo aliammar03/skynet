@@ -1,10 +1,10 @@
 ---
 id: SKY-006
 title: Agent episodic memory: journal + retrieval
-status: in-progress
+status: approved
 horizon: short
 created: 2026-08-17
-updated: 2026-08-17
+updated: 2026-09-23
 phases: 3
 current_phase: 2
 tier_touched: [T1]   # repo files + a local, git-rebuildable index on the ops VM. No blast radius.

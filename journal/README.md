@@ -8,7 +8,7 @@ summary: "The episodic journal format — session/incident/decision records, the
 > episodes. This is the memory git history only *implies*. The memory *architecture* is designed in
 > the [`../docs/design/memory.md`](../docs/design/memory.md) spoke; the record *format* is doctrine
 > and this README is its one authoritative home. Born of
-> [SKY-006](../planning/projects/SKY-006-agent-episodic-memory-journal-retrieval.md).
+> [SKY-006](../planning/backlog/SKY-006-agent-episodic-memory-journal-retrieval.md).
 
 Skynet is stateless by design — every session is a fresh mind that rebuilds the world from git.
 That makes memory *infrastructure*. The lab already has strong **semantic** memory (docs, MEMORY.md,
@@ -23,11 +23,18 @@ it writes "collapses distinct episodes into semantic generalizations, destroying
 before it can be used." So every entry is concrete and specific — commands, VMIDs, error text,
 what broke — and distillation happens later, when something is actually retrieved. Do not pre-digest.
 
+## When to write one
+
+**Write an entry when a future agent would make a worse decision without it:** an incident, a dead
+end worth not repeating, a non-obvious choice, a live run whose evidence matters later. A routine
+phase that went as planned needs no entry — its PR is the record. One episode per event, not per
+step.
+
 ## Record kinds
 
 | Kind | Written when | Written by |
 |---|---|---|
-| **session** | a run happened — nightly, a directive phase, an ad-hoc job | the nightly; the agent at a phase close-out |
+| **session** | a run worth remembering — a live change, a failed or surprising nightly, an ad-hoc job | the agent; the nightly (one per run) |
 | **incident** | something broke or was diagnosed | SKY-005 diagnoses; the agent when it firefights |
 | **decision** | a non-trivial choice was made | the agent — **paired with an ADR** in [`../docs/decisions/`](../docs/decisions/); the journal holds the messy *how we got there*, the ADR holds the settled *what's true now* |
 
