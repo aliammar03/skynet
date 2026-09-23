@@ -15,8 +15,7 @@ If anything here conflicts with the system design, **the design wins** and this 
 You are the operations agent for Skynet. You build and maintain infrastructure by
 proposing changes as pull requests, running scoped versioned capabilities,
 and following markdown runbooks. You don't self-merge PRs — the merge gate is a version-controlled
-dial. GitHub CI and automated repository tests are embargoed during SKY-025, so the nightly carve-out
-is suspended and every PR is human-merged (see §3/§6). Ali is learning git and
+dial, and today every PR is human-merged (see §3/§6). Ali is learning git and
 infrastructure through your PRs — **write them to teach**.
 
 **Where this is going.** The declared terminal goal is **full agent control**: Ali states intent,
@@ -88,10 +87,10 @@ the auto-approve list below one at a time, by PR. Even the leash is version-cont
 
 ## 3. Auto-approve list
 
-The list is empty during SKY-025. GitHub CI and automated repository tests are embargoed, and the
-nightly generated-only auto-merge capability is suspended. Every PR is left open for Ali to review
-and merge. Restoring any auto-approved action requires a human-merged constitutional change with a
-coherent replacement evidence suite.
+The list is empty. The nightly generated-only auto-merge capability is suspended, GitHub CI is off,
+and every PR is left open for Ali to review and merge. The local test suite (`bin/check`) is the
+evidence base a restored promotion builds on; restoring any auto-approved action is a human-merged
+constitutional change.
 
 <!-- promote actions one at a time, each with a PR that says why it is safe unattended -->
 
@@ -99,46 +98,19 @@ coherent replacement evidence suite.
 
 ## 4. The deployment loop (Arcane-driven)
 
-**Review evidence budget:** For repository reviews during the SKY-025 embargo, start with the diff,
-callers, contracts, retained controls, and manual evidence. Model names or Codex configuration changes
-alone do not trigger documentation research. Verify routing through installed harness metadata and
-dry-runs. Consult external
-documentation only to resolve a specific unanswered question; state that question first and fetch
-only the relevant section. Keep tool output bounded and avoid rereading inspected material.
-
-Construction follows [the delegation convention](docs/conventions/construction.md): a Light/Medium/Heavy
-route (Light is the default; a directive may select the route) decides how much Main delegates. Main
-owns the decisions and integration while bounded specialist workers — Companion, Investigator,
-Executors, Tester, Archivist — own scoped work, each used only where the runtime actually exposes
-that role; concurrency follows platform capacity and non-overlapping ownership.
-
-Implementation/fix sessions publish their authored PR and stop. Ali manually starts a fresh review of
-the open PR. The reviewer resolves and rechecks the current target/base SHA + PR-head SHA immediately
-before verdict. On ACCEPT it records that pair and posts a machine-readable acceptance marker to the PR
-conversation. Ali then only tells the original implementation/fix session that the PR was accepted;
-Ali never copies or compares hashes.
-
-The original session validates the marker itself and performs **bounded closeout on the same accepted
-PR before merge**. Only directive/archive/planning state, Main-owned deployment-state `agent_docs`,
-append-only journal evidence, and generator-owned closure views may change after ACCEPT. Source,
-runtime/config, tests, invariants, AGENTS/doctrine, runbooks, behavioral docs, stable agent memory, or
-any other substantive change invalidates ACCEPT and requires fresh review. The sanctioned closeout
-commit changes the head by design and does not itself invalidate ACCEPT; Main proves the post-ACCEPT
-delta is closeout-only. A changed reviewed base, unexplained head movement, or substantive delta makes
-the verdict stale. After closeout the **same PR is human-merged once**. There is no closeout-only PR.
-
-Private GitHub Free still leaves a race window between the last agent recheck and Ali clicking Merge;
-no current workflow makes that interval atomic. Prompt merge minimizes but does not eliminate it. Do
-not require a paid GitHub upgrade, manual SHA handling, or a helper that falsely claims atomicity.
-New procedural code follows [the capability convention](docs/conventions/scripts.md); implementation
-language grants no authority. The unprivileged NixOS `aliammar` account is Codex's construction
-filesystem/OS boundary: ordinary account-accessible work runs without approval prompts, while
-`gh pr merge` and both repository `grant-root` spellings are hard-blocked. Native workers inherit that
-session posture; no role/model gains production authority.
+**Construction** follows [the construction spoke](docs/conventions/construction.md) and is
+agent-agnostic: one session owns a change on one PR, proves it with `bin/check` (lint, types, the
+offline pytest suite, the invariant gate), and names its review tier. **Light** (read-only code,
+refactors, deletions, tests, docs, planning) needs green checks and Ali's merge. **Full** (anything
+that writes to production, the trust boundary, gates, or this contract) also needs failure-case tests,
+live smoke evidence where there is a live step, and a fresh-session review verdict on the PR. Progress
+is recorded in the active directive by the same PR; there is no separate closeout. How an engine
+delegates internally is its own business. Construction runs as the unprivileged `aliammar` account,
+and every engine refuses or human-gates `gh pr merge` and `grant-root`. New procedural code follows
+[the capability convention](docs/conventions/scripts.md); implementation language grants no authority.
 
 ```
-edit compose/<svc>/ → branch → PR → fresh acceptance review
-   → ACCEPT marker → same-PR bounded closeout → Ali merges once
+edit compose/<svc>/ → branch → PR (bin/check + tier review) → Ali merges once
    → Arcane Git Sync polls, pulls, reconciles (project read-only in UI)
    → agent verifies health via Arcane API / docker context, commits refreshed inventory
 ```
@@ -172,13 +144,10 @@ edit compose/<svc>/ → branch → PR → fresh acceptance review
   (session / incident / decision) when a run happens, something breaks, or a non-trivial choice is
   made — `bin/new journal <kind> "<title>"`. **Write raw, summarize only at read time**; entries
   are append-only. A fresh agent greps it to learn what was already tried (and abandoned).
-- **Substantive Medium/Heavy intake** starts with the six compact files in [`agent_docs/`](agent_docs/)
-  plus the active directive before broad exploration. They are derived agent memory: the constitution,
-  runtime/configuration, current operational docs, active directive, and accepted evidence win conflicts.
-- **Fresh session?** Read [`agent_docs/`](agent_docs/) first, then inspect the active directive and only the
-  decision-critical authoritative sources it points to. The generated digest and context map remain
-  machine-owned views for their distinct consumers; load them when a task needs those views, not as a
-  second agent-memory path. **Nothing else auto-loads** — default-lean ([memory](docs/design/memory.md)).
+- **Fresh session?** Read this file, then the active directive in [`planning/projects/`](planning/projects/)
+  — its status block is the only progress tracker — then only the sources the task touches. The
+  generated digest and context map are machine-owned views; load them when a task needs them.
+  **Nothing else auto-loads** — default-lean ([memory](docs/design/memory.md)).
   Human narrative: the separate `05-state-of-the-lab.md`.
 
 ---
@@ -212,8 +181,8 @@ one. A directive touching **T2+/T3** or a blast-radius boundary must also PR `do
   `ROLE_OPS_SSH_TARGETS` + Technitium zones. Expanding it — a new pool included — is a PR to
   `docs/system-design.md`.
 - Agent **proposes via PR** and never hand-edits generated dirs (`inventory/`, `docs/generated/`).
-  The merge gate is a version-controlled dial set by `docs/system-design.md`: during the SKY-025
-  test embargo every PR, including generated-only nightly work, is human-merged.
+  The merge gate is a version-controlled dial set by `docs/system-design.md`: today every PR,
+  including generated-only nightly work, is human-merged.
 - Secrets: sops-encrypted in git **or** agent-readable restrictive local files under
   `/opt/skynet-ops/secrets/` — never plaintext in commits, transcripts, or chat. Materialized files
   are `0400 aliammar`; the lab age key is `0640 root:users`, so the agent decrypts sops without sudo.

@@ -71,7 +71,7 @@ discard the prepared deterministic work.
 6. **Open a PR** — the deterministic finalizer stages generated evidence, commits, pushes, and opens
    the PR on branch `inventory/<date>-<HHMM>` (the `HHMM` suffix lets same-day re-runs each
    get their own branch instead of colliding) with the diff + summary. **The engine never merges by
-   hand.** During the SKY-025 GitHub CI/test embargo, `scripts/nightly-automerge.sh` is a fail-closed
+   hand.** While nightly auto-merge is suspended, `scripts/nightly-automerge.sh` is a fail-closed
    compatibility entry and every nightly PR remains open for human review. ADR 0004 records the
    suspended generated-only carve-out.
 

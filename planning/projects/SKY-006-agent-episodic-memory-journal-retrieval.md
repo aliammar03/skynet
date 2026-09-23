@@ -18,7 +18,7 @@ related:
 # SKY-006 · Agent episodic memory: journal + retrieval
 
 > **2026-09-07 ownership:** Existing digest/recall/journal tooling replacement belongs to SKY-025 P9; this directive keeps optional semantic retrieval. Preserve the raw journal and avoid a competing writer.
-> See the [SKY-025 disposition map](../sky-025-map.md#adjacent-directive-ownership). This note does not complete any phase.
+> See the [SKY-025 adjacent directives](../projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md#adjacent-directives). This note does not complete any phase.
 
 > Close Skynet's memory gap. The agent has strong *semantic* and *procedural* memory but weak
 > *episodic* memory — it can't cheaply reconstruct how the lab got here or what was already tried.
@@ -58,7 +58,7 @@ isn't storage, it's **retrieval**. (Scratchpad thesis §4.)
 - **Option C — a local semantic index.** A lightweight, **git-rebuildable** embedding index (e.g.
   sqlite-vec class) over repo + journal so a fresh session retrieves by similarity. Must be a **cache,
   never a source of truth** — regenerable from git, so statelessness holds.
-- **Current rule:** `agent_docs/` plus the active directive are the normal fresh-session intake. The
+- **Current rule:** `AGENTS.md` plus the active directive are the normal fresh-session intake. The
   digest remains an optional recent-activity / episodic retrieval view, and the context map is an
   on-demand routing/load-cost index. Both are caches, never sources of truth. A semantic index remains
   a future option under this directive.
@@ -115,8 +115,7 @@ steps. When the phase's exit criteria are met, do the "Phase close-out" at the b
 
 ## 5. Phase close-out (resume material)
 - [ ] Land the work via **PR** (agent never merges its own).
-- [ ] Main refreshes the three state-memory files in `agent_docs/` after acceptance.
-- [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
+- [ ] In the phase PR: journal episode only if something non-obvious happened; `bin/check` green.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:

@@ -1,138 +1,24 @@
 ---
-summary: "Execute one SKY-025 phase on one PR; closeout requires the newest durable review verdict to be ACCEPT, and the historical P7 gate fails closed on its newest #239 verdict."
+summary: "Execute one directive phase on one PR: intake, implement, bin/check, update the directive status, open the PR, stop."
 ---
 
-# Execute SKY-025
+# Execute a directive phase
 
-Follow the active SKY-025 directive and
-[`../../docs/conventions/construction.md`](../../docs/conventions/construction.md).
+1. **Intake.** Read `AGENTS.md` and the directive named in the request. Its `## Status` block names
+   the next phase. Read only the code, docs, and runbooks that phase touches.
+2. **Branch.** Start from current `main`, or reuse the open PR for this phase if one exists. One
+   phase is one PR.
+3. **Plan.** For a phase with a live T2 step, post the AGENTS.md §2 plan (intent, hosts, rollback)
+   and wait for approval before the live step. Everything else runs without narration.
+4. **Implement** the phase's steps and nothing beyond them. Update callers, packaging, and current
+   docs together. Add or update a test for every behavior added or fixed; a write path gets a
+   failure-case test.
+5. **Prove.** Run `bin/check`. Collect live evidence the phase's exit criteria ask for.
+6. **Record progress in the same PR.** Flip the phase box, update the directive's `## Status` block
+   and frontmatter (`current_phase`, `status`, `updated`), and run `bin/plan list`. Write a
+   `journal/` episode only if something non-obvious happened.
+7. **Open the PR** with: what and why (written to teach), the review tier (Light or Full) with the
+   reason, the `bin/check` output, and live evidence. Then **stop**. Never review or merge it.
 
-## 1. Resolve the gate first
-
-Read `agent_docs/`, `AGENTS.md`, `planning/README.md`, the active SKY-025 directive, and
-`planning/sky-025-map.md` before broad exploration.
-
-If the directive still says **P7 review pending / accepted progress 6 of 24**, do not implement P8 until
-this session independently validates the one-time legacy review state. Never rely on the previous review
-chat and never ask Ali for a revision hash.
-
-1. Fetch all `skynet-legacy-acceptance:v1` markers from merged **PR #239** and select the **newest**
-   applicable marker by GitHub conversation order.
-2. Require exactly:
-   - `scope=SKY-025 P7`;
-   - `anchor_pr=239`;
-   - one full `integrated_main` SHA;
-   - newest marker `verdict=ACCEPT`.
-3. Resolve current remote `main` immediately before creating/reusing the P8 branch.
-4. Require current `main` to equal that marker's `integrated_main`. If the newest marker is absent,
-   malformed, FIX, BLOCKED, or points at another revision, report **P7 ACCEPT stale/missing**, keep P8
-   blocked, and never fall back to an older ACCEPT marker.
-5. Only after both checks pass, start from that validated `main`, use the natural P8 PR, and make its
-   opening bookkeeping record P7 accepted / `current_phase: 7` before P8 implementation. Do not create
-   a standalone P7 closeout PR.
-
-Otherwise execute the single authorized packet in the directive.
-
-## 2. One numbered phase = one open PR
-
-From P8 onward, every numbered phase owns one branch/PR targeting `main`.
-
-- Start from current remote `main` unless an open PR already exists for this numbered phase.
-- Reuse an existing phase PR. Never create a second phase PR because work continued in another session.
-- Internal lettered slices stay on that same phase PR and are never merged independently.
-- Preserve unrelated work and existing trust/live boundaries.
-- Never begin the next numbered phase before the current one is externally ACCEPTed and its same-PR
-  closeout has been human-merged.
-
-Ali never copies, compares, or carries Git revision hashes between chats.
-
-## 3. Route and implement
-
-Use the directive's Light/Medium/Heavy recommendation and native SKY-026 construction contract.
-Delegate bounded work through current native roles when useful. Workers do not merge and gain no
-production authority.
-
-Implement only the authorized phase/slice. Update affected callers, packaging, and current
-documentation together. Automated repository tests and GitHub CI remain embargoed throughout
-SKY-025; record focused manual/build evidence and verification debt instead. If the phase needs
-multiple internal slices, continue on the same open phase PR until the complete numbered phase is
-implementation-ready.
-
-Do not silently weaken an exit criterion, widen live authority, invent validation, or turn temporary
-migration compatibility into a second permanent engine.
-
-## 4. Verify
-
-Run the retained secret/invariant controls plus focused manual, build, lint, type, and live-read checks
-that do not recreate an automated test suite. Report exact results and unavailable validation. In
-Heavy work, use the independent Tester contract for independent inspection and smoke verification.
-
-## 5. Implementation handoff and STOP
-
-When the complete numbered phase is implementation-ready:
-
-- update Main-owned `agent_docs` truthfully as **implementation ready / pending fresh review**;
-- commit/push the phase PR;
-- report the PR URL/number, changed files, verification results, and limitations;
-- **STOP**.
-
-Do not start, spawn, or continue into final acceptance review. Ali manually starts a fresh review chat.
-The reviewer resolves current target/base + PR head itself and rechecks both before verdict.
-
-Use PR title:
-
-```text
-SKY-025 P<N>: <outcome>
-```
-
-For reviewer-requested repair, keep the same PR:
-
-```text
-SKY-025 P<N> fix: <outcome>
-```
-
-## 6. When Ali returns and says `accepted`
-
-This is accepted closeout mode on the same PR.
-
-1. Fetch all `skynet-acceptance:v1` markers from this PR conversation and select the **newest
-   applicable marker by conversation order**. Do not search for the newest ACCEPT.
-2. Require the newest marker to be well formed, match this phase/repair scope, and have
-   `verdict=ACCEPT`. A newer FIX/BLOCKED or malformed applicable marker makes ACCEPT stale even when the
-   base/head are unchanged.
-3. Verify the PR is still open, current target/base equals the marker's reviewed base, and current PR
-   head equals the marker's reviewed head **before** closeout. If any check fails, report ACCEPT stale
-   and require a fresh review. Never ask Ali for hashes.
-4. Apply only bounded closeout bookkeeping on this same PR:
-   - mark the accepted directive phase/state;
-   - archive/advance planning state as required;
-   - update `agent_docs/project_progress.md`, `project_diary.md`, `latest_session_work.md`;
-   - append journal closure evidence;
-   - run normal generators for closure-derived views when required.
-5. Do **not** change source/runtime/config/tests/invariants/AGENTS/doctrine/runbooks/behavioral docs/stable
-   agent memory or any substantive implementation surface. If such a change is needed, stop: ACCEPT is
-   stale and the same PR needs fresh review after the change.
-6. Prove the marker-head..final-head delta is closeout-only, rerun the retained closure/safety checks,
-   and recheck target/base still equals the marker base. GitHub CI remains absent during the embargo.
-7. Push the closeout to this same PR, report it ready for **one human merge**, then STOP.
-
-The closeout commit moves the PR head by design; allowed bookkeeping movement alone does not invalidate
-ACCEPT. Private GitHub Free still leaves a non-atomic race between the final recheck and Ali clicking
-Merge, so prefer prompt merge but do not claim atomicity.
-
-A compact pre-review PR body is enough:
-
-```text
-Phase: P<N> <outcome>
-Why/changes: <implemented behavior + affected callers/docs>
-Exit evidence: <criterion → command/result or explicit gap>
-Limitations: <remaining unverified/live/recovery boundaries>
-Review status: implementation ready / pending fresh review
-Review handoff: Read planning/prompts/review.md and review SKY-025 PR #<number>.
-```
-
-After accepted closeout, update the body to state `Review status: ACCEPTED; bounded closeout staged on
-this same PR; ready for one human merge.`
-
-If publishing is unavailable, preserve the branch/commit and report the blocker. Never merge your own
-work and never create a closeout-only PR.
+If blocked, set the directive `status: blocked`, write the exact unblock condition in its
+`## Status` block, and push that on the same PR.

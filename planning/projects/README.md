@@ -9,8 +9,8 @@ resume hooks so a fresh session can cold-start mid-project without losing the th
 The workflow, start to finish:
 
 1. **Kick off** — paste the directive's ▶ Execute prompt into a new session.
-2. **Each phase closes out** — Main updates the three state-memory files under `agent_docs/`, then
-   records raw journal evidence, bumps directive frontmatter, and leaves one next entry point.
+2. **Each phase is one PR** — it carries the work, `bin/check` evidence, its review tier, and the
+   directive's own status update, so merge is completion.
 3. **Anything touching T2+/T3** or a blast-radius boundary also PRs `docs/system-design.md`.
 
 **→ Out:** shipped or killed, `bin/plan archive SKY-###` retires it to

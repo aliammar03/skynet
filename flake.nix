@@ -83,7 +83,7 @@
       devShells.${system}.default = pkgs.mkShell {
         packages = [
           skynet
-          pkgs.python3
+          (pkgs.python3.withPackages (ps: [ ps.pytest ]))
           pkgs.ruff
           pkgs.mypy
           pkgs.openssl
@@ -149,8 +149,8 @@
         };
       };
 
-      # Deploy-rs schema validation remains available locally; repository tests and GitHub CI are
-      # embargoed for the duration of SKY-025.
+      # Deploy-rs schema validation. The application test suite runs locally through bin/check and
+      # the pre-commit hook; GitHub CI stays off.
       checks.${system} = deploy-rs.lib.${system}.deployChecks self.deploy;
     };
 }

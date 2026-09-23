@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# check — the one local verification command: lint, types, tests, and the hard-law gate.
+# TIER: T1 local — reads the checkout and writes only disposable temp/cache files. No network.
+# USAGE: bin/check   (inside `nix develop`; a missing tool is a failure, never a skip)
+# Every PR records a green `bin/check` run; the pre-commit hook runs the fast subset.
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "${ROOT}"
+
+for tool in ruff mypy pytest jq; do
+  command -v "${tool}" >/dev/null || { echo "check: ${tool} missing — run inside nix develop" >&2; exit 2; }
+done
+echo "== ruff"; ruff check src tests
+echo "== mypy"; mypy
+echo "== pytest"; pytest
+echo "== invariants"; scripts/check-invariants.sh
+echo "check: OK"

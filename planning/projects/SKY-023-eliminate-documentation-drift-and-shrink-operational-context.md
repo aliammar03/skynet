@@ -32,7 +32,7 @@ related:
 # SKY-023 · Eliminate documentation drift and shrink operational context
 
 > **2026-09-07 ownership:** This directive keeps its open P10 classifier/residue and LXC identity close-out. SKY-025 removes conflicting guidance it touches and owns engine-related pruning. Its repository-test/CI embargo removes the hygiene test gates while retaining the local classifier report; it does not accept P10 or PR #203.
-> See the [SKY-025 disposition map](../sky-025-map.md#adjacent-directive-ownership). This note does not complete any phase.
+> See the [SKY-025 adjacent directives](../projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md#adjacent-directives). This note does not complete any phase.
 
 > Keep Skynet's live repository surface current, lean, and boring. History lives in history-bearing
 > surfaces; current files describe only the system that exists now and the instructions needed to

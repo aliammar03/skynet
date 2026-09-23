@@ -18,7 +18,7 @@ related:
 # SKY-020 · Firewall-as-code — OPNsense config to T2 via OpenTofu
 
 > **2026-09-07 ownership:** This directive keeps the future OPNsense writer/provider and self-leash policy implementation. SKY-025 replaces existing reads and saved-plan capabilities only; it does not build the missing firewall actuator. Its test/CI embargo blocks this directive's automated gate/test work until the post-transition review.
-> See the [SKY-025 disposition map](../sky-025-map.md#adjacent-directive-ownership). This note does not complete any phase.
+> See the [SKY-025 adjacent directives](../projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md#adjacent-directives). This note does not complete any phase.
 
 > Make OPNsense firewall config a reviewed `tofu plan`: the agent proposes alias/rule changes as a
 > PR, a human merges, the saved-plan executor pushes them via the API — the same T2 GitOps loop as
@@ -118,8 +118,7 @@ criteria are met, do the "Phase close-out" below.
 
 ## 5. Phase close-out (resume material)
 - [ ] Land the work via **PR** (agent never merges its own).
-- [ ] Main refreshes the three state-memory files in `agent_docs/` after acceptance.
-- [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
+- [ ] In the phase PR: journal episode only if something non-obvious happened; `bin/check` green.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:

@@ -13,9 +13,9 @@ rules that require judgment.
 
 These hold everywhere and don't get a "unless"; the spokes elaborate, never loosen them.
 
-- **Never commit to `main` directly; every PR is human-merged during the SKY-025 embargo.** Nightly
-  self-merge is suspended while GitHub CI/tests are absent. One branch per unit of work, one PR per
-  change, `git revert` is the rollback. → [`conventions/git.md`](conventions/git.md)
+- **Never commit to `main` directly; every PR is human-merged.** Nightly self-merge is suspended.
+  One branch per unit of work, one PR per change, `bin/check` green before review, `git revert` is
+  the rollback. → [`conventions/git.md`](conventions/git.md)
 - **No plaintext secrets in git — ever.** Only sops-encrypted `*.env.sops`, or agent-readable
   restrictive files under `/opt/skynet-ops/secrets/` (`0400 aliammar`; lab age key
   `0640 root:users`). The agent decrypts sops without sudo. The pre-commit scan enforces it.
@@ -30,9 +30,8 @@ These hold everywhere and don't get a "unless"; the spokes elaborate, never loos
   → [`conventions/naming.md`](conventions/naming.md)
 - **One authoritative home per rule** — state it once, link everywhere else.
   → [`conventions/docs.md`](conventions/docs.md)
-- **Construction delegation stays lean and unprivileged** — Main directs specialist workers on a
-  Light/Medium/Heavy route, verification is independent, review is a fresh session that returns a fix
-  prompt, and **no worker ever gains production authority**. → [`conventions/construction.md`](conventions/construction.md)
+- **Construction is agent-agnostic and unprivileged** — one session owns a change on one PR, proves
+  it with `bin/check`, and gets a Light or Full review; **no engine ever gains production authority**. → [`conventions/construction.md`](conventions/construction.md)
 
 ## The spokes
 
@@ -45,7 +44,7 @@ These hold everywhere and don't get a "unless"; the spokes elaborate, never loos
 | [git](conventions/git.md) | Branch grammar, PR discipline, commit subjects, what never commits |
 | [docs](conventions/docs.md) | Hub-and-spoke pattern, ADR & runbook format, README-as-catalog |
 | [metadata](conventions/metadata.md) | Directive/service frontmatter schemas, compose label/tag namespaces |
-| [construction](conventions/construction.md) | Light/Medium/Heavy routes, Main-directed specialist workers, capsules, independent verification, fresh-session review, build-time trust boundary |
+| [construction](conventions/construction.md) | The build loop, Light/Full review tiers, test evidence, engine-agnostic trust boundary |
 
 **Adding a convention:** put the rule in the right spoke (or add a spoke), tag it
 [testable]/[manual], and — if it's load-bearing — surface a one-liner in the invariants above. A

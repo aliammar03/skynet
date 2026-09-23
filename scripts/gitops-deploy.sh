@@ -188,7 +188,7 @@ if [ -n "${MISSING}" ]; then
 fi
 
 # --- report-only verifier (opt-in via --gate) ---------------------------------
-# Deploy → verify the exact selected local branch-head revision. Recovery remains owned by P11;
+# Deploy → verify the exact selected local branch-head revision. Recovery moves to Python in Phase 13;
 # this call only reports health/reachability and never invokes rollback.
 if [ "${GATE}" = 1 ]; then
   exec "${REPO_ROOT}/scripts/deploy-gate.sh" "${SVC}" "${EXPECTED_REVISION}"

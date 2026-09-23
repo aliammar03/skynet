@@ -12,16 +12,13 @@
   },
 
   "construction": {
-    "why": "The unprivileged NixOS aliammar account is the filesystem/OS construction boundary. Home Manager sets Codex approval_policy=never and sandbox_mode=danger-full-access so Main and native workers can perform ordinary account-accessible work without prompts; no project or role sandbox may override that inherited session posture. This grants no production authority: credentials, trust tiers, human merge, and hard forbidden rules for gh pr merge and both grant-root spellings remain separate boundaries. Concurrency and worker ownership remain governed by the construction doctrine.",
+    "why": "Construction is agent-agnostic: any engine that reads AGENTS.md may build Skynet, and none gains production authority. The unprivileged NixOS aliammar account is the filesystem/OS boundary. Every engine configured there must refuse or human-gate the two operations that belong to Ali alone: merging a PR and issuing a root grant. The gate checks each listed engine block in home_config for those rules; adding an engine means adding its entry here.",
     "home_config": "nix/home/aliammar.nix",
-    "project_config": ".codex/config.toml",
-    "agents": [
-      { "role": "companion",       "why": "persistent read-only project-context secretary by ownership and instructions" },
-      { "role": "investigator",     "why": "disposable read-only evidence researcher by ownership and instructions" },
-      { "role": "default_executor", "why": "owns bounded implementation and ordinary repair" },
-      { "role": "senior_executor",  "why": "owns one exceptionally hard bounded implementation package" },
-      { "role": "tester",           "why": "owns independent verification, never production repair" },
-      { "role": "archivist",        "why": "owns assigned stable memory and documentation, never acceptance" }
+    "engines": [
+      { "engine": "codex", "block": "programs.codex", "why": "exec-policy forbidden rules",
+        "must_contain": [ "pattern = [\"gh\", \"pr\", \"merge\"],", "pattern = [\"bin/grant-root\"],", "pattern = [\"./bin/grant-root\"],", "decision = \"forbidden\"," ] },
+      { "engine": "claude-code", "block": "programs.claude-code", "why": "permission rules that override the Bash allow",
+        "must_contain": [ "\"Bash(gh pr merge:*)\"", "\"Bash(bin/grant-root:*)\"", "\"Bash(./bin/grant-root:*)\"" ] }
     ]
   },
 

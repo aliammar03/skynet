@@ -1,8 +1,8 @@
 # Skynet
 
 > A homelab that runs itself — safely. A GitHub repo is the single source of truth, an
-> AI ops agent proposes every authored change as a pull request, and **you** merge it. GitHub CI and
-> automated repository tests are temporarily embargoed during SKY-025, so every PR is human-merged.
+> AI ops agent proposes every authored change as a pull request, and **you** merge it. Every PR
+> passes the local `bin/check` suite first; GitHub CI is off.
 
 **Skynet** is the operations layer for a self-hosted lab: two Proxmox nodes, a PBS backup
 server, Docker hosts, Technitium DNS, and an OPNsense firewall. It's run by an agent on
@@ -37,8 +37,8 @@ Every night the agent writes a fresh, human-readable
 healthy, where the build stands, and what it's keeping an eye on, rendered from live inventory.
 It's the friendliest way to see where Skynet is right now.
 
-For compact cross-session orientation, a fresh substantive agent session reads the six
-**[`agent_docs/`](agent_docs/)** files plus its active directive. The generated
+For orientation, a fresh agent session reads [`AGENTS.md`](AGENTS.md) plus the active directive in
+[`planning/projects/`](planning/projects/), whose status block is the one progress tracker. The generated
 **[agent digest](docs/generated/06-agent-digest.md)** remains an optional recent-activity, episodic,
 and open-thread retrieval view, assembled from the [`journal/`](journal/README.md) and the roadmap.
 The generated **[context map](docs/generated/07-context-map.md)** is an on-demand index of loadable
@@ -64,7 +64,7 @@ flowchart LR
     class G truth;
 ```
 
-All work is human-merged during the SKY-025 test embargo. Something breaks? `git revert`, and Arcane
+All work is human-merged after `bin/check` passes. Something breaks? `git revert`, and Arcane
 returns to the last good state.
 
 After Arcane reconciles a merged service revision, use the packaged report-only check
@@ -130,7 +130,7 @@ These are the guarantees that make an autonomous agent safe to keep around:
   scoped T1/T2 slices are defined in the authoritative trust model.
 - ⏱️ **Root always expires by itself.** The CA lives only on the workstation + the printed
   survival kit. The agent literally *cannot* mint its own access.
-- 🙅 **Every PR is human-merged during the SKY-025 embargo.** Nightly self-merge is suspended;
+- 🙅 **Every PR is human-merged.** Nightly self-merge is suspended;
   generated dirs (`inventory/`, `docs/generated/`) are never hand-edited.
 - 🤫 **No plaintext secrets, ever** — sops-encrypted in git, or agent-readable restrictive local
   files (`0400 aliammar`; lab age key `0640 root:users`). The agent decrypts sops without sudo;
