@@ -12,7 +12,7 @@ related:
   - docs/design/memory.md
   - docs/design/observability.md
   - docs/decisions
-  - planning/scratchpad/2026-08-17-declarative-future-and-agent-cognition.md
+  - journal/2026/2026-08-17-session-declarative-future-and-agent-cognition.md
 ---
 
 # SKY-006 · Agent episodic memory: journal + retrieval
@@ -127,4 +127,4 @@ Follow AGENTS.md as above.
 
 ## 6. Status log
 - 2026-08-17 — created (draft) from the declarative-future brainstorm §4. Memory gap is episodic; fix
-  is journal + retrieval, not more storage. Research feeding this: `planning/scratchpad/research/2026-08-17-reactive-memory.md`.
+  is journal + retrieval, not more storage. Research feeding this: `journal/2026/2026-08-17-session-reactive-memory.md`.

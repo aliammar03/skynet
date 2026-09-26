@@ -13,7 +13,7 @@ related:
   - docs/design/observability.md
   - docs/design/gitops-loop.md
   - docs/system-design.md
-  - planning/scratchpad/2026-08-17-declarative-future-and-agent-cognition.md
+  - journal/2026/2026-08-17-session-declarative-future-and-agent-cognition.md
 ---
 
 # SKY-004 · Reactive operations: event-driven layer + drift-as-signal
@@ -32,7 +32,7 @@ Worse, the system has two truths — `compose/` (**desired**, git→reality via 
 them back in.** Drift is noticed only when an agent happens to read inventory. In control-theory
 terms: a plant, two sensors, no controller. Someone hand-edits the firewall or a container dies at
 04:00 and Skynet is blind until the next nightly. (Full write-up:
-[scratchpad thesis §1/§3](../scratchpad/2026-08-17-declarative-future-and-agent-cognition.md).)
+[scratchpad thesis §1/§3](../../journal/2026/2026-08-17-session-declarative-future-and-agent-cognition.md).)
 
 ## 2. Brainstorm — options considered
 
@@ -113,4 +113,4 @@ Follow AGENTS.md as above.
 
 ## 6. Status log
 - 2026-08-17 — created (draft) from the declarative-future brainstorm. Batch→reactive + drift-as-event
-  as the way the open control loop closes. Research feeding this: `planning/scratchpad/research/2026-08-17-reactive-memory.md`.
+  as the way the open control loop closes. Research feeding this: `journal/2026/2026-08-17-session-reactive-memory.md`.

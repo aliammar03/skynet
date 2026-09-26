@@ -17,8 +17,8 @@ related:
   - planning/ideas/SKY-017-the-road-to-full-agent-control-verification-proving-ground-and-an-evidence-earned-ratchet.md
   - planning/ideas/SKY-004-reactive-operations-event-driven-layer-drift-as-signal.md
   - planning/ideas/SKY-015-inventory-renderer-overhaul-proxy-aware-service-annotation-canonical-host-map-reverse-proxy-route-inventory.md
-  - planning/scratchpad/research/2026-08-28-complete-system-and-ansible.md
-  - planning/scratchpad/research/2026-08-28-full-agent-control-options.md
+  - journal/2026/2026-08-28-session-complete-system-and-ansible.md
+  - journal/2026/2026-08-28-session-full-agent-control-options.md
 ---
 
 # SKY-018 · Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain

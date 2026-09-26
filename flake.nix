@@ -5,7 +5,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     # Fast-moving agent CLIs (claude-code/codex/antigravity) come from unstable, not npm — see
-    # nix/modules/agent-clis.nix. Kept as a separate input so the host stays on stable 26.05.
+    # nix/home/aliammar.nix. Kept as a separate input so the host stays on stable 26.05.
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     # Codex rides slightly ahead of the unstable *channel*: nixpkgs master carries a newer codex
     # (0.153.4) days before the channel promotes it. Pinned to the exact master rev that bumped it

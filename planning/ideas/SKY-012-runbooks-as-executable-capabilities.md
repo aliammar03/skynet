@@ -16,9 +16,9 @@ related:
   - runbooks/README.md
   - docs/conventions/scripts.md
   - docs/design/gitops-loop.md
-  - planning/scratchpad/2026-08-17-declarative-future-and-agent-cognition.md
+  - journal/2026/2026-08-17-session-declarative-future-and-agent-cognition.md
   - planning/archive/SKY-010-default-lean-context-load-on-demand.md
-  - planning/projects/SKY-011-machine-enforced-invariants-and-the-ambiguity-layering-doctrine.md
+  - planning/archive/SKY-011-machine-enforced-invariants-and-the-ambiguity-layering-doctrine.md
 ---
 
 # SKY-012 · Runbooks as executable capabilities

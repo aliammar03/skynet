@@ -12,7 +12,7 @@ tier_touched: [T1, T2, T2+]   # recon is T1; diagnosis uses existing root grants
 related:
   - runbooks/README.md
   - docs/design/access-and-trust.md
-  - planning/scratchpad/2026-08-17-declarative-future-and-agent-cognition.md
+  - journal/2026/2026-08-17-session-declarative-future-and-agent-cognition.md
   - "[[skynet-service-standard]]"
 ---
 

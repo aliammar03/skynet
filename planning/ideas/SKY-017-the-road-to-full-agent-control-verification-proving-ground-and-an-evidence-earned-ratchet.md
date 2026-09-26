@@ -15,8 +15,8 @@ related:
   - docs/decisions/0005-full-agent-control-as-terminal-goal.md
   - planning/ideas/SKY-004-reactive-operations-event-driven-layer-drift-as-signal.md
   - planning/ideas/SKY-016-harden-the-service-deployment-workflow-verify-reachability-not-just-health-plus-scaffolding-helpers.md
-  - planning/scratchpad/research/2026-08-28-complete-system-and-ansible.md
-  - planning/scratchpad/research/2026-08-28-full-agent-control-options.md
+  - journal/2026/2026-08-28-session-complete-system-and-ansible.md
+  - journal/2026/2026-08-28-session-full-agent-control-options.md
 ---
 
 # SKY-017 · The road to full agent control: verification, proving ground, and an evidence-earned ratchet
@@ -235,7 +235,7 @@ Follow AGENTS.md as above.
 ## 6. Status log
 - 2026-08-28 — created (draft). Constitutional half landed first: ADR 0005 + system-design §1a
   (terminal goal, A0–A5 ladder, the never-delegated law, the git-alone rebuild law).
-- 2026-08-28 — options research landed (`planning/scratchpad/research/2026-08-28-full-agent-control-options.md`);
+- 2026-08-28 — options research landed (`journal/2026/2026-08-28-session-full-agent-control-options.md`);
   phases updated with the tool choices it settled (conftest/Rego, `tofu test` not Terratest, a
   health-gated compose wrapper rather than a platform switch) and the MAPE-K framing.
 - 2026-08-28 — SKY-018 minted to own the substrate (the eight layers, their writers and checkers,
