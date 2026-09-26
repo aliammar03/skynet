@@ -7,11 +7,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT}"
 
-for tool in ruff mypy pytest jq; do
+for tool in ruff mypy pytest; do
   command -v "${tool}" >/dev/null || { echo "check: ${tool} missing — run inside nix develop" >&2; exit 2; }
 done
 echo "== ruff"; ruff check src tests
 echo "== mypy"; mypy
 echo "== pytest"; pytest
-echo "== invariants"; scripts/check-invariants.sh
+echo "== gates"; PYTHONPATH=src python3 -m skynet check
 echo "check: OK"

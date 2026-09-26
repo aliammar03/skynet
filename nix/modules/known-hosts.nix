@@ -16,4 +16,13 @@
     hostNames = [ "10.10.100.15" "docker-dmz" "vm-docker-dmz" ];
     publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPZi8qYDpILV/frA7oq+SJhRBTZe2eB5NNdK+nGSnCgA";
   };
+
+  # PBS host (CT 240). Pinned for grant-root sessions (root@, user-CA cert). Fingerprint
+  # SHA256:QFLLU9m9JUNtguZRPTyPBTwkKOmsdwz+uPTJ/4u8jaU, verified via `pct exec 240` on the core node.
+  networking.hosts."10.10.20.40" = [ "lxc-proxmox-backup-server" ];
+
+  programs.ssh.knownHosts.lxc-proxmox-backup-server = {
+    hostNames = [ "10.10.20.40" "lxc-proxmox-backup-server" ];
+    publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBOXOpjRJUTG3NiZl2DhRKkTgpNqMjvsR75O7WjFPa9Q";
+  };
 }

@@ -30,3 +30,19 @@ automatic inverse, so they remain supervised below A4.
 Automated rollback proof lives in the local test suite (`tests/`, run by `bin/check`): an actuator
 claims an A4 promotion only when its failure-case rollback is exercised there and recorded live.
 Historical rehearsal evidence remains in the journal.
+
+## OpenTofu state today (census 2026-09-26, SKY-025 P12)
+
+These are the inputs to the Phase 15 per-actuator `tofu state mv` split. OpenTofu 1.11.8; providers
+bpg/proxmox 0.111.1, cloudflare/cloudflare 5.24.0, kevynb/technitium 0.4.0. One local state file,
+`tofu/terraform.tfstate`, PBKDF2 + AES-GCM encrypted; it is git-ignored and **not in git**.
+
+| Stack | Addresses |
+|---|---|
+| `proxmox-core` | `proxmox_virtual_environment_container.pbs`, `…container.pool_ct["adguard-core"]`, `…container.pool_ct["athena"]` (a pending `moved` block renames it to `core_ct["athena"]` on the next apply), `proxmox_virtual_environment_vm.docker_dmz`, `…vm.ubuntu_2404_base` |
+| `proxmox-network` | none: no resource uses `provider = proxmox.network` |
+| `technitium-dns` | `technitium_record.aliammar_net[*]` (10 vanity names), `technitium_record.apps_service[*]` (9 app hosts) |
+| `cloudflare-dns` | `cloudflare_dns_record.tunnel[*]` (6 public hosts) |
+
+The last recorded plan (`inventory/tofu-drift.txt`, 2026-09-11, untracked) showed 1 add, 1 change, 1 destroy.
+The split starts from a freshly reviewed plan, not from an assumed zero.

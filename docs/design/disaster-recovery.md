@@ -41,6 +41,26 @@ reconcile refreshed inventory against the last pre-disaster commit.
 [`DR-core-node.md`](../../runbooks/dr/DR-core-node.md) restores the PBS datastore from Google Drive
 (L5), then PBS, Unraid, skynet-ops, and remaining guests in that order.
 
+## Ops VM state (census 2026-09-26, SKY-025 P12)
+
+- **Runtime:** checkout `/home/aliammar/skynet`; NixOS 26.05 (nixpkgs `a9e6d84`); `skynet` is a
+  system package. One timer, `skynet-nightly` (03:30 ± 15 min), still runs `bin/ops nightly` with the
+  Home Manager–owned `~/.config/skynet-ops/ops.env`.
+- **Persisted across the tmpfs root** (`nix/modules/impermanence.nix`): `/opt/skynet-ops` (`age.key`;
+  `certs/` pins for omada, opnsense, proxmox-core, proxmox-network, technitium; `mirror/skynet-opnsense`;
+  `secrets/` symlinks to `/run/secrets`), `/home/aliammar`, `/var/lib/{docker,nixos,systemd}`,
+  `/var/log`, `machine-id`, SSH host keys.
+- **Ignored local state:**
+  - **Recovery-critical:** `tofu/terraform.tfstate` and its timestamped backups. Losing them means
+    re-importing every managed resource. Phase 15 moves state to the `tofu-state` branch.
+  - **Rebuildable:** `.cache/` (inventory DB, collection lock), `tofu/.terraform/` (provider cache),
+    Python tool caches, `result`.
+- **Survival-kit path (proven 2026-09-26):** the age master key (recipient
+  `age1stah9c426pq0xf3k4qc58e92vs263lf6uvze2f6nmx84nvk86cusfgexyw`) is in the kit, both in the password
+  manager and on paper. From Ali's workstation, the kit copy decrypted `secrets/rclone.conf.sops`
+  without the ops VM. Off-site restore from the kit is **not** proven. It was not attempted, and the
+  PBS host's `rclone.conf` is rejected by Google (`disabled_client`; see `runbooks/backup.md`).
+
 ## Design dependencies (don't let these rot)
 
 - **PCI passthrough IDs** must stay current in `runbooks/dr/pci-passthrough.md` (two Intel 82576

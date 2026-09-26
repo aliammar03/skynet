@@ -41,7 +41,7 @@ Tags: **[testable]** = a future automated gate could assert it; **[manual]** = h
 ## What never gets committed
 
 - **Plaintext secrets** — `.env`, `compose/*/.env`, `project.env`, `*.key`, `*.pem`, age keys.
-  `[testable]` Enforced by `.gitignore` + the `.githooks/pre-commit` → `scripts/secret-scan.sh`
+  `[testable]` Enforced by `.gitignore` + the `.githooks/pre-commit` → `skynet check`
   gate. Only `*.env.sops` (encrypted) belongs in git. Full secret rules: the invariants block in
   [`../conventions.md`](../conventions.md) and [`../design/secrets.md`](../design/secrets.md).
 - **Hand-edits to generated dirs** — `inventory/**`, `docs/generated/**`. `[testable]` Edit the

@@ -77,7 +77,7 @@ the parked lint gate.
 `invariants.json` at the repo root is the **constraint layer** of ADR 0003's ambiguity ladder:
 authored *desired* truth — the machine-checkable hard laws (excluded guests, the `ops-managed` pool
 set, the T3 targets, plaintext-secret patterns) — that a **deterministic gate**
-(`scripts/check-invariants.sh`) reads to fail a violating PR. It is deliberately three
+(`skynet check`, `src/skynet/gates.py`) reads to fail a violating PR. It is deliberately three
 things at once and none of the others:
 
 - **Authored, not generated** — unlike `inventory/**` and `docs/generated/**`, you *do* hand-edit it.
@@ -87,6 +87,6 @@ things at once and none of the others:
   else the dial moves. The other classes tighten enforcement, not the boundary.
 - **Rationale rides with each constraint.** Every entry carries a one-line `why` so an agent that
   knows *what* is excluded also knows *why* — the guard against a future session "helpfully"
-  relaxing it. **`[testable]` — enforced:** `scripts/check-invariants.sh` reads this file and fails
+  relaxing it. **`[testable]` — enforced:** `skynet check` reads this file and fails
   a PR that violates it (excluded guest pooled, pool-set drift, an engine allowed to merge or grant
   root, plaintext secret) through the local pre-commit hook and `bin/check`. GitHub CI is off.

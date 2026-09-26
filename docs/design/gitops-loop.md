@@ -60,3 +60,29 @@ Review updates through their Renovate PRs, then deploy through [`deploy-service.
 If deployment verification reports an unhealthy result, prepare a reviewed inverse with
 [`gitops-rollback.sh`](../../scripts/gitops-rollback.sh), human-merge its PR, and let Arcane
 converge to that revision; the verifier never invokes rollback.
+
+## Live facts (census 2026-09-26, SKY-025 P12)
+
+What the Phase 13 deploy executor replaces. Re-check before relying on it.
+
+- **Arcane:** `http://10.10.100.15:3552`, environment `0`, one registered repo `Skynet`
+  (`https://github.com/aliammar03/skynet.git`, http auth). Ten Git Syncs, one per `compose/<svc>/`
+  except `arcane-manager` (run by hand at `/opt/docker/arcane-manager`, with `docker.sock` and
+  `/opt/docker/arcane-projects` bind-mounted). Each sync: branch `main`, `compose/<svc>/compose.yaml`,
+  `syncDirectory: true`, interval 180 s, `autoSync: true` except **librespeed (off)**.
+- **Revision source:** the sync's `lastSyncCommit`: the newest commit on `main` that touched a synced
+  file. The project reports the same field.
+- **Project dirs:** `/opt/docker/arcane-projects/<svc>`, owned `1000:1000`, mode `0700` (parent `0755`).
+  svc-ops cannot traverse them; reads and writes go through the docker group.
+- **Materialized env:** `<project dir>/.env`, owner `1000:1000`. Six are `0600`; **aiostreams, calibre,
+  karakeep, marinara are `0644`**, so only their `0700` parent contains them.
+- **Mounts:** payload under `/opt/docker/appdata/<svc>/…` binds, plus named volumes
+  (`aiometadata_{redis,jikan_redis,jikan_mongo,jikan_typesense}_data`, `karakeep_meili_data`,
+  `obsidian-livesync_data`). Config files are bind-mounted from the project dir: cloudflared
+  `config.yml`, caddy-apps `Caddyfile`, obsidian-livesync `local.ini`, aiometadata `jikan/*`.
+  cloudflared also mounts `appdata/cloudflared/creds/credentials.json`.
+- **Out-of-band deploy:** `librespeed` runs from
+  `/home/svc-ops/.local/state/skynet-deploy/librespeed/generations/<f8072b3…>` (state files `active`,
+  `stable-state.json`, `operations/`), activated by the unmerged `phase/sky-025-p11-deploy` prototype.
+  It is not reconstructable from `main`. Phase 13 adopts or retires it.
+- No container carries a `skynet.revision` label yet.

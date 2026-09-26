@@ -6,7 +6,7 @@ horizon: long
 created: 2026-09-06
 updated: 2026-09-26
 phases: 18
-current_phase: 11
+current_phase: 12
 tier_touched: [T1, T2, T2+, T3]
 related:
   - docs/system-design.md
@@ -22,7 +22,7 @@ related:
 
 ## Status
 
-**Current:** phases 1–11 done. Every read-only path is Python (collection, entities, cache,
+**Current:** phases 1–12 done. Every read-only path is Python (collection, entities, cache,
 rendering, recall, deployment verification) behind one `skynet` command on PATH (ops VM system
 package + devshell); the shell forwarders, `bin/skynet`, `bin/plan`, `bin/new`, and `bin/recall` are
 gone. Collectors share one module (`common.py`: literal credentials, HTTPS, atomic writes, results)
@@ -31,9 +31,13 @@ and `collect all` loops over one collector list. The process overhaul is in: loc
 a two-active-directive limit (SKY-023 archived; SKY-005/006/018/020/024 parked in the backlog),
 a docs-only context budget, and weekly batched Renovate image updates. The deploy and Tofu phases
 follow the git model proposed in [ADR 0008](../../docs/decisions/0008-git-model-for-docker-and-opentofu.md);
-a live health monitor is Phase 14.
+a live health monitor is Phase 14. The hard-law gates are Python (`skynet check`, run by `bin/check` and
+the pre-commit hook), and the live census is recorded in the owning docs. The census found the PBS off-site sync failing
+since 2026-08-31 and a failed docker-dmz restic run (cause unknown). Phase 16 now redesigns backup
+from scratch. Until it lands, no new off-site copy is known to land, and older copies are unverified
+(accepted by Ali, 2026-09-26).
 
-**Next:** Phase 12 — census and gates. Review: Full.
+**Next:** Phase 13 — write-path skeleton, `skynet deploy`, publish. Review: Full.
 
 This block, the phase boxes, and the frontmatter are the **only** progress record. Each phase PR
 updates them itself; merge is completion ([construction](../../docs/conventions/construction.md)).
@@ -106,7 +110,7 @@ Everything else in `scripts/` and `bin/` is ported by the phase that owns it bel
 | 13 | Write-path skeleton + `skynet deploy` + publish | Full | ADR 0008 Docker model: one executor, dry-run effect in PR, auto-rollback to last verified; Caddy/Auth/DNS publish | real deploy; forced failure rolls back automatically; Arcane Git Sync off |
 | 14 | Live health monitor | Full | `skynet watch` timer every 5 min, push alert on state change | stopped test container alerts within 10 min; recovery alert follows; no alert storm |
 | 15 | OpenTofu under ADR 0008 | Full | per-actuator stacks, plan+hash in PR, apply-on-merge with hash match, state on `tofu-state` branch, nightly drift plan | mismatched hash refused; delete/protected-guest refused; injected apply failure restores the snapshot; state rebuilt from git |
-| 16 | Backup, restore, PBS off-site | Full | restic selection/consistency, PBS transfer guards, service/guest restore | empty-source transfer refused; isolated restore of one service |
+| 16 | Greenfield backup and restore | Full | a new backup strategy designed from scratch: payload selection, off-site target and credential, consistency, restore | off-site copy verified complete; empty or incomplete copy fails loudly and alerts; isolated restore of one service and one guest from off-site; kit-only restore proven |
 | 17 | Provision, onboard, OS updates | Full | provision/onboard, pins, age identity, OS-aware updates | one guest provisioned and updated; failed update stops with rollback |
 | 18 | Cutover | Full | deterministic Python nightly, install on ops VM, final prune, cold start | every "Done means" box ticked; ADR 0008 accepted; directive archived |
 
@@ -127,7 +131,7 @@ Everything else in `scripts/` and `bin/` is ported by the phase that owns it bel
    deleted. Ali's personal notes stay unless Ali says otherwise.
 8. Existing tests stay green; add tests for the shared module.
 
-### Phase 12 — Census and gates   `[ ]` · review: Full
+### Phase 12 — Census and gates   `[x]` · review: Full
 
 1. Read-only census of live facts the later phases need (table below); record them in
    `docs/design/` or the owning runbook, not here.
@@ -144,6 +148,10 @@ Everything else in `scripts/` and `bin/` is ported by the phase that owns it bel
 | 16, 18 | `/opt/skynet-ops` persistent cert/mirror/state paths that must survive |
 | 18 | ignored local state (`.cache`, provider cache) classed as recovery-critical or rebuildable |
 | 16 | one independent rebuild/access path proven from the survival kit |
+
+Recorded in `docs/design/gitops-loop.md` (13), `docs/design/observability.md` (14: Pushover),
+`docs/design/actuators.md` (15), `runbooks/backup.md` (16, 17), and `docs/design/disaster-recovery.md`
+(16, 18).
 
 ### Phase 13 — Write-path skeleton, `skynet deploy`, publish   `[ ]` · review: Full
 
@@ -182,11 +190,35 @@ Everything else in `scripts/` and `bin/` is ported by the phase that owns it bel
 6. Delete `tofu-env.sh`, `tofu-apply.sh`, `pve-snapshot.sh`. Update AGENTS.md §4 and the constitution
    (approval moves into the PR — human-merged).
 
-### Phases 16–17
+### Phase 16 — Greenfield backup and restore   `[ ]` · review: Full
 
-Each follows the write-path shape and the Full tier. Port the owning shell scripts
-(`provision-restic.sh`, `ct-age-identity.sh`, `onboard-host.sh`, `pin-cert.sh`,
-`skynet-ops-ssh-certs.sh`) and delete them in the same PR.
+The current off-site layers are retired, not ported. L5 (PBS → Google Drive) has been failing since
+2026-08-31 because Google disabled the `gdrive` OAuth client; its last verified sync was 2026-08-22.
+L3 (docker-dmz restic → Google Drive) failed on 2026-09-26, and its cause and last success are
+unknown. Ali chose (2026-09-26) to redesign rather than repair. **Until Phase 16 lands, no new
+off-site copy is known to land, and the older copies are unverified.** PBS keeps local backups on
+the Unraid datastore.
+
+1. An ADR choosing the strategy: what is payload (per the "rebuild from git, restore only payload"
+   law), the off-site target, its credential and custody, consistency per service, and retention.
+2. Build it on the write-path shape: selection → snapshot/dump → transfer → completeness check →
+   record. An empty or wrong source is refused, and an incomplete copy fails loudly. Failures alert
+   through the Phase 14 channel.
+3. `skynet restore` for one service and one guest from off-site, into isolation first.
+4. Survival kit updated for the new credentials. A kit-only restore is proven from the workstation.
+   The rest of the kit's contents are confirmed against `runbooks/dr/survival-kit.md`.
+5. Remove the old layers: `backup-restic.sh`, `backup-pbs-gdrive.sh`, `provision-restic.sh`, their
+   units in `scripts/systemd/`, and the installed copies on docker-dmz and PBS. Also drop
+   `secrets/rclone.conf.sops` if the new strategy doesn't use it. Rewrite `docs/backup-strategy.md`
+   and `runbooks/backup.md` / `restore-service.md`.
+
+Already true (Phase 12): the survival kit holds the age master key and decrypts secrets without
+the ops VM (2026-09-26).
+
+### Phase 17 — Provision, onboard, OS updates   `[ ]` · review: Full
+
+Follows the write-path shape. Port the owning shell scripts (`ct-age-identity.sh`,
+`onboard-host.sh`, `pin-cert.sh`, `skynet-ops-ssh-certs.sh`) and delete them in the same PR.
 
 ### Phase 18 — Cutover   `[ ]` · review: Full
 

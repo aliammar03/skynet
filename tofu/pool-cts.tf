@@ -7,7 +7,7 @@
 # See runbooks/provision-lxc.md.
 #
 # Each entry:
-#   vmid  — MUST satisfy the VMID<->IP law (VLAN + last octet); the entity audit (check-invariants #4)
+#   vmid  — MUST satisfy the VMID<->IP law (VLAN + last octet); the entity audit (skynet check)
 #           enforces it. Core self-provisions new VMIDs; a NEW network-node CT needs a human (that node
 #           is pool-scoped — OPNsense lives there). NEVER add a T3-excluded guest here.
 #   vlan/octet — the address is 10.10.<vlan>.<octet>/24, gateway 10.10.<vlan>.1.
