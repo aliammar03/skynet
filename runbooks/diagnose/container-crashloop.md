@@ -43,27 +43,27 @@ ssh svc-ops@<docker-host> docker inspect --format '{{json .State.Health}}' <svc>
 | `unhealthy`, app "up" | healthcheck command wrong, or a dependency (DB) not ready | run the healthcheck cmd by hand; check the depended-on container |
 | Env/secret missing at boot | `.env` layering broke | see below |
 
-**Env / secret materialization** (the usual silent cause): `gitops-deploy.sh` builds the effective
-`.env` from `.env.git` **+** decrypted `.env.sops`. A missing key means decryption/materialization
-failed or the key was omitted from git. Confirm both source layers and the effective file — details in
+**Env / secrets** (the usual silent cause): `skynet deploy` renders the env from `.env.git` **+**
+decrypted `.env.sops`. A missing key was omitted from git; `skynet deploy <svc> --dry-run <ref>`
+names the env keys a change adds, removes, or changes (never values) — details in
 [gitops-loop](../../docs/design/gitops-loop.md) + [secrets](../../docs/design/secrets.md).
 
 ### Fix declaratively
 
 Edit `compose/<svc>/` — pin the image, correct the healthcheck, set `mem_limit`, fix the env key (secret
-values only ever go into `.env.sops`) — then **branch → PR → Ali merges → Arcane reconciles**. Verify
-health via the Arcane API / `docker context`, then commit refreshed inventory. Rollback is `git revert`;
-Arcane rolls it back. Break-glass only: `ssh svc-ops@<host>` + `docker context` to look, never to mutate.
+values only ever go into `.env.sops`) — then **branch → PR → Ali merges → the timer deploys it**.
+`skynet deploy` verifies health and rolls a failed revision back by itself. Rollback of a merged
+change is `git revert`. `ssh svc-ops@<host>` + `docker context` are for looking, never to mutate.
 
 ## Verify
 
 Confirm the service remains running, reports healthy where a healthcheck exists, and its image,
-configuration, and effective non-secret environment match the merged compose state. Arcane should report
-the reconciled project without drift.
+configuration, and effective non-secret environment match the merged compose state:
+`skynet verify deployment <svc>` passes.
 
 ## Rollback
 
-Revert the compose PR and let Arcane reconcile the previous image/configuration. Break-glass docker
+Revert the compose PR; the timer deploys the previous image/configuration. Break-glass docker
 access is inspection only and must not become the rollback mechanism.
 
 ## Evidence

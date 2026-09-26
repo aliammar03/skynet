@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from skynet import deployment, dns, omada, opnsense, pbs, proxmox
+from skynet import dns, omada, opnsense, pbs, proxmox, publish
 
 CA = "/etc/ssl/certs/ca-certificates.crt"
 # module parser, error type, a complete valid file
@@ -22,8 +22,10 @@ CASES: dict[str, tuple[Callable[[Path], Any], type[Exception], str]] = {
                  f"OPN_HOST=fw.lab\nOPN_KEY=key\nOPN_SECRET='c2VjcmV0'\nOPN_CACERT={CA}\n"),
     "omada": (omada.credentials, omada.CollectionError,
               f"OMADA_HOST=omada.lab\nOMADA_USER=ro\nOMADA_PASS=pw\nOMADA_CACERT={CA}\n"),
-    "arcane": (deployment.credentials, deployment.VerificationError,
-               "ARCANE_URL=https://arcane.lab\nARCANE_TOKEN=abc\n"),
+    "authentik": (publish.authentik_credentials, publish.WriteError,
+                  "AUTHENTIK_URL=https://auth.lab\nAUTHENTIK_TOKEN=abc\n"),
+    "cloudflare": (publish.cloudflare_credentials, publish.WriteError,
+                   "CF_DNS_TOKEN=abc\nCF_ZONE=aliammar.net\nTUNNEL_ID=abc-123\n"),
 }
 
 

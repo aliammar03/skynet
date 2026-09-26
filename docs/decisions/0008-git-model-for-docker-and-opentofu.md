@@ -1,6 +1,7 @@
 # ADR 0008 — One git model for Docker services and OpenTofu
 
-- **Status:** proposed — implemented by SKY-025 Phases 13 and 15; becomes accepted when both land
+- **Status:** proposed — Docker half implemented by SKY-025 Phase 13 (`skynet deploy`); becomes
+  accepted when Phase 15 lands the OpenTofu half
 - **Date:** 2026-09-23
 
 ## Context

@@ -2,7 +2,7 @@
 summary: "Restore a service or VM from restic/PBS using a selected recovery point."
 trigger: "Restore a service / recover from backup"
 tier: "T2; PBS token for VM restore"
-executor: "restic, PBS, and scripts/gitops-deploy.sh"
+executor: "restic, PBS, and skynet deploy"
 rollback: "Stop at the selected restore point; preserve the prior state until verification"
 ---
 
@@ -18,7 +18,8 @@ rollback: "Stop at the selected restore point; preserve the prior state until ve
 
 ### Restore container data
 
-1. Pause the Arcane Git Sync for the project, then stop its stack through Arcane (or the Docker context).
+1. Stop the stack: `docker --context docker-dmz compose -p <svc> stop`. The deploy timer leaves a
+   stopped project alone while `main` still names its running revision.
 2. On the affected host under its root grant, source its restic environment, list snapshots, and restore only the service paths:
    ```bash
    set -a; . /opt/skynet-ops/secrets/restic-<host>.env; set +a
@@ -28,13 +29,11 @@ rollback: "Stop at the selected restore point; preserve the prior state until ve
      --include /var/lib/docker/volumes/<svc>_<vol>/_data
    ```
    `--include` prevents replacing unrelated service data. `--tag manual` selects pre-change snapshots; `--tag scheduled` selects nightly snapshots.
-3. Restore configuration for that point only when required, then redeploy:
-   ```bash
-   git checkout <commit> -- compose/<svc>/.env.sops
-   scripts/gitops-deploy.sh <svc>
-   ```
-   The deploy script materializes `.env.git` plus decrypted `.env.sops`, deploys, and checks health. A restore to current configuration can omit the checkout.
-4. Re-enable Git Sync and check application-level consistency. For an inconsistent hot database copy, add an appropriate dump pre-hook before relying on filesystem restore.
+3. Redeploy. For the current configuration: `skynet deploy <svc>`. For the configuration at the
+   restore point (a merged commit): `skynet deploy <svc> --revision <commit>` — its `.env.git` and
+   `.env.sops` travel with it. Then open a PR restoring `compose/<svc>/` on `main` to that tree, or
+   the timer will move the service forward again to `main`'s revision.
+4. Check application-level consistency. For an inconsistent hot database copy, add an appropriate dump pre-hook before relying on filesystem restore.
 
 ### Restore a guest
 

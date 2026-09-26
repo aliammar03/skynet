@@ -35,7 +35,7 @@ failure case, and performed by something dumber than you.
 | Tier | Scope | Mechanism | Standing? |
 |---|---|---|---|
 | **T1 Read** | Both Proxmox nodes, PBS, Docker hosts, DNS, firewall state (**OPNsense read-only API + git mirror**), Omada controller | Read-only API tokens; scoped OPNsense read + mirrored config.xml | Always |
-| **T2 Operate** | `ops-managed` pools on both nodes, core-managed guest envelopes, Docker hosts via Arcane + unprivileged SSH, Technitium zones, scoped Authentik Applications/Providers, Cloudflare DNS records (`aliammar.net`), approved **OPNsense firewall config** (aliases/rules) boundary — minus the self-leash set | Scoped write tokens, `svc-ops` SSH, agent-readable materialized secret files, Technitium scoped token, scoped Authentik token, Arcane API key, Cloudflare scoped `DNS:Edit` token; OPNsense write mechanism not yet available | Yes where implemented — changes PR-gated |
+| **T2 Operate** | `ops-managed` pools on both nodes, core-managed guest envelopes, Docker hosts via `skynet deploy` over the `svc-ops` Docker context, Technitium zones, scoped Authentik Applications/Providers, Cloudflare DNS records (`aliammar.net`), approved **OPNsense firewall config** (aliases/rules) boundary — minus the self-leash set | Scoped write tokens, `svc-ops` SSH, agent-readable materialized secret files, Technitium scoped token, scoped Authentik token, Cloudflare scoped `DNS:Edit` token; OPNsense write mechanism not yet available | Yes where implemented — changes PR-gated |
 | **T2+ Root grant** | Root shell on workload hosts (diagnose, harden, provision, OS updates) | SSH user-CA certificate, per-host principal, auto-expiring | Grant only; expires by itself |
 | **T3 Privileged** | OPNsense *node root / account / cert admin / reboot / self-leash rules*, Management Caddy, Authentik administration (flows/policies/users/settings/keys), Proxmox node root, Unraid root, Technitium *server settings*, Cloudflare *account / Access / tunnel config / zone settings* | Dormant alias `ROLE_OPS_PRIV_TARGETS` + per-session credentials | **Never standing** |
 
@@ -96,7 +96,7 @@ constitutional change.
 
 ---
 
-## 4. The deployment loop (Arcane-driven)
+## 4. The deployment loop
 
 **Construction** follows [the construction spoke](docs/conventions/construction.md) and is
 agent-agnostic: one session owns a change on one PR, proves it with `bin/check` (lint, types, the
@@ -110,16 +110,20 @@ and every engine refuses or human-gates `gh pr merge` and `grant-root`. New proc
 [the capability convention](docs/conventions/scripts.md); implementation language grants no authority.
 
 ```
-edit compose/<svc>/ → branch → PR (bin/check + tier review) → Ali merges once
-   → Arcane Git Sync polls, pulls, reconciles (project read-only in UI)
-   → agent verifies health via Arcane API / docker context, commits refreshed inventory
+edit compose/<svc>/ → branch → PR (bin/check + tier review + `skynet deploy <svc> --dry-run` effect)
+   → Ali merges once (the only approval)
+   → skynet-deploy timer: `skynet deploy --pending` applies the merged revision, verifies it
+   → on failure: automatic redeploy of the last verified revision + a revert PR
 ```
 
-- Rollback = `git revert`; Arcane converges back. SSH + `docker context` is the break-glass path.
-- **Loop mechanics** — one Git Sync per project, `gitops-deploy.sh` materializing effective `.env`
-  from `.env.git` + decrypted `.env.sops`, image pinning — live in
-  [gitops-loop](docs/design/gitops-loop.md) + [secrets](docs/design/secrets.md). Load them when you
-  touch a deploy, not before.
+- One executor: `skynet deploy` renders compose + env at one revision and applies them together
+  over the Docker context. Arcane is a read-only dashboard; its Git Sync is off.
+- **Loop mechanics** — releases, the `skynet.revision` label, host facts, secrets-in-tmpfs rendering,
+  image pinning — live in [gitops-loop](docs/design/gitops-loop.md) + [secrets](docs/design/secrets.md).
+  Load them when you touch a deploy, not before.
+- **Publishing** a route = a merged Caddyfile/ingress change deployed as above, then
+  `skynet publish <svc>` for Authentik forward-auth objects. `skynet withdraw <vhost>` is the gated
+  delete of a removed route's leftovers.
 - **Every production OpenTofu write uses the saved-plan executor.** Author the source change and get
   its PR human-merged; create `tofu plan -out <planfile>` from that approved revision; show the exact
   saved plan for approval; then run `TOFU_APPLY_SCOPE=<one actuator> scripts/tofu-apply.sh <planfile>`.

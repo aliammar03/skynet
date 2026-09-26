@@ -9,16 +9,20 @@ summary: "The current write actuators, deterministic rollback paths, and A4 elig
 > [ADR 0005](../decisions/0005-full-agent-control-as-terminal-goal.md).
 
 Unattended action requires an automatic failure-tested rollback performed by a deterministic executor,
-not an LLM. Irreversible work remains a hard checkpoint. The executor rejects tofu delete/replace
+not an LLM. Every Skynet write runs one shape (`src/skynet/writepath.py`): plan → preflight →
+snapshot → execute → verify → rollback or stop → record, under one lock, with an append-only
+record in `/opt/skynet-ops/state/operations.jsonl`; an interrupted write is reconciled before the
+next one on its target. Irreversible work remains a hard checkpoint. The executor rejects tofu delete/replace
 plans and T3-excluded guests rather than attempting to make them reversible.
 
 | Actuator | Write path | Recovery on failure | Deterministic decision | A4 eligible |
 |---|---|---|---|---|
-| Compose deploy | `gitops-deploy.sh` (optional `--gate` resolves the selected local `GITOPS_BRANCH` head and invokes the packaged verifier) | `gitops-rollback.sh <service> <deploy-commit> --prepare` creates a reviewed inverse; no automatic authored revert | `skynet verify deployment <service> <full-revision>` report | No |
+| Compose deploy | `skynet deploy <svc>` / `--pending` (merged revisions only) | Automatic redeploy of the host's `verified` revision, `failed` marker, revert PR | Deployment verifier: every container at the `skynet.revision`, running, healthy; declared routes answer | Yes (A4) |
 | Existing-guest tofu update | `tofu-apply.sh <saved-plan>` | Snapshot before apply; preserve snapshot for verification/dirty-plan recovery | Post-apply plan and verification | No |
 | Tofu guest create | Approved `tofu-apply.sh <saved-plan>` | None; never auto-destroy partial create | Post-apply plan | No |
 | Tofu non-guest write | Approved `tofu-apply.sh <saved-plan>` | None | Post-apply plan | No |
-| Cloudflare DNS break-glass | `cf-dns-route.sh` | `dns-revert.sh undo` replays a captured complete-record inverse | Inverse capture must succeed before mutation | Yes, executor only |
+| Authentik publish | `skynet publish <svc>` (additive provider/application/outpost binding) | Deletes only the objects the run created; restores the outpost's provider list | Anonymous probe redirects to the login | No |
+| Public route withdraw | `skynet withdraw <vhost> --confirm <vhost>` (git must no longer declare it) | Re-creates a deleted CNAME from its snapshot; Authentik objects are re-made by `publish` | Records absent after the run | No — a delete stays a hard checkpoint |
 | NixOS deployment | deploy-rs / `nixos-rebuild` | deploy-rs magic rollback | Activation health check | Yes |
 | OPNsense config | No live actuator | None | — | No |
 

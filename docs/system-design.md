@@ -16,7 +16,8 @@ own future work; and the [`journal/`](../journal/README.md) owns evidence and in
 ## 1. System and terminal goal
 
 `vm-skynet-ops` is a replaceable agent runtime: NixOS VMID 9090, static `10.10.90.90` on VLAN 90.
-Git is operational truth; Arcane reconciles GitOps services; encrypted secrets, inventory, docs,
+Git is operational truth; `skynet deploy` applies merged service revisions (Arcane is a read-only
+dashboard); encrypted secrets, inventory, docs,
 and policy rebuild from git; backups restore payload only after the system stands up. Details are in
 [network](design/network.md), [gitops loop](design/gitops-loop.md),
 [secrets](design/secrets.md), and [disaster recovery](design/disaster-recovery.md).
@@ -77,8 +78,11 @@ These are current settings, changed only by a PR here.
   the pre-commit hook are the automated evidence. The generated-only nightly auto-merge capability
   from [ADR 0004](decisions/0004-auto-merge-generated-only-nightly-prs.md) is suspended and fails
   closed. Review weight follows the Light/Full tiers in [construction](conventions/construction.md).
-- **Autonomy:** report-only. No A4 capability is active; a promotion needs failure-case tests in the
-  local suite plus recorded live evidence, and a human-merged change to this section.
+- **Autonomy:** one A4 capability — `skynet deploy` of a human-merged service revision. Its
+  automatic return to the last verified revision is failure-tested in the local suite and was
+  drilled live ([ADR 0008](decisions/0008-git-model-for-docker-and-opentofu.md), SKY-025 P13).
+  Everything else is report-only; a promotion needs failure-case tests in the local suite plus
+  recorded live evidence, and a human-merged change to this section.
 - **Survival:** verify the survival kit quarterly and drill `disable tokens + qm stop 9090` before
   autonomy day one and on demand.
 
@@ -89,7 +93,7 @@ The detailed token, ACL, and principal design is [access and trust](design/acces
 | Tier | Scope | Standing? |
 |---|---|---|
 | **T1 Read** | Proxmox, PBS, Docker, DNS, Omada, and OPNsense diagnostics | Yes, read-only |
-| **T2 Operate** | Managed envelopes, Docker through Arcane/unprivileged SSH, Technitium zones, scoped Authentik app/provider CRUD, `aliammar.net` DNS records, backup/snapshot, saved-plan guest changes | Yes where implemented; PR-gated |
+| **T2 Operate** | Managed envelopes, Docker through `skynet deploy` (svc-ops context), Technitium zones, scoped Authentik app/provider CRUD, `aliammar.net` DNS records, backup/snapshot, saved-plan guest changes | Yes where implemented; PR-gated |
 | **T2+ Root** | Workload-host root shell | Only a time-limited grant |
 | **T3 Privileged** | Management planes and all self-leash changes | Never standing |
 

@@ -15,7 +15,7 @@ summary: "The current two-door proxy, split-DNS, Authentik boundary, and Cloudfl
 | Apps Caddy | `10.10.100.35`, VLAN 100 | T2 | Everyday services; app-client VLANs |
 
 Skynet operates the apps Caddy GitOps stack, not Management Caddy. Routes are explicit Caddyfile
-entries, deployed through the normal reviewed PR → Arcane reconciliation loop. Caddy routes by
+entries, deployed through the normal reviewed PR → `skynet deploy` loop. Caddy routes by
 `IP:port`, has no Docker socket, and is the only path from app clients to declared origins.
 
 ## DNS and TLS
@@ -41,7 +41,9 @@ the reviewed saved-plan DNS path.
 The scoped Authentik token may CRUD applications and providers and bind the existing outpost. It
 cannot touch flows, policies, users, groups, system settings, outpost tokens, or signing keys.
 Network rules restrict clients to Apps Caddy, and Caddy to Authentik/origins; their exact aliases and
-rules are in [network](network.md). The publish runbook owns the concrete route and provider steps.
+rules are in [network](network.md). `skynet publish <svc>` creates a forward-auth vhost's provider,
+application, and outpost binding (additive only) and proves the anonymous redirect to the login;
+the publish runbook owns the concrete steps.
 
 ## Public path
 
@@ -56,15 +58,14 @@ A hostname is public only when both are present in reviewed configuration:
 
 The human merge of the ingress change is the publish gate. Cloudflare DNS record writes are T2, but
 account, Access policy, tunnel configuration, and zone settings are T3. The saved-plan executor
-refuses deletion; removing a public record uses the explicit hard-checkpoint `cf-dns-route.sh --delete`
-path with `dns-revert.sh` evidence. Internal clients always resolve directly to Apps Caddy and never
+refuses deletion; removing a public record is the explicit hard-checkpoint `skynet withdraw <vhost>`,
+which runs only after git no longer declares the vhost and snapshots the record it deletes. Internal clients always resolve directly to Apps Caddy and never
 transit Cloudflare.
 
 ## Residual boundary
 
 `svc-ops` has Docker-group access on the DMZ host, which is effectively host-root. Therefore the
 sanctioned route/auth change is guarded by the human merge gate, network segmentation confines
-origins to internal app clients, and Arcane reconciliation restores tracked configuration. The
-nightly collector reads committed routes; it does not compare live Caddy configuration with git.
-Diagnose suspected live-route drift through Arcane; no route is automatically reverted from an
-observation alone.
+origins to internal app clients, and a redeploy (`skynet deploy caddy-apps`) restores tracked
+configuration. The nightly collector reads committed routes; it does not compare live Caddy
+configuration with git. No route is automatically reverted from an observation alone.

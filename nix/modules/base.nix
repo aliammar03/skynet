@@ -57,8 +57,8 @@
     iperf3 # throughput between hosts
   ];
 
-  # Arcane (on docker-dmz) owns the services; NixOS owns the daemon. The ops VM runs the
-  # docker CLI/daemon to reach remote contexts. docker-group ≈ root — see ops-user.nix.
+  # `skynet deploy` drives the services on docker-dmz over a remote context; NixOS owns the local
+  # daemon and CLI. docker-group ≈ root — see ops-user.nix.
   virtualisation.docker.enable = true;
 
   # IPv6 is disabled lab-wide (OPNsense has no v6). Turn it off in the kernel too so the box
