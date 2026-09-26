@@ -17,10 +17,10 @@ hand-maintained:
 ```
 00-network-map.md      # mermaid: WANs → OPNsense → VLANs → hosts
 05-state-of-the-lab.md # human narrative, LLM-authored nightly (surfaced in README)
-06-agent-digest.md     # recent-activity / episodic / open-thread retrieval, render-digest.sh
-07-context-map.md      # on-demand load-cost / context-routing index, render-context-map.sh
+06-agent-digest.md     # recent-activity / episodic / open-thread retrieval, skynet render digest
+07-context-map.md      # on-demand load-cost / context-routing index, skynet render context
 10-vlans.md            # per-VLAN tables linking to host pages
-20-firewall.md         # rules/aliases from the LIVE OPNsense API (collect-opnsense.sh); mirror = DR only
+20-firewall.md         # rules/aliases from the LIVE OPNsense API (skynet collect opnsense); mirror = DR only
 30-services/<svc>.md   # IP, ports, front door, backup status, last deploy
 40-hosts/<host>.md     # guests per node, resources, pool membership
 90-backup-status.md    # last restic/PBS runs, snapshot counts, grant audit

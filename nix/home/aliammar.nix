@@ -21,7 +21,7 @@ in
 {
   imports = [
     (import ./shell.nix { }) # zsh + starship + tooling + the login landing board (ops VM defaults)
-    ./docker.nix # the docker-dmz remote context for collect-docker.sh
+    ./docker.nix # the docker-dmz remote context for `skynet collect docker`
   ];
 
   home.username = "aliammar";

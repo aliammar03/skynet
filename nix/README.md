@@ -24,7 +24,7 @@ nix/modules/
 nix/home/
   aliammar.nix               the operator's home: git identity, agent CLIs (+ mcp-nixos), ops.env
   shell.nix                  zsh + starship + tooling + the login landing board
-  docker.nix                 the docker-dmz remote context for collect-docker.sh
+  docker.nix                 the docker-dmz remote context for `skynet collect docker`
 nix/packages/
   skynet.nix                 the source-filtered Skynet Python application package
 ```
