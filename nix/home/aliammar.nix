@@ -67,7 +67,12 @@ in
     enable = true;
     # Pin the upstream release while nixpkgs catches up; retain its wrapper and sandbox tools.
     package = unstable.claude-code.override {
-      manifest = builtins.fromJSON (builtins.readFile ./claude-code-manifest.json);
+      # Match the artifact format used by the selected nixpkgs package recipe.
+      manifest = builtins.fromJSON (builtins.readFile (
+        if builtins.pathExists "${inputs.nixpkgs-unstable}/pkgs/by-name/cl/claude-code/manifest.zst.json"
+        then ./claude-code-manifest.zst.json
+        else ./claude-code-manifest.json
+      ));
     };
     enableMcpIntegration = true;
     settings.permissions = {
