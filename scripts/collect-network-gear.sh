@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # collect-network-gear.sh — forward the established Omada caller to the Python collector → inventory/network-gear.json
 # Tier: T1 read-only. Usage: collect-network-gear.sh; forwards OMADA_SECRET_FILE when set.
-# This compatibility shim remains for demonstrated callers; SKY-025 P22 owns its removal.
+# This compatibility shim remains for demonstrated callers; SKY-025 Phase 11 removes it.
 set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 credentials_file="${OMADA_SECRET_FILE:-/opt/skynet-ops/secrets/omada.env}"

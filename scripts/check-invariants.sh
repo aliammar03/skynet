@@ -123,44 +123,27 @@ elif [ "${fail}" -eq "${before}" ]; then
   ok "operate token: no bright-line privilege anywhere; /vms-root only on declared node(s) [${vms_root_nodes[*]}]"
 fi
 
-# --- 6. Construction uses the unprivileged account without approval prompts ---------------------
-echo "== construction permission posture is inherited, prompt-free, and production-neutral =="
+# --- 6. Every construction engine leaves merge and root grants to a human -----------------------
+echo "== every construction engine refuses or human-gates PR merge and root grants =="
 before=${fail}
-config_file="$(jq -r '.construction.project_config' "${INV}")"
 home_config="$(jq -r '.construction.home_config' "${INV}")"
-if [ ! -r "${config_file}" ]; then
-  violation "${config_file} is missing — the construction config must exist"
-else
-  if grep -qE '^[[:space:]]*max_concurrent_threads_per_session[[:space:]]*=' "${config_file}"; then
-    violation "${config_file} pins max_concurrent_threads_per_session — construction follows the no-workflow-quota model; remove it"
-  fi
-  if grep -qE '^[[:space:]]*(approval_policy|sandbox_mode)[[:space:]]*=|^[[:space:]]*\[sandbox_workspace_write\]' "${config_file}"; then
-    violation "${config_file} overrides inherited approval/sandbox settings — Home Manager owns the no-prompt account boundary"
-  fi
-fi
-
 if [ ! -r "${home_config}" ]; then
-  violation "${home_config} is missing — Home Manager must own Codex permissions"
+  violation "${home_config} is missing — Home Manager must own every engine's permission rules"
 else
-  grep -q 'approval_policy = "never";' "${home_config}" \
-    || violation "${home_config} must set Codex approval_policy = \"never\""
-  grep -q 'sandbox_mode = "danger-full-access";' "${home_config}" \
-    || violation "${home_config} must set Codex sandbox_mode = \"danger-full-access\""
-  [ "$(grep -c 'decision = "forbidden",' "${home_config}")" -eq 3 ] \
-    || violation "${home_config} must hard-block exactly gh pr merge and both grant-root spellings"
+  while IFS=$'\t' read -r engine block; do
+    # The engine's block runs from `  <block> = {` to its closing two-space-indented `  };`.
+    body="$(awk -v start="  ${block} = {" 'index($0, start) == 1 {on = 1} on {print} on && /^  };/ {exit}' "${home_config}")"
+    if [ -z "${body}" ]; then
+      violation "${engine}: ${block} not found in ${home_config}"
+      continue
+    fi
+    while IFS= read -r needle; do
+      grep -qF -- "${needle}" <<<"${body}" \
+        || violation "${engine}: ${block} lacks ${needle} — agents never merge PRs or grant themselves root"
+    done < <(jq -r --arg e "${engine}" '.construction.engines[] | select(.engine == $e) | .must_contain[]' "${INV}")
+  done < <(jq -r '.construction.engines[] | "\(.engine)\t\(.block)"' "${INV}")
 fi
-
-while IFS= read -r role; do
-  agent_file=".codex/agents/${role}.toml"
-  if [ ! -r "${agent_file}" ]; then
-    violation "${role}: ${agent_file} is missing"
-    continue
-  fi
-  if grep -qE '^[[:space:]]*sandbox_mode[[:space:]]*=' "${agent_file}"; then
-    violation "${role}: ${agent_file} overrides the inherited aliammar session posture"
-  fi
-done < <(jq -r '.construction.agents[].role' "${INV}")
-[ "${fail}" -eq "${before}" ] && ok "Home Manager owns never/danger-full-access; project and roles inherit; merge/root are forbidden; no concurrency cap is pinned"
+[ "${fail}" -eq "${before}" ] && ok "engines [$(jq -r '[.construction.engines[].engine] | join(", ")' "${INV}")] leave PR merge and root grants to a human"
 
 echo
 if [ "${fail}" -ne 0 ]; then

@@ -24,9 +24,9 @@ Tags: **[testable]** = a future automated gate could assert it; **[manual]** = h
 
 - **PRs teach** `[manual]`: the description says *what* changed, *why*, and *what merging causes*.
   Ali is learning git/infra through these — write them as lessons, not changelogs.
-- **Every PR is human-merged during the SKY-025 embargo.** `[manual]` GitHub CI and automated tests
-  are absent, and the nightly merge gate is suspended. This is the current invariant in
-  [`AGENTS.md`](../../AGENTS.md) §3/§6.
+- **Every PR is human-merged.** `[manual]` GitHub CI is off and the nightly merge gate is suspended;
+  `bin/check` evidence and the review tier ([construction](construction.md)) come first. This is the
+  current invariant in [`AGENTS.md`](../../AGENTS.md) §3/§6.
 - **`git revert` is the rollback** `[manual]` — never force-push `main`, never rewrite shared
   history. Arcane and the inventory converge back after a revert.
 

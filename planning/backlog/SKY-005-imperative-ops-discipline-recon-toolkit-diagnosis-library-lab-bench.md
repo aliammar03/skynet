@@ -1,10 +1,10 @@
 ---
 id: SKY-005
 title: Imperative ops discipline: recon toolkit, diagnosis library, lab bench
-status: in-progress
+status: approved
 horizon: short
 created: 2026-08-17
-updated: 2026-08-20
+updated: 2026-09-23
 phases: 3
 current_phase: 2
 tier_touched: [T1, T2, T2+]   # recon is T1; diagnosis uses existing root grants (T2+); bench is
@@ -19,7 +19,7 @@ related:
 # SKY-005 · Imperative ops discipline: recon toolkit, diagnosis library, lab bench
 
 > **2026-09-07 ownership:** Existing recon implementation replacement belongs to SKY-025 P7; this directive keeps diagnosis practice and the deferred lab bench.
-> See the [SKY-025 disposition map](../sky-025-map.md#adjacent-directive-ownership). This note does not complete any phase.
+> See the [SKY-025 adjacent directives](../projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md#adjacent-directives). This note does not complete any phase.
 
 > Make the *imperative* side of Skynet — exploration, diagnosis, fixing — a real discipline instead
 > of improvised root grants, and enforce the principle **diagnose imperatively, fix declaratively.**
@@ -109,8 +109,7 @@ steps. When the phase's exit criteria are met, do the "Phase close-out" at the b
 
 ## 5. Phase close-out (resume material)
 - [ ] Land the work via **PR** (agent never merges its own).
-- [ ] Main refreshes the three state-memory files in `agent_docs/` after acceptance.
-- [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
+- [ ] In the phase PR: journal episode only if something non-obvious happened; `bin/check` green.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:

@@ -4,7 +4,7 @@
 #
 # Current caller: scripts/gitops-deploy.sh <service> <expected-revision>. The Python verifier
 # owns Arcane/Docker/ingress observations and never invokes rollback or mutates Git/runtime state.
-# Keep this shim until the P22 shell-retirement pass removes the old command name.
+# Keep this shim until the SKY-025 phase that ports deploy (13) removes the old command name.
 #
 # USAGE:
 #   deploy-gate.sh <service> <expected-revision>

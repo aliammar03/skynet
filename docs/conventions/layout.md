@@ -24,9 +24,9 @@ Tags: **[testable]** = a lint gate could assert it; **[manual]** = holds by revi
 | `journal/<YYYY>/*.md` | **Episodic memory** — raw append-only session/incident/decision episodes | memory |
 | `compose/<svc>/` | One dir per service (the GitOps loop) | ops |
 | `scripts/*.sh` | Procedures runbooks/entry-points call | ops |
-| `bin/*` | Operator-facing entry points (`plan`, `new`, `ops`, `grant-root`, `agent`) | ops |
+| `bin/*` | Operator-facing entry points (`check`, `plan`, `new`, `ops`, `grant-root`) | ops |
+| `tests/` | Offline pytest suite run by `bin/check` and the pre-commit hook | ops |
 | `src/skynet/`, `pyproject.toml`, `nix/packages/skynet.nix` | Installable Python operations application, package metadata, and source-filtered Nix build | ops |
-| `.codex/config.toml`, `.codex/agents/*.toml` | Native Codex construction-helper definitions — build-time only, no production authority | doctrine |
 | `runbooks/*.md`, `runbooks/dr/*.md` | Engine-neutral procedures, catalogued in `runbooks/README.md` | ops |
 | `templates/` | The golden templates `bin/new` stamps from — one folder, all kinds | doctrine |
 | `planning/{scratchpad,ideas,backlog,projects,archive,services}/` | The `SKY-###` directive pipeline | planning |
@@ -88,5 +88,5 @@ things at once and none of the others:
 - **Rationale rides with each constraint.** Every entry carries a one-line `why` so an agent that
   knows *what* is excluded also knows *why* — the guard against a future session "helpfully"
   relaxing it. **`[testable]` — enforced:** `scripts/check-invariants.sh` reads this file and fails
-  a PR that violates it (excluded guest pooled, pool-set drift, plaintext secret) through the retained
-  local pre-commit hook. GitHub CI is absent during the SKY-025 embargo.
+  a PR that violates it (excluded guest pooled, pool-set drift, an engine allowed to merge or grant
+  root, plaintext secret) through the local pre-commit hook and `bin/check`. GitHub CI is off.

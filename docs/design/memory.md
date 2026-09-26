@@ -11,18 +11,15 @@ summary: "How Skynet keeps portable semantic, procedural, episodic, and working 
 | Kind | Holds | Authoritative home |
 |---|---|---|
 | Working | The current task | Context window |
-| Semantic | Current facts and compact agent orientation | authoritative `docs/`/config/state plus derived `agent_docs/` |
+| Semantic | Current facts and agent orientation | authoritative `docs/`/config/state, `AGENTS.md`, the active directive |
 | Procedural | Executable knowledge | `runbooks/`, `scripts/`, `bin/` |
 | Episodic | What happened and why | `journal/`, ADRs, generated digest (retrieval view) |
 
 ## Default-lean retrieval
 
-Context is scarce operational capacity. A fresh or substantive Medium/Heavy Main session starts with
-the six compact files in [`../../agent_docs/`](../../agent_docs/) plus its active directive, then
-opens only decision-critical authoritative evidence. `agent_docs/` is derived memory: constitution,
-runtime/configuration, current operational docs, active directives, and accepted evidence always win
-conflicts. This is the normal cross-session continuity path; it does not replace those authoritative
-sources.
+Context is scarce operational capacity. A fresh session starts with `AGENTS.md` plus the active
+directive — whose status block is the one progress tracker — then opens only the authoritative
+sources the task touches. There is no separate derived-memory layer to keep in sync.
 
 For additional retrieval, use the generated [context map](../generated/07-context-map.md) on demand
 to select one relevant document by path, trigger, and load cost. Use the generated [agent digest](../generated/06-agent-digest.md)

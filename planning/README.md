@@ -36,15 +36,14 @@ scratchpad ──▶ ideas ──▶ backlog ──▶ projects ──▶ archiv
 - **Trust tiers.** If a directive touches **T2+/T3** or moves a blast-radius boundary, its plan must
   also PR `docs/system-design.md` — same rule as everywhere else. (`tier_touched` frontmatter flags it.)
 - **PR-gated.** Directives land via PR like all repo changes; the agent never merges its own.
-- **Phases are ~1–2h.** Anything longer is split. Normal authored phase closure uses the same PR as
-  implementation: implementation/fix publishes one PR and stops → fresh reviewer ACCEPTs and writes
-  the acceptance marker → Ali tells the original session `accepted` → that session writes only bounded
-  closeout bookkeeping on the **same PR** → Ali human-merges that PR once. Do not create a second
-  closeout-only PR. Main's three state-memory files, raw journal evidence, directive/frontmatter state,
-  roadmap/index state, and generator-owned closure views are the normal closeout surfaces. Substantive
-  post-ACCEPT changes require fresh review.
-- **One next entry point.** Every implementation-ready, paused, blocked, or accepted-closeout state
-  leaves exactly one recoverable next step in `latest_session_work.md`. Do not create a second task DB.
+- **One phase, one PR.** A phase is sized to one reviewable PR. The PR carries the work, the
+  `bin/check` evidence, its review tier ([construction](../docs/conventions/construction.md)), and
+  the directive's own status update — so merge is completion. There is no closeout step or PR.
+- **At most two active directives.** `projects/` holds no more than two directives at once (a test in
+  `tests/` enforces it). To start a third, finish, archive, or park one in `backlog/` first — parked
+  directives keep their ID, phase boxes, and history.
+- **The directive is the only progress tracker.** Its frontmatter (`status`, `current_phase`) and
+  its `## Status` block say where things stand and what runs next. No parallel state files.
 - **Reopening is exceptional.** A completed maintenance directive may return from `archive/` to
   `projects/` only on explicit human instruction when the same maintenance domain needs another bounded
   phase set. Preserve its completed phases/history and permanent ID; never keep duplicate archive and
@@ -69,12 +68,7 @@ bin/plan list                           # regenerate the roadmap table below
 Each directive carries its own execution/review entry points, so running or resuming one is a small
 paste into a fresh session.
 
-For SKY-025, use the [execute/review handoff prompts](prompts/README.md). P10 is externally accepted;
-accepted progress is P10/24 and bounded closeout is staged on PR #257 for one human merge. P11 is the
-next implementation packet after that merge. From P8 onward, one numbered phase owns one open PR; internal slices
-remain on that PR until fresh acceptance, then bounded closeout stays
-on that **same accepted PR** before one human merge. Ali never provides commit hashes to the reviewer or
-closeout session.
+Handoff prompts for any directive live in [`prompts/`](prompts/README.md).
 
 ## Roadmap
 
@@ -85,8 +79,8 @@ closeout session.
 | SKY-002 | Ongoing backup strategy for CT 240 (PBS host) | ideas | draft | — | 🌱 short |
 | SKY-003 | Apps reverse proxy + Authentik SSO ingress | archive | done | — | 🌱 short |
 | SKY-004 | Reactive operations: event-driven layer + drift-as-signal | ideas | draft | — | 🔭 long |
-| SKY-005 | Imperative ops discipline: recon toolkit, diagnosis library, lab bench | projects | in-progress | 2/3 | 🌱 short |
-| SKY-006 | Agent episodic memory: journal + retrieval | projects | in-progress | 2/3 | 🌱 short |
+| SKY-005 | Imperative ops discipline: recon toolkit, diagnosis library, lab bench | backlog | approved | — | 🌱 short |
+| SKY-006 | Agent episodic memory: journal + retrieval | backlog | approved | — | 🌱 short |
 | SKY-007 | NixOS host definition, piloted on the ops VM | archive | done | — | 🔭 long |
 | SKY-008 | OpenTofu provisioning layer: VM and CT lifecycle plus DNS | archive | done | — | 🔭 long |
 | SKY-009 | Convention bedrock: doctrine spine and golden templates | archive | done | — | 🌱 short |
@@ -98,13 +92,14 @@ closeout session.
 | SKY-015 | Inventory renderer overhaul: proxy-aware service annotation, canonical host map, reverse-proxy route inventory | ideas | draft | — | 🔭 long |
 | SKY-016 | Harden the service-deployment workflow: verify reachability not just health, plus scaffolding helpers | ideas | draft | — | 🌱 short |
 | SKY-017 | The road to full agent control: verification, proving ground, and an evidence-earned ratchet | ideas | draft | — | 🔭 long |
-| SKY-018 | "Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain" | projects | in-progress | 6/12 | 🔭 long |
+| SKY-018 | "Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain" | backlog | approved | — | 🔭 long |
 | SKY-019 | Relocate the Arcane controller off the DMZ to a dedicated Management docker VM, managing docker hosts remotely | ideas | draft | — | 🔭 long |
-| SKY-020 | Firewall-as-code — OPNsense config to T2 via OpenTofu | projects | in-progress | 1/6 | 🔭 long |
+| SKY-020 | Firewall-as-code — OPNsense config to T2 via OpenTofu | backlog | approved | — | 🔭 long |
 | SKY-021 | NixOS-in-LXC: prove the container path and set the new-CT default | archive | done | — | 🌱 short |
 | SKY-022 | "Lean multi-agent construction orchestration: lead-driven delegation" | archive | done | — | 🔭 long |
-| SKY-023 | Eliminate documentation drift and shrink operational context | projects | in-progress | 10/10 | 🌱 short |
-| SKY-024 | tofu declares managed core guests — API-driven CT/VM lifecycle, no node SSH | projects | in-progress | 4/6 | 🌱 short |
-| SKY-025 | Rebuild the Skynet engine in Python | projects | in-progress | 10/24 | 🔭 long |
+| SKY-023 | Eliminate documentation drift and shrink operational context | archive | done | — | 🌱 short |
+| SKY-024 | tofu declares managed core guests — API-driven CT/VM lifecycle, no node SSH | backlog | approved | — | 🌱 short |
+| SKY-025 | Rebuild the Skynet engine in Python | projects | in-progress | 10/18 | 🔭 long |
 | SKY-026 | "Overhaul agent orchestration around a Main-directed worker swarm" | archive | done | — | 🔭 long |
+| SKY-027 | "One deployment model: NixOS Docker host with compose2nix, deploy-rs and sops-nix" | ideas | draft | — | 🔭 long |
 <!-- ROADMAP:END -->

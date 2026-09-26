@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Repo pre-commit hook → the two retained local safety controls. Active when core.hooksPath=.githooks
+# Repo pre-commit hook → the fast local safety controls. Active when core.hooksPath=.githooks
 # (bootstrap-workstation.sh sets this; or run once: git config core.hooksPath .githooks).
 #   1. secret-scan       — no plaintext secrets enter a commit (AGENTS.md §6, staged tree).
 #   2. check-invariants  — hard laws hold: excluded guests stay unpooled, the managed-pool dial
-#                          matches inventory, and plaintext secrets are rejected.
-# Automated repository tests and GitHub CI are embargoed for the duration of SKY-025.
+#                          matches inventory, engines leave merge/root to a human, no plaintext secrets.
+#   3. pytest            — the offline test suite (seconds). `bin/check` adds lint and types.
 set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 "${ROOT}/scripts/secret-scan.sh"
 "${ROOT}/scripts/check-invariants.sh"
+(cd "${ROOT}" && python3 -m pytest)

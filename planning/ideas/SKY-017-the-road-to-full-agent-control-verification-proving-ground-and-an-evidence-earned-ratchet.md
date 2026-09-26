@@ -22,7 +22,7 @@ related:
 # SKY-017 · The road to full agent control: verification, proving ground, and an evidence-earned ratchet
 
 > **2026-09-07 ownership:** This directive keeps proving ground, promotions, budgets and circuit breakers. SKY-025 replaces existing executors without changing autonomy; consume the accepted Python implementation.
-> See the [SKY-025 disposition map](../sky-025-map.md#adjacent-directive-ownership). This note does not complete any phase.
+> See the [SKY-025 adjacent directives](../projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md#adjacent-directives). This note does not complete any phase.
 
 > Build the machinery that *buys* autonomy. The leash is on because the agent is unproven — so
 > construct the thing that proves it: a place to rehearse, a way to verify, a second opinion, and a
@@ -222,8 +222,7 @@ exit criteria are met, do the "Phase close-out" at the bottom.
 
 ## 5. Phase close-out (resume material)
 - [ ] Land the work via **PR** (agent never merges its own).
-- [ ] Main refreshes the three state-memory files in `agent_docs/` after acceptance.
-- [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
+- [ ] In the phase PR: journal episode only if something non-obvious happened; `bin/check` green.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:

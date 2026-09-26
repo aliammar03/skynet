@@ -23,7 +23,7 @@ related:
 # SKY-016 · Harden the service-deployment workflow: verify reachability not just health, plus scaffolding helpers
 
 > **2026-09-07 ownership:** SKY-025 P10–12 owns engine replacement and existing health/reachability defects. Additional deployment features here must consume its accepted verifier.
-> See the [SKY-025 disposition map](../sky-025-map.md#adjacent-directive-ownership). This note does not complete any phase.
+> See the [SKY-025 adjacent directives](../projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md#adjacent-directives). This note does not complete any phase.
 
 > Close the gap between "the deploy said (healthy)" and "the service actually works," and delete the
 > manual toil (digest, IP, secret-read) that every new service currently re-incurs.
@@ -150,8 +150,7 @@ steps. When the phase's exit criteria are met, do the "Phase close-out" at the b
 
 ## 5. Phase close-out (resume material)
 - [ ] Land the work via **PR** (agent never merges its own).
-- [ ] Main refreshes the three state-memory files in `agent_docs/` after acceptance.
-- [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
+- [ ] In the phase PR: journal episode only if something non-obvious happened; `bin/check` green.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:

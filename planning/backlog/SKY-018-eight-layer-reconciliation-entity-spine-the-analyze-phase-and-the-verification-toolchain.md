@@ -1,10 +1,10 @@
 ---
 id: SKY-018
 title: "Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain"
-status: in-progress
+status: approved
 horizon: long
 created: 2026-08-28
-updated: 2026-09-03
+updated: 2026-09-23
 phases: 12
 current_phase: 6
 tier_touched: [T1, T2]   # Mostly T1 (derive, collect, render, check). P4 EXTENDS the T1 read surface
@@ -24,7 +24,7 @@ related:
 # SKY-018 · Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain
 
 > **2026-09-07 ownership:** This directive keeps eight-layer semantics and unbuilt reconciliation features. SKY-025 owns replacement of existing substrate/checker/executor code and its correctness findings; dependent features must use the accepted Python interfaces. The SKY-025 repository-test/GitHub-CI embargo suspends all automated test and CI work here until the post-transition review.
-> See the [SKY-025 disposition map](../sky-025-map.md#adjacent-directive-ownership). This note does not complete any phase.
+> See the [SKY-025 adjacent directives](../projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md#adjacent-directives). This note does not complete any phase.
 
 > Make the substrate fit to be autonomous. Every layer gets a **writer and a checker**, every fact
 > gets **one home**, and the tools the options research settled — conftest/Rego, `tofu test`, a
@@ -459,8 +459,7 @@ stop and wait there. When the phase's exit criteria are met, do the "Phase close
 
 ## 5. Phase close-out (resume material)
 - [ ] Land the work via **PR** (agent never merges its own).
-- [ ] Main refreshes the three state-memory files in `agent_docs/` after acceptance.
-- [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
+- [ ] In the phase PR: journal episode only if something non-obvious happened; `bin/check` green.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:

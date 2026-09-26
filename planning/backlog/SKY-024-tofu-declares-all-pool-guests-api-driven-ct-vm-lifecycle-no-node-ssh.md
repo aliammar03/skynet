@@ -1,10 +1,10 @@
 ---
 id: SKY-024
 title: tofu declares managed core guests — API-driven CT/VM lifecycle, no node SSH
-status: in-progress
+status: approved
 horizon: short
 created: 2026-09-04
-updated: 2026-09-05
+updated: 2026-09-23
 phases: 6
 current_phase: 4
 tier_touched: [T2, T3]   # T3: consolidating the agent's Proxmox identity (tofu → operate token) +
@@ -18,7 +18,7 @@ related:
 # SKY-024 · tofu declares managed core guests — API-driven CT/VM lifecycle, no node SSH
 
 > **2026-09-07 ownership:** This directive keeps guest declarations, fleet migration and supervised adoption. SKY-025 replaces executor/provisioning tooling while preserving merged-source, saved-plan, grant and exclusion boundaries.
-> See the [SKY-025 disposition map](../sky-025-map.md#adjacent-directive-ownership). This note does not complete any phase.
+> See the [SKY-025 adjacent directives](../projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md#adjacent-directives). This note does not complete any phase.
 
 > One-line pitch: make "deploy a new LXC" a **reviewed saved-plan wrapper + `deploy`**, not a hand-rolled Proxmox
 > API curl — by letting OpenTofu declare the guest *envelope* (create-from-template, network, MAC)
@@ -202,8 +202,7 @@ steps. When the phase's exit criteria are met, do the "Phase close-out" at the b
 ## 5. Phase close-out (resume material)
 Run this every time a phase finishes successfully — it's what makes the next session cold-startable:
 - [ ] Land the work via **PR** (agent never merges its own).
-- [ ] Main refreshes the three state-memory files in `agent_docs/` after acceptance.
-- [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
+- [ ] In the phase PR: journal episode only if something non-obvious happened; `bin/check` green.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:

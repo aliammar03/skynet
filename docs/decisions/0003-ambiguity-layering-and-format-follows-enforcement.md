@@ -70,7 +70,7 @@ for ADR-vs-constitution: the durable reasoning lives in an ADR, a one-paragraph 
 constitution.
 
 This is the spine that [SKY-004](../../planning/ideas/SKY-004-reactive-operations-event-driven-layer-drift-as-signal.md),
-[SKY-006](../../planning/projects/SKY-006-agent-episodic-memory-journal-retrieval.md),
+[SKY-006](../../planning/backlog/SKY-006-agent-episodic-memory-journal-retrieval.md),
 [SKY-007](../../planning/archive/SKY-007-nixos-host-definition-piloted-on-the-ops-vm.md),
 [SKY-008](../../planning/archive/SKY-008-opentofu-provisioning-layer-vm-and-ct-lifecycle-plus-dns.md),
 and [SKY-010](../../planning/archive/SKY-010-default-lean-context-load-on-demand.md) all silently

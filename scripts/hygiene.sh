@@ -10,7 +10,8 @@ source scripts/repo-surface.sh
 BASE_REF="${1:-${HYGIENE_BASE_REF:-}}"
 [ "$#" -le 1 ] || { echo "usage: bin/ops hygiene [baseline-ref]" >&2; exit 2; }
 MAX_ALWAYS_LOADED_TOKENS="${MAX_ALWAYS_LOADED_TOKENS:-6500}"
-MAX_CURRENT_AUTHORITY_TOKENS="${MAX_CURRENT_AUTHORITY_TOKENS:-200000}"
+# The budget measures current prose an agent reads (Markdown), not code, lockfiles, or compose payload.
+MAX_CURRENT_AUTHORITY_TOKENS="${MAX_CURRENT_AUTHORITY_TOKENS:-65000}"
 
 always_loaded_path() {
   case "$1" in AGENTS.md|README.md|CLAUDE.md) return 0;; *) return 1;; esac
@@ -36,11 +37,11 @@ files_words() {
 }
 
 baseline_bytes() {
-  baseline_surface_files | while IFS= read -r path; do git cat-file -s "${BASE_REF}:${path}"; done | awk '{sum += $1} END {print sum + 0}'
+  baseline_surface_files | grep '\.md$' | while IFS= read -r path; do git cat-file -s "${BASE_REF}:${path}"; done | awk '{sum += $1} END {print sum + 0}'
 }
 
 baseline_words() {
-  baseline_surface_files | while IFS= read -r path; do git show "${BASE_REF}:${path}" | wc -w; done | awk '{sum += $1} END {print sum + 0}'
+  baseline_surface_files | grep '\.md$' | while IFS= read -r path; do git show "${BASE_REF}:${path}" | wc -w; done | awk '{sum += $1} END {print sum + 0}'
 }
 
 delta() {
@@ -75,13 +76,13 @@ echo
 echo "== context budget =="
 current_always_bytes="$(current_surface_files | while IFS= read -r path; do if always_loaded_path "${path}"; then printf '%s\n' "${path}"; fi; done | files_bytes)"
 current_always_words="$(current_surface_files | while IFS= read -r path; do if always_loaded_path "${path}"; then printf '%s\n' "${path}"; fi; done | files_words)"
-current_bytes="$(current_surface_files | files_bytes)"
-current_words="$(current_surface_files | files_words)"
+current_bytes="$(current_surface_files | grep '\.md$' | files_bytes)"
+current_words="$(current_surface_files | grep '\.md$' | files_words)"
 always_tokens="$((current_always_bytes / 4))"
 authority_tokens="$((current_bytes / 4))"
-printf '  configured limits: always-loaded <= %s tokens; current-authority <= %s tokens\n' "${MAX_ALWAYS_LOADED_TOKENS}" "${MAX_CURRENT_AUTHORITY_TOKENS}"
+printf '  configured limits: always-loaded <= %s tokens; current-authority docs <= %s tokens\n' "${MAX_ALWAYS_LOADED_TOKENS}" "${MAX_CURRENT_AUTHORITY_TOKENS}"
 printf '  always-loaded: %s words, %s bytes, approx. %s tokens\n' "${current_always_words}" "${current_always_bytes}" "${always_tokens}"
-printf '  current-authority: %s words, %s bytes, approx. %s tokens\n' "${current_words}" "${current_bytes}" "${authority_tokens}"
+printf '  current-authority docs: %s words, %s bytes, approx. %s tokens\n' "${current_words}" "${current_bytes}" "${authority_tokens}"
 [ "${always_tokens}" -le "${MAX_ALWAYS_LOADED_TOKENS}" ] || failures=$((failures + 1))
 [ "${authority_tokens}" -le "${MAX_CURRENT_AUTHORITY_TOKENS}" ] || failures=$((failures + 1))
 if [ -n "${BASE_REF}" ] && git rev-parse --verify --quiet "${BASE_REF}^{commit}" >/dev/null; then
@@ -90,10 +91,10 @@ if [ -n "${BASE_REF}" ] && git rev-parse --verify --quiet "${BASE_REF}^{commit}"
   base_bytes="$(baseline_bytes)"
   base_words="$(baseline_words)"
   echo "  comparison: ${BASE_REF}"
-  printf '  always-loaded delta: %s words, %s bytes\n' \
+  printf '  always-loaded delta: %s words (%s), %s bytes (%s)\n' \
     "${current_always_words}" "$(delta "${base_always_words}" "${current_always_words}")" \
     "${current_always_bytes}" "$(delta "${base_always_bytes}" "${current_always_bytes}")"
-  printf '  current-authority delta: %s words, %s bytes\n' \
+  printf '  current-authority docs delta: %s words (%s), %s bytes (%s)\n' \
     "${current_words}" "$(delta "${base_words}" "${current_words}")" \
     "${current_bytes}" "$(delta "${base_bytes}" "${current_bytes}")"
 elif [ -n "${BASE_REF}" ]; then

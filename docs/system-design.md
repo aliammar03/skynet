@@ -73,11 +73,12 @@ These are current settings, changed only by a PR here.
   `Permissions.Modify` and node-root privileges. It can technically reach Unraid VM 2020's envelope;
   automated/OpenTofu paths must never target it, and its guest OS remains T3. Exact ACLs and
   exclusions: [access and trust](design/access-and-trust.md).
-- **Merge gate:** human merge for every change while GitHub CI and automated repository tests are
-  embargoed during SKY-025. The generated-only nightly auto-merge capability from
-  [ADR 0004](decisions/0004-auto-merge-generated-only-nightly-prs.md) is suspended and fails closed.
-- **Autonomy:** report-only. No A4 capability is active during the SKY-025 test embargo; promotions
-  require a later human-reviewed restoration of coherent evidence and enforcement.
+- **Merge gate:** human merge for every change. GitHub CI is off; the local suite (`bin/check`) and
+  the pre-commit hook are the automated evidence. The generated-only nightly auto-merge capability
+  from [ADR 0004](decisions/0004-auto-merge-generated-only-nightly-prs.md) is suspended and fails
+  closed. Review weight follows the Light/Full tiers in [construction](conventions/construction.md).
+- **Autonomy:** report-only. No A4 capability is active; a promotion needs failure-case tests in the
+  local suite plus recorded live evidence, and a human-merged change to this section.
 - **Survival:** verify the survival kit quarterly and drill `disable tokens + qm stop 9090` before
   autonomy day one and on demand.
 
@@ -107,9 +108,9 @@ replaceable; changing its implementation does not change trust tiers or merge au
 
 New procedural capabilities use Python under the [capability convention](conventions/scripts.md);
 the installed commands and schedules still use Bash. Nix, OpenTofu, Compose, and Caddy retain their
-declarative roles. Construction follows [the delegation convention](conventions/construction.md): a Main-directed
-Light/Medium/Heavy worker swarm with independent verification and fresh-session review. A
-construction role or language change confers no production authority.
+declarative roles. Construction follows [the construction convention](conventions/construction.md): agent-agnostic,
+one PR per change, `bin/check` evidence, and a Light or Full review tier. An engine, model, or
+language change confers no production authority.
 
 | Change | Authoritative home |
 |---|---|

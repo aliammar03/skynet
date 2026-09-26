@@ -56,13 +56,13 @@ mypy src/skynet
 nix build --no-write-lock-file --no-link .#skynet
 nix run --no-write-lock-file .#skynet -- doctor --json
 
-# build the package without the temporarily embargoed repository test phase
-nix build --no-write-lock-file --no-link .#skynet
+# the one local verification command: ruff, mypy, the offline pytest suite, the invariant gate
+bin/check
 ```
 
-GitHub CI and automated repository tests are embargoed for the duration of SKY-025. Deploy-rs schema
-validation remains available through the flake, but it is not a replacement application test suite.
-Every PR, including generated-only nightly work, is human-merged during the embargo.
+The pre-commit hook runs the secret scan, the invariant gate, and the pytest suite. GitHub CI is off.
+Deploy-rs schema validation remains available through the flake. Every PR, including generated-only
+nightly work, is human-merged.
 
 `skynet doctor [--json]` reports the executing package version and Python runtime with
 `scope: runtime`. It is not a lab or service health check.

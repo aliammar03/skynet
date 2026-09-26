@@ -4,8 +4,8 @@ title: Rebuild the Skynet engine in Python
 status: in-progress
 horizon: long
 created: 2026-09-06
-updated: 2026-09-13
-phases: 24
+updated: 2026-09-23
+phases: 18
 current_phase: 10
 tier_touched: [T1, T2, T2+, T3]
 related:
@@ -13,394 +13,233 @@ related:
   - AGENTS.md
   - docs/conventions/construction.md
   - planning/README.md
-  - planning/sky-025-map.md
+  - docs/decisions/0008-git-model-for-docker-and-opentofu.md
 ---
 
 # SKY-025 · Rebuild the Skynet engine in Python
 
-> One small Python operations application. Keep Skynet simple, reviewable, rebuildable, and easy to automate.
+> One small, tested Python operations application. Simple, reviewable, rebuildable, easy to automate.
 
-## 1. Current state
+## Status
 
-Accepted numbered progress is **P10 / 10 of 24**. Architecture checkpoint **G3** is complete.
+**Current:** phases 1–10 done (every read-only path is Python: collection, entities, cache,
+rendering, recall, deployment verification). The process overhaul is in: local pytest suite,
+`bin/check`, Light/Full review tiers, agent-agnostic construction, this block as the only tracker,
+a two-active-directive limit (SKY-023 archived; SKY-005/006/018/020/024 parked in the backlog),
+a docs-only context budget, and weekly batched Renovate image updates. The deploy and Tofu phases
+follow the git model proposed in [ADR 0008](../../docs/decisions/0008-git-model-for-docker-and-opentofu.md);
+a live health monitor is Phase 14.
 
-**Current action:** P10 is externally accepted and its bounded closeout is staged on PR **#257**.
-Ali must human-merge that PR once; after it lands, P11 is the next authorized implementation packet.
+**Next:** Phase 11 — purge and consolidate. Review: Light.
 
-## 2. Mandate and boundaries
+This block, the phase boxes, and the frontmatter are the **only** progress record. Each phase PR
+updates them itself; merge is completion ([construction](../../docs/conventions/construction.md)).
 
-Rebuild Skynet's procedural operations engine around one installable Python package under `src/skynet/`
-while keeping the tools that already fit their jobs:
+## Done means
 
-- Python for procedural logic, validation, orchestration, collectors, checks, and bounded workflows;
-- Nix for hosts, packages, services, and timers;
-- OpenTofu for resource declarations;
-- Compose/Caddy for services and routes;
-- SQL where a query is genuinely clearer as SQL;
-- Git, SSH, sops, restic, rclone, PBS, and deploy-rs as external tools.
+SKY-025 is finished when every box holds:
 
-Ali accepts Skynet/service downtime during this overhaul. Availability-preserving dual engines are not
-a goal. Downtime never expands authority: payload/state recovery, secret custody, T2/T2+/T3 boundaries,
-human merge, protected guests, saved-plan rules, and grant boundaries remain in force.
+- [ ] One `skynet` command on PATH. No forwarding scripts, no `bin/skynet`, no `bin/ops`.
+- [ ] Shell only on the allowlist below; everything else with branching logic is Python.
+- [ ] Nightly, deploy, publish, Tofu apply, backup, and restore run through Python on the ops VM.
+- [ ] Docker and OpenTofu follow ADR 0008: effect in the PR, merge is the approval, one executor,
+      Tofu state in the `tofu-state` branch; ADR 0008 is accepted.
+- [ ] A failed deploy rolls back to the last verified revision without waiting for a human.
+- [ ] A service outage reaches Ali's phone within 10 minutes.
+- [ ] The nightly is deterministic (no AI engine), runs `bin/check` on `main`, and opens a PR only
+      when inventory changed beyond timestamps.
+- [ ] `bin/check` passes, with a failure-case test for every write path.
+- [ ] One cold-start rebuild from git alone has been rehearsed and recorded.
+- [ ] Docs and runbooks reference only commands that exist.
+
+## Mandate and boundaries
+
+Python for procedural logic, validation, orchestration, collectors, checks, and bounded workflows.
+Nix for hosts, packages, services, and timers. OpenTofu for resource declarations. Compose/Caddy for
+services and routes. SQL where a query is clearer as SQL. Git, SSH, sops, restic, rclone, PBS, and
+deploy-rs stay external tools.
+
+Downtime is accepted; dual engines are not a goal. **Downtime never expands authority:** saved-plan
+rules, the self-leash, protected guests (5001, 635, 837, 2020), secret custody, grant boundaries,
+and human merge all hold throughout.
 
 ### Engineering rules
 
-- Prefer ordinary Python functions/modules and synchronous execution. Add shared abstractions only for
-  real repeated callers. YAGNI wins over framework-building.
-- No app server, daemon, queue, workflow database, custom agent transport, plugin system, or second
-  scheduler. systemd and native Codex subagents already exist.
-- External data is validated. Missing, partial, stale, malformed, timed-out, or indeterminate required
-  evidence never becomes healthy by default.
-- Writes must record target, source/plan identity, completed steps, verification, and recovery state.
+- Plain functions and synchronous execution. Shared code only for real repeated callers.
+- No app server, daemon, queue, workflow database, plugin system, or second scheduler.
+- Missing, partial, stale, malformed, timed-out, or indeterminate evidence never reads as healthy.
+- Every write path runs one shape: plan → preflight → snapshot/backup → execute → verify →
+  rollback or stop → record (target, source/plan identity, steps, verification, recovery state).
   A timed-out write is reconciled before any retry.
-- Nix owns production Python packaging. No production pip/npm package ownership.
-- GitHub CI and automated repository tests are embargoed through SKY-025. Phases record focused
-  manual/build/smoke evidence and verification debt without adding replacement test fragments; a
-  post-transition repository review owns one coherent test architecture. Every PR, including
-  generated-only nightly work, is human-merged during the embargo.
-- Current docs describe current behavior. Raw episodes and superseded process details belong in Git and
-  `journal/`, not in this active directive.
-
-The subsystem disposition and external/live blockers remain in
-[`../sky-025-map.md`](../sky-025-map.md). That map is supporting scope, not a second progress tracker.
-
-## 3. Construction and review lifecycle
-
-Construction follows [`../../docs/conventions/construction.md`](../../docs/conventions/construction.md).
-The active phase chooses Light/Medium/Heavy as appropriate; `.codex/agents/` defines worker models and
-efforts. Workers gain no production authority and never merge.
-
-### From P8 onward: one PR, one review loop, one merge per numbered phase
-
-Each numbered phase owns **one open authored PR** targeting `main`.
-
-If a phase needs internal slices:
-
-1. create/update the same phase branch and open phase PR;
-2. implement all bounded slices on that same PR; never merge slices independently;
-3. when the complete numbered phase is implementation-ready, implementation/fix reports the PR and
-   **stops**;
-4. Ali starts a fresh reviewer for that open PR;
-5. reviewer resolves current target/base + PR head, reviews the integration result, and rechecks both
-   immediately before verdict;
-6. FIX returns to the same PR; original implementation/fix session republishes and stops again;
-7. ACCEPT records the exact last-verified pair and posts a machine-readable `skynet-acceptance:v1`
-   marker to the PR conversation;
-8. Ali tells the original session only `accepted`;
-9. that original session fetches/validates the marker and performs bounded closeout on the **same PR**;
-10. after retained safety controls and a final base + closeout-delta recheck, Ali human-merges that
-    same PR **once**.
-
-Ali never copies or compares commit hashes. The accepted closeout may change only:
-
-- accepted phase/directive state and archive/planning state;
-- `agent_docs/project_progress.md`, `project_diary.md`, `latest_session_work.md`;
-- append-only journal closure evidence;
-- generator-owned closure views changed solely by the state transition.
-
-It may not change source/runtime/config/tests/invariants/AGENTS/doctrine/runbooks/behavioral docs/stable
-agent memory or other substantive work. The sanctioned closeout commit moves PR head by design and does
-not itself invalidate ACCEPT. Reviewed-base movement, unexplained head movement, or any substantive
-post-ACCEPT delta makes ACCEPT stale and requires fresh review.
-
-Private GitHub Free leaves a non-atomic race window between the final agent recheck and Ali clicking
-Merge. Prompt merge minimizes but does not remove it. No paid GitHub feature, manual SHA handling, or
-fake-atomic read/check helper is required.
-
-There is **no closeout-only PR** after normal acceptance and no automatic second acceptance review for
-a valid closeout-only delta.
-
-### P7 migration exception
-
-P7 predates this lifecycle. Its already-merged state gets exactly one integrated-main review. That
-exception cannot be reused by P8+ or by a corrective P7 PR.
-
-Because historical P7 has no open PR, P7 ACCEPT is carried into the next natural P8 PR as opening
-bookkeeping. This avoids a pointless closeout-only PR. A legacy P7 FIX opens one corrective P7 PR and
-immediately returns to the normal lifecycle above.
-
-## 4. Roadmap
-
-| Phase | Recommended Main | Outcome | Exit evidence |
-|---|---|---|---|
-| 1 | Medium | Repository disposition + Python doctrine | accepted |
-| 2 | Heavy | Installable Python CLI + Nix package/dev/lint/type path | accepted |
-| 3 | Medium | Proxmox core collection + default freshness | accepted; G2 |
-| 4 | Heavy | Remaining Proxmox/network/ACL collection | accepted |
-| 5 | Heavy | PBS + Docker inventory | accepted |
-| 6 | Heavy | DNS + live OPNsense/firewall observations | accepted |
-| 7 | Heavy | Omada + certs + routes + recon | accepted |
-| 8 | Heavy | Entity derivation/audit + rebuildable SQLite cache/query | accepted |
-| 9 | Medium | Docs/digest/context/catalog rendering + journal/recall helpers | accepted; G3 |
-| 10 | Heavy | Deployment health + reachability verification | accepted; bounded closeout staged on PR #257 |
-| 11 | Heavy | Arcane deploy/env/sync + rollback preparation | next after PR #257 merges; exact source + truthful failures |
-| 12 | Heavy | Publishing: Caddy/Auth/DNS coordination | correct vantages + auth paths |
-| 13 | Medium | Saved-plan parsing + scope/action/exclusion policy | unsafe plans refused pre-write |
-| 14 | Medium | Snapshot/apply/task completion + partial failure recovery | G4 |
-| 15 | Heavy | Restic setup/selection/consistency/scheduling | failure cannot report success |
-| 16 | Heavy | PBS off-site transfer preflight/retention | destructive empty-source cases refused |
-| 17 | Medium | Service/guest/core/network restore | isolated restore + T3 labels; G5 |
-| 18 | Medium | Provision/onboard + pins/age identity/workstation grants | custody and access paths agree |
-| 19 | Heavy | OS-aware guest updates + host-local backup/rescue packaging | platform-specific rollback |
-| 20 | Medium | Nightly collect/report/evidence + human-review PR path | one sequence; embargo unchanged |
-| 21 | Heavy | Planning/scaffolding + retained hard-safety controls | verification debt remains explicit |
-| 22 | Medium | Whole-repo prune of obsolete scripts/shims/docs/callers | no duplicate implementation |
-| 23 | Heavy | Install/restart Python engine + staged operational acceptance | G6 |
-| 24 | Medium | Cold-start/recovery rehearsal + final fixes/archive | post-transition test/CI redesign handed off |
-
-Architecture checkpoints G1–G3 are already behind us. G4–G6 remain at phases 14/17/23.
-
-## 5. Current P8 packet
-
-### Phase 8 — entity spine + rebuildable query cache
-
-**Status:** accepted and human-merged on PR **#255**.
-
-**Recommended Main:** Heavy. Use one P8 branch/PR for the whole numbered phase. Internal slices are
-working units on that same PR, never separately merged.
-
-**Goal:** replace the remaining shell entity/audit/cache procedures with small Python modules while
-preserving the current entity grammar, audit semantics, rebuildable SQLite cache, query behavior, and
-freshness gates. Do not create a new persistent database or another source of truth.
-
-#### P8A · Entity derivation and audit
-
-Migrate the behavior currently owned by:
-
-- `scripts/entity.sh`
-- `scripts/audit-entities.sh`
-- entity-related callers in `src/skynet/routes.py`, `bin/ops`, and current render/query paths.
-
-Preferred implementation surface: `src/skynet/entities.py` plus CLI wiring. Keep names small;
-do not add an object graph or generic entity framework.
-
-Required behavior:
-
-- preserve the five entity classes: guest, service, node, vhost, network;
-- preserve stable IDs and the current naming grammar;
-- preserve canonical and legacy VMID↔IP handling, including the ambiguous `10xx` case;
-- preserve template, declared-exception, matched, stale, and running-unmapped distinctions;
-- a running guest/service that is neither mapped nor excepted remains an audit failure;
-- OPNsense presence remains liveness annotation, not identity truth;
-- vhost/network unresolved state remains truthful and does not silently become a match;
-- consume repo/inventory data only; no network, secret, or mutation authority.
-
-A thin compatibility entry may remain only for a demonstrated current caller and must forward to the
-packaged Python command. Update known callers in this phase rather than preserving shell logic for
-convenience.
-
-#### P8B · Rebuildable SQLite cache and queries
-
-Migrate the behavior currently owned by:
-
-- `scripts/build-db.sh`
-- `scripts/sql/host-map.sql`
-- `scripts/sql/vhosts.sql`
-- `bin/ops query`
-- the database consumer in `scripts/render-docs.sh`
-
-Preferred implementation surface: one small Python cache/query module. SQLite remains a disposable
-`.cache/inventory.db` projection of Git/inventory truth, rebuilt from scratch. It is never authority.
-
-Required behavior:
-
-- preserve the current tables/fields actually consumed by host-map/vhost/query callers;
-- preserve entity-keyed joins and authored `lab.json` relationships;
-- rebuild atomically enough that a failed rebuild cannot leave a newly claimed valid cache;
-- ordinary query/render callers must still require current collection freshness before treating the
-  cache as current evidence;
-- keep the two maintained SQL query files if they remain the clearest query representation;
-- ad-hoc query failure, missing SQLite capability, malformed source data, and rebuild failure must be
-  explicit non-success outcomes;
-- do not add migrations, a DB service, ORM, cache daemon, or schema version framework.
-
-#### P8 verification
-
-At minimum, before P8 is handed to fresh review during the embargo:
-
-- focused manual entity/cache/query smoke evidence covers normal operation and the review defect;
-- existing entity/query/render consumer behavior is inspected for preservation;
-- Ruff, mypy, package build, hard invariants, secret scan, and `git diff --check` pass;
-- source and installed-package paths are both exercised without recreating a repository test suite;
-- no live endpoint, credential, root grant, service/timer, inventory rewrite, or production mutation is
-  required for this phase.
-
-**P8 closeout:** when all P8A/P8B work is complete on the same open P8 PR, implementation stops and Ali
-starts one fresh P8 review. FIX updates that same PR. ACCEPT posts the acceptance marker; Ali says
-`accepted` to the original session; that session stages P8 closeout (`current_phase: 8`, accepted
-evidence, release P9/G3 planning) on the **same P8 PR**, verifies the post-ACCEPT delta is closeout-only,
-and hands the same PR back for one human merge.
-
-## 5a. Current P9 packet
-
-### Phase 9 — generated views + read-time recall
-
-**Status:** accepted; bounded same-PR closeout staged on PR **#256** for one human merge.
-
-**Recommended Main:** Medium. Use one P9 branch/PR for the whole numbered phase.
-
-**Goal:** replace the remaining shell implementation of factual docs, digest, context-map, and runbook
-catalog rendering plus read-time recall with small packaged Python paths. Preserve generated-view
-ownership, collection freshness, raw append-only journal truth, deterministic retrieval semantics,
-and explicit failures. Do not migrate the nightly journal writer or general `bin/new` scaffolding;
-those remain P20/P21 work.
-
-#### P9A · factual and catalog rendering
-
-Migrate `scripts/render-docs.sh`, its nightly caller, and `scripts/render-runbook-catalog.sh` while
-retaining the P8 SQLite host-map/vhost queries. Factual rendering must require receipt-bound current
-collection evidence, preserve the existing Obsidian page set and entity-keyed relationships, and never
-fall back to retained cache bytes. Malformed input, cache/query failure, or page-generation failure must
-return non-success and leave prior generated pages unchanged; stale host pages are removed only after a
-successful completed render. Catalog rows remain derived from leaf frontmatter in deterministic order.
-
-#### P9B · digest, context map, and recall
-
-Migrate `scripts/render-digest.sh`, `scripts/render-context-map.sh`, and `bin/recall`.
-
-- Digest and context outputs remain content-stable and atomically published.
-- The digest preserves ADR ordering, open-directive pointers, same-day journal ordering by explicit
-  `time`, append-only `resolves` handling, explicit-open follow-ups, truthful unknown status, and the
-  seven most recent raw episode pointers without mechanically summarizing episodes.
-- The context map preserves its explicit loadable sets, frontmatter/heading fallback, pipe escaping,
-  byte-derived token estimates, generated-view exclusion of itself, and topic-retrieval pointer for the
-  journal rather than enumerating the episodic store.
-- Recall excludes generated derivatives, OR-joins case-insensitive regular-expression terms, ranks by
-  match count then load cost/path, caps displayed results without misreporting the total, writes nothing,
-  and rejects malformed expressions explicitly.
-- The raw journal, `scripts/nightly.sh` journal append, templates, `bin/new`, and semantic retrieval
-  ambitions under SKY-006 remain outside this migration.
-
-Thin shell compatibility entries may forward to the packaged command until P22, but may not retain
-duplicate logic. Current callers and current operational docs use the packaged interface.
-
-#### P9/G3 verification
-
-- Focused manual source and installed-package smoke covers each renderer and recall.
-- Normal, empty/no-match, malformed-regex, stale-evidence, malformed-input, and failed-render
-  preservation paths are exercised without creating a replacement automated test suite.
-- Digest, context map, and runbook catalog are regenerated by their owners; factual pages are
-  regenerated only when current collection evidence is available.
-- Ruff, strict mypy, package build, hard invariants, secret scan, shell syntax, and `git diff --check`
-  pass; unavailable evidence is reported explicitly.
-- No credential, root grant, live write, service/timer change, or T2/T3 mutation is required.
-
-**G3 exit:** the packaged application is the single procedural owner for collection, entity/cache/query,
-generated Markdown rendering, and read-time recall through P9. Bash retained in this surface is only a
-forwarding compatibility entry or the explicitly later-owned nightly/journal orchestration.
-
-## 5b. Current P10 packet
-
-### Phase 10 — deployment health + reachability verification
-
-**Status:** externally accepted; bounded closeout staged on PR **#257** for one human merge.
-
-**Recommended Main:** Heavy. Use one P10 branch/PR for the whole numbered phase.
-
-**Goal:** make one packaged, report-only verifier prove that the requested Arcane GitOps revision is
-live, the complete Compose project is running and healthy, and every declared service route is
-reachable with valid TLS from the DMZ ingress vantage. Verification failure never invokes rollback or
-changes authored/runtime configuration; P11 owns deployment and recovery orchestration.
-
-Required behavior:
-
-- require an explicit full expected Git revision and match it exactly in both the Git Sync and Arcane
-  project observations;
-- require one unambiguous successful Git Sync, the matching running project, positive equal
-  service/running counts, and a non-empty Docker project observation with the same count;
-- require every observed container to be running and healthy; a missing healthcheck is failure;
-- validate the complete canonical route observation before selecting service routes, rejecting empty,
-  partial, malformed, duplicate, or case-ambiguous route evidence;
-- probe each selected route from the Docker `dmz` network through the apps front door with a
-  digest-pinned curl image, valid public TLS, and an HTTP response below 500; authentication responses
-  such as 302/401 are reachable outcomes;
-- report routed and intentionally unrouted services distinctly, preserve safe human/JSON errors, and
-  never expose credential values or remote response bodies;
-- retain `scripts/deploy-gate.sh` only as a thin current-caller forwarder until P22; do not migrate
-  `gitops-deploy.sh` source/retry/env/recovery behavior before P11.
-
-The retained `gitops-deploy.sh --gate` compatibility path validates the selected `GITOPS_BRANCH` and
-passes that exact local branch-head commit to the verifier. It does not derive live identity from the
-newest commit touching `compose/<service>` and has no rollback-candidate argument; recovery identity
-remains separate for P11.
-
-P10 implementation evidence recorded before fresh review:
-
-- the independent Tester passed disposable normal, empty, partial, malformed, wrong-revision,
-  unhealthy, TLS/HTTP, identity, timeout, redaction, and compatibility-forwarder cases;
-- source and Nix-installed paths passed routed and unrouted live smokes;
-- all ten live Arcane projects matched merged P9 revision `c800d58`, all 18 project containers were
-  present/running/healthy, eight service routes passed from the DMZ vantage with TLS result 0, and
-  `caddy-apps`/`cloudflared` were truthfully skipped as unrouted projects;
-- Ruff, strict mypy, Python compile, shell syntax, Nix package build, secret scan, hard invariants, and
-  diff checks passed under the test/CI embargo.
-- after review found the compatibility caller still supplied a service-touch commit, a disposable
-  end-to-end shell harness proved `--gate` forwards branch head `c800d58` when the newest Caddy service
-  commit is `44ae7d3`; the removed legacy `--revert-commit` is rejected with exit 2 and a genuinely
-  wrong verifier revision still exits 1.
-
-**P10 closeout:** the newest applicable acceptance marker records ACCEPT for reviewed base `c800d58`
-and reviewed head `48b62c1`. The original session validated that pair against the open PR, advanced
-`current_phase: 10`, and staged bounded closeout on the same PR. Ali human-merges PR #257 once; P11 is
-the next implementation packet after that merge.
-
-## 6. Carry-forward correctness cases
-
-The original overhaul review identified these failure classes. Replacements must keep their safeguards
-or provide a stronger equivalent:
-
-| Case | Required property | Owner phases |
+- Delete the shell implementation in the same PR that ports it. No compatibility shims.
+- Nix owns packaging. No production pip/npm.
+
+### What stays out of Python
+
+| Keep as shell or Nix | Why |
+|---|---|
+| `bootstrap-workstation.sh`, `bootstrap-proxmox.sh` | run before Python exists; rescue path |
+| `backup-restic.sh`, `backup-pbs-gdrive.sh` (or plain Nix units) | thin wrappers over restic/rclone; host-local |
+| `bin/grant-root` | workstation-only; the CA never touches the engine |
+| `.githooks/pre-commit` | glue that calls the gates |
+
+| Delete, no replacement | Why |
+|---|---|
+| all `scripts/collect-*.sh`, `render-*.sh`, `entity.sh`, `build-db.sh`, `audit-entities.sh`, `recon.sh`, `bin/recall` | forwarders to finished Python |
+| `bin/skynet` | the Nix package puts `skynet` on PATH |
+| `scripts/nightly-automerge.sh` | suspended capability stub |
+| `scripts/update-clis.sh` | Nix owns CLI packages |
+| `bin/ops` engine layer (`OPS_ENGINE*`, Codex/Claude fallback) | the nightly is deterministic; agent runs are started on purpose, not by the timer |
+
+Everything else in `scripts/` and `bin/` is ported by the phase that owns it below.
+
+## Roadmap
+
+| # | Phase | Review | Outcome | Exit evidence |
+|---|---|---|---|---|
+| 1–10 | Python CLI, collectors, entities, cache, rendering, recall, deploy verification | — | done | merged through PR #257 |
+| 11 | Purge and consolidate | Light | forwarders gone; shared collector core; `skynet plan`/`skynet new` | nothing calls a deleted path; `skynet collect all` works live |
+| 12 | Census and gates | Full | live facts recorded; gates in Python | blocker table filled; `skynet check` replaces the shell gates, same failures caught |
+| 13 | Write-path skeleton + `skynet deploy` + publish | Full | ADR 0008 Docker model: one executor, dry-run effect in PR, auto-rollback to last verified; Caddy/Auth/DNS publish | real deploy; forced failure rolls back automatically; Arcane Git Sync off |
+| 14 | Live health monitor | Full | `skynet watch` timer every 5 min, push alert on state change | stopped test container alerts within 10 min; recovery alert follows; no alert storm |
+| 15 | OpenTofu under ADR 0008 | Full | per-actuator stacks, plan+hash in PR, apply-on-merge with hash match, state on `tofu-state` branch, nightly drift plan | mismatched hash refused; delete/protected-guest refused; injected apply failure restores the snapshot; state rebuilt from git |
+| 16 | Backup, restore, PBS off-site | Full | restic selection/consistency, PBS transfer guards, service/guest restore | empty-source transfer refused; isolated restore of one service |
+| 17 | Provision, onboard, OS updates | Full | provision/onboard, pins, age identity, OS-aware updates | one guest provisioned and updated; failed update stops with rollback |
+| 18 | Cutover | Full | deterministic Python nightly, install on ops VM, final prune, cold start | every "Done means" box ticked; ADR 0008 accepted; directive archived |
+
+### Phase 11 — Purge and consolidate   `[ ]` · review: Light
+
+1. Delete the forwarders and stubs in the delete list. Rewrite every caller (runbooks, `nightly.sh`,
+   systemd units, `nix/packages/skynet.nix` fileset, docs) to call `skynet …` directly.
+2. Put `skynet` on PATH through the Nix package for the ops VM and the devshell.
+3. One shared module for literal credential files, HTTPS/TLS, atomic writes, and status markers.
+   One credential-value rule for every collector.
+4. Collectors return result objects; `collect_all` loops over one collector list instead of
+   re-parsing each collector's stdout JSON.
+5. Port `bin/plan` and `bin/new` to `skynet plan …` / `skynet new …` (roadmap regeneration,
+   stage moves, template stamping) with tests; delete the shell versions.
+6. Rename the proof-era `lxc-proof` identity on the production NixOS LXC bootstrap artifact
+   (carried from SKY-023 P10).
+7. Triage `planning/scratchpad/`: each note becomes an idea directive, moves to `journal/`, or is
+   deleted. Ali's personal notes stay unless Ali says otherwise.
+8. Existing tests stay green; add tests for the shared module.
+
+### Phase 12 — Census and gates   `[ ]` · review: Full
+
+1. Read-only census of live facts the later phases need (table below); record them in
+   `docs/design/` or the owning runbook, not here.
+2. Port `check-invariants.sh` and `secret-scan.sh` to `skynet check`; the pre-commit hook and
+   `bin/check` call it. Carry every current check and its tests over.
+
+| Needed before | Fact to record |
+|---|---|
+| 13 | actual Arcane Git Sync command, revision source, materialized env path, mounts, project ownership |
+| 14 | a push channel Ali will actually see (ntfy topic or Pushover), and where its credential lives |
+| 15 | current Tofu state addresses per actuator, for the per-stack `tofu state mv` split |
+| 16, 17 | installed restic/PBS scripts, units, enabled instances, paths, packages on each host |
+| 18 | active ops VM checkout, package, services, and timers |
+| 16, 18 | `/opt/skynet-ops` persistent cert/mirror/state paths that must survive |
+| 18 | ignored local state (`.cache`, provider cache) classed as recovery-critical or rebuildable |
+| 16 | one independent rebuild/access path proven from the survival kit |
+
+### Phase 13 — Write-path skeleton, `skynet deploy`, publish   `[ ]` · review: Full
+
+1. Build the write-path shape once (plan → preflight → snapshot → execute → verify → rollback or
+   stop → record) as plain functions every later write path reuses.
+2. `skynet deploy <svc> [--dry-run]` per ADR 0008: exact merged revision, env decrypted in memory,
+   compose and env applied together over the Docker context, `skynet.revision` label, Phase 10
+   verifier, automatic redeploy of the last verified revision on failure, then a revert PR.
+3. Turn Arcane Git Sync off for every project (Arcane stays a read-only dashboard).
+4. Port publishing (`cf-dns-route.sh`, `dns-revert.sh`, Caddy/Auth coordination) onto the same shape.
+5. Delete `gitops-deploy.sh`, `gitops-rollback.sh`, `deploy-gate.sh`, and the publishing scripts.
+   Update AGENTS.md §4, the gitops-loop spoke, and the deploy/publish runbooks (human-merged).
+
+### Phase 14 — Live health monitor   `[ ]` · review: Full
+
+1. `skynet watch`: a systemd timer on the ops VM runs the Phase 10 verifier for every deployed
+   service every 5 minutes (T1 read only).
+2. Alert on **state change** only: healthy → unhealthy after two consecutive failures, and back.
+   One message per change, no storms, a daily "still down" reminder at most.
+3. Push through the channel recorded in Phase 12; its credential is a sops-materialized file like
+   every other.
+4. Tests: a flapping probe does not alert; a sustained failure alerts once; recovery alerts once;
+   a monitor that cannot run reports itself as unavailable rather than silent.
+
+### Phase 15 — OpenTofu under ADR 0008   `[ ]` · review: Full
+
+1. Split `tofu/` into `proxmox-core`, `proxmox-network`, `technitium-dns`, `cloudflare-dns` stacks;
+   migrate state with `tofu state mv` as a supervised saved-plan step (zero-change plans after).
+2. `skynet tofu plan <stack>` prints the plan and a normalized-change hash for the PR.
+3. `skynet tofu apply <stack>` after merge: re-plan, require the PR's hash, keep every current
+   refusal (delete/replace, protected guests), snapshot existing guests, apply, verify, restore on
+   failure.
+4. Commit encrypted state to the `tofu-state` branch after each apply, under a local lock; update
+   the DR runbooks so rebuilding reads state from git.
+5. Nightly read-only drift plan per stack.
+6. Delete `tofu-env.sh`, `tofu-apply.sh`, `pve-snapshot.sh`. Update AGENTS.md §4 and the constitution
+   (approval moves into the PR — human-merged).
+
+### Phases 16–17
+
+Each follows the write-path shape and the Full tier. Port the owning shell scripts
+(`provision-restic.sh`, `ct-age-identity.sh`, `onboard-host.sh`, `pin-cert.sh`,
+`skynet-ops-ssh-certs.sh`) and delete them in the same PR.
+
+### Phase 18 — Cutover   `[ ]` · review: Full
+
+1. **Deterministic nightly.** `skynet nightly` replaces `nightly.sh` and `bin/ops`: collect, render,
+   report, PR. No AI engine is invoked by the timer; delete the `OPS_ENGINE*` layer and its env docs.
+2. **PR only on real change.** Compare inventory ignoring `collected`/`attempted` timestamps and
+   hashes of unchanged snapshots; open a PR only when observed state changed. Freshness receipts
+   are still written locally so `collect-status` keeps proving recency. The nightly writes a
+   journal episode only on failure or real drift.
+3. **Nightly `bin/check` on `main`.** A red result leads the nightly report and opens nothing else.
+4. Port `hygiene.sh` and `repo-surface.sh` into `skynet check`; delete them.
+5. Install on the ops VM (package, services, timers), run the staged acceptance, and rehearse one
+   cold-start rebuild from git alone.
+6. Tick every "Done means" box and archive this directive.
+
+## Carry-forward correctness cases
+
+Each needs a test in `tests/` by the phase that owns it.
+
+| Case | Required property | Phase |
 |---|---|---|
-| F1 | SSH/container failure or empty required set cannot look healthy | 3, 10 |
-| F2 | deploy/API/revision errors cannot be ignored | 11–12 |
-| F3 | unsafe mixed infrastructure actions are refused and partial state stays recoverable | 13–14 |
-| F4 | backup init/timer/target failure cannot report success | 15 |
-| F5 | backup/restore consistency is explicit and tested | 15, 17 |
-| F6 | fleet operations are OS-aware and stop on failed rollback | 17–19 |
-| F7 | empty/wrong PBS source cannot drive destructive mirror behavior | 16–17 |
-| F8 | stale/missing collectors cannot look current | 3–9 |
-| F9 | package/config ownership remains singular | 20–22 |
-| F10 | current docs stay current instead of carrying incident narration | 21–22 |
-| F11 | one authority per rule; help/runbooks/frontmatter stay truthful | 21–24 |
+| F1 | SSH/container failure or empty required set cannot look healthy | 10 ✓, 13 |
+| F2 | deploy/API/revision errors cannot be ignored | 13 |
+| F3 | unsafe infrastructure actions are refused; partial state stays recoverable | 15 |
+| F4 | backup init/timer/target failure cannot report success | 16 |
+| F5 | backup/restore consistency is explicit and tested | 16 |
+| F6 | fleet operations are OS-aware and stop on failed rollback | 17 |
+| F7 | empty/wrong PBS source cannot drive destructive mirror behavior | 16 |
+| F8 | stale/missing collectors cannot look current | 3–9 ✓ (tested) |
+| F9 | package/config ownership stays singular | 11, 18 |
+| F12 | an unchanged lab produces no nightly PR; a red `bin/check` on `main` is reported, never hidden | 18 |
+| F13 | env and compose go live together at one revision; a failed deploy returns to the last verified revision | 13 |
+| F14 | an outage alerts once within 10 minutes; flapping does not alert; a dead monitor is visible | 14 |
+| F15 | a Tofu apply whose plan differs from the PR's is refused; state survives losing the ops VM | 15 |
+| F10–F11 | one authority per rule; docs, help, runbooks stay truthful | every phase |
 
-## 7. Live/recovery boundaries
+## Live and recovery boundaries
 
-The overhaul can take services down, but cannot destroy the only recovery path. Before live installation
-or destructive work, preserve the existing survival-kit, workstation access, protected payload/state,
-credential custody, and scoped grant rules from the map and system design.
+Services may go down; the only recovery path may not. Before live installation or destructive work,
+keep the survival kit, workstation access, protected payload/state, credential custody, and scoped
+grant rules intact. Git/Nix rollback fits source/config changes; interrupted infrastructure or data
+writes need operation-specific recovery evidence, not a blind `git revert`.
 
-Git/Nix rollback is appropriate for source/config deployment. Interrupted infrastructure/data writes
-require operation-specific recovery evidence, not blind `git revert`.
+## Adjacent directives
 
-## 8. Handoffs
+SKY-025 replaces existing substrate only. SKY-005, SKY-006, SKY-018, SKY-020, and SKY-024 are
+parked in `backlog/` under the two-active-directive limit; one may be started alongside SKY-025.
+New features stay with their directives: diagnosis
+practice (SKY-005), semantic retrieval (SKY-006), runbook capabilities (SKY-012), renderer features
+(SKY-015), extra deployment features (SKY-016), autonomy promotions (SKY-017), eight-layer semantics
+(SKY-018), OPNsense write path (SKY-020), documentation hygiene (SKY-023), guest declarations
+(SKY-024), one deployment model on NixOS (SKY-027, after SKY-025).
 
-### Execute the next authorized SKY-025 packet
-
-```text
-Read planning/prompts/execute.md and execute the next authorized SKY-025 packet.
-```
-
-After PR #257 is human-merged once, the next invocation executes P11. Later invocations execute only
-the next packet released by this directive's numbered progress and review state.
-
-### Review a normal open PR
-
-Use for every P8+ phase PR and any corrective P7 PR:
+## Prompts
 
 ```text
-Read planning/prompts/review.md and review SKY-025 PR #<number>.
+Read planning/prompts/execute.md and execute the next phase of SKY-025.
+Read planning/prompts/review.md and review PR #<number>.
 ```
-
-Reviewer resolves/rechecks base+head itself and posts the acceptance marker on ACCEPT. Ali then returns
-to the original implementation/fix session and says only `accepted`; that session closes out the same
-PR and hands it back for one human merge.
-
-## 9. Progress authority
-
-This file owns current numbered progress. The disposition map owns subsystem/caller/recovery scope.
-`agent_docs/` owns compact derived session memory. Git and `journal/` preserve implementation/review
-history.
-
-Do not reinsert chronological phase diaries into this active directive. A phase status needs only:
-accepted / implementation-ready / review-pending / blocked, its current exit evidence, and one next
-entry point.

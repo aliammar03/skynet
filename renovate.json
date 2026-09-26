@@ -9,6 +9,27 @@
   "prConcurrentLimit": 5,
   "vulnerabilityAlerts": {
     "dependencyDashboardApproval": false,
-    "labels": ["security"]
-  }
+    "labels": [
+      "security"
+    ]
+  },
+  "packageRules": [
+    {
+      "description": "Batch routine container image updates into one weekly PR; security alerts stay separate and immediate.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchUpdateTypes": [
+        "digest",
+        "pin",
+        "pinDigest",
+        "patch",
+        "minor"
+      ],
+      "groupName": "container images (weekly)",
+      "schedule": [
+        "before 6am on monday"
+      ]
+    }
+  ]
 }

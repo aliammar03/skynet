@@ -20,7 +20,7 @@ title: <prose title>        # human title (no trailing period)
 status: draft | in-progress | done | archived
 horizon: short | medium | long
 created: YYYY-MM-DD          # absolute date
-updated: YYYY-MM-DD          # bumped every phase close-out
+updated: YYYY-MM-DD          # bumped by every phase PR
 phases: <int>                # total phases (project directives)
 current_phase: <int>         # 0 until a phase completes
 tier_touched: [T1, T2, T2+, T3]   # every tier the work touches
@@ -31,9 +31,9 @@ related:                     # authoritative paths this directive leans on
 
 - **A directive touching T2+/T3 or a blast-radius boundary MUST list `docs/system-design.md` in
   `related`** and PR the constitution `[manual]` (AGENTS.md §5).
-- **`current_phase`, `status`, `updated` are bumped at every phase close-out** `[manual]`; the
-  matching phase checkbox flips `[ ]`→`[x]`. Main also refreshes the three state-memory files named
-  by the construction convention; they remain derived views, not directive metadata. `[manual]`
+- **`current_phase`, `status`, `updated` are bumped by the phase PR itself** `[manual]`; the
+  matching phase checkbox flips `[ ]`→`[x]` and the `## Status` block names the next phase. An active
+  directive carries a `## Status` block `[testable]` (`tests/test_planning.py`).
 
 ## Service-catalog entry (`planning/services/SKY-###-*.md`) `[manual]`
 

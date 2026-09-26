@@ -24,7 +24,7 @@ related:
 # SKY-012 · Runbooks as executable capabilities
 
 > **2026-09-07 ownership:** SKY-025 replaces existing executors and carries their capability contracts into Python. This directive keeps additional executable-runbook features; no generic workflow framework is authorized by the overhaul.
-> See the [SKY-025 disposition map](../sky-025-map.md#adjacent-directive-ownership). This note does not complete any phase.
+> See the [SKY-025 adjacent directives](../projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md#adjacent-directives). This note does not complete any phase.
 
 > Promote the **deterministic** half of each runbook from *prose the agent reads and interprets* to
 > *a capability the agent runs*. Cuts procedural read-cost (the way SKY-010 cut retrieval-cost) and
@@ -79,7 +79,7 @@ command." Read-cost drops to the shell; the mechanical core is enforced by being
 
 ## 4. Relationship to other directives
 
-- **SKY-010** established bounded *retrieval* cost; SKY-026 now supplies the `agent_docs`-first
+- **SKY-010** established bounded *retrieval* cost; AGENTS.md + the active directive supply
   continuity layer and on-demand retrieval. This directive cuts *procedural* cost — the sibling it
   explicitly flagged for its own `SKY-###`.
 - **SKY-011** ("format follows enforcement") is the doctrine: a capability is a procedure made

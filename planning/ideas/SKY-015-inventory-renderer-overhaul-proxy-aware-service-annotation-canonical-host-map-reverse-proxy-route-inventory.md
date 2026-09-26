@@ -18,7 +18,7 @@ related:
 # SKY-015 · Inventory renderer overhaul: proxy-aware service annotation, canonical host map, reverse-proxy route inventory
 
 > **2026-09-07 ownership:** The existing SKY-018 supersession/close-out decision still applies. SKY-025 P8–9 replaces implemented entity/rendering code; do not start a duplicate renderer implementation here.
-> See the [SKY-025 disposition map](../sky-025-map.md#adjacent-directive-ownership). This note does not complete any phase.
+> See the [SKY-025 adjacent directives](../projects/SKY-025-make-operational-outcomes-verifiable-and-prune-misleading-guidance.md#adjacent-directives). This note does not complete any phase.
 
 > Make `docs/generated/` tell the truth about the **proxy layer**, so no reader — agent or human —
 > ever mistakes a reverse-proxy front-door record for a host's real address.
@@ -110,8 +110,7 @@ steps. When the phase's exit criteria are met, do the "Phase close-out" at the b
 
 ## 5. Phase close-out (resume material)
 - [ ] Land the work via **PR** (agent never merges its own).
-- [ ] Main refreshes the three state-memory files in `agent_docs/` after acceptance.
-- [ ] Append a raw journal episode with what ran, evidence, failures, and the next entry point.
+- [ ] In the phase PR: journal episode only if something non-obvious happened; `bin/check` green.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
 - [ ] `bin/plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:
