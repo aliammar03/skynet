@@ -1,19 +1,22 @@
 ---
-summary: "Deploy or update a service through the Arcane GitOps loop: edit compose then PR then Arcane reconciles."
+summary: "Deploy or update a service: edit compose, PR with the dry-run effect, merge; skynet deploy applies, verifies, and rolls back by itself."
 trigger: "Deploy or update a service"
 tier: "T2 PR-gated"
-executor: "scripts/gitops-deploy.sh, Arcane Git Sync, and skynet verify deployment"
-rollback: "git revert"
+executor: "skynet deploy (skynet-deploy timer: --pending)"
+rollback: "automatic to the last verified revision; git revert for a merged change"
 ---
 
-# Runbook — deploy / update a service (Arcane GitOps, the skynet way)
+# Runbook — deploy / update a service
 
-**Tier:** T2 (PR-gated). **Executor:** `scripts/gitops-deploy.sh` + Arcane Git Sync +
-`skynet verify deployment`. **Rollback:** `git revert`.
+**Tier:** T2 (PR-gated; merge is the approval). **Executor:** `skynet deploy`, run by the
+`skynet-deploy` timer as `--pending` every 3 minutes. **Rollback:** automatic return to the last
+verified revision plus a revert PR; `git revert` for a merged change you want undone.
+Design: [gitops-loop](../docs/design/gitops-loop.md).
 
 ## Preconditions
 
-- Identify the service, its persistent data, its intended ingress, and whether it needs encrypted configuration.
+- Identify the service, its persistent data, its intended ingress, and whether it needs encrypted
+  configuration.
 
 ## Steps
 
@@ -25,72 +28,56 @@ compose/<svc>/.env.git       # non-secret config, committed plaintext
 compose/<svc>/.env.sops      # secrets only (sops+age); omit if the service has none
 ```
 
-- **No inline `environment:` config** — put config in `.env.git`, not scattered in compose
-  (structural keys like a computed `REDIS_URL` that interpolate a secret are the exception).
-- **One role tag** via `x-arcane.tags` (`media`/`ai`/`books`/`bookmarks`/…, stable colour per
-  role — see compose README). Arcane applies it on sync; `gitops-deploy.sh` reports/warns.
-- **A healthcheck on every service** (image built-in or compose-declared) so Arcane reports
-  `(healthy)` and dependents can use `condition: service_healthy`. Match the probe to the image's
-  tools (curl/wget/node/bash-`/dev/tcp`) — see the compose README table. `gitops-deploy.sh` warns
-  if any service lacks one.
+- **No inline `environment:` config** — config lives in `.env.git` (a structural key that
+  interpolates a secret, like a computed `REDIS_URL`, is the exception). A key in both `.env.git`
+  and `.env.sops` is refused at deploy.
+- **A healthcheck on every service** (image built-in or compose-declared); deployment verification
+  fails without one. Match the probe to the image's tools — see the compose README table.
+- **`name: <svc>`** if the compose sets a project name at all; it must match the directory.
 - **No Docker file-secrets, no `*.txt` secrets.** One secret store: `.env.sops`.
-- **Volumes:** simple file data → absolute `/opt/docker/appdata/<svc>/<role>` bind mounts
-  (swept by `backup-restic.sh`). Database engines → **named** volumes, each labelled
-  `skynet.service: <svc>` + `skynet.backup: protect|ephemeral` + `skynet.managed: gitops`
-  (restic backs up the `protect` ones directly). Never relative in-project-dir data. Volume
-  labels are immutable — to change them, recreate the volume (`down` → `docker volume rm` →
-  redeploy). When switching a named volume to a bind mount, remove the orphan.
+- **Volumes:** simple file data → absolute `/opt/docker/appdata/<svc>/<role>` bind mounts. Database
+  engines → **named** volumes labelled `skynet.service: <svc>` + `skynet.backup: protect|ephemeral`
+  + `skynet.managed: gitops`. Repo-tracked config files → relative `./…:…:ro` mounts (they come
+  from the revision's release directory). Never relative in-project data.
 
-### Materialize the runtime environment
+### Deploy or update
 
-Arcane's **GitOps** sync copies `compose.yaml` (and the compose dir, incl. subdirs) from git and
-owns the project lifecycle — but it does **NOT** merge `.env.git`/`project.env` into `.env`
-(that layering is only for non-GitOps projects). `docker compose` just reads whatever `.env` is on
-disk. So `scripts/gitops-deploy.sh` **materialises** the effective `.env` = `.env.git` +
-`sops -d .env.sops`, written `0600` and owned by Arcane's project UID, decrypted on vm-skynet-ops
-(the age key never leaves it).
-Arcane leaves a populated `.env` untouched on re-sync, so the two coexist.
-
-### Deploy or update an existing service
-
-1. **Branch** `deploy/<svc>`; edit `compose/<svc>/*` per the standard. Validate:
-   `cd compose/<svc> && printf '…dummy…' > .env && docker compose config -q && rm .env`.
-2. **PR** with a teaching description (what it is, ports, front door, backup impact). **Ali merges.**
-3. `scripts/gitops-deploy.sh <svc>` — the deployment procedure ensures the source sync,
-   materialises `.env`, redeploys, and waits for the project. Its source selection, retry/wait,
-   environment, and recovery behavior remain owned by this procedure; the verifier does not perform
-   them. Set `GITOPS_BRANCH=<branch>` to select a local source branch. Adding `--gate` resolves the
-   exact full head of that local branch for the selected sync and passes it through the thin
-   `deploy-gate.sh` forwarder. `--revert-commit` is not a supported deploy option.
-4. Verify the exact merged deployment revision with the packaged, report-only observer, either via
-   the `--gate` path above or directly:
+1. **Branch** `deploy/<svc>`; edit `compose/<svc>/*`; **commit** (the dry run reads git objects,
+   not the working tree).
+2. **Preview the effect** and paste it into the PR description:
 
    ```bash
-   skynet verify deployment <svc> <full-revision>
+   skynet deploy <svc> --dry-run HEAD
    ```
 
-   It checks the complete Arcane/Docker project at that revision, all container health, and every
-   declared route. Routed checks use the Docker `dmz` network and verified TLS through
-   `10.10.100.35`; HTTP 100–499, including 302/401, is acceptable. Unrouted services are reported
-   as skipped. The route probe may create/remove an ephemeral container and cache its pinned image.
-5. If verification fails, it reports the failed observation; it does not deploy, restart, or
-   rollback. Prepare a reviewed inverse with `scripts/gitops-rollback.sh <svc> <deploy-commit> --prepare`;
-   `<deploy-commit>` is the authored commit to invert, a separate identity from the verifier's
-   expected branch-head revision. Human-review and merge the rollback PR before Arcane reconciles it.
+   It renders the service at your commit and at what runs now, and lists per container: image,
+   ports, networks, volumes, labels, other settings, and the **names** of env keys added, removed,
+   or changed (values are never shown).
+3. **PR** with a teaching description (what it is, ports, front door, backup impact, the effect).
+   **Ali merges** — that is the approval.
+4. The timer deploys the merged revision within ~3 minutes. To apply at once:
+   `skynet deploy <svc>`. Every step lands in `/opt/skynet-ops/state/operations.jsonl`.
+
+A new service deploys the same way; it has no rollback target until its first verified deploy,
+so a failed first deploy stops (`no-rollback-target`) instead of guessing.
 
 ## Verify
 
-- `skynet verify deployment <svc> <full-revision>` succeeds. This requires exact revision identity,
-  complete positive equal Arcane and Docker counts, every container running and healthy, and all
-  declared routes reachable with valid TLS; a service with no declared route is explicitly skipped.
+- `skynet deploy` verifies by itself; re-check any time with `skynet verify deployment <svc>`:
+  every container at the expected `skynet.revision`, running and healthy, no stray or missing
+  container, and each declared route answering through the apps front door with valid TLS
+  (HTTP 100–499). A service with no declared route reports routes `skipped`.
 
 ## Rollback
 
-- Use the reviewed rollback PR prepared by
-  `scripts/gitops-rollback.sh <svc> <deploy-commit> --prepare`; after its human merge, run
-  `scripts/gitops-deploy.sh <svc>` to reconcile the reverted revision. The verifier's expected
-  revision and the rollback commit are separate inputs, and the verifier never invokes rollback.
+- **Automatic.** A failed deploy redeploys the host's `verified` revision, marks the failed one as
+  held (the timer won't retry it), and opens `revert/<svc>-<rev>`. Merge that PR, or merge a fix;
+  either moves `main` and releases the hold.
+- **By choice.** `git revert` the merged change in a PR; the timer deploys it.
+- If the rollback itself fails (exit 4), stop — that is a hard checkpoint. See
+  [`diagnose/deploy-stuck.md`](diagnose/deploy-stuck.md).
 
 ## Evidence
 
-- Include the compose validation, deploy/health result, persistent-data impact, and any refreshed inventory in the PR or journal record.
+- The PR's dry-run effect, the operation record line for the deploy, the verification output, and
+  persistent-data impact.

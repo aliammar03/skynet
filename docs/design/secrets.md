@@ -1,5 +1,5 @@
 ---
-summary: "How Skynet holds secrets with sops+age and materializes GitOps service env from .env.git plus .env.sops."
+summary: "How Skynet holds secrets with sops+age and renders service env from .env.git plus .env.sops at deploy."
 ---
 
 # Spoke · Secrets
@@ -48,24 +48,24 @@ lab master key ──decrypts──▶ per-CT age key ──decrypts──▶ th
 - **Recreate re-injects the same identity**, so committed ciphertext stays valid — no re-encryption,
   no master key on the CT. Blast radius of a popped CT = that CT's secrets, not the lab.
 
-## The GitOps env materialization
+## Service env at deploy
 
-Arcane's GitOps projects do not merge `project.env` into the checked-out project. Their complete env
-source is in git:
+A service's complete env source is in git:
 
 - **`.env.git`** — non-secret defaults, committed plaintext.
 - **`.env.sops`** — secret values, encrypted to the lab age recipient.
-- **effective `.env`** — materialized `0600` by `scripts/gitops-deploy.sh` from `.env.git` plus
-  decrypted `.env.sops`, then consumed through each service's `env_file: .env`.
 
-Decryption happens on vm-skynet-ops; plaintext crosses only the SSH stream into the project file.
-Arcane owns reconciliation and project lifecycle, while the deploy wrapper owns env materialization.
+`skynet deploy` decrypts `.env.sops` on vm-skynet-ops from the git object (stdin to `sops`),
+joins it with `.env.git` (a key defined twice is refused), and writes the result `0600` into a
+tmpfs render directory that Compose reads for `env_file: .env` and interpolation. The resolved
+project goes to the Docker host on the deploy command's stdin; the render directory is deleted
+before the deploy returns. No `.env` exists on the Docker host — the values live only in the
+container configuration, as with any Compose env.
 
 ## Operations
 
 - **Deploy or restore:** [`deploy-service.md`](../../runbooks/deploy-service.md) and
-  [`restore-service.md`](../../runbooks/restore-service.md) invoke
-  [`gitops-deploy.sh`](../../scripts/gitops-deploy.sh) to materialize and validate the service env.
+  [`restore-service.md`](../../runbooks/restore-service.md) run `skynet deploy <svc>`.
 
 This is layer **L1** of the [backup model](../backup-strategy.md). Secrets are sops-encrypted in git
 or stored as the agent-readable restrictive local files above. Plaintext never enters git.

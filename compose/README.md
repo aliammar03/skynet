@@ -1,26 +1,25 @@
 ---
-summary: "The compose/ service catalog and the Arcane GitOps deployment loop every project follows."
+summary: "The compose/ service catalog and the skynet deploy loop every project follows."
 ---
 
-# compose — one dir per service, Arcane git-syncs each
+# compose — one dir per service, `skynet deploy` applies each
 
 ```
 compose/<service>/
-├── compose.yaml   # pinned image DIGESTS; env_file: .env; Arcane makes this read-only in its UI
-├── .env.git       # NON-secret config, committed plaintext — Arcane's git layer
+├── compose.yaml   # pinned image DIGESTS; env_file: .env; STRUCTURAL only
+├── .env.git       # NON-secret config, committed plaintext
 └── .env.sops      # secrets ONLY, sops+age (keys visible in diffs, values encrypted)
 ```
 
 **The canonical "skynet way" for every service** (the standard this repo enforces):
 digest-pinned images · `env_file: .env` · non-secret config in committed `.env.git` ·
-secrets only in `.env.sops` · **a healthcheck on every service** (below) · deployed via Arcane
-GitOps Sync from this repo. No inline compose config, no file-based `.txt` docker secrets. Deploy
-with `scripts/gitops-deploy.sh <svc>` — see `runbooks/deploy-service.md` for how the effective
-`.env` is materialised (Arcane GitOps does not merge `.env.git`/`project.env`).
+secrets only in `.env.sops` · **a healthcheck on every service** (below) · deployed by
+`skynet deploy` once merged. No inline compose config, no file-based `.txt` docker secrets. See
+`runbooks/deploy-service.md` and `docs/design/gitops-loop.md`.
 
 ### Healthchecks — one per service
 
-Every service **must** report health (so Arcane shows `(healthy)` and dependents can wait on
+Every service **must** report health (so `skynet deploy` can verify it and dependents can wait on
 `condition: service_healthy`). Either the image ships a built-in `HEALTHCHECK` (e.g. aiostreams,
 karakeep-web) or the compose declares one. Prefer a real endpoint probe; fall back to a TCP
 port-open when the image lacks an HTTP client. Use whatever tool the image actually has:
@@ -33,7 +32,7 @@ port-open when the image lacks an HTTP client. Use whatever tool the image actua
 | `bash` only | `["CMD","bash","-c","exec 3<>/dev/tcp/127.0.0.1/<port>"]` (TCP port-open) |
 
 Standard timing: `interval: 30s, timeout: 10s, retries: 3, start_period: 10–30s`.
-`gitops-deploy.sh` warns after every deploy if any service has no health status.
+A container without a healthcheck fails deployment verification, and the deploy rolls back.
 
 ### Volume standard — the decision (apply to EVERY mount a service needs)
 
@@ -53,8 +52,8 @@ Rules that make it unambiguous:
 
 ### Role tag — one `x-arcane` tag per service
 
-Every service declares **exactly one role tag** in its compose so Arcane's UI groups the fleet
-at a glance (Arcane applies `x-arcane.tags` automatically on GitOps sync — `sources: [compose]`):
+Every service declares **exactly one role tag** in its compose — its category, read by review and
+inventory. (Arcane applied these on Git Sync; with its sync off it no longer does.)
 
 ```yaml
 x-arcane:
@@ -73,8 +72,7 @@ Role → colour (keep it consistent so a colour always means the same role):
 | `bookmarks` | orange | karakeep |
 
 One role per service (it's a *category*, not a severity — no `critical`/`important` tags). New
-roles are fine; give each its own stable colour. `scripts/gitops-deploy.sh` reports the applied
-tag after every deploy and warns if a service is untagged.
+roles are fine; give each its own stable colour.
 
 ### Volume labels — the `skynet.*` namespace
 
@@ -91,18 +89,12 @@ Bind mounts need no labels (found by their `/opt/docker/appdata/<svc>/…` path)
 open to extend later (`skynet.backup: snapshot`, a `skynet.tier` for retention) without breaking
 `protect`/`ephemeral`.
 
-## How env reaches a container (Arcane GitOps)
+## How env reaches a container
 
-Arcane's GitOps sync copies `compose.yaml` (and the compose dir, incl. subdirs) and owns the
-project lifecycle, but it does **not** merge `.env.git`/`project.env` into `.env` — that layering
-only applies to Arcane's *non-GitOps* projects. A GitOps project just runs `docker compose`
-against whatever `.env` is on disk.
+`skynet deploy` renders the service on vm-skynet-ops: `.env.git` + `sops -d .env.sops` become a
+`0600` `.env` in a tmpfs directory, and Compose resolves the project (env inlined) to JSON that
+reaches the Docker host only on the deploy command's stdin. Every service still declares
+`env_file: .env` so those values reach it. No `.env` file exists on the Docker host.
 
-So `scripts/gitops-deploy.sh` **materialises** the effective `.env` = `.env.git` +
-`sops -d .env.sops`, written `0600` and owned by Arcane's project UID, decrypted on
-vm-skynet-ops. Every service still declares `env_file: .env` so those values reach it. Arcane
-leaves a populated `.env` untouched on re-sync; auto-sync only redeploys already-running projects
-(a stopped one updates on next manual start).
-
-Restore the selected `.env.git`/`.env.sops` revision with `scripts/gitops-deploy.sh <svc>`; the
-wrapper rematerializes the effective file and redeploys it.
+Redeploying an older revision (`skynet deploy <svc> --revision <merged-commit>`) brings its env
+with it; the verified revision is also what an automatic rollback returns to.

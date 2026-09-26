@@ -2,8 +2,8 @@
 summary: "Add Cloudflare Tunnel and public DNS exposure to an already-working internal route."
 trigger: "Expose an internally published service to the public internet"
 tier: "T2 PR-gated"
-executor: "cloudflared GitOps restart and guarded Cloudflare DNS saved-plan"
-rollback: "git revert ingress; public DNS deletion is a separate checkpoint"
+executor: "skynet deploy cloudflared, guarded Cloudflare DNS saved-plan, skynet publish"
+rollback: "git revert ingress; public DNS deletion is skynet withdraw (a separate checkpoint)"
 ---
 
 # Runbook — public tunnel
@@ -26,11 +26,9 @@ rollback: "git revert ingress; public DNS deletion is a separate checkpoint"
    ```
    `originServerName` makes Caddy select the hostname certificate.
 2. A forward-auth service also needs a public `auth.aliammar.net` route. Its Caddy vhost must reject tunnel traffic to `/if/admin/*` while leaving login APIs/flows accessible; include the app, auth route, and their CNAMEs in the PR. Require MFA or a passkey for the public Authentik account.
-3. Open the exposure PR and wait for Ali to merge. Restart the connector from merged source:
-   ```bash
-   scripts/gitops-deploy.sh cloudflared
-   ```
-   Confirm the tunnel is ready with four connections. The SSH Docker restart is break-glass only.
+3. Open the exposure PR (with `skynet deploy cloudflared --dry-run HEAD`) and wait for Ali to
+   merge. The timer redeploys cloudflared with the new `config.yml` (every revision recreates the
+   connector, so no manual restart). Confirm the tunnel is ready with four connections.
 4. Generate, show, approve, and apply the derived Cloudflare DNS plan:
    ```bash
    eval "$(scripts/tofu-env.sh)"
@@ -38,7 +36,9 @@ rollback: "git revert ingress; public DNS deletion is a separate checkpoint"
    tofu -chdir=tofu show -no-color /tmp/public-<svc>.tfplan
    TOFU_APPLY_SCOPE=cloudflare-dns scripts/tofu-apply.sh /tmp/public-<svc>.tfplan
    ```
-   The public CNAME is derived from ingress; internal split DNS remains separately managed. Do not use the break-glass DNS script for routine work.
+   The public CNAME is derived from ingress; internal split DNS remains separately managed.
+5. `skynet publish <svc>` — checks the front door and tunnel run `main`, reconciles Authentik for a
+   forward-auth vhost, probes the route, and reports the CNAME as `present` or `pending tofu apply`.
 
 ## Verify
 
@@ -46,7 +46,11 @@ rollback: "git revert ingress; public DNS deletion is a separate checkpoint"
 
 ## Rollback
 
-- Revert ingress through a PR and redeploy cloudflared. Public DNS deletion is destructive and remains a separately approved checkpoint.
+- Revert ingress through a PR; the timer redeploys cloudflared. Deleting the public CNAME is
+  destructive and separately approved: after the revert merges,
+  `skynet withdraw <svc>.aliammar.net --confirm <svc>.aliammar.net` deletes the CNAME (and any
+  Authentik objects), snapshotting what it removes. Then run a read-only `tofu plan` so refresh
+  confirms state and Cloudflare agree.
 
 ## Evidence
 

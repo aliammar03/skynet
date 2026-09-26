@@ -2,6 +2,8 @@
 # BOOTSTRAP component: deployed by hand, NOT reconciled by its own Git Sync (a controller must not
 # restart itself mid-reconcile). Captured here for rebuild-from-git (AGENTS.md §6) and to make it a
 # declared entity. It runs on the managed host; see README.md for its current deployment boundary.
+x-skynet:
+  deploy: manual   # `skynet deploy` refuses it and `--pending` skips it
 services:
   arcane:
     image: ghcr.io/getarcaneapp/manager:latest

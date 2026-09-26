@@ -1,5 +1,5 @@
 # Marinara Engine — the skynet way: structural only; all config/secrets in .env
-# (.env.git non-secret + .env.sops secrets, materialised by scripts/gitops-deploy.sh).
+# (.env.git non-secret + .env.sops secrets, rendered together by `skynet deploy`).
 x-arcane:
   tags:
     - name: ai

@@ -32,6 +32,11 @@ service with no gate of its own must use forward-auth before any public exposure
 sensitive infrastructure (`opnsense`, `technitium`, `arcane`, `pbs`, and similar services) through
 the apps Caddy door.
 
+Every leaf ends with `skynet publish <svc>`: it refuses until the front door (and tunnel, when
+public) run `main`, creates any Authentik forward-auth objects, and probes the route. Removing a
+published route's leftovers is `skynet withdraw <vhost> --confirm <vhost>`, after the route's
+removal is merged.
+
 ## Verify
 
 - The selected leaf matches the service's authentication and public-exposure requirement before editing a route.

@@ -33,7 +33,7 @@ rollback: "none; recon does not mutate"
    | hostname resolution failure | [`diagnose/dns-failure.md`](diagnose/dns-failure.md) |
    | TLS/ACME problem | [`diagnose/cert-expired.md`](diagnose/cert-expired.md) |
    | missing backup or failed backup timer | [`diagnose/backup-missed.md`](diagnose/backup-missed.md) |
-   | merged Compose change did not reconcile | [`diagnose/arcane-stuck.md`](diagnose/arcane-stuck.md) |
+   | merged Compose change is not running | [`diagnose/deploy-stuck.md`](diagnose/deploy-stuck.md) |
 
 ## Verify
 

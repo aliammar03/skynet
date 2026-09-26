@@ -11,10 +11,10 @@ services:
     image: TODO/image:vX.Y@sha256:TODO   # digest-pinned — never a floating :latest; Renovate bumps by PR
     hostname: __SVC__
     env_file:
-      - .env                 # REQUIRED — the materialised .env (.env.git + decrypt(.env.sops)) reaches here
+      - .env                 # REQUIRED — the rendered .env (.env.git + decrypt(.env.sops)) reaches here
     # No inline `environment:` — config lives in .env.git. The only exception is a structural key
     # that interpolates a secret (e.g. a computed REDIS_URL). — compose.md
-    healthcheck:             # REQUIRED on every service (so Arcane shows (healthy) & dependents can wait)
+    healthcheck:             # REQUIRED on every service (deploy verification needs it; dependents can wait)
       test: ["CMD", "TODO"]  #   match the probe to the image's tools — see the table in compose/README.md
       interval: 30s
       timeout: 10s

@@ -8,8 +8,8 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import NoReturn
 
-from skynet import (cache, certs, deployment, entities, gates, installed_version, memory, omada,
-                    planning, recon, render, routes, scaffold)
+from skynet import (cache, certs, deploy, deployment, entities, gates, installed_version, memory,
+                    omada, planning, publish, recon, render, routes, scaffold, writepath)
 from skynet.collection import CredentialFiles, collect_all, collection_status
 from skynet.dns import DEFAULT_CREDENTIALS as DNS_DEFAULT_CREDENTIALS, collect as collect_dns
 from skynet.doctor import write_report
@@ -39,34 +39,34 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("--repo", type=Path, default=Path.cwd())
     verification = commands.add_parser("verify", help="verify a live deployment without mutating it")
     verifiers = verification.add_subparsers(dest="verification", required=True)
-    deploy = verifiers.add_parser(
+    verify_deploy = verifiers.add_parser(
         "deployment", aliases=("deploy",),
-        help="verify one Arcane GitOps service, its containers, and declared ingress routes",
+        help="is a revision what runs: labels, health, and declared routes (report-only)",
     )
-    deploy.add_argument("service", help="Compose service/project name")
-    deploy.add_argument("expected_revision", help="full 40-hex Git commit expected live")
-    deploy.add_argument(
-        "--credentials-file", "--arcane-credentials", "--arcane-credentials-file",
-        type=Path, dest="credentials_file", default=deployment.DEFAULT_CREDENTIALS,
-        help="literal ARCANE_URL/ARCANE_TOKEN[/ARCANE_AUTH_HEADER/ARCANE_ENV_ID] assignments",
-    )
-    deploy.add_argument(
-        "--context", "--docker-context", dest="docker_context", default=deployment.DEFAULT_CONTEXT,
-        help="read-only Docker context used for project and DMZ probes",
-    )
-    deploy.add_argument(
-        "--environment-id", "--env-id", dest="environment_id",
-        help="Arcane environment id (defaults to ARCANE_ENV_ID or 0)",
-    )
-    deploy.add_argument(
-        "--repo", type=Path, default=Path.cwd(),
-        help="checkout containing compose/caddy-apps/Caddyfile (default: current directory)",
-    )
-    deploy.add_argument(
-        "--timeout", type=float, default=deployment.DEFAULT_TIMEOUT,
-        help="per-observation timeout in seconds (1–300)",
-    )
-    deploy.add_argument("--json", action="store_true", dest="json_output")
+    verify_deploy.add_argument("service", help="compose/<service> project name")
+    verify_deploy.add_argument("revision", nargs="?",
+                               help="commit expected live (default: the running skynet.revision)")
+    _write_options(verify_deploy, state=False)
+    deploy_command = commands.add_parser(
+        "deploy", help="apply merged compose/<svc>/ revisions to the Docker host (T2 write)")
+    deploy_target = deploy_command.add_mutually_exclusive_group(required=True)
+    deploy_target.add_argument("service", nargs="?", help="compose/<service> project name")
+    deploy_target.add_argument("--pending", action="store_true",
+                        help="deploy every service whose merged revision is not the one running")
+    deploy_command.add_argument("--revision", help="a merged commit (default: newest touching the service)")
+    deploy_command.add_argument("--dry-run", nargs="?", const="HEAD", metavar="REF",
+                                help="print the effect of REF (default HEAD) against what runs; no write")
+    _write_options(deploy_command)
+    publish_command = commands.add_parser(
+        "publish", help="make a service's declared routes real: Authentik objects + probes (T2 write)")
+    publish_command.add_argument("service", help="compose/<service> whose vhosts to publish")
+    publish_command.add_argument("--dry-run", action="store_true")
+    _write_options(publish_command)
+    withdraw_command = commands.add_parser(
+        "withdraw", help="delete a removed vhost's Authentik objects and public CNAME (gated delete)")
+    withdraw_command.add_argument("vhost", help="the full hostname, already removed from git")
+    withdraw_command.add_argument("--confirm", required=True, help="repeat the vhost exactly")
+    _write_options(withdraw_command)
     collection = commands.add_parser("collect", help="collect observations, not service health")
     sources = collection.add_subparsers(dest="source", required=True)
     all_sources = sources.add_parser("all", help="refresh inventory with per-collector outcomes")
@@ -240,19 +240,25 @@ def main(argv: Sequence[str] | None = None) -> int:
     if arguments.command == "check":
         return gates.run(arguments.repo, sys.stdout, sys.stderr)
     if arguments.command == "verify":
-        if arguments.verification in {"deployment", "deploy"}:
-            return deployment.run(
-                arguments.service,
-                arguments.expected_revision,
-                arguments.credentials_file,
-                arguments.docker_context,
-                arguments.repo,
-                environment_id=arguments.environment_id,
-                timeout=arguments.timeout,
-                json_output=arguments.json_output,
-                stdout=sys.stdout,
-            )
-        return _unreachable_command(arguments.verification)
+        return deploy.run_verify(arguments.repo, arguments.service, arguments.revision,
+                                 context=arguments.docker_context,
+                                 json_output=arguments.json_output, stdout=sys.stdout)
+    if arguments.command == "deploy":
+        if arguments.pending and (arguments.revision or arguments.dry_run):
+            print("deploy: --pending takes no --revision or --dry-run", file=sys.stderr)
+            return 2
+        return deploy.run_deploy(arguments.repo, arguments.service, revision=arguments.revision,
+                                 dry_run_ref=arguments.dry_run, pending_all=arguments.pending,
+                                 context=arguments.docker_context, state_dir=arguments.state_dir,
+                                 json_output=arguments.json_output, stdout=sys.stdout)
+    if arguments.command == "publish":
+        return publish.run(arguments.repo, arguments.service, context=arguments.docker_context,
+                           state_dir=arguments.state_dir, dry_run=arguments.dry_run,
+                           json_output=arguments.json_output, stdout=sys.stdout)
+    if arguments.command == "withdraw":
+        return publish.run_withdraw(arguments.repo, arguments.vhost, arguments.confirm,
+                                    context=arguments.docker_context, state_dir=arguments.state_dir,
+                                    json_output=arguments.json_output, stdout=sys.stdout)
     if arguments.command == "collect":
         if arguments.source == "all":
             files = CredentialFiles(
@@ -309,6 +315,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"recall: {error}", file=sys.stderr)
             return error.code
     return _unreachable_command(arguments.command)
+
+
+def _write_options(parser: argparse.ArgumentParser, *, state: bool = True) -> None:
+    """Options every Docker write path (and its verifier) shares."""
+    parser.add_argument("--repo", type=Path, default=Path.cwd(), help="the skynet checkout")
+    parser.add_argument("--context", dest="docker_context", default=deployment.DEFAULT_CONTEXT,
+                        help="Docker context of the target host")
+    if state:
+        parser.add_argument("--state-dir", type=Path, default=writepath.DEFAULT_STATE_DIR,
+                            help="operation record and write lock")
+    parser.add_argument("--json", action="store_true", dest="json_output")
 
 
 def _run_query(repo: Path, statement: str, output_format: str, no_header: bool) -> int:
@@ -394,8 +411,8 @@ def _run_new(arguments: argparse.Namespace) -> int:
     try:
         if arguments.kind == "service":
             path = scaffold.service(repo, arguments.name)
-            print(f"created {path}/ — fill every TODO, then deploy: "
-                  f"scripts/gitops-deploy.sh {path.name}")
+            print(f"created {path}/ — fill every TODO, open the PR with "
+                  f"`skynet deploy {path.name} --dry-run`; after merge: skynet deploy {path.name}")
         elif arguments.kind == "script":
             path = scaffold.script(repo, arguments.name)
             print(f"created {path} — fill the header (purpose/tier/usage) and the body")

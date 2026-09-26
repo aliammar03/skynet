@@ -52,7 +52,7 @@ Never delete an app volume to make space — back it up first ([backup-missed](b
 ### Fix declaratively
 
 - **Runaway container logs** → add `logging: {driver: json-file, options: {max-size: "10m", max-file: "3"}}`
-  to `compose/<svc>/` → PR → Arcane reconciles.
+  to `compose/<svc>/` → PR → merge deploys it.
 - **Journal** → journald drop-in in the host's config module.
 - **Genuinely out of room** → resize the disk via the declared infra (tofu/Proxmox) under a
   **narrowest-host, shortest-duration** grant, then reconcile inventory.

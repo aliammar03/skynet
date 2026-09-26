@@ -2,15 +2,15 @@
 summary: "Publish a service with no native login behind Authentik forward-auth on apps Caddy."
 trigger: "Put a no-login service behind Authentik"
 tier: "T2 PR-gated"
-executor: "apps Caddy GitOps, guarded DNS saved-plan, scoped Authentik API"
-rollback: "git revert the route; Authentik/DNS deletion is separately approved"
+executor: "skynet deploy caddy-apps, skynet publish, guarded DNS saved-plan"
+rollback: "git revert the route, then skynet withdraw (separately approved)"
 ---
 
 # Runbook — internal route (Authentik forward-auth)
 
 **Tier:** T2 (PR-gated) for the Caddy route, DNS, and scoped Authentik Applications/Providers
-operations. **Executor:** apps Caddy GitOps sync, the guarded DNS plan, and the scoped Authentik
-API. **Rollback:** revert the route by PR; remove Authentik objects only as an explicitly approved
+operations. **Executor:** `skynet deploy caddy-apps`, `skynet publish` (scoped Authentik API), and
+the guarded DNS plan. **Rollback:** revert the route by PR; remove Authentik objects only as an explicitly approved
 separate action.
 
 Design context: [`../../docs/design/identity-and-proxy.md`](../../docs/design/identity-and-proxy.md).
@@ -27,9 +27,8 @@ Design context: [`../../docs/design/identity-and-proxy.md`](../../docs/design/id
   outposts, but cannot manage flows, users, policies, settings, keys, or other T3 objects.
 - The Authentik embedded proxy outpost exists and is served by Authentik at
   `10.10.80.37:9000`.
-- Only apps Caddy (`10.10.100.35`) can reach Authentik (firewall rule 240). Run API calls from
-  inside `caddy-apps-caddy-1`; feed the token through stdin to `curl -K -`, or read it inside the
-  container. Never put it in argv, a committed file, or evidence.
+- Only apps Caddy (`10.10.100.35`) can reach Authentik (firewall rule 240); `skynet publish` calls
+  the API from inside `caddy-apps-caddy-1`.
 
 ## Steps
 
@@ -54,66 +53,27 @@ Design context: [`../../docs/design/identity-and-proxy.md`](../../docs/design/id
      caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
    ```
 
-2. Open a PR describing the service, origin `IP:port`, Authentik protection, and URL. Ali merges
-   it. Do not create the provider or application from an unmerged proposal; the route fails closed
-   until its provider exists.
+2. Open a PR describing the service, origin `IP:port`, Authentik protection, and URL (with
+   `skynet deploy caddy-apps --dry-run HEAD`). Ali merges it; the timer deploys `caddy-apps`. The
+   route fails closed until its provider exists.
 
-3. After the merge, use the scoped token from inside `caddy-apps-caddy-1` to list proxy providers:
-
-   ```text
-   GET /api/v3/providers/proxy/
-   ```
-
-   Copy `authorization_flow` and `invalidation_flow` UUIDs from an existing provider. The token
-   cannot list flows because flows are T3.
-
-4. Create the per-service `forward_single` proxy provider:
-
-   ```text
-   POST /api/v3/providers/proxy/
-   {
-     "name": "<svc>",
-     "mode": "forward_single",
-     "external_host": "https://<svc>.aliammar.net",
-     "authorization_flow": "<uuid>",
-     "invalidation_flow": "<uuid>"
-   }
-   ```
-
-   Keep the returned provider primary key (`pk`). Perform this and the following calls from the
-   Caddy container, with the bearer header supplied through stdin rather than argv.
-
-5. Create the application bound to that provider:
-
-   ```text
-   POST /api/v3/core/applications/
-   {
-     "name": "<Svc>",
-     "slug": "<svc>",
-     "provider": <pk>,
-     "meta_launch_url": "https://<svc>.aliammar.net"
-   }
-   ```
-
-6. Find the embedded outpost and preserve its current provider list:
-
-   ```text
-   GET /api/v3/outposts/instances/
-   PATCH /api/v3/outposts/instances/<outpost-pk>/
-   {"providers":[<existing…>, <pk>]}
-   ```
-
-   Never replace the existing entries with only the new provider; that would unbind every other
-   application. The outpost should pick up the provider within seconds. Sanity-check from the
-   Caddy container:
+3. Publish it — this creates the Authentik objects git cannot hold, then proves the route:
 
    ```bash
-   docker exec caddy-apps-caddy-1 curl -sI -H "Host: <svc>.aliammar.net" \
-     http://10.10.80.37:9000/outpost.goauthentik.io/auth/caddy
-   # expect 302 -> auth.aliammar.net
+   skynet publish <svc> --dry-run   # which vhosts, which need Authentik objects
+   skynet publish <svc>
    ```
 
-7. Create the internal DNS record from the merged revision and apply only the approved saved plan:
+   It refuses unless `caddy-apps` runs `main`. For each forward-auth vhost of the service it
+   creates, only if missing, a `forward_single` proxy provider (flows copied from an existing
+   one; the token cannot list flows), the application (slug = the vhost's first label), and the
+   binding on the embedded outpost — appending to its provider list, never replacing it. It then
+   probes the vhost anonymously and requires a `302` to `https://auth.aliammar.net/`, retrying
+   while the outpost picks the provider up. If the probe fails, it deletes only the objects it
+   created and restores the outpost's list. The token travels on stdin into `curl -K -` inside
+   `caddy-apps-caddy-1` (firewall rule 240), never in argv.
+
+4. Create the internal DNS record from the merged revision and apply only the approved saved plan:
 
    ```bash
    eval "$(scripts/tofu-env.sh)"
@@ -124,16 +84,8 @@ Design context: [`../../docs/design/identity-and-proxy.md`](../../docs/design/id
 
 ## Verify
 
-From a peer DMZ container, an unauthenticated request must redirect to Authentik and must not
-serve the application:
-
-```bash
-ssh svc-ops@10.10.100.15 "docker exec <some-dmz-container> \
-  curl -sI --resolve <svc>.aliammar.net:443:10.10.100.35 https://<svc>.aliammar.net"
-```
-
-Expect `302` with a `Location` at `https://auth.aliammar.net/...`. In a browser, confirm the full
-sequence: unauthenticated → Authentik login → service. Also confirm the split-DNS record:
+`skynet publish <svc>` already proved the anonymous `302` to Authentik. In a browser, confirm the
+full sequence: unauthenticated → Authentik login → service. Also confirm the split-DNS record:
 
 ```bash
 dig +short <svc>.aliammar.net @10.10.70.50  # expect 10.10.100.35
@@ -141,13 +93,14 @@ dig +short <svc>.aliammar.net @10.10.70.50  # expect 10.10.100.35
 
 ## Rollback
 
-Revert the Caddyfile block by PR and let Arcane reconcile. Authentik and DNS deletion are separate
-hard checkpoints; do not send delete plans through `scripts/tofu-apply.sh`. If cleanup is approved,
-remove the application first and provider second with scoped-token calls. Leave the Technitium
-record visible until its compliant delete path exists.
+Revert the Caddyfile block by PR; the timer deploys the previous route. Deleting the Authentik
+objects (and any public CNAME) is a separate hard checkpoint: once approved and the revert is on
+`main`, run `skynet withdraw <svc>.aliammar.net --confirm <svc>.aliammar.net`. Do not send delete
+plans through `scripts/tofu-apply.sh`; leave the Technitium record visible until its compliant
+delete path exists.
 
 ## Evidence
 
-Record the PR and merge commit, Caddy validation, provider/application/outpost response identifiers
-(not tokens), saved DNS plan and approval, outpost redirect, peer-DMZ `302`, browser login result,
+Record the PR and merge commit, Caddy validation, the `skynet publish` output (created objects,
+probe result), saved DNS plan and approval, browser login result,
 and internal `dig` output. Redact all credentials and bearer headers.

@@ -69,14 +69,12 @@ outside the version-controlled auto-approve list.
 
 ## Deployment verification
 
-The packaged command
-`skynet verify deployment <service> <full-revision>` is the report-only observer for one Arcane
-GitOps service. It requires the supplied full 40-hex revision to match exactly in the selected
-service's unambiguous successful Git Sync and running Arcane project. The project must report
-positive equal service/running counts. The sync identity must match the service and
-`compose/<service>/compose.yaml`, and the project must be bound to that sync. The read-only Docker
-observation must be non-empty, identity-matched, and count-equal. Every observed container must be
-running and report `healthy`; a missing healthcheck is a failed verification.
+`skynet verify deployment <service> [<revision>]` is the report-only observer `skynet deploy` also
+runs after every apply. The expected Compose services come from rendering the service at the
+revision (default: the running `skynet.revision` label). Through Docker context `docker-dmz`,
+every expected service must have a container, and every container in the project must carry that
+exact `skynet.revision`, be running, and report `healthy`; a missing healthcheck, a stray
+container, or a missing service fails verification.
 
 Before probing, the verifier validates the complete canonical route snapshot. Duplicate, malformed,
 partial, or case-ambiguous route evidence fails closed. Declared routes for the service are probed
@@ -87,14 +85,13 @@ TLS must verify and the HTTP response must be 100–499; authentication response
 401 are reachable outcomes. A service with no declared route is reported as `skipped`, not as an
 unprobed success.
 
-Verification never deploys, restarts, rolls back, edits Git, or changes persistent Arcane/Docker
+Routes are read from the Caddyfile at the revision the front door runs (its own
+`skynet.revision`), falling back to `origin/main`.
+
+Verification never deploys, restarts, rolls back, edits Git, or changes persistent Docker
 configuration. A routed probe creates and removes one ephemeral container and may pull/cache the
-pinned image. Deployment source selection, sync/retry/wait behavior, environment materialization,
-redeploy/restart, and rollback preparation remain owned by the GitOps deployment and recovery
-procedures. When `gitops-deploy.sh --gate` is used, it resolves the exact local head of the selected
-`GITOPS_BRANCH` (default `main`) and passes that revision through the compatibility
-`scripts/deploy-gate.sh`; recovery instead supplies a separate authored `<deploy-commit>` to
-`gitops-rollback.sh --prepare`.
+pinned image. Acting on a failed verification belongs to `skynet deploy` (see
+[gitops-loop](gitops-loop.md)).
 
 ## Episodic memory — see the memory spoke
 

@@ -2,13 +2,14 @@
 summary: "Publish an own-auth service on the internal apps Caddy front door."
 trigger: "Give an authenticated service an internal aliammar.net URL"
 tier: "T2 PR-gated"
-executor: "apps Caddy GitOps sync and guarded DNS saved-plan"
+executor: "skynet deploy caddy-apps, guarded DNS saved-plan, skynet publish"
 rollback: "git revert the Caddyfile route; DNS deletion is a separate checkpoint"
 ---
 
 # Runbook — internal route (own-auth)
 
-**Tier:** T2 (PR-gated). **Executor:** apps Caddy GitOps sync plus the guarded DNS plan.
+**Tier:** T2 (PR-gated). **Executor:** `skynet deploy caddy-apps`, the guarded DNS plan, and
+`skynet publish`.
 **Rollback:** revert the Caddyfile change by PR; leave the DNS record in place unless a compliant
 delete path is separately approved.
 
@@ -63,9 +64,9 @@ Design context: [`../../docs/design/identity-and-proxy.md`](../../docs/design/id
    TOFU_APPLY_SCOPE=technitium-dns scripts/tofu-apply.sh /tmp/publish-<svc>.tfplan
    ```
 
-5. Let Arcane sync the merged Caddyfile. Caddy runs with `--watch`, so a route-only change hot
-   reloads without a container recreate. Run `scripts/gitops-deploy.sh caddy-apps` only to force
-   an immediate sync or after a compose change.
+5. The timer deploys the merged `caddy-apps` revision (the container is recreated with the new
+   Caddyfile; a Caddy that fails its healthcheck rolls back by itself). Then run
+   `skynet publish <svc>`: it checks the front door runs `main` and probes the route.
 
 6. Check the origin's proxy-facing behavior before declaring success. If it allow-lists clients,
    it must allow apps Caddy (`10.10.100.35`) and its forwarded clients in the service's own
@@ -95,7 +96,7 @@ dig +short <svc>.aliammar.net @10.10.70.50  # expect 10.10.100.35
 
 ## Rollback
 
-Revert the Caddyfile block in a PR and let Arcane reconcile the previous route. Removing the
+Revert the Caddyfile block in a PR; the timer deploys the previous route. Removing the
 derived Technitium record is a separate delete hard checkpoint: `scripts/tofu-apply.sh` refuses
 delete plans and the current zone token lacks record-delete. Do not bypass either guard; leave an
 unused record visible until a compliant deletion path is approved.

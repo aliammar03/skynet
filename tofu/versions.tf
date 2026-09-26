@@ -16,7 +16,7 @@ terraform {
       version = "~> 0.4.0"
     }
     # Public DNS records in aliammar.net only (the per-host tunnel CNAMEs),
-    # via the scoped Zone:DNS:Edit token. Same T2 scope as scripts/cf-dns-route.sh — account / Access /
+    # via the scoped Zone:DNS:Edit token. Same T2 scope as `skynet withdraw` — account / Access /
     # tunnel config / zone settings stay T3. Per-record: undeclared records (minki, verifications) are
     # left untouched.
     cloudflare = {
