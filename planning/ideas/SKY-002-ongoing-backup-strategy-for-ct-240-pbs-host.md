@@ -81,7 +81,7 @@ Run this every time a phase finishes successfully — it's what makes the next s
 - [ ] Land the work via **PR** (agent never merges its own).
 - [ ] In the phase PR: journal episode only if something non-obvious happened; `bin/check` green.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
-- [ ] `bin/plan list` to refresh the roadmap index.
+- [ ] `skynet plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:
 ```
 Continue planning/projects/SKY-002-ongoing-backup-strategy-for-ct-240-pbs-host.md at Phase <N+1>.
@@ -93,5 +93,5 @@ Follow AGENTS.md as above.
 - 2026-08-16 — created (draft) from the A6 update-guests drill finding: CT 240 has no ongoing backup
   and can't be snapshotted. Proposed restic-to-gdrive (Option B). See [[skynet-backups]], [[skynet-a6-next]].
 - 2026-08-16 — **renumbered SKY-001 → SKY-002.** This directive was minted SKY-001 by mistake right
-  after A6; SKY-001 is reassigned to the system-design rework (`planning/projects/SKY-001-*`). ID moved
+  after A6; SKY-001 is reassigned to the system-design rework (`planning/archive/SKY-001-*`). ID moved
   before any progress record existed, so nothing external pointed at the old number.

@@ -12,7 +12,7 @@ tier_touched: [T1, T2, T2+]   # recon is T1; diagnosis uses existing root grants
 related:
   - runbooks/README.md
   - docs/design/access-and-trust.md
-  - planning/scratchpad/2026-08-17-declarative-future-and-agent-cognition.md
+  - journal/2026/2026-08-17-session-declarative-future-and-agent-cognition.md
   - "[[skynet-service-standard]]"
 ---
 
@@ -85,7 +85,7 @@ and ending in an incident record in `journal/`. Exit: ≥4 failure classes
 have a triage runbook.
 **Shipped:** `runbooks/diagnose/` — **6** triage runbooks (container-crashloop, disk-full, dns-failure,
 cert-expired, backup-missed, arcane-stuck), each with confirm → diagnose (commands + decision-branch
-table) → **fix declaratively** → `bin/new journal incident`. Catalogued in `runbooks/README.md`;
+table) → **fix declaratively** → `skynet new journal incident`. Catalogued in `runbooks/README.md`;
 `recon.md`'s branch-to-diagnosis list is now live links (no dangling forward-ref). Exit cleared (6 ≥ 4).
 
 ### Phase 3 — lab bench + fix principle  (~1–2h)   `[ ]` not started · **DEFERRED**
@@ -111,7 +111,7 @@ steps. When the phase's exit criteria are met, do the "Phase close-out" at the b
 - [ ] Land the work via **PR** (agent never merges its own).
 - [ ] In the phase PR: journal episode only if something non-obvious happened; `bin/check` green.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
-- [ ] `bin/plan list` to refresh the roadmap index.
+- [ ] `skynet plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:
 ```
 Continue planning/projects/SKY-005-imperative-ops-discipline-recon-toolkit-diagnosis-library-lab-bench.md at Phase <N+1>.

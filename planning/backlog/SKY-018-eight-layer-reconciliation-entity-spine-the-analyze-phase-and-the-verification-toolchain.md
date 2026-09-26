@@ -17,8 +17,8 @@ related:
   - planning/ideas/SKY-017-the-road-to-full-agent-control-verification-proving-ground-and-an-evidence-earned-ratchet.md
   - planning/ideas/SKY-004-reactive-operations-event-driven-layer-drift-as-signal.md
   - planning/ideas/SKY-015-inventory-renderer-overhaul-proxy-aware-service-annotation-canonical-host-map-reverse-proxy-route-inventory.md
-  - planning/scratchpad/research/2026-08-28-complete-system-and-ansible.md
-  - planning/scratchpad/research/2026-08-28-full-agent-control-options.md
+  - journal/2026/2026-08-28-session-complete-system-and-ansible.md
+  - journal/2026/2026-08-28-session-full-agent-control-options.md
 ---
 
 # SKY-018 · Eight-layer reconciliation: entity spine, the Analyze phase, and the verification toolchain
@@ -31,7 +31,7 @@ related:
 > health-gated deploy wrapper, SQLite-as-cache, the journal as a replay log — land where they belong.
 > SKY-017 buys autonomy with evidence; **this directive builds the thing the evidence is about.**
 
-> **Status: idea.** Long horizon, twelve phases. Promote with `bin/plan start SKY-018`.
+> **Status: idea.** Long horizon, twelve phases. Promote with `skynet plan start SKY-018`.
 
 ## 0. What this directive owns (and what it doesn't)
 
@@ -461,7 +461,7 @@ stop and wait there. When the phase's exit criteria are met, do the "Phase close
 - [ ] Land the work via **PR** (agent never merges its own).
 - [ ] In the phase PR: journal episode only if something non-obvious happened; `bin/check` green.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
-- [ ] `bin/plan list` to refresh the roadmap index.
+- [ ] `skynet plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:
 ```
 Continue planning/projects/SKY-018-eight-layer-reconciliation-entity-spine-the-analyze-phase-and-the-verification-toolchain.md at Phase <N+1>.

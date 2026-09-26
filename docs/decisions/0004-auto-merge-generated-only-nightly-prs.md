@@ -7,8 +7,8 @@
 
 The current constitutional dial requires human merge for every PR. GitHub CI and automated
 repository tests are absent during SKY-025, so the evidence required for unattended merge does not
-exist. `scripts/nightly-automerge.sh` is a fail-closed compatibility stub, and
-`OPS_NIGHTLY_AUTOMERGE` has no enabling effect during the embargo.
+exist. The fail-closed `scripts/nightly-automerge.sh` stub was deleted in SKY-025 Phase 11; the
+nightly leaves every PR open, and `OPS_NIGHTLY_AUTOMERGE` has no effect.
 
 This ADR originally addressed a backlog of mechanical nightly PRs. The nightly writes refreshed
 `inventory/`, re-rendered `docs/generated/`, append-only journal evidence, and sometimes encrypted
@@ -52,8 +52,8 @@ it is not the current enforcement mechanism.
 The capability was first placed only in `scripts/nightly.sh`. On 2026-08-30 it was extracted into
 `scripts/nightly-automerge.sh` so both deterministic and agent-assisted nightly paths could call one
 literal path/CI/head gate. That plumbing drained generated-only backlog PRs #113, #115, and #116.
-The current embargo replaces that executor with the fail-closed stub without erasing the rationale or
-the safeguards a future implementation must recover.
+The embargo first replaced that executor with a fail-closed stub, then deleted it; this record keeps
+the rationale and the safeguards a future implementation must recover.
 
 ## Consequences
 

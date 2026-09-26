@@ -83,7 +83,7 @@ done < <(jq -r '.secret_patterns.patterns[].pattern' "${INV}")
 # excluded_guests). Reuse it rather than re-implementing the join here.
 echo "== every running entity is mapped or a declared exception =="
 before=${fail}
-if audit_out="$(./scripts/audit-entities.sh 2>&1)"; then
+if audit_out="$(PYTHONPATH=src${PYTHONPATH:+:${PYTHONPATH}} python3 -m skynet.entities audit --repo . 2>&1)"; then
   ok "every running guest & service is mapped or a declared exception"
 else
   violation "running entities with no home — map each (a firewall/DNS host fact, or a compose/<svc>/ dir) or declare it in invariants.json entity_conventions.exceptions:"
@@ -118,7 +118,7 @@ for aclf in inventory/proxmox-*-acl.json; do
   fi
 done
 if [ "${acl_seen}" -eq 0 ]; then
-  ok "no proxmox-*-acl.json in inventory yet — acl audit idle (run scripts/collect-proxmox-acl.sh)"
+  ok "no proxmox-*-acl.json in inventory yet — acl audit idle (run skynet collect proxmox-acl <core|network>)"
 elif [ "${fail}" -eq "${before}" ]; then
   ok "operate token: no bright-line privilege anywhere; /vms-root only on declared node(s) [${vms_root_nodes[*]}]"
 fi

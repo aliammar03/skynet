@@ -12,7 +12,6 @@ enumerated GETs plus the read-only search POSTs.
 """
 
 import base64
-import http.client
 import json
 import re
 import ssl
@@ -23,8 +22,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, TextIO, cast
 
-from skynet.pbs import HTTPSConnection, _sni_from_certificate
-from skynet.proxmox import CollectionError, publish
+from skynet import common
+from skynet.common import CollectionError
 
 DEFAULT_CREDENTIALS = Path("/opt/skynet-ops/secrets/opnsense.env")
 TIMEOUT = 25
@@ -47,60 +46,25 @@ class Credentials:
     context: ssl.SSLContext
 
 
-def _literal_assignments(path: Path) -> dict[str, str]:
-    try:
-        contents = path.read_text(encoding="utf-8")
-    except (OSError, UnicodeError, ValueError):
-        raise CollectionError("credentials unavailable", 3) from None
-    values: dict[str, str] = {}
-    for line in contents.splitlines():
-        if not line.strip() or line.lstrip().startswith("#"):
-            continue
-        match = re.fullmatch(
-            r"\s*(OPN_HOST|OPN_USER|OPN_KEY|OPN_SECRET|OPN_PORT|OPN_CACERT|OPN_SNI)="
-            r"(?:'([^']*)'|\"([^\"]*)\"|([^\s'\"]+))\s*(?:#.*)?", line,
-        )
-        if not match:
-            raise CollectionError("invalid credential assignments", 3)
-        key = match[1]
-        value = next(item for item in match.groups()[1:] if item is not None)
-        # The key/secret are quoted base64-style values; forbid only control characters, never eval.
-        if key in values or not value or any(ord(char) < 32 or ord(char) == 127 for char in value):
-            raise CollectionError("invalid credential assignments", 3)
-        values[key] = value
-    if not {"OPN_HOST", "OPN_KEY", "OPN_SECRET", "OPN_CACERT"} <= values.keys():
-        raise CollectionError("required credentials missing", 3)
-    return values
-
-
 def credentials(path: Path) -> Credentials:
     """Parse literal OPNsense credentials and derive the pinned-cert SNI and Basic authorization."""
-    values = _literal_assignments(path)
-    host = values["OPN_HOST"]
-    if not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?", host):
-        raise CollectionError("invalid credential host", 3)
-    try:
-        port = int(values.get("OPN_PORT", "443"))
-    except ValueError:
-        raise CollectionError("invalid credential port", 3) from None
-    if not 1 <= port <= 65535:
-        raise CollectionError("invalid credential port", 3)
+    values = common.read_assignments(
+        path, ("OPN_HOST", "OPN_USER", "OPN_KEY", "OPN_SECRET", "OPN_PORT", "OPN_CACERT", "OPN_SNI"),
+        ("OPN_HOST", "OPN_KEY", "OPN_SECRET", "OPN_CACERT"))
+    host = common.require_host(values["OPN_HOST"])
+    port = common.port(values.get("OPN_PORT", "443"))
     key, secret = values["OPN_KEY"], values["OPN_SECRET"]
-    if any(ord(char) < 33 or ord(char) > 126 for char in key + secret):
+    if not common.printable(key + secret):
         raise CollectionError("invalid credential key", 3)
     cafile = values["OPN_CACERT"]
-    try:
-        context = ssl.create_default_context(cafile=cafile)
-    except (OSError, ssl.SSLError, ValueError):
-        raise CollectionError("CA unavailable or invalid", 3) from None
+    context = common.ca_context(cafile)
     configured_sni = values.get("OPN_SNI")
-    if configured_sni is not None and not re.fullmatch(
-            r"[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?", configured_sni):
-        raise CollectionError("invalid certificate name", 3)
+    if configured_sni is not None:
+        common.require_host(configured_sni, "invalid certificate name")
     # Derive the SNI from the pinned certificate so a stale configured name cannot break trust.
     # OPN_SNI remains a compatibility fallback only when no certificate name is available.
     try:
-        sni = _sni_from_certificate(cafile, host)
+        sni = common.sni_from_certificate(cafile, host)
     except CollectionError:
         sni = configured_sni or host
     authorization = "Basic " + base64.b64encode(f"{key}:{secret}".encode()).decode()
@@ -109,32 +73,13 @@ def credentials(path: Path) -> Credentials:
 
 def _read(settings: Credentials, method: str, path: str, body: bytes | None) -> dict[str, Any]:
     """One pinned GET or read-only search POST; no redirect handling, key only in the header."""
-    connection = None
     headers = {"Authorization": settings.authorization}
     if body is not None:
         headers["Content-Type"] = "application/json"
-    try:
-        connection = HTTPSConnection(settings.host, settings.port, settings.context,
-                                     settings.sni, TIMEOUT)
-        connection.request(method, "/api/" + path, body=body, headers=headers)
-        response = connection.getresponse()
-        if response.status != 200:
-            raise CollectionError("remote HTTP request refused (redirects disabled)", 3)
-        raw = response.read()
-    except (OSError, http.client.HTTPException, ValueError):
-        raise CollectionError("remote transport unavailable (timeout, TLS or connection)", 3) from None
-    finally:
-        if connection is not None:
-            try:
-                connection.close()
-            except OSError:
-                raise CollectionError("remote connection close failed", 3) from None
-    try:
-        payload = json.loads(raw)
-    except (ValueError, UnicodeError):
-        raise CollectionError("malformed API JSON") from None
-    if not isinstance(payload, dict):
-        raise CollectionError("missing API data")
+    connection = common.SNIConnection(settings.host, settings.port, settings.context,
+                                      settings.sni, TIMEOUT)
+    raw, _ = common.request(connection, method, "/api/" + path, headers=headers, body=body)
+    payload = common.json_object(raw)
     if "error" in payload or "errors" in payload:
         raise CollectionError("API returned an error")
     return payload
@@ -411,32 +356,19 @@ def snapshot(settings: Credentials) -> tuple[dict[str, Any], dict[str, Any]]:
     return config, live
 
 
+def run(firewall_output: Path, state_output: Path, credentials_file: Path) -> common.Result:
+    """Collect one paired OPNsense observation; reads preserve both, publication may not."""
+    # Both snapshots are fully validated before either is written, so a failed read leaves both
+    # destinations untouched. Separate atomic replacements may partially publish; the default
+    # path's paired markers gate freshness until both are finalized.
+    return common.run(
+        "opnsense", (firewall_output, state_output),
+        lambda: snapshot(credentials(credentials_file)),
+        lambda config, live: {"aliases": len(config["aliases"]), "rules": len(config["rules"]),
+                              "arp": len(live["arp"]), "interfaces": len(live["interfaces"])},
+    )
+
+
 def collect(firewall_output: Path, state_output: Path, credentials_file: Path, *,
             json_output: bool, stdout: TextIO) -> int:
-    """Collect one paired OPNsense observation; reads preserve both, publication may not."""
-    report: dict[str, Any] = {"target": "opnsense",
-                              "output": {"firewall": str(firewall_output), "state": str(state_output)}}
-    try:
-        config, live = snapshot(credentials(credentials_file))
-        # Both snapshots are fully validated before either is written, so a failed read leaves
-        # both destinations untouched. Separate atomic replacements may partially publish; the
-        # default path's paired markers gate freshness until both are finalized.
-        publish(firewall_output, config)
-        publish(state_output, live)
-    except CollectionError as error:
-        report.update(outcome="unavailable" if error.code == 3 else "failure",
-                      reason=f"{error}; refresh failed; any retained snapshots are previous evidence")
-        code = error.code
-    else:
-        report.update(outcome="success", collected=config["collected"], counts={
-            "aliases": len(config["aliases"]), "rules": len(config["rules"]),
-            "arp": len(live["arp"]), "interfaces": len(live["interfaces"]),
-        })
-        code = 0
-    if json_output:
-        print(json.dumps(report), file=stdout)
-    else:
-        print(f"opnsense: {report['outcome']} → {firewall_output}, {state_output}", file=stdout)
-        if code:
-            print(report["reason"], file=stdout)
-    return code
+    return common.emit(run(firewall_output, state_output, credentials_file), json_output, stdout)

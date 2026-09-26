@@ -15,8 +15,8 @@ auto-approve list.
 ## Preconditions
 
 - Keep the configured engine and fallback in the timer environment; the job remains report-only outside the versioned auto-approve list.
-- Build `nix build --no-write-lock-file --no-link .#skynet` from the approved checkout before
-  the first run; the `bin/skynet` launcher uses offline Nix and never installs a profile.
+- `skynet` is on PATH as an ops VM system package; after a merge that changes `src/`, run
+  `rebuild` so the nightly uses the merged engine.
 
 ## Steps
 
@@ -48,14 +48,14 @@ discard the prepared deterministic work.
 1. **Prepare one branch** — `scripts/nightly.sh --prepare` requires a clean worktree, fetches the
    latest `main`, then creates the timestamped nightly branch. A failed fetch stops safely rather
    than producing a report against an unknown base.
-2. **Refresh inventory** — `scripts/collect-all.sh` forwards to packaged `skynet collect all`.
-   The core and network Proxmox, operate-token ACL, PBS, Docker, Technitium DNS, and live OPNsense collectors validate and atomically publish observations plus matching
-   receipt-bound markers (OPNsense publishes the paired firewall config + live state under two markers); the remaining
-   shell readers report process exits. A failed node read retains its previous snapshot and records unavailable/failed evidence,
-   while remaining T1 reads continue. Initial evidence setup failure invalidates prior success
-   through the local attempt receipt and stops before reads. Each remaining reader's process
-   group is stopped and reaped before continuing after a timeout; unconfirmed cleanup stops the
-   workflow with `recovery-required`. See the [package contract](../nix/README.md) for local
+2. **Refresh inventory** — `skynet collect all --repo .`. Every collector (Proxmox nodes and
+   operate-token ACLs, PBS, Docker, Technitium DNS, live OPNsense, Omada, certificates, routes)
+   validates and atomically publishes its observations plus matching receipt-bound markers
+   (OPNsense publishes the paired firewall config + live state under two markers). A failed read
+   retains its previous snapshot and records unavailable/failed evidence, while the remaining reads
+   continue. Initial evidence setup failure invalidates prior success through the local attempt
+   receipt and stops before reads; unconfirmed Docker reader cleanup stops the workflow with
+   `recovery-required`. See the [package contract](../nix/README.md) for local
    storage/process recovery. Collection never renders docs.
 3. **Render factual docs** — `skynet render docs --repo <checkout>` requires matching core, network, ACL, PBS, and Docker refresh evidence
    from this pass, within a 36-hour age ceiling. Failure leaves factual pages unchanged and
@@ -71,19 +71,18 @@ discard the prepared deterministic work.
 6. **Open a PR** — the deterministic finalizer stages generated evidence, commits, pushes, and opens
    the PR on branch `inventory/<date>-<HHMM>` (the `HHMM` suffix lets same-day re-runs each
    get their own branch instead of colliding) with the diff + summary. **The engine never merges by
-   hand.** While nightly auto-merge is suspended, `scripts/nightly-automerge.sh` is a fail-closed
-   compatibility entry and every nightly PR remains open for human review. ADR 0004 records the
-   suspended generated-only carve-out.
+   hand.** Nightly auto-merge is suspended: every nightly PR remains open for human review. ADR 0004
+   records the suspended generated-only carve-out.
 
 ## Verify
 
 - Confirm the PR contains only the expected generated/encrypted paths, the current raw journal entry
   appears in the digest, the context map exposes current load-cost/routing rows, the deterministic
-  merge gate reports its decision, and anomalies are visible.
-- Run `bin/skynet collect-status --repo .` before interpreting Proxmox, PBS, Docker, DNS, OPNsense or Omada observations; markers
+  PR is left open for human merge, and anomalies are visible.
+- Run `skynet collect-status --repo .` before interpreting Proxmox, PBS, Docker, DNS, OPNsense or Omada observations; markers
   alone cannot establish freshness without their matching durable local receipt. The optional
   narrative must label retained snapshots/pages as previous evidence when that refresh failed.
-  Collection freshness does not establish service health for the remaining shell readers.
+  Collection freshness does not establish service health.
 
 ## Rollback
 

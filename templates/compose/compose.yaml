@@ -1,6 +1,6 @@
 # __SVC__ — the skynet way. Canonical rules: docs/conventions/compose.md.
 # Worked reference (healthcheck probes, volume/label semantics): compose/README.md.
-# Stamped by `bin/new service __SVC__`; fill every TODO before the first deploy.
+# Stamped by `skynet new service __SVC__`; fill every TODO before the first deploy.
 x-arcane:
   tags:
     - name: TODO-role        # exactly ONE role tag (media|ai|books|bookmarks|…) — compose.md

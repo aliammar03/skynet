@@ -1,3 +1,17 @@
+---
+date: 2026-08-17
+time: 00:00:00          # original time not recorded; moved from planning/scratchpad/
+kind: session
+title: "What Skynet is, and where the declarative future goes"
+tier_touched: []
+grants: []
+refs: []
+thread_status: none
+---
+
+> Moved verbatim from `planning/scratchpad/2026-08-17-declarative-future-and-agent-cognition.md` by the SKY-025
+> Phase 11 scratchpad triage. Raw research/brain-dump; not current doctrine.
+
 # scratchpad — 2026-08-17 · What Skynet is, and where the declarative future goes
 
 > Raw brain-dump. No ID, no commitment. The thesis + a pile of concrete follow-on ideas about

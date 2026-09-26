@@ -17,14 +17,14 @@ nix/modules/
   ops-user.nix               aliammar + svc-ops, and the narrowed least-privilege sudo
   ssh-ca.nix                 sshd + TrustedUserCAKeys (grant-root cert trust)
   known-hosts.nix            pinned fleet host keys for the agent's outbound SSH
-  timers.nix                 skynet-nightly + skynet-cli-update as systemd units
+  timers.nix                 skynet-nightly as a systemd unit
   secrets.nix                sops-nix wired to the lab age key (decrypt-to-tmpfs)
   impermanence.nix           tmpfs root; only /nix + declared paths persist
   home.nix                   wires home-manager into the system
 nix/home/
   aliammar.nix               the operator's home: git identity, agent CLIs (+ mcp-nixos), ops.env
   shell.nix                  zsh + starship + tooling + the login landing board
-  docker.nix                 the docker-dmz remote context for collect-docker.sh
+  docker.nix                 the docker-dmz remote context for `skynet collect docker`
 nix/packages/
   skynet.nix                 the source-filtered Skynet Python application package
 ```
@@ -41,10 +41,9 @@ and `src/skynet/memory.py` owns digest/context/catalog views plus recall. Factua
 every page before publishing, so malformed input or cache failure leaves prior generated pages
 unchanged. The database is rebuilt from repository truth and atomically published over the target
 only after schema and integrity checks; prior valid bytes survive failure, and it is never an
-authority. `bin/skynet` launches the package
-from the checkout's tracked Git source using offline, lock-preserving Nix evaluation. It never
-falls back to source Python or installs a profile. Build the package and cache its dependencies
-before using default callers; a missing Nix/build prerequisite fails the command.
+authority. `skynet` is on PATH as a system package on the ops VM (`flake.nix`) and in the
+devshell; there is no checkout wrapper. A source change reaches the ops VM's `skynet` only after
+`rebuild`.
 
 ```bash
 # source development tools, with no pip installation
@@ -169,27 +168,22 @@ device list and switch-port list is validated before the legacy network-gear sna
 published; non-switch devices have `ports: null`, while a missing switch-port response fails the
 refresh. Default collection binds its snapshot hash/time to `collection-network-gear.json`.
 
-`bin/ops collect` forwards to `skynet collect all --repo <checkout>`, running the Python core,
-network, ACL, PBS, Docker, DNS, live OPNsense, and Omada collectors once each before the remaining shell readers. Refresh evidence lives in
-the matching `inventory/collection-*.json` markers: an incomplete marker precedes each read, and
-success records that snapshot's exact hash/time. The nonblocking
+`skynet collect all --repo <checkout>` (also `bin/ops collect`) runs every collector once, in
+one list: core and network nodes, operate-token ACLs, PBS, Docker, DNS, live OPNsense, Omada,
+certificates, and routes. A failed collector is recorded and the rest still run. Refresh evidence
+lives in the matching `inventory/collection-*.json` markers: an incomplete marker precedes each
+read, and success records that snapshot's exact hash/time. The nonblocking
 `.cache/collection.lock` stores one durable attempt receipt before marker publication. Status
-requires that receipt to match every migrated marker, so failed marker setup stops before that read
-and invalidates prior success without a cutoff.
+requires that receipt to match every marker, so failed marker setup stops before that read and
+invalidates prior success without a cutoff.
 Missing receipts require a complete refresh. Status briefly locks and durably reaffirms the
 existing receipt; storage that cannot persist invalidation is unavailable even if old evidence
 is readable. An inability to persist any failure cannot leave a durable diagnosis: repair storage
 and complete a refresh before using observations. Snapshot bytes remain intact on setup failure.
-Other readers report their
-process exits; they do not yet provide the Python core collector's validated evidence contract.
-Each runs sequentially in an isolated Linux process group with a 120-second deadline. Before
-advancing or releasing the lock, collection kills remaining group members and reaps descendants,
-including on interruption or an early leader exit. Cleanup has a five-second deadline; unconfirmed
-cleanup stops collection with `recovery-required` and blocks further collections via the receipt.
-Readers must remain in that process group; programs that daemonize or create another session
-are outside this runner's cleanup contract.
-After operator verification that the reader processes are gone, clear that receipt under the
-collection lock and run a complete refresh. Do not delete the lock file while a process holds it.
+Unconfirmed Docker reader cleanup stops collection with `recovery-required` and blocks further
+collections via the receipt. After operator verification that the reader processes are gone, clear
+that receipt under the collection lock and run a complete refresh. Do not delete the lock file while
+a process holds it.
 
 `skynet collect-status --repo <checkout> [--since <timestamp>] [--json]` requires matching
 successful core and network observations, operate-token ACL, PBS, Docker, DNS, live OPNsense, and Omada evidence no older than 36 hours,

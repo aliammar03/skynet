@@ -1,3 +1,17 @@
+---
+date: 2026-08-28
+time: 00:00:00          # original time not recorded; moved from planning/scratchpad/
+kind: session
+title: "NetBox vs Nautobot for Skynet"
+tier_touched: []
+grants: []
+refs: [SKY-015]
+thread_status: none
+---
+
+> Moved verbatim from `planning/scratchpad/research/2026-08-28-netbox-vs-nautobot.md` by the SKY-025
+> Phase 11 scratchpad triage. Raw research/brain-dump; not current doctrine.
+
 > Agent-generated research: **do we want a source-of-truth database, and if so which one?**
 > Sources cited inline; recency noted where it matters. Skeptical by design — the verdict is
 > "not now", and the reasoning for that is the point of the note.
@@ -132,4 +146,4 @@ Not as a source of truth — as a **derived, queryable view**:
 *Amended 2026-08-28 after the source-of-truth audit: the lab does have a controller-managed
 switch/AP estate, corrected in §3. It does not change the verdict — controller-managed gear is
 not Golden Config territory — but the gap it exposes is a missing collector, which the
-[source-of-truth note](2026-08-28-source-of-truth-for-this-lab.md) picks up.*
+[source-of-truth note](2026-08-28-session-source-of-truth-for-this-lab.md) picks up.*

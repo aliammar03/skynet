@@ -43,16 +43,16 @@ OPS_ENGINE_BIN="$(engine_bin "${OPS_ENGINE}")"
 
 cmd="${1:-nightly}"; shift || true
 case "${cmd}" in
-  collect) exec ./scripts/collect-all.sh "$@" ;;
+  collect) exec skynet collect all --repo "${REPO_DIR}" "$@" ;;
   entities)
-    ./bin/skynet collect-status --repo "${REPO_DIR}" || exit $?
-    exec ./bin/skynet entities --repo "${REPO_DIR}" "$@"
+    skynet collect-status --repo "${REPO_DIR}" || exit $?
+    exec skynet entities --repo "${REPO_DIR}" "$@"
     ;;
   hygiene) exec ./scripts/hygiene.sh "$@" ;;
   query)
     sql="${1:?usage: bin/ops query \"<sql>\"}"
-    ./bin/skynet collect-status --repo "${REPO_DIR}" >&2 || exit $?
-    exec ./bin/skynet query --repo "${REPO_DIR}" "${sql}"
+    skynet collect-status --repo "${REPO_DIR}" >&2 || exit $?
+    exec skynet query --repo "${REPO_DIR}" "${sql}"
     ;;
   run)
     prompt="${1:?usage: bin/ops run \"<prompt>\"}"

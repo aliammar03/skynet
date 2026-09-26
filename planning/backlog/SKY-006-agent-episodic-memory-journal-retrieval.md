@@ -12,7 +12,7 @@ related:
   - docs/design/memory.md
   - docs/design/observability.md
   - docs/decisions
-  - planning/scratchpad/2026-08-17-declarative-future-and-agent-cognition.md
+  - journal/2026/2026-08-17-session-declarative-future-and-agent-cognition.md
 ---
 
 # SKY-006 · Agent episodic memory: journal + retrieval
@@ -80,7 +80,7 @@ Create `journal/` + a convention (session / incident / decision records, incl. a
 have the nightly append to it. Exit: nightly runs and SKY-005 diagnoses land dated journal entries.
 
 **Shipped:** `journal/README.md` (format convention, authoritative home) · `templates/journal.md` +
-`bin/new journal <kind> <title>` · nightly wired on both paths (raw session entry: `scripts/nightly.sh`
+`skynet new journal <kind> <title>` · nightly wired on both paths (raw session entry: `scripts/nightly.sh`
 deterministic + `bin/ops`/`runbooks/nightly.md` agent) · doctrine pointers (`docs/conventions/{docs,layout}.md`,
 `docs/design/observability.md`, `AGENTS.md §4`) · ADR 0002 · seed entry. SKY-005 (incident feeder)
 isn't built yet, so the nightly is the only live writer today; the convention is ready for it.
@@ -117,7 +117,7 @@ steps. When the phase's exit criteria are met, do the "Phase close-out" at the b
 - [ ] Land the work via **PR** (agent never merges its own).
 - [ ] In the phase PR: journal episode only if something non-obvious happened; `bin/check` green.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
-- [ ] `bin/plan list` to refresh the roadmap index.
+- [ ] `skynet plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:
 ```
 Continue planning/projects/SKY-006-agent-episodic-memory-journal-retrieval.md at Phase <N+1>.
@@ -127,4 +127,4 @@ Follow AGENTS.md as above.
 
 ## 6. Status log
 - 2026-08-17 — created (draft) from the declarative-future brainstorm §4. Memory gap is episodic; fix
-  is journal + retrieval, not more storage. Research feeding this: `planning/scratchpad/research/2026-08-17-reactive-memory.md`.
+  is journal + retrieval, not more storage. Research feeding this: `journal/2026/2026-08-17-session-reactive-memory.md`.

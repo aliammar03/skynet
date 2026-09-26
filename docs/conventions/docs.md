@@ -56,7 +56,7 @@ Rules `[manual]`:
   `journal/<YYYY>/<YYYY-MM-DD>-<kind>-<slug>.md`, written concrete and **never summarized at write
   time** (that destroys the episodic signal). Distillation happens at read time. The full format
   convention — kinds, the Graveyard section, the two invariants — lives in its one authoritative
-  home, [`../../journal/README.md`](../../journal/README.md); stamp entries with `bin/new journal`.
+  home, [`../../journal/README.md`](../../journal/README.md); stamp entries with `skynet new journal`.
 - **Not a generated dir** `[manual]` — `journal/` is authored/appended, never re-rendered, so the
   "never hand-edit generated dirs" rule does **not** apply to it (unlike `docs/generated/`).
 

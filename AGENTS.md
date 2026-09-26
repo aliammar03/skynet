@@ -142,7 +142,7 @@ edit compose/<svc>/ → branch → PR (bin/check + tier review) → Ali merges o
   ACL-by-ACL saga — goes to [`journal/`](journal/README.md), not the doc. Trim on sight.
 - **Episodic memory lives in [`journal/`](journal/README.md).** Append a **raw** dated episode
   (session / incident / decision) when a run happens, something breaks, or a non-trivial choice is
-  made — `bin/new journal <kind> "<title>"`. **Write raw, summarize only at read time**; entries
+  made — `skynet new journal <kind> "<title>"`. **Write raw, summarize only at read time**; entries
   are append-only. A fresh agent greps it to learn what was already tried (and abandoned).
 - **Fresh session?** Read this file, then the active directive in [`planning/projects/`](planning/projects/)
   — its status block is the only progress tracker — then only the sources the task touches. The
@@ -156,7 +156,7 @@ edit compose/<svc>/ → branch → PR (bin/check + tier review) → Ali merges o
 
 Non-trivial additions and overhauls are captured as **Skynet Directives** (`SKY-###`) in
 [`planning/`](planning/README.md) — its README owns the mechanics: the
-`scratchpad→ideas→backlog→projects→archive` lifecycle, `bin/plan`, one PR per phase, and the limit of
+`scratchpad→ideas→backlog→projects→archive` lifecycle, `skynet plan`, one PR per phase, and the limit of
 **two active directives**. Load it when you mint, run, or resume one. A directive touching **T2+/T3** or a blast-radius boundary must also PR `docs/system-design.md`
 — the constitution (its invariants still apply).
 

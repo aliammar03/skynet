@@ -25,7 +25,7 @@ related:
 > managed guest envelopes. The tier decision is **ADR 0006** (config T2, node-root/reboot/self-leash T3); this
 > directive is the **build**.
 
-> **Status: idea.** Long horizon. Promote with `bin/plan start SKY-020`. Gated on the ADR 0006 /
+> **Status: idea.** Long horizon. Promote with `skynet plan start SKY-020`. Gated on the ADR 0006 /
 > PR #137 constitution merge landing first.
 
 ## 1. Problem / motivation
@@ -120,7 +120,7 @@ criteria are met, do the "Phase close-out" below.
 - [ ] Land the work via **PR** (agent never merges its own).
 - [ ] In the phase PR: journal episode only if something non-obvious happened; `bin/check` green.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
-- [ ] `bin/plan list` to refresh the roadmap index.
+- [ ] `skynet plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:
 ```
 Continue planning/projects/SKY-020-firewall-as-code-opnsense-config-to-t2-via-opentofu.md at Phase <N+1>.

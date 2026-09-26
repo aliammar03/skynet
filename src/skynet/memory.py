@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import os
 import re
 import subprocess
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, TextIO
+
+from skynet import common
 
 
 class MemoryError(Exception):
@@ -80,17 +80,7 @@ def token_cost(path: Path, *, omit_tokens_line: bool = False) -> int:
 def _atomic_write(path: Path, content: str) -> None:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        descriptor, name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
-        temporary = Path(name)
-        try:
-            with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as stream:
-                stream.write(content)
-            os.replace(temporary, path)
-        finally:
-            try:
-                temporary.unlink()
-            except FileNotFoundError:
-                pass
+        common.atomic_write_text(path, content)
     except OSError:
         raise MemoryError(f"{path}: publication failed", 3) from None
 

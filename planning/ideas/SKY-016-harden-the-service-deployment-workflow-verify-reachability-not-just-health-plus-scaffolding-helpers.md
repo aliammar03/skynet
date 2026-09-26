@@ -15,7 +15,7 @@ related:
   - runbooks/deploy-service.md
   - compose/README.md
   - templates/compose/compose.yaml
-  - bin/new
+  - templates/
   - "[[arcane-api-reference]]"
   - "[[skynet-service-standard]]"
 ---
@@ -28,7 +28,7 @@ related:
 > Close the gap between "the deploy said (healthy)" and "the service actually works," and delete the
 > manual toil (digest, IP, secret-read) that every new service currently re-incurs.
 
-> **Status: idea.** Sketched, not scheduled. Promote with `bin/plan start SKY-016` when it's picked up.
+> **Status: idea.** Sketched, not scheduled. Promote with `skynet plan start SKY-016` when it's picked up.
 
 ## 1. Problem / motivation
 
@@ -112,10 +112,10 @@ the runbook's Caddyfile check runs clean offline; the vantage trap is written do
 ### Phase 2 — scaffolding helpers kill the manual toil  (~1–2h)   `[ ]` not started
 Steps:
 1. `bin/ops pin <image:ref>` → prints `image:tag@sha256:<index-digest>` via
-   `docker buildx imagetools inspect`. Wire it into `bin/new service` so a scaffolded compose lands
+   `docker buildx imagetools inspect`. Wire it into `skynet new service` so a scaffolded compose lands
    digest-pinned (or emits a one-line TODO with the exact command).
 2. `bin/ops next-ip <segment>` → next free host octet for the DMZ macvlan, computed from the union of
-   `ipv4_address` across `compose/**/compose.yaml` (+ the Caddyfile). Have `bin/new service` suggest it.
+   `ipv4_address` across `compose/**/compose.yaml` (+ the Caddyfile). Have `skynet new service` suggest it.
 3. `bin/ops secret <svc>` → decrypts `compose/<svc>/.env.sops` with the correct flags
    (`sudo SOPS_AGE_KEY_FILE=/opt/skynet-ops/secrets/age.key sops -d --input-type dotenv …`), for
    reading a value without re-deriving the incantation. Fix the decrypt command shown in
@@ -140,7 +140,7 @@ Exit criteria: nobody is surprised that a route isn't live after deploying only 
 new role tag didn't appear; the messages tell the truth.
 
 ## 4. ▶ Execute prompt
-> Paste into a fresh Skynet session to run this directive (after `bin/plan start SKY-016`). Swap `<N>`.
+> Paste into a fresh Skynet session to run this directive (after `skynet plan start SKY-016`). Swap `<N>`.
 ```
 Read planning/projects/SKY-016-harden-the-service-deployment-workflow-verify-reachability-not-just-health-plus-scaffolding-helpers.md and execute Phase <N>.
 Follow AGENTS.md: plan loudly then run quietly, never merge your own PRs, request the
@@ -152,7 +152,7 @@ steps. When the phase's exit criteria are met, do the "Phase close-out" at the b
 - [ ] Land the work via **PR** (agent never merges its own).
 - [ ] In the phase PR: journal episode only if something non-obvious happened; `bin/check` green.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
-- [ ] `bin/plan list` to refresh the roadmap index.
+- [ ] `skynet plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:
 ```
 Continue planning/projects/SKY-016-harden-the-service-deployment-workflow-verify-reachability-not-just-health-plus-scaffolding-helpers.md at Phase <N+1>.

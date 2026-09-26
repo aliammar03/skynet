@@ -24,11 +24,11 @@ Tags: **[testable]** = a lint gate could assert it; **[manual]** = holds by revi
 | `journal/<YYYY>/*.md` | **Episodic memory** — raw append-only session/incident/decision episodes | memory |
 | `compose/<svc>/` | One dir per service (the GitOps loop) | ops |
 | `scripts/*.sh` | Procedures runbooks/entry-points call | ops |
-| `bin/*` | Operator-facing entry points (`check`, `plan`, `new`, `ops`, `grant-root`) | ops |
+| `bin/*` | Operator-facing entry points (`check`, `ops`, `grant-root`); everything else is `skynet …` | ops |
 | `tests/` | Offline pytest suite run by `bin/check` and the pre-commit hook | ops |
 | `src/skynet/`, `pyproject.toml`, `nix/packages/skynet.nix` | Installable Python operations application, package metadata, and source-filtered Nix build | ops |
 | `runbooks/*.md`, `runbooks/dr/*.md` | Engine-neutral procedures, catalogued in `runbooks/README.md` | ops |
-| `templates/` | The golden templates `bin/new` stamps from — one folder, all kinds | doctrine |
+| `templates/` | The golden templates `skynet new` stamps from — one folder, all kinds | doctrine |
 | `planning/{scratchpad,ideas,backlog,projects,archive,services}/` | The `SKY-###` directive pipeline | planning |
 | `ca/`, `.sops.yaml`, `.githooks/` | Trust + secret + commit-gate machinery | infra |
 
@@ -43,7 +43,7 @@ Tags: **[testable]** = a lint gate could assert it; **[manual]** = holds by revi
 - **An ADR** (`docs/decisions/NNNN-*.md`) `[testable]`: Status / Date header + Context / Decision /
   Consequences. Rules in [`docs.md`](docs.md).
 - **A directive** (`planning/**/SKY-###-*.md`) `[testable]`: frontmatter schema in
-  [`metadata.md`](metadata.md); minted by `bin/plan`.
+  [`metadata.md`](metadata.md); minted by `skynet plan`.
 
 ## Scaffolding — new artifacts are born conforming
 
@@ -53,17 +53,17 @@ shell needs; it does not require new procedural logic to use Bash. New Python mo
 
 | Command | Creates | From template |
 |---|---|---|
-| `bin/new service <name>` | `compose/<name>/` | `templates/compose/` |
-| `bin/new script <name>` | `scripts/<name>.sh` (chmod +x) | `templates/script.sh` |
-| `bin/new runbook <title>` | `runbooks/<slug>.md` | `templates/runbook.md` |
-| `bin/new adr <title>` | `docs/decisions/NNNN-<slug>.md` (next number) | `templates/adr.md` |
-| `bin/new journal <kind> <title>` | `journal/<YYYY>/<date>-<kind>-<slug>.md` | `templates/journal.md` |
-| `bin/plan idea\|service\|start …` | a `SKY-###` directive | `planning/TEMPLATE.md` |
+| `skynet new service <name>` | `compose/<name>/` | `templates/compose/` |
+| `skynet new script <name>` | `scripts/<name>.sh` (chmod +x) | `templates/script.sh` |
+| `skynet new runbook <title>` | `runbooks/<slug>.md` | `templates/runbook.md` |
+| `skynet new adr <title>` | `docs/decisions/NNNN-<slug>.md` (next number) | `templates/adr.md` |
+| `skynet new journal <kind> <title>` | `journal/<YYYY>/<date>-<kind>-<slug>.md` | `templates/journal.md` |
+| `skynet plan idea\|service\|start …` | a `SKY-###` directive | `planning/TEMPLATE.md` |
 
 **All golden templates live in one folder, [`templates/`](../../templates/)** `[manual]` — not
 scattered beside the artifacts they stamp. Each is the **single source** its generator reads:
 change a convention once in the template and every future artifact is born with it. The templates
-carry their artifact's rules (fill the `TODO`s). `bin/plan` owns its lifecycle template at
+carry their artifact's rules (fill the `TODO`s). `skynet plan` owns its lifecycle template at
 `planning/TEMPLATE.md`.
 
 ## Generated — never hand-edit `[testable]`

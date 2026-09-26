@@ -110,7 +110,7 @@ key, not the identity.
 ## Slugs & identifiers
 
 - **Directive files:** `SKY-###-kebab-title.md` `[testable]` — zero-padded 3-digit id, then a
-  kebab-case title. Minted by `bin/plan`; never hand-numbered.
+  kebab-case title. Minted by `skynet plan`; never hand-numbered.
 - **Service directory names:** lowercase, no spaces `[testable]` — `compose/<svc>/` where `<svc>`
   is the compose dir name and the service's identity everywhere (volume paths, `skynet.service`
   label, tag). Short and unqualified: `silly`, `calibre`, `caddy-apps`.

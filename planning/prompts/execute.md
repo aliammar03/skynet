@@ -15,7 +15,7 @@ summary: "Execute one directive phase on one PR: intake, implement, bin/check, u
    failure-case test.
 5. **Prove.** Run `bin/check`. Collect live evidence the phase's exit criteria ask for.
 6. **Record progress in the same PR.** Flip the phase box, update the directive's `## Status` block
-   and frontmatter (`current_phase`, `status`, `updated`), and run `bin/plan list`. Write a
+   and frontmatter (`current_phase`, `status`, `updated`), and run `skynet plan list`. Write a
    `journal/` episode only if something non-obvious happened.
 7. **Open the PR** with: what and why (written to teach), the review tier (Light or Full) with the
    reason, the `bin/check` output, and live evidence. Then **stop**. Never review or merge it.

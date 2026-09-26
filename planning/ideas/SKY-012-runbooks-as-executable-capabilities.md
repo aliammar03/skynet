@@ -16,9 +16,9 @@ related:
   - runbooks/README.md
   - docs/conventions/scripts.md
   - docs/design/gitops-loop.md
-  - planning/scratchpad/2026-08-17-declarative-future-and-agent-cognition.md
+  - journal/2026/2026-08-17-session-declarative-future-and-agent-cognition.md
   - planning/archive/SKY-010-default-lean-context-load-on-demand.md
-  - planning/projects/SKY-011-machine-enforced-invariants-and-the-ambiguity-layering-doctrine.md
+  - planning/archive/SKY-011-machine-enforced-invariants-and-the-ambiguity-layering-doctrine.md
 ---
 
 # SKY-012 · Runbooks as executable capabilities
@@ -90,7 +90,7 @@ command." Read-cost drops to the shell; the mechanical core is enforced by being
 
 ## 5. When promoted to a project
 
-Likely phasing (sketch — fill in at `bin/plan start`): (P1) a pilot — convert one runbook
+Likely phasing (sketch — fill in at `skynet plan start`): (P1) a pilot — convert one runbook
 (`publish-service` or `update-guests`) to a capability + judgement shell, prove the pattern + a bench
 test; (P2) convert the rest of the deterministic set; (P3) document the capability/judgement-shell
 convention in `scripts.md` + `docs.md`, and wire capability tests into the CI gate. Each phase is a

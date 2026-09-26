@@ -18,9 +18,9 @@ rollback: "none; recon does not mutate"
 
 1. Capture the snapshot:
    ```bash
-   bin/skynet recon <host>
-   bin/skynet recon <host> > /tmp/recon-<host>.md
-   bin/skynet recon <host> --json
+   skynet recon <host>
+   skynet recon <host> > /tmp/recon-<host>.md
+   skynet recon <host> --json
    ```
    `<host>` is a mapped bare label or IP; remote probes always use unprivileged `svc-ops`, and no argument inspects the ops VM. Each probe is bounded by six seconds, and sections requiring root say so instead of requesting a grant.
 2. Read the returned host/kernel/uptime, pressure (including inodes), failed units, sockets, container state, warnings, and recent configuration/package changes. A failed unit, unhealthy container, full/inode-exhausted filesystem, or change immediately before failure is usually the best starting signal.

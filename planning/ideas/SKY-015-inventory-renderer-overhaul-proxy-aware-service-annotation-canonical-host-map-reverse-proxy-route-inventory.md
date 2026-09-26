@@ -9,7 +9,7 @@ phases: 3
 current_phase: 0
 tier_touched: [T1]     # all read + render. No new access, no blast-radius move → no system-design PR.
 related:
-  - scripts/render-docs.sh
+  - src/skynet/render.py
   - docs/generated/30-services/README.md
   - docs/generated/10-vlans.md
   - "[[lab-addressing-static-first]]"
@@ -23,7 +23,7 @@ related:
 > Make `docs/generated/` tell the truth about the **proxy layer**, so no reader — agent or human —
 > ever mistakes a reverse-proxy front-door record for a host's real address.
 
-> **Status: idea.** Sketched, not scheduled. Promote with `bin/plan start SKY-015` when it's picked up.
+> **Status: idea.** Sketched, not scheduled. Promote with `skynet plan start SKY-015` when it's picked up.
 
 ## 1. Problem / motivation
 
@@ -100,7 +100,7 @@ Steps:
 Exit criteria: a vanity hostname in the docs resolves to its real backend + horizon in one hop.
 
 ## 4. ▶ Execute prompt
-> Paste into a fresh Skynet session to run this directive (after `bin/plan start SKY-015`). Swap `<N>`.
+> Paste into a fresh Skynet session to run this directive (after `skynet plan start SKY-015`). Swap `<N>`.
 ```
 Read planning/projects/SKY-015-inventory-renderer-overhaul-proxy-aware-service-annotation-canonical-host-map-reverse-proxy-route-inventory.md and execute Phase <N>.
 Follow AGENTS.md: plan loudly then run quietly, never merge your own PRs, request the
@@ -112,7 +112,7 @@ steps. When the phase's exit criteria are met, do the "Phase close-out" at the b
 - [ ] Land the work via **PR** (agent never merges its own).
 - [ ] In the phase PR: journal episode only if something non-obvious happened; `bin/check` green.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
-- [ ] `bin/plan list` to refresh the roadmap index.
+- [ ] `skynet plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:
 ```
 Continue planning/projects/SKY-015-inventory-renderer-overhaul-proxy-aware-service-annotation-canonical-host-map-reverse-proxy-route-inventory.md at Phase <N+1>.

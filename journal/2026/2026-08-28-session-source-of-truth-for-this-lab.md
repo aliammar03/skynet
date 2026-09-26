@@ -1,6 +1,20 @@
+---
+date: 2026-08-28
+time: 00:00:00          # original time not recorded; moved from planning/scratchpad/
+kind: session
+title: "What should be the source of truth for this lab?"
+tier_touched: []
+grants: []
+refs: [SKY-004, SKY-011, SKY-015]
+thread_status: none
+---
+
+> Moved verbatim from `planning/scratchpad/research/2026-08-28-source-of-truth-for-this-lab.md` by the SKY-025
+> Phase 11 scratchpad triage. Raw research/brain-dump; not current doctrine.
+
 > Agent-generated position note, written after auditing the actual pipeline (`collect-*.sh`,
 > `render-docs.sh`, `invariants.json`, `tofu/`, `nix/`, `compose/`). Companion to the
-> [NetBox vs Nautobot note](2026-08-28-netbox-vs-nautobot.md) — that one answers "which product",
+> [NetBox vs Nautobot note](2026-08-28-session-netbox-vs-nautobot.md) — that one answers "which product",
 > this one answers the question underneath it. Raw, no commitment; feeds SKY-004 / SKY-011 / SKY-015.
 
 # What should be the source of truth for this lab?

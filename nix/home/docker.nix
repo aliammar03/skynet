@@ -1,5 +1,5 @@
 { pkgs, lib, ... }:
-# The docker-dmz remote context (read-only, over SSH as svc-ops) that collect-docker.sh uses for its
+# The docker-dmz remote context (read-only, over SSH as svc-ops) that `skynet collect docker` uses for its
 # T1 snapshots. Declarative + idempotent so it survives a reprovision; created at home-manager
 # activation — `docker context create` only writes ~/.docker, it doesn't contact the daemon. The
 # other docker-dmz deployment paths go straight over SSH with the agent key and

@@ -79,7 +79,7 @@ Reboot stays a hard checkpoint because it drops the whole network; it is never a
   review of that plan. Both sops-nix (`opnsense.env`), same
   shape as the Proxmox/Omada creds.
 - **The live API is the sole firewall inventory collector; the git mirror is DR-only.** The live
-  OPNsense read (`collect-opnsense.sh` → `src/skynet/opnsense.py`) writes the canonical firewall
+  OPNsense read (`skynet collect opnsense`, `src/skynet/opnsense.py`) writes the canonical firewall
   inventory (`firewall.json` + `opnsense.json`) live — no push lag. The `config.xml` mirror is
   retained purely as the **rebuild-from-git DR source** (§2a: OPNsense reconstructable from git):
   in recovery it is restored as configuration into OPNsense, never parsed into inventory. (Refined

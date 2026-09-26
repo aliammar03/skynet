@@ -1,44 +1,94 @@
-"""Default collection and paired Proxmox evidence freshness for current-state consumers."""
+"""Default collection and paired evidence freshness for current-state consumers."""
 
-import ctypes
 import fcntl
 import hashlib
-import io
 import json
 import os
-import signal
-import subprocess
-import time
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, TextIO
 
-from skynet import certs, dns, docker, omada, opnsense, pbs, proxmox, routes
+from skynet import certs, common, dns, docker, omada, opnsense, pbs, proxmox, routes
 
-REMAINING: tuple[tuple[str, ...], ...] = ()
-PROXMOX_NODES = (
-    ("core", "proxmox-core.json", "collection-core.json"),
-    ("network", "proxmox-network.json", "collection-network.json"),
+
+@dataclass(frozen=True)
+class CredentialFiles:
+    """Literal credential files for the default collection, one per remote source."""
+
+    core: Path = proxmox.DEFAULT_CREDENTIALS["core"]
+    network: Path = proxmox.DEFAULT_CREDENTIALS["network"]
+    pbs: Path = pbs.DEFAULT_CREDENTIALS
+    dns: Path = dns.DEFAULT_CREDENTIALS
+    opnsense: Path = opnsense.DEFAULT_CREDENTIALS
+    omada: Path = omada.DEFAULT_CREDENTIALS
+
+
+@dataclass(frozen=True)
+class Evidence:
+    """One published snapshot, its receipt-bound marker, and the identity the gate expects.
+
+    `identity` is the snapshot's `node` or `host` value; None accepts any string `host`.
+    """
+
+    target: str
+    snapshot: str
+    marker: str
+    identity: str | None = None
+
+
+@dataclass(frozen=True)
+class Collector:
+    """One collector run in the default collection; it publishes every `evidence` snapshot."""
+
+    evidence: tuple[Evidence, ...]
+    run: Callable[[Path, tuple[Path, ...], CredentialFiles], common.Result]
+
+
+def _proxmox(node: str) -> Collector:
+    return Collector(
+        (Evidence(f"proxmox-{node}", f"proxmox-{node}.json", f"collection-{node}.json", node),),
+        lambda repo, out, files: proxmox.run(node, out[0], getattr(files, node)))
+
+
+def _proxmox_acl(node: str) -> Collector:
+    return Collector(
+        (Evidence(f"proxmox-{node}-acl", f"proxmox-{node}-acl.json", f"collection-{node}-acl.json",
+                  f"server-proxmox-{node}"),),
+        lambda repo, out, files: proxmox.run_acl(node, out[0], getattr(files, node)))
+
+
+def _docker(label: str) -> Collector:
+    return Collector(
+        (Evidence(f"docker-{label}", f"docker-{label}.json", f"collection-{label}.json", label),),
+        lambda repo, out, files: docker.run(label, out[0], label))
+
+
+COLLECTORS: tuple[Collector, ...] = (
+    _proxmox("core"), _proxmox("network"), _proxmox_acl("core"), _proxmox_acl("network"),
+    Collector((Evidence("pbs", "pbs.json", "collection-pbs.json"),),
+              lambda repo, out, files: pbs.run(out[0], files.pbs)),
+    _docker("docker-dmz"),
+    Collector((Evidence("dns", "dns-zones.json", "collection-dns.json"),),
+              lambda repo, out, files: dns.run(out[0], files.dns)),
+    # One live OPNsense read publishes both paired snapshots and both markers, so neither
+    # firewall config nor live state can look fresh without the other.
+    Collector((Evidence("firewall", "firewall/firewall.json", "collection-firewall.json"),
+               Evidence("opnsense", "opnsense.json", "collection-opnsense.json")),
+              lambda repo, out, files: opnsense.run(out[0], out[1], files.opnsense)),
+    Collector((Evidence("network-gear", "network-gear.json", "collection-network-gear.json"),),
+              lambda repo, out, files: omada.run(out[0], files.omada)),
+    Collector((Evidence("certs", "certs.json", "collection-certs.json"),),
+              lambda repo, out, files: certs.run(out[0])),
+    Collector((Evidence("routes", "routes.json", "collection-routes.json"),),
+              lambda repo, out, files: routes.run(repo, out[0])),
 )
-PROXMOX_ACLS = (
-    ("core", "proxmox-core-acl.json", "collection-core-acl.json"),
-    ("network", "proxmox-network-acl.json", "collection-network-acl.json"),
-)
-PBS = ("pbs.json", "collection-pbs.json")
-DOCKERS = (("docker-dmz", "docker-docker-dmz.json", "collection-docker-dmz.json"),)
-DNS = ("dns-zones.json", "collection-dns.json")
-# One live OPNsense collection produces two paired snapshots and two receipt-bound markers.
-OPNSENSE = (("firewall", "firewall/firewall.json", "collection-firewall.json"),
-            ("opnsense", "opnsense.json", "collection-opnsense.json"))
-OMADA = ("network-gear.json", "collection-network-gear.json")
-CERTS = ("certs.json", "collection-certs.json")
-ROUTES = ("routes.json", "collection-routes.json")
-READER_TIMEOUT = 120.0
-CLEANUP_TIMEOUT = 5.0
+EVIDENCE: tuple[Evidence, ...] = tuple(item for c in COLLECTORS for item in c.evidence)
 
 
 class CleanupError(Exception):
-    """A reader group could not be confirmed stopped and reaped."""
+    """A reader could not be confirmed stopped; collection must not continue."""
 
 
 def receipt_write(lock: TextIO, attempted: str) -> None:
@@ -52,72 +102,6 @@ def receipt_write(lock: TextIO, attempted: str) -> None:
     os.fsync(lock.fileno())
 
 
-def stop_reader(process: subprocess.Popen[bytes]) -> None:
-    """Kill only this reader's session group and reap its adopted descendants."""
-    deadline = time.monotonic() + CLEANUP_TIMEOUT
-    try:
-        os.killpg(process.pid, signal.SIGKILL)
-    except ProcessLookupError:
-        pass
-    process.wait(timeout=max(0.001, deadline - time.monotonic()))
-    while True:
-        try:
-            while os.waitpid(-process.pid, os.WNOHANG)[0]:
-                pass
-        except ChildProcessError:
-            pass
-        try:
-            os.killpg(process.pid, 0)
-        except ProcessLookupError:
-            return
-        if time.monotonic() >= deadline:
-            raise CleanupError
-        time.sleep(0.01)
-
-
-def run_reader(args: list[str], repo: Path) -> int:
-    """Run one synchronous Linux reader with ownership of its process group."""
-    # Subreaping lets us wait for orphaned grandchildren rather than relying on PID 1.
-    libc = ctypes.CDLL(None, use_errno=True)
-    previous = ctypes.c_int()
-    if libc.prctl(37, ctypes.byref(previous), 0, 0, 0) != 0:  # PR_GET_CHILD_SUBREAPER
-        raise CleanupError
-    if libc.prctl(36, 1, 0, 0, 0) != 0:  # PR_SET_CHILD_SUBREAPER
-        raise CleanupError
-
-    def interrupted(signum: int, frame: Any) -> None:
-        raise KeyboardInterrupt
-
-    prior_term = signal.signal(signal.SIGTERM, interrupted)
-    process = None
-    try:
-        # Block interruptions across spawn so a child cannot exist without its handle.
-        mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGINT, signal.SIGTERM})
-        try:
-            process = subprocess.Popen(
-                args, cwd=repo, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL, start_new_session=True,
-            )
-        finally:
-            signal.pthread_sigmask(signal.SIG_SETMASK, mask)
-        try:
-            return process.wait(timeout=READER_TIMEOUT)
-        except subprocess.TimeoutExpired:
-            return 3
-    finally:
-        mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGINT, signal.SIGTERM})
-        try:
-            if process is not None:
-                try:
-                    stop_reader(process)
-                except (OSError, subprocess.TimeoutExpired) as error:
-                    raise CleanupError from error
-        finally:
-            libc.prctl(36, previous.value, 0, 0, 0)
-            signal.signal(signal.SIGTERM, prior_term)
-            signal.pthread_sigmask(signal.SIG_SETMASK, mask)
-
-
 def emit(report: dict[str, Any], json_output: bool, stdout: TextIO) -> None:
     if json_output:
         print(json.dumps(report), file=stdout)
@@ -126,18 +110,51 @@ def emit(report: dict[str, Any], json_output: bool, stdout: TextIO) -> None:
         if "reason" in report:
             print(report["reason"], file=stdout)
         if "collected" in report:
-            print(f"Proxmox observations collected: {report['collected']}", file=stdout)
+            print(f"observations collected: {report['collected']}", file=stdout)
         for result in report.get("collectors", []):
             print(f"{result['target']}: {result['outcome']}", file=stdout)
             if "reason" in result:
                 print(result["reason"], file=stdout)
 
 
-def collect_all(repo: Path, credentials_file: Path, network_credentials_file: Path,
-                pbs_credentials_file: Path, dns_credentials_file: Path,
-                opnsense_credentials_file: Path, omada_credentials_file: Path, *,
-                json_output: bool, stdout: TextIO) -> int:
-    """Collect both Proxmox node shapes before retaining the remaining shell readers."""
+def _collect_one(collector: Collector, repo: Path, files: CredentialFiles, attempted: str,
+                 lock: TextIO) -> common.Result:
+    """Invalidate this collector's markers, run it, then record receipt-bound outcomes."""
+    inventory = repo / "inventory"
+    markers: list[tuple[Path, Path, dict[str, Any]]] = []
+    for evidence in collector.evidence:
+        marker: dict[str, Any] = {
+            "target": evidence.target, "outcome": "unavailable", "attempted": attempted,
+            "reason": "refresh incomplete; retained snapshot is previous evidence",
+        }
+        # A marker is durable before this read; a new receipt invalidates any preceding success
+        # if publication fails before the next marker exists.
+        common.publish_json(inventory / evidence.marker, marker)
+        markers.append((inventory / evidence.snapshot, inventory / evidence.marker, marker))
+    try:
+        result = collector.run(repo, tuple(snapshot for snapshot, _, _ in markers), files)
+    except docker.CleanupError:
+        try:
+            receipt_write(lock, "recovery-required")
+        except OSError:
+            raise CleanupError("unrecorded") from None
+        raise CleanupError from None
+    for snapshot, status, marker in markers:
+        marker["outcome"] = result.outcome
+        if result.code == 0:
+            marker.pop("reason")
+            marker.update(collected=result.collected,
+                          sha256=hashlib.sha256(snapshot.read_bytes()).hexdigest())
+        else:
+            marker["reason"] = result.reason
+        common.publish_json(status, marker)
+    return result
+
+
+def collect_all(repo: Path, files: CredentialFiles | None = None, *, json_output: bool,
+                stdout: TextIO, collectors: tuple[Collector, ...] = COLLECTORS) -> int:
+    """Run every collector under one receipt; each failure is recorded, none stops the rest."""
+    files = files or CredentialFiles()
     report: dict[str, Any] = {"target": "collection", "outcome": "failure", "collectors": []}
     try:
         repo = repo.resolve()
@@ -151,238 +168,22 @@ def collect_all(repo: Path, credentials_file: Path, network_credentials_file: Pa
             attempted = datetime.now(UTC).isoformat(timespec="microseconds")
             receipt_write(lock, attempted)
             code = 0
-            credential_files = {"core": credentials_file, "network": network_credentials_file}
-            for target, snapshot_name, marker_name in PROXMOX_NODES:
-                output = repo / "inventory" / snapshot_name
-                status = repo / "inventory" / marker_name
-                marker: dict[str, Any] = {
-                    "target": f"proxmox-{target}", "outcome": "unavailable", "attempted": attempted,
-                    "reason": "refresh incomplete; retained snapshot is previous evidence",
-                }
-                # A marker is durable before this node's read; a new receipt invalidates either
-                # node's preceding success if publication fails before the next marker exists.
-                proxmox.publish(status, marker)
-                stream = io.StringIO()
-                node_code = proxmox.collect(target, output, credential_files[target],
-                                            json_output=True, stdout=stream)
-                node = json.loads(stream.getvalue())
-                marker.update(outcome=node["outcome"])
-                if node_code == 0:
-                    marker.pop("reason")
-                    marker.update(collected=node["collected"],
-                                  sha256=hashlib.sha256(output.read_bytes()).hexdigest())
-                else:
-                    marker["reason"] = node["reason"]
-                proxmox.publish(status, marker)
-                report["collectors"].append(node)
-                if node_code == 1:
+            for collector in collectors:
+                result = _collect_one(collector, repo, files, attempted, lock)
+                report["collectors"].append(result.report())
+                if result.code == 1:
                     code = 1
-                elif node_code and code == 0:
-                    code = node_code
-            for target, snapshot_name, marker_name in PROXMOX_ACLS:
-                output = repo / "inventory" / snapshot_name
-                status = repo / "inventory" / marker_name
-                marker = {
-                    "target": f"proxmox-{target}-acl", "outcome": "unavailable", "attempted": attempted,
-                    "reason": "refresh incomplete; retained snapshot is previous evidence",
-                }
-                proxmox.publish(status, marker)
-                stream = io.StringIO()
-                acl_code = proxmox.collect_acl(target, output, credential_files[target],
-                                               json_output=True, stdout=stream)
-                acl = json.loads(stream.getvalue())
-                marker.update(outcome=acl["outcome"])
-                if acl_code == 0:
-                    marker.pop("reason")
-                    marker.update(collected=acl["collected"],
-                                  sha256=hashlib.sha256(output.read_bytes()).hexdigest())
-                else:
-                    marker["reason"] = acl["reason"]
-                proxmox.publish(status, marker)
-                report["collectors"].append(acl)
-                if acl_code == 1:
-                    code = 1
-                elif acl_code and code == 0:
-                    code = acl_code
-            snapshot_name, marker_name = PBS
-            output = repo / "inventory" / snapshot_name
-            status = repo / "inventory" / marker_name
-            marker = {
-                "target": "pbs", "outcome": "unavailable", "attempted": attempted,
-                "reason": "refresh incomplete; retained snapshot is previous evidence",
-            }
-            proxmox.publish(status, marker)
-            stream = io.StringIO()
-            pbs_code = pbs.collect(output, pbs_credentials_file, json_output=True, stdout=stream)
-            observation = json.loads(stream.getvalue())
-            marker.update(outcome=observation["outcome"])
-            if pbs_code == 0:
-                marker.pop("reason")
-                marker.update(collected=observation["collected"],
-                              sha256=hashlib.sha256(output.read_bytes()).hexdigest())
-            else:
-                marker["reason"] = observation["reason"]
-            proxmox.publish(status, marker)
-            report["collectors"].append(observation)
-            if pbs_code == 1:
-                code = 1
-            elif pbs_code and code == 0:
-                code = pbs_code
-            for label, snapshot_name, marker_name in DOCKERS:
-                output = repo / "inventory" / snapshot_name
-                status = repo / "inventory" / marker_name
-                marker = {"target": f"docker-{label}", "outcome": "unavailable", "attempted": attempted,
-                          "reason": "refresh incomplete; retained snapshot is previous evidence"}
-                proxmox.publish(status, marker)
-                stream = io.StringIO()
-                try:
-                    docker_code = docker.collect(label, output, label, json_output=True, stdout=stream,
-                                                 raise_cleanup=True)
-                except docker.CleanupError:
-                    try:
-                        receipt_write(lock, "recovery-required")
-                    except OSError:
-                        report["recovery_recorded"] = False
-                        raise CleanupError from None
-                    raise CleanupError
-                observation = json.loads(stream.getvalue())
-                marker.update(outcome=observation["outcome"])
-                if docker_code == 0:
-                    marker.pop("reason")
-                    marker.update(collected=observation["collected"],
-                                  sha256=hashlib.sha256(output.read_bytes()).hexdigest())
-                else:
-                    marker["reason"] = observation["reason"]
-                proxmox.publish(status, marker)
-                report["collectors"].append(observation)
-                if docker_code == 1:
-                    code = 1
-                elif docker_code and code == 0:
-                    code = docker_code
-            snapshot_name, marker_name = DNS
-            output = repo / "inventory" / snapshot_name
-            status = repo / "inventory" / marker_name
-            marker = {
-                "target": "dns", "outcome": "unavailable", "attempted": attempted,
-                "reason": "refresh incomplete; retained snapshot is previous evidence",
-            }
-            proxmox.publish(status, marker)
-            stream = io.StringIO()
-            dns_code = dns.collect(output, dns_credentials_file, json_output=True, stdout=stream)
-            observation = json.loads(stream.getvalue())
-            marker.update(outcome=observation["outcome"])
-            if dns_code == 0:
-                marker.pop("reason")
-                marker.update(collected=observation["collected"],
-                              sha256=hashlib.sha256(output.read_bytes()).hexdigest())
-            else:
-                marker["reason"] = observation["reason"]
-            proxmox.publish(status, marker)
-            report["collectors"].append(observation)
-            if dns_code == 1:
-                code = 1
-            elif dns_code and code == 0:
-                code = dns_code
-            # One live OPNsense read publishes both paired snapshots and both markers, so neither
-            # firewall config nor live state can look fresh without the other.
-            opnsense_markers = []
-            for target, snapshot_name, marker_name in OPNSENSE:
-                status = repo / "inventory" / marker_name
-                marker = {"target": target, "outcome": "unavailable", "attempted": attempted,
-                          "reason": "refresh incomplete; retained snapshot is previous evidence"}
-                proxmox.publish(status, marker)
-                opnsense_markers.append((repo / "inventory" / snapshot_name, status, marker))
-            stream = io.StringIO()
-            opnsense_code = opnsense.collect(opnsense_markers[0][0], opnsense_markers[1][0],
-                                             opnsense_credentials_file, json_output=True, stdout=stream)
-            observation = json.loads(stream.getvalue())
-            for snapshot_path, status, marker in opnsense_markers:
-                marker.update(outcome=observation["outcome"])
-                if opnsense_code == 0:
-                    marker.pop("reason")
-                    marker.update(collected=observation["collected"],
-                                  sha256=hashlib.sha256(snapshot_path.read_bytes()).hexdigest())
-                else:
-                    marker["reason"] = observation["reason"]
-                proxmox.publish(status, marker)
-            report["collectors"].append(observation)
-            if opnsense_code == 1:
-                code = 1
-            elif opnsense_code and code == 0:
-                code = opnsense_code
-            snapshot_name, marker_name = OMADA
-            output = repo / "inventory" / snapshot_name
-            status = repo / "inventory" / marker_name
-            marker = {"target": "network-gear", "outcome": "unavailable", "attempted": attempted,
-                      "reason": "refresh incomplete; retained snapshot is previous evidence"}
-            proxmox.publish(status, marker)
-            stream = io.StringIO()
-            omada_code = omada.collect(output, omada_credentials_file, json_output=True, stdout=stream)
-            observation = json.loads(stream.getvalue())
-            marker.update(outcome=observation["outcome"])
-            if omada_code == 0:
-                marker.pop("reason")
-                marker.update(collected=observation["collected"],
-                              sha256=hashlib.sha256(output.read_bytes()).hexdigest())
-            else:
-                marker["reason"] = observation["reason"]
-            proxmox.publish(status, marker)
-            report["collectors"].append(observation)
-            if omada_code == 1:
-                code = 1
-            elif omada_code and code == 0:
-                code = omada_code
-            for target, snapshot_name, marker_name in (("certs", *CERTS), ("routes", *ROUTES)):
-                output = repo / "inventory" / snapshot_name
-                status = repo / "inventory" / marker_name
-                marker = {"target": target, "outcome": "unavailable", "attempted": attempted,
-                          "reason": "refresh incomplete; retained snapshot is previous evidence"}
-                proxmox.publish(status, marker)
-                stream = io.StringIO()
-                local_code = (
-                    certs.collect(output, json_output=True, stdout=stream)
-                    if target == "certs" else
-                    routes.collect(repo, output, json_output=True, stdout=stream)
-                )
-                observation = json.loads(stream.getvalue())
-                marker.update(outcome=observation["outcome"])
-                if local_code == 0:
-                    marker.pop("reason")
-                    marker.update(collected=observation["collected"],
-                                  sha256=hashlib.sha256(output.read_bytes()).hexdigest())
-                else:
-                    marker["reason"] = observation["reason"]
-                proxmox.publish(status, marker)
-                report["collectors"].append(observation)
-                if local_code == 1:
-                    code = 1
-                elif local_code and code == 0:
-                    code = local_code
-            for name, script, *reader_args in REMAINING:
-                args: list[str] = [str(repo / "scripts" / script), *reader_args]
-                try:
-                    exit_code = run_reader(args, repo)
-                except CleanupError:
-                    try:
-                        receipt_write(lock, "recovery-required")
-                    except OSError:
-                        report["recovery_recorded"] = False
-                        raise CleanupError from None
-                    raise
-                except OSError:
-                    exit_code = 3
-                # These legacy readers expose process status, not validated health evidence.
-                report["collectors"].append({"target": name, "exit_code": exit_code,
-                                            "outcome": "completed" if exit_code == 0 else "failure"})
-                if exit_code != 0:
-                    code = 1
+                elif result.code and code == 0:
+                    code = result.code
             if code == 0:
                 report["outcome"] = "success"
-    except CleanupError:
+    except CleanupError as error:
+        if error.args == ("unrecorded",):
+            report["recovery_recorded"] = False
         report["outcome"] = "recovery-required"
         report["reason"] = "reader cleanup unconfirmed; collection stopped; inspect local processes"
         code = 1
-    except (OSError, ValueError, proxmox.CollectionError):
+    except (OSError, ValueError, common.CollectionError):
         report["reason"] = "collection setup or evidence publication failed; no fresh result established"
         code = 1
     emit(report, json_output, stdout)
@@ -410,33 +211,14 @@ def collection_status(repo: Path, *, since: str | None, json_output: bool, stdou
             # Reaffirm only the existing receipt; status can never establish a new attempt.
             receipt_write(lock, attempted_receipt)
             observations = [
-                (f"proxmox-{target}", target, json.loads((repo / "inventory" / marker_name).read_bytes()),
-                 (repo / "inventory" / snapshot_name).read_bytes())
-                for target, snapshot_name, marker_name in PROXMOX_NODES
-            ] + [
-                (f"proxmox-{target}-acl", f"server-proxmox-{target}",
-                 json.loads((repo / "inventory" / marker_name).read_bytes()),
-                 (repo / "inventory" / snapshot_name).read_bytes())
-                for target, snapshot_name, marker_name in PROXMOX_ACLS
-            ] + [("pbs", None, json.loads((repo / "inventory" / PBS[1]).read_bytes()),
-                  (repo / "inventory" / PBS[0]).read_bytes())] + [
-                (f"docker-{label}", label, json.loads((repo / "inventory" / marker_name).read_bytes()),
-                 (repo / "inventory" / snapshot_name).read_bytes())
-                for label, snapshot_name, marker_name in DOCKERS
-            ] + [("dns", None, json.loads((repo / "inventory" / DNS[1]).read_bytes()),
-                  (repo / "inventory" / DNS[0]).read_bytes())] + [
-                (target, None, json.loads((repo / "inventory" / marker_name).read_bytes()),
-                 (repo / "inventory" / snapshot_name).read_bytes())
-                for target, snapshot_name, marker_name in OPNSENSE
-            ] + [("network-gear", None, json.loads((repo / "inventory" / OMADA[1]).read_bytes()),
-                  (repo / "inventory" / OMADA[0]).read_bytes())
-            ] + [(target, None, json.loads((repo / "inventory" / marker_name).read_bytes()),
-                  (repo / "inventory" / snapshot_name).read_bytes())
-                 for target, snapshot_name, marker_name in (("certs", *CERTS), ("routes", *ROUTES))
+                (evidence, json.loads((repo / "inventory" / evidence.marker).read_bytes()),
+                 (repo / "inventory" / evidence.snapshot).read_bytes())
+                for evidence in EVIDENCE
             ]
         now = datetime.now(UTC)
         collected_values: dict[str, str] = {}
-        for evidence_target, node, evidence, raw in observations:
+        for expected, evidence, raw in observations:
+            evidence_target, node = expected.target, expected.identity
             snapshot = json.loads(raw)
             if not isinstance(evidence, dict) or not isinstance(snapshot, dict):
                 raise ValueError
@@ -468,8 +250,3 @@ def collection_status(repo: Path, *, since: str | None, json_output: bool, stdou
         code = 0
     emit(report, json_output, stdout)
     return code
-
-
-# Retained only for the P3/P4 in-package import surface; callers use collection_status now that PBS
-# freshness is part of the default contract.
-proxmox_status = collection_status

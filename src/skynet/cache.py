@@ -36,7 +36,7 @@ class CacheError(Exception):
         self.code = code
 
 
-# Keep these columns in the same order as the original build-db.sh projection.  The
+# Keep these columns in the same order as the original SQLite projection.  The
 # SQL views and existing ad-hoc queries rely on the names, not on a migration layer.
 SCHEMA: dict[str, tuple[tuple[str, str], ...]] = {
     "guests": (

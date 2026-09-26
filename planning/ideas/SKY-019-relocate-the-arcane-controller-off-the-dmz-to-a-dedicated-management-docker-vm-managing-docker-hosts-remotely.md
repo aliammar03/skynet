@@ -27,7 +27,7 @@ related:
 > dedicated Management-VLAN docker VM and have it manage `docker-dmz` (and future hosts) **remotely**,
 > so the management brain sits above its blast radius, not inside it.
 
-> **Status: idea.** Promote with `bin/plan start SKY-019`.
+> **Status: idea.** Promote with `skynet plan start SKY-019`.
 
 ## 1. Problem / motivation
 
@@ -123,7 +123,7 @@ constitution PR as the checkpoint. When the phase's exit criteria are met, do th
 - [ ] Land the work via **PR** (agent never merges its own).
 - [ ] In the phase PR: journal episode only if something non-obvious happened; `bin/check` green.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
-- [ ] `bin/plan list` to refresh the roadmap index.
+- [ ] `skynet plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:
 ```
 Continue planning/projects/SKY-019-relocate-the-arcane-controller-off-the-dmz-to-a-dedicated-management-docker-vm-managing-docker-hosts-remotely.md at Phase <N+1>.

@@ -7,8 +7,6 @@ leaves the requested destination untouched; an empty-but-valid zone list is a re
 
 import http.client
 import ipaddress
-import json
-import re
 import ssl
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -16,7 +14,8 @@ from pathlib import Path
 from typing import Any, TextIO
 from urllib.parse import urlencode
 
-from skynet.proxmox import CollectionError, publish
+from skynet import common
+from skynet.common import CollectionError
 
 DEFAULT_CREDENTIALS = Path("/opt/skynet-ops/secrets/technitium.env")
 PORT = 53443
@@ -32,73 +31,24 @@ class Credentials:
     context: ssl.SSLContext
 
 
-def _literal_assignments(path: Path) -> dict[str, str]:
-    try:
-        contents = path.read_text(encoding="utf-8")
-    except (OSError, UnicodeError, ValueError):
-        raise CollectionError("credentials unavailable", 3) from None
-    values: dict[str, str] = {}
-    for line in contents.splitlines():
-        if not line.strip() or line.lstrip().startswith("#"):
-            continue
-        match = re.fullmatch(
-            r"\s*(TECH_HOST|TECH_TOKEN|TECH_CACERT)="
-            r"(?:'([^']*)'|\"([^\"]*)\"|([^\s'\"]+))\s*(?:#.*)?", line,
-        )
-        if not match:
-            raise CollectionError("invalid credential assignments", 3)
-        key = match[1]
-        value = next(item for item in match.groups()[1:] if item is not None)
-        if key in values or not value or any(char in value for char in "`$\\;|&<>()\r\n\x00"):
-            raise CollectionError("invalid credential assignments", 3)
-        values[key] = value
-    if not {"TECH_HOST", "TECH_TOKEN", "TECH_CACERT"} <= values.keys():
-        raise CollectionError("required credentials missing", 3)
-    return values
-
-
 def credentials(path: Path) -> Credentials:
     """Parse literal Technitium credentials and prepare CA-file, hostname-verifying trust."""
-    values = _literal_assignments(path)
-    host = values["TECH_HOST"]
-    # The contract is a host, not a URL, port override, or userinfo destination.
-    if not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?", host):
-        raise CollectionError("invalid credential host", 3)
-    token = values["TECH_TOKEN"]
-    if any(ord(char) < 33 or ord(char) > 126 for char in token):
+    keys = ("TECH_HOST", "TECH_TOKEN", "TECH_CACERT")
+    values = common.read_assignments(path, keys, keys)
+    host = common.require_host(values["TECH_HOST"])
+    if not common.printable(values["TECH_TOKEN"]):
         raise CollectionError("invalid credential token", 3)
-    try:
-        context = ssl.create_default_context(cafile=values["TECH_CACERT"])
-    except (OSError, ssl.SSLError, ValueError):
-        raise CollectionError("CA unavailable or invalid", 3) from None
-    return Credentials(host, token, context)
+    return Credentials(host, values["TECH_TOKEN"], common.ca_context(values["TECH_CACERT"]))
 
 
 def get(settings: Credentials, path: str, params: dict[str, str]) -> dict[str, Any]:
     """GET one Technitium API envelope with CA/hostname verification and no redirect handling."""
     query = urlencode({**params, "token": settings.token})
-    connection = None
-    try:
-        connection = http.client.HTTPSConnection(
-            settings.host, PORT, context=settings.context, timeout=TIMEOUT)
-        connection.request("GET", "/api/" + path + "?" + query)
-        response = connection.getresponse()
-        if response.status != 200:
-            raise CollectionError("remote HTTP request refused (redirects disabled)", 3)
-        raw = response.read()
-    except (OSError, http.client.HTTPException, ValueError):
-        raise CollectionError("remote transport unavailable (timeout, TLS or connection)", 3) from None
-    finally:
-        if connection is not None:
-            try:
-                connection.close()
-            except OSError:
-                raise CollectionError("remote connection close failed", 3) from None
-    try:
-        envelope = json.loads(raw)
-    except (ValueError, UnicodeError):
-        raise CollectionError("malformed API JSON") from None
-    if not isinstance(envelope, dict) or envelope.get("status") != "ok":
+    connection = http.client.HTTPSConnection(settings.host, PORT, context=settings.context,
+                                             timeout=TIMEOUT)
+    raw, _ = common.request(connection, "GET", "/api/" + path + "?" + query)
+    envelope = common.json_object(raw)
+    if envelope.get("status") != "ok":
         raise CollectionError("API request not ok")
     data = envelope.get("response")
     if not isinstance(data, dict):
@@ -187,26 +137,14 @@ def snapshot(settings: Credentials) -> dict[str, Any]:
             "zones": zones, "records": records}
 
 
-def collect(output: Path, credentials_file: Path, *, json_output: bool, stdout: TextIO) -> int:
+def run(output: Path, credentials_file: Path) -> common.Result:
     """Collect one atomic DNS snapshot; failure leaves the requested destination untouched."""
-    report: dict[str, Any] = {"target": "dns", "output": str(output)}
-    try:
-        data = snapshot(credentials(credentials_file))
-        publish(output, data)
-    except CollectionError as error:
-        report.update(outcome="unavailable" if error.code == 3 else "failure",
-                      reason=f"{error}; refresh failed; any retained snapshot is previous evidence")
-        code = error.code
-    else:
-        report.update(outcome="success", collected=data["collected"], counts={
-            "zones": len(data["zones"]),
-            "records": sum(len(zone["records"]) for zone in data["records"]),
-        })
-        code = 0
-    if json_output:
-        print(json.dumps(report), file=stdout)
-    else:
-        print(f"dns: {report['outcome']} → {report['output']}", file=stdout)
-        if code:
-            print(report["reason"], file=stdout)
-    return code
+    return common.run(
+        "dns", (output,), lambda: (snapshot(credentials(credentials_file)),),
+        lambda data: {"zones": len(data["zones"]),
+                      "records": sum(len(zone["records"]) for zone in data["records"])},
+    )
+
+
+def collect(output: Path, credentials_file: Path, *, json_output: bool, stdout: TextIO) -> int:
+    return common.emit(run(output, credentials_file), json_output, stdout)

@@ -1,6 +1,20 @@
+---
+date: 2026-08-28
+time: 00:00:00          # original time not recorded; moved from planning/scratchpad/
+kind: session
+title: "The complete system — target architecture, alternatives, and where Ansible fits"
+tier_touched: []
+grants: []
+refs: [SKY-004, SKY-017, SKY-018]
+thread_status: none
+---
+
+> Moved verbatim from `planning/scratchpad/research/2026-08-28-complete-system-and-ansible.md` by the SKY-025
+> Phase 11 scratchpad triage. Raw research/brain-dump; not current doctrine.
+
 > Agent-generated architecture evaluation. Third of three: the
-> [NetBox vs Nautobot note](2026-08-28-netbox-vs-nautobot.md) answered "which product",
-> the [source-of-truth note](2026-08-28-source-of-truth-for-this-lab.md) answered "what's
+> [NetBox vs Nautobot note](2026-08-28-session-netbox-vs-nautobot.md) answered "which product",
+> the [source-of-truth note](2026-08-28-session-source-of-truth-for-this-lab.md) answered "what's
 > authoritative for what", and this one answers "what does the *finished* system look like,
 > and does Ansible belong in it". Raw, no commitment.
 

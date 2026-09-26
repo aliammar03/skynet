@@ -40,8 +40,8 @@ prepare() {
   git checkout -B "${BRANCH}" "origin/${DEFAULT_BRANCH}"
 
   export SKYNET_COLLECTION_SINCE="$(date --iso-8601=ns)"
-  step collection ./scripts/collect-all.sh
-  step render-docs ./bin/skynet render docs --repo "${REPO_DIR}"
+  step collection skynet collect all --repo "${REPO_DIR}"
+  step render-docs skynet render docs --repo "${REPO_DIR}"
 
   # Drift is evidence, not an actuator. An unavailable plan is recorded in the generated report.
   {
@@ -82,8 +82,8 @@ finalize() {
   # The journal is intentionally before these two renders so the optional recent-activity digest
   # includes this run and the on-demand context map reflects the new episodic-store size.
   write_journal
-  step render-digest ./bin/skynet render digest --repo "${REPO_DIR}"
-  step render-context-map ./bin/skynet render context --repo "${REPO_DIR}"
+  step render-digest skynet render digest --repo "${REPO_DIR}"
+  step render-context-map skynet render context --repo "${REPO_DIR}"
 
   git add -A inventory docs/generated journal
   if git diff --cached --quiet; then
@@ -100,7 +100,7 @@ finalize() {
     --body "Automated report-only nightly: collection, deterministic renders, raw journal evidence, and drift report.\n\n\`\`\`\n${summary}\n\`\`\`\n\nGitHub CI and nightly auto-merge are suspended during SKY-025; this remains open for human review." \
     2>&1 | tail -1)" || pr_url=""
   case "${pr_url}" in
-    https://*) echo "opened ${pr_url}"; ./scripts/nightly-automerge.sh "${pr_url}" || true ;;
+    https://*) echo "opened ${pr_url} — left open for human merge (AGENTS.md §3)" ;;
     *) echo "nightly: PR create failed; prepared branch preserved: ${pr_url}" >&2; exit 5 ;;
   esac
 }

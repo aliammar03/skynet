@@ -55,7 +55,7 @@ echo "==> operate ACL: OpsOperator on /pool/ops-managed (token created above)"
 pveum acl modify /pool/ops-managed --users svc-ops@pve --roles OpsOperator
 pveum acl modify /pool/ops-managed --tokens 'svc-ops@pve!operate' --roles OpsOperator
 # Pool.Audit on the pool path — /pools/<id> membership isn't visible from PVEAuditor at / alone.
-# Lets collect-proxmox.sh capture pool membership for the invariants gate. Read-only.
+# Lets `skynet collect proxmox` capture pool membership for the invariants gate. Read-only.
 pveum acl modify /pool/ops-managed --users svc-ops@pve --roles PVEAuditor
 # Backup target: vzdump needs Datastore.AllocateSpace on the storage it writes to. 'local' is
 # the on-node backup target for ops-managed guests that can't be snapshotted (e.g. the PBS CT,

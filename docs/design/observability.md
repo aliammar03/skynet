@@ -17,10 +17,10 @@ hand-maintained:
 ```
 00-network-map.md      # mermaid: WANs → OPNsense → VLANs → hosts
 05-state-of-the-lab.md # human narrative, LLM-authored nightly (surfaced in README)
-06-agent-digest.md     # recent-activity / episodic / open-thread retrieval, render-digest.sh
-07-context-map.md      # on-demand load-cost / context-routing index, render-context-map.sh
+06-agent-digest.md     # recent-activity / episodic / open-thread retrieval, skynet render digest
+07-context-map.md      # on-demand load-cost / context-routing index, skynet render context
 10-vlans.md            # per-VLAN tables linking to host pages
-20-firewall.md         # rules/aliases from the LIVE OPNsense API (collect-opnsense.sh); mirror = DR only
+20-firewall.md         # rules/aliases from the LIVE OPNsense API (skynet collect opnsense); mirror = DR only
 30-services/<svc>.md   # IP, ports, front door, backup status, last deploy
 40-hosts/<host>.md     # guests per node, resources, pool membership
 90-backup-status.md    # last restic/PBS runs, snapshot counts, grant audit
@@ -45,15 +45,13 @@ declared-host presence records an explicit ARP/ICMP vantage. The live OPNsense A
 firewall inventory source; the `config.xml` git backup is kept only as disaster-recovery material
 (restored as configuration, not parsed into inventory). Omada's Viewer-only HTTPS reads validate
 the controller, sites, device and required switch-port responses before its legacy network-gear
-schema is atomically replaced and receipt-bound. The remaining shell readers retain their
-existing evidence limitations. Collection timestamps
+schema is atomically replaced and receipt-bound. Collection timestamps
 describe observations, not live service-health verification.
 Failed initial marker publication also invalidates previous success for default queries and
 rendering. Factual pages are built in a staged copy before the generated tree is replaced as one
 publication unit; replacement failure rolls the prior tree back, and render/cache/input failure leaves
-the previous page set unchanged. Remaining reader processes are
-stopped and reaped before collection advances; uncertain
-cleanup blocks another collection pending local process recovery. The package's
+the previous page set unchanged. Uncertain Docker reader cleanup blocks another collection
+pending local process recovery. The package's
 [evidence and process contract](../../nix/README.md) defines storage and recovery behavior.
 
 Obsidian sync uses a `skynet` clone (optionally sparse-checking out `docs/generated/`) and never

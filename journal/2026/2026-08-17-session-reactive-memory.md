@@ -1,3 +1,17 @@
+---
+date: 2026-08-17
+time: 00:00:00          # original time not recorded; moved from planning/scratchpad/
+kind: session
+title: "Reactive ops, agent memory, and a k3s sanity check"
+tier_touched: []
+grants: []
+refs: [SKY-004, SKY-006]
+thread_status: none
+---
+
+> Moved verbatim from `planning/scratchpad/research/2026-08-17-reactive-memory.md` by the SKY-025
+> Phase 11 scratchpad triage. Raw research/brain-dump; not current doctrine.
+
 > Agent-generated research (2026-08-17). Feeds SKY-004 (reactive/event-driven ops) and SKY-006 (agent long-term memory), plus a k3s-rejection ADR. Skeptical, decision-oriented; not a design doc.
 
 # Reactive ops, agent memory, and a k3s sanity check
