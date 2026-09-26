@@ -23,7 +23,7 @@ pveum pool list 2>/dev/null | grep -q 'ops-managed' || pveum pool add ops-manage
 # each runs its own OpsOperator. NETWORK = pool-scoped (the original shape). CORE = full ownership of
 # guests/storage/network/pools, bound at / (agent self-provisions pool CTs) — with the bright lines
 # held out: NO Permissions.Modify (self-leash rewrite) and NO Sys.Modify/PowerMgmt/Console (node root).
-# The ACL-audit gate (invariants.json operate_token_scope + check-invariants.sh) enforces both.
+# The ACL-audit gate (invariants.json operate_token_scope + skynet check) enforces both.
 case "$(hostname)" in
   *core*)    IS_CORE=1 ;;
   *network*) IS_CORE=0 ;;

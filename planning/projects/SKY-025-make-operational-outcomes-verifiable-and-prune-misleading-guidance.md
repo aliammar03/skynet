@@ -6,7 +6,7 @@ horizon: long
 created: 2026-09-06
 updated: 2026-09-26
 phases: 18
-current_phase: 11
+current_phase: 12
 tier_touched: [T1, T2, T2+, T3]
 related:
   - docs/system-design.md
@@ -22,7 +22,7 @@ related:
 
 ## Status
 
-**Current:** phases 1–11 done. Every read-only path is Python (collection, entities, cache,
+**Current:** phases 1–12 done. Every read-only path is Python (collection, entities, cache,
 rendering, recall, deployment verification) behind one `skynet` command on PATH (ops VM system
 package + devshell); the shell forwarders, `bin/skynet`, `bin/plan`, `bin/new`, and `bin/recall` are
 gone. Collectors share one module (`common.py`: literal credentials, HTTPS, atomic writes, results)
@@ -31,9 +31,11 @@ and `collect all` loops over one collector list. The process overhaul is in: loc
 a two-active-directive limit (SKY-023 archived; SKY-005/006/018/020/024 parked in the backlog),
 a docs-only context budget, and weekly batched Renovate image updates. The deploy and Tofu phases
 follow the git model proposed in [ADR 0008](../../docs/decisions/0008-git-model-for-docker-and-opentofu.md);
-a live health monitor is Phase 14.
+a live health monitor is Phase 14. The hard-law gates are Python (`skynet check`, run by `bin/check` and
+the pre-commit hook), and the live census is recorded in the owning docs. Two census items move to
+Phase 16 as preconditions.
 
-**Next:** Phase 12 — census and gates. Review: Full.
+**Next:** Phase 13 — write-path skeleton, `skynet deploy`, publish. Review: Full.
 
 This block, the phase boxes, and the frontmatter are the **only** progress record. Each phase PR
 updates them itself; merge is completion ([construction](../../docs/conventions/construction.md)).
@@ -127,7 +129,7 @@ Everything else in `scripts/` and `bin/` is ported by the phase that owns it bel
    deleted. Ali's personal notes stay unless Ali says otherwise.
 8. Existing tests stay green; add tests for the shared module.
 
-### Phase 12 — Census and gates   `[ ]` · review: Full
+### Phase 12 — Census and gates   `[x]` · review: Full
 
 1. Read-only census of live facts the later phases need (table below); record them in
    `docs/design/` or the owning runbook, not here.
@@ -144,6 +146,10 @@ Everything else in `scripts/` and `bin/` is ported by the phase that owns it bel
 | 16, 18 | `/opt/skynet-ops` persistent cert/mirror/state paths that must survive |
 | 18 | ignored local state (`.cache`, provider cache) classed as recovery-critical or rebuildable |
 | 16 | one independent rebuild/access path proven from the survival kit |
+
+Recorded in `docs/design/gitops-loop.md` (13), `docs/design/observability.md` (14: Pushover),
+`docs/design/actuators.md` (15), `runbooks/backup.md` (16, 17), and `docs/design/disaster-recovery.md`
+(16, 18).
 
 ### Phase 13 — Write-path skeleton, `skynet deploy`, publish   `[ ]` · review: Full
 
@@ -183,6 +189,13 @@ Everything else in `scripts/` and `bin/` is ported by the phase that owns it bel
    (approval moves into the PR — human-merged).
 
 ### Phases 16–17
+
+Preconditions carried from the Phase 12 census:
+- Ali demonstrates one independent rebuild/access path from the survival kit.
+- Observe the PBS host's installed L5 script and units under a grant; the ops VM has no standing SSH
+  path to it.
+- Diagnose the failed `skynet-restic-backup@docker-dmz` run and reconcile the installed
+  `backup-restic.sh`, which differs from git.
 
 Each follows the write-path shape and the Full tier. Port the owning shell scripts
 (`provision-restic.sh`, `ct-age-identity.sh`, `onboard-host.sh`, `pin-cert.sh`,

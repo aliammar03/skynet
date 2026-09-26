@@ -62,7 +62,7 @@ review. `[manual]`
   credentials, root grants, or T2/T3 authority. Sub-agents inherit that and nothing more. `[manual]`
 - Every engine configured for `aliammar` must refuse or human-gate `gh pr merge` and both
   `grant-root` spellings. `invariants.json` → `construction.engines` lists them and
-  `scripts/check-invariants.sh` checks each engine's block in `nix/home/aliammar.nix`. Adding an
+  `skynet check` checks each engine's block in `nix/home/aliammar.nix`. Adding an
   engine means adding its entry. `[testable]`
 - Production actions follow AGENTS.md §2 (plan loudly, run quietly) and the trust tiers, never this
   spoke. `[manual]`

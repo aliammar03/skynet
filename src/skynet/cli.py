@@ -8,8 +8,8 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import NoReturn
 
-from skynet import (cache, certs, deployment, entities, installed_version, memory, omada, planning,
-                    recon, render, routes, scaffold)
+from skynet import (cache, certs, deployment, entities, gates, installed_version, memory, omada,
+                    planning, recon, render, routes, scaffold)
 from skynet.collection import CredentialFiles, collect_all, collection_status
 from skynet.dns import DEFAULT_CREDENTIALS as DNS_DEFAULT_CREDENTIALS, collect as collect_dns
 from skynet.doctor import write_report
@@ -34,6 +34,9 @@ def build_parser() -> argparse.ArgumentParser:
         dest="json_output",
         help="write one runtime report object as JSON",
     )
+    check = commands.add_parser(
+        "check", help="run the hard-law gates: staged secrets + invariants.json (T1 local)")
+    check.add_argument("--repo", type=Path, default=Path.cwd())
     verification = commands.add_parser("verify", help="verify a live deployment without mutating it")
     verifiers = verification.add_subparsers(dest="verification", required=True)
     deploy = verifiers.add_parser(
@@ -234,6 +237,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if arguments.command == "doctor":
         write_report(json_output=arguments.json_output, stdout=sys.stdout)
         return 0
+    if arguments.command == "check":
+        return gates.run(arguments.repo, sys.stdout, sys.stderr)
     if arguments.command == "verify":
         if arguments.verification in {"deployment", "deploy"}:
             return deployment.run(

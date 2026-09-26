@@ -112,3 +112,8 @@ The human narrative
 
 Observability is descriptive: rendered state and nightly change detection. It does not provide
 live alerting between nightly runs.
+
+**Alert channel (decided 2026-09-26, built by SKY-025 Phase 14):** Pushover. The app token and
+user key will be a sops secret `secrets/pushover.env.sops`, materialized `0400 aliammar` at
+`/opt/skynet-ops/secrets/pushover.env` through the `names` list in `nix/modules/secrets.nix`.
+Neither exists yet.

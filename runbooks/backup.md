@@ -25,6 +25,15 @@ rollback: "Restore with restore-service.md"
 
 Repos are `gdrive:Skynet/Backups/{restic/<label>,pbs}`. Restic retains 7 daily, 4 weekly, and 6 monthly snapshots, then checks and prunes. L4 vzdump → PBS is scheduled in Proxmox/PBS.
 
+### Installed today (census 2026-09-26, SKY-025 P12)
+
+| Host | Installed | State |
+|---|---|---|
+| docker-dmz (Debian 13) | `/opt/skynet-ops/scripts/backup-restic.sh` (root, **differs from git**; installed 2026-08-16), `/etc/systemd/system/skynet-restic-backup@.{service,timer}`, instance `docker-dmz`; restic 0.18.0 and rclone 1.60.1 from apt; secrets in `/opt/skynet-ops/secrets` (root `0700`) | timer active; **last run failed** 2026-09-26 02:37 PKT (exit 1 after 7 s). Reading the cause needs root journal access. |
+| PBS CT 240 (10.10.20.40) | `skynet-pbs-gdrive.{service,timer}` → `/opt/skynet-ops/scripts/backup-pbs-gdrive.sh` per `scripts/systemd/` | **not observed.** The ops VM has no pinned host key or standing SSH path; the census needs a grant. |
+
+The ops VM runs no backup unit. Its only timer is `skynet-nightly`.
+
 ### Provision restic on a host
 
 Run inside a root grant:

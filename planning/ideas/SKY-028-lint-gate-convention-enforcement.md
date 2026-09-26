@@ -101,7 +101,7 @@ Candidate first batch — all unambiguous:
 
 ## Wiring (facts as of 2026-08-17)
 - Enforcement today = pre-commit only: `core.hooksPath=.githooks` → `.githooks/pre-commit`
-  → `scripts/secret-scan.sh`. Extend the hook to run `bin/lint` **after** secret-scan.
+  → `skynet check`. Extend the hook to run `bin/lint` **after** it.
 - **No GitHub Actions CI exists.** A `.github/workflows/lint.yml` is the one piece that adds a
   new dependency but is what makes a *PR* go red (not just a local commit). Decide if wanted.
 - Run `bin/lint` **report-only in `scripts/nightly.sh` first** (drift as a nightly signal),

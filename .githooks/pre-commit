@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # Repo pre-commit hook → the fast local safety controls. Active when core.hooksPath=.githooks
 # (bootstrap-workstation.sh sets this; or run once: git config core.hooksPath .githooks).
-#   1. secret-scan       — no plaintext secrets enter a commit (AGENTS.md §6, staged tree).
-#   2. check-invariants  — hard laws hold: excluded guests stay unpooled, the managed-pool dial
-#                          matches inventory, engines leave merge/root to a human, no plaintext secrets.
-#   3. pytest            — the offline test suite (seconds). `bin/check` adds lint and types.
+#   1. skynet check — no plaintext secret is staged (AGENTS.md §6), and the invariants.json hard
+#                     laws hold: excluded guests stay unpooled, the managed-pool dial matches
+#                     inventory, engines leave merge/root to a human, no tracked plaintext secret.
+#                     Runs the working tree's code, so a change to the gate is gated by itself.
+#   2. pytest       — the offline test suite (seconds). `bin/check` adds lint and types.
 set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
-"${ROOT}/scripts/secret-scan.sh"
-"${ROOT}/scripts/check-invariants.sh"
-(cd "${ROOT}" && python3 -m pytest)
+cd "${ROOT}"
+PYTHONPATH=src python3 -m skynet check
+python3 -m pytest
