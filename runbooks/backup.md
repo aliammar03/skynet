@@ -18,8 +18,10 @@ rollback: "Restore with restore-service.md"
 
 ### Automatic layers
 
-> **Off-site is down.** L3 and L5 have both failed since 2026-08-31 (Google `disabled_client`). They
-> are being replaced, not repaired, by SKY-025 Phase 16. Local PBS backups (L4) still run.
+> **Off-site is failing.** L5 (PBS) is confirmed failing since 2026-08-31 with Google `disabled_client`;
+> its last verified sync was 2026-08-22. L3 (docker-dmz restic) failed on 2026-09-26; its cause and
+> last success are unknown. Whether older off-site copies can still be restored is unverified. Both
+> layers are being replaced, not repaired, by SKY-025 Phase 16. Local PBS backups (L4) still run.
 
 | Layer | Where | Schedule | Covers |
 |---|---|---|---|

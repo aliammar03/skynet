@@ -58,8 +58,8 @@ reconcile refreshed inventory against the last pre-disaster commit.
 - **Survival-kit path (proven 2026-09-26):** the age master key (recipient
   `age1stah9c426pq0xf3k4qc58e92vs263lf6uvze2f6nmx84nvk86cusfgexyw`) is in the kit, both in the password
   manager and on paper. From Ali's workstation, the kit copy decrypted `secrets/rclone.conf.sops`
-  without the ops VM. Off-site restore from the kit is **not** proven: the kit's `rclone.conf` uses the
-  disabled Google OAuth client (see `runbooks/backup.md`).
+  without the ops VM. Off-site restore from the kit is **not** proven. It was not attempted, and the
+  PBS host's `rclone.conf` is rejected by Google (`disabled_client`; see `runbooks/backup.md`).
 
 ## Design dependencies (don't let these rot)
 

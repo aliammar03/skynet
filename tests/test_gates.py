@@ -76,6 +76,34 @@ def test_unreadable_pool_membership_fails(repo: Path) -> None:
     assert code == 1 and "members:null" in err
 
 
+@pytest.mark.parametrize("members", [
+    {"0": {"vmid": 5001}},
+    "unreadable",
+    [5001],
+    [{"vmid": "5001"}],
+])
+def test_malformed_pool_membership_fails(repo: Path, members: Any) -> None:
+    _edit(repo / "inventory/proxmox-network.json",
+          lambda data: data["pools"][0].__setitem__("members", members))
+    code, err = _gate(repo)
+    assert code == 1 and "malformed members" in err
+
+
+@pytest.mark.parametrize("pools", [{"ops-managed": {}}, ["ops-managed"]])
+def test_malformed_pool_list_fails(repo: Path, pools: Any) -> None:
+    _edit(repo / "inventory/proxmox-network.json", lambda data: data.__setitem__("pools", pools))
+    code, err = _gate(repo)
+    assert code == 1 and "malformed pool list" in err
+
+
+@pytest.mark.parametrize("members", [[], [{"type": "storage", "storage": "local"}]])
+def test_empty_and_storage_membership_pass(repo: Path, members: Any) -> None:
+    _edit(repo / "inventory/proxmox-network.json",
+          lambda data: data["pools"][0].__setitem__("members", members))
+    code, err = _gate(repo)
+    assert code == 0, err
+
+
 def test_malformed_snapshot_fails(repo: Path) -> None:
     (repo / "inventory/proxmox-network.json").write_text("{not json")
     code, err = _gate(repo)

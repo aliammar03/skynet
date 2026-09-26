@@ -69,8 +69,20 @@ def _node_of(snapshot: dict[str, Any]) -> str:
     return str(snapshot.get("node"))
 
 
-def _pools(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
-    return [pool for pool in snapshot.get("pools") or [] if isinstance(pool, dict)]
+def _pools(snapshot: dict[str, Any]) -> list[dict[str, Any]] | None:
+    """The snapshot's pools; None when the pool list or any pool entry is malformed."""
+    pools = snapshot.get("pools", [])
+    if not isinstance(pools, list) or not all(isinstance(pool, dict) for pool in pools):
+        return None
+    return pools
+
+
+def _valid_members(members: Any) -> bool:
+    """A readable membership: a list of objects whose `vmid`, when present, is an integer."""
+    return isinstance(members, list) and all(
+        isinstance(member, dict)
+        and ("vmid" not in member or type(member["vmid"]) is int)
+        for member in members)
 
 
 def excluded_guests(repo: Path, invariants: dict[str, Any]) -> list[str]:
@@ -83,14 +95,22 @@ def excluded_guests(repo: Path, invariants: dict[str, Any]) -> list[str]:
             continue
         node = _node_of(snapshot)
         pools = _pools(snapshot)
+        if pools is None:
+            violations.append(f"{node} ({path.name}): malformed pool list — cannot verify exclusions")
+            continue
         # members:null means membership was unreadable at collect time (fix Pool.Audit, recollect).
         if any(pool.get("members") is None for pool in pools):
             violations.append(f"{node} ({path.name}): a pool has members:null (unreadable) — "
                               "cannot verify exclusions")
+        # Any other non-list shape is refused, never filtered: dropping entries could hide a guest.
+        if any(pool.get("members") is not None and not _valid_members(pool["members"])
+               for pool in pools):
+            violations.append(f"{node} ({path.name}): a pool has malformed members — "
+                              "cannot verify exclusions")
+        readable = [pool for pool in pools if _valid_members(pool.get("members"))]
         for vmid in excluded:
-            holding = [str(pool.get("poolid")) for pool in pools
-                       if any(isinstance(member, dict) and member.get("vmid") == vmid
-                              for member in pool.get("members") or [])]
+            holding = [str(pool.get("poolid")) for pool in readable
+                       if any(member.get("vmid") == vmid for member in pool["members"])]
             if holding:
                 violations.append(f"{node}: excluded guest {vmid} is a member of pool(s) "
                                   f"[{', '.join(holding)}] — it must NEVER join a pool")
@@ -106,7 +126,10 @@ def pool_set(repo: Path, invariants: dict[str, Any]) -> list[str]:
         if not isinstance(snapshot, dict):
             return [f"{path.name}: unreadable or malformed — cannot observe the pool set"]
         node = _node_of(snapshot)
-        observed.extend(f"{node}\t{pool.get('poolid')}" for pool in _pools(snapshot))
+        pools = _pools(snapshot)
+        if pools is None:
+            return [f"{path.name}: malformed pool list — cannot observe the pool set"]
+        observed.extend(f"{node}\t{pool.get('poolid')}" for pool in pools)
     observed.sort()
     if declared == observed:
         return []

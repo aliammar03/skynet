@@ -32,9 +32,10 @@ a two-active-directive limit (SKY-023 archived; SKY-005/006/018/020/024 parked i
 a docs-only context budget, and weekly batched Renovate image updates. The deploy and Tofu phases
 follow the git model proposed in [ADR 0008](../../docs/decisions/0008-git-model-for-docker-and-opentofu.md);
 a live health monitor is Phase 14. The hard-law gates are Python (`skynet check`, run by `bin/check` and
-the pre-commit hook), and the live census is recorded in the owning docs. The census found both off-site backup layers down
-since 2026-08-31, so Phase 16 now redesigns backup from scratch; until it lands there is no
-off-site copy (accepted by Ali, 2026-09-26).
+the pre-commit hook), and the live census is recorded in the owning docs. The census found the PBS off-site sync failing
+since 2026-08-31 and a failed docker-dmz restic run (cause unknown). Phase 16 now redesigns backup
+from scratch. Until it lands, no new off-site copy is known to land, and older copies are unverified
+(accepted by Ali, 2026-09-26).
 
 **Next:** Phase 13 — write-path skeleton, `skynet deploy`, publish. Review: Full.
 
@@ -191,10 +192,12 @@ Recorded in `docs/design/gitops-loop.md` (13), `docs/design/observability.md` (1
 
 ### Phase 16 — Greenfield backup and restore   `[ ]` · review: Full
 
-The current off-site layers are retired, not ported. L3 restic → Google Drive and L5 PBS → Google
-Drive have both been failing since 2026-08-31: Google disabled the `gdrive` OAuth client. Ali chose
-(2026-09-26) to redesign rather than repair. **Until Phase 16 lands there is no off-site copy.** PBS
-keeps local backups on the Unraid datastore.
+The current off-site layers are retired, not ported. L5 (PBS → Google Drive) has been failing since
+2026-08-31 because Google disabled the `gdrive` OAuth client; its last verified sync was 2026-08-22.
+L3 (docker-dmz restic → Google Drive) failed on 2026-09-26, and its cause and last success are
+unknown. Ali chose (2026-09-26) to redesign rather than repair. **Until Phase 16 lands, no new
+off-site copy is known to land, and the older copies are unverified.** PBS keeps local backups on
+the Unraid datastore.
 
 1. An ADR choosing the strategy: what is payload (per the "rebuild from git, restore only payload"
    law), the off-site target, its credential and custody, consistency per service, and retention.
