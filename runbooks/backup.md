@@ -30,7 +30,7 @@ Repos are `gdrive:Skynet/Backups/{restic/<label>,pbs}`. Restic retains 7 daily, 
 | Host | Installed | State |
 |---|---|---|
 | docker-dmz (Debian 13) | `/opt/skynet-ops/scripts/backup-restic.sh` (root, **differs from git**; installed 2026-08-16), `/etc/systemd/system/skynet-restic-backup@.{service,timer}`, instance `docker-dmz`; restic 0.18.0 and rclone 1.60.1 from apt; secrets in `/opt/skynet-ops/secrets` (root `0700`) | timer active; **last run failed** 2026-09-26 02:37 PKT (exit 1 after 7 s). Reading the cause needs root journal access. |
-| PBS CT 240 (10.10.20.40) | `skynet-pbs-gdrive.{service,timer}` → `/opt/skynet-ops/scripts/backup-pbs-gdrive.sh` per `scripts/systemd/` | **not observed.** The ops VM has no pinned host key or standing SSH path; the census needs a grant. |
+| PBS CT 240 (10.10.20.40, Debian 13, PBS 4.2.5) | `/opt/skynet-ops/scripts/backup-pbs-gdrive.sh` (matches git apart from one comment line), `/etc/systemd/system/skynet-pbs-gdrive.{service,timer}` (identical to `scripts/systemd/`), timer 04:00; rclone 1.60.1; secrets `pbs-gdrive.env` and `rclone.conf` in `/opt/skynet-ops/secrets` (root `0700`); datastore `unraid` = NFS `10.10.20.20:/mnt/user/pbs-backups` at `/mnt/datastore/unraid` | **L5 is down.** Every run since 2026-08-31 fails: Google returns `disabled_client` ("The OAuth client was disabled") for the `gdrive` remote's custom `client_id`. The last verified sync was 2026-08-22 (0 differences). The host was also down from 2026-09-16 13:49 to 2026-09-26 17:17 PKT. |
 
 The ops VM runs no backup unit. Its only timer is `skynet-nightly`.
 
