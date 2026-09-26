@@ -191,7 +191,9 @@ Recorded in `docs/design/gitops-loop.md` (13), `docs/design/observability.md` (1
 ### Phases 16–17
 
 Preconditions carried from the Phase 12 census:
-- Ali demonstrates one independent rebuild/access path from the survival kit.
+- The survival-kit decrypt path is proven (2026-09-26). Still open: an off-site restore from the kit
+  (after the OAuth fix), and confirming the rest of the kit's contents against
+  `runbooks/dr/survival-kit.md`.
 - Restore L5 off-site sync. The PBS census (2026-09-26, under a grant) found every run failing since
   2026-08-31 with Google `disabled_client` on the `gdrive` rclone remote; the last good sync was
   2026-08-22. This needs a new OAuth client and reconnect (Ali), then updated `rclone.conf` on PBS,
