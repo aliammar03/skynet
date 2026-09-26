@@ -11,17 +11,11 @@ import pytest
 from skynet import collection
 
 # (evidence target, snapshot file, marker file, node/host value the gate expects)
-OBSERVATIONS = (
-    [(f"proxmox-{t}", s, m, {"node": t}) for t, s, m in collection.PROXMOX_NODES]
-    + [(f"proxmox-{t}-acl", s, m, {"node": f"server-proxmox-{t}"})
-       for t, s, m in collection.PROXMOX_ACLS]
-    + [("pbs", *collection.PBS, {"host": "pbs"})]
-    + [(f"docker-{label}", s, m, {"host": label}) for label, s, m in collection.DOCKERS]
-    + [("dns", *collection.DNS, {"host": "dns"})]
-    + [(t, s, m, {"host": "opnsense"}) for t, s, m in collection.OPNSENSE]
-    + [("network-gear", *collection.OMADA, {"host": "omada"})]
-    + [("certs", *collection.CERTS, {"host": "ops"}), ("routes", *collection.ROUTES, {"host": "ops"})]
-)
+OBSERVATIONS = [
+    (e.target, e.snapshot, e.marker,
+     {"node": e.identity} if e.target.startswith("proxmox-") else {"host": e.identity or e.target})
+    for e in collection.EVIDENCE
+]
 
 
 def _evidence(repo: Path, *, age: timedelta = timedelta(minutes=5)) -> None:

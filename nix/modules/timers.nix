@@ -1,5 +1,5 @@
 { lib, ... }:
-# The ops VM's scheduled units — skynet-nightly + skynet-cli-update.
+# The ops VM's scheduled unit — skynet-nightly. `skynet` itself is a system package (flake.nix).
 #
 # The lab's other scheduled backups are NOT the ops VM's; they live in scripts/systemd/ for the
 # hosts that install them:
@@ -40,30 +40,6 @@ in
     timerConfig = {
       OnCalendar = "*-*-* 03:30:00"; # between docker restic (02:30) and PBS sync (04:00)
       RandomizedDelaySec = "15m";
-      Persistent = true;
-    };
-  };
-
-  systemd.services.skynet-cli-update = {
-    description = "skynet weekly CLI update + model-suggestion refresh";
-    wants = [ "network-online.target" ];
-    after = [ "network-online.target" ];
-    environment = commonEnv;
-    serviceConfig = {
-      Type = "oneshot";
-      User = "aliammar";
-      WorkingDirectory = repo;
-      ExecStart = "${repo}/scripts/update-clis.sh";
-      TimeoutStartSec = "20m";
-      Nice = 15;
-    };
-  };
-  systemd.timers.skynet-cli-update = {
-    description = "Weekly skynet CLI update + model-suggestion refresh";
-    wantedBy = [ "timers.target" ];
-    timerConfig = {
-      OnCalendar = "Sun *-*-* 05:00:00"; # after the nightly + PBS sync
-      RandomizedDelaySec = "30m";
       Persistent = true;
     };
   };

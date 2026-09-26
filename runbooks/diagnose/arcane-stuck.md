@@ -67,5 +67,5 @@ repair drift with an unrecorded host mutation.
 
 ## Evidence
 
-`bin/new journal incident "<svc> Arcane stuck — <sync-fail|apply-fail|drift>"` — the sync error or the
+`skynet new journal incident "<svc> Arcane stuck — <sync-fail|apply-fail|drift>"` — the sync error or the
 git-vs-running mismatch, and the PR that reconciled it. ([journal](../../journal/README.md).)

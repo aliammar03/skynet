@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping, TextIO, cast
 
-from skynet import routes
+from skynet import common, routes
 
 DEFAULT_CREDENTIALS = Path("/opt/skynet-ops/secrets/arcane.env")
 DEFAULT_CONTEXT = "docker-dmz"
@@ -50,10 +50,7 @@ _ENTITY = re.compile(
     r"(?:svc|guest)/[A-Za-z0-9][A-Za-z0-9_.:-]*|host:[A-Za-z0-9][A-Za-z0-9_.:-]*"
 )
 _AUTH_VALUES = frozenset({"own-auth/plain", "forward_auth (authentik)", "identity (authentik)"})
-_ASSIGNMENT = re.compile(
-    r"\s*(ARCANE_URL|ARCANE_TOKEN|ARCANE_ENV_ID|ARCANE_AUTH_HEADER)="
-    r"(?:'([^']*)'|\"([^\"]*)\"|([^\s'\"]+))\s*(?:#.*)?"
-)
+_KEYS = ("ARCANE_URL", "ARCANE_TOKEN", "ARCANE_ENV_ID", "ARCANE_AUTH_HEADER")
 _MAX_RESPONSE = 1024 * 1024
 _MAX_COMMAND_OUTPUT = 64 * 1024
 
@@ -80,25 +77,8 @@ class Credentials:
 
 def _assignment_values(path: Path) -> dict[str, str]:
     """Read literal Arcane assignments without evaluating shell syntax."""
-    try:
-        contents = path.read_text(encoding="utf-8")
-    except (OSError, UnicodeError, ValueError):
-        raise VerificationError("Arcane credentials unavailable", 3) from None
-    values: dict[str, str] = {}
-    for line in contents.splitlines():
-        if not line.strip() or line.lstrip().startswith("#"):
-            continue
-        match = _ASSIGNMENT.fullmatch(line)
-        if match is None:
-            raise VerificationError("invalid Arcane credential assignments", 3)
-        key = match[1]
-        value = next(item for item in match.groups()[1:] if item is not None)
-        if key in values or not value or any(ord(char) < 32 or ord(char) == 127 for char in value):
-            raise VerificationError("invalid Arcane credential assignments", 3)
-        values[key] = value
-    if not {"ARCANE_URL", "ARCANE_TOKEN"} <= values.keys():
-        raise VerificationError("required Arcane credentials missing", 3)
-    return values
+    return common.read_assignments(path, _KEYS, ("ARCANE_URL", "ARCANE_TOKEN"),
+                                   error=VerificationError, service="Arcane")
 
 
 def _endpoint(url: str) -> urllib.parse.SplitResult:

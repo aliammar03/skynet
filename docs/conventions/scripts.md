@@ -65,7 +65,7 @@ verification.
 
 ## `bin/` vs `scripts/`
 
-- **`bin/`** = operator-facing entry points a human/agent invokes directly (`bin/plan`, `bin/ops`,
+- **`bin/`** = operator-facing entry points a human/agent invokes directly (`bin/check`, `bin/ops`,
   `bin/grant-root`). `[manual]`
-- **`scripts/`** = the procedures those entry points and runbooks call (collectors, deploy,
+- **`scripts/`** = the procedures those entry points and runbooks call (deploy, publishing,
   backup). `[manual]`

@@ -23,7 +23,7 @@ while space looks free.
 ### Confirm usage and inodes
 
 ```bash
-scripts/recon.sh <host>                 # Disk section already sorts fullest-first, usage + inodes
+skynet recon <host>                     # Disk section already sorts fullest-first, usage + inodes
 ssh svc-ops@<host> df -hP               # bytes
 ssh svc-ops@<host> df -iP               # inodes — a full inode table reads as "disk full", space free
 ```
@@ -70,5 +70,5 @@ resize by shrinking a live filesystem.
 
 ## Evidence
 
-`bin/new journal incident "<host> disk full — <what ate it>"` — the mount, what `du` blamed, the config
+`skynet new journal incident "<host> disk full — <what ate it>"` — the mount, what `du` blamed, the config
 PR or grant that resolved it. ([journal](../../journal/README.md).)

@@ -7,5 +7,5 @@ prioritized, and waiting for their turn. The debate is over; the calendar is the
 missing. A healthy backlog is short and ordered, not a graveyard of maybes (those belong back
 in [`../ideas/`](../ideas/)).
 
-**→ Out:** when it's time to build, `bin/plan start SKY-###` promotes it to
+**→ Out:** when it's time to build, `skynet plan start SKY-###` promotes it to
 [`../projects/`](../projects/), where it gets fleshed into a full, phased, executable plan.

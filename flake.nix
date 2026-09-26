@@ -58,6 +58,7 @@
           inputs.impermanence.nixosModules.impermanence
           inputs.home-manager.nixosModules.home-manager
           ./hosts/vm-skynet-ops
+          { environment.systemPackages = [ skynet ]; }
         ];
       };
 

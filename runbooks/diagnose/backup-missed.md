@@ -22,7 +22,7 @@ attempt finds the latest backup too old. Background: [[skynet-backups]] and [`ba
 ### Confirm the timer and service
 
 ```bash
-scripts/recon.sh <host>                                  # failed units surface here first
+skynet recon <host>                                      # failed units surface here first
 systemctl list-timers --all | grep -Ei 'restic|pbs|backup'
 systemctl status  <backup>.service --no-pager -n 20
 journalctl -u <backup>.service -n 80 --no-pager
@@ -69,5 +69,5 @@ state and investigate the failed run.
 
 ## Evidence
 
-`bin/new journal incident "<host> backup missed — <timer|creds|repo>"` — last good snapshot age, the unit
+`skynet new journal incident "<host> backup missed — <timer|creds|repo>"` — last good snapshot age, the unit
 error, and the config/secret PR that fixed it. ([journal](../../journal/README.md).)

@@ -4,9 +4,9 @@ title: Rebuild the Skynet engine in Python
 status: in-progress
 horizon: long
 created: 2026-09-06
-updated: 2026-09-23
+updated: 2026-09-26
 phases: 18
-current_phase: 10
+current_phase: 11
 tier_touched: [T1, T2, T2+, T3]
 related:
   - docs/system-design.md
@@ -22,15 +22,18 @@ related:
 
 ## Status
 
-**Current:** phases 1–10 done (every read-only path is Python: collection, entities, cache,
-rendering, recall, deployment verification). The process overhaul is in: local pytest suite,
+**Current:** phases 1–11 done. Every read-only path is Python (collection, entities, cache,
+rendering, recall, deployment verification) behind one `skynet` command on PATH (ops VM system
+package + devshell); the shell forwarders, `bin/skynet`, `bin/plan`, `bin/new`, and `bin/recall` are
+gone. Collectors share one module (`common.py`: literal credentials, HTTPS, atomic writes, results)
+and `collect all` loops over one collector list. The process overhaul is in: local pytest suite,
 `bin/check`, Light/Full review tiers, agent-agnostic construction, this block as the only tracker,
 a two-active-directive limit (SKY-023 archived; SKY-005/006/018/020/024 parked in the backlog),
 a docs-only context budget, and weekly batched Renovate image updates. The deploy and Tofu phases
 follow the git model proposed in [ADR 0008](../../docs/decisions/0008-git-model-for-docker-and-opentofu.md);
 a live health monitor is Phase 14.
 
-**Next:** Phase 11 — purge and consolidate. Review: Light.
+**Next:** Phase 12 — census and gates. Review: Full.
 
 This block, the phase boxes, and the frontmatter are the **only** progress record. Each phase PR
 updates them itself; merge is completion ([construction](../../docs/conventions/construction.md)).
@@ -107,7 +110,7 @@ Everything else in `scripts/` and `bin/` is ported by the phase that owns it bel
 | 17 | Provision, onboard, OS updates | Full | provision/onboard, pins, age identity, OS-aware updates | one guest provisioned and updated; failed update stops with rollback |
 | 18 | Cutover | Full | deterministic Python nightly, install on ops VM, final prune, cold start | every "Done means" box ticked; ADR 0008 accepted; directive archived |
 
-### Phase 11 — Purge and consolidate   `[ ]` · review: Light
+### Phase 11 — Purge and consolidate   `[x]` · review: Light
 
 1. Delete the forwarders and stubs in the delete list. Rewrite every caller (runbooks, `nightly.sh`,
    systemd units, `nix/packages/skynet.nix` fileset, docs) to call `skynet …` directly.
@@ -119,7 +122,7 @@ Everything else in `scripts/` and `bin/` is ported by the phase that owns it bel
 5. Port `bin/plan` and `bin/new` to `skynet plan …` / `skynet new …` (roadmap regeneration,
    stage moves, template stamping) with tests; delete the shell versions.
 6. Rename the proof-era `lxc-proof` identity on the production NixOS LXC bootstrap artifact
-   (carried from SKY-023 P10).
+   (carried from SKY-023 P10). Already done by PR #205 (`lxc-base`); verified, no change.
 7. Triage `planning/scratchpad/`: each note becomes an idea directive, moves to `journal/`, or is
    deleted. Ali's personal notes stay unless Ali says otherwise.
 8. Existing tests stay green; add tests for the shared module.

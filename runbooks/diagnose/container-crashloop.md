@@ -22,7 +22,7 @@ fix is a `compose/` PR; never hand-edit the host.
 ### Inspect state, logs, and health
 
 ```bash
-scripts/recon.sh <docker-host>                          # the Containers section, first pass
+skynet recon <docker-host>                              # the Containers section, first pass
 ssh svc-ops@<docker-host> docker ps -a --filter name=<svc>
 ssh svc-ops@<docker-host> docker inspect --format \
   '{{.State.Status}} exit={{.State.ExitCode}} restarts={{.RestartCount}} oom={{.State.OOMKilled}}' <svc>
@@ -68,5 +68,5 @@ access is inspection only and must not become the rollback mechanism.
 
 ## Evidence
 
-Append a raw journal incident: `bin/new journal incident "<svc> crash-loop — <one-line cause>"` — the
+Append a raw journal incident: `skynet new journal incident "<svc> crash-loop — <one-line cause>"` — the
 exit code, the log line that named the fault, the `compose/` PR that fixed it. ([journal](../../journal/README.md).)

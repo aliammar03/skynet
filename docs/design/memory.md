@@ -32,7 +32,7 @@ original scout dialect; generated derivatives are excluded and no retrieval resu
 ## Durable records
 
 - **Journal:** raw dated session, incident, and decision episodes are append-only. Write with
-  `bin/new journal`; correct an entry with a new one that links back. Write raw; summarize only when
+  `skynet new journal`; correct an entry with a new one that links back. Write raw; summarize only when
   reading.
 - **ADRs:** one amended-in-place record for each non-trivial settled decision.
 - **Generated retrieval:** `skynet render digest` derives the recent-activity/episodic digest from

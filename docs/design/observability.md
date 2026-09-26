@@ -45,15 +45,13 @@ declared-host presence records an explicit ARP/ICMP vantage. The live OPNsense A
 firewall inventory source; the `config.xml` git backup is kept only as disaster-recovery material
 (restored as configuration, not parsed into inventory). Omada's Viewer-only HTTPS reads validate
 the controller, sites, device and required switch-port responses before its legacy network-gear
-schema is atomically replaced and receipt-bound. The remaining shell readers retain their
-existing evidence limitations. Collection timestamps
+schema is atomically replaced and receipt-bound. Collection timestamps
 describe observations, not live service-health verification.
 Failed initial marker publication also invalidates previous success for default queries and
 rendering. Factual pages are built in a staged copy before the generated tree is replaced as one
 publication unit; replacement failure rolls the prior tree back, and render/cache/input failure leaves
-the previous page set unchanged. Remaining reader processes are
-stopped and reaped before collection advances; uncertain
-cleanup blocks another collection pending local process recovery. The package's
+the previous page set unchanged. Uncertain Docker reader cleanup blocks another collection
+pending local process recovery. The package's
 [evidence and process contract](../../nix/README.md) defines storage and recovery behavior.
 
 Obsidian sync uses a `skynet` clone (optionally sparse-checking out `docs/generated/`) and never

@@ -25,7 +25,7 @@ SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SELF_DIR}/.." && pwd)"
 CREDENTIALS_FILE="${ARCANE_CREDENTIALS_FILE:-/opt/skynet-ops/secrets/arcane.env}"
 DOCKER_CONTEXT="${DOCKER_CONTEXT:-docker-dmz}"
-SKYNET_BIN="${SKYNET_BIN:-${REPO_ROOT}/bin/skynet}"
+SKYNET_BIN="${SKYNET_BIN:-skynet}"
 
 ARGS=(verify deployment "${SVC}" "${REVISION}"
   --repo "${REPO_ROOT}"

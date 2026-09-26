@@ -31,7 +31,7 @@ related:
 > health-gated deploy wrapper, SQLite-as-cache, the journal as a replay log — land where they belong.
 > SKY-017 buys autonomy with evidence; **this directive builds the thing the evidence is about.**
 
-> **Status: idea.** Long horizon, twelve phases. Promote with `bin/plan start SKY-018`.
+> **Status: idea.** Long horizon, twelve phases. Promote with `skynet plan start SKY-018`.
 
 ## 0. What this directive owns (and what it doesn't)
 
@@ -461,7 +461,7 @@ stop and wait there. When the phase's exit criteria are met, do the "Phase close
 - [ ] Land the work via **PR** (agent never merges its own).
 - [ ] In the phase PR: journal episode only if something non-obvious happened; `bin/check` green.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
-- [ ] `bin/plan list` to refresh the roadmap index.
+- [ ] `skynet plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:
 ```
 Continue planning/projects/SKY-018-eight-layer-reconciliation-entity-spine-the-analyze-phase-and-the-verification-toolchain.md at Phase <N+1>.

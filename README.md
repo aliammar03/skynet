@@ -103,7 +103,7 @@ checkpoint. The constitution documents that deliberate core exception.
 skynet/
 ├── AGENTS.md            ★ the operating contract — start here (every engine reads this)
 ├── CLAUDE.md            Claude Code shim — just imports AGENTS.md (one source of truth)
-├── bin/                 human entrypoints:  ops · grant-root · plan
+├── bin/                 human entrypoints:  check · ops · grant-root  (the rest is `skynet …`)
 ├── ca/                  SSH CA & agent PUBLIC keys (trust anchors; privates never here)
 ├── compose/             one dir per service — the "skynet way" Arcane git-syncs
 ├── docs/                design & how-it-works ── system-design.md is the master design (+ design/ spokes)
@@ -151,7 +151,7 @@ bin/ops collect          # refresh machine inventory (T1, read-only)
 bin/ops hygiene          # local-only repository hygiene and context-budget report (T1)
 skynet verify deployment <service> <full-revision>  # report-only live deployment verification
 bin/grant-root <host> 2h # human mints an auto-expiring root cert for the agent
-bin/plan idea "…"        # capture future work as a Skynet Directive
+skynet plan idea "…"     # capture future work as a Skynet Directive
 ```
 
 ---

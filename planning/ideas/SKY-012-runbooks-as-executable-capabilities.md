@@ -90,7 +90,7 @@ command." Read-cost drops to the shell; the mechanical core is enforced by being
 
 ## 5. When promoted to a project
 
-Likely phasing (sketch — fill in at `bin/plan start`): (P1) a pilot — convert one runbook
+Likely phasing (sketch — fill in at `skynet plan start`): (P1) a pilot — convert one runbook
 (`publish-service` or `update-guests`) to a capability + judgement shell, prove the pattern + a bench
 test; (P2) convert the rest of the deterministic set; (P3) document the capability/judgement-shell
 convention in `scripts.md` + `docs.md`, and wire capability tests into the CI gate. Each phase is a

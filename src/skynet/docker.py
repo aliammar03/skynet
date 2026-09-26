@@ -11,7 +11,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, TextIO
 
-from skynet.proxmox import CollectionError, publish
+from skynet import common
+from skynet.common import CollectionError
 
 TIMEOUT = 20
 CLEANUP_TIMEOUT = 5.0
@@ -148,31 +149,19 @@ def snapshot(label: str, context: str) -> dict[str, Any]:
             "containers": containers, "images": images}
 
 
-def collect(label: str, output: Path, context: str, *, json_output: bool, stdout: TextIO,
-            raise_cleanup: bool = False) -> int:
+def run(label: str, output: Path, context: str) -> common.Result:
+    """Collect one atomic Docker host snapshot; CleanupError propagates to the caller."""
+    return common.run(
+        f"docker-{label}", (output,), lambda: (snapshot(label, context),),
+        lambda data: {"containers": len(data["containers"]), "images": len(data["images"])},
+    )
+
+
+def collect(label: str, output: Path, context: str, *, json_output: bool, stdout: TextIO) -> int:
     """Collect one atomic Docker host snapshot; failure retains destination bytes."""
-    report: dict[str, Any] = {"target": f"docker-{label}", "output": str(output)}
     try:
-        data = snapshot(label, context)
-        publish(output, data)
+        result = run(label, output, context)
     except CleanupError:
-        if raise_cleanup:
-            raise
-        report.update(outcome="recovery-required",
-                      reason="Docker cleanup unconfirmed; inspect local processes")
-        code = 1
-    except CollectionError as error:
-        report.update(outcome="unavailable" if error.code == 3 else "failure",
-                      reason=f"{error}; refresh failed; any retained snapshot is previous evidence")
-        code = error.code
-    else:
-        report.update(outcome="success", collected=data["collected"],
-                      counts={"containers": len(data["containers"]), "images": len(data["images"])})
-        code = 0
-    if json_output:
-        print(json.dumps(report), file=stdout)
-    else:
-        print(f"{report['target']}: {report['outcome']} → {report['output']}", file=stdout)
-        if code:
-            print(report["reason"], file=stdout)
-    return code
+        result = common.Result(f"docker-{label}", (output,), 1, "recovery-required",
+                               reason="Docker cleanup unconfirmed; inspect local processes")
+    return common.emit(result, json_output, stdout)

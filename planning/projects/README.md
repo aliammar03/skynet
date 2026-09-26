@@ -13,5 +13,5 @@ The workflow, start to finish:
    directive's own status update, so merge is completion.
 3. **Anything touching T2+/T3** or a blast-radius boundary also PRs `docs/system-design.md`.
 
-**→ Out:** shipped or killed, `bin/plan archive SKY-###` retires it to
+**→ Out:** shipped or killed, `skynet plan archive SKY-###` retires it to
 [`../archive/`](../archive/) — the ID and its history stay meaningful forever.

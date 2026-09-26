@@ -5,90 +5,39 @@ about guest/service health. A failed refresh leaves the requested destination un
 """
 
 import http.client
-import json
-import os
-import re
 import ssl
-import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, TextIO
 from urllib.parse import quote, urlencode
+
+from skynet import common
+from skynet.common import CollectionError
 
 DEFAULT_CREDENTIALS = {
     "core": Path("/opt/skynet-ops/secrets/proxmox-core.env"),
     "network": Path("/opt/skynet-ops/secrets/proxmox-network.env"),
 }
 TIMEOUT = 15
-
-
-class CollectionError(Exception):
-    """A fixed, safe diagnostic and CLI exit code; never includes external text."""
-
-    def __init__(self, reason: str, code: int = 1):
-        super().__init__(reason)
-        self.code = code
+_KEYS = ("PVE_HOST", "PVE_TOKEN", "PVE_CACERT", "PVE_TOKEN_OPERATE")
 
 
 def credentials(path: Path, token_name: str = "PVE_TOKEN") -> tuple[str, str, ssl.SSLContext]:
     """Parse literal credentials and select exactly one declared token for HTTPS."""
-    try:
-        contents = path.read_text(encoding="utf-8")
-    except (OSError, UnicodeError, ValueError):
-        raise CollectionError("credentials unavailable", 3) from None
-    values: dict[str, str] = {}
-    for line in contents.splitlines():
-        if not line.strip() or line.lstrip().startswith("#"):
-            continue
-        match = re.fullmatch(
-            r"\s*(PVE_HOST|PVE_TOKEN|PVE_CACERT|PVE_TOKEN_OPERATE)=(?:'([^']*)'|\"([^\"]*)\"|([^\s'\"]+))"
-            r"\s*(?:#.*)?", line,
-        )
-        if not match:
-            raise CollectionError("invalid credential assignments", 3)
-        key = match[1]
-        value = next(v for v in match.groups()[1:] if v is not None)
-        if key in values or not value or any(c in value for c in "`$\\;|&<>()\r\n\x00"):
-            raise CollectionError("invalid credential assignments", 3)
-        values[key] = value
-    if not {"PVE_HOST", "PVE_CACERT", token_name} <= values.keys():
-        raise CollectionError("required credentials missing", 3)
-    # The contract is a host, not a URL, port override, or userinfo destination.
-    if not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?", values["PVE_HOST"]):
-        raise CollectionError("invalid credential host", 3)
-    if any(ord(c) < 33 or ord(c) > 126 for c in values[token_name]):
+    values = common.read_assignments(path, _KEYS, ("PVE_HOST", "PVE_CACERT", token_name))
+    host = common.require_host(values["PVE_HOST"])
+    if not common.printable(values[token_name]):
         raise CollectionError("invalid credential token", 3)
-    try:
-        context = ssl.create_default_context(cafile=values["PVE_CACERT"])
-    except (OSError, ValueError):
-        raise CollectionError("CA unavailable or invalid", 3) from None
-    return values["PVE_HOST"], values[token_name], context
+    return host, values[token_name], common.ca_context(values["PVE_CACERT"])
 
 
 def get(host: str, token: str, context: ssl.SSLContext, path: str) -> Any:
     """GET one API envelope without redirect handling or proxy/header forwarding."""
-    connection = None
-    try:
-        connection = http.client.HTTPSConnection(host, 8006, context=context, timeout=TIMEOUT)
-        connection.request("GET", "/api2/json/" + path,
-                           headers={"Authorization": "PVEAPIToken=" + token})
-        response = connection.getresponse()
-        if response.status != 200:
-            raise CollectionError("remote HTTP request refused (redirects disabled)", 3)
-        raw = response.read()
-    except (OSError, http.client.HTTPException, ValueError):
-        raise CollectionError("remote transport unavailable (timeout, TLS or connection)", 3) from None
-    finally:
-        if connection is not None:
-            try:
-                connection.close()
-            except OSError:
-                raise CollectionError("remote connection close failed", 3) from None
-    try:
-        envelope = json.loads(raw)
-    except (ValueError, UnicodeError):
-        raise CollectionError("malformed API JSON") from None
-    if not isinstance(envelope, dict) or envelope.get("data") is None:
+    connection = http.client.HTTPSConnection(host, 8006, context=context, timeout=TIMEOUT)
+    raw, _ = common.request(connection, "GET", "/api2/json/" + path,
+                            headers={"Authorization": "PVEAPIToken=" + token})
+    envelope = common.json_object(raw)
+    if envelope.get("data") is None:
         raise CollectionError("missing API data")
     return envelope["data"]
 
@@ -209,58 +158,20 @@ def snapshot(target: str, host: str, token: str, context: ssl.SSLContext) -> dic
             "backup_last": last}
 
 
-def publish(output: Path, data: dict[str, Any]) -> None:
-    """Replace only after serialization and a complete, flushed sibling write."""
-    temporary: str | None = None
-    try:
-        payload = json.dumps(data, indent=2, allow_nan=False) + "\n"
-        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=output.parent,
-                                         prefix="." + output.name + ".", delete=False) as stream:
-            temporary = stream.name
-            stream.write(payload)
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.replace(temporary, output)
-    except (OSError, ValueError, TypeError):
-        raise CollectionError("local snapshot publication failed") from None
-    finally:
-        if temporary is not None:
-            try:
-                os.unlink(temporary)
-            except FileNotFoundError:
-                pass
-            except OSError:
-                raise CollectionError("local temporary cleanup failed") from None
+def run(target: str, output: Path, credentials_file: Path) -> common.Result:
+    """Collect one validated Proxmox node shape with its read-only token."""
+    return common.run(
+        f"proxmox-{target}", (output,),
+        lambda: (snapshot(target, *credentials(credentials_file)),),
+        lambda data: {"nodes": len(data["nodes"]),
+                      "guests": sum(r["type"] in {"qemu", "lxc"} for r in data["resources"]),
+                      "pools": len(data["pools"])},
+    )
 
 
 def collect(target: str, output: Path, credentials_file: Path, *, json_output: bool,
             stdout: TextIO) -> int:
-    """Collect one validated Proxmox node shape with its read-only token."""
-    report: dict[str, Any] = {"target": f"proxmox-{target}", "output": str(output)}
-    try:
-        data = snapshot(target, *credentials(credentials_file))
-        publish(output, data)
-    except CollectionError as error:
-        report.update(outcome="unavailable" if error.code == 3 else "failure",
-                      reason=f"{error}; refresh failed; any retained snapshot is previous evidence")
-        code = error.code
-    else:
-        report.update(outcome="success", collected=data["collected"], counts={
-            "nodes": len(data["nodes"]),
-            "guests": sum(r["type"] in {"qemu", "lxc"} for r in data["resources"]),
-            "pools": len(data["pools"]),
-        })
-        code = 0
-    if json_output:
-        print(json.dumps(report), file=stdout)
-    else:
-        print(f"{report['target']}: {report['outcome']} → {report['output']}", file=stdout)
-        if code:
-            print(report["reason"], file=stdout)
-        else:
-            print(f"collected: {report['collected']}; " + ", ".join(
-                f"{key}: {value}" for key, value in report["counts"].items()), file=stdout)
-    return code
+    return common.emit(run(target, output, credentials_file), json_output, stdout)
 
 
 def acl_snapshot(target: str, host: str, token: str, context: ssl.SSLContext) -> dict[str, Any]:
@@ -282,25 +193,15 @@ def acl_snapshot(target: str, host: str, token: str, context: ssl.SSLContext) ->
             "permissions": permissions}
 
 
+def run_acl(target: str, output: Path, credentials_file: Path) -> common.Result:
+    """Collect one validated operate-token ACL observation without exposing its token."""
+    return common.run(
+        f"proxmox-{target}-acl", (output,),
+        lambda: (acl_snapshot(target, *credentials(credentials_file, "PVE_TOKEN_OPERATE")),),
+        lambda data: {"paths": len(data["permissions"])},
+    )
+
+
 def collect_acl(target: str, output: Path, credentials_file: Path, *, json_output: bool,
                 stdout: TextIO) -> int:
-    """Collect one validated operate-token ACL observation without exposing its token."""
-    report: dict[str, Any] = {"target": f"proxmox-{target}-acl", "output": str(output)}
-    try:
-        data = acl_snapshot(target, *credentials(credentials_file, "PVE_TOKEN_OPERATE"))
-        publish(output, data)
-    except CollectionError as error:
-        report.update(outcome="unavailable" if error.code == 3 else "failure",
-                      reason=f"{error}; refresh failed; any retained snapshot is previous evidence")
-        code = error.code
-    else:
-        report.update(outcome="success", collected=data["collected"],
-                      counts={"paths": len(data["permissions"])})
-        code = 0
-    if json_output:
-        print(json.dumps(report), file=stdout)
-    else:
-        print(f"{report['target']}: {report['outcome']} → {report['output']}", file=stdout)
-        if code:
-            print(report["reason"], file=stdout)
-    return code
+    return common.emit(run_acl(target, output, credentials_file), json_output, stdout)

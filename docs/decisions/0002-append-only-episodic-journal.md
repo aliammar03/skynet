@@ -15,7 +15,7 @@ holds every event, but it is not shaped for recall — a cold agent will not `gi
 reconstruct a decision or rediscover a dead end. The problem was never storage; it is **retrieval**,
 and before retrieval, **not losing episodes in the first place**.
 
-The known failure mode (research: `planning/scratchpad/research/2026-08-17-reactive-memory.md`) is
+The known failure mode (research: `journal/2026/2026-08-17-session-reactive-memory.md`) is
 summarizing at write time, which "collapses distinct episodes into semantic generalizations,
 destroying the episodic signal before it can be used." A record that pre-digests is a record that
 has already thrown away what episodic memory is for.

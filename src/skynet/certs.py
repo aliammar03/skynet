@@ -7,15 +7,14 @@ Vantage is explicit: the ops VM on VLAN 90. An endpoint it cannot reach is recor
 never dropped. A parse or publication failure leaves the requested destination untouched.
 """
 
-import json
 import socket
 import ssl
-import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, TextIO, cast
+from typing import Any, TextIO
 
-from skynet.proxmox import CollectionError, publish
+from skynet import common
+from skynet.common import CollectionError
 
 DEFAULT_OUTPUT = Path("inventory/certs.json")
 TIMEOUT = 8
@@ -52,26 +51,6 @@ def _probe(host: str, port: int, sni: str | None) -> bytes | None:
         return None
 
 
-def _decode(certificate: bytes) -> dict[str, Any]:
-    """Decode a DER leaf into the stdlib certificate dictionary via a short-lived PEM file."""
-    temporary: str | None = None
-    try:
-        with tempfile.NamedTemporaryFile(mode="w", encoding="ascii", delete=False) as stream:
-            temporary = stream.name
-            stream.write(ssl.DER_cert_to_PEM_cert(certificate))
-        return cast(dict[str, Any], ssl._ssl._test_decode_cert(temporary))  # type: ignore[attr-defined]
-    except (OSError, ssl.SSLError, ValueError):
-        raise CollectionError("malformed certificate") from None
-    finally:
-        if temporary is not None:
-            try:
-                Path(temporary).unlink()
-            except FileNotFoundError:
-                pass
-            except OSError:
-                raise CollectionError("certificate cleanup failed") from None
-
-
 def _name(rdns: Any) -> str:
     if not isinstance(rdns, (list, tuple)):
         raise CollectionError("malformed certificate name")
@@ -106,7 +85,7 @@ def _endpoint(label: str, host: str, port: int, sni: str | None, now: int) -> di
     certificate = _probe(host, port, sni)
     if certificate is None:
         return {"label": label, "endpoint": endpoint, "reachable": False}
-    decoded = _decode(certificate)
+    decoded = common.decode_der(certificate)
     not_after = decoded.get("notAfter")
     if not isinstance(not_after, str):
         raise CollectionError("malformed certificate expiry")
@@ -132,23 +111,10 @@ def snapshot() -> dict[str, Any]:
             "certs": certs}
 
 
-def collect(output: Path, *, json_output: bool, stdout: TextIO) -> int:
+def run(output: Path) -> common.Result:
     """Collect one atomic certificate snapshot; failure leaves the requested destination untouched."""
-    report: dict[str, Any] = {"target": "certs", "output": str(output)}
-    try:
-        data = snapshot()
-        publish(output, data)
-    except CollectionError as error:
-        report.update(outcome="unavailable" if error.code == 3 else "failure",
-                      reason=f"{error}; refresh failed; any retained snapshot is previous evidence")
-        code = error.code
-    else:
-        report.update(outcome="success", collected=data["collected"], counts=data["counts"])
-        code = 0
-    if json_output:
-        print(json.dumps(report), file=stdout)
-    else:
-        print(f"certs: {report['outcome']} → {report['output']}", file=stdout)
-        if code:
-            print(report["reason"], file=stdout)
-    return code
+    return common.run("certs", (output,), lambda: (snapshot(),), lambda data: data["counts"])
+
+
+def collect(output: Path, *, json_output: bool, stdout: TextIO) -> int:
+    return common.emit(run(output), json_output, stdout)

@@ -11,5 +11,5 @@ The bar for the Skynet way is set by the agent's `skynet-service-standard` memor
 [`docs/conventions.md`](../../docs/conventions.md): digest-pinned images, `env_file: .env`,
 secrets in `.env.sops`, a healthcheck on every service, deployed via Arcane GitOps.
 
-**→ Out:** when we commit to onboarding one, `bin/plan start SKY-###` turns the sketch into a
+**→ Out:** when we commit to onboarding one, `skynet plan start SKY-###` turns the sketch into a
 real [`../projects/`](../projects/) directive with the actual deployment phases.

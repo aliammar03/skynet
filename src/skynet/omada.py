@@ -1,6 +1,5 @@
 """T1 Omada Viewer observations over pinned HTTPS."""
 
-import http.client
 import json
 import re
 import ssl
@@ -10,15 +9,14 @@ from pathlib import Path
 from typing import Any, TextIO, cast
 from urllib.parse import quote
 
-from skynet.pbs import HTTPSConnection, _sni_from_certificate
-from skynet.proxmox import CollectionError, publish
+from skynet import common
+from skynet.common import CollectionError
 
 DEFAULT_CREDENTIALS = Path("/opt/skynet-ops/secrets/omada.env")
 DEFAULT_PORT = 8043
 DEFAULT_SNI = "Omada"
 TIMEOUT = 20
 SITE_PAGE_SIZE = 1000
-_HOST = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?")
 _APOSTROPHES = re.compile(r"['’]")
 _NON_SLUG = re.compile(r"[^a-z0-9]+")
 
@@ -33,61 +31,27 @@ class Credentials:
     context: ssl.SSLContext
 
 
-def _assignments(path: Path) -> dict[str, str]:
-    try:
-        text = path.read_text(encoding="utf-8")
-    except (OSError, UnicodeError, ValueError):
-        raise CollectionError("credentials unavailable", 3) from None
-    values: dict[str, str] = {}
-    for line in text.splitlines():
-        if not line.strip() or line.lstrip().startswith("#"):
-            continue
-        match = re.fullmatch(
-            r"\s*(OMADA_HOST|OMADA_PORT|OMADA_SNI|OMADA_USER|OMADA_PASS|OMADA_CACERT)="
-            r"(?:'([^']*)'|\"([^\"]*)\"|([^\s'\"]+))\s*(?:#.*)?", line)
-        if not match:
-            raise CollectionError("invalid credential assignments", 3)
-        key = match[1]
-        value = next(value for value in match.groups()[1:] if value is not None)
-        if key in values or not value or any(ord(char) < 32 or ord(char) == 127 for char in value):
-            raise CollectionError("invalid credential assignments", 3)
-        values[key] = value
-    if not {"OMADA_HOST", "OMADA_USER", "OMADA_PASS", "OMADA_CACERT"} <= values.keys():
-        raise CollectionError("required credentials missing", 3)
-    return values
-
-
 def credentials(path: Path) -> Credentials:
     """Read literal assignments: credentials are data, never evaluated shell."""
-    values = _assignments(path)
-    host = values["OMADA_HOST"]
-    if not _HOST.fullmatch(host):
-        raise CollectionError("invalid credential host", 3)
-    try:
-        port = int(values.get("OMADA_PORT", str(DEFAULT_PORT)))
-    except ValueError:
-        raise CollectionError("invalid credential port", 3) from None
-    if not 1 <= port <= 65535:
-        raise CollectionError("invalid credential port", 3)
+    values = common.read_assignments(
+        path, ("OMADA_HOST", "OMADA_PORT", "OMADA_SNI", "OMADA_USER", "OMADA_PASS", "OMADA_CACERT"),
+        ("OMADA_HOST", "OMADA_USER", "OMADA_PASS", "OMADA_CACERT"))
+    host = common.require_host(values["OMADA_HOST"])
+    port = common.port(values.get("OMADA_PORT", str(DEFAULT_PORT)))
     configured_sni = values.get("OMADA_SNI")
-    if configured_sni is not None and not _HOST.fullmatch(configured_sni):
-        raise CollectionError("invalid certificate name", 3)
+    if configured_sni is not None:
+        common.require_host(configured_sni, "invalid certificate name")
+    context = common.ca_context(values["OMADA_CACERT"])
     try:
-        context = ssl.create_default_context(cafile=values["OMADA_CACERT"])
-    except (OSError, ssl.SSLError, ValueError):
-        raise CollectionError("CA unavailable or invalid", 3) from None
-    try:
-        sni = _sni_from_certificate(values["OMADA_CACERT"], host)
+        sni = common.sni_from_certificate(values["OMADA_CACERT"], host)
     except CollectionError:
         sni = configured_sni or DEFAULT_SNI
-    if not _HOST.fullmatch(sni):
-        raise CollectionError("invalid certificate name", 3)
-    return Credentials(host, port, sni, values["OMADA_USER"], values["OMADA_PASS"], context)
+    return Credentials(host, port, common.require_host(sni, "invalid certificate name"),
+                       values["OMADA_USER"], values["OMADA_PASS"], context)
 
 
 def _request(settings: Credentials, method: str, path: str, *, body: bytes | None = None,
              cookie: str | None = None, csrf: str | None = None) -> tuple[dict[str, Any], str | None]:
-    connection = None
     headers: dict[str, str] = {}
     if body is not None:
         headers["Content-Type"] = "application/json"
@@ -95,29 +59,10 @@ def _request(settings: Credentials, method: str, path: str, *, body: bytes | Non
         headers["Cookie"] = cookie
     if csrf is not None:
         headers["Csrf-Token"] = csrf
-    try:
-        connection = HTTPSConnection(settings.host, settings.port, settings.context, settings.sni, TIMEOUT)
-        connection.request(method, path, body=body, headers=headers)
-        response = connection.getresponse()
-        if response.status != 200:
-            raise CollectionError("remote HTTP request refused (redirects disabled)", 3)
-        raw = response.read()
-        session = response.getheader("Set-Cookie")
-    except (OSError, http.client.HTTPException, ValueError):
-        raise CollectionError("remote transport unavailable (timeout, TLS or connection)", 3) from None
-    finally:
-        if connection is not None:
-            try:
-                connection.close()
-            except OSError:
-                raise CollectionError("remote connection close failed", 3) from None
-    try:
-        payload = json.loads(raw)
-    except (ValueError, UnicodeError):
-        raise CollectionError("malformed API JSON") from None
-    if not isinstance(payload, dict):
-        raise CollectionError("missing API data")
-    return payload, session
+    connection = common.SNIConnection(settings.host, settings.port, settings.context, settings.sni,
+                                      TIMEOUT)
+    raw, message = common.request(connection, method, path, headers=headers, body=body)
+    return common.json_object(raw), message.get("Set-Cookie")
 
 
 def _result(payload: dict[str, Any]) -> Any:
@@ -263,23 +208,12 @@ def snapshot(settings: Credentials) -> dict[str, Any]:
             "omadacId": controller_id}, "sites": sites, "devices": devices}
 
 
+def run(output: Path, credentials_file: Path) -> common.Result:
+    return common.run(
+        "network-gear", (output,), lambda: (snapshot(credentials(credentials_file)),),
+        lambda data: {"sites": len(data["sites"]), "devices": len(data["devices"])},
+    )
+
+
 def collect(output: Path, credentials_file: Path, *, json_output: bool, stdout: TextIO) -> int:
-    report: dict[str, Any] = {"target": "network-gear", "output": str(output)}
-    try:
-        data = snapshot(credentials(credentials_file))
-        publish(output, data)
-    except CollectionError as error:
-        report.update(outcome="unavailable" if error.code == 3 else "failure",
-                      reason=f"{error}; refresh failed; any retained snapshot is previous evidence")
-        code = error.code
-    else:
-        report.update(outcome="success", collected=data["collected"],
-                      counts={"sites": len(data["sites"]), "devices": len(data["devices"])})
-        code = 0
-    if json_output:
-        print(json.dumps(report), file=stdout)
-    else:
-        print(f"network-gear: {report['outcome']} → {report['output']}", file=stdout)
-        if code:
-            print(report["reason"], file=stdout)
-    return code
+    return common.emit(run(output, credentials_file), json_output, stdout)

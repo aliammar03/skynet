@@ -14,7 +14,8 @@ from pathlib import Path
 from typing import Any, TextIO
 
 from skynet import entities
-from skynet.proxmox import CollectionError, publish
+from skynet import common
+from skynet.common import CollectionError
 
 SOURCE = "caddyfile static parse (compose/)"
 CADDYFILE = Path("compose/caddy-apps/Caddyfile")
@@ -156,23 +157,10 @@ def snapshot(repo: Path) -> dict[str, Any]:
             "counts": {"routes": len(routes)}, "routes": routes}
 
 
-def collect(repo: Path, output: Path, *, json_output: bool, stdout: TextIO) -> int:
+def run(repo: Path, output: Path) -> common.Result:
     """Collect one atomic route snapshot; failure leaves the requested destination untouched."""
-    report: dict[str, Any] = {"target": "routes", "output": str(output)}
-    try:
-        data = snapshot(repo)
-        publish(output, data)
-    except CollectionError as error:
-        report.update(outcome="unavailable" if error.code == 3 else "failure",
-                      reason=f"{error}; refresh failed; any retained snapshot is previous evidence")
-        code = error.code
-    else:
-        report.update(outcome="success", collected=data["collected"], counts=data["counts"])
-        code = 0
-    if json_output:
-        print(json.dumps(report), file=stdout)
-    else:
-        print(f"routes: {report['outcome']} → {report['output']}", file=stdout)
-        if code:
-            print(report["reason"], file=stdout)
-    return code
+    return common.run("routes", (output,), lambda: (snapshot(repo),), lambda data: data["counts"])
+
+
+def collect(repo: Path, output: Path, *, json_output: bool, stdout: TextIO) -> int:
+    return common.emit(run(repo, output), json_output, stdout)

@@ -2,13 +2,15 @@
 
 import argparse
 import os
+import subprocess
 import sys
 from collections.abc import Sequence
 from pathlib import Path
 from typing import NoReturn
 
-from skynet import cache, certs, deployment, entities, installed_version, memory, omada, recon, render, routes
-from skynet.collection import collect_all, collection_status
+from skynet import (cache, certs, deployment, entities, installed_version, memory, omada, planning,
+                    recon, render, routes, scaffold)
+from skynet.collection import CredentialFiles, collect_all, collection_status
 from skynet.dns import DEFAULT_CREDENTIALS as DNS_DEFAULT_CREDENTIALS, collect as collect_dns
 from skynet.doctor import write_report
 from skynet.docker import collect as collect_docker
@@ -194,6 +196,35 @@ def build_parser() -> argparse.ArgumentParser:
     status.add_argument("--since", default=os.environ.get("SKYNET_COLLECTION_SINCE"),
                         help="require an attempt at or after this timezone-aware timestamp")
     status.add_argument("--json", action="store_true", dest="json_output")
+    plan = commands.add_parser("plan", help="scaffold and move Skynet Directives (planning/README.md)")
+    plan.add_argument("--repo", type=Path, default=Path.cwd(), help="checkout (default: cwd)")
+    plans = plan.add_subparsers(dest="action", required=True)
+    plans.add_parser("scratch", help="append a note to today's scratchpad").add_argument(
+        "note", nargs="*")
+    plan_idea = plans.add_parser("idea", help="mint the next SKY-### in ideas/ (title or scratch file)")
+    plan_idea.add_argument("source", help="title, or a planning/scratchpad/ file to promote")
+    plan_idea.add_argument("--long", action="store_const", const="long", default="short",
+                           dest="horizon")
+    plans.add_parser("service", help="sketch a planned service in services/").add_argument("name")
+    plan_promote = plans.add_parser("promote", help="move a directive to another stage")
+    plan_promote.add_argument("id")
+    plan_promote.add_argument("stage", choices=planning.STAGES)
+    plans.add_parser("start", help="promote to projects/ (in-progress)").add_argument("id")
+    plan_archive = plans.add_parser("archive", help="move to archive/ (done, or --abandon)")
+    plan_archive.add_argument("id")
+    plan_archive.add_argument("--abandon", action="store_true")
+    plans.add_parser("show", help="print a directive's path").add_argument("id")
+    plans.add_parser("list", help="regenerate the roadmap table in planning/README.md")
+    new = commands.add_parser("new", help="stamp an artifact from its templates/ golden template")
+    new.add_argument("--repo", type=Path, default=Path.cwd(), help="checkout (default: cwd)")
+    kinds = new.add_subparsers(dest="kind", required=True)
+    kinds.add_parser("service", help="compose/<name>/").add_argument("name")
+    kinds.add_parser("script", help="scripts/<name>.sh").add_argument("name")
+    kinds.add_parser("runbook", help="runbooks/<slug>.md").add_argument("title")
+    kinds.add_parser("adr", help="docs/decisions/NNNN-<slug>.md").add_argument("title")
+    new_journal = kinds.add_parser("journal", help="journal/<YYYY>/<date>-<kind>-<slug>.md")
+    new_journal.add_argument("episode", choices=scaffold.JOURNAL_KINDS)
+    new_journal.add_argument("title")
     return parser
 
 
@@ -219,11 +250,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _unreachable_command(arguments.verification)
     if arguments.command == "collect":
         if arguments.source == "all":
-            return collect_all(arguments.repo, arguments.credentials_file,
-                               arguments.network_credentials_file, arguments.pbs_credentials_file,
-                               arguments.dns_credentials_file, arguments.opnsense_credentials_file,
-                               arguments.omada_credentials_file,
-                               json_output=arguments.json_output, stdout=sys.stdout)
+            files = CredentialFiles(
+                core=arguments.credentials_file, network=arguments.network_credentials_file,
+                pbs=arguments.pbs_credentials_file, dns=arguments.dns_credentials_file,
+                opnsense=arguments.opnsense_credentials_file, omada=arguments.omada_credentials_file,
+            )
+            return collect_all(arguments.repo, files, json_output=arguments.json_output,
+                               stdout=sys.stdout)
         if arguments.source == "pbs":
             return collect_pbs(arguments.output, arguments.credentials_file,
                                json_output=arguments.json_output, stdout=sys.stdout)
@@ -260,6 +293,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                           arguments.no_header)
     if arguments.command == "render":
         return _run_render(arguments)
+    if arguments.command == "plan":
+        return _run_plan(arguments)
+    if arguments.command == "new":
+        return _run_new(arguments)
     if arguments.command == "recall":
         try:
             return memory.print_recall(arguments.repo, arguments.terms, sys.stdout)
@@ -313,6 +350,64 @@ def _run_render(arguments: argparse.Namespace) -> int:
     except (KeyError, OSError, OverflowError, TypeError, UnicodeError, ValueError):
         print(f"render-{arguments.renderer}: malformed or unavailable source", file=sys.stderr)
         return 3
+
+
+def _run_plan(arguments: argparse.Namespace) -> int:
+    """Dispatch one directive lifecycle action; every move regenerates the roadmap."""
+    repo = arguments.repo.resolve()
+    try:
+        if arguments.action == "scratch":
+            print(planning.scratch(repo, " ".join(arguments.note)))
+        elif arguments.action == "idea":
+            directive, path = planning.idea(repo, arguments.source, arguments.horizon)
+            print(f"minted {directive} → {path} (horizon: {arguments.horizon})\nroadmap updated.")
+        elif arguments.action == "service":
+            directive, path = planning.service(repo, arguments.name)
+            print(f"sketched {directive} → {path}\nroadmap updated.")
+        elif arguments.action in {"promote", "start"}:
+            stage = "projects" if arguments.action == "start" else arguments.stage
+            path = planning.promote(repo, arguments.id, stage)
+            print(f"{arguments.id} → {stage} : {path}\nroadmap updated.")
+        elif arguments.action == "archive":
+            path = planning.promote(repo, arguments.id, "archive", abandon=arguments.abandon)
+            print(f"{arguments.id} archived: {path}\nroadmap updated.")
+        elif arguments.action == "show":
+            print(planning.find(repo / "planning", arguments.id))
+        elif arguments.action == "list":
+            print(planning.roadmap(repo))
+        else:
+            return _unreachable_command(arguments.action)
+    except (planning.PlanError, OSError, subprocess.CalledProcessError) as error:
+        print(f"plan: {error}", file=sys.stderr)
+        return 1
+    return 0
+
+
+def _run_new(arguments: argparse.Namespace) -> int:
+    """Stamp one artifact skeleton and say what to fill in next."""
+    repo = arguments.repo.resolve()
+    try:
+        if arguments.kind == "service":
+            path = scaffold.service(repo, arguments.name)
+            print(f"created {path}/ — fill every TODO, then deploy: "
+                  f"scripts/gitops-deploy.sh {path.name}")
+        elif arguments.kind == "script":
+            path = scaffold.script(repo, arguments.name)
+            print(f"created {path} — fill the header (purpose/tier/usage) and the body")
+        elif arguments.kind == "runbook":
+            path = scaffold.runbook(repo, arguments.title)
+            print(f"created {path} — remember to list it in runbooks/README.md")
+        elif arguments.kind == "adr":
+            print(f"created {scaffold.adr(repo, arguments.title)}")
+        elif arguments.kind == "journal":
+            path = scaffold.journal(repo, arguments.episode, arguments.title)
+            print(f"created {path} — write it RAW (journal/README.md); do not summarize at write time")
+        else:
+            return _unreachable_command(arguments.kind)
+    except (scaffold.ScaffoldError, OSError) as error:
+        print(f"new: {error}", file=sys.stderr)
+        return 1
+    return 0
 
 
 def _unreachable_command(command: str) -> NoReturn:

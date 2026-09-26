@@ -1,3 +1,17 @@
+---
+date: 2026-08-17
+time: 00:00:00          # original time not recorded; moved from planning/scratchpad/
+kind: session
+title: "OpenTofu as a provisioning layer for Skynet"
+tier_touched: []
+grants: []
+refs: [SKY-008]
+thread_status: none
+---
+
+> Moved verbatim from `planning/scratchpad/research/2026-08-17-opentofu-provisioning.md` by the SKY-025
+> Phase 11 scratchpad triage. Raw research/brain-dump; not current doctrine.
+
 > Agent-generated research feeding **SKY-008**. Sources are cited inline; recency noted where it matters. Skeptical by design — flags where the ecosystem is rough.
 
 # OpenTofu as a provisioning layer for Skynet

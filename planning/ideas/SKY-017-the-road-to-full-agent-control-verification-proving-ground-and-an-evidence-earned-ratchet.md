@@ -29,7 +29,7 @@ related:
 > track record that turns promotion into a measurement instead of a feeling.
 
 > **Status: idea.** The constitutional half landed first ([ADR 0005](../../docs/decisions/0005-full-agent-control-as-terminal-goal.md),
-> system-design §1a). This directive is the build. Promote with `bin/plan start SKY-017`.
+> system-design §1a). This directive is the build. Promote with `skynet plan start SKY-017`.
 
 ## 1. Problem / motivation
 
@@ -224,7 +224,7 @@ exit criteria are met, do the "Phase close-out" at the bottom.
 - [ ] Land the work via **PR** (agent never merges its own).
 - [ ] In the phase PR: journal episode only if something non-obvious happened; `bin/check` green.
 - [ ] Bump this file's frontmatter (`current_phase`, `status`, `updated`) and flip the phase box to `[x]`.
-- [ ] `bin/plan list` to refresh the roadmap index.
+- [ ] `skynet plan list` to refresh the roadmap index.
 - [ ] Paste the **Continue prompt** below to resume in a fresh session:
 ```
 Continue planning/projects/SKY-017-the-road-to-full-agent-control-verification-proving-ground-and-an-evidence-earned-ratchet.md at Phase <N+1>.

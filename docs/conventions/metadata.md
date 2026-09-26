@@ -11,7 +11,7 @@ Tags: **[testable]** = a lint gate could validate the schema; **[manual]** = hol
 
 ## Directive frontmatter (`planning/**/SKY-###-*.md`) `[testable]`
 
-Minted and moved by `bin/plan`; the leading `---` block carries unique keys:
+Minted and moved by `skynet plan`; the leading `---` block carries unique keys:
 
 ```yaml
 ---
@@ -38,7 +38,7 @@ related:                     # authoritative paths this directive leans on
 ## Service-catalog entry (`planning/services/SKY-###-*.md`) `[manual]`
 
 A sketch of a service to bring onto the skynet way — up front: what it is, why we'd run it,
-image/compose notes, and its **secrets / DNS / backup** needs. `bin/plan start SKY-###` promotes
+image/compose notes, and its **secrets / DNS / backup** needs. `skynet plan start SKY-###` promotes
 it into a real `projects/` directive with deployment phases. The standard it must reach is the
 [`compose.md`](compose.md) spoke.
 

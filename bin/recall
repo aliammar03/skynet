@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-# recall — compatibility entry for the packaged read-time retrieval helper.
-# TIER: T1 local read-only. USAGE: bin/recall <topic> [more terms...]
-set -euo pipefail
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-exec "${REPO_DIR}/bin/skynet" recall --repo "${REPO_DIR}" "$@"

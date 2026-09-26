@@ -1,3 +1,17 @@
+---
+date: 2026-08-28
+time: 00:00:00          # original time not recorded; moved from planning/scratchpad/
+kind: session
+title: "What system best achieves full agent control — the options"
+tier_touched: []
+grants: []
+refs: [SKY-004, SKY-017]
+thread_status: none
+---
+
+> Moved verbatim from `planning/scratchpad/research/2026-08-28-full-agent-control-options.md` by the SKY-025
+> Phase 11 scratchpad triage. Raw research/brain-dump; not current doctrine.
+
 > Agent-generated options research for the terminal goal now in the constitution
 > ([system-design §1a](../../docs/system-design.md), [ADR 0005](../../docs/decisions/0005-full-agent-control-as-terminal-goal.md)).
 > Judged against ADR 0005's requirements, not against feature lists. Sources cited inline; skeptical

@@ -67,5 +67,5 @@ configuration. Never roll back by copying certificate files onto the host.
 
 ## Evidence
 
-`bin/new journal incident "<name> cert expired — <ACME cause>"` — the served `notAfter`, the ACME log
+`skynet new journal incident "<name> cert expired — <ACME cause>"` — the served `notAfter`, the ACME log
 line, and the config PR that restored issuance. ([journal](../../journal/README.md).)

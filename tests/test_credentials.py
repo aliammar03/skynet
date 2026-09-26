@@ -1,4 +1,5 @@
-"""Credential files are literal data: shell syntax, duplicates, and gaps fail closed (exit 3)."""
+"""Credential files are literal data: non-assignments, duplicates, gaps, and control characters
+fail closed (exit 3)."""
 
 from collections.abc import Callable
 from pathlib import Path
@@ -6,15 +7,17 @@ from typing import Any
 
 import pytest
 
-from skynet import deployment, dns, omada, opnsense, pbs
+from skynet import deployment, dns, omada, opnsense, pbs, proxmox
 
 CA = "/etc/ssl/certs/ca-certificates.crt"
 # module parser, error type, a complete valid file
 CASES: dict[str, tuple[Callable[[Path], Any], type[Exception], str]] = {
     "dns": (dns.credentials, dns.CollectionError,
             f"TECH_HOST=dns.lab\nTECH_TOKEN=abc123\nTECH_CACERT={CA}\n"),
-    "pbs": (pbs._literal_assignments, pbs.CollectionError,
-            "PBS_HOST=pbs.lab\nPBS_TOKEN='root@pam!ro:abc'\n"),
+    "proxmox": (proxmox.credentials, proxmox.CollectionError,
+                f"PVE_HOST=pve.lab\nPVE_TOKEN='ro@pve!t=abc'\nPVE_CACERT={CA}\n"),
+    "pbs": (pbs.credentials, pbs.CollectionError,
+            f"PBS_HOST=pbs.lab\nPBS_TOKEN='root@pam!ro:abc'\nPBS_CACERT={CA}\nPBS_SNI=pbs.lab\n"),
     "opnsense": (opnsense.credentials, opnsense.CollectionError,
                  f"OPN_HOST=fw.lab\nOPN_KEY=key\nOPN_SECRET='c2VjcmV0'\nOPN_CACERT={CA}\n"),
     "omada": (omada.credentials, omada.CollectionError,
@@ -67,8 +70,8 @@ def test_non_assignment_line_is_refused(name: str, tmp_path: Path) -> None:
     _refused(parse, error, _write(tmp_path, valid + "export EVIL=1; rm -rf /\n"))
 
 
-@pytest.mark.parametrize("name", ["dns", "pbs"])
-def test_shell_expansion_in_value_is_refused(name: str, tmp_path: Path) -> None:
+@pytest.mark.parametrize("name", CASES)
+def test_control_character_in_value_is_refused(name: str, tmp_path: Path) -> None:
     parse, error, valid = CASES[name]
     key = valid.splitlines()[1].split("=", 1)[0]
-    _refused(parse, error, _write(tmp_path, valid.replace(f"{key}=", f"{key}=$(id)#", 1)))
+    _refused(parse, error, _write(tmp_path, valid.replace(f"{key}=", f"{key}=a\x1bb", 1)))
