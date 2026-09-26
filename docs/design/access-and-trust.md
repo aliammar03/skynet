@@ -43,9 +43,10 @@ mixed scope, delete/replace actions, and un-snapshotable existing-guest updates.
 ## Workload-host access
 
 `svc-ops` is the standing unprivileged account (including Docker access where needed). Root requires
-a certificate signed by the CA that remains on Ali's workstation. `bin/grant-root <host> [duration]`
+a certificate signed by the CA that remains on Ali's workstation. `nix run .#grant-root -- <host> [duration]` (alias `gr`)
 creates a host-specific certificate and SSH configuration entry; multiple grants coexist and expire
-without a cleanup action. Root session KeyIDs are collected nightly.
+without a cleanup action. `<host>` must be the target's real `hostname` (the principal is
+`ops-root-<hostname>`). Root session KeyIDs are collected nightly.
 
 [`scripts/onboard-host.sh`](../../scripts/onboard-host.sh) installs CA trust and principal mapping on
 a managed host. A new VM first needs its temporary bootstrap path, then this onboarding procedure;
