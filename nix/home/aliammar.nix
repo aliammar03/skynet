@@ -65,7 +65,10 @@ in
   # a PR (the human-merge gate), request root — plus never dump decrypted secrets to stdout.
   programs.claude-code = {
     enable = true;
-    package = unstable.claude-code;
+    # Pin the upstream release while nixpkgs catches up; retain its wrapper and sandbox tools.
+    package = unstable.claude-code.override {
+      manifest = builtins.fromJSON (builtins.readFile ./claude-code-manifest.json);
+    };
     enableMcpIntegration = true;
     settings.permissions = {
       # acceptEdits: Write/Edit land without a prompt (matches the ops loop's --permission-mode flag).
