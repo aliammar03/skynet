@@ -1,0 +1,14 @@
+name: skynet-drill
+services:
+  drill:
+    image: busybox@sha256:dc2d74b28e4cf8984fa52af1f39bc7c3d9c73760b41a74d629f5d11b1ab28616
+    command: ["sh", "-c", "cat /etc/drill/note.txt; sleep 86400"]
+    env_file: .env
+    volumes:
+      - ./note.txt:/etc/drill/note.txt:ro
+    healthcheck:
+      test: ["CMD", "true"]
+      interval: 3s
+      timeout: 2s
+      retries: 2
+      start_period: 2s
