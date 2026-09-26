@@ -8,14 +8,14 @@ let
   # Fast-moving agent CLIs ride nixpkgs-unstable (bump that input to update them); the host stays
   # on stable 26.05. allowUnfree: claude-code / antigravity are unfree.
   unstable = import inputs.nixpkgs-unstable {
-    inherit (pkgs) system;
+    inherit (pkgs.stdenv.hostPlatform) system;
     config.allowUnfree = true;
   };
   # Codex only: a pinned nixpkgs master rev carrying a newer codex than the unstable channel has
   # promoted. Everything else rides `unstable`. Temporary — drop with the input once the channel
   # catches up (see flake.nix nixpkgs-codex).
   codexPkgs = import inputs.nixpkgs-codex {
-    inherit (pkgs) system;
+    inherit (pkgs.stdenv.hostPlatform) system;
   };
 in
 {
