@@ -3,7 +3,8 @@
 # TIER: CA custody — HUMAN RUNS THIS on the workstation, never on the VM.
 #   The SSH user-CA private key is the whole security model: it must exist ONLY here.
 # USAGE: bootstrap-workstation.sh
-# RESULT: creates the CA, installs bin/grant-root as ~/bin/grant-root, adds the `gr` alias.
+# RESULT: creates the CA and points the `gr` alias at the flake's grant-root app (no copied file,
+#   so the workstation always runs the checkout's version: `git pull` updates it). Needs nix.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -20,19 +21,22 @@ else
   echo "==> ALSO back up ${CA_KEY} (private) to your password manager + printed survival kit."
 fi
 
-echo "==> installing grant-root to ~/bin/grant-root"
-mkdir -p "${HOME}/bin"
-install -m 755 "${REPO_DIR}/bin/grant-root" "${HOME}/bin/grant-root"
+if [ -e "${HOME}/bin/grant-root" ]; then
+  echo "==> removing the copied ~/bin/grant-root (it drifts from git; gr now runs the flake app)"
+  rm -f "${HOME}/bin/grant-root"
+fi
 
 echo "==> enabling the pre-commit secret scan (core.hooksPath=.githooks)"
 git -C "${REPO_DIR}" config core.hooksPath .githooks
 
 RC="${HOME}/.bashrc"; [ -n "${ZSH_VERSION:-}" ] && RC="${HOME}/.zshrc"
-if ! grep -q "alias gr=" "${RC}" 2>/dev/null; then
-  echo "alias gr='~/bin/grant-root'" >> "${RC}"
-  echo "==> added 'gr' alias to ${RC} (open a new shell to use it)"
-else
+GR="alias gr='nix run ${REPO_DIR}#grant-root --'"
+if grep -qxF "${GR}" "${RC}" 2>/dev/null; then
   echo "==> 'gr' alias already present in ${RC}"
+else
+  sed -i '/^alias gr=/d' "${RC}" 2>/dev/null || true
+  echo "${GR}" >> "${RC}"
+  echo "==> set 'gr' alias in ${RC} (open a new shell to use it)"
 fi
 
 echo

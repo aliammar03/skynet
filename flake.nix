@@ -47,6 +47,7 @@
       system = "x86_64-linux";
       pkgs = import nixpkgs { inherit system; };
       skynet = pkgs.callPackage ./nix/packages/skynet.nix { };
+      grant-root = pkgs.callPackage ./nix/packages/grant-root.nix { };
     in
     {
       nixosConfigurations.vm-skynet-ops = nixpkgs.lib.nixosSystem {
@@ -73,12 +74,19 @@
       # (local:vztmpl/). The proxmox-lxc module exposes it as system.build.tarball.
       packages.${system} = {
         lxc-base-tarball = self.nixosConfigurations.lxc-base.config.system.build.tarball;
-        inherit skynet;
+        inherit skynet grant-root;
       };
 
-      apps.${system}.skynet = {
-        type = "app";
-        program = "${skynet}/bin/skynet";
+      apps.${system} = {
+        skynet = {
+          type = "app";
+          program = "${skynet}/bin/skynet";
+        };
+        # Workstation-only (the CA key lives there): `nix run .#grant-root -- <host> [duration]`.
+        grant-root = {
+          type = "app";
+          program = "${grant-root}/bin/grant-root";
+        };
       };
 
       devShells.${system}.default = pkgs.mkShell {

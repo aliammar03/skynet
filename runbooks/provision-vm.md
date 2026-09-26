@@ -26,7 +26,7 @@ rollback: "No automatic rollback for a new VM; operator recovery on partial crea
    TOFU_APPLY_SCOPE=proxmox-core scripts/tofu-apply.sh /tmp/provision-<newhost>.tfplan
    ```
    Check `/cluster/resources` through the read API. On any create/verification failure, stop: the wrapper never auto-destroys a partial VM.
-4. Request the narrowest root grant (for example `bin/grant-root <newhost> 2h`), validate its certificate, then harden SSH, install updates/fail2ban as appropriate, and configure backups:
+4. Request the narrowest root grant (for example `gr <newhost> 2h` on the workstation), validate its certificate, then harden SSH, install updates/fail2ban as appropriate, and configure backups:
    ```bash
    scripts/provision-restic.sh <newhost> root@<ip> --docker
    scripts/provision-restic.sh <newhost> root@<ip> --path /srv/data
