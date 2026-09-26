@@ -187,7 +187,8 @@ def probe(context: str, vhost: str, timeout: float) -> dict[str, Any]:
         raise VerificationError("declared route TLS verification failed", 1)
     if status < 100 or status >= 500 or result.returncode != 0:
         raise VerificationError("declared route is unreachable", 1)
-    return {"vhost": vhost, "http_code": status, "redirect": match[3] or ""}
+    # Keep only where a redirect points; its query can carry one-time flow state.
+    return {"vhost": vhost, "http_code": status, "redirect": (match[3] or "").split("?", 1)[0]}
 
 
 def verify(service: str, revision: str, expected: Iterable[str], route_repo: Path, *,

@@ -6,7 +6,7 @@ horizon: long
 created: 2026-09-06
 updated: 2026-09-26
 phases: 18
-current_phase: 12
+current_phase: 13
 tier_touched: [T1, T2, T2+, T3]
 related:
   - docs/system-design.md
@@ -22,7 +22,12 @@ related:
 
 ## Status
 
-**Current:** phases 1–12 done. Every read-only path is Python (collection, entities, cache,
+**Current:** phases 1–13 done. Docker deploys run through one executor: `skynet deploy` applies the
+merged revision of each `compose/<svc>/` (env and compose rendered together, `skynet.revision` on
+every container), verifies it, and on failure returns to the last verified revision by itself and
+opens a revert PR; a 3-minute `skynet-deploy` timer (`--pending`) replaced Arcane Git Sync, which is
+off. `skynet publish`/`withdraw` own Authentik forward-auth objects and the gated public-record
+delete. Every write runs one shape (`writepath.py`). Every read-only path is Python (collection, entities, cache,
 rendering, recall, deployment verification) behind one `skynet` command on PATH (ops VM system
 package + devshell); the shell forwarders, `bin/skynet`, `bin/plan`, `bin/new`, and `bin/recall` are
 gone. Collectors share one module (`common.py`: literal credentials, HTTPS, atomic writes, results)
@@ -37,7 +42,8 @@ since 2026-08-31 and a failed docker-dmz restic run (cause unknown). Phase 16 no
 from scratch. Until it lands, no new off-site copy is known to land, and older copies are unverified
 (accepted by Ali, 2026-09-26).
 
-**Next:** Phase 13 — write-path skeleton, `skynet deploy`, publish. Review: Full.
+**Next:** Phase 14 — live health monitor (`skynet watch`, Pushover). Review: Full. Before the
+timer runs, Ali rebuilds the ops VM (P13's `skynet-deploy` timer and `/opt/skynet-ops/state`).
 
 This block, the phase boxes, and the frontmatter are the **only** progress record. Each phase PR
 updates them itself; merge is completion ([construction](../../docs/conventions/construction.md)).
@@ -51,7 +57,7 @@ SKY-025 is finished when every box holds:
 - [ ] Nightly, deploy, publish, Tofu apply, backup, and restore run through Python on the ops VM.
 - [ ] Docker and OpenTofu follow ADR 0008: effect in the PR, merge is the approval, one executor,
       Tofu state in the `tofu-state` branch; ADR 0008 is accepted.
-- [ ] A failed deploy rolls back to the last verified revision without waiting for a human.
+- [x] A failed deploy rolls back to the last verified revision without waiting for a human.
 - [ ] A service outage reaches Ali's phone within 10 minutes.
 - [ ] The nightly is deterministic (no AI engine), runs `bin/check` on `main`, and opens a PR only
       when inventory changed beyond timestamps.
@@ -153,7 +159,7 @@ Recorded in `docs/design/gitops-loop.md` (13), `docs/design/observability.md` (1
 `docs/design/actuators.md` (15), `runbooks/backup.md` (16, 17), and `docs/design/disaster-recovery.md`
 (16, 18).
 
-### Phase 13 — Write-path skeleton, `skynet deploy`, publish   `[ ]` · review: Full
+### Phase 13 — Write-path skeleton, `skynet deploy`, publish   `[x]` · review: Full
 
 1. Build the write-path shape once (plan → preflight → snapshot → execute → verify → rollback or
    stop → record) as plain functions every later write path reuses.
@@ -240,8 +246,8 @@ Each needs a test in `tests/` by the phase that owns it.
 
 | Case | Required property | Phase |
 |---|---|---|
-| F1 | SSH/container failure or empty required set cannot look healthy | 10 ✓, 13 |
-| F2 | deploy/API/revision errors cannot be ignored | 13 |
+| F1 | SSH/container failure or empty required set cannot look healthy | 10 ✓, 13 ✓ |
+| F2 | deploy/API/revision errors cannot be ignored | 13 ✓ |
 | F3 | unsafe infrastructure actions are refused; partial state stays recoverable | 15 |
 | F4 | backup init/timer/target failure cannot report success | 16 |
 | F5 | backup/restore consistency is explicit and tested | 16 |
@@ -250,7 +256,7 @@ Each needs a test in `tests/` by the phase that owns it.
 | F8 | stale/missing collectors cannot look current | 3–9 ✓ (tested) |
 | F9 | package/config ownership stays singular | 11, 18 |
 | F12 | an unchanged lab produces no nightly PR; a red `bin/check` on `main` is reported, never hidden | 18 |
-| F13 | env and compose go live together at one revision; a failed deploy returns to the last verified revision | 13 |
+| F13 | env and compose go live together at one revision; a failed deploy returns to the last verified revision | 13 ✓ |
 | F14 | an outage alerts once within 10 minutes; flapping does not alert; a dead monitor is visible | 14 |
 | F15 | a Tofu apply whose plan differs from the PR's is refused; state survives losing the ops VM | 15 |
 | F10–F11 | one authority per rule; docs, help, runbooks stay truthful | every phase |

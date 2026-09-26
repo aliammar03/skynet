@@ -45,7 +45,8 @@ WAIT_SECONDS = 300
 FACTS = ("verified", "failed")
 SKIPPED_FILES = {".env.git", ".env.sops"}
 _KEY = re.compile(r"\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=")
-_MANUAL = re.compile(r"^x-skynet:\s*\n(?:[ \t]+.*\n)*?[ \t]+deploy:\s*manual\s*$", re.MULTILINE)
+_MANUAL = re.compile(r"^x-skynet:[ \t]*(?:#.*)?\n(?:[ \t]+.*\n)*?[ \t]+deploy:[ \t]*manual[ \t]*(?:#.*)?$",
+                     re.MULTILINE)
 _DOCKER_ENV = ("PATH", "HOME", "USER", "LANG", "SSH_AUTH_SOCK", "DOCKER_CONFIG", "XDG_RUNTIME_DIR")
 
 
@@ -398,13 +399,13 @@ def deploy(repo: Path, service: str, *, revision: str | None = None, context: st
         set_fact(context, service, "failed", target)
         back = state.facts.verified
         if back is None or back == target:
-            operation.note("rollback", "skipped", "no earlier verified revision")
+            operation.note("rollback-target", "skipped", "no earlier verified revision")
             return "no-rollback-target"
         release = render(repo, service, back)
         stage(context, release)
         up(context, release)
         check(repo, context, release)
-        operation.note("rollback", "ok", f"running verified {back}")
+        operation.note("rollback-target", "ok", f"running verified {back}")
         if revert_pr and service_revision(repo, service) == target:
             try:
                 operation.note("revert-pr", "ok", open_revert_pr(repo, service, target, back, error.reason))

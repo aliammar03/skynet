@@ -190,6 +190,7 @@ def test_duplicate_env_key_is_refused() -> None:
 
 def test_manual_marker_is_read_from_the_raw_file() -> None:
     assert deploy._MANUAL.search("x-skynet:\n  deploy: manual\nservices: {}\n")
+    assert deploy._MANUAL.search("x-skynet:\n  deploy: manual   # run by hand\nservices: {}\n")
     assert not deploy._MANUAL.search("x-skynet:\n  deploy: auto\nservices:\n  a:\n    deploy: manual\n")
 
 

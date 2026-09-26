@@ -90,3 +90,10 @@ def test_missing_route_source_is_unavailable(tmp_path: Path) -> None:
     with pytest.raises(VerificationError) as caught:
         deployment.route_vhosts(tmp_path, "calibre")
     assert caught.value.code == 3
+
+
+def test_probe_keeps_redirect_target_without_its_query(monkeypatch: pytest.MonkeyPatch) -> None:
+    result = type("R", (), {"returncode": 0, "stdout": "302 0 https://auth.aliammar.net/authorize/?state=x.y.z"})
+    monkeypatch.setattr(deployment.subprocess, "run", lambda *a, **k: result)
+    assert deployment.probe("docker-dmz", "calibre.aliammar.net", 5.0) == {
+        "vhost": "calibre.aliammar.net", "http_code": 302, "redirect": "https://auth.aliammar.net/authorize/"}
