@@ -18,6 +18,9 @@ rollback: "Restore with restore-service.md"
 
 ### Automatic layers
 
+> **Off-site is down.** L3 and L5 have both failed since 2026-08-31 (Google `disabled_client`). They
+> are being replaced, not repaired, by SKY-025 Phase 16. Local PBS backups (L4) still run.
+
 | Layer | Where | Schedule | Covers |
 |---|---|---|---|
 | L3 restic → gdrive | each Docker/host | `skynet-restic-backup@<label>` at 02:30 + jitter | appdata, protected volumes, `BACKUP_PATHS` |
