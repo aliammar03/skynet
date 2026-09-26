@@ -14,6 +14,6 @@
 
   programs.ssh.knownHosts.docker-dmz = {
     hostNames = [ "10.10.100.15" "docker-dmz" "vm-docker-dmz" ];
-    publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIM3KfY6KO8M3XRi1Np4HAQdE/J1FJMUjHXK4om1B8JFZ";
+    publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPZi8qYDpILV/frA7oq+SJhRBTZe2eB5NNdK+nGSnCgA";
   };
 }
