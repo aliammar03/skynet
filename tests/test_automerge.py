@@ -25,6 +25,9 @@ class Hub:
         self.green = True
         self.merged: list[list[str]] = []
         self.checks = 0
+        self.fetches = 0
+        self.main_after_check: str | None = None  # a fix Ali merges while bin/check runs
+        self.merge_fails = False
 
 
 @pytest.fixture
@@ -33,6 +36,8 @@ def hub(monkeypatch: pytest.MonkeyPatch) -> Hub:
 
     def ok(args: list[str], reason: str, code: int = 3, **kwargs: Any) -> bytes:
         if args[:3] == ["gh", "pr", "merge"]:
+            if fake.merge_fails:
+                raise WriteError(reason, code)
             fake.merged.append(args)
             return b""
         if args[:3] == ["gh", "pr", "view"]:
@@ -41,12 +46,21 @@ def hub(monkeypatch: pytest.MonkeyPatch) -> Hub:
 
     def check_green(repo: Path, oid: str) -> None:
         fake.checks += 1
+        if fake.main_after_check:
+            fake.pending_main = fake.main_after_check
         if not fake.green:
             raise WriteError(automerge.CHECK_RED, 1)
 
     monkeypatch.setattr(automerge, "open_reverts", lambda repo: [fake.pr])
     monkeypatch.setattr(automerge, "login", lambda repo: "skynet-ops")
+    def fetch(repo: Path) -> None:
+        fake.fetches += 1
+        fake.main = getattr(fake, "pending_main", fake.main)
+
     monkeypatch.setattr(automerge, "fetch_head", lambda repo, branch, oid: None)
+    monkeypatch.setattr(automerge, "changed_files", lambda repo, oid: [
+        row["path"] for row in fake.pr["files"]])
+    monkeypatch.setattr(deploy, "fetch", fetch)
     monkeypatch.setattr(automerge, "tree", lambda repo, rev, path: fake.trees.get(rev))
     monkeypatch.setattr(automerge, "check_green", check_green)
     monkeypatch.setattr(deploy, "host_facts", lambda context, service: fake.facts)
@@ -139,3 +153,52 @@ def test_a_timed_out_check_counts_toward_the_retry_limit(
             automerge.check_green(tmp_path, HEAD)
         assert (raised.value.reason, raised.value.code) == (automerge.CHECK_RED, 1)
     assert calls == ["nix"] * automerge.CHECK_TRIES
+
+
+def test_a_fix_merged_during_bin_check_wins_over_the_revert(hub: Hub, tmp_path: Path) -> None:
+    """The gate re-runs under the lock against a freshly fetched main."""
+    hub.main_after_check = "5" * 40
+    [result] = _run(tmp_path)
+    assert result["outcome"] == "refused" and "main has moved past" in result["reason"]
+    assert hub.merged == [] and hub.fetches == 2
+
+
+def test_a_merge_that_keeps_failing_stops_after_the_retry_limit(hub: Hub, tmp_path: Path) -> None:
+    hub.merge_fails = True
+    for _ in range(automerge.CHECK_TRIES):
+        assert _run(tmp_path)[0]["outcome"] == "failed"
+    assert _run(tmp_path) == [] and hub.checks == automerge.CHECK_TRIES
+
+
+def test_fetch_head_uses_a_private_ref_not_fetch_head(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[tuple[str, ...]] = []
+
+    def git(repo: Path, *args: str, reason: str = "") -> str:
+        seen.append(args)
+        return HEAD
+    monkeypatch.setattr(deploy, "_git", git)
+    automerge.fetch_head(tmp_path, "revert/demo-abc", HEAD)
+    assert seen[0][-1] == "+refs/heads/revert/demo-abc:refs/skynet/automerge/revert/demo-abc"
+    assert all("FETCH_HEAD" not in arg for args in seen for arg in args)
+
+
+def test_changed_files_come_from_git_against_main(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    (repo / "compose" / "demo").mkdir(parents=True)
+    (repo / "compose" / "demo" / "compose.yaml").write_text("a\n")
+    (repo / "AGENTS.md").write_text("rules\n")
+
+    def git(*args: str) -> str:
+        return subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c",
+                               "user.email=t@t", *args], check=True, capture_output=True,
+                              text=True).stdout.strip()
+    git("init", "-q")
+    git("add", "-A")
+    git("commit", "-qm", "base")
+    git("update-ref", "refs/remotes/origin/main", "HEAD")
+    (repo / "compose" / "demo" / "compose.yaml").write_text("b\n")
+    git("mv", "AGENTS.md", "compose/demo/AGENTS.md")  # a rename out of a protected path
+    git("commit", "-qam", "revert")
+    assert automerge.changed_files(repo, git("rev-parse", "HEAD")) == [
+        "AGENTS.md", "compose/demo/AGENTS.md", "compose/demo/compose.yaml"]

@@ -510,7 +510,11 @@ def pending_if_moved(repo: Path, *, context: str, ledger: Ledger,
         seen_head, due, failures = "", 0.0, 0
     if head == seen_head and now < due:
         return None
-    results = pending(repo, context=context, ledger=ledger)
+    try:
+        results = pending(repo, context=context, ledger=ledger)
+    except WriteError as error:  # e.g. the fetch failed: the pass never ran, back off all the same
+        results = [{"target": "deploy", "outcome": "unavailable", "reason": error.reason,
+                    "code": UNAVAILABLE}]
     if any(result.get("code") == UNAVAILABLE for result in results):
         failures = failures + 1 if head == seen_head else 1
         due = now + min(RETRY_SECONDS * 2 ** (failures - 1), STALE_PASS_SECONDS)

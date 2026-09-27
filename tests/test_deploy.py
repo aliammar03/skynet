@@ -477,6 +477,21 @@ def test_an_unavailable_pass_retries_with_backoff(
     assert tick(1410 + 60) and not tick(1410 + 90)  # clean: next pass in 15 min
     outcome["code"] = 3                     # a lasting outage: 200 ticks (100 min) ...
     assert sum(tick(10_000 + 30 * i) for i in range(200)) <= 12  # ... run ≤ 12 passes, not 200
+def test_a_pass_that_raises_backs_off_too(
+        host: FakeHost, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger = Ledger(tmp_path / "state")
+    ledger.state_dir.mkdir()
+    monkeypatch.setattr(deploy, "remote_main", lambda repo: NEW)
+
+    def broken(repo: Path, context: str, ledger: Ledger) -> list[dict[str, Any]]:
+        raise WriteError("git fetch of origin/main failed", 3)
+
+    monkeypatch.setattr(deploy, "pending", broken)
+    [result] = deploy.pending_if_moved(tmp_path, context="c", ledger=ledger, now=1000.0) or [{}]
+    assert (result["outcome"], result["code"]) == ("unavailable", 3)
+    assert deploy.pending_if_moved(tmp_path, context="c", ledger=ledger, now=1030.0) is None
+
+
 @pytest.mark.parametrize("codes, timer_exit", [([0, 1, 2, 3], 0), ([1, 4], 4), ([], 0)])
 def test_the_timer_exits_zero_for_recorded_outcomes(
         tmp_path: Path, monkeypatch: pytest.MonkeyPatch, codes: list[int], timer_exit: int) -> None:

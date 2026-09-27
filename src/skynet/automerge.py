@@ -13,7 +13,9 @@ merges without a human only when every check holds; any failure leaves it open f
 
 The merge pins the head it checked (`--match-head-commit`). Every attempt is a recorded
 operation; a policy refusal at one head is recorded once and then left alone, and a red
-`bin/check` is retried on later passes, up to three times per head.
+`bin/check` or a merge that did not land is retried on later passes, up to three times per head.
+The gate runs twice: before `bin/check` and again under the write lock, each time against a
+freshly fetched `main`, so a fix merged meanwhile is never overwritten.
 """
 
 from __future__ import annotations
@@ -36,7 +38,7 @@ CHECK_RED = "bin/check did not pass on the PR head (red, timed out, or could not
 def open_reverts(repo: Path) -> list[dict[str, Any]]:
     """Open PRs whose branch has the executor's revert shape; everything else is not ours."""
     raw = deploy._ok(["gh", "pr", "list", "--state", "open", "--limit", "100", "--json",
-                      "number,headRefName,headRefOid,baseRefName,author,files"],
+                      "number,headRefName,headRefOid,baseRefName,author"],
                      "GitHub PR listing unavailable", cwd=repo)
     try:
         rows = json.loads(raw)
@@ -57,10 +59,22 @@ def login(repo: Path) -> str:
 
 
 def fetch_head(repo: Path, branch: str, oid: str) -> None:
-    deploy._git(repo, "fetch", "--quiet", "origin", f"refs/heads/{branch}",
+    """Fetch the PR head into a private ref (never FETCH_HEAD, which `skynet watch`'s own fetch
+    rewrites in the same checkout) and require it to be the head the listing named."""
+    ref = f"refs/skynet/automerge/{branch}"
+    deploy._git(repo, "fetch", "--quiet", "--no-tags", "origin", f"+refs/heads/{branch}:{ref}",
                 reason="revert branch fetch failed")
-    if deploy._git(repo, "rev-parse", "FETCH_HEAD") != oid:
+    if deploy._git(repo, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}",
+                   reason="revert branch fetch failed") != oid:
         raise WriteError("revert branch moved while being checked", UNAVAILABLE)
+
+
+def changed_files(repo: Path, oid: str) -> list[str]:
+    """Every path the PR changes against its merge base with main, from git itself (a GitHub
+    file listing can be capped). Renames count as both paths."""
+    names = deploy._git(repo, "diff", "--name-only", "--no-renames", f"{deploy.MAIN}...{oid}",
+                        reason="revert diff unavailable")
+    return [name for name in names.splitlines() if name]
 
 
 def tree(repo: Path, revision: str, path: str) -> str | None:
@@ -102,15 +116,15 @@ def gate(repo: Path, pr: dict[str, Any], *, context: str, executor: str) -> tupl
     if author.get("login") != executor:
         raise WriteError("revert PR was not opened by the executor", USAGE)
     service, prefix = match[1], match[2]
-    files = [row.get("path") for row in pr.get("files") or [] if isinstance(row, dict)]
-    if not files or any(not isinstance(path, str) or not path.startswith(f"compose/{service}/")
-                        for path in files):
-        raise WriteError(f"revert PR changes files outside compose/{service}/", USAGE)
     facts = deploy.host_facts(context, service)
     if facts.verified is None or facts.failed is None or not facts.failed.startswith(prefix):
         raise WriteError("host facts do not name this failure and a verified revision", USAGE)
     oid = str(pr.get("headRefOid", ""))
+    deploy.fetch(repo)  # main as it is now: a fix merged meanwhile must win over the revert
     fetch_head(repo, str(pr["headRefName"]), oid)
+    files = changed_files(repo, oid)
+    if not files or any(not path.startswith(f"compose/{service}/") for path in files):
+        raise WriteError(f"revert PR changes files outside compose/{service}/", USAGE)
     path = f"compose/{service}"
     head_tree = tree(repo, oid, path)
     if head_tree is None or head_tree != tree(repo, facts.verified, path):
@@ -121,18 +135,19 @@ def gate(repo: Path, pr: dict[str, Any], *, context: str, executor: str) -> tupl
 
 
 def refused_before(ledger: Ledger, target: str, oid: str) -> bool:
-    """Leave a PR alone at this head after a policy refusal, or after `CHECK_TRIES` red
-    `bin/check` runs (a single red run may be a cache or network blip)."""
-    reds = 0
+    """Leave a PR alone at this head after a policy refusal, or after `CHECK_TRIES` attempts
+    that failed for a reason that might pass next time (a red `bin/check`, a merge that did not
+    land)."""
+    tries = 0
     for entry in ledger.entries():
         if (entry.get("kind") != "automerge" or entry.get("target") != target
-                or entry.get("phase") != "final" or entry.get("source") != oid
-                or entry.get("outcome") != "refused"):
+                or entry.get("phase") != "final" or entry.get("source") != oid):
             continue
-        if entry.get("code") == USAGE:
+        if entry.get("outcome") == "refused" and entry.get("code") == USAGE:
             return True
-        reds += entry.get("reason") == CHECK_RED
-    return reds >= CHECK_TRIES
+        tries += (entry.get("outcome") == "refused" and entry.get("reason") == CHECK_RED
+                  or entry.get("outcome") in {"failed", "rolled-back", "rollback-failed"})
+    return tries >= CHECK_TRIES
 
 
 def merge_one(repo: Path, pr: dict[str, Any], *, context: str, ledger: Ledger,
@@ -150,7 +165,7 @@ def merge_one(repo: Path, pr: dict[str, Any], *, context: str, ledger: Ledger,
         return writepath.refuse(operation, ledger, error.reason, error.code)
     operation.note("gate", "ok", f"svc/{service}: failed {failed[:12]} → verified tree; bin/check green")
 
-    def preflight() -> None:  # cheap re-check under the lock: nothing moved since
+    def preflight() -> None:  # re-check under the lock, against a freshly fetched main
         gate(repo, pr, context=context, executor=executor)
 
     def execute(_: None) -> None:
