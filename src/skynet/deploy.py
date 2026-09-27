@@ -462,9 +462,18 @@ def open_revert_pr(repo: Path, service: str, failed: str, verified: str, reason:
 
 def pending(repo: Path, *, context: str, ledger: Ledger) -> list[dict[str, Any]]:
     """Deploy every service whose merged revision is not the one running, then retire every
-    project `main` no longer declares (the timer's job)."""
+    project `main` no longer declares (the timer's job). Retirement runs first, so a renamed
+    service's old project frees its ports and names before the new one comes up."""
     fetch(repo)
     results: list[dict[str, Any]] = []
+    try:
+        doomed = retirable(repo, context)
+    except WriteError as error:
+        doomed = []
+        results.append({"target": "retire", "outcome": "unavailable", "reason": error.reason,
+                        "code": error.code})
+    for service in doomed:
+        results.append(writepath.report(retire(repo, service, context=context, ledger=ledger)))
     for service in services(repo):
         if manual(repo, service, MAIN):
             continue
@@ -482,20 +491,14 @@ def pending(repo: Path, *, context: str, ledger: Ledger) -> list[dict[str, Any]]
             continue
         results.append(writepath.report(deploy(repo, service, revision=target, context=context,
                                                ledger=ledger, refresh=False)))
-    try:
-        doomed = retirable(repo, context)
-    except WriteError as error:
-        return results + [{"target": "retire", "outcome": "unavailable", "reason": error.reason,
-                           "code": error.code}]
-    for service in doomed:
-        results.append(writepath.report(retire(repo, service, context=context, ledger=ledger)))
     return results
 
 
 def pending_if_moved(repo: Path, *, context: str, ledger: Ledger,
                      now: float | None = None) -> list[dict[str, Any]] | None:
-    """The 30 s trigger: a full pass only when `main` moved, or the last pass is stale (so a
-    transient `unavailable` still retries). None means nothing to do."""
+    """The 30 s trigger: a full pass only when `main` moved, or the last pass is stale. A pass
+    with an `unavailable` result is not marked seen, so it retries on the next tick. None means
+    nothing to do."""
     now = time.time() if now is None else now
     head = remote_main(repo)
     seen_path = ledger.state_dir / "main-seen"
@@ -507,6 +510,8 @@ def pending_if_moved(repo: Path, *, context: str, ledger: Ledger,
     if head == seen_head and now - last < STALE_PASS_SECONDS:
         return None
     results = pending(repo, context=context, ledger=ledger)
+    if any(result.get("code") == UNAVAILABLE for result in results):
+        return results
     try:
         common.atomic_write_text(seen_path, f"{head} {int(now)}\n")
     except OSError:
@@ -585,7 +590,11 @@ def retire(repo: Path, service: str, *, context: str, ledger: Ledger) -> Operati
         rows = _inspect(context, service)
         if not rows:
             raise WriteError("no containers for the project", USAGE)
-        if any(deployment._labels(row).get(SERVICE_LABEL) != service for row in rows):
+        try:
+            foreign = any(deployment._labels(row).get(SERVICE_LABEL) != service for row in rows)
+        except deployment.VerificationError as error:
+            raise WriteError(error.reason, UNAVAILABLE) from None
+        if foreign:
             raise WriteError("project holds containers the executor did not deploy", USAGE)
         kept.extend(_payload_check(rows, service))
 
@@ -745,11 +754,14 @@ def run_deploy(repo: Path, service: str | None, *, revision: str | None, dry_run
             results += automerge.run(repo, context=context, ledger=ledger)
             for result in results:
                 writepath.emit(result, json_output, stdout)
-            return max((int(r.get("code", 0)) for r in results), default=0)
+            codes = [int(r.get("code", 0)) for r in results]
+            if if_moved:  # the timer: reported outcomes are not unit failures; a crash (1) is
+                return writepath.ROLLBACK_FAILED if writepath.ROLLBACK_FAILED in codes else 0
+            return max(codes, default=0)
     except WriteError as error:
         writepath.emit({"target": "deploy", "outcome": "unavailable" if error.code == UNAVAILABLE
                         else "refused", "reason": error.reason, "code": error.code}, json_output, stdout)
-        return error.code
+        return 0 if if_moved else error.code
     assert service is not None
     result = writepath.report(deploy(repo, service, revision=revision, context=context, ledger=ledger))
     writepath.emit(result, json_output, stdout)

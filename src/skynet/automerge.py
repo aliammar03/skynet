@@ -12,7 +12,8 @@ merges without a human only when every check holds; any failure leaves it open f
 5. `bin/check` is green on the PR head.
 
 The merge pins the head it checked (`--match-head-commit`). Every attempt is a recorded
-operation; a policy refusal at one head is recorded once and then left alone.
+operation; a policy refusal at one head is recorded once and then left alone, and a red
+`bin/check` is retried on later passes, up to three times per head.
 """
 
 from __future__ import annotations
@@ -28,6 +29,8 @@ from skynet.writepath import FAILED, UNAVAILABLE, USAGE, Ledger, Operation, Writ
 
 BRANCH = re.compile(r"revert/([A-Za-z0-9][A-Za-z0-9_.-]*)-([0-9a-f]{12})")
 CHECK_SECONDS = 900.0
+CHECK_TRIES = 3
+CHECK_RED = "bin/check is not green on the PR head"
 
 
 def open_reverts(repo: Path) -> list[dict[str, Any]]:
@@ -78,7 +81,7 @@ def check_green(repo: Path, oid: str) -> None:
         finally:
             deploy._run(["git", "-C", str(repo), "worktree", "remove", "--force", str(work)])
     if result.returncode != 0:
-        raise WriteError("bin/check is not green on the PR head", USAGE)
+        raise WriteError(CHECK_RED, FAILED)  # may be a blip: retried up to CHECK_TRIES per head
 
 
 def gate(repo: Path, pr: dict[str, Any], *, context: str, executor: str) -> tuple[str, str]:
@@ -111,13 +114,18 @@ def gate(repo: Path, pr: dict[str, Any], *, context: str, executor: str) -> tupl
 
 
 def refused_before(ledger: Ledger, target: str, oid: str) -> bool:
-    """A policy refusal at this exact head is final until the PR changes."""
-    for entry in reversed(ledger.entries()):
-        if entry.get("kind") == "automerge" and entry.get("target") == target \
-                and entry.get("phase") == "final":
-            return entry.get("source") == oid and entry.get("outcome") == "refused" \
-                and entry.get("code") == USAGE
-    return False
+    """Leave a PR alone at this head after a policy refusal, or after `CHECK_TRIES` red
+    `bin/check` runs (a single red run may be a cache or network blip)."""
+    reds = 0
+    for entry in ledger.entries():
+        if (entry.get("kind") != "automerge" or entry.get("target") != target
+                or entry.get("phase") != "final" or entry.get("source") != oid
+                or entry.get("outcome") != "refused"):
+            continue
+        if entry.get("code") == USAGE:
+            return True
+        reds += entry.get("reason") == CHECK_RED
+    return reds >= CHECK_TRIES
 
 
 def merge_one(repo: Path, pr: dict[str, Any], *, context: str, ledger: Ledger,

@@ -357,8 +357,13 @@ def _run_alert(arguments: argparse.Namespace) -> int:
         failures = [alert.send("skynet: test", "the alert channel works"), alert.ping(True)]
     else:
         unit = "".join(char for char in arguments.unit if char.isalnum() or char in "@.-_")[:100]
+        if not alert.unit_failure_due(writepath.DEFAULT_STATE_DIR, unit):
+            print("alert: suppressed (sent for this unit within the hour)")
+            return 0
         failures = [alert.send(f"skynet: {unit} failed", f"systemd unit {unit} failed; "
                                f"see journalctl -u {unit}", priority=1)]
+        if failures[0] is None:
+            alert.mark_unit_failure(writepath.DEFAULT_STATE_DIR, unit)
     for failure in failures:
         print(f"alert: {failure or 'sent'}")
     return 3 if any(failures) else 0

@@ -57,3 +57,12 @@ def test_send_posts_once_and_reports_transport_failure_safely(
     monkeypatch.setattr(alert.common, "request", broken)
     reason = alert.send("t", "m", path=_good(tmp_path))
     assert reason is not None and TOKEN not in reason and URL not in reason
+
+
+def test_unit_failure_alerts_at_most_hourly_and_only_once_sent(tmp_path: Path) -> None:
+    assert alert.unit_failure_due(tmp_path, "skynet-deploy.service", now=1000.0)
+    assert alert.unit_failure_due(tmp_path, "skynet-deploy.service", now=1030.0)  # none sent yet
+    alert.mark_unit_failure(tmp_path, "skynet-deploy.service", now=1030.0)
+    assert not alert.unit_failure_due(tmp_path, "skynet-deploy.service", now=2000.0)
+    assert alert.unit_failure_due(tmp_path, "skynet-watch.service", now=2000.0)
+    assert alert.unit_failure_due(tmp_path, "skynet-deploy.service", now=1030.0 + 3600)

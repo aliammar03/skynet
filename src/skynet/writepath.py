@@ -16,6 +16,7 @@ from __future__ import annotations
 import fcntl
 import json
 import os
+import time
 import uuid
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -84,7 +85,13 @@ class Operation:
 
 
 class Ledger:
-    """The local operation record and the one lock serializing all write paths."""
+    """The local operation record and the one lock serializing all write paths.
+
+    A writer retries the lock for `wait` seconds, so a read-only observer's instant `busy()`
+    probe never fails a write; a real concurrent write still ends in `unavailable`.
+    """
+
+    wait = 5.0
 
     def __init__(self, state_dir: Path = DEFAULT_STATE_DIR):
         self.state_dir = state_dir
@@ -98,10 +105,15 @@ class Ledger:
         except OSError:
             raise WriteError("write state directory unavailable", UNAVAILABLE) from None
         with handle:
-            try:
-                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except OSError:
-                raise WriteError("another write holds the lock", UNAVAILABLE) from None
+            deadline = time.monotonic() + self.wait
+            while True:
+                try:
+                    fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except OSError:
+                    if time.monotonic() >= deadline:
+                        raise WriteError("another write holds the lock", UNAVAILABLE) from None
+                    time.sleep(0.05)
             yield
 
     def busy(self) -> bool:

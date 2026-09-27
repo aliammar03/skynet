@@ -40,9 +40,9 @@ in
       User = "aliammar";
       WorkingDirectory = repo;
       ExecStart = "/run/current-system/sw/bin/skynet deploy --pending --if-moved --repo ${repo}";
-      # Exit codes are outcomes the pass records itself (4 = rollback-failed already alerted; 3 =
-      # unavailable retries in 30 s). OnFailure fires only for a timeout or a kill.
-      SuccessExitStatus = [ 1 2 3 4 ];
+      # --if-moved exits 0 for every outcome the pass records itself and 4 for rollback-failed
+      # (already alerted), so a crash (Python exits 1), a timeout, or a kill fires OnFailure.
+      SuccessExitStatus = [ 4 ];
       TimeoutStartSec = "60m";
     };
   };
@@ -84,7 +84,8 @@ in
     };
   };
 
-  # A skynet unit that timed out or was killed pushes one alert.
+  # A skynet unit that crashed, timed out, or was killed pushes an alert (at most one an hour per
+  # unit, so a crash loop is one message).
   systemd.services."skynet-alert@" = {
     description = "Alert that %i failed";
     environment = commonEnv;

@@ -431,3 +431,56 @@ def test_refusals_before_start_are_recorded(host: FakeHost, tmp_path: Path) -> N
     assert [(e["target"], e["outcome"], e["reason"]) for e in ledger.entries()] == [
         ("svc/bad name!", "refused", "invalid service name"),
         ("svc/absent", "refused", "service is not on origin/main")]
+
+
+def test_a_rename_retires_the_old_project_before_the_new_one_comes_up(
+        retiring: FakeHost, tmp_path: Path) -> None:
+    """compose/gone → compose/demo at a new revision: the old project frees its ports first."""
+    retiring.main["demo"] = NEW
+    results = deploy.pending(tmp_path, context="docker-dmz", ledger=Ledger(tmp_path / "state"))
+    assert [(r["target"], r["outcome"]) for r in results] == [("svc/gone", "success"),
+                                                               ("svc/demo", "success")]
+    order = [call for call in retiring.calls if "down" in call or call[0] == "up"]
+    assert "down" in order[0] and order[1] == ("up", "demo", NEW)
+
+
+def test_malformed_labels_during_retirement_are_recorded_not_a_crash(
+        retiring: FakeHost, tmp_path: Path) -> None:
+    retiring.containers["gone"] = [{"Config": {"Labels": None}, "Mounts": []}]
+    ledger = Ledger(tmp_path / "state")
+    results = deploy.pending(tmp_path, context="docker-dmz", ledger=ledger)
+    assert (results[0]["target"], results[0]["outcome"]) == ("svc/gone", "refused")
+    assert results[0]["reason"] == "malformed Docker container observation"
+    assert ledger.entries()[-1]["target"] == "svc/gone"
+    assert not [call for call in retiring.calls if "down" in call]
+
+
+def test_a_pass_with_an_unavailable_result_is_retried_next_tick(
+        host: FakeHost, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger = Ledger(tmp_path / "state")
+    ledger.state_dir.mkdir()
+    monkeypatch.setattr(deploy, "remote_main", lambda repo: NEW)
+    outcome = {"code": 3}
+    monkeypatch.setattr(deploy, "pending", lambda repo, context, ledger: [
+        {"target": "svc/demo", "outcome": "unavailable", "code": outcome["code"]}])
+    assert deploy.pending_if_moved(tmp_path, context="c", ledger=ledger, now=1000.0)
+    assert deploy.pending_if_moved(tmp_path, context="c", ledger=ledger, now=1030.0)  # not seen
+    outcome["code"] = 0
+    assert deploy.pending_if_moved(tmp_path, context="c", ledger=ledger, now=1060.0)
+    assert deploy.pending_if_moved(tmp_path, context="c", ledger=ledger, now=1090.0) is None
+
+
+@pytest.mark.parametrize("codes, timer_exit", [([0, 1, 2, 3], 0), ([1, 4], 4), ([], 0)])
+def test_the_timer_exits_zero_for_recorded_outcomes(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, codes: list[int], timer_exit: int) -> None:
+    """So a crash (Python exits 1) is the only way the unit fails and fires OnFailure."""
+    import io as _io
+
+    from skynet import automerge
+    monkeypatch.setattr(deploy, "pending_if_moved", lambda repo, context, ledger: [
+        {"target": f"svc/s{i}", "outcome": "x", "code": code} for i, code in enumerate(codes)])
+    monkeypatch.setattr(automerge, "run", lambda repo, context, ledger: [])
+    kwargs: dict[str, Any] = dict(revision=None, dry_run_ref=None, pending_all=True,
+                                  context="c", state_dir=tmp_path, json_output=False)
+    assert deploy.run_deploy(tmp_path, None, stdout=_io.StringIO(), if_moved=True,
+                             **kwargs) == timer_exit

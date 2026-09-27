@@ -12,6 +12,7 @@ from __future__ import annotations
 import http.client
 import os
 import ssl
+import time
 import urllib.parse
 from pathlib import Path
 
@@ -21,6 +22,7 @@ from skynet.common import CollectionError
 DEFAULT_CREDENTIALS = Path("/opt/skynet-ops/secrets/alerts.env")
 PUSHOVER_HOST = "api.pushover.net"
 TIMEOUT = 15.0
+UNIT_ALERT_SECONDS = 3600
 _KEYS = ("PUSHOVER_TOKEN", "PUSHOVER_USER", "HEALTHCHECK_URL")
 
 
@@ -93,3 +95,23 @@ def ping(ok: bool = True, *, path: Path | None = None) -> str | None:
     except AlertError as error:
         return error.reason
     return None
+
+
+def unit_failure_due(state_dir: Path, unit: str, now: float | None = None) -> bool:
+    """At most one unit-failed alert per unit an hour. An unreadable marker means send."""
+    now = time.time() if now is None else now
+    try:
+        sent = float((state_dir / f"unit-alert-{unit}").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return True
+    return now - sent >= UNIT_ALERT_SECONDS
+
+
+def mark_unit_failure(state_dir: Path, unit: str, now: float | None = None) -> None:
+    """Record a sent unit-failed alert; a marker that can't be written only risks a repeat."""
+    try:
+        state_dir.mkdir(parents=True, exist_ok=True)
+        common.atomic_write_text(state_dir / f"unit-alert-{unit}",
+                                 f"{int(time.time() if now is None else now)}\n")
+    except OSError:
+        pass

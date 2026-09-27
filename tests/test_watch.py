@@ -128,6 +128,19 @@ def test_a_service_removed_from_main_drops_out(lab: Lab, tmp_path: Path) -> None
     assert "svc/other" not in (tmp_path / "state" / "watch.json").read_text()
 
 
+def test_an_unsent_recovery_is_retried(lab: Lab, tmp_path: Path) -> None:
+    lab.health["demo"] = False
+    _pass(tmp_path, 0)
+    _pass(tmp_path, 1)
+    lab.health["demo"], lab.send_fails = True, True
+    _pass(tmp_path, 2)
+    _pass(tmp_path, 3)
+    lab.send_fails = False
+    _pass(tmp_path, 4)
+    _pass(tmp_path, 5)
+    assert [message.split(" ")[0] for _, message in lab.sent] == ["DOWN", "recovered"]
+
+
 @pytest.mark.parametrize("entry, healthy, expected", [
     (None, False, None),
     ({"status": "healthy", "failures": 1}, False, "DOWN — x"),

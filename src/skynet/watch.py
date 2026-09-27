@@ -4,7 +4,8 @@ Each pass runs the deployment verifier (`deploy.observe`: the running revision, 
 for every non-manual service on `origin/main`, and alerts on **state change** only:
 
 - healthy → unhealthy after two consecutive failed passes (one alert; a flap never alerts);
-- unhealthy → healthy on the first good pass (one recovery alert, only if a down alert went out);
+- unhealthy → healthy on the first good pass (one recovery alert, only if a down alert went out;
+  an unsent recovery is retried);
 - still down: at most one reminder a day.
 
 A pass that cannot observe at all (no fetch, no Docker, no state) is the pseudo-target `monitor`,
@@ -38,12 +39,15 @@ def transition(entry: dict[str, Any] | None, healthy: bool, reason: str | None,
     state = dict(entry or {"status": "healthy", "failures": 0})
     if healthy:
         told = state.get("status") == "unhealthy" and state.get("alerted")
-        down_since = state.get("since")
+        down_since, unsent = state.get("since"), state.get("recovery_pending")
         state = {"status": "healthy", "failures": 0}
         if told:
             since = now if down_since is None else float(down_since)
-            return state, f"recovered (down since {_stamp(since)})"
-        return state, None
+            unsent = f"recovered (down since {_stamp(since)})"
+        if unsent:  # kept until `_push` confirms it went out
+            state["recovery_pending"] = unsent
+        return state, unsent or None
+    state.pop("recovery_pending", None)  # a new failure supersedes an unsent recovery
     state["failures"] = int(state.get("failures", 0)) + 1
     state["reason"] = reason
     if state.get("status") != "unhealthy":
@@ -64,6 +68,8 @@ def _push(target: str, state: dict[str, Any], message: str | None, now: float) -
     failure = alert.send(f"skynet: {target}", message, priority=1 if "DOWN" in message else 0)
     if failure is None and state.get("status") == "unhealthy":
         state.update(alerted=True, reminded_at=now)
+    elif failure is None:
+        state.pop("recovery_pending", None)
     return failure
 
 

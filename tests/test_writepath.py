@@ -2,6 +2,8 @@
 
 import io
 import json
+import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -104,9 +106,26 @@ def test_other_targets_do_not_block(tmp_path: Path) -> None:
 
 def test_a_held_lock_refuses_a_second_writer(tmp_path: Path) -> None:
     ledger = Ledger(tmp_path)
+    ledger.wait = 0.2
     with ledger.lock():
         operation = _run(ledger, [])
     assert (operation.outcome, operation.code) == ("unavailable", 3)
+
+
+def test_a_brief_probe_never_fails_a_writer(tmp_path: Path) -> None:
+    """An observer's `busy()` holds the lock for an instant; a writer waits it out."""
+    ledger, released = Ledger(tmp_path), threading.Event()
+
+    def hold() -> None:
+        with Ledger(tmp_path).lock():
+            released.wait(0.3)
+
+    holder = threading.Thread(target=hold)
+    holder.start()
+    time.sleep(0.05)
+    operation = _run(ledger, [])
+    holder.join()
+    assert operation.outcome == "success"
 
 
 def test_unavailable_state_dir_is_unavailable(tmp_path: Path) -> None:
