@@ -42,13 +42,13 @@ since 2026-08-31 and a failed docker-dmz restic run (cause unknown). Phase 16 no
 from scratch. Until it lands, no new off-site copy is known to land, and older copies are unverified
 (accepted by Ali, 2026-09-26).
 
-**Next:** Phase 14 lands `skynet watch` (3 min, state-change Pushover alerts, healthchecks.io
-dead-man's switch), `skynet log`, a 30 s `ls-remote` deploy trigger, retirement of services removed
-from `compose/`, and the revert-PR auto-merge gate (AGENTS.md §3's first entry). Before the ops VM
-can be rebuilt, Ali creates `secrets/alerts.env.sops` (Pushover token + user, healthchecks ping URL)
-and confirms ops-VM egress to `api.pushover.net`/`hc-ping.com`. After the rebuild, the
-`skynet-drill` live drill (merge-to-deploy time, stop → alert ≤ 10 min, recovery alert, retire)
-is recorded on the PR, and it ticks the "outage reaches Ali's phone" box. Then Phase 15.
+**Next:** Phase 14 (PR #276) adds `skynet watch` (passes every 3 min, state-change Pushover
+alerts, healthchecks.io dead-man's switch), `skynet log`, a 30 s `ls-remote` deploy trigger,
+retirement of services removed from `compose/`, and the revert-PR auto-merge gate (AGENTS.md §3's
+first entry). Live drill 2026-09-27 on the ops VM built from the PR (`skynet-drill`, #278–#281):
+merge→deploy 29 s; stop→DOWN push 4 min 57 s; restart→recovered push 2 min 30 s; broken
+healthcheck → rollback, executor revert #280 auto-merged by the gate (16 s after it opened) and
+redeployed; removal → retired in 29 s with the volume kept. Then Phase 15.
 
 This block, the phase boxes, and the frontmatter are the **only** progress record. Each phase PR
 updates them itself; merge is completion ([construction](../../docs/conventions/construction.md)).
@@ -63,7 +63,7 @@ SKY-025 is finished when every box holds:
 - [ ] Docker and OpenTofu follow ADR 0008: effect in the PR, merge is the approval, one executor,
       Tofu state in the `tofu-state` branch; ADR 0008 is accepted.
 - [x] A failed deploy rolls back to the last verified revision without waiting for a human.
-- [ ] A service outage reaches Ali's phone within 10 minutes.
+- [x] A service outage reaches Ali's phone within 10 minutes.
 - [ ] The nightly is deterministic (no AI engine), runs `bin/check` on `main`, and opens a PR only
       when inventory changed beyond timestamps.
 - [ ] `bin/check` passes, with a failure-case test for every write path.
