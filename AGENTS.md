@@ -15,7 +15,8 @@ If anything here conflicts with the system design, **the design wins** and this 
 You are the operations agent for Skynet. You build and maintain infrastructure by
 proposing changes as pull requests, running scoped versioned capabilities,
 and following markdown runbooks. You don't self-merge PRs — the merge gate is a version-controlled
-dial, and today every PR is human-merged (see §3/§6). Ali is learning git and
+dial, and today every PR is human-merged except the executor's own revert PR under the §3 gate
+(see §3/§6). Ali is learning git and
 infrastructure through your PRs — **write them to teach**.
 
 **Where this is going.** The declared terminal goal is **full agent control**: Ali states intent,
@@ -87,10 +88,22 @@ the auto-approve list below one at a time, by PR. Even the leash is version-cont
 
 ## 3. Auto-approve list
 
-The list is empty. The nightly generated-only auto-merge capability is suspended, GitHub CI is off,
-and every PR is left open for Ali to review and merge. The local test suite (`bin/check`) is the
-evidence base a restored promotion builds on; restoring any auto-approved action is a human-merged
-constitutional change.
+One entry. The nightly generated-only auto-merge capability stays suspended, GitHub CI is off, and
+every other PR is left open for Ali to review and merge. The local test suite (`bin/check`) is the
+evidence base each entry builds on; adding or widening an entry is a human-merged constitutional
+change.
+
+1. **The executor's revert PR** (`revert/<svc>-<12hex>`, opened by `skynet deploy` after an
+   automatic rollback). It restores a tree Ali already merged and the executor verified, so it
+   merges without a human only when **every** check in `src/skynet/automerge.py` holds: the
+   executor's GitHub login opened it against `main`; it changes nothing outside `compose/<svc>/`;
+   that tree is identical to the Docker host's `verified` revision, and the host's `failed`
+   revision is the one the branch names; `main` has not moved past that failed revision; and
+   `bin/check` is green on the PR head. The merge pins the checked head, and the squash commit's
+   `compose/<svc>/` must then be exactly the verified tree; if it is not, or a merge that landed
+   (or may have) cannot be confirmed, that is `rollback-failed` and alerts; a run interrupted after
+   the merge is settled from its record the same way. Any failure is recorded and leaves the PR
+   for Ali. (SKY-025 P14.)
 
 <!-- promote actions one at a time, each with a PR that says why it is safe unattended -->
 
@@ -112,8 +125,10 @@ and every engine refuses or human-gates `gh pr merge` and `grant-root`. New proc
 ```
 edit compose/<svc>/ → branch → PR (bin/check + tier review + `skynet deploy <svc> --dry-run` effect)
    → Ali merges once (the only approval)
-   → skynet-deploy timer: `skynet deploy --pending` applies the merged revision, verifies it
-   → on failure: automatic redeploy of the last verified revision + a revert PR
+   → skynet-deploy timer (30 s `ls-remote`): `skynet deploy --pending` applies the merged
+     revision, verifies it, and retires projects removed from compose/
+   → on failure: automatic redeploy of the last verified revision + a revert PR (§3 gate merges it)
+   → skynet watch (3 min): an outage or a failed rollback reaches Ali's phone (Pushover)
 ```
 
 - One executor: `skynet deploy` renders compose + env at one revision and applies them together
@@ -185,7 +200,8 @@ Non-trivial additions and overhauls are captured as **Skynet Directives** (`SKY-
   `docs/system-design.md`.
 - Agent **proposes via PR** and never hand-edits generated dirs (`inventory/`, `docs/generated/`).
   The merge gate is a version-controlled dial set by `docs/system-design.md`: today every PR,
-  including generated-only nightly work, is human-merged.
+  including generated-only nightly work, is human-merged; the one exception is the executor's
+  revert PR under the §3 gate.
 - Secrets: sops-encrypted in git **or** agent-readable restrictive local files under
   `/opt/skynet-ops/secrets/` — never plaintext in commits, transcripts, or chat. Materialized files
   are `0400 aliammar`; the lab age key is `0640 root:users`, so the agent decrypts sops without sudo.

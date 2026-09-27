@@ -4,9 +4,9 @@ title: Rebuild the Skynet engine in Python
 status: in-progress
 horizon: long
 created: 2026-09-06
-updated: 2026-09-26
+updated: 2026-09-27
 phases: 18
-current_phase: 13
+current_phase: 14
 tier_touched: [T1, T2, T2+, T3]
 related:
   - docs/system-design.md
@@ -22,7 +22,7 @@ related:
 
 ## Status
 
-**Current:** phases 1–13 done. Docker deploys run through one executor: `skynet deploy` applies the
+**Current:** phases 1–13 done; Phase 14 is in its PR. Docker deploys run through one executor: `skynet deploy` applies the
 merged revision of each `compose/<svc>/` (env and compose rendered together, `skynet.revision` on
 every container), verifies it, and on failure returns to the last verified revision by itself and
 opens a revert PR; a 3-minute `skynet-deploy` timer (`--pending`) replaced Arcane Git Sync, which is
@@ -42,8 +42,13 @@ since 2026-08-31 and a failed docker-dmz restic run (cause unknown). Phase 16 no
 from scratch. Until it lands, no new off-site copy is known to land, and older copies are unverified
 (accepted by Ali, 2026-09-26).
 
-**Next:** Phase 14 — live health monitor (`skynet watch`, Pushover). Review: Full. Before the
-timer runs, Ali rebuilds the ops VM (P13's `skynet-deploy` timer and `/opt/skynet-ops/state`).
+**Next:** Phase 14 (PR #276) adds `skynet watch` (passes every 3 min, state-change Pushover
+alerts, healthchecks.io dead-man's switch), `skynet log`, a 30 s `ls-remote` deploy trigger,
+retirement of services removed from `compose/`, and the revert-PR auto-merge gate (AGENTS.md §3's
+first entry). Live drill 2026-09-27 on the ops VM built from the PR (`skynet-drill`, #278–#281):
+merge→deploy 29 s; stop→DOWN push 4 min 57 s; restart→recovered push 2 min 30 s; broken
+healthcheck → rollback, executor revert #280 auto-merged by the gate (16 s after it opened) and
+redeployed; removal → retired in 29 s with the volume kept. Then Phase 15.
 
 This block, the phase boxes, and the frontmatter are the **only** progress record. Each phase PR
 updates them itself; merge is completion ([construction](../../docs/conventions/construction.md)).
@@ -58,7 +63,7 @@ SKY-025 is finished when every box holds:
 - [ ] Docker and OpenTofu follow ADR 0008: effect in the PR, merge is the approval, one executor,
       Tofu state in the `tofu-state` branch; ADR 0008 is accepted.
 - [x] A failed deploy rolls back to the last verified revision without waiting for a human.
-- [ ] A service outage reaches Ali's phone within 10 minutes.
+- [x] A service outage reaches Ali's phone within 10 minutes.
 - [ ] The nightly is deterministic (no AI engine), runs `bin/check` on `main`, and opens a PR only
       when inventory changed beyond timestamps.
 - [ ] `bin/check` passes, with a failure-case test for every write path.
@@ -114,7 +119,7 @@ Everything else in `scripts/` and `bin/` is ported by the phase that owns it bel
 | 11 | Purge and consolidate | Light | forwarders gone; shared collector core; `skynet plan`/`skynet new` | nothing calls a deleted path; `skynet collect all` works live |
 | 12 | Census and gates | Full | live facts recorded; gates in Python | blocker table filled; `skynet check` replaces the shell gates, same failures caught |
 | 13 | Write-path skeleton + `skynet deploy` + publish | Full | ADR 0008 Docker model: one executor, dry-run effect in PR, auto-rollback to last verified; Caddy/Auth/DNS publish | real deploy; forced failure rolls back automatically; Arcane Git Sync off |
-| 14 | Live health monitor | Full | `skynet watch` timer every 5 min, push alert on state change | stopped test container alerts within 10 min; recovery alert follows; no alert storm |
+| 14 | Live health monitor | Full | `skynet watch` timer every 3 min, push alert on state change | stopped test container alerts within 10 min; recovery alert follows; no alert storm |
 | 15 | OpenTofu under ADR 0008 | Full | per-actuator stacks, plan+hash in PR, apply-on-merge with hash match, state on `tofu-state` branch, nightly drift plan | mismatched hash refused; delete/protected-guest refused; injected apply failure restores the snapshot; state rebuilt from git |
 | 16 | Greenfield backup and restore | Full | a new backup strategy designed from scratch: payload selection, off-site target and credential, consistency, restore | off-site copy verified complete; empty or incomplete copy fails loudly and alerts; isolated restore of one service and one guest from off-site; kit-only restore proven |
 | 17 | Provision, onboard, OS updates | Full | provision/onboard, pins, age identity, OS-aware updates | one guest provisioned and updated; failed update stops with rollback |
@@ -171,10 +176,10 @@ Recorded in `docs/design/gitops-loop.md` (13), `docs/design/observability.md` (1
 5. Delete `gitops-deploy.sh`, `gitops-rollback.sh`, `deploy-gate.sh`, and the publishing scripts.
    Update AGENTS.md §4, the gitops-loop spoke, and the deploy/publish runbooks (human-merged).
 
-### Phase 14 — Live health monitor   `[ ]` · review: Full
+### Phase 14 — Live health monitor   `[x]` · review: Full
 
 1. `skynet watch`: a systemd timer on the ops VM runs the Phase 10 verifier for every deployed
-   service every 5 minutes (T1 read only).
+   service, passes starting every 3 minutes (T1 read only).
 2. Alert on **state change** only: healthy → unhealthy after two consecutive failures, and back.
    One message per change, no storms, a daily "still down" reminder at most.
 3. Push through the channel recorded in Phase 12; its credential is a sops-materialized file like

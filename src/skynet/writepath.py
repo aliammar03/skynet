@@ -16,6 +16,7 @@ from __future__ import annotations
 import fcntl
 import json
 import os
+import time
 import uuid
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -24,11 +25,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, TypeVar
 
+from skynet import alert
+
 DEFAULT_STATE_DIR = Path("/opt/skynet-ops/state")
 T = TypeVar("T")
 
 # Exit codes shared by every write path.
 OK, FAILED, USAGE, UNAVAILABLE, ROLLBACK_FAILED = 0, 1, 2, 3, 4
+# Outcomes that leave live state unknown to the record: a human must look, so they alert.
+ALARMS = frozenset({"rollback-failed", "unrecorded"})
 
 
 class WriteError(Exception):
@@ -58,6 +63,8 @@ class Operation:
     reason: str | None = None
     verification: dict[str, Any] | None = None
     code: int = OK
+    # What a later reconcile needs to judge an interrupted write (e.g. the approved tree).
+    context: dict[str, Any] = field(default_factory=dict)
 
     def step(self, name: str, action: Callable[[], T]) -> T:
         """Run one named step and record its outcome; a WriteError propagates after recording."""
@@ -80,7 +87,13 @@ class Operation:
 
 
 class Ledger:
-    """The local operation record and the one lock serializing all write paths."""
+    """The local operation record and the one lock serializing all write paths.
+
+    A writer retries the lock for `wait` seconds, so a read-only observer's instant `busy()`
+    probe never fails a write; a real concurrent write still ends in `unavailable`.
+    """
+
+    wait = 5.0
 
     def __init__(self, state_dir: Path = DEFAULT_STATE_DIR):
         self.state_dir = state_dir
@@ -94,16 +107,47 @@ class Ledger:
         except OSError:
             raise WriteError("write state directory unavailable", UNAVAILABLE) from None
         with handle:
+            deadline = time.monotonic() + self.wait
+            while True:
+                try:
+                    fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except OSError:
+                    if time.monotonic() >= deadline:
+                        raise WriteError("another write holds the lock", UNAVAILABLE) from None
+                    time.sleep(0.05)
+            yield
+
+    def busy(self) -> bool:
+        """True while a write holds the lock (a read-only observer skips rather than race it)."""
+        try:
+            handle = open(self.state_dir / "write.lock", "a")
+        except OSError:
+            return False
+        with handle:
             try:
                 fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except OSError:
-                raise WriteError("another write holds the lock", UNAVAILABLE) from None
-            yield
+                return True
+            fcntl.flock(handle, fcntl.LOCK_UN)
+            return False
+
+    def in_flight(self) -> set[str]:
+        """Targets with a `started` record and no final or reconciled line yet."""
+        open_ids: dict[str, str] = {}
+        for entry in self.entries():
+            key = str(entry.get("id"))
+            if entry.get("phase") == "started":
+                open_ids[key] = str(entry.get("target"))
+            elif entry.get("phase") in {"final", "reconciled"}:
+                open_ids.pop(key, None)
+        return set(open_ids.values())
 
     def append(self, entry: dict[str, Any]) -> None:
         """Append one flushed line; a record that cannot be kept stops the write."""
         try:
             line = json.dumps(entry, sort_keys=True, allow_nan=False) + "\n"
+            self.state_dir.mkdir(parents=True, exist_ok=True)
             with open(self.path, "a", encoding="utf-8") as stream:
                 stream.write(line)
                 stream.flush()
@@ -127,6 +171,26 @@ class Ledger:
             if isinstance(value, dict):
                 entries.append(value)
         return entries
+
+    def unfinished(self, kind: str) -> list[dict[str, Any]]:
+        """Every `started` entry of this kind with no final or reconciled line: interrupted writes
+        a later pass must settle even if nothing else would find them again."""
+        started: dict[str, dict[str, Any]] = {}
+        for entry in self.entries():
+            if entry.get("kind") != kind:
+                continue
+            key = str(entry.get("id"))
+            if entry.get("phase") == "started":
+                started[key] = entry
+            elif entry.get("phase") in {"final", "reconciled"}:
+                started.pop(key, None)
+        return list(started.values())
+
+    def last_final(self, kind: str, target: str) -> dict[str, Any] | None:
+        for entry in reversed(self.entries()):
+            if (entry.get("kind"), entry.get("target"), entry.get("phase")) == (kind, target, "final"):
+                return entry
+        return None
 
     def dangling(self, kind: str, target: str) -> dict[str, Any] | None:
         """The newest `started` entry for this target that never got a final or reconciled line."""
@@ -200,14 +264,53 @@ def _run_locked(operation: Operation, ledger: Ledger, preflight: Callable[[], An
         else:
             operation.outcome = "rolled-back" if operation.recovery == "rolled-back" else "failed"
             operation.code = FAILED
-        ledger.append(operation.record("final"))
+        _finish(operation, ledger)
         return
     operation.outcome = "success"
     try:
         operation.step("record", lambda: commit(saved))
     except WriteError as error:  # live and verified, but the next write cannot find it
         operation.outcome, operation.reason, operation.code = "unrecorded", error.reason, UNAVAILABLE
-    ledger.append(operation.record("final"))
+    _finish(operation, ledger)
+
+
+def _finish(operation: Operation, ledger: Ledger) -> None:
+    """After a write ran: alarm if needed, then the final record. A final record that cannot be
+    kept is itself `unrecorded` (not `unavailable`: something changed) and alerts, once."""
+    _alarm(operation)
+    try:
+        ledger.append(operation.record("final"))
+    except WriteError as error:
+        prior = operation.outcome + (f": {operation.reason}" if operation.reason else "")
+        operation.reason = f"{prior}; final record lost ({error.reason})"
+        if operation.outcome != "rollback-failed":
+            operation.code = UNAVAILABLE
+        operation.outcome = "unrecorded"
+        if not any(step.get("step") == "alert" and step.get("outcome") == "ok"
+                   for step in operation.steps):
+            _alarm(operation)
+
+
+def _alarm(operation: Operation) -> None:
+    """Push an outcome that needs a human; whether the push went out is itself recorded."""
+    if operation.outcome not in ALARMS:
+        return
+    failure = alert.send(f"skynet: {operation.target} {operation.outcome}", line(report(operation)),
+                         priority=1)
+    operation.note("alert", "failed" if failure else "ok", failure)
+
+
+def refuse(operation: Operation, ledger: Ledger, reason: str, code: int = USAGE) -> Operation:
+    """Record a refusal that happens before an operation can start (bad name, no route, ...).
+
+    A lock-free append: one short `O_APPEND` line cannot interleave with another writer's.
+    """
+    operation.outcome, operation.reason, operation.code = "refused", reason, code
+    try:
+        ledger.append(operation.record("final"))
+    except WriteError as error:
+        operation.note("record", "failed", error.reason)
+    return operation
 
 
 def _stop(operation: Operation, ledger: Ledger, outcome: str, error: WriteError) -> None:
@@ -215,6 +318,74 @@ def _stop(operation: Operation, ledger: Ledger, outcome: str, error: WriteError)
     ledger.append(operation.record("final"))
 
 
+def settle(ledger: Ledger, entry: dict[str, Any], *, observed: dict[str, Any] | None = None,
+           alarm: str | None = None) -> Operation:
+    """Close an interrupted write found by `Ledger.unfinished`: `reconciled` with what is live,
+    or, when what landed can't be shown safe, a `rollback-failed` final that alerts."""
+    operation = Operation(str(entry.get("kind")), str(entry.get("target")),
+                          str(entry.get("source", "")), id=str(entry.get("id")),
+                          context=dict(entry.get("context") or {}))
+    if alarm is None:
+        ledger.append({"ts": _now(), "phase": "reconciled", "kind": operation.kind,
+                       "target": operation.target, "id": operation.id, "observed": observed or {}})
+        operation.outcome = "reconciled"
+        return operation
+    operation.outcome, operation.code = "rollback-failed", ROLLBACK_FAILED
+    operation.recovery, operation.reason = "rollback-failed", alarm
+    _finish(operation, ledger)
+    return operation
+
+
 def report(operation: Operation) -> dict[str, Any]:
     """The JSON-ready view printed by a CLI."""
     return {key: value for key, value in asdict(operation).items() if value is not None}
+
+
+def line(result: dict[str, Any]) -> str:
+    """The one line every write path prints: `<target>@<rev>: <outcome> — <reason>`."""
+    source = f"@{str(result['source'])[:12]}" if result.get("source") else ""
+    text = f"{result.get('target')}{source}: {result.get('outcome')}"
+    if result.get("reason"):
+        text += f" — {result['reason']}"
+    if result.get("recovery") not in (None, "not-needed"):
+        text += f" (recovery: {result['recovery']})"
+    return text
+
+
+def emit(result: dict[str, Any], json_output: bool, stdout: Any) -> None:
+    """Print one result as JSON, or as `line` plus any step detail."""
+    if json_output:
+        print(json.dumps(result, sort_keys=True), file=stdout)
+        return
+    print(line(result), file=stdout)
+    for step in result.get("steps", []):
+        if step.get("detail"):
+            print(f"  {step['step']}: {step['outcome']} — {step['detail']}", file=stdout)
+
+
+def show_log(ledger: Ledger, *, target: str | None, kind: str | None, outcome: str | None,
+             limit: int, json_output: bool, stdout: Any) -> int:
+    """`skynet log`: final and reconciled records, newest first, filtered."""
+    try:
+        entries = ledger.entries()
+    except WriteError as error:
+        print(f"log: {error.reason}", file=stdout)
+        return error.code
+    shown = 0
+    for entry in reversed(entries):
+        if entry.get("phase") not in {"final", "reconciled"}:
+            continue
+        if (target and entry.get("target") != target or kind and entry.get("kind") != kind
+                or outcome and entry.get("outcome", entry.get("phase")) != outcome):
+            continue
+        if json_output:
+            print(json.dumps(entry, sort_keys=True), file=stdout)
+        else:
+            row = dict(entry) if entry.get("phase") == "final" else {
+                "target": entry.get("target"), "outcome": "reconciled",
+                "reason": f"interrupted {entry.get('id')} closed; observed {entry.get('observed')}"}
+            print(f"{entry.get('ts', '?')}  {entry.get('kind', '?'):<9} {line(row)}", file=stdout)
+        shown += 1
+        if shown >= limit:
+            break
+    return OK

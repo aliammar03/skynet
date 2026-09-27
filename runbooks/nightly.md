@@ -94,7 +94,7 @@ discard the prepared deterministic work.
 
 ## Guardrails
 
-- No T2 write or granted-root action unless it is on the auto-approve list (currently empty).
+- No T2 write or granted-root action unless it is on the auto-approve list (its one entry is the deploy executor's revert PR, not a nightly action).
 - Any anomaly (host unreachable, health red, unexpected diff) → flag in the summary; don't fix
   silently.
 - The report is the artifact. Ali reads a week of these before autonomy widens.

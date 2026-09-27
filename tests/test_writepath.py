@@ -1,6 +1,9 @@
 """The write-path shape: ordering, refusal without change, rollback, reconcile, and the record."""
 
+import io
 import json
+import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -103,9 +106,26 @@ def test_other_targets_do_not_block(tmp_path: Path) -> None:
 
 def test_a_held_lock_refuses_a_second_writer(tmp_path: Path) -> None:
     ledger = Ledger(tmp_path)
+    ledger.wait = 0.2
     with ledger.lock():
         operation = _run(ledger, [])
     assert (operation.outcome, operation.code) == ("unavailable", 3)
+
+
+def test_a_brief_probe_never_fails_a_writer(tmp_path: Path) -> None:
+    """An observer's `busy()` holds the lock for an instant; a writer waits it out."""
+    ledger, released = Ledger(tmp_path), threading.Event()
+
+    def hold() -> None:
+        with Ledger(tmp_path).lock():
+            released.wait(0.3)
+
+    holder = threading.Thread(target=hold)
+    holder.start()
+    time.sleep(0.05)
+    operation = _run(ledger, [])
+    holder.join()
+    assert operation.outcome == "success"
 
 
 def test_unavailable_state_dir_is_unavailable(tmp_path: Path) -> None:
@@ -125,3 +145,87 @@ def test_malformed_record_is_unavailable(tmp_path: Path) -> None:
     ledger.path.write_text("{not json\n")
     with pytest.raises(WriteError):
         ledger.entries()
+
+
+@pytest.fixture
+def pushed(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, str, int]]:
+    sent: list[tuple[str, str, int]] = []
+    monkeypatch.setattr(writepath.alert, "send", lambda title, message, priority=0, path=None:
+                        sent.append((title, message, priority)))
+    return sent
+
+
+def test_rollback_failed_alerts_and_records_the_alert(tmp_path: Path,
+                                                      pushed: list[tuple[str, str, int]]) -> None:
+    operation = _run(Ledger(tmp_path), [], verify=_fail("unhealthy"), rollback=_fail("up failed"))
+    assert operation.outcome == "rollback-failed"
+    assert pushed == [("skynet: svc/demo rollback-failed",
+                       f"svc/demo@{'a' * 12}: rollback-failed — unhealthy; rollback: up failed "
+                       "(recovery: rollback-failed)", 1)]
+    assert {"step": "alert", "outcome": "ok"} in _records(Ledger(tmp_path))[-1]["steps"]
+
+
+def test_unrecorded_success_alerts(tmp_path: Path, pushed: list[tuple[str, str, int]]) -> None:
+    assert _run(Ledger(tmp_path), [], commit=_fail("host fact not written")).outcome == "unrecorded"
+    assert [title for title, _, _ in pushed] == ["skynet: svc/demo unrecorded"]
+
+
+def test_ordinary_outcomes_do_not_alert(tmp_path: Path, pushed: list[tuple[str, str, int]]) -> None:
+    _run(Ledger(tmp_path), [])
+    _run(Ledger(tmp_path), [], verify=_fail("unhealthy"))
+    _run(Ledger(tmp_path), [], preflight=_fail("bad image"))
+    assert pushed == []
+
+
+def test_refusal_before_start_is_recorded_and_shown_by_log(tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path)
+    writepath.refuse(Operation("publish", "svc/demo", ""), ledger, "no route for the service")
+    _run(ledger, [])
+    out = io.StringIO()
+    writepath.show_log(ledger, target=None, kind=None, outcome="refused", limit=10,
+                       json_output=False, stdout=out)
+    assert out.getvalue().count("\n") == 1 and "svc/demo: refused — no route" in out.getvalue()
+    out = io.StringIO()
+    writepath.show_log(ledger, target="svc/demo", kind="deploy", outcome=None, limit=10,
+                       json_output=True, stdout=out)
+    assert [json.loads(row)["outcome"] for row in out.getvalue().splitlines()] == ["success"]
+
+
+def test_busy_reports_a_held_lock(tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path)
+    assert not ledger.busy()
+    with ledger.lock():
+        assert ledger.busy()
+    assert not ledger.busy()
+
+
+def test_one_line_format() -> None:
+    assert writepath.line({"target": "svc/x", "source": "b" * 40, "outcome": "refused",
+                           "reason": "unmerged"}) == f"svc/x@{'b' * 12}: refused — unmerged"
+
+
+def test_a_lost_final_record_after_a_write_is_unrecorded_and_alerts(
+        tmp_path: Path, pushed: list[tuple[str, str, int]], monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger, calls = Ledger(tmp_path), []
+    real = Ledger.append
+
+    def append(self: Ledger, entry: dict[str, Any]) -> None:
+        if entry.get("phase") == "final":
+            raise WriteError("operation record unavailable", 3)
+        real(self, entry)
+
+    monkeypatch.setattr(Ledger, "append", append)
+    operation = _run(ledger, calls)
+    assert calls[:4] == ["preflight", "snapshot", "execute", "verify"]
+    assert (operation.outcome, operation.code) == ("unrecorded", 3)
+    assert "final record lost" in str(operation.reason)
+    assert [title for title, _, _ in pushed] == ["skynet: svc/demo unrecorded"]
+
+
+def test_a_lost_started_record_changes_nothing(
+        tmp_path: Path, pushed: list[tuple[str, str, int]], monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+    monkeypatch.setattr(Ledger, "append", lambda self, entry: (_ for _ in ()).throw(
+        WriteError("operation record unavailable", 3)))
+    operation = _run(Ledger(tmp_path), calls)
+    assert operation.outcome == "unavailable" and "execute" not in calls and pushed == []

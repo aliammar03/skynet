@@ -105,12 +105,51 @@ load-cost/context-routing index [`../generated/07-context-map.md`](../generated/
 The human narrative
 [`05-state-of-the-lab.md`](../generated/05-state-of-the-lab.md) is the agent-authored counterpart.
 
+## Live health and alerts
+
+`skynet watch` passes start every 3 minutes (`skynet-watch.timer`, `OnUnitActiveSec=3m`,
+`AccuracySec=1s`; T1 read). For every non-manual service on `origin/main` it runs the
+[deployment verifier](#deployment-verification) against the running `skynet.revision`, and alerts
+on **state change** only:
+
+| Change | Alert |
+|---|---|
+| healthy → unhealthy | after 2 consecutive failed passes (< 10 min, budget below); one message. A flap never alerts. |
+| still unhealthy | one reminder a day at most |
+| unhealthy → healthy | one recovery message, only if the down alert went out; an unsent one is retried |
+| monitor cannot observe (no fetch, Docker unreachable, no state, `main` declares no services) | the pseudo-target `monitor`, same rule; every service keeps its state; no per-service storm |
+| a pass cannot observe every service within its budget | `monitor` failure, same rule: a coverage gap is never silent |
+
+**Latency budget (< 10 min).** A pass probes Docker once, then observes services least recently
+observed first. It starts no new observation after 75 s, caps each at 60 s (`SIGALRM`; an overrun
+fails that service), and pushes a service's alert as soon as that service is observed (15 s
+timeout). So a pass ends within 150 s plus its final ping, inside the 3-minute interval, and the
+next starts ≤ 181 s after it. Worst case: an outage that begins just after a service's healthy
+observation gets its first failure in the next pass and its second, which alerts, in the one after
+that: ≤ 2 × 181 + 75 + 60 + 15 ≈ 512 s. `tests/test_watch.py` simulates this with slow probes.
+
+While a write holds the lock, only the target it is changing is skipped (a deploy mid-flight is
+not an outage); every other service is still checked, so a long write never hides an outage. An
+alert that could not be sent is retried next pass; if a needed push is still owed after two passes
+(a broken credential or blocked endpoint), the dead-man's switch gets `/fail`, so the independent
+channel escalates. State: `/opt/skynet-ops/state/watch.json`.
+
+Write paths alert too: a `rollback-failed` or `unrecorded` outcome pushes a high-priority message,
+and whether it went out is a step in the operation record. A write whose final record can't be kept is
+`unrecorded` too. A skynet unit that crashes, times out, is killed, or could not send a needed
+alert triggers `skynet-alert@` (`skynet alert unit-failed`, at most hourly per unit).
+
+**Channel.** Pushover. **Dead-man's switch.** Every watch pass pings a healthchecks.io check
+(`/fail` once the monitor is unhealthy: two failed passes, the same rule as its alert). The check
+expects a ping every 3 minutes with a 5-minute grace and alerts through its own Pushover
+integration, so a dead ops VM or timer still reaches the phone within about 8 minutes.
+`skynet alert test` sends one message and one ping.
+
+**Credential.** `secrets/alerts.env.sops` (`PUSHOVER_TOKEN`, `PUSHOVER_USER`, `HEALTHCHECK_URL`),
+materialized `0400 aliammar` at `/opt/skynet-ops/secrets/alerts.env` through the `names` list in
+`nix/modules/secrets.nix`. Outbound HTTPS only (`api.pushover.net`, the ping host).
+
 ## Scope
 
-Observability is descriptive: rendered state and nightly change detection. It does not provide
-live alerting between nightly runs.
-
-**Alert channel (decided 2026-09-26, built by SKY-025 Phase 14):** Pushover. The app token and
-user key will be a sops secret `secrets/pushover.env.sops`, materialized `0400 aliammar` at
-`/opt/skynet-ops/secrets/pushover.env` through the `names` list in `nix/modules/secrets.nix`.
-Neither exists yet.
+Observability covers rendered state, nightly change detection, and live service health with
+state-change alerts. It does not collect metrics or logs.

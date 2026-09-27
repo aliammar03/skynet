@@ -1,6 +1,6 @@
 { lib, ... }:
-# The ops VM's scheduled units — skynet-nightly and skynet-deploy. `skynet` itself is a system
-# package (flake.nix).
+# The ops VM's scheduled units — skynet-deploy (30 s merge trigger), skynet-watch (3 min health
+# monitor), skynet-nightly, and the OnFailure alert. `skynet` itself is a system package (flake.nix).
 #
 # The lab's other scheduled backups are NOT the ops VM's; they live in scripts/systemd/ for the
 # hosts that install them:
@@ -24,28 +24,81 @@ in
   # /opt/skynet-ops (impermanence.nix).
   systemd.tmpfiles.rules = [ "d /opt/skynet-ops/state 0750 aliammar users -" ];
 
-  # The deploy loop: merge is the approval (ADR 0008); this applies each merged compose/<svc>/
-  # revision that is not the one running, rolls a failure back to the last verified revision, and
-  # holds a failed revision until main moves. A run still in progress skips the next tick.
+  # The deploy loop: merge is the approval (ADR 0008). Every 30 s a `git ls-remote` asks whether
+  # main moved; only then (or when the last pass is 15 min old) does the full pass run: apply each
+  # merged compose/<svc>/ revision that is not the one running, roll a failure back to the last
+  # verified revision, retire projects main no longer declares, and try the revert auto-merge gate
+  # (AGENTS.md §3). No inbound path: nothing internet-facing reaches the ops VM.
   systemd.services.skynet-deploy = {
-    description = "skynet deploy --pending (apply merged service revisions)";
+    description = "skynet deploy --pending --if-moved (apply merged service revisions)";
     wants = [ "network-online.target" ];
     after = [ "network-online.target" ];
+    onFailure = [ "skynet-alert@%n.service" ];
     environment = commonEnv;
     serviceConfig = {
       Type = "oneshot";
       User = "aliammar";
       WorkingDirectory = repo;
-      ExecStart = "/run/current-system/sw/bin/skynet deploy --pending --repo ${repo}";
+      ExecStart = "/run/current-system/sw/bin/skynet deploy --pending --if-moved --repo ${repo}";
+      # --if-moved exits 0 for every outcome the pass records itself and 4 for rollback-failed
+      # whose alert went out. A crash (Python exits 1), an alert that could not be sent (1),
+      # unwritable trigger state (1), a timeout, or a kill fires OnFailure.
+      SuccessExitStatus = [ 4 ];
       TimeoutStartSec = "60m";
     };
   };
   systemd.timers.skynet-deploy = {
-    description = "Apply merged service revisions every 3 minutes";
+    description = "Check for a merged main every 30 seconds";
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnBootSec = "5m";
-      OnUnitInactiveSec = "3m";
+      OnBootSec = "2m";
+      OnUnitInactiveSec = "30s";
+      AccuracySec = "5s";
+    };
+  };
+
+  # The live health monitor (T1 read): verifies every deployed service, alerts on state change,
+  # and pings the external dead-man's switch so a dead VM or timer still reaches the phone.
+  systemd.services.skynet-watch = {
+    description = "skynet watch (live service health)";
+    wants = [ "network-online.target" ];
+    after = [ "network-online.target" ];
+    onFailure = [ "skynet-alert@%n.service" ];
+    environment = commonEnv;
+    serviceConfig = {
+      Type = "oneshot";
+      User = "aliammar";
+      WorkingDirectory = repo;
+      ExecStart = "/run/current-system/sw/bin/skynet watch --repo ${repo}";
+      # 1 = a service is unhealthy, 3 = monitor unavailable: both alert by state change. A run that
+      # dies before its ping is caught by the dead-man's switch.
+      SuccessExitStatus = [ 1 3 ];
+      # A pass is bounded to well under one interval (src/skynet/watch.py); this is the backstop.
+      TimeoutStartSec = "4m";
+    };
+  };
+  # Passes START 3 min apart (OnUnitActiveSec, not OnUnitInactiveSec: a pass's own run time must
+  # not stretch the gap). With two strikes and a bounded pass, an outage alerts in < 10 min; the
+  # budget is in docs/design/observability.md.
+  systemd.timers.skynet-watch = {
+    description = "Verify every deployed service, passes starting 3 minutes apart";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnBootSec = "3m";
+      OnUnitActiveSec = "3m";
+      AccuracySec = "1s";
+    };
+  };
+
+  # A skynet unit that crashed, timed out, or was killed pushes an alert (at most one an hour per
+  # unit, so a crash loop is one message).
+  systemd.services."skynet-alert@" = {
+    description = "Alert that %i failed";
+    environment = commonEnv;
+    serviceConfig = {
+      Type = "oneshot";
+      User = "aliammar";
+      ExecStart = "/run/current-system/sw/bin/skynet alert unit-failed %i";
     };
   };
 

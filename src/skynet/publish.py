@@ -227,9 +227,9 @@ def publish(repo: Path, service: str, *, context: str, ledger: Ledger,
         revision = deploy.resolve(repo, deploy.MAIN)
         declared_routes = service_routes(repo, service)
     except WriteError as error:
-        return _refused("publish", service, error.reason, error.code)
+        return _refused(ledger, "publish", f"svc/{service}", error.reason, error.code)
     if not declared_routes:
-        return _refused("publish", service, "no route for the service in the Caddyfile on origin/main")
+        return _refused(ledger, "publish", f"svc/{service}", "no route for the service in the Caddyfile on origin/main")
     forward = [route for route in declared_routes if route.auth == FORWARD_AUTH]
     operation = Operation("publish", f"svc/{service}", revision)
     state = _Published()
@@ -347,14 +347,14 @@ class _Withdrawn:
 def withdraw(repo: Path, vhost: str, confirm: str, *, context: str, ledger: Ledger) -> Operation:
     """Delete what a removed vhost left behind. Git must no longer declare it; Ali confirms by name."""
     if not _VHOST.fullmatch(vhost):
-        return _refused("withdraw", vhost, "invalid vhost")
+        return _refused(ledger, "withdraw", f"vhost/{vhost}", "invalid vhost")
     if confirm != vhost:
-        return _refused("withdraw", vhost, "--confirm must repeat the vhost exactly")
+        return _refused(ledger, "withdraw", f"vhost/{vhost}", "--confirm must repeat the vhost exactly")
     try:
         deploy.fetch(repo)
         revision = deploy.resolve(repo, deploy.MAIN)
     except WriteError as error:
-        return _refused("withdraw", vhost, error.reason, error.code)
+        return _refused(ledger, "withdraw", f"vhost/{vhost}", error.reason, error.code)
     operation = Operation("withdraw", f"vhost/{vhost}", revision)
     state = _Withdrawn()
     parts: dict[str, Any] = {}
@@ -416,10 +416,8 @@ def withdraw(repo: Path, vhost: str, confirm: str, *, context: str, ledger: Ledg
                          verify=verify, rollback=rollback, reconcile=lambda: {"idempotent": True})
 
 
-def _refused(kind: str, target: str, reason: str, code: int = USAGE) -> Operation:
-    operation = Operation(kind, target, "")
-    operation.outcome, operation.reason, operation.code = "refused", reason, code
-    return operation
+def _refused(ledger: Ledger, kind: str, target: str, reason: str, code: int = USAGE) -> Operation:
+    return writepath.refuse(Operation(kind, target[:200], ""), ledger, reason, code)
 
 
 def run(repo: Path, service: str, *, context: str, state_dir: Path, dry_run: bool,
@@ -427,12 +425,12 @@ def run(repo: Path, service: str, *, context: str, state_dir: Path, dry_run: boo
     operation = publish(repo, service, context=context, ledger=Ledger(state_dir), dry_run=dry_run,
                         stdout=stdout)
     if operation.outcome != "dry-run":
-        deploy._print(writepath.report(operation), json_output, stdout)
+        writepath.emit(writepath.report(operation), json_output, stdout)
     return operation.code
 
 
 def run_withdraw(repo: Path, vhost: str, confirm: str, *, context: str, state_dir: Path,
                  json_output: bool, stdout: TextIO) -> int:
     operation = withdraw(repo, vhost, confirm, context=context, ledger=Ledger(state_dir))
-    deploy._print(writepath.report(operation), json_output, stdout)
+    writepath.emit(writepath.report(operation), json_output, stdout)
     return operation.code

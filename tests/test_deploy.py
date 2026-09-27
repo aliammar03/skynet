@@ -32,6 +32,9 @@ class FakeHost:
         self.bad_up: set[str] = set()
         self.bad_verify: set[str] = set()
         self.pr_error = False
+        self.projects: set[str] = {"demo", "other"}
+        self.containers: dict[str, list[dict[str, Any]]] = {}
+        self.bad_down = False
         self.calls: list[tuple[str, ...]] = []
 
 
@@ -85,6 +88,8 @@ def host(monkeypatch: pytest.MonkeyPatch) -> FakeHost:
     monkeypatch.setattr(deploy, "running", lambda context, service: fake.running[service])
     monkeypatch.setattr(deploy, "prune", lambda context, service, keep: [])
     monkeypatch.setattr(deploy, "open_revert_pr", revert)
+    monkeypatch.setattr(deploy, "host_projects", lambda context: set(fake.projects))
+    monkeypatch.setattr(deploy, "_inspect", lambda context, service: fake.containers.get(service, []))
     return fake
 
 
@@ -335,3 +340,273 @@ def test_release_changes_name_mounted_files_only(git_repo: tuple[Path, str]) -> 
     subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@t",
                     "commit", "-qam", "second"], check=True)
     assert deploy.release_changes(repo, "demo", first, deploy.resolve(repo, "HEAD")) == ["app.ini"]
+
+
+# --- retirement (item 7) and the 30 s trigger (item 6) ------------------------------------------
+
+def _row(service: str, mounts: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    return {"Config": {"Labels": {"skynet.service": service}}, "Mounts": mounts or []}
+
+
+@pytest.fixture
+def retiring(host: FakeHost, monkeypatch: pytest.MonkeyPatch) -> FakeHost:
+    """`gone` runs on the host (deployed by the executor) but main no longer declares it."""
+    host.projects.add("gone")
+    host.running["gone"], host.facts["gone"] = OLD, HostFacts(verified=OLD)
+    host.containers["gone"] = [_row("gone", [{"Type": "volume", "Name": "gone_data"}])]
+    host.main["demo"] = OLD  # nothing to deploy; the pass only retires
+
+    def ok(args: list[str], reason: str, code: int = 3, **kwargs: Any) -> bytes:
+        host.calls.append(tuple(args[3:]))
+        if "down" in args:
+            if host.bad_down:
+                raise WriteError(reason, code)
+            host.containers["gone"] = []
+        return b""
+
+    monkeypatch.setattr(deploy, "_ok", ok)
+    monkeypatch.setattr(deploy, "_host", lambda context, script, *a, **k: host.calls.append(
+        ("host", script, *a)) or "")
+    return host
+
+
+def test_pending_retires_a_service_main_no_longer_declares(retiring: FakeHost, tmp_path: Path) -> None:
+    results = deploy.pending(tmp_path, context="docker-dmz", ledger=Ledger(tmp_path / "state"))
+    assert [(r["target"], r["outcome"]) for r in results] == [("svc/gone", "success")]
+    down = next(call for call in retiring.calls if "down" in call)
+    assert down == ("compose", "-p", "gone", "down", "--remove-orphans")  # never -v: payload stays
+    assert ("host", 'set -eu; rm -rf "/srv/$1"', "gone") in retiring.calls
+    assert {"step": "volumes-kept", "outcome": "ok", "detail": "gone_data"} in results[0]["steps"]
+
+
+def test_retirement_refuses_a_project_writing_into_its_release(retiring: FakeHost, tmp_path: Path) -> None:
+    retiring.containers["gone"] = [_row("gone", [
+        {"Type": "bind", "Source": f"{deploy.RELEASES}/gone/{OLD}/data", "RW": True}])]
+    operation = deploy.retire(tmp_path, "gone", context="docker-dmz", ledger=Ledger(tmp_path / "s"))
+    assert operation.outcome == "refused" and "release directory" in str(operation.reason)
+    assert not [call for call in retiring.calls if "down" in call]
+
+
+def test_retirement_refuses_while_main_still_declares_it(retiring: FakeHost, tmp_path: Path) -> None:
+    retiring.main["gone"] = OLD
+    operation = deploy.retire(tmp_path, "gone", context="docker-dmz", ledger=Ledger(tmp_path / "s"))
+    assert (operation.outcome, operation.reason) == ("refused", "service is still declared on origin/main")
+
+
+def test_an_empty_main_retires_nothing(retiring: FakeHost, tmp_path: Path) -> None:
+    retiring.main.clear()
+    results = deploy.pending(tmp_path, context="docker-dmz", ledger=Ledger(tmp_path / "state"))
+    assert results[-1]["outcome"] == "unavailable" and "declares no services" in results[-1]["reason"]
+    assert not [call for call in retiring.calls if "down" in call]
+
+
+def test_failed_retirement_brings_the_service_back(retiring: FakeHost, tmp_path: Path) -> None:
+    retiring.bad_down = True
+    retiring.running["gone"] = None
+    operation = deploy.retire(tmp_path, "gone", context="docker-dmz", ledger=Ledger(tmp_path / "s"))
+    assert (operation.outcome, operation.recovery) == ("rolled-back", "rolled-back")
+    assert ("up", "gone", OLD) in retiring.calls and retiring.running["gone"] == OLD
+
+
+def test_retirement_without_a_recoverable_revision_is_refused(
+        retiring: FakeHost, tmp_path: Path) -> None:
+    retiring.facts["gone"] = HostFacts()                 # nothing verified to come back to
+    operation = deploy.retire(tmp_path, "gone", context="docker-dmz", ledger=Ledger(tmp_path / "s"))
+    assert operation.outcome == "refused" and "no verified revision" in str(operation.reason)
+    assert not [call for call in retiring.calls if "down" in call]
+
+
+def test_recovery_is_staged_before_anything_is_removed(retiring: FakeHost, tmp_path: Path) -> None:
+    deploy.retire(tmp_path, "gone", context="docker-dmz", ledger=Ledger(tmp_path / "s"))
+    order = [call for call in retiring.calls if call[:1] in {("render",), ("stage",)} or "down" in call]
+    assert order[:3] == [("render", "gone", OLD), ("stage", "gone", OLD),
+                         ("compose", "-p", "gone", "down", "--remove-orphans")]
+
+
+def test_partial_removal_with_failed_recovery_alerts(
+        retiring: FakeHost, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from skynet import writepath
+    pushed: list[str] = []
+    monkeypatch.setattr(writepath.alert, "send",
+                        lambda title, message, priority=0, path=None: pushed.append(title))
+    retiring.bad_down = True                             # down half-failed ...
+    retiring.bad_up.add(OLD)                             # ... and the recovery can't come up
+    operation = deploy.retire(tmp_path, "gone", context="docker-dmz", ledger=Ledger(tmp_path / "s"))
+    assert (operation.outcome, operation.code) == ("rollback-failed", 4)
+    assert pushed == ["skynet: svc/gone rollback-failed"]
+
+
+def test_a_failed_retirement_rollback_holds_the_project(
+        retiring: FakeHost, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """After rollback-failed, later timer passes make no further destructive attempt."""
+    from skynet import writepath
+    monkeypatch.setattr(writepath.alert, "send", lambda *a, **k: None)
+    retiring.bad_down = True
+    retiring.bad_up.add(OLD)
+    ledger = Ledger(tmp_path / "state")
+    first = deploy.pending(tmp_path, context="docker-dmz", ledger=ledger)
+    assert first[-1]["outcome"] == "rollback-failed"
+    downs = len([call for call in retiring.calls if "down" in call])
+    for _ in range(2):
+        again = deploy.pending(tmp_path, context="docker-dmz", ledger=ledger)
+        assert [(r["target"], r["outcome"]) for r in again] == [("svc/gone", "held")]
+    assert len([call for call in retiring.calls if "down" in call]) == downs
+    retiring.bad_down = False                            # Ali resolved it, then releases the hold
+    retiring.bad_up.discard(OLD)
+    assert deploy.retire(tmp_path, "gone", context="docker-dmz", ledger=ledger).outcome == "success"
+    assert not deploy.retire_held(ledger, "gone")
+
+
+def test_an_interrupted_retirement_is_finished_from_the_record(
+        retiring: FakeHost, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Killed after compose down: no containers, no labels, but the ledger remembers."""
+    from skynet.writepath import Operation
+    ledger = Ledger(tmp_path / "state")
+    ledger.append(Operation("retire", "svc/gone", OLD).record("started"))
+    retiring.projects.discard("gone")
+    retiring.containers["gone"] = []
+    monkeypatch.setattr(deploy, "project_volumes", lambda context, service: ["gone_data"])
+    results = deploy.pending(tmp_path, context="docker-dmz", ledger=ledger)
+    assert [(r["target"], r["outcome"]) for r in results] == [("svc/gone", "success")]
+    steps = {step["step"]: step for step in results[0]["steps"]}
+    assert "leftover" in steps and steps["volumes-kept"]["detail"] == "gone_data"
+    assert not [call for call in retiring.calls if "down" in call]
+    assert ("host", 'set -eu; rm -rf "/srv/$1"', "gone") in retiring.calls
+    assert ledger.unfinished("retire") == []
+
+
+def test_trigger_runs_only_when_main_moved_or_the_last_pass_is_stale(
+        host: FakeHost, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger, head = Ledger(tmp_path / "state"), {"sha": NEW}
+    ledger.state_dir.mkdir()
+    monkeypatch.setattr(deploy, "remote_main", lambda repo: head["sha"])
+    passes: list[float] = []
+    monkeypatch.setattr(deploy, "pending", lambda repo, context, ledger: passes.append(1) or [])
+    assert deploy.pending_if_moved(tmp_path, context="c", ledger=ledger, now=1000.0) == []
+    assert deploy.pending_if_moved(tmp_path, context="c", ledger=ledger, now=1030.0) is None
+    head["sha"] = OTHER
+    assert deploy.pending_if_moved(tmp_path, context="c", ledger=ledger, now=1060.0) == []
+    stale = 1060.0 + deploy.STALE_PASS_SECONDS
+    assert deploy.pending_if_moved(tmp_path, context="c", ledger=ledger, now=stale) == []
+    assert len(passes) == 3
+
+
+def test_refusals_before_start_are_recorded(host: FakeHost, tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "state")
+    deploy.deploy(tmp_path, "bad name!", context="docker-dmz", ledger=ledger)
+    deploy.deploy(tmp_path, "absent", context="docker-dmz", ledger=ledger)
+    assert [(e["target"], e["outcome"], e["reason"]) for e in ledger.entries()] == [
+        ("svc/bad name!", "refused", "invalid service name"),
+        ("svc/absent", "refused", "service is not on origin/main")]
+
+
+def test_a_rename_retires_the_old_project_before_the_new_one_comes_up(
+        retiring: FakeHost, tmp_path: Path) -> None:
+    """compose/gone → compose/demo at a new revision: the old project frees its ports first."""
+    retiring.main["demo"] = NEW
+    results = deploy.pending(tmp_path, context="docker-dmz", ledger=Ledger(tmp_path / "state"))
+    assert [(r["target"], r["outcome"]) for r in results] == [("svc/gone", "success"),
+                                                               ("svc/demo", "success")]
+    order = [call for call in retiring.calls if "down" in call or call[0] == "up"]
+    assert "down" in order[0] and order[1] == ("up", "demo", NEW)
+
+
+def test_malformed_labels_during_retirement_are_recorded_not_a_crash(
+        retiring: FakeHost, tmp_path: Path) -> None:
+    retiring.containers["gone"] = [{"Config": {"Labels": None}, "Mounts": []}]
+    ledger = Ledger(tmp_path / "state")
+    results = deploy.pending(tmp_path, context="docker-dmz", ledger=ledger)
+    assert (results[0]["target"], results[0]["outcome"]) == ("svc/gone", "refused")
+    assert results[0]["reason"] == "malformed Docker container observation"
+    assert ledger.entries()[-1]["target"] == "svc/gone"
+    assert not [call for call in retiring.calls if "down" in call]
+
+
+def test_an_unavailable_pass_retries_with_backoff(
+        host: FakeHost, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger = Ledger(tmp_path / "state")
+    ledger.state_dir.mkdir()
+    head, outcome, passes = {"sha": NEW}, {"code": 3}, []
+    monkeypatch.setattr(deploy, "remote_main", lambda repo: head["sha"])
+    monkeypatch.setattr(deploy, "pending", lambda repo, context, ledger: passes.append(1) or [
+        {"target": "svc/demo", "outcome": "unavailable", "code": outcome["code"]}])
+
+    def tick(now: float) -> bool:
+        return deploy.pending_if_moved(tmp_path, context="c", ledger=ledger, now=now) is not None
+
+    assert tick(1000)                       # fails → retry in 60 s
+    assert not tick(1030) and tick(1060)    # fails again → 120 s
+    assert not tick(1150) and tick(1180)    # → 240 s
+    assert not tick(1400)
+    head["sha"] = OTHER                     # a new merge never waits for the backoff
+    assert tick(1410)
+    outcome["code"] = 0
+    assert tick(1410 + 60) and not tick(1410 + 90)  # clean: next pass in 15 min
+    outcome["code"] = 3                     # a lasting outage: 200 ticks (100 min) ...
+    assert sum(tick(10_000 + 30 * i) for i in range(200)) <= 12  # ... run ≤ 12 passes, not 200
+def test_a_pass_that_raises_backs_off_too(
+        host: FakeHost, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger = Ledger(tmp_path / "state")
+    ledger.state_dir.mkdir()
+    monkeypatch.setattr(deploy, "remote_main", lambda repo: NEW)
+
+    def broken(repo: Path, context: str, ledger: Ledger) -> list[dict[str, Any]]:
+        raise WriteError("git fetch of origin/main failed", 3)
+
+    monkeypatch.setattr(deploy, "pending", broken)
+    [result] = deploy.pending_if_moved(tmp_path, context="c", ledger=ledger, now=1000.0) or [{}]
+    assert (result["outcome"], result["code"]) == ("unavailable", 3)
+    assert deploy.pending_if_moved(tmp_path, context="c", ledger=ledger, now=1030.0) is None
+
+
+def test_a_needed_alert_that_failed_fails_the_unit(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """rollback-failed normally exits 4 (alerted); if its push failed, exit 1 fires OnFailure."""
+    import io as _io
+
+    from skynet import automerge
+    result = {"target": "svc/demo", "outcome": "rollback-failed", "code": 4,
+              "steps": [{"step": "alert", "outcome": "failed", "detail": "no credentials"}]}
+    monkeypatch.setattr(deploy, "pending_if_moved", lambda repo, context, ledger: [result])
+    monkeypatch.setattr(automerge, "run", lambda repo, context, ledger: [])
+    assert deploy.run_deploy(tmp_path, None, revision=None, dry_run_ref=None, pending_all=True,
+                             context="c", state_dir=tmp_path, json_output=False,
+                             stdout=_io.StringIO(), if_moved=True) == 1
+
+
+@pytest.mark.parametrize("codes, timer_exit", [([0, 1, 2, 3], 0), ([1, 4], 4), ([], 0)])
+def test_the_timer_exits_zero_for_recorded_outcomes(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, codes: list[int], timer_exit: int) -> None:
+    """So a crash (Python exits 1) is the only way the unit fails and fires OnFailure."""
+    import io as _io
+
+    from skynet import automerge
+    monkeypatch.setattr(deploy, "pending_if_moved", lambda repo, context, ledger: [
+        {"target": f"svc/s{i}", "outcome": "x", "code": code} for i, code in enumerate(codes)])
+    monkeypatch.setattr(automerge, "run", lambda repo, context, ledger: [])
+    kwargs: dict[str, Any] = dict(revision=None, dry_run_ref=None, pending_all=True,
+                                  context="c", state_dir=tmp_path, json_output=False)
+    assert deploy.run_deploy(tmp_path, None, stdout=_io.StringIO(), if_moved=True,
+                             **kwargs) == timer_exit
+
+
+def test_unwritable_trigger_state_prints_the_pass_and_fails_the_unit(
+        host: FakeHost, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The pass's results still print and automerge still runs; exit 1 fires OnFailure."""
+    import io as _io
+
+    from skynet import automerge
+    blocker = tmp_path / "state"
+    blocker.write_text("")  # a file where the state directory should be: every write fails
+    monkeypatch.setattr(deploy, "remote_main", lambda repo: NEW)
+    monkeypatch.setattr(deploy, "pending", lambda repo, context, ledger: [
+        {"target": "svc/demo", "source": NEW, "outcome": "success", "code": 0}])
+    merged: list[int] = []
+    monkeypatch.setattr(automerge, "run", lambda repo, context, ledger: merged.append(1) or [])
+    out = _io.StringIO()
+    code = deploy.run_deploy(tmp_path, None, revision=None, dry_run_ref=None, pending_all=True,
+                             context="c", state_dir=blocker, json_output=False, stdout=out,
+                             if_moved=True)
+    assert code == 1 and merged == [1]
+    assert f"svc/demo@{NEW[:12]}: success" in out.getvalue()
+    assert "trigger: unrecorded — trigger state unwritable" in out.getvalue()

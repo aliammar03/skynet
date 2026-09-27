@@ -28,6 +28,8 @@ let
     "omada.env"
     "opnsense.env"
     "rclone.conf"
+    # Pushover app token + user key and the healthchecks.io ping URL (skynet watch, write alerts).
+    "alerts.env"
     # OpenTofu reads the per-node operate credentials above; no separate tofu credential exists.
     "tofu-passphrase"
   ];
