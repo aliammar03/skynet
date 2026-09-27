@@ -181,6 +181,11 @@ Recorded in `docs/design/gitops-loop.md` (13), `docs/design/observability.md` (1
    every other.
 4. Tests: a flapping probe does not alert; a sustained failure alerts once; recovery alerts once;
    a monitor that cannot run reports itself as unavailable rather than silent.
+5. The operation record is complete and readable: a refusal before an operation starts (bad name,
+   no route, unmerged revision) is recorded like any other outcome, every write path prints one
+   line format (`<target>@<rev>: <outcome> — <reason>`), and `skynet log` reads the record
+   (filter by target, kind, outcome). A `rollback-failed` or `unrecorded` outcome alerts through
+   the Phase 14 channel.
 
 ### Phase 15 — OpenTofu under ADR 0008   `[ ]` · review: Full
 
