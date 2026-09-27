@@ -1,5 +1,6 @@
 """The write-path shape: ordering, refusal without change, rollback, reconcile, and the record."""
 
+import io
 import json
 from pathlib import Path
 from typing import Any
@@ -125,3 +126,60 @@ def test_malformed_record_is_unavailable(tmp_path: Path) -> None:
     ledger.path.write_text("{not json\n")
     with pytest.raises(WriteError):
         ledger.entries()
+
+
+@pytest.fixture
+def pushed(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, str, int]]:
+    sent: list[tuple[str, str, int]] = []
+    monkeypatch.setattr(writepath.alert, "send", lambda title, message, priority=0, path=None:
+                        sent.append((title, message, priority)))
+    return sent
+
+
+def test_rollback_failed_alerts_and_records_the_alert(tmp_path: Path,
+                                                      pushed: list[tuple[str, str, int]]) -> None:
+    operation = _run(Ledger(tmp_path), [], verify=_fail("unhealthy"), rollback=_fail("up failed"))
+    assert operation.outcome == "rollback-failed"
+    assert pushed == [("skynet: svc/demo rollback-failed",
+                       f"svc/demo@{'a' * 12}: rollback-failed — unhealthy; rollback: up failed "
+                       "(recovery: rollback-failed)", 1)]
+    assert {"step": "alert", "outcome": "ok"} in _records(Ledger(tmp_path))[-1]["steps"]
+
+
+def test_unrecorded_success_alerts(tmp_path: Path, pushed: list[tuple[str, str, int]]) -> None:
+    assert _run(Ledger(tmp_path), [], commit=_fail("host fact not written")).outcome == "unrecorded"
+    assert [title for title, _, _ in pushed] == ["skynet: svc/demo unrecorded"]
+
+
+def test_ordinary_outcomes_do_not_alert(tmp_path: Path, pushed: list[tuple[str, str, int]]) -> None:
+    _run(Ledger(tmp_path), [])
+    _run(Ledger(tmp_path), [], verify=_fail("unhealthy"))
+    _run(Ledger(tmp_path), [], preflight=_fail("bad image"))
+    assert pushed == []
+
+
+def test_refusal_before_start_is_recorded_and_shown_by_log(tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path)
+    writepath.refuse(Operation("publish", "svc/demo", ""), ledger, "no route for the service")
+    _run(ledger, [])
+    out = io.StringIO()
+    writepath.show_log(ledger, target=None, kind=None, outcome="refused", limit=10,
+                       json_output=False, stdout=out)
+    assert out.getvalue().count("\n") == 1 and "svc/demo: refused — no route" in out.getvalue()
+    out = io.StringIO()
+    writepath.show_log(ledger, target="svc/demo", kind="deploy", outcome=None, limit=10,
+                       json_output=True, stdout=out)
+    assert [json.loads(row)["outcome"] for row in out.getvalue().splitlines()] == ["success"]
+
+
+def test_busy_reports_a_held_lock(tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path)
+    assert not ledger.busy()
+    with ledger.lock():
+        assert ledger.busy()
+    assert not ledger.busy()
+
+
+def test_one_line_format() -> None:
+    assert writepath.line({"target": "svc/x", "source": "b" * 40, "outcome": "refused",
+                           "reason": "unmerged"}) == f"svc/x@{'b' * 12}: refused — unmerged"

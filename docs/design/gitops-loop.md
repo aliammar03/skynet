@@ -23,14 +23,36 @@ Two private GitHub repos:
 ```
 PR      compose/<svc>/ change + `skynet deploy <svc> --dry-run` effect + bin/check
 merge   Ali — the only approval
-apply   skynet-deploy timer (every 3 min): `skynet deploy --pending`
+apply   skynet-deploy timer (every 30 s): `skynet deploy --pending --if-moved`
 verify  every container at the revision, running, healthy; declared routes answer
-recover automatic redeploy of the last verified revision, then a revert PR
+recover automatic redeploy of the last verified revision, then a revert PR that merges itself
+        when the AGENTS.md §3 gate holds
+watch   `skynet watch` every 5 min; an outage reaches Ali's phone (observability spoke)
 ```
 
 A service's **revision** is the newest commit on `origin/main` that touched `compose/<svc>/`.
 `--pending` deploys each service whose revision differs from the one running, skipping projects
 marked `x-skynet: {deploy: manual}` (the Arcane controller itself).
+
+**The trigger.** Every 30 s the timer asks `git ls-remote origin refs/heads/main`. The full pass
+runs only when `main` moved since the last pass (`state/main-seen`), or the last pass is 15 min
+old, so a transient `unavailable` still retries. There is no webhook: nothing internet-facing
+reaches the ops VM.
+
+**Retirement.** A project on the Docker host that carries `skynet.service` but has no
+`compose/<svc>/compose.yaml` on `main` is retired by the same pass, on the write-path shape:
+`docker compose -p <svc> down --remove-orphans` (never `-v`), verified by no container left, then
+its releases and host facts under `/opt/docker/services/<svc>/` are removed. **Named volumes are
+kept** — deleting payload stays a human act; the operation record lists them (`volumes-kept`). A
+project with a writable bind mount into its release directory is refused (retire it by hand). If
+`main` lists no services at all, nothing is retired. A failed retirement redeploys the verified
+revision.
+
+**The revert auto-merge.** After each pass, open `revert/<svc>-<12hex>` PRs go through the
+[AGENTS.md §3](../../AGENTS.md) gate (`src/skynet/automerge.py`): opened by the executor, only
+`compose/<svc>/` changed, its tree identical to the host's `verified` revision, `main` still at the
+failed revision, `bin/check` green on the head. The merge pins that head
+(`--match-head-commit`). Any failed check is recorded once per head and leaves the PR for Ali.
 
 ## One deploy
 
@@ -67,7 +89,8 @@ only in the container configuration; no `.env` is written there.
 |---|---|
 | Running revision | `skynet.revision` label on every container (lifted into `inventory/` by the nightly) |
 | Last verified / held revision | `/opt/docker/services/<svc>/{verified,failed}` on the Docker host |
-| Every write's steps and outcome | `/opt/skynet-ops/state/operations.jsonl` on the ops VM |
+| Every write's steps and outcome, refusals included | `/opt/skynet-ops/state/operations.jsonl` on the ops VM; read it with `skynet log` |
+| Last `main` the trigger saw | `/opt/skynet-ops/state/main-seen` |
 
 Arcane stays as a read-only dashboard over the same Docker host. Its Git Sync is off and its old
 project directories are gone; it never deploys.

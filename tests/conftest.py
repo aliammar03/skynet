@@ -12,6 +12,17 @@ COPIED = ("invariants.json", "lab.json", "inventory", "compose", "scripts", "src
           "nix/home/aliammar.nix")
 
 
+@pytest.fixture(autouse=True)
+def offline(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> None:
+    """No test reaches a real Docker context, GitHub, or the alert channel, even on the ops VM."""
+    empty = tmp_path_factory.mktemp("offline")
+    monkeypatch.setenv("DOCKER_CONFIG", str(empty))
+    monkeypatch.setenv("GH_CONFIG_DIR", str(empty))
+    monkeypatch.delenv("GH_TOKEN", raising=False)
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.setenv("SKYNET_ALERTS_FILE", str(empty / "alerts.env"))
+
+
 @pytest.fixture
 def repo_copy(tmp_path: Path) -> Path:
     """A throwaway git checkout holding the files the local gates read."""

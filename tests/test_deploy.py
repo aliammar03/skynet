@@ -32,6 +32,9 @@ class FakeHost:
         self.bad_up: set[str] = set()
         self.bad_verify: set[str] = set()
         self.pr_error = False
+        self.projects: set[str] = {"demo", "other"}
+        self.containers: dict[str, list[dict[str, Any]]] = {}
+        self.bad_down = False
         self.calls: list[tuple[str, ...]] = []
 
 
@@ -85,6 +88,8 @@ def host(monkeypatch: pytest.MonkeyPatch) -> FakeHost:
     monkeypatch.setattr(deploy, "running", lambda context, service: fake.running[service])
     monkeypatch.setattr(deploy, "prune", lambda context, service, keep: [])
     monkeypatch.setattr(deploy, "open_revert_pr", revert)
+    monkeypatch.setattr(deploy, "host_projects", lambda context: set(fake.projects))
+    monkeypatch.setattr(deploy, "_inspect", lambda context, service: fake.containers.get(service, []))
     return fake
 
 
@@ -335,3 +340,94 @@ def test_release_changes_name_mounted_files_only(git_repo: tuple[Path, str]) -> 
     subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@t",
                     "commit", "-qam", "second"], check=True)
     assert deploy.release_changes(repo, "demo", first, deploy.resolve(repo, "HEAD")) == ["app.ini"]
+
+
+# --- retirement (item 7) and the 30 s trigger (item 6) ------------------------------------------
+
+def _row(service: str, mounts: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    return {"Config": {"Labels": {"skynet.service": service}}, "Mounts": mounts or []}
+
+
+@pytest.fixture
+def retiring(host: FakeHost, monkeypatch: pytest.MonkeyPatch) -> FakeHost:
+    """`gone` runs on the host (deployed by the executor) but main no longer declares it."""
+    host.projects.add("gone")
+    host.running["gone"], host.facts["gone"] = OLD, HostFacts(verified=OLD)
+    host.containers["gone"] = [_row("gone", [{"Type": "volume", "Name": "gone_data"}])]
+    host.main["demo"] = OLD  # nothing to deploy; the pass only retires
+
+    def ok(args: list[str], reason: str, code: int = 3, **kwargs: Any) -> bytes:
+        host.calls.append(tuple(args[3:]))
+        if "down" in args:
+            if host.bad_down:
+                raise WriteError(reason, code)
+            host.containers["gone"] = []
+        return b""
+
+    monkeypatch.setattr(deploy, "_ok", ok)
+    monkeypatch.setattr(deploy, "_host", lambda context, script, *a, **k: host.calls.append(
+        ("host", script, *a)) or "")
+    return host
+
+
+def test_pending_retires_a_service_main_no_longer_declares(retiring: FakeHost, tmp_path: Path) -> None:
+    results = deploy.pending(tmp_path, context="docker-dmz", ledger=Ledger(tmp_path / "state"))
+    assert [(r["target"], r["outcome"]) for r in results] == [("svc/gone", "success")]
+    down = next(call for call in retiring.calls if "down" in call)
+    assert down == ("compose", "-p", "gone", "down", "--remove-orphans")  # never -v: payload stays
+    assert ("host", 'set -eu; rm -rf "/srv/$1"', "gone") in retiring.calls
+    assert {"step": "volumes-kept", "outcome": "ok", "detail": "gone_data"} in results[0]["steps"]
+
+
+def test_retirement_refuses_a_project_writing_into_its_release(retiring: FakeHost, tmp_path: Path) -> None:
+    retiring.containers["gone"] = [_row("gone", [
+        {"Type": "bind", "Source": f"{deploy.RELEASES}/gone/{OLD}/data", "RW": True}])]
+    operation = deploy.retire(tmp_path, "gone", context="docker-dmz", ledger=Ledger(tmp_path / "s"))
+    assert operation.outcome == "refused" and "release directory" in str(operation.reason)
+    assert not [call for call in retiring.calls if "down" in call]
+
+
+def test_retirement_refuses_while_main_still_declares_it(retiring: FakeHost, tmp_path: Path) -> None:
+    retiring.main["gone"] = OLD
+    operation = deploy.retire(tmp_path, "gone", context="docker-dmz", ledger=Ledger(tmp_path / "s"))
+    assert (operation.outcome, operation.reason) == ("refused", "service is still declared on origin/main")
+
+
+def test_an_empty_main_retires_nothing(retiring: FakeHost, tmp_path: Path) -> None:
+    retiring.main.clear()
+    results = deploy.pending(tmp_path, context="docker-dmz", ledger=Ledger(tmp_path / "state"))
+    assert results[-1]["outcome"] == "unavailable" and "declares no services" in results[-1]["reason"]
+    assert not [call for call in retiring.calls if "down" in call]
+
+
+def test_failed_retirement_brings_the_service_back(retiring: FakeHost, tmp_path: Path) -> None:
+    retiring.bad_down = True
+    retiring.running["gone"] = None
+    operation = deploy.retire(tmp_path, "gone", context="docker-dmz", ledger=Ledger(tmp_path / "s"))
+    assert (operation.outcome, operation.recovery) == ("rolled-back", "rolled-back")
+    assert ("up", "gone", OLD) in retiring.calls and retiring.running["gone"] == OLD
+
+
+def test_trigger_runs_only_when_main_moved_or_the_last_pass_is_stale(
+        host: FakeHost, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger, head = Ledger(tmp_path / "state"), {"sha": NEW}
+    ledger.state_dir.mkdir()
+    monkeypatch.setattr(deploy, "remote_main", lambda repo: head["sha"])
+    passes: list[float] = []
+    monkeypatch.setattr(deploy, "pending", lambda repo, context, ledger: passes.append(1) or [])
+    assert deploy.pending_if_moved(tmp_path, context="c", ledger=ledger, now=1000.0) == []
+    assert deploy.pending_if_moved(tmp_path, context="c", ledger=ledger, now=1030.0) is None
+    head["sha"] = OTHER
+    assert deploy.pending_if_moved(tmp_path, context="c", ledger=ledger, now=1060.0) == []
+    stale = 1060.0 + deploy.STALE_PASS_SECONDS
+    assert deploy.pending_if_moved(tmp_path, context="c", ledger=ledger, now=stale) == []
+    assert len(passes) == 3
+
+
+def test_refusals_before_start_are_recorded(host: FakeHost, tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "state")
+    deploy.deploy(tmp_path, "bad name!", context="docker-dmz", ledger=ledger)
+    deploy.deploy(tmp_path, "absent", context="docker-dmz", ledger=ledger)
+    assert [(e["target"], e["outcome"], e["reason"]) for e in ledger.entries()] == [
+        ("svc/bad name!", "refused", "invalid service name"),
+        ("svc/absent", "refused", "service is not on origin/main")]

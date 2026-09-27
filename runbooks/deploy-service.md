@@ -2,14 +2,14 @@
 summary: "Deploy or update a service: edit compose, PR with the dry-run effect, merge; skynet deploy applies, verifies, and rolls back by itself."
 trigger: "Deploy or update a service"
 tier: "T2 PR-gated"
-executor: "skynet deploy (skynet-deploy timer: --pending)"
+executor: "skynet deploy (skynet-deploy timer: --pending --if-moved, every 30 s)"
 rollback: "automatic to the last verified revision; git revert for a merged change"
 ---
 
 # Runbook — deploy / update a service
 
 **Tier:** T2 (PR-gated; merge is the approval). **Executor:** `skynet deploy`, run by the
-`skynet-deploy` timer as `--pending` every 3 minutes. **Rollback:** automatic return to the last
+`skynet-deploy` timer, which checks for a moved `main` every 30 seconds. **Rollback:** automatic return to the last
 verified revision plus a revert PR; `git revert` for a merged change you want undone.
 Design: [gitops-loop](../docs/design/gitops-loop.md).
 
@@ -55,8 +55,16 @@ compose/<svc>/.env.sops      # secrets only (sops+age); omit if the service has 
    or changed (values are never shown).
 3. **PR** with a teaching description (what it is, ports, front door, backup impact, the effect).
    **Ali merges** — that is the approval.
-4. The timer deploys the merged revision within ~3 minutes. To apply at once:
-   `skynet deploy <svc>`. Every step lands in `/opt/skynet-ops/state/operations.jsonl`.
+4. The timer deploys the merged revision within about a minute. To apply at once:
+   `skynet deploy <svc>`. Every step lands in the operation record; read it with
+   `skynet log --target svc/<svc>`.
+
+### Remove a service
+
+Delete `compose/<svc>/` in a PR (plus its Caddyfile/cloudflared routes, then `skynet withdraw`
+for each removed vhost). After merge the timer retires the project: containers and networks come
+down, its releases are removed, and its **named volumes are kept** — `skynet log --kind retire`
+lists them for you to delete by hand once you are sure.
 
 A new service deploys the same way; it has no rollback target until its first verified deploy,
 so a failed first deploy stops (`no-rollback-target`) instead of guessing.
@@ -71,10 +79,11 @@ so a failed first deploy stops (`no-rollback-target`) instead of guessing.
 ## Rollback
 
 - **Automatic.** A failed deploy redeploys the host's `verified` revision, marks the failed one as
-  held (the timer won't retry it), and opens `revert/<svc>-<rev>`. Merge that PR, or merge a fix;
-  either moves `main` and releases the hold.
+  held (the timer won't retry it), and opens `revert/<svc>-<rev>`. That PR merges itself when the
+  [AGENTS.md §3](../AGENTS.md) gate holds; otherwise it waits for you. Merging it (or a fix)
+  moves `main` and releases the hold.
 - **By choice.** `git revert` the merged change in a PR; the timer deploys it.
-- If the rollback itself fails (exit 4), stop — that is a hard checkpoint. See
+- If the rollback itself fails (exit 4), a Pushover alert goes out; stop — that is a hard checkpoint. See
   [`diagnose/deploy-stuck.md`](diagnose/deploy-stuck.md).
 
 ## Evidence

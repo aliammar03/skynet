@@ -8,8 +8,9 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import NoReturn
 
-from skynet import (cache, certs, deploy, deployment, entities, gates, installed_version, memory,
-                    omada, planning, publish, recon, render, routes, scaffold, writepath)
+from skynet import (alert, cache, certs, deploy, deployment, entities, gates, installed_version,
+                    memory, omada, planning, publish, recon, render, routes, scaffold, watch,
+                    writepath)
 from skynet.collection import CredentialFiles, collect_all, collection_status
 from skynet.dns import DEFAULT_CREDENTIALS as DNS_DEFAULT_CREDENTIALS, collect as collect_dns
 from skynet.doctor import write_report
@@ -53,10 +54,28 @@ def build_parser() -> argparse.ArgumentParser:
     deploy_target.add_argument("service", nargs="?", help="compose/<service> project name")
     deploy_target.add_argument("--pending", action="store_true",
                         help="deploy every service whose merged revision is not the one running")
+    deploy_command.add_argument("--if-moved", action="store_true",
+                                help="with --pending: run only when origin main moved (or the "
+                                     "last pass is stale) — the 30 s timer's cheap check")
     deploy_command.add_argument("--revision", help="a merged commit (default: newest touching the service)")
     deploy_command.add_argument("--dry-run", nargs="?", const="HEAD", metavar="REF",
                                 help="print the effect of REF (default HEAD) against what runs; no write")
     _write_options(deploy_command)
+    watch_command = commands.add_parser(
+        "watch", help="verify every deployed service; alert on state change (T1 read, timer)")
+    _write_options(watch_command)
+    log_command = commands.add_parser("log", help="read the operation record (newest first)")
+    log_command.add_argument("--target", help="e.g. svc/paperless-ngx, vhost/x.aliammar.net, pr/12")
+    log_command.add_argument("--kind", help="deploy, retire, publish, withdraw, automerge")
+    log_command.add_argument("--outcome", help="success, refused, rolled-back, rollback-failed, ...")
+    log_command.add_argument("--limit", type=int, default=20)
+    log_command.add_argument("--state-dir", type=Path, default=writepath.DEFAULT_STATE_DIR)
+    log_command.add_argument("--json", action="store_true", dest="json_output")
+    alert_command = commands.add_parser("alert", help="the Pushover channel and dead-man's switch")
+    alerts = alert_command.add_subparsers(dest="alert", required=True)
+    alerts.add_parser("test", help="send one test message and one healthy ping")
+    alerts.add_parser("unit-failed", help="alert that a systemd unit failed (OnFailure=)"
+                      ).add_argument("unit")
     publish_command = commands.add_parser(
         "publish", help="make a service's declared routes real: Authentik objects + probes (T2 write)")
     publish_command.add_argument("service", help="compose/<service> whose vhosts to publish")
@@ -247,10 +266,25 @@ def main(argv: Sequence[str] | None = None) -> int:
         if arguments.pending and (arguments.revision or arguments.dry_run):
             print("deploy: --pending takes no --revision or --dry-run", file=sys.stderr)
             return 2
+        if arguments.if_moved and not arguments.pending:
+            print("deploy: --if-moved needs --pending", file=sys.stderr)
+            return 2
         return deploy.run_deploy(arguments.repo, arguments.service, revision=arguments.revision,
                                  dry_run_ref=arguments.dry_run, pending_all=arguments.pending,
                                  context=arguments.docker_context, state_dir=arguments.state_dir,
-                                 json_output=arguments.json_output, stdout=sys.stdout)
+                                 json_output=arguments.json_output, stdout=sys.stdout,
+                                 if_moved=arguments.if_moved)
+    if arguments.command == "watch":
+        return watch.run(arguments.repo, context=arguments.docker_context,
+                         state_dir=arguments.state_dir, json_output=arguments.json_output,
+                         stdout=sys.stdout)
+    if arguments.command == "log":
+        return writepath.show_log(writepath.Ledger(arguments.state_dir), target=arguments.target,
+                                  kind=arguments.kind, outcome=arguments.outcome,
+                                  limit=max(1, arguments.limit), json_output=arguments.json_output,
+                                  stdout=sys.stdout)
+    if arguments.command == "alert":
+        return _run_alert(arguments)
     if arguments.command == "publish":
         return publish.run(arguments.repo, arguments.service, context=arguments.docker_context,
                            state_dir=arguments.state_dir, dry_run=arguments.dry_run,
@@ -315,6 +349,19 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"recall: {error}", file=sys.stderr)
             return error.code
     return _unreachable_command(arguments.command)
+
+
+def _run_alert(arguments: argparse.Namespace) -> int:
+    """A test push + ping, or the OnFailure hook for skynet units."""
+    if arguments.alert == "test":
+        failures = [alert.send("skynet: test", "the alert channel works"), alert.ping(True)]
+    else:
+        unit = "".join(char for char in arguments.unit if char.isalnum() or char in "@.-_")[:100]
+        failures = [alert.send(f"skynet: {unit} failed", f"systemd unit {unit} failed; "
+                               f"see journalctl -u {unit}", priority=1)]
+    for failure in failures:
+        print(f"alert: {failure or 'sent'}")
+    return 3 if any(failures) else 0
 
 
 def _write_options(parser: argparse.ArgumentParser, *, state: bool = True) -> None:

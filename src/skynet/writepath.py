@@ -24,11 +24,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, TypeVar
 
+from skynet import alert
+
 DEFAULT_STATE_DIR = Path("/opt/skynet-ops/state")
 T = TypeVar("T")
 
 # Exit codes shared by every write path.
 OK, FAILED, USAGE, UNAVAILABLE, ROLLBACK_FAILED = 0, 1, 2, 3, 4
+# Outcomes that leave live state unknown to the record: a human must look, so they alert.
+ALARMS = frozenset({"rollback-failed", "unrecorded"})
 
 
 class WriteError(Exception):
@@ -100,10 +104,25 @@ class Ledger:
                 raise WriteError("another write holds the lock", UNAVAILABLE) from None
             yield
 
+    def busy(self) -> bool:
+        """True while a write holds the lock (a read-only observer skips rather than race it)."""
+        try:
+            handle = open(self.state_dir / "write.lock", "a")
+        except OSError:
+            return False
+        with handle:
+            try:
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except OSError:
+                return True
+            fcntl.flock(handle, fcntl.LOCK_UN)
+            return False
+
     def append(self, entry: dict[str, Any]) -> None:
         """Append one flushed line; a record that cannot be kept stops the write."""
         try:
             line = json.dumps(entry, sort_keys=True, allow_nan=False) + "\n"
+            self.state_dir.mkdir(parents=True, exist_ok=True)
             with open(self.path, "a", encoding="utf-8") as stream:
                 stream.write(line)
                 stream.flush()
@@ -200,6 +219,7 @@ def _run_locked(operation: Operation, ledger: Ledger, preflight: Callable[[], An
         else:
             operation.outcome = "rolled-back" if operation.recovery == "rolled-back" else "failed"
             operation.code = FAILED
+        _alarm(operation)
         ledger.append(operation.record("final"))
         return
     operation.outcome = "success"
@@ -207,7 +227,30 @@ def _run_locked(operation: Operation, ledger: Ledger, preflight: Callable[[], An
         operation.step("record", lambda: commit(saved))
     except WriteError as error:  # live and verified, but the next write cannot find it
         operation.outcome, operation.reason, operation.code = "unrecorded", error.reason, UNAVAILABLE
+    _alarm(operation)
     ledger.append(operation.record("final"))
+
+
+def _alarm(operation: Operation) -> None:
+    """Push an outcome that needs a human; whether the push went out is itself recorded."""
+    if operation.outcome not in ALARMS:
+        return
+    failure = alert.send(f"skynet: {operation.target} {operation.outcome}", line(report(operation)),
+                         priority=1)
+    operation.note("alert", "failed" if failure else "ok", failure)
+
+
+def refuse(operation: Operation, ledger: Ledger, reason: str, code: int = USAGE) -> Operation:
+    """Record a refusal that happens before an operation can start (bad name, no route, ...).
+
+    A lock-free append: one short `O_APPEND` line cannot interleave with another writer's.
+    """
+    operation.outcome, operation.reason, operation.code = "refused", reason, code
+    try:
+        ledger.append(operation.record("final"))
+    except WriteError as error:
+        operation.note("record", "failed", error.reason)
+    return operation
 
 
 def _stop(operation: Operation, ledger: Ledger, outcome: str, error: WriteError) -> None:
@@ -218,3 +261,53 @@ def _stop(operation: Operation, ledger: Ledger, outcome: str, error: WriteError)
 def report(operation: Operation) -> dict[str, Any]:
     """The JSON-ready view printed by a CLI."""
     return {key: value for key, value in asdict(operation).items() if value is not None}
+
+
+def line(result: dict[str, Any]) -> str:
+    """The one line every write path prints: `<target>@<rev>: <outcome> — <reason>`."""
+    source = f"@{str(result['source'])[:12]}" if result.get("source") else ""
+    text = f"{result.get('target')}{source}: {result.get('outcome')}"
+    if result.get("reason"):
+        text += f" — {result['reason']}"
+    if result.get("recovery") not in (None, "not-needed"):
+        text += f" (recovery: {result['recovery']})"
+    return text
+
+
+def emit(result: dict[str, Any], json_output: bool, stdout: Any) -> None:
+    """Print one result as JSON, or as `line` plus any step detail."""
+    if json_output:
+        print(json.dumps(result, sort_keys=True), file=stdout)
+        return
+    print(line(result), file=stdout)
+    for step in result.get("steps", []):
+        if step.get("detail"):
+            print(f"  {step['step']}: {step['outcome']} — {step['detail']}", file=stdout)
+
+
+def show_log(ledger: Ledger, *, target: str | None, kind: str | None, outcome: str | None,
+             limit: int, json_output: bool, stdout: Any) -> int:
+    """`skynet log`: final and reconciled records, newest first, filtered."""
+    try:
+        entries = ledger.entries()
+    except WriteError as error:
+        print(f"log: {error.reason}", file=stdout)
+        return error.code
+    shown = 0
+    for entry in reversed(entries):
+        if entry.get("phase") not in {"final", "reconciled"}:
+            continue
+        if (target and entry.get("target") != target or kind and entry.get("kind") != kind
+                or outcome and entry.get("outcome", entry.get("phase")) != outcome):
+            continue
+        if json_output:
+            print(json.dumps(entry, sort_keys=True), file=stdout)
+        else:
+            row = dict(entry) if entry.get("phase") == "final" else {
+                "target": entry.get("target"), "outcome": "reconciled",
+                "reason": f"interrupted {entry.get('id')} closed; observed {entry.get('observed')}"}
+            print(f"{entry.get('ts', '?')}  {entry.get('kind', '?'):<9} {line(row)}", file=stdout)
+        shown += 1
+        if shown >= limit:
+            break
+    return OK

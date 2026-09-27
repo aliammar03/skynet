@@ -105,12 +105,36 @@ load-cost/context-routing index [`../generated/07-context-map.md`](../generated/
 The human narrative
 [`05-state-of-the-lab.md`](../generated/05-state-of-the-lab.md) is the agent-authored counterpart.
 
+## Live health and alerts
+
+`skynet watch` runs every 5 minutes (`skynet-watch.timer`, T1 read). For every non-manual service
+on `origin/main` it runs the [deployment verifier](#deployment-verification) against the running
+`skynet.revision`, and alerts on **state change** only:
+
+| Change | Alert |
+|---|---|
+| healthy → unhealthy | after 2 consecutive failed passes (≤ 10 min); one message. A flap never alerts. |
+| still unhealthy | one reminder a day at most |
+| unhealthy → healthy | one recovery message, only if the down alert went out |
+| monitor cannot observe (no fetch, no Docker, no state) | the pseudo-target `monitor`, same rule; no per-service storm |
+
+A pass while a write holds the lock is skipped (a deploy mid-flight is not an outage). An alert
+that could not be sent is retried next pass. State: `/opt/skynet-ops/state/watch.json`.
+
+Write paths alert too: a `rollback-failed` or `unrecorded` outcome pushes a high-priority message,
+and whether it went out is a step in the operation record. A skynet unit that times out or is
+killed triggers `skynet-alert@` (`skynet alert unit-failed`).
+
+**Channel.** Pushover. **Dead-man's switch.** Every watch pass pings a healthchecks.io check
+(`/fail` when the monitor is unavailable). The check expects a ping every 5 minutes with a
+10-minute grace and alerts through its own Pushover integration, so a dead ops VM or timer still
+reaches the phone. `skynet alert test` sends one message and one ping.
+
+**Credential.** `secrets/alerts.env.sops` (`PUSHOVER_TOKEN`, `PUSHOVER_USER`, `HEALTHCHECK_URL`),
+materialized `0400 aliammar` at `/opt/skynet-ops/secrets/alerts.env` through the `names` list in
+`nix/modules/secrets.nix`. Outbound HTTPS only (`api.pushover.net`, the ping host).
+
 ## Scope
 
-Observability is descriptive: rendered state and nightly change detection. It does not provide
-live alerting between nightly runs.
-
-**Alert channel (decided 2026-09-26, built by SKY-025 Phase 14):** Pushover. The app token and
-user key will be a sops secret `secrets/pushover.env.sops`, materialized `0400 aliammar` at
-`/opt/skynet-ops/secrets/pushover.env` through the `names` list in `nix/modules/secrets.nix`.
-Neither exists yet.
+Observability covers rendered state, nightly change detection, and live service health with
+state-change alerts. It does not collect metrics or logs.

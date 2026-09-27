@@ -74,8 +74,10 @@ These are current settings, changed only by a PR here.
   `Permissions.Modify` and node-root privileges. It can technically reach Unraid VM 2020's envelope;
   automated/OpenTofu paths must never target it, and its guest OS remains T3. Exact ACLs and
   exclusions: [access and trust](design/access-and-trust.md).
-- **Merge gate:** human merge for every change. GitHub CI is off; the local suite (`bin/check`) and
-  the pre-commit hook are the automated evidence. The generated-only nightly auto-merge capability
+- **Merge gate:** human merge for every change except the one entry on the AGENTS.md §3
+  auto-approve list: the executor's revert PR, merged by a gate only when it restores the
+  verified tree of one service and nothing else (SKY-025 P14). GitHub CI is off; the local suite
+  (`bin/check`) and the pre-commit hook are the automated evidence. The generated-only nightly auto-merge capability
   from [ADR 0004](decisions/0004-auto-merge-generated-only-nightly-prs.md) is suspended and fails
   closed. Review weight follows the Light/Full tiers in [construction](conventions/construction.md).
 - **Autonomy:** one A4 capability — `skynet deploy` of a human-merged service revision. Its

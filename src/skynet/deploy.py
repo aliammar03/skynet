@@ -26,13 +26,14 @@ import re
 import subprocess
 import tarfile
 import tempfile
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, TextIO
 
-from skynet import deployment, writepath
+from skynet import common, deployment, writepath
 from skynet.writepath import FAILED, UNAVAILABLE, USAGE, Ledger, Operation, WriteError
 
 MAIN = "origin/main"
@@ -43,6 +44,8 @@ BUSYBOX = "busybox@sha256:dc2d74b28e4cf8984fa52af1f39bc7c3d9c73760b41a74d629f5d1
 KEEP_RELEASES = 5
 WAIT_SECONDS = 300
 FACTS = ("verified", "failed")
+SERVICE_LABEL = "skynet.service"
+STALE_PASS_SECONDS = 15 * 60
 SKIPPED_FILES = {".env.git", ".env.sops"}
 _KEY = re.compile(r"\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=")
 _MANUAL = re.compile(r"^x-skynet:[ \t]*(?:#.*)?\n(?:[ \t]+.*\n)*?[ \t]+deploy:[ \t]*manual[ \t]*(?:#.*)?$",
@@ -242,7 +245,7 @@ def render(repo: Path, service: str, revision: str) -> Release:
         labels = definition.setdefault("labels", {})
         if not isinstance(labels, dict):
             raise WriteError("compose render failed", USAGE)
-        labels.update({deployment.REVISION_LABEL: revision, "skynet.service": service})
+        labels.update({deployment.REVISION_LABEL: revision, SERVICE_LABEL: service})
     return Release(service, revision, model, _release_files(archive, service))
 
 
@@ -361,15 +364,15 @@ def deploy(repo: Path, service: str, *, revision: str | None = None, context: st
            ledger: Ledger, refresh: bool = True, revert_pr: bool = True) -> Operation:
     """Apply one merged revision of one service through the write-path shape."""
     if not deployment.NAME.fullmatch(service):
-        return _refused(service, "invalid service name")
+        return _refused(ledger, service, "invalid service name")
     try:
         if refresh:
             fetch(repo)
         target = resolve(repo, revision) if revision else service_revision(repo, service)
     except WriteError as error:
-        return _refused(service, error.reason, error.code)
+        return _refused(ledger, service, error.reason, error.code)
     if target is None:
-        return _refused(service, "service is not on origin/main")
+        return _refused(ledger, service, "service is not on origin/main")
     operation = Operation("deploy", f"svc/{service}", target)
     saved = _Saved()
 
@@ -427,10 +430,9 @@ def deploy(repo: Path, service: str, *, revision: str | None = None, context: st
                          verify=verify, rollback=rollback, reconcile=reconcile, commit=commit)
 
 
-def _refused(service: str, reason: str, code: int = USAGE) -> Operation:
-    operation = Operation("deploy", f"svc/{service}", "")
-    operation.outcome, operation.reason, operation.code = "refused", reason, code
-    return operation
+def _refused(ledger: Ledger, service: str, reason: str, code: int = USAGE,
+             kind: str = "deploy", source: str = "") -> Operation:
+    return writepath.refuse(Operation(kind, f"svc/{service}"[:200], source), ledger, reason, code)
 
 
 def open_revert_pr(repo: Path, service: str, failed: str, verified: str, reason: str) -> str:
@@ -459,7 +461,8 @@ def open_revert_pr(repo: Path, service: str, failed: str, verified: str, reason:
 
 
 def pending(repo: Path, *, context: str, ledger: Ledger) -> list[dict[str, Any]]:
-    """Deploy every service whose merged revision is not the one running (the timer's job)."""
+    """Deploy every service whose merged revision is not the one running, then retire every
+    project `main` no longer declares (the timer's job)."""
     fetch(repo)
     results: list[dict[str, Any]] = []
     for service in services(repo):
@@ -479,7 +482,149 @@ def pending(repo: Path, *, context: str, ledger: Ledger) -> list[dict[str, Any]]
             continue
         results.append(writepath.report(deploy(repo, service, revision=target, context=context,
                                                ledger=ledger, refresh=False)))
+    try:
+        doomed = retirable(repo, context)
+    except WriteError as error:
+        return results + [{"target": "retire", "outcome": "unavailable", "reason": error.reason,
+                           "code": error.code}]
+    for service in doomed:
+        results.append(writepath.report(retire(repo, service, context=context, ledger=ledger)))
     return results
+
+
+def pending_if_moved(repo: Path, *, context: str, ledger: Ledger,
+                     now: float | None = None) -> list[dict[str, Any]] | None:
+    """The 30 s trigger: a full pass only when `main` moved, or the last pass is stale (so a
+    transient `unavailable` still retries). None means nothing to do."""
+    now = time.time() if now is None else now
+    head = remote_main(repo)
+    seen_path = ledger.state_dir / "main-seen"
+    try:
+        seen_head, _, seen_at = seen_path.read_text(encoding="utf-8").strip().partition(" ")
+        last = float(seen_at)
+    except (OSError, ValueError):
+        seen_head, last = "", 0.0
+    if head == seen_head and now - last < STALE_PASS_SECONDS:
+        return None
+    results = pending(repo, context=context, ledger=ledger)
+    try:
+        common.atomic_write_text(seen_path, f"{head} {int(now)}\n")
+    except OSError:
+        raise WriteError("trigger state unwritable", UNAVAILABLE) from None
+    return results
+
+
+def remote_main(repo: Path) -> str:
+    """`main` on the remote, without fetching: the cheap question the 30 s timer asks."""
+    head = _git(repo, "ls-remote", "origin", "refs/heads/main",
+                reason="git ls-remote of origin main failed").split()
+    if not head or not deployment.REVISION.fullmatch(head[0]):
+        raise WriteError("git ls-remote of origin main failed", UNAVAILABLE)
+    return head[0]
+
+
+# --- retire ----------------------------------------------------------------------------------
+
+def host_projects(context: str) -> set[str]:
+    """Every project on the host the executor deployed (it carries `skynet.service`)."""
+    output = _ok(["docker", "--context", context, "ps", "--all", "--filter", f"label={SERVICE_LABEL}",
+                  "--format", '{{.Label "' + SERVICE_LABEL + '"}}'], "Docker host unavailable",
+                 env=docker_env()).decode("utf-8", "replace")
+    names = set(output.split())
+    if any(not deployment.NAME.fullmatch(name) for name in names):
+        raise WriteError("malformed Docker project label", UNAVAILABLE)
+    return names
+
+
+def retirable(repo: Path, context: str) -> list[str]:
+    """Executor-deployed projects with no `compose/<svc>/` on main. An empty main retires nothing."""
+    declared = services(repo)
+    if not declared:
+        raise WriteError("origin/main declares no services; nothing is retired", UNAVAILABLE)
+    return sorted(host_projects(context) - set(declared))
+
+
+def _inspect(context: str, service: str) -> list[dict[str, Any]]:
+    try:
+        return deployment.inspect_project(context, service, 30.0)
+    except deployment.VerificationError as error:
+        raise WriteError(error.reason, UNAVAILABLE) from None
+
+
+def _payload_check(rows: list[dict[str, Any]], service: str) -> list[str]:
+    """Refuse a project that writes into its release directory; return the named volumes kept."""
+    volumes: set[str] = set()
+    for row in rows:
+        for mount in row.get("Mounts") or []:
+            if not isinstance(mount, dict):
+                raise WriteError("malformed Docker container observation", UNAVAILABLE)
+            source = str(mount.get("Source", ""))
+            if (mount.get("Type") == "bind" and mount.get("RW") is not False
+                    and (source + "/").startswith(f"{RELEASES}/{service}/")):
+                raise WriteError("a container writes into its release directory; retire by hand", USAGE)
+            if mount.get("Type") == "volume" and mount.get("Name"):
+                volumes.add(str(mount["Name"]))
+    return sorted(volumes)
+
+
+def retire(repo: Path, service: str, *, context: str, ledger: Ledger) -> Operation:
+    """Take down a project main no longer declares. Named volumes (payload) are kept."""
+    if not deployment.NAME.fullmatch(service):
+        return _refused(ledger, service, "invalid service name", kind="retire")
+    try:
+        source = resolve(repo, MAIN)
+    except WriteError as error:
+        return _refused(ledger, service, error.reason, error.code, kind="retire")
+    operation = Operation("retire", f"svc/{service}", source)
+    saved = _Saved()
+    kept: list[str] = []
+
+    def preflight() -> None:
+        if service in services(repo):
+            raise WriteError("service is still declared on origin/main", USAGE)
+        rows = _inspect(context, service)
+        if not rows:
+            raise WriteError("no containers for the project", USAGE)
+        if any(deployment._labels(row).get(SERVICE_LABEL) != service for row in rows):
+            raise WriteError("project holds containers the executor did not deploy", USAGE)
+        kept.extend(_payload_check(rows, service))
+
+    def snapshot() -> _Saved:
+        saved.facts = host_facts(context, service)
+        saved.previous = running(context, service)
+        return saved
+
+    def execute(state: _Saved) -> None:
+        _ok(["docker", "--context", context, "compose", "-p", service, "down", "--remove-orphans"],
+            "compose down failed", FAILED, env=docker_env(), timeout=300.0)
+
+    def verify(state: _Saved) -> dict[str, Any]:
+        if _inspect(context, service):
+            raise WriteError("containers remain after compose down", FAILED)
+        if kept:
+            operation.note("volumes-kept", "ok", ", ".join(kept))
+        return {"containers": 0, "volumes_kept": kept}
+
+    def rollback(state: _Saved, error: WriteError) -> str:
+        back = state.facts.verified or state.previous
+        if back is None:
+            operation.note("rollback-target", "skipped", "no verified or running revision")
+            return "no-rollback-target"
+        release = render(repo, service, back)
+        stage(context, release)
+        up(context, release)
+        check(repo, context, release)
+        operation.note("rollback-target", "ok", f"running verified {back}")
+        return "rolled-back"
+
+    def reconcile() -> dict[str, Any]:
+        return {"running": running(context, service)}
+
+    def commit(state: _Saved) -> None:
+        _host(context, 'set -eu; rm -rf "/srv/$1"', service, reason="release removal failed")
+
+    return writepath.run(operation, ledger, preflight=preflight, snapshot=snapshot, execute=execute,
+                         verify=verify, rollback=rollback, reconcile=reconcile, commit=commit)
 
 
 # --- dry run (the PR's effect) ---------------------------------------------------------------
@@ -581,7 +726,7 @@ def dry_run(repo: Path, service: str, ref: str, *, context: str) -> str:
 
 def run_deploy(repo: Path, service: str | None, *, revision: str | None, dry_run_ref: str | None,
                pending_all: bool, context: str, state_dir: Path, json_output: bool,
-               stdout: TextIO) -> int:
+               stdout: TextIO, if_moved: bool = False) -> int:
     ledger = Ledger(state_dir)
     try:
         if dry_run_ref is not None:
@@ -589,47 +734,45 @@ def run_deploy(repo: Path, service: str | None, *, revision: str | None, dry_run
             print(dry_run(repo, service, dry_run_ref, context=context), file=stdout)
             return 0
         if pending_all:
-            results = pending(repo, context=context, ledger=ledger)
+            if if_moved:
+                found = pending_if_moved(repo, context=context, ledger=ledger)
+                if found is None:
+                    return 0
+                results = found
+            else:
+                results = pending(repo, context=context, ledger=ledger)
+            from skynet import automerge  # the gate reads deploy's host facts
+            results += automerge.run(repo, context=context, ledger=ledger)
             for result in results:
-                _print(result, json_output, stdout)
+                writepath.emit(result, json_output, stdout)
             return max((int(r.get("code", 0)) for r in results), default=0)
     except WriteError as error:
-        _print({"target": "deploy", "outcome": "unavailable" if error.code == UNAVAILABLE else "refused",
-                "reason": error.reason, "code": error.code}, json_output, stdout)
+        writepath.emit({"target": "deploy", "outcome": "unavailable" if error.code == UNAVAILABLE
+                        else "refused", "reason": error.reason, "code": error.code}, json_output, stdout)
         return error.code
     assert service is not None
     result = writepath.report(deploy(repo, service, revision=revision, context=context, ledger=ledger))
-    _print(result, json_output, stdout)
+    writepath.emit(result, json_output, stdout)
     return int(result["code"])
+
+
+def observe(repo: Path, service: str, context: str, revision: str | None = None) -> dict[str, Any]:
+    """Is `revision` (default: the running label) what runs, healthy and routed? Read-only."""
+    target = resolve(repo, revision) if revision else running(context, service)
+    if target is None:
+        raise WriteError("no single skynet.revision label is running", FAILED)
+    return check(repo, context, render(repo, service, target))
 
 
 def run_verify(repo: Path, service: str, revision: str | None, *, context: str, json_output: bool,
                stdout: TextIO) -> int:
     """Report-only: is `revision` (default: the running label) what runs, healthy and routed?"""
     try:
-        target = resolve(repo, revision) if revision else running(context, service)
-        if target is None:
-            raise WriteError("no single skynet.revision label is running", FAILED)
-        evidence = check(repo, context, render(repo, service, target))
+        evidence = observe(repo, service, context, revision)
     except WriteError as error:
-        _print({"target": f"svc/{service}", "outcome": "failure" if error.code == FAILED else
-                "unavailable", "reason": error.reason, "code": error.code}, json_output, stdout)
+        writepath.emit({"target": f"svc/{service}", "outcome": "failure" if error.code == FAILED else
+                        "unavailable", "reason": error.reason, "code": error.code}, json_output, stdout)
         return error.code
-    _print({"target": f"svc/{service}", "outcome": "verified", "code": 0, **evidence}, json_output, stdout)
+    writepath.emit({"target": f"svc/{service}", "outcome": "verified", "code": 0, **evidence},
+                   json_output, stdout)
     return 0
-
-
-def _print(result: dict[str, Any], json_output: bool, stdout: TextIO) -> None:
-    if json_output:
-        print(json.dumps(result, sort_keys=True), file=stdout)
-        return
-    source = f"@{str(result['source'])[:12]}" if result.get("source") else ""
-    line = f"{result.get('target')}{source}: {result.get('outcome')}"
-    if result.get("reason"):
-        line += f" — {result['reason']}"
-    if result.get("recovery") not in (None, "not-needed"):
-        line += f" (recovery: {result['recovery']})"
-    print(line, file=stdout)
-    for step in result.get("steps", []):
-        if step.get("detail"):
-            print(f"  {step['step']}: {step['outcome']} — {step['detail']}", file=stdout)

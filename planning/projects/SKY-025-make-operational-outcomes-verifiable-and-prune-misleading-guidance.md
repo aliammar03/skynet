@@ -4,9 +4,9 @@ title: Rebuild the Skynet engine in Python
 status: in-progress
 horizon: long
 created: 2026-09-06
-updated: 2026-09-26
+updated: 2026-09-27
 phases: 18
-current_phase: 13
+current_phase: 14
 tier_touched: [T1, T2, T2+, T3]
 related:
   - docs/system-design.md
@@ -22,7 +22,7 @@ related:
 
 ## Status
 
-**Current:** phases 1–13 done. Docker deploys run through one executor: `skynet deploy` applies the
+**Current:** phases 1–13 done; Phase 14 is in its PR. Docker deploys run through one executor: `skynet deploy` applies the
 merged revision of each `compose/<svc>/` (env and compose rendered together, `skynet.revision` on
 every container), verifies it, and on failure returns to the last verified revision by itself and
 opens a revert PR; a 3-minute `skynet-deploy` timer (`--pending`) replaced Arcane Git Sync, which is
@@ -42,8 +42,13 @@ since 2026-08-31 and a failed docker-dmz restic run (cause unknown). Phase 16 no
 from scratch. Until it lands, no new off-site copy is known to land, and older copies are unverified
 (accepted by Ali, 2026-09-26).
 
-**Next:** Phase 14 — live health monitor (`skynet watch`, Pushover). Review: Full. Before the
-timer runs, Ali rebuilds the ops VM (P13's `skynet-deploy` timer and `/opt/skynet-ops/state`).
+**Next:** Phase 14 lands `skynet watch` (5 min, state-change Pushover alerts, healthchecks.io
+dead-man's switch), `skynet log`, a 30 s `ls-remote` deploy trigger, retirement of services removed
+from `compose/`, and the revert-PR auto-merge gate (AGENTS.md §3's first entry). Before the ops VM
+can be rebuilt, Ali creates `secrets/alerts.env.sops` (Pushover token + user, healthchecks ping URL)
+and confirms ops-VM egress to `api.pushover.net`/`hc-ping.com`. After the rebuild, the
+`skynet-drill` live drill (merge-to-deploy time, stop → alert ≤ 10 min, recovery alert, retire)
+is recorded on the PR, and it ticks the "outage reaches Ali's phone" box. Then Phase 15.
 
 This block, the phase boxes, and the frontmatter are the **only** progress record. Each phase PR
 updates them itself; merge is completion ([construction](../../docs/conventions/construction.md)).
@@ -171,7 +176,7 @@ Recorded in `docs/design/gitops-loop.md` (13), `docs/design/observability.md` (1
 5. Delete `gitops-deploy.sh`, `gitops-rollback.sh`, `deploy-gate.sh`, and the publishing scripts.
    Update AGENTS.md §4, the gitops-loop spoke, and the deploy/publish runbooks (human-merged).
 
-### Phase 14 — Live health monitor   `[ ]` · review: Full
+### Phase 14 — Live health monitor   `[x]` · review: Full
 
 1. `skynet watch`: a systemd timer on the ops VM runs the Phase 10 verifier for every deployed
    service every 5 minutes (T1 read only).
