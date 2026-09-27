@@ -51,9 +51,11 @@ reconcile refreshed inventory against the last pre-disaster commit.
   `secrets/` symlinks to `/run/secrets`), `/home/aliammar`, `/var/lib/{docker,nixos,systemd}`,
   `/var/log`, `machine-id`, SSH host keys.
 - **Ignored local state:**
-  - **Recovery-critical:** `tofu/terraform.tfstate` and its timestamped backups. Losing them means
-    re-importing every managed resource. Phase 15 moves state to the `tofu-state` branch.
-  - **Rebuildable:** `.cache/` (inventory DB, collection lock), `tofu/.terraform/` (provider cache),
+  - **In git, cached locally:** `/opt/skynet-ops/state/tofu/<stack>.tfstate` mirrors the
+    encrypted state on the `tofu-state` branch; `skynet tofu` rebuilds a missing file from it.
+    `legacy/` holds the pre-split root state until SKY-025 Phase 18.
+  - **Rebuildable:** `.cache/` (inventory DB, collection lock), `~/.cache/skynet/tofu-plugins`
+    (provider cache),
     Python tool caches, `result`.
 - **Survival-kit path (proven 2026-09-26):** the age master key (recipient
   `age1stah9c426pq0xf3k4qc58e92vs263lf6uvze2f6nmx84nvk86cusfgexyw`) is in the kit, both in the password

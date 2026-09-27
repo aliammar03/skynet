@@ -139,16 +139,17 @@ edit compose/<svc>/ → branch → PR (bin/check + tier review + `skynet deploy 
 - **Publishing** a route = a merged Caddyfile/ingress change deployed as above, then
   `skynet publish <svc>` for Authentik forward-auth objects. `skynet withdraw <vhost>` is the gated
   delete of a removed route's leftovers.
-- **Every production OpenTofu write uses the saved-plan executor.** Author the source change and get
-  its PR human-merged; create `tofu plan -out <planfile>` from that approved revision; show the exact
-  saved plan for approval; then run `TOFU_APPLY_SCOPE=<one actuator> scripts/tofu-apply.sh <planfile>`.
-  The wrapper rejects mixed scope (`proxmox-core`, `proxmox-network`, `technitium-dns`, or
-  `cloudflare-dns`) plans. Never use a bare, re-planning `tofu apply` path. Delete/replace remains a
-  hard checkpoint and the wrapper refuses it. A new-guest
-  create is allowed as an explicitly approved, supervised T2 saved-plan action; because no pre-change
-  guest exists to snapshot, it has no automatic rollback and cannot reach A4. A failed partial create
-  needs operator recovery and is never auto-destroyed. The merged-source and human-approval checks are
-  operator procedures; the wrapper proves the saved artifact and scope, not the human identity.
+- **OpenTofu follows the same loop, one stack per actuator** (`tofu/proxmox-core/`,
+  `tofu/technitium-dns/`, `tofu/cloudflare-dns/`; the directory is the scope). The PR carries the
+  change plus `tofu/<stack>/approved-plan.json` from `skynet tofu plan <stack> --approve` (plan from a
+  branch rebased on `main`). The merge approves that effect; the same 30 s pass
+  (`skynet deploy --pending` runs `skynet tofu apply --pending`) re-plans the merged revision and
+  applies it only when its normalized-change hash equals the approved one. A different hash is held and alerts: re-plan in a
+  new PR. The executor refuses delete/replace/forget, excluded guests, and resource types outside the
+  stack at every level. It snapshots each existing-guest update, and rolls back a failed apply whose
+  changes were all snapshotted guest updates. A create or DNS change has no automatic inverse: a
+  failure alerts for operator recovery and is never auto-destroyed, so those stay below A4. State is
+  encrypted and mirrored to the `tofu-state` branch after every apply. Never run a bare `tofu apply`.
 - **Procedures beyond this loop** live as engine-neutral runbooks, catalogued with tier + trigger in
   [`runbooks/README.md`](runbooks/README.md) (and the context map). Read one when a task or a
   `SKY-###` execute prompt calls for it; they stay out of the always-loaded context by design.

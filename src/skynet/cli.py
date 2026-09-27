@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import NoReturn
 
 from skynet import (alert, cache, certs, deploy, deployment, entities, gates, installed_version,
-                    memory, omada, planning, publish, recon, render, routes, scaffold, watch,
+                    memory, omada, planning, publish, recon, render, routes, scaffold, tofu, watch,
                     writepath)
 from skynet.collection import CredentialFiles, collect_all, collection_status
 from skynet.dns import DEFAULT_CREDENTIALS as DNS_DEFAULT_CREDENTIALS, collect as collect_dns
@@ -92,6 +92,29 @@ def build_parser() -> argparse.ArgumentParser:
     withdraw_command.add_argument("vhost", help="the full hostname, already removed from git")
     withdraw_command.add_argument("--confirm", required=True, help="repeat the vhost exactly")
     _write_options(withdraw_command)
+    tofu_command = commands.add_parser("tofu", help="OpenTofu stacks under ADR 0008 (plan in the PR, "
+                                       "apply after merge)")
+    tofu_actions = tofu_command.add_subparsers(dest="action", required=True)
+    tofu_plan = tofu_actions.add_parser(
+        "plan", help="plan a committed stack and print its hash; --approve writes approved-plan.json")
+    tofu_plan.add_argument("stack", choices=sorted(tofu.STACKS))
+    tofu_plan.add_argument("--ref", default="HEAD", help="committed revision to plan (default HEAD)")
+    tofu_plan.add_argument("--approve", action="store_true",
+                           help="write tofu/<stack>/approved-plan.json for the PR")
+    tofu_apply = tofu_actions.add_parser(
+        "apply", help="apply a merged stack whose plan matches its approved hash (T2 write)")
+    tofu_target = tofu_apply.add_mutually_exclusive_group(required=True)
+    tofu_target.add_argument("stack", nargs="?", choices=sorted(tofu.STACKS))
+    tofu_target.add_argument("--pending", action="store_true",
+                             help="apply every stack whose merged inputs are not the applied ones")
+    tofu_apply.add_argument("--revision", help="a merged commit (default: newest touching the stack)")
+    tofu_drift = tofu_actions.add_parser("drift", help="read-only plan of every stack at origin/main")
+    tofu_drift.add_argument("--output", type=Path, default=Path("inventory/tofu-drift.txt"))
+    for tofu_parser in (tofu_plan, tofu_apply, tofu_drift):
+        tofu_parser.add_argument("--repo", type=Path, default=Path.cwd(), help="the skynet checkout")
+        tofu_parser.add_argument("--state-dir", type=Path, default=writepath.DEFAULT_STATE_DIR,
+                                 help="operation record, write lock, and local tofu state")
+    tofu_apply.add_argument("--json", action="store_true", dest="json_output")
     collection = commands.add_parser("collect", help="collect observations, not service health")
     sources = collection.add_subparsers(dest="source", required=True)
     all_sources = sources.add_parser("all", help="refresh inventory with per-collector outcomes")
@@ -308,6 +331,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         return publish.run_withdraw(arguments.repo, arguments.vhost, arguments.confirm,
                                     context=arguments.docker_context, state_dir=arguments.state_dir,
                                     json_output=arguments.json_output, stdout=sys.stdout)
+    if arguments.command == "tofu":
+        if arguments.action == "plan":
+            return tofu.run_plan(arguments.repo, arguments.stack, ref=arguments.ref,
+                                 approve=arguments.approve, state_dir_=arguments.state_dir,
+                                 stdout=sys.stdout)
+        if arguments.action == "drift":
+            output = arguments.output if arguments.output.is_absolute() else arguments.repo / arguments.output
+            return tofu.run_drift(arguments.repo, output=output, state_dir_=arguments.state_dir,
+                                  stdout=sys.stdout)
+        if arguments.pending and arguments.revision:
+            print("tofu apply: --pending takes no --revision", file=sys.stderr)
+            return 2
+        return tofu.run_apply(arguments.repo, arguments.stack, revision=arguments.revision,
+                              pending_all=arguments.pending, state_dir_=arguments.state_dir,
+                              json_output=arguments.json_output, stdout=sys.stdout)
     if arguments.command == "collect":
         if arguments.source == "all":
             files = CredentialFiles(

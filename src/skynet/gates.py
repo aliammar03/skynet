@@ -244,6 +244,35 @@ def engines(repo: Path, invariants: dict[str, Any]) -> list[str]:
     return violations
 
 
+def tofu_stacks(repo: Path, invariants: dict[str, Any]) -> list[str]:
+    """Every `tofu/<dir>` is a stack the executor knows (the directory is the scope), and every
+    approved plan names its own stack and a sha256."""
+    from skynet import tofu  # the stack registry lives with its executor
+
+    root = repo / "tofu"
+    if not root.is_dir():
+        return []
+    problems = []
+    for path in sorted(root.iterdir()):
+        if path.is_file() and path.suffix in {".tf", ".hcl"}:
+            problems.append(f"tofu/{path.name}: configuration outside a stack directory")
+        if not path.is_dir() or path.name.startswith("."):
+            continue
+        if path.name not in tofu.STACKS:
+            problems.append(f"tofu/{path.name}: not a registered stack (src/skynet/tofu.py STACKS)")
+            continue
+        approved = path / tofu.APPROVED
+        if not approved.exists():
+            continue
+        value = _json(approved)
+        if not (isinstance(value, dict) and value.get("stack") == path.name
+                and isinstance(value.get("hash"), str) and re.fullmatch(r"[0-9a-f]{64}", value["hash"])
+                and isinstance(value.get("changes"), list)):
+            problems.append(f"tofu/{path.name}/{tofu.APPROVED}: needs its own stack, a sha256 hash, "
+                            "and a changes list (write it with `skynet tofu plan --approve`)")
+    return problems
+
+
 INVARIANT_GATES = (
     Gate("excluded guests are never pooled",
          lambda _, inv: "no excluded VMID ({}) appears in any pool".format(
@@ -262,6 +291,9 @@ INVARIANT_GATES = (
          lambda _, inv: "engines [{}] leave PR merge and root grants to a human".format(
              ", ".join(e["engine"] for e in inv["construction"]["engines"])),
          engines),
+    Gate("every tofu directory is a registered stack with a well-formed approved plan",
+         lambda _, __: "tofu/ holds only registered stacks; approved plans are well-formed",
+         tofu_stacks),
 )
 
 

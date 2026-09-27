@@ -47,4 +47,4 @@ removal is merged.
 
 ## Evidence
 
-- The selected leaf's PR, saved-plan approval where applicable, and post-deploy probe are the publish evidence.
+- The selected leaf's PR, `approved-plan.json` where DNS changes, and post-deploy probe are the publish evidence.

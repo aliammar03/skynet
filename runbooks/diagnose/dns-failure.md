@@ -35,14 +35,12 @@ rollback: "restore the prior DNS declaration through its approved path"
    | wrong address | compare the generated host map and correct the declared record |
    | missing ACME TXT | check scoped Cloudflare token and propagation |
 
-3. Change the declared source on a branch, attach a speculative plan, and wait for its merge. From merged source, create/show the saved plan and apply only after approval:
-   ```bash
-   eval "$(scripts/tofu-env.sh)"
-   tofu -chdir=tofu plan -out=/tmp/dns-fix.tfplan
-   tofu -chdir=tofu show -no-color /tmp/dns-fix.tfplan
-   TOFU_APPLY_SCOPE=<technitium-dns|cloudflare-dns> scripts/tofu-apply.sh /tmp/dns-fix.tfplan
-   ```
-   Internal records are declared in `tofu/dns-aliammar-net.tf`; public tunnel CNAMEs derive from `compose/cloudflared/config.yml` into `tofu/cloudflare-dns.tf`. Do not hand-run a provider token call. The Technitium token cannot yet delete records; deletion requires its documented grant or human UI action.
+3. Change the declared source on a branch rebased on `main`, commit it, run
+   `skynet tofu plan <technitium-dns|cloudflare-dns> --approve`, and commit the `approved-plan.json`
+   with the PR. After the merge, the deploy timer's pass applies it (`skynet log --kind tofu`).
+   Internal records are declared in `tofu/technitium-dns/records.tf` (app records derive from
+   `compose/caddy-apps/Caddyfile`); public tunnel CNAMEs derive from `compose/cloudflared/config.yml`
+   into `tofu/cloudflare-dns/records.tf`. Do not hand-run a provider token call. The Technitium token cannot yet delete records; deletion requires its documented grant or human UI action.
 
 ## Verify
 
@@ -50,7 +48,7 @@ rollback: "restore the prior DNS declaration through its approved path"
 
 ## Rollback
 
-- Revert the declaration and use the corresponding approved saved plan. Do not broaden provider access to delete a record.
+- Revert the declaration in a PR carrying its approved plan. Do not broaden provider access to delete a record.
 
 ## Evidence
 

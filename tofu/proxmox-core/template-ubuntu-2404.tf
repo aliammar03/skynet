@@ -8,7 +8,7 @@ resource "proxmox_virtual_environment_vm" "ubuntu_2404_base" {
   vm_id       = 9000
   name        = "ubuntu-2404-base"
   pool_id     = "ops-managed" # so the token can VM.Clone it (pool ACL) and see it (VM.Audit)
-  description = "Ubuntu base cloud-init template — clone source. Managed by OpenTofu."
+  description = "SKY-008 base cloud-init template — clone source. Managed by OpenTofu."
   tags        = ["template", "skynet", "sky-008"]
   template    = true
   started     = false

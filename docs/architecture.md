@@ -34,10 +34,11 @@ included — from a laptop and a phone hotspot.
   `skynet-deploy` timer runs `skynet deploy --pending`: compose and env rendered at the merged
   revision, applied together, verified (labels, health, routes). A failure returns to the last
   verified revision and opens a revert PR.
-- **OpenTofu:** authored source PR → human merge → reviewed saved plan →
-  `TOFU_APPLY_SCOPE=proxmox-core scripts/tofu-apply.sh <planfile>`; no production bare apply.
-  New-guest creates run as supervised T2 actions with explicit approval; they have no automatic
-  rollback and are not A4-eligible. The wrapper refuses delete/replace plans.
+- **OpenTofu:** edit `tofu/<stack>/` (or a DNS stack's derived input) → PR with
+  `approved-plan.json` from `skynet tofu plan <stack> --approve` → merge → the `skynet-deploy` timer's
+  pass (the same as `skynet tofu apply --pending`): re-plan at the merged revision, require the approved hash,
+  snapshot existing-guest updates, apply, require a clean re-plan, commit encrypted state to the
+  `tofu-state` branch. Delete/replace is refused; creates and DNS writes have no automatic inverse.
 - **App-data backup:** nightly restic of `/opt/docker/appdata` → rclone → Google Drive.
 - **Guest backup:** vzdump → PBS → nightly `rclone sync` of the datastore → Google Drive.
 - **Docs:** `skynet render docs` turns validated inventory into `docs/generated/` (Obsidian).

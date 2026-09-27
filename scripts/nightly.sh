@@ -43,15 +43,10 @@ prepare() {
   step collection skynet collect all --repo "${REPO_DIR}"
   step render-docs skynet render docs --repo "${REPO_DIR}"
 
-  # Drift is evidence, not an actuator. An unavailable plan is recorded in the generated report.
-  {
-    if drift="$(cd "${REPO_DIR}/tofu" && eval "$(../scripts/tofu-env.sh)" && tofu plan -no-color 2>/dev/null)"; then
-      printf '%s\n' "${drift}" | grep -E '^(No changes\.|Plan: |  # .* will be )' || printf 'No changes.\n'
-    else
-      printf 'tofu drift: plan unavailable this run (tofu env/secrets or API unreachable)\n'
-      record_failure tofu-drift
-    fi
-  } > inventory/tofu-drift.txt 2>/dev/null || record_failure tofu-drift-report
+  # Drift is evidence, not an actuator: a read-only plan per stack. An unavailable plan is written
+  # into the report and recorded as a failure.
+  skynet tofu drift --repo "${REPO_DIR}" --output inventory/tofu-drift.txt >/dev/null \
+    || record_failure tofu-drift
 }
 
 write_journal() {

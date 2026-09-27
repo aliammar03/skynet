@@ -95,14 +95,15 @@ The detailed token, ACL, and principal design is [access and trust](design/acces
 | Tier | Scope | Standing? |
 |---|---|---|
 | **T1 Read** | Proxmox, PBS, Docker, DNS, Omada, and OPNsense diagnostics | Yes, read-only |
-| **T2 Operate** | Managed envelopes, Docker through `skynet deploy` (svc-ops context), Technitium zones, scoped Authentik app/provider CRUD, `aliammar.net` DNS records, backup/snapshot, saved-plan guest changes | Yes where implemented; PR-gated |
+| **T2 Operate** | Managed envelopes, Docker through `skynet deploy` (svc-ops context), Technitium zones, scoped Authentik app/provider CRUD, `aliammar.net` DNS records, backup/snapshot, OpenTofu stacks through `skynet tofu` | Yes where implemented; PR-gated |
 | **T2+ Root** | Workload-host root shell | Only a time-limited grant |
 | **T3 Privileged** | Management planes and all self-leash changes | Never standing |
 
 OPNsense has a T1 live-read path and an approved but not yet implemented T2 firewall-config path;
 the self-leash remains T3. Cloudflare DNS records and Technitium zones are T2; their accounts and
-server settings are T3. Saved-plan OpenTofu actions use `scripts/tofu-apply.sh` with one scope and
-never a bare apply; create is supervised and destroy is refused. See
+server settings are T3. OpenTofu applies only through `skynet tofu`: the merged revision's plan must
+match the hash approved in the PR, delete/replace is refused, and state lives on the `tofu-state`
+branch ([ADR 0008](decisions/0008-git-model-for-docker-and-opentofu.md)). See
 [actuators](design/actuators.md) and the provisioning runbooks.
 
 ## 5. Operator contract and extension index

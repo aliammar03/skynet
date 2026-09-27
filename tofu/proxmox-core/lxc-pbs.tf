@@ -44,6 +44,11 @@ resource "proxmox_virtual_environment_container" "pbs" {
     keyctl  = true
   }
 
+  # Start after Unraid VM 2020 (order 1), whose NFS export backs mp0.
+  startup {
+    order = 2
+  }
+
   # Match bpg's imported console (its defaults) — an absent block reads as "remove console", a real
   # live mutation on the running PBS. Declaring it to the read-back values keeps the guest untouched.
   console {

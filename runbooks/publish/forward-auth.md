@@ -2,7 +2,7 @@
 summary: "Publish a service with no native login behind Authentik forward-auth on apps Caddy."
 trigger: "Put a no-login service behind Authentik"
 tier: "T2 PR-gated"
-executor: "skynet deploy caddy-apps, skynet publish, guarded DNS saved-plan"
+executor: "skynet deploy caddy-apps, skynet publish, skynet tofu (technitium-dns)"
 rollback: "git revert the route, then skynet withdraw (separately approved)"
 ---
 
@@ -53,8 +53,10 @@ Design context: [`../../docs/design/identity-and-proxy.md`](../../docs/design/id
      caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
    ```
 
-2. Open a PR describing the service, origin `IP:port`, Authentik protection, and URL (with
-   `skynet deploy caddy-apps --dry-run HEAD`). Ali merges it; the timer deploys `caddy-apps`. The
+2. Commit the Caddyfile, run `skynet tofu plan technitium-dns --approve` (from a branch rebased on
+   `main`), and commit its `approved-plan.json`. Open a PR describing the service, origin
+   `IP:port`, Authentik protection, and URL (with `skynet deploy caddy-apps --dry-run HEAD`). Ali
+   merges it; the timer deploys `caddy-apps`. The
    route fails closed until its provider exists.
 
 3. Publish it — this creates the Authentik objects git cannot hold, then proves the route:
@@ -73,14 +75,10 @@ Design context: [`../../docs/design/identity-and-proxy.md`](../../docs/design/id
    created and restores the outpost's list. The token travels on stdin into `curl -K -` inside
    `caddy-apps-caddy-1` (firewall rule 240), never in argv.
 
-4. Create the internal DNS record from the merged revision and apply only the approved saved plan:
-
-   ```bash
-   eval "$(scripts/tofu-env.sh)"
-   tofu -chdir=tofu plan -out=/tmp/publish-<svc>.tfplan
-   tofu -chdir=tofu show -no-color /tmp/publish-<svc>.tfplan  # expect only the derived A record
-   TOFU_APPLY_SCOPE=technitium-dns scripts/tofu-apply.sh /tmp/publish-<svc>.tfplan
-   ```
+4. The same PR carried `tofu/technitium-dns/approved-plan.json` (from
+   `skynet tofu plan technitium-dns --approve` after committing the Caddyfile; expect only the
+   derived A record). After the merge, the timer's pass creates the record; confirm it with
+   `skynet log --kind tofu`. A `held` result means the merged plan differs: re-plan in a new PR.
 
 ## Verify
 
@@ -95,12 +93,12 @@ dig +short <svc>.aliammar.net @10.10.70.50  # expect 10.10.100.35
 
 Revert the Caddyfile block by PR; the timer deploys the previous route. Deleting the Authentik
 objects (and any public CNAME) is a separate hard checkpoint: once approved and the revert is on
-`main`, run `skynet withdraw <svc>.aliammar.net --confirm <svc>.aliammar.net`. Do not send delete
-plans through `scripts/tofu-apply.sh`; leave the Technitium record visible until its compliant
-delete path exists.
+`main`, run `skynet withdraw <svc>.aliammar.net --confirm <svc>.aliammar.net`. `skynet tofu` refuses the
+Technitium record's delete plan (the stack stays held and alerts); leave the record visible until
+its compliant delete path exists.
 
 ## Evidence
 
 Record the PR and merge commit, Caddy validation, the `skynet publish` output (created objects,
-probe result), saved DNS plan and approval, browser login result,
+probe result), the `approved-plan.json` and its `skynet log` line, browser login result,
 and internal `dig` output. Redact all credentials and bearer headers.
