@@ -46,6 +46,7 @@ PLAN_FILE = "skynet.tfplan"
 GUEST_TYPES = {"proxmox_virtual_environment_container": "lxc", "proxmox_virtual_environment_vm": "qemu"}
 REFUSED_ACTIONS = {"delete", "forget"}
 ALERT_AFTER_FAILURES = 3
+UNVERIFIED = "post-apply plan could not run"
 NOT_SETTLED = "an interrupted tofu apply is not settled yet; retrying next pass"
 CONTENDED = frozenset({writepath.LOCK_BUSY, NOT_SETTLED})
 # The time budget. The skynet-tofu unit's TimeoutStartSec is PASS_SECONDS (nix/modules/timers.nix;
@@ -231,13 +232,34 @@ def guests(stack: Stack, found: list[dict[str, Any]]) -> list[pve.Guest]:
     return result
 
 
+# The top-level attributes a Proxmox snapshot rollback restores (the guest's own config; power state
+# is restored separately). Anything else, such as pool membership, a disk resize, or a template
+# conversion, lives outside the snapshot, so a change to it has no automatic inverse.
+SNAPSHOT_COVERS = {
+    "proxmox_virtual_environment_container": frozenset({
+        "console", "cpu", "description", "features", "initialization", "memory",
+        "network_interface", "operating_system", "started", "startup", "tags"}),
+    "proxmox_virtual_environment_vm": frozenset({
+        "agent", "bios", "boot_order", "cpu", "description", "machine", "memory", "name",
+        "network_device", "on_boot", "operating_system", "serial_device", "started", "startup",
+        "tablet_device", "tags", "vga"}),
+}
+
+
+def _covered(item: dict[str, Any]) -> bool:
+    covers = SNAPSHOT_COVERS.get(str(item["type"]), frozenset())
+    return all(key in covers or key.startswith("timeout_") for key in item.get("delta", {}))
+
+
 def reversible(stack: Stack, found: list[dict[str, Any]]) -> bool:
-    """True when every change is a snapshotted guest update or a state-only move."""
+    """True when every change is a state-only move, or a snapshotted guest update that changes
+    only attributes the snapshot restores."""
     snapshotted = {guest.vmid for guest in guests(stack, found)}
     for item in found:
         if item["actions"] == ["no-op"] and not item["importing"]:
             continue  # a move: state only
-        if item["type"] in GUEST_TYPES and item["actions"] == ["update"] and _vmid(item) in snapshotted:
+        if (item["type"] in GUEST_TYPES and item["actions"] == ["update"]
+                and _vmid(item) in snapshotted and _covered(item)):
             continue
         return False
     return True
@@ -345,7 +367,8 @@ class Workspace:
                        timeout=TOFU_SECONDS["verify"])
         if result.returncode == 2:
             raise WriteError("post-apply plan is not clean", FAILED)
-        _require(result, "post-apply plan unavailable")
+        if result.returncode != 0:  # the check could not run: nothing says the apply was wrong
+            raise WriteError(UNVERIFIED, UNAVAILABLE)
 
     def approved(self) -> dict[str, Any] | None:
         path = self.dir / APPROVED
@@ -379,8 +402,20 @@ def fetch_state(repo: Path) -> bool:
 
 
 def _blob(repo: Path, path: str) -> bytes | None:
+    """The file at `path` on the fetched state branch; None only when the branch or the path does
+    not exist. Any other git failure raises: a read error must never look like a missing file."""
+    if deploy._run(["git", "-C", str(repo), "rev-parse", "--verify", "--quiet",
+                    f"{STATE_REF}^{{commit}}"]).returncode != 0:
+        return None  # no state branch yet
+    listed = deploy._run(["git", "-C", str(repo), "ls-tree", "--name-only", STATE_REF, "--", path])
+    if listed.returncode != 0:
+        raise WriteError("state branch unreadable", UNAVAILABLE)
+    if not listed.stdout.strip():
+        return None
     result = deploy._run(["git", "-C", str(repo), "cat-file", "blob", f"{STATE_REF}:{path}"])
-    return result.stdout if result.returncode == 0 else None
+    if result.returncode != 0:
+        raise WriteError("state branch unreadable", UNAVAILABLE)
+    return result.stdout
 
 
 def branch_state(repo: Path, stack: str) -> bytes | None:
@@ -524,6 +559,8 @@ def classify(ledger: Ledger, stack: str, remote: bytes | None) -> str:
     if local == remote:
         return "same"
     base = _base(ledger, stack) or ("absent" if remote is None else None)
+    if remote is None and base not in (None, "absent"):
+        return "diverged"  # the branch lost a state it had: never treat that as a stale cache
     if base == _digest(remote):
         return "pending"
     if base == _digest(local):
@@ -633,12 +670,15 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                 for guest in guests(stack, saved.found):
                     try:
                         saved.power[guest] = pve.status(guest)
+                        saved.taken.append(guest)  # before the request: a failed create may leave one
                         pve.create(guest, saved.snapshot)
                     except WriteError:
-                        _prune(saved, operation)
-                        raise WriteError(f"could not snapshot {guest}; nothing applied", UNAVAILABLE) \
-                            from None
-                    saved.taken.append(guest)
+                        if _prune(saved, operation):
+                            raise WriteError(f"could not snapshot {guest}; nothing applied",
+                                             UNAVAILABLE) from None
+                        # A snapshot may remain: hold rather than add another one every minute.
+                        raise WriteError(f"could not snapshot {guest}; nothing applied, but "
+                                         f"{saved.snapshot} could not be cleaned up") from None
                 operation.context["guests"] = [str(guest) for guest in saved.taken]
                 return saved
 
@@ -652,13 +692,16 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                 return {"changes": len(state_.found), "hash": state_.hash, "post_apply_plan": "clean"}
 
             def rollback(state_: _Saved, error: WriteError) -> str:
-                if not reversible(stack, state_.found):
+                if error.reason == UNVERIFIED or not reversible(stack, state_.found):
                     try:
                         _record(repo, ledger, name, None, f"tofu-state({name}): after failed "
                                 f"{operation.id}")
                         operation.note("state", "ok", "the state tofu wrote is recorded")
                     except WriteError as record_error:
                         operation.note("state", "failed", record_error.reason)
+                    if error.reason == UNVERIFIED:
+                        raise WriteError("applied but unverified; not rolled back, operator check "
+                                         f"(snapshots {state_.snapshot} kept)")
                     raise WriteError("no automatic inverse for these changes; operator recovery "
                                      f"(snapshots {state_.snapshot} kept)")
                 failures = []
@@ -717,13 +760,18 @@ def _record(repo: Path, ledger: Ledger, stack: str, record: dict[str, Any] | Non
     _set_base(ledger, stack, state)
 
 
-def _prune(saved: _Saved, operation: Operation) -> None:
+def _prune(saved: _Saved, operation: Operation) -> bool:
+    """Delete this run's snapshot wherever it exists; True when none is left behind."""
+    clean = True
     for guest in saved.taken:
         try:
-            pve.delete(guest, saved.snapshot)
+            if pve.exists(guest, saved.snapshot):
+                pve.delete(guest, saved.snapshot)
         except WriteError as error:
             operation.note("prune", "failed", f"{guest}: {error.reason}")
+            clean = False
     saved.taken = []
+    return clean
 
 
 def settle_interrupted(repo: Path, ledger: Ledger) -> list[dict[str, Any]]:

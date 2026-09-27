@@ -27,8 +27,15 @@ def change(address: str, kind: str, actions: list[str], **after: Any) -> dict[st
 
 def guest(vmid: int = 10030, *, kind: str = CT, actions: list[str] | None = None,
           node: str = CORE, **extra: Any) -> dict[str, Any]:
-    return change(f'{kind}.g["{vmid}"]', kind, actions or ["update"], vm_id=vmid, node_name=node,
-                  **extra)
+    """A guest change shaped like bpg's: `before` equals `after` except for the attributes the
+    test changes (`cores` goes in the `cpu` block, as in the provider)."""
+    if "cores" in extra:
+        extra["cpu"] = [{"cores": extra.pop("cores")}]
+    after = {"vm_id": vmid, "id": str(vmid), "node_name": node, **extra}
+    entry = change(f'{kind}.g["{vmid}"]', kind, actions or ["update"], **after)
+    entry["change"]["before"] = (None if "create" in (actions or [])
+                                 else {**after, **{key: "old" for key in extra}})
+    return entry
 
 
 class FakeSpace:
@@ -50,6 +57,8 @@ class FakeSpace:
 
     def clean(self) -> None:
         self.host.calls.append("verify")
+        if self.host.unverified:
+            raise WriteError(tofu.UNVERIFIED, UNAVAILABLE)
         if self.host.dirty:
             raise WriteError("post-apply plan is not clean")
 
@@ -64,8 +73,12 @@ class Fake:
         self.approved: dict[str, Any] | None = None
         self.apply_error = False
         self.dirty = False
+        self.unverified = False
         self.snapshot_fail: set[int] = set()
         self.rollback_fail: set[int] = set()
+        self.snapshots: set[int] = set()  # guests that really have this run's snapshot
+        self.leftover: set[int] = set()  # a failed create that made one anyway
+        self.stuck: set[int] = set()  # a snapshot that cannot be deleted
         self.power: dict[int, str] = {}
         self.holds: dict[str, dict[str, Any]] = {}
         self.record_error = False
@@ -93,7 +106,14 @@ def fake(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Fake:
         def run(g: pve.Guest, name: str, *power: str) -> None:
             host.calls.append((action, g.vmid, *power))
             if action == "create" and g.vmid in host.snapshot_fail:
+                host.snapshots |= host.leftover & {g.vmid}
                 raise WriteError("Proxmox snapshot task failed", UNAVAILABLE)
+            if action == "create":
+                host.snapshots.add(g.vmid)
+            if action == "delete":
+                if g.vmid in host.stuck:
+                    raise WriteError("Proxmox snapshot task failed", UNAVAILABLE)
+                host.snapshots.discard(g.vmid)
             if action == "rollback" and g.vmid in host.rollback_fail:
                 raise WriteError(f"{g} did not return to running after rollback", UNAVAILABLE)
         return run
@@ -126,6 +146,7 @@ def fake(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Fake:
     for action in ("create", "rollback", "delete"):
         monkeypatch.setattr(pve, action, snapshot(action))
     monkeypatch.setattr(pve, "status", lambda g: host.power.get(g.vmid, "running"))
+    monkeypatch.setattr(pve, "exists", lambda g, name: g.vmid in host.snapshots)
     monkeypatch.setattr(tofu, "set_hold", set_hold)
     monkeypatch.setattr(tofu, "held", lambda repo, stack: host.holds.get(stack, {}))
     monkeypatch.setattr(alert, "send", send)
@@ -289,6 +310,50 @@ def test_one_failed_guest_rollback_still_rolls_back_the_rest(fake: Fake, tmp_pat
     assert fake.recorded == [None]  # the partial state is recorded to git
     assert not any(c[0] == "delete" for c in fake.calls if isinstance(c, tuple))  # snapshots kept
     assert fake.holds["proxmox-core"]["revision"] == REV
+
+
+def test_a_snapshot_a_failed_create_left_behind_is_cleaned_up(fake: Fake, tmp_path: Path) -> None:
+    fake.snapshot_fail = fake.leftover = {10030}  # timed out, but Proxmox made it anyway
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    operation = run(fake, tmp_path)
+    assert operation.outcome == "refused" and operation.code == UNAVAILABLE  # a clean retry
+    assert ("delete", 10030) in fake.calls and fake.snapshots == set()
+
+
+def test_a_snapshot_that_cannot_be_cleaned_up_holds_instead_of_piling_up(fake: Fake,
+                                                                        tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "state")
+    fake.snapshot_fail = fake.leftover = fake.stuck = {10030}
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    first = tofu.pending(tmp_path, ledger=ledger)[0]
+    assert first["outcome"] == "refused" and "could not be cleaned up" in first["reason"]
+    assert fake.holds["proxmox-core"]["revision"] == REV
+    fake.calls.clear()
+    assert tofu.pending(tmp_path, ledger=ledger)[0]["outcome"] == "held"
+    assert not any(c[0] == "create" for c in fake.calls if isinstance(c, tuple))
+
+
+def test_a_change_outside_the_snapshot_is_not_rolled_back(fake: Fake, tmp_path: Path) -> None:
+    fake.apply_error = True
+    fake.plan = [guest(240, pool_id="elsewhere")]  # pool membership is not in a snapshot
+    fake.approve()
+    operation = run(fake, tmp_path)
+    assert operation.outcome == "rollback-failed" and "no automatic inverse" in str(operation.reason)
+    assert not any(c[0] == "rollback" for c in fake.calls if isinstance(c, tuple))
+    assert tofu.reversible(tofu.STACKS["proxmox-core"],
+                           tofu.changes({"resource_changes": [guest(240, cores=4)]}))
+
+
+def test_an_unverifiable_apply_is_not_rolled_back(fake: Fake, tmp_path: Path) -> None:
+    fake.unverified = True
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    operation = run(fake, tmp_path)
+    assert operation.outcome == "rollback-failed" and "unverified" in str(operation.reason)
+    assert not any(c[0] in ("rollback", "delete") for c in fake.calls if isinstance(c, tuple))
+    assert fake.recorded == [None] and fake.holds["proxmox-core"]["revision"] == REV
 
 
 def test_a_failed_create_has_no_inverse_records_true_state_and_alerts(fake: Fake, tmp_path: Path) -> None:
@@ -646,6 +711,31 @@ def test_settlement_never_pushes_a_stale_cache(clone: Path, tmp_path: Path) -> N
         tofu._record(clone, ledger, "proxmox-core", None, "interrupted")
     assert tofu.branch_state(clone, "proxmox-core") == b"v2"
     assert tofu.applied(clone, "proxmox-core") == {"revision": NEW}
+
+
+def test_a_git_read_error_is_not_a_missing_file(clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    tofu.record_state(clone, "s", b"v1", None, "first")
+    assert tofu._blob(clone, "s/absent.json") is None  # truly missing
+    real = deploy._run
+
+    def failing(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[bytes]:
+        if "ls-tree" in args:
+            return subprocess.CompletedProcess(args, 128, b"", b"fatal")
+        return real(args, **kwargs)
+
+    monkeypatch.setattr(deploy, "_run", failing)
+    with pytest.raises(WriteError, match="unreadable"):
+        tofu.branch_state(clone, "s")
+
+
+def test_a_branch_that_lost_its_state_is_refused_not_trusted(clone: Path, tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "state")
+    tofu.record_state(clone, "proxmox-core", b"v1", None, "first")
+    tofu.sync_state(clone, ledger, "proxmox-core")
+    tofu.write_branch(clone, {"proxmox-core/terraform.tfstate": None}, "someone removed it")
+    with pytest.raises(WriteError, match="both changed"):
+        tofu.sync_state(clone, ledger, "proxmox-core")
+    assert tofu.local_state(ledger, "proxmox-core").read_bytes() == b"v1"  # never deleted
 
 
 def test_an_unchanged_record_makes_no_commit(clone: Path) -> None:

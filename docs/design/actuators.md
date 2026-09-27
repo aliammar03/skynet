@@ -29,7 +29,11 @@ plans and T3-excluded guests rather than attempting to make them reversible.
 The Tofu executor applies only the plan it makes from the merged revision, and only when that plan's
 normalized-change hash equals the PR's `approved-plan.json`. A failure is rolled back only when every
 change was a snapshotted guest update or a state-only move; anything else keeps its snapshots,
-records the state OpenTofu wrote, and alerts. A snapshot that cannot be made refuses the apply. An apply updates at most five existing guests,
+records the state OpenTofu wrote, and alerts. A snapshot that cannot be made refuses the apply (and one a failed create left behind is
+cleaned up, or the revision is held). A guest update is rolled back only when every attribute it
+changes is one a snapshot restores (`SNAPSHOT_COVERS`); pool membership, disk size, or a template
+conversion has no automatic inverse. A post-apply check that cannot run leaves the change
+unverified: it alerts and holds, never rolls back. An apply updates at most five existing guests,
 so a hung apply plus its full rollback fits the deploy unit's 4 h budget; the timer defers a
 stack it cannot finish.
 

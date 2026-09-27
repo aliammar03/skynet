@@ -117,5 +117,13 @@ def rollback(guest: Guest, name: str, power: str) -> None:
         time.sleep(POLL_SECONDS)
 
 
+def exists(guest: Guest, name: str) -> bool:
+    """Whether the guest has snapshot `name` (a failed or timed-out create may still have made it)."""
+    listed = _call(guest.node, "GET", _base(guest))
+    if not isinstance(listed, list):
+        raise WriteError("Proxmox returned no snapshot list", UNAVAILABLE)
+    return any(isinstance(entry, dict) and entry.get("name") == name for entry in listed)
+
+
 def delete(guest: Guest, name: str) -> None:
     _wait(guest.node, _call(guest.node, "DELETE", f"{_base(guest)}/{quote(name)}"))
