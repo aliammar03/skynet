@@ -144,8 +144,9 @@ edit compose/<svc>/ → branch → PR (bin/check + tier review + `skynet deploy 
   change plus `tofu/<stack>/approved-plan.json` from `skynet tofu plan <stack> --approve` (plan from a
   branch rebased on `main`). The merge approves that effect; the same 30 s pass
   (`skynet deploy --pending` runs `skynet tofu apply --pending`) re-plans the merged revision and
-  applies it only when its normalized-change hash equals the approved one. A different hash is held and alerts: re-plan in a
-  new PR. The executor refuses delete/replace/forget, excluded guests, and resource types outside the
+  applies it only when its normalized-change hash equals the approved one. A different hash, or an
+  apply that failed, rolled back, or was interrupted, is held and alerts; it never retries until
+  `main` moves: re-plan in a new PR. The executor refuses delete/replace/forget, excluded guests, and resource types outside the
   stack at every level. It snapshots each existing-guest update, and rolls back a failed apply whose
   changes were all snapshotted guest updates. A create or DNS change has no automatic inverse: a
   failure alerts for operator recovery and is never auto-destroyed, so those stay below A4. State is
