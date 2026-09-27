@@ -48,7 +48,7 @@ locals {
       memory = 8192
       swap   = 2048
       disk   = 64
-      tags   = ["obsidian", "nixos", "skynet"]
+      tags   = ["nixos", "obsidian", "skynet"] # sorted: Proxmox stores tags sorted
     }
   }
 }
@@ -184,6 +184,11 @@ resource "proxmox_virtual_environment_container" "core_ct" {
         gateway = "10.10.${each.value.vlan}.1"
       }
     }
+  }
+
+  lifecycle {
+    # The template only seeds a new CT; a changed default template must never replace a live one.
+    ignore_changes = [operating_system]
   }
 }
 
