@@ -118,7 +118,8 @@ on `origin/main` it runs the [deployment verifier](#deployment-verification) aga
 | unhealthy → healthy | one recovery message, only if the down alert went out |
 | monitor cannot observe (no fetch, no Docker, no state) | the pseudo-target `monitor`, same rule; no per-service storm |
 
-A pass while a write holds the lock is skipped (a deploy mid-flight is not an outage). An alert
+While a write holds the lock, only the target it is changing is skipped (a deploy mid-flight is
+not an outage); every other service is still checked, so a long write never hides an outage. An alert
 that could not be sent is retried next pass. State: `/opt/skynet-ops/state/watch.json`.
 
 Write paths alert too: a `rollback-failed` or `unrecorded` outcome pushes a high-priority message,

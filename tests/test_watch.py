@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 
 from skynet import alert, deploy, watch
-from skynet.writepath import Ledger, WriteError
+from skynet.writepath import Ledger, Operation, WriteError
 
 REV = "1" * 40
 
@@ -110,13 +110,25 @@ def test_monitor_that_cannot_observe_alerts_and_fails_the_ping(lab: Lab, tmp_pat
     assert lab.pings[-1] is True
 
 
-def test_a_write_in_progress_skips_the_pass(lab: Lab, tmp_path: Path) -> None:
-    lab.health["demo"] = False
+def test_a_long_write_skips_only_its_own_target(lab: Lab, tmp_path: Path) -> None:
+    """A deploy of `demo` in flight never hides an outage of `other`."""
+    lab.health["demo"] = lab.health["other"] = False
     ledger = Ledger(tmp_path / "state")
+    ledger.append(Operation("deploy", "svc/demo", REV).record("started"))
     with ledger.lock():
         for minute in range(3):
-            assert _pass(tmp_path, minute) == 0
-    assert lab.sent == [] and not (tmp_path / "state" / "watch.json").exists()
+            assert _pass(tmp_path, minute) == 1
+    assert [title for title, _ in lab.sent] == ["skynet: svc/other"]
+    assert lab.pings == [True, True, True]  # the monitor itself is working
+
+
+def test_a_crashed_write_never_hides_a_service(lab: Lab, tmp_path: Path) -> None:
+    """A `started` record with no lock held is a crash, not a write in progress."""
+    lab.health["demo"] = False
+    Ledger(tmp_path / "state").append(Operation("deploy", "svc/demo", REV).record("started"))
+    _pass(tmp_path, 0)
+    _pass(tmp_path, 1)
+    assert [title for title, _ in lab.sent] == ["skynet: svc/demo"]
 
 
 def test_a_service_removed_from_main_drops_out(lab: Lab, tmp_path: Path) -> None:

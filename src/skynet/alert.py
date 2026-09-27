@@ -23,7 +23,8 @@ DEFAULT_CREDENTIALS = Path("/opt/skynet-ops/secrets/alerts.env")
 PUSHOVER_HOST = "api.pushover.net"
 TIMEOUT = 15.0
 UNIT_ALERT_SECONDS = 3600
-_KEYS = ("PUSHOVER_TOKEN", "PUSHOVER_USER", "HEALTHCHECK_URL")
+PUSH_KEYS = ("PUSHOVER_TOKEN", "PUSHOVER_USER")
+_KEYS = (*PUSH_KEYS, "HEALTHCHECK_URL")
 
 
 class AlertError(Exception):
@@ -39,12 +40,14 @@ def credentials_path() -> Path:
     return Path(os.environ.get("SKYNET_ALERTS_FILE", DEFAULT_CREDENTIALS))
 
 
-def credentials(path: Path | None = None) -> dict[str, str]:
-    values = common.read_assignments(path or credentials_path(), _KEYS, _KEYS, error=AlertError,
-                                     service="alert")
-    if not all(common.printable(values[key]) for key in ("PUSHOVER_TOKEN", "PUSHOVER_USER")):
+def credentials(path: Path | None = None, required: tuple[str, ...] = _KEYS) -> dict[str, str]:
+    """Only `required` keys must be present and valid: a bad ping URL never blocks a push."""
+    values = common.read_assignments(path or credentials_path(), _KEYS, required,
+                                     error=AlertError, service="alert")
+    if any(not common.printable(values[key]) for key in PUSH_KEYS if key in required):
         raise AlertError("invalid alert credential assignments")
-    _ping_target(values["HEALTHCHECK_URL"])
+    if "HEALTHCHECK_URL" in required:
+        _ping_target(values["HEALTHCHECK_URL"])
     return values
 
 
@@ -75,7 +78,7 @@ def _request(host: str, method: str, target: str, body: bytes | None = None,
 def send(title: str, message: str, *, priority: int = 0, path: Path | None = None) -> str | None:
     """Push one message. Returns None when sent, else the fixed reason it was not."""
     try:
-        values = credentials(path)
+        values = credentials(path, PUSH_KEYS)
         body = urllib.parse.urlencode({
             "token": values["PUSHOVER_TOKEN"], "user": values["PUSHOVER_USER"],
             "title": title[:250], "message": message[:1024], "priority": str(priority),
@@ -90,7 +93,7 @@ def send(title: str, message: str, *, priority: int = 0, path: Path | None = Non
 def ping(ok: bool = True, *, path: Path | None = None) -> str | None:
     """Tell the dead-man's switch this run happened (`/fail` when the monitor is unavailable)."""
     try:
-        host, target = _ping_target(credentials(path)["HEALTHCHECK_URL"])
+        host, target = _ping_target(credentials(path, ("HEALTHCHECK_URL",))["HEALTHCHECK_URL"])
         _request(host, "GET", target + ("" if ok else "/fail"))
     except AlertError as error:
         return error.reason

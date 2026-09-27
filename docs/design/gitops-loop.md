@@ -35,9 +35,10 @@ A service's **revision** is the newest commit on `origin/main` that touched `com
 marked `x-skynet: {deploy: manual}` (the Arcane controller itself).
 
 **The trigger.** Every 30 s the timer asks `git ls-remote origin refs/heads/main`. The full pass
-runs only when `main` moved since the last pass (`state/main-seen`), or the last pass is 15 min
-old, so a transient `unavailable` still retries. There is no webhook: nothing internet-facing
-reaches the ops VM.
+runs when `main` moved since the last pass, or the last clean pass is 15 min old. A pass with an
+`unavailable` result retries with backoff (1, 2, 4, … min, capped at 15), so a lasting outage
+doesn't run a full pass every tick (`state/main-seen.json`). There is no webhook: nothing
+internet-facing reaches the ops VM.
 
 **Retirement.** A project on the Docker host that carries `skynet.service` but has no
 `compose/<svc>/compose.yaml` on `main` is retired by the same pass, on the write-path shape:
@@ -90,7 +91,7 @@ only in the container configuration; no `.env` is written there.
 | Running revision | `skynet.revision` label on every container (lifted into `inventory/` by the nightly) |
 | Last verified / held revision | `/opt/docker/services/<svc>/{verified,failed}` on the Docker host |
 | Every write's steps and outcome, refusals included | `/opt/skynet-ops/state/operations.jsonl` on the ops VM; read it with `skynet log` |
-| Last `main` the trigger saw | `/opt/skynet-ops/state/main-seen` |
+| Last `main` the trigger saw, next retry | `/opt/skynet-ops/state/main-seen.json` |
 
 Arcane stays as a read-only dashboard over the same Docker host. Its Git Sync is off and its old
 project directories are gone; it never deploys.

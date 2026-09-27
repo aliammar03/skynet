@@ -46,6 +46,7 @@ WAIT_SECONDS = 300
 FACTS = ("verified", "failed")
 SERVICE_LABEL = "skynet.service"
 STALE_PASS_SECONDS = 15 * 60
+RETRY_SECONDS = 60
 SKIPPED_FILES = {".env.git", ".env.sops"}
 _KEY = re.compile(r"\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=")
 _MANUAL = re.compile(r"^x-skynet:[ \t]*(?:#.*)?\n(?:[ \t]+.*\n)*?[ \t]+deploy:[ \t]*manual[ \t]*(?:#.*)?$",
@@ -496,24 +497,28 @@ def pending(repo: Path, *, context: str, ledger: Ledger) -> list[dict[str, Any]]
 
 def pending_if_moved(repo: Path, *, context: str, ledger: Ledger,
                      now: float | None = None) -> list[dict[str, Any]] | None:
-    """The 30 s trigger: a full pass only when `main` moved, or the last pass is stale. A pass
-    with an `unavailable` result is not marked seen, so it retries on the next tick. None means
-    nothing to do."""
+    """The 30 s trigger: a full pass when `main` moved, when the last clean pass is 15 min old,
+    or when a pass with an `unavailable` result is due a retry (1, 2, 4, ... min, capped at
+    15). None means nothing to do."""
     now = time.time() if now is None else now
     head = remote_main(repo)
-    seen_path = ledger.state_dir / "main-seen"
+    path = ledger.state_dir / "main-seen.json"
     try:
-        seen_head, _, seen_at = seen_path.read_text(encoding="utf-8").strip().partition(" ")
-        last = float(seen_at)
-    except (OSError, ValueError):
-        seen_head, last = "", 0.0
-    if head == seen_head and now - last < STALE_PASS_SECONDS:
+        seen = json.loads(path.read_text(encoding="utf-8"))
+        seen_head, due, failures = str(seen["head"]), float(seen["due"]), int(seen["failures"])
+    except (OSError, ValueError, KeyError, TypeError):
+        seen_head, due, failures = "", 0.0, 0
+    if head == seen_head and now < due:
         return None
     results = pending(repo, context=context, ledger=ledger)
     if any(result.get("code") == UNAVAILABLE for result in results):
-        return results
+        failures = failures + 1 if head == seen_head else 1
+        due = now + min(RETRY_SECONDS * 2 ** (failures - 1), STALE_PASS_SECONDS)
+    else:
+        failures, due = 0, now + STALE_PASS_SECONDS
     try:
-        common.atomic_write_text(seen_path, f"{head} {int(now)}\n")
+        common.atomic_write_text(path, json.dumps({"head": head, "due": due,
+                                                   "failures": failures}) + "\n")
     except OSError:
         raise WriteError("trigger state unwritable", UNAVAILABLE) from None
     return results

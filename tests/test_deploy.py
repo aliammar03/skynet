@@ -455,21 +455,28 @@ def test_malformed_labels_during_retirement_are_recorded_not_a_crash(
     assert not [call for call in retiring.calls if "down" in call]
 
 
-def test_a_pass_with_an_unavailable_result_is_retried_next_tick(
+def test_an_unavailable_pass_retries_with_backoff(
         host: FakeHost, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ledger = Ledger(tmp_path / "state")
     ledger.state_dir.mkdir()
-    monkeypatch.setattr(deploy, "remote_main", lambda repo: NEW)
-    outcome = {"code": 3}
-    monkeypatch.setattr(deploy, "pending", lambda repo, context, ledger: [
+    head, outcome, passes = {"sha": NEW}, {"code": 3}, []
+    monkeypatch.setattr(deploy, "remote_main", lambda repo: head["sha"])
+    monkeypatch.setattr(deploy, "pending", lambda repo, context, ledger: passes.append(1) or [
         {"target": "svc/demo", "outcome": "unavailable", "code": outcome["code"]}])
-    assert deploy.pending_if_moved(tmp_path, context="c", ledger=ledger, now=1000.0)
-    assert deploy.pending_if_moved(tmp_path, context="c", ledger=ledger, now=1030.0)  # not seen
+
+    def tick(now: float) -> bool:
+        return deploy.pending_if_moved(tmp_path, context="c", ledger=ledger, now=now) is not None
+
+    assert tick(1000)                       # fails → retry in 60 s
+    assert not tick(1030) and tick(1060)    # fails again → 120 s
+    assert not tick(1150) and tick(1180)    # → 240 s
+    assert not tick(1400)
+    head["sha"] = OTHER                     # a new merge never waits for the backoff
+    assert tick(1410)
     outcome["code"] = 0
-    assert deploy.pending_if_moved(tmp_path, context="c", ledger=ledger, now=1060.0)
-    assert deploy.pending_if_moved(tmp_path, context="c", ledger=ledger, now=1090.0) is None
-
-
+    assert tick(1410 + 60) and not tick(1410 + 90)  # clean: next pass in 15 min
+    outcome["code"] = 3                     # a lasting outage: 200 ticks (100 min) ...
+    assert sum(tick(10_000 + 30 * i) for i in range(200)) <= 12  # ... run ≤ 12 passes, not 200
 @pytest.mark.parametrize("codes, timer_exit", [([0, 1, 2, 3], 0), ([1, 4], 4), ([], 0)])
 def test_the_timer_exits_zero_for_recorded_outcomes(
         tmp_path: Path, monkeypatch: pytest.MonkeyPatch, codes: list[int], timer_exit: int) -> None:

@@ -130,6 +130,17 @@ class Ledger:
             fcntl.flock(handle, fcntl.LOCK_UN)
             return False
 
+    def in_flight(self) -> set[str]:
+        """Targets with a `started` record and no final or reconciled line yet."""
+        open_ids: dict[str, str] = {}
+        for entry in self.entries():
+            key = str(entry.get("id"))
+            if entry.get("phase") == "started":
+                open_ids[key] = str(entry.get("target"))
+            elif entry.get("phase") in {"final", "reconciled"}:
+                open_ids.pop(key, None)
+        return set(open_ids.values())
+
     def append(self, entry: dict[str, Any]) -> None:
         """Append one flushed line; a record that cannot be kept stops the write."""
         try:

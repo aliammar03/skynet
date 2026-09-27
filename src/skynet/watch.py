@@ -10,7 +10,8 @@ for every non-manual service on `origin/main`, and alerts on **state change** on
 
 A pass that cannot observe at all (no fetch, no Docker, no state) is the pseudo-target `monitor`,
 which runs through the same rule, and pings the dead-man's switch `/fail`; a normal pass pings it
-healthy. A pass while a write holds the lock is skipped: a deploy mid-flight is not an outage.
+healthy. While a write holds the lock, only the target it is changing is skipped (a deploy
+mid-flight is not an outage); every other service is still checked.
 An alert that could not be sent is retried on the next pass. State lives in `state/watch.json`.
 """
 
@@ -85,13 +86,20 @@ def load(path: Path) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
-def observe(repo: Path, context: str) -> dict[str, tuple[bool, str | None, str | None]]:
+def writes_in_flight(ledger: Ledger) -> set[str]:
+    """Targets a write is changing right now. Only while the lock is held: a `started` record
+    left by a crash must never hide a service for good."""
+    return ledger.in_flight() if ledger.busy() else set()
+
+
+def observe(repo: Path, context: str,
+            skip: set[str] | frozenset[str] = frozenset()) -> dict[str, tuple[bool, str | None, str | None]]:
     """service → (healthy, reason, running revision). Raises WriteError if nothing is observable."""
     deploy.fetch(repo)
     results: dict[str, tuple[bool, str | None, str | None]] = {}
     unavailable = 0
     for service in deploy.services(repo):
-        if deploy.manual(repo, service, deploy.MAIN):
+        if deploy.manual(repo, service, deploy.MAIN) or f"svc/{service}" in skip:
             continue
         try:
             evidence = deploy.observe(repo, service, context)
@@ -108,18 +116,13 @@ def observe(repo: Path, context: str) -> dict[str, tuple[bool, str | None, str |
 def run(repo: Path, *, context: str, state_dir: Path, json_output: bool, stdout: TextIO,
         now: float | None = None) -> int:
     now = time.time() if now is None else now
-    ledger = Ledger(state_dir)
-    if ledger.busy():
-        writepath.emit({"target": "watch", "outcome": "skipped", "reason": "a write holds the lock"},
-                       json_output, stdout)
-        alert.ping(True)
-        return OK
     path = state_dir / "watch.json"
     code, lines = OK, []
     states: dict[str, Any] = {}
     try:
         states = load(path)
-        observed = observe(repo, context)
+        changing = writes_in_flight(Ledger(state_dir))
+        observed = observe(repo, context, skip=changing)
     except WriteError as error:
         monitor, message = transition(states.get(MONITOR), False, error.reason, now)
         failure = _push(MONITOR, monitor, message, now)
@@ -131,6 +134,10 @@ def run(repo: Path, *, context: str, state_dir: Path, json_output: bool, stdout:
         monitor, message = transition(states.get(MONITOR), True, None, now)
         _push(MONITOR, monitor, message, now)
         fresh: dict[str, Any] = {MONITOR: monitor}
+        for target in sorted(changing):
+            if target in states:
+                fresh[target] = states[target]  # mid-write: keep its state, judge it next pass
+            lines.append({"target": target, "outcome": "skipped", "reason": "a write is changing it"})
         for service, (healthy, reason, revision) in sorted(observed.items()):
             target = f"svc/{service}"
             entry, message = transition(states.get(target), healthy, reason, now)

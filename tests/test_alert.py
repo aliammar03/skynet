@@ -66,3 +66,12 @@ def test_unit_failure_alerts_at_most_hourly_and_only_once_sent(tmp_path: Path) -
     assert not alert.unit_failure_due(tmp_path, "skynet-deploy.service", now=2000.0)
     assert alert.unit_failure_due(tmp_path, "skynet-watch.service", now=2000.0)
     assert alert.unit_failure_due(tmp_path, "skynet-deploy.service", now=1030.0 + 3600)
+
+
+@pytest.mark.parametrize("ping_line", ["", "HEALTHCHECK_URL=http://not-https/x\n"])
+def test_a_missing_or_bad_ping_url_never_blocks_a_push(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ping_line: str) -> None:
+    monkeypatch.setattr(alert.common, "request", lambda *a, **k: (b"{}", None))
+    path = _file(tmp_path, f"PUSHOVER_TOKEN={TOKEN}\nPUSHOVER_USER={USER}\n{ping_line}")
+    assert alert.send("skynet: svc/demo", "DOWN", path=path) is None
+    assert alert.ping(path=path) is not None  # only the ping itself fails

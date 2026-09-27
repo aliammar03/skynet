@@ -30,7 +30,7 @@ from skynet.writepath import FAILED, UNAVAILABLE, USAGE, Ledger, Operation, Writ
 BRANCH = re.compile(r"revert/([A-Za-z0-9][A-Za-z0-9_.-]*)-([0-9a-f]{12})")
 CHECK_SECONDS = 900.0
 CHECK_TRIES = 3
-CHECK_RED = "bin/check is not green on the PR head"
+CHECK_RED = "bin/check did not pass on the PR head (red, timed out, or could not run)"
 
 
 def open_reverts(repo: Path) -> list[dict[str, Any]]:
@@ -70,18 +70,25 @@ def tree(repo: Path, revision: str, path: str) -> str | None:
 
 
 def check_green(repo: Path, oid: str) -> None:
-    """`bin/check` in a throwaway worktree at exactly the PR head, inside the dev shell."""
-    with tempfile.TemporaryDirectory(prefix="skynet-automerge-") as tmp:
-        work = Path(tmp) / "tree"
-        deploy._git(repo, "worktree", "add", "--quiet", "--detach", str(work), oid,
-                    reason="check worktree failed")
-        try:
-            result = deploy._run(["nix", "develop", "--command", "bin/check"], cwd=work,
-                                 timeout=CHECK_SECONDS)
-        finally:
-            deploy._run(["git", "-C", str(repo), "worktree", "remove", "--force", str(work)])
+    """`bin/check` in a throwaway worktree at exactly the PR head, inside the dev shell.
+
+    Red, timed out, or unable to start all count as one CHECK_RED try, so the retry limit
+    bounds every kind of failure. Runs outside the write lock: it can take minutes.
+    """
+    try:
+        with tempfile.TemporaryDirectory(prefix="skynet-automerge-") as tmp:
+            work = Path(tmp) / "tree"
+            deploy._git(repo, "worktree", "add", "--quiet", "--detach", str(work), oid,
+                        reason="check worktree failed")
+            try:
+                result = deploy._run(["nix", "develop", "--command", "bin/check"], cwd=work,
+                                     timeout=CHECK_SECONDS)
+            finally:
+                deploy._run(["git", "-C", str(repo), "worktree", "remove", "--force", str(work)])
+    except WriteError:
+        raise WriteError(CHECK_RED, FAILED) from None
     if result.returncode != 0:
-        raise WriteError(CHECK_RED, FAILED)  # may be a blip: retried up to CHECK_TRIES per head
+        raise WriteError(CHECK_RED, FAILED)
 
 
 def gate(repo: Path, pr: dict[str, Any], *, context: str, executor: str) -> tuple[str, str]:
@@ -135,10 +142,16 @@ def merge_one(repo: Path, pr: dict[str, Any], *, context: str, ledger: Ledger,
     if not isinstance(number, int) or not deployment.REVISION.fullmatch(oid):
         return writepath.refuse(operation, ledger, "malformed PR listing", UNAVAILABLE)
 
-    def preflight() -> None:
+    # The slow checks run before the write lock is taken; a refusal is recorded like any other.
+    try:
         service, failed = gate(repo, pr, context=context, executor=executor)
-        operation.note("gate", "ok", f"svc/{service}: failed {failed[:12]} → verified tree")
         check_green(repo, oid)
+    except WriteError as error:
+        return writepath.refuse(operation, ledger, error.reason, error.code)
+    operation.note("gate", "ok", f"svc/{service}: failed {failed[:12]} → verified tree; bin/check green")
+
+    def preflight() -> None:  # cheap re-check under the lock: nothing moved since
+        gate(repo, pr, context=context, executor=executor)
 
     def execute(_: None) -> None:
         deploy._ok(["gh", "pr", "merge", str(number), "--squash", "--delete-branch",

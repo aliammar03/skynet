@@ -1,5 +1,6 @@
 """The revert auto-merge gate: every check must hold, and any failure leaves the PR for Ali."""
 
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -72,7 +73,7 @@ def test_all_checks_hold_merges_pinned_to_the_checked_head(hub: Hub, tmp_path: P
     (lambda h: h.trees.update({HEAD: "tree-b"}), "not the verified revision's tree"),
     (lambda h: setattr(h, "facts", HostFacts(verified=VERIFIED, failed="3" * 40)), "host facts"),
     (lambda h: setattr(h, "main", "4" * 40), "main has moved past"),
-    (lambda h: setattr(h, "green", False), "bin/check is not green"),
+    (lambda h: setattr(h, "green", False), "bin/check did not pass"),
 ])
 def test_any_failed_check_leaves_the_pr_open(hub: Hub, tmp_path: Path, breaks: Any,
                                              reason: str) -> None:
@@ -110,3 +111,31 @@ def test_non_revert_branches_are_ignored() -> None:
     assert automerge.BRANCH.fullmatch("revert/demo-" + "a" * 12)
     assert not automerge.BRANCH.fullmatch("feature/revert-demo")
     assert not automerge.BRANCH.fullmatch("revert/demo-" + "a" * 11)
+
+
+def test_bin_check_runs_outside_the_write_lock(hub: Hub, tmp_path: Path,
+                                              monkeypatch: pytest.MonkeyPatch) -> None:
+    held: list[bool] = []
+    monkeypatch.setattr(automerge, "check_green",
+                        lambda repo, oid: held.append(Ledger(tmp_path / "state").busy()))
+    assert _run(tmp_path)[0]["outcome"] == "success" and held == [False]
+
+
+def test_a_timed_out_check_counts_toward_the_retry_limit(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The real check_green, with the dev shell timing out."""
+    calls: list[str] = []
+
+    def run(args: list[str], **kwargs: Any) -> Any:
+        if args[0] == "nix":
+            calls.append("nix")
+            raise WriteError("nix timed out", 3)
+        return subprocess.CompletedProcess(args, 0, b"", b"")
+
+    monkeypatch.setattr(deploy, "_git", lambda repo, *args, reason="": "")
+    monkeypatch.setattr(deploy, "_run", run)
+    for _ in range(automerge.CHECK_TRIES):
+        with pytest.raises(WriteError) as raised:
+            automerge.check_green(tmp_path, HEAD)
+        assert (raised.value.reason, raised.value.code) == (automerge.CHECK_RED, 1)
+    assert calls == ["nix"] * automerge.CHECK_TRIES
