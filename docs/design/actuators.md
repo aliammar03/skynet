@@ -18,9 +18,9 @@ plans and T3-excluded guests rather than attempting to make them reversible.
 | Actuator | Write path | Recovery on failure | Deterministic decision | A4 eligible |
 |---|---|---|---|---|
 | Compose deploy | `skynet deploy <svc>` / `--pending` (merged revisions only) | Automatic redeploy of the host's `verified` revision, `failed` marker, revert PR | Deployment verifier: every container at the `skynet.revision`, running, healthy; declared routes answer | Yes (A4) |
-| Existing-guest tofu update | `skynet tofu apply <stack>` / `--pending` (merged, hash-approved) | Proxmox snapshot before apply; on apply or verify failure, roll back every snapshot and restore the pre-apply state | Clean post-apply plan | No — eligible after live failure-case evidence |
-| Tofu guest create | `skynet tofu apply` (merged, hash-approved) | None; never auto-destroy a partial create; alerts | Clean post-apply plan | No |
-| Tofu non-guest write (DNS records, templates) | `skynet tofu apply` (merged, hash-approved) | None; alerts | Clean post-apply plan | No |
+| Existing-guest tofu update | `skynet tofu apply <stack>` / `--pending` (merged, hash-approved) | Proxmox snapshot before apply; on apply or verify failure, roll back every guest (continuing past a failure) to its snapshot and prior power state, observe it, then restore the pre-apply state; a failure is held in git | Clean post-apply plan | Yes (A4) |
+| Tofu guest create | `skynet tofu apply` (merged, hash-approved) | None; never auto-destroy a partial create; held in git and alerts | Clean post-apply plan | Unattended on merge; no automatic inverse |
+| Tofu non-guest write (DNS records, templates) | `skynet tofu apply` (merged, hash-approved) | None; held in git and alerts | Clean post-apply plan | Unattended on merge; no automatic inverse |
 | Authentik publish | `skynet publish <svc>` (additive provider/application/outpost binding) | Deletes only the objects the run created; restores the outpost's provider list | Anonymous probe redirects to the login | No |
 | Public route withdraw | `skynet withdraw <vhost> --confirm <vhost>` (git must no longer declare it) | Re-creates a deleted CNAME from its snapshot; Authentik objects are re-made by `publish` | Records absent after the run | No — a delete stays a hard checkpoint |
 | NixOS deployment | deploy-rs / `nixos-rebuild` | deploy-rs magic rollback | Activation health check | Yes |
@@ -41,7 +41,9 @@ OpenTofu 1.11.8; providers bpg/proxmox 0.111.1, cloudflare/cloudflare 5.24.0, ke
 0.4.0, each pinned by its stack's `.terraform.lock.hcl`. Each stack's state is encrypted (PBKDF2 +
 AES-GCM, passphrase from sops) at `/opt/skynet-ops/state/tofu/<stack>.tfstate` and mirrored, with
 `<stack>/applied.json` (revision, hash, operation), to the `tofu-state` branch. The branch is the
-truth: a missing local file is rebuilt from it.
+truth: a missing or stale local file is rebuilt from it, and a diverged one is refused. A held
+revision is `<stack>/held.json` on the same branch, so a hold survives an ops VM rebuild; a success
+clears it.
 
 | Stack | Inputs beyond `tofu/<stack>/` | Resources |
 |---|---|---|

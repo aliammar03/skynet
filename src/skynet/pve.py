@@ -1,8 +1,9 @@
 """Proxmox guest snapshots over the operate token: the rollback point for a Tofu guest update.
 
 `create`, `rollback`, and `delete` each start one Proxmox task and wait for it to stop with
-`OK`. The read-only token cannot snapshot, so a missing operate token fails closed: no snapshot,
-no apply. Callers refuse excluded guests before they get here. Reasons are fixed text, never
+`OK`. Proxmox leaves a rolled-back container stopped unless asked, so `rollback` restarts a guest
+that was running and then waits until it is observed running again. The read-only token cannot
+snapshot, so a missing operate token fails closed: no snapshot, no apply. Callers refuse excluded guests before they get here. Reasons are fixed text, never
 remote error bodies or token values.
 """
 
@@ -96,8 +97,24 @@ def create(guest: Guest, name: str) -> None:
     _wait(guest.node, _call(guest.node, "POST", _base(guest), fields))
 
 
-def rollback(guest: Guest, name: str) -> None:
-    _wait(guest.node, _call(guest.node, "POST", f"{_base(guest)}/{quote(name)}/rollback", {}))
+def status(guest: Guest) -> str:
+    """The guest's power state (`running`, `stopped`, ...)."""
+    data = _call(guest.node, "GET", f"nodes/{quote(guest.node)}/{guest.kind}/{guest.vmid}/status/current")
+    value = data.get("status") if isinstance(data, dict) else None
+    if not isinstance(value, str) or not value:
+        raise WriteError("Proxmox returned no guest status", UNAVAILABLE)
+    return value
+
+
+def rollback(guest: Guest, name: str, power: str) -> None:
+    """Return the guest to the snapshot and to its power state `power`, observed before success."""
+    fields = {"start": "1"} if power == "running" else {}
+    _wait(guest.node, _call(guest.node, "POST", f"{_base(guest)}/{quote(name)}/rollback", fields))
+    deadline = time.monotonic() + TASK_SECONDS
+    while status(guest) != power:
+        if time.monotonic() >= deadline:
+            raise WriteError(f"{guest} did not return to {power} after rollback", UNAVAILABLE)
+        time.sleep(POLL_SECONDS)
 
 
 def delete(guest: Guest, name: str) -> None:

@@ -65,6 +65,9 @@ class Fake:
         self.apply_error = False
         self.dirty = False
         self.snapshot_fail: set[int] = set()
+        self.rollback_fail: set[int] = set()
+        self.power: dict[int, str] = {}
+        self.holds: dict[str, dict[str, Any]] = {}
         self.record_error = False
         self.calls: list[Any] = []
         self.alerts: list[str] = []
@@ -87,11 +90,16 @@ def fake(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Fake:
         yield FakeSpace(host)
 
     def snapshot(action: str) -> Any:
-        def run(g: pve.Guest, name: str) -> None:
-            host.calls.append((action, g.vmid))
+        def run(g: pve.Guest, name: str, *power: str) -> None:
+            host.calls.append((action, g.vmid, *power))
             if action == "create" and g.vmid in host.snapshot_fail:
                 raise WriteError("Proxmox snapshot task failed", UNAVAILABLE)
+            if action == "rollback" and g.vmid in host.rollback_fail:
+                raise WriteError(f"{g} did not return to running after rollback", UNAVAILABLE)
         return run
+
+    def set_hold(repo: Path, stack: str, revision: str, reason: str, operation: str) -> None:
+        host.holds[stack] = {"revision": revision, "reason": reason}
 
     def record(repo: Path, ledger: Ledger, stack: str, record: dict[str, Any] | None, message: str) -> None:
         if host.record_error:
@@ -117,6 +125,9 @@ def fake(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Fake:
                         lambda repo, stack, ref="": host.inputs.get(stack.name))
     for action in ("create", "rollback", "delete"):
         monkeypatch.setattr(pve, action, snapshot(action))
+    monkeypatch.setattr(pve, "status", lambda g: host.power.get(g.vmid, "running"))
+    monkeypatch.setattr(tofu, "set_hold", set_hold)
+    monkeypatch.setattr(tofu, "held", lambda repo, stack: host.holds.get(stack, {}))
     monkeypatch.setattr(alert, "send", send)
     return host
 
@@ -239,9 +250,31 @@ def test_a_failed_guest_update_rolls_back_snapshots_and_state(fake: Fake, tmp_pa
     state.write_bytes(b"what apply wrote")
     operation = run(fake, tmp_path)
     assert (operation.outcome, operation.recovery) == ("rolled-back", "rolled-back")
-    assert ("rollback", 10030) in fake.calls and ("delete", 10030) in fake.calls
+    assert ("rollback", 10030, "running") in fake.calls and ("delete", 10030) in fake.calls
     assert state.read_bytes() == b"before"
     assert fake.alerts == [] and fake.recorded == []
+
+
+def test_rollback_restores_each_guests_prior_power_state(fake: Fake, tmp_path: Path) -> None:
+    fake.apply_error = True
+    fake.power = {10030: "running", 10031: "stopped"}
+    fake.plan = [guest(10030, cores=4), guest(10031, cores=4)]
+    fake.approve()
+    assert run(fake, tmp_path).outcome == "rolled-back"
+    assert ("rollback", 10030, "running") in fake.calls and ("rollback", 10031, "stopped") in fake.calls
+
+
+def test_one_failed_guest_rollback_still_rolls_back_the_rest(fake: Fake, tmp_path: Path) -> None:
+    fake.apply_error = True
+    fake.rollback_fail = {10031}
+    fake.plan = [guest(10030, cores=4), guest(10031, cores=4)]
+    fake.approve()
+    operation = run(fake, tmp_path)
+    assert operation.outcome == "rollback-failed" and "10031" in str(operation.reason)
+    assert ("rollback", 10030, "running") in fake.calls  # tried after 10031 failed
+    assert fake.recorded == [None]  # the partial state is recorded to git
+    assert not any(c[0] == "delete" for c in fake.calls if isinstance(c, tuple))  # snapshots kept
+    assert fake.holds["proxmox-core"]["revision"] == REV
 
 
 def test_a_failed_create_has_no_inverse_records_true_state_and_alerts(fake: Fake, tmp_path: Path) -> None:
@@ -251,7 +284,7 @@ def test_a_failed_create_has_no_inverse_records_true_state_and_alerts(fake: Fake
     operation = run(fake, tmp_path)
     assert operation.outcome == "rollback-failed"
     assert fake.recorded == [None]  # the state tofu wrote, without an applied record
-    assert ("rollback", 10030) not in fake.calls and ("delete", 10030) not in fake.calls  # kept
+    assert not any(c[0] in ("rollback", "delete") for c in fake.calls if isinstance(c, tuple))  # kept
     assert fake.alerts == ["skynet: tofu/proxmox-core rollback-failed"]
 
 
@@ -350,6 +383,43 @@ def test_an_interrupted_apply_holds_its_revision(fake: Fake, tmp_path: Path) -> 
     assert "apply" not in fake.calls
 
 
+def test_a_hold_survives_losing_local_state(fake: Fake, tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "state")
+    fake.apply_error = True
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    tofu.pending(tmp_path, ledger=ledger)
+    import shutil
+    shutil.rmtree(tmp_path / "state")  # an ops VM rebuilt from git
+    fake.calls.clear()
+    assert tofu.pending(tmp_path, ledger=Ledger(tmp_path / "state"))[0]["outcome"] == "held"
+    assert "apply" not in fake.calls
+
+
+def test_an_unreadable_hold_holds_everything(clone: Path) -> None:
+    tofu.write_branch(clone, {"proxmox-core/held.json": b"{not json"}, "corrupt")
+    assert tofu.is_held(clone, "proxmox-core", REV) and tofu.is_held(clone, "proxmox-core", NEW)
+
+
+def test_a_success_clears_the_hold(clone: Path) -> None:
+    tofu.set_hold(clone, "s", REV, "failed", "op1")
+    assert tofu.is_held(clone, "s", REV)
+    tofu.record_state(clone, "s", b"v2", {"revision": NEW}, "applied")
+    assert tofu.held(clone, "s") == {}
+
+
+def test_settlement_waits_for_a_running_write(fake: Fake, tmp_path: Path,
+                                             monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger = Ledger(tmp_path / "state")
+    monkeypatch.setattr(Ledger, "wait", 0.05)
+    running = Operation("tofu", "tofu/proxmox-core", REV, context={"stack": "proxmox-core"})
+    ledger.append(running.record("started"))
+    with ledger.lock():  # the apply is still running
+        assert tofu.settle_interrupted(tmp_path, ledger) == []
+    assert [e["id"] for e in ledger.unfinished("tofu")] == [running.id]
+    assert fake.recorded == [] and fake.alerts == []
+
+
 def test_an_unplannable_revision_is_retried_then_held(fake: Fake, tmp_path: Path,
                                                       monkeypatch: pytest.MonkeyPatch) -> None:
     ledger = Ledger(tmp_path / "state")
@@ -445,6 +515,17 @@ def test_a_local_file_without_a_base_beside_branch_state_is_refused(clone: Path,
         tofu.sync_state(clone, ledger, "proxmox-core")
 
 
+def test_settlement_never_pushes_a_stale_cache(clone: Path, tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "state")
+    tofu.record_state(clone, "proxmox-core", b"v1", {"revision": REV}, "first")
+    tofu.sync_state(clone, ledger, "proxmox-core")
+    tofu.record_state(clone, "proxmox-core", b"v2", {"revision": NEW}, "newer")
+    with pytest.raises(WriteError, match="older than the branch"):
+        tofu._record(clone, ledger, "proxmox-core", None, "interrupted")
+    assert tofu.branch_state(clone, "proxmox-core") == b"v2"
+    assert tofu.applied(clone, "proxmox-core") == {"revision": NEW}
+
+
 def test_an_unchanged_record_makes_no_commit(clone: Path) -> None:
     first = tofu.record_state(clone, "s", b"v1", {"revision": REV}, "first")
     assert tofu.record_state(clone, "s", b"v1", {"revision": REV}, "again") == first
@@ -480,7 +561,41 @@ def test_a_vm_snapshot_keeps_ram_and_a_failed_task_fails(monkeypatch: pytest.Mon
     assert calls[0][2] and calls[0][2]["vmstate"] == "1"
     status["exitstatus"] = "snapshot failed"
     with pytest.raises(WriteError, match="task failed"):
-        pve.rollback(pve.Guest(CORE, "lxc", 10030), "skynet-x")
+        pve.rollback(pve.Guest(CORE, "lxc", 10030), "skynet-x", "stopped")
+
+
+def test_a_running_container_is_restarted_and_observed_running(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, str, Any]] = []
+    states = iter(["stopped", "running"])  # still starting on the first look
+
+    def call(node: str, method: str, path: str, fields: dict[str, str] | None = None) -> Any:
+        calls.append((method, path, fields))
+        if path.endswith("/tasks/UPID%3Anode%3A1/status"):
+            return {"status": "stopped", "exitstatus": "OK"}
+        if path.endswith("/status/current"):
+            return {"status": next(states)}
+        return "UPID:node:1"
+
+    monkeypatch.setattr(pve, "_call", call)
+    monkeypatch.setattr(pve, "POLL_SECONDS", 0)
+    pve.rollback(pve.Guest(CORE, "lxc", 10030), "skynet-x", "running")
+    assert calls[0][1].endswith("/snapshot/skynet-x/rollback") and calls[0][2] == {"start": "1"}
+    assert [c for c in calls if c[1].endswith("/status/current")] and next(states, None) is None
+
+
+def test_a_container_that_does_not_come_back_fails_the_rollback(monkeypatch: pytest.MonkeyPatch) -> None:
+    def call(node: str, method: str, path: str, fields: dict[str, str] | None = None) -> Any:
+        if "/tasks/" in path:
+            return {"status": "stopped", "exitstatus": "OK"}
+        if path.endswith("/status/current"):
+            return {"status": "stopped"}
+        return "UPID:node:1"
+
+    monkeypatch.setattr(pve, "_call", call)
+    monkeypatch.setattr(pve, "POLL_SECONDS", 0)
+    monkeypatch.setattr(pve, "TASK_SECONDS", 0)
+    with pytest.raises(WriteError, match="did not return to running"):
+        pve.rollback(pve.Guest(CORE, "lxc", 10030), "skynet-x", "running")
 
 
 def test_missing_operate_credentials_fail_closed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

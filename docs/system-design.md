@@ -80,9 +80,17 @@ These are current settings, changed only by a PR here.
   (`bin/check`) and the pre-commit hook are the automated evidence. The generated-only nightly auto-merge capability
   from [ADR 0004](decisions/0004-auto-merge-generated-only-nightly-prs.md) is suspended and fails
   closed. Review weight follows the Light/Full tiers in [construction](conventions/construction.md).
-- **Autonomy:** one A4 capability — `skynet deploy` of a human-merged service revision. Its
-  automatic return to the last verified revision is failure-tested in the local suite and was
-  drilled live ([ADR 0008](decisions/0008-git-model-for-docker-and-opentofu.md), SKY-025 P13).
+- **Autonomy:** two executors act unattended on a human merge
+  ([ADR 0008](decisions/0008-git-model-for-docker-and-opentofu.md)):
+  - `skynet deploy` of a human-merged service revision (A4). Its automatic return to the last
+    verified revision is failure-tested in the local suite and was drilled live (SKY-025 P13).
+  - `skynet tofu apply --pending` of a human-merged stack whose re-plan matches the PR's approved
+    hash (SKY-025 P15). Existing-guest updates are A4: snapshotted, rolled back to their prior power
+    state, and verified. Creates and DNS-record writes are applied unattended because the merge
+    approved that exact effect, but they have no automatic inverse: a failure records the true
+    state, holds the revision in git, and alerts; it is never retried or auto-destroyed.
+    Delete/replace/forget and excluded guests are refused at every level.
+
   Everything else is report-only; a promotion needs failure-case tests in the local suite plus
   recorded live evidence, and a human-merged change to this section.
 - **Survival:** verify the survival kit quarterly and drill `disable tokens + qm stop 9090` before
