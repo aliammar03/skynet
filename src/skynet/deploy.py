@@ -538,6 +538,14 @@ def effect(old: dict[str, Any] | None, new: dict[str, Any]) -> list[tuple[str, s
     return rows
 
 
+def release_changes(repo: Path, service: str, base: str, candidate: str) -> list[str]:
+    """Mounted files (Caddyfile, config.yml, …) that differ; compose and env show in the table."""
+    names = _git(repo, "diff", "--name-only", base, candidate, "--", f"compose/{service}/").splitlines()
+    prefix = f"compose/{service}/"
+    return sorted(name[len(prefix):] for name in names
+                  if name.startswith(prefix) and name[len(prefix):] not in {"compose.yaml"} | SKIPPED_FILES)
+
+
 def dry_run(repo: Path, service: str, ref: str, *, context: str) -> str:
     """The Markdown effect table a PR carries: base (what runs) → candidate (the PR's commit)."""
     candidate = resolve(repo, ref)
@@ -555,6 +563,9 @@ def dry_run(repo: Path, service: str, ref: str, *, context: str) -> str:
     new = render(repo, service, candidate)
     old = render(repo, service, base) if base else None
     rows = effect(old.model if old else None, new.model)
+    if base:
+        rows += [("(files)", f"changed: {', '.join(names)}")
+                 for names in [release_changes(repo, service, base, candidate)] if names]
     lines = [f"### Deploy effect: `{service}`",
              f"base `{base[:12] if base else 'none'}` ({base_source}) → candidate `{candidate[:12]}`", ""]
     if rows:

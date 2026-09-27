@@ -1,0 +1,60 @@
+name: paperless-ngx
+
+# paperless-ngx — document archive with OCR. Own login (admin bootstrapped from .env.sops),
+# served internally at paperless.aliammar.net via apps-Caddy. SQLite in the data dir; redis is
+# only the task broker (no persistence). Canonical rules: docs/conventions/compose.md.
+
+x-arcane:
+  tags:
+    - name: documents
+      color: brown
+
+services:
+  paperless:
+    image: ghcr.io/paperless-ngx/paperless-ngx:3.2.1@sha256:5fa76604a81df6945086e0837b14b56543d137e8ce4f311cc5d9ebe907e74e79
+    hostname: paperless
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:             # / answers 302 to the login once the app is up; first boot migrates
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 180s
+    restart: unless-stopped
+    volumes:
+      - /opt/docker/appdata/paperless-ngx/data:/usr/src/paperless/data
+      - /opt/docker/appdata/paperless-ngx/media:/usr/src/paperless/media
+      - /opt/docker/appdata/paperless-ngx/consume:/usr/src/paperless/consume
+      - /opt/docker/appdata/paperless-ngx/export:/usr/src/paperless/export
+    networks:
+      backend:
+      dmz:
+        ipv4_address: 10.10.100.78   # static; apps-Caddy reverse_proxy target
+    dns:
+      - 10.10.70.50
+      - 10.10.70.51
+
+  redis:
+    image: docker.io/library/redis:8.10.2-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+    command: ["redis-server", "--save", "", "--appendonly", "no"]   # broker only; nothing to keep
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - backend
+
+networks:
+  backend:
+  dmz:
+    external: true
+    name: dmz
