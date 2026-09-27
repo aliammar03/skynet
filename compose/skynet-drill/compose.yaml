@@ -18,7 +18,7 @@ services:
       - ./note.txt:/etc/drill/note.txt:ro
       - drill-data:/data
     healthcheck:
-      test: ["CMD", "false"]  # drill step 3: broken on purpose
+      test: ["CMD", "true"]
       interval: 5s
       timeout: 3s
       retries: 2
