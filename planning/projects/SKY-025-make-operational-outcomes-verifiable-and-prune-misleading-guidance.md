@@ -50,10 +50,13 @@ matches, refuses delete/replace/forget, excluded guests, and foreign types, snap
 through `pve.py`, and mirrors encrypted state to the `tofu-state` branch. `skynet tofu drift` feeds
 the nightly. `tofu-env.sh`, `tofu-apply.sh`, and `pve-snapshot.sh` are deleted. Live, 2026-09-27:
 the monolith's plan showed two code-vs-live drifts (CT 240 `startup order=2`, template 9000's
-description); both are now declared to match live. **Waiting on:** the one-time state split into
-`/opt/skynet-ops/state/tofu/<stack>.tfstate`, which is state-only and run by Ali; the legacy state
-is copied to `legacy/`. Then the zero-change plans, the first recorded apply (which bootstraps
-`tofu-state`), and the exit drills.
+description); both are now declared to match live. The state split ran (a state-only `state rm` per
+stack on copies of the legacy root state, which is kept in `legacy/`): proxmox-core 5, technitium-dns
+21, cloudflare-dns 6 addresses, and all three stacks plan to **zero changes**. **After merge and an
+ops VM rebuild:** the first timer pass records the empty plans and creates `tofu-state`. Then come
+the drill PRs: a wrong approved hash is held and alerts, a rejected athena `cores` value rolls back
+from its snapshot, and a deleted local state is rebuilt from git. The phase box is ticked by the
+last drill.
 
 This block, the phase boxes, and the frontmatter are the **only** progress record. Each phase PR
 updates them itself; merge is completion ([construction](../../docs/conventions/construction.md)).
