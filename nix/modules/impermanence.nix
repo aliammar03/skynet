@@ -14,6 +14,11 @@
     neededForBoot = true;
   };
 
+  # /tmp is its own RAM-backed tmpfs, larger than the root one: dev-shell and test runs need room.
+  # Still wiped every boot; tmpfs uses RAM only as it fills.
+  boot.tmp.useTmpfs = true;
+  boot.tmp.tmpfsSize = "6G";
+
   environment.persistence."/nix/persist" = {
     hideMounts = true;
     directories = [
