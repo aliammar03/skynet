@@ -17,7 +17,7 @@ services:
     volumes:
       - ./note.txt:/etc/drill/note.txt:ro
     healthcheck:
-      test: ["CMD", "true"]
+      test: ["CMD", "false"]
       interval: 5s
       timeout: 3s
       retries: 2
