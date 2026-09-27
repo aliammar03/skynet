@@ -192,6 +192,13 @@ Recorded in `docs/design/gitops-loop.md` (13), `docs/design/observability.md` (1
 7. A service removed from `compose/` is retired by the executor, not by hand: `--pending` takes
    down a project whose `skynet.service` label has no `compose/<svc>/` on `main` (a recorded,
    verified write), and prunes its releases and host facts.
+8. The executor's revert PR merges itself — the first entry on the AGENTS.md §3 auto-approve list.
+   A gate merges it only when every check holds: the executor opened it (branch
+   `revert/<svc>-<rev>`), it changes nothing outside `compose/<svc>/`, its tree for that directory
+   is byte-identical to the host's `verified` revision (a state Ali already merged and the executor
+   verified), `main` has not moved past the failed revision for that service, and `bin/check` is
+   green. Anything else stays open for Ali. Adding the list entry and the gate edits AGENTS.md §3
+   and `docs/system-design.md` — human-merged in the Phase 14 PR.
 
 ### Phase 15 — OpenTofu under ADR 0008   `[ ]` · review: Full
 
