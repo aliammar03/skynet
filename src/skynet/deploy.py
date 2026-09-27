@@ -769,7 +769,7 @@ def run_deploy(repo: Path, service: str | None, *, revision: str | None, dry_run
             if if_moved:  # the timer: reported outcomes are not unit failures; a crash (1) is,
                 # and so is trigger state it cannot keep (nothing else would alert on it)
                 if any(r.get("target") == TRIGGER and r.get("outcome") == "unrecorded"
-                       for r in results):
+                       for r in results) or any(alert_failed(r) for r in results):
                     return FAILED
                 return writepath.ROLLBACK_FAILED if writepath.ROLLBACK_FAILED in codes else 0
             return max(codes, default=0)
@@ -781,6 +781,12 @@ def run_deploy(repo: Path, service: str | None, *, revision: str | None, dry_run
     result = writepath.report(deploy(repo, service, revision=revision, context=context, ledger=ledger))
     writepath.emit(result, json_output, stdout)
     return int(result["code"])
+
+
+def alert_failed(result: dict[str, Any]) -> bool:
+    """An outcome that needed a human (rollback-failed, unrecorded) whose push did not go out."""
+    return any(step.get("step") == "alert" and step.get("outcome") == "failed"
+               for step in result.get("steps", []))
 
 
 def observe(repo: Path, service: str, context: str, revision: str | None = None) -> dict[str, Any]:

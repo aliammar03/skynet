@@ -32,6 +32,8 @@ from skynet.writepath import FAILED, UNAVAILABLE, USAGE, Ledger, Operation, Writ
 BRANCH = re.compile(r"revert/([A-Za-z0-9][A-Za-z0-9_.-]*)-([0-9a-f]{12})")
 CHECK_SECONDS = 900.0
 CHECK_TRIES = 3
+NOT_MERGED = "gh pr merge failed; the PR did not merge"
+MERGE_UNKNOWN = "gh pr merge failed and whether the PR merged is unknown"
 MIXED = "the squash commit's service tree is not the verified tree (main moved during the merge)"
 CHECK_RED = "bin/check did not pass on the PR head (red, timed out, or could not run)"
 
@@ -149,14 +151,14 @@ def landed_as_verified(repo: Path, merge: str, service: str, verified: str) -> N
         raise WriteError(MIXED, FAILED)
 
 
-def landed(repo: Path, number: int) -> bool:
-    """After `gh pr merge` failed: did it merge anyway? Unknown counts as yes."""
+def pr_state(repo: Path, number: int) -> str | None:
+    """OPEN, CLOSED, or MERGED; None when GitHub can't say."""
     try:
         state = deploy._ok(["gh", "pr", "view", str(number), "--json", "state", "--jq", ".state"],
                            "PR state unavailable", cwd=repo).decode().strip()
     except WriteError:
-        return True
-    return state != "OPEN"
+        return None
+    return state if state in {"OPEN", "CLOSED", "MERGED"} else None
 
 
 def refused_before(ledger: Ledger, target: str, oid: str) -> bool:
@@ -194,12 +196,23 @@ def merge_one(repo: Path, pr: dict[str, Any], *, context: str, ledger: Ledger,
     def preflight() -> None:  # re-check under the lock, against a freshly fetched main
         nonlocal verified
         verified = gate(repo, pr, context=context, executor=executor)[2]
+        if pr_state(repo, number) != "OPEN":  # Ali may have closed it to fix forward
+            raise WriteError("PR is no longer open", USAGE)
 
     def execute(_: None) -> None:
         nonlocal merge_sent
         merge_sent = True  # from here a failure may leave a merged PR: rollback must not pass it
-        deploy._ok(["gh", "pr", "merge", str(number), "--squash", "--delete-branch",
-                    "--match-head-commit", oid], "gh pr merge failed", FAILED, cwd=repo)
+        try:
+            deploy._ok(["gh", "pr", "merge", str(number), "--squash", "--delete-branch",
+                        "--match-head-commit", oid], "gh pr merge failed", FAILED, cwd=repo)
+        except WriteError as error:
+            state = pr_state(repo, number)
+            if state == "MERGED":  # it landed (the error was e.g. the branch delete): verify it
+                operation.note("merge", "ok", f"landed despite: {error.reason}")
+                return
+            if state in {"OPEN", "CLOSED"} and not error.reason.endswith("timed out"):
+                raise WriteError(NOT_MERGED, FAILED) from None
+            raise WriteError(MERGE_UNKNOWN, FAILED) from None
 
     def verify(_: None) -> dict[str, Any]:
         state, _space, merge = deploy._ok(
@@ -213,9 +226,8 @@ def merge_one(repo: Path, pr: dict[str, Any], *, context: str, ledger: Ledger,
 
     def rollback(_: None, error: WriteError) -> str:
         """Only a merge that surely did not happen is safe to leave. A merge that landed, or may
-        have (a timeout, a failed check after it), is unverified: rollback-failed, which alerts,
-        because a bot never undoes a merge."""
-        if merge_sent and not (error.reason == "gh pr merge failed" and not landed(repo, number)):
+        have, and is not verified is rollback-failed, which alerts: a bot never undoes a merge."""
+        if merge_sent and error.reason != NOT_MERGED:
             raise WriteError("merge landed or may have, but is not verified; check main by hand")
         return "not-needed"
 

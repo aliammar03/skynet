@@ -492,6 +492,21 @@ def test_a_pass_that_raises_backs_off_too(
     assert deploy.pending_if_moved(tmp_path, context="c", ledger=ledger, now=1030.0) is None
 
 
+def test_a_needed_alert_that_failed_fails_the_unit(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """rollback-failed normally exits 4 (alerted); if its push failed, exit 1 fires OnFailure."""
+    import io as _io
+
+    from skynet import automerge
+    result = {"target": "svc/demo", "outcome": "rollback-failed", "code": 4,
+              "steps": [{"step": "alert", "outcome": "failed", "detail": "no credentials"}]}
+    monkeypatch.setattr(deploy, "pending_if_moved", lambda repo, context, ledger: [result])
+    monkeypatch.setattr(automerge, "run", lambda repo, context, ledger: [])
+    assert deploy.run_deploy(tmp_path, None, revision=None, dry_run_ref=None, pending_all=True,
+                             context="c", state_dir=tmp_path, json_output=False,
+                             stdout=_io.StringIO(), if_moved=True) == 1
+
+
 @pytest.mark.parametrize("codes, timer_exit", [([0, 1, 2, 3], 0), ([1, 4], 4), ([], 0)])
 def test_the_timer_exits_zero_for_recorded_outcomes(
         tmp_path: Path, monkeypatch: pytest.MonkeyPatch, codes: list[int], timer_exit: int) -> None:

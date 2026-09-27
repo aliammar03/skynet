@@ -28,8 +28,15 @@ class Hub:
         self.fetches = 0
         self.main_after_check: str | None = None  # a fix Ali merges while bin/check runs
         self.merge_fails = False
-        self.merge_times_out = False
+        self.merge_times_out = False           # it landed, but the client never heard back
+        self.merge_times_out_unlanded = False
+        self.merge_errors_after_landing = False  # squash done, --delete-branch failed
         self.view_fails_after_merge = False
+        self.state_unknown = False             # GitHub can't say, once a merge was attempted
+        self.merge_attempted = False
+        self.closed = False
+        self.close_during_check = False
+        self.close_during_merge = False
 
 
 @pytest.fixture
@@ -38,21 +45,33 @@ def hub(monkeypatch: pytest.MonkeyPatch) -> Hub:
 
     def ok(args: list[str], reason: str, code: int = 3, **kwargs: Any) -> bytes:
         if args[:3] == ["gh", "pr", "merge"]:
-            if fake.merge_times_out:
-                fake.merged.append(args)  # it landed, but the client never heard back
+            fake.merge_attempted = True
+            if fake.close_during_merge:
+                fake.closed = True
+                raise WriteError(reason, code)
+            if fake.merge_times_out_unlanded:
                 raise WriteError("gh timed out", 3)
             if fake.merge_fails:
                 raise WriteError(reason, code)
             fake.merged.append(args)
+            if fake.merge_times_out:
+                raise WriteError("gh timed out", 3)
+            if fake.merge_errors_after_landing:
+                raise WriteError(reason, code)
             return b""
         if args[:3] == ["gh", "pr", "view"]:
-            if fake.merged and fake.view_fails_after_merge and "state,mergeCommit" in args:
+            if "state,mergeCommit" in args:
+                if fake.merged and fake.view_fails_after_merge:
+                    raise WriteError(reason, code)
+                return f"MERGED {MERGE}\n".encode() if fake.merged else b"OPEN \n"
+            if fake.state_unknown and fake.merge_attempted:
                 raise WriteError(reason, code)
-            return f"MERGED {MERGE}\n".encode() if fake.merged else b"OPEN \n"
+            return (b"MERGED\n" if fake.merged else b"CLOSED\n" if fake.closed else b"OPEN\n")
         raise AssertionError(args)
 
     def check_green(repo: Path, oid: str) -> None:
         fake.checks += 1
+        fake.closed = fake.closed or fake.close_during_check
         if fake.main_after_check:
             fake.pending_main = fake.main_after_check
         if not fake.green:
@@ -228,13 +247,18 @@ def test_a_squash_that_mixed_in_a_concurrent_fix_alerts_as_rollback_failed(
     assert automerge.MIXED in result["reason"] and pushed == ["skynet: pr/7 rollback-failed"]
 
 
-@pytest.mark.parametrize("breaks", ["merge_times_out", "view_fails_after_merge"])
-def test_a_merge_that_landed_but_was_not_verified_alerts(
-        hub: Hub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, breaks: str) -> None:
-    """A blip after the merge must not skip the landed-tree check silently."""
+def _pushes(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     pushed: list[str] = []
     monkeypatch.setattr(writepath.alert, "send",
                         lambda title, message, priority=0, path=None: pushed.append(title))
+    return pushed
+
+
+@pytest.mark.parametrize("breaks", ["view_fails_after_merge", "merge_times_out_unlanded"])
+def test_a_merge_that_may_have_landed_unverified_alerts(
+        hub: Hub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, breaks: str) -> None:
+    """A blip after the merge, or a timeout GitHub can't settle, never passes silently."""
+    pushed = _pushes(monkeypatch)
     setattr(hub, breaks, True)
     [result] = _run(tmp_path)
     assert (result["outcome"], result["code"]) == ("rollback-failed", 4)
@@ -242,7 +266,45 @@ def test_a_merge_that_landed_but_was_not_verified_alerts(
     assert pushed == ["skynet: pr/7 rollback-failed"]
 
 
+def test_merge_state_unknown_after_a_failed_merge_alerts(
+        hub: Hub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    pushed = _pushes(monkeypatch)
+    hub.merge_fails = hub.state_unknown = True
+    [result] = _run(tmp_path)
+    assert result["outcome"] == "rollback-failed" and automerge.MERGE_UNKNOWN in result["reason"]
+    assert pushed == ["skynet: pr/7 rollback-failed"]
+
+
+@pytest.mark.parametrize("breaks", ["merge_times_out", "merge_errors_after_landing"])
+def test_a_merge_that_landed_despite_an_error_is_verified_not_paged(
+        hub: Hub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, breaks: str) -> None:
+    """The squash landed (the error was a timeout or the branch delete): check its tree."""
+    pushed = _pushes(monkeypatch)
+    setattr(hub, breaks, True)
+    [result] = _run(tmp_path)
+    assert result["outcome"] == "success" and pushed == []
+    assert any(step["step"] == "merge" and "landed despite" in step.get("detail", "")
+               for step in result["steps"])
+
+
 def test_a_merge_that_surely_did_not_land_is_safe_to_retry(hub: Hub, tmp_path: Path) -> None:
     hub.merge_fails = True
     [result] = _run(tmp_path)
     assert (result["outcome"], result["recovery"]) == ("failed", "not-needed")
+
+
+def test_a_pr_closed_while_bin_check_ran_is_refused_quietly(
+        hub: Hub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    pushed = _pushes(monkeypatch)
+    hub.close_during_check = True
+    [result] = _run(tmp_path)
+    assert (result["outcome"], result["reason"]) == ("refused", "PR is no longer open")
+    assert hub.merged == [] and pushed == []
+
+
+def test_a_pr_closed_during_the_merge_is_not_a_page(
+        hub: Hub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    pushed = _pushes(monkeypatch)
+    hub.close_during_merge = True
+    [result] = _run(tmp_path)
+    assert (result["outcome"], result["recovery"]) == ("failed", "not-needed") and pushed == []
