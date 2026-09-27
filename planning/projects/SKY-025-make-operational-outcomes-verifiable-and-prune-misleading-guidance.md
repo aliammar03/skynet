@@ -186,6 +186,12 @@ Recorded in `docs/design/gitops-loop.md` (13), `docs/design/observability.md` (1
    line format (`<target>@<rev>: <outcome> — <reason>`), and `skynet log` reads the record
    (filter by target, kind, outcome). A `rollback-failed` or `unrecorded` outcome alerts through
    the Phase 14 channel.
+6. Merge-to-deploy in ~30 s without an inbound path: the timer checks `git ls-remote origin main`
+   every 30 s and runs `skynet deploy --pending` only when `main` moved (no webhook — nothing
+   internet-facing reaches the ops VM).
+7. A service removed from `compose/` is retired by the executor, not by hand: `--pending` takes
+   down a project whose `skynet.service` label has no `compose/<svc>/` on `main` (a recorded,
+   verified write), and prunes its releases and host facts.
 
 ### Phase 15 — OpenTofu under ADR 0008   `[ ]` · review: Full
 
