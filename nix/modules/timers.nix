@@ -41,7 +41,8 @@ in
       WorkingDirectory = repo;
       ExecStart = "/run/current-system/sw/bin/skynet deploy --pending --if-moved --repo ${repo}";
       # --if-moved exits 0 for every outcome the pass records itself and 4 for rollback-failed
-      # (already alerted), so a crash (Python exits 1), a timeout, or a kill fires OnFailure.
+      # (already alerted), so a crash (Python exits 1), unwritable trigger state (1), a timeout,
+      # or a kill fires OnFailure.
       SuccessExitStatus = [ 4 ];
       TimeoutStartSec = "60m";
     };

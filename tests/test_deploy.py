@@ -506,3 +506,25 @@ def test_the_timer_exits_zero_for_recorded_outcomes(
                                   context="c", state_dir=tmp_path, json_output=False)
     assert deploy.run_deploy(tmp_path, None, stdout=_io.StringIO(), if_moved=True,
                              **kwargs) == timer_exit
+
+
+def test_unwritable_trigger_state_prints_the_pass_and_fails_the_unit(
+        host: FakeHost, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The pass's results still print and automerge still runs; exit 1 fires OnFailure."""
+    import io as _io
+
+    from skynet import automerge
+    blocker = tmp_path / "state"
+    blocker.write_text("")  # a file where the state directory should be: every write fails
+    monkeypatch.setattr(deploy, "remote_main", lambda repo: NEW)
+    monkeypatch.setattr(deploy, "pending", lambda repo, context, ledger: [
+        {"target": "svc/demo", "source": NEW, "outcome": "success", "code": 0}])
+    merged: list[int] = []
+    monkeypatch.setattr(automerge, "run", lambda repo, context, ledger: merged.append(1) or [])
+    out = _io.StringIO()
+    code = deploy.run_deploy(tmp_path, None, revision=None, dry_run_ref=None, pending_all=True,
+                             context="c", state_dir=blocker, json_output=False, stdout=out,
+                             if_moved=True)
+    assert code == 1 and merged == [1]
+    assert f"svc/demo@{NEW[:12]}: success" in out.getvalue()
+    assert "trigger: unrecorded — trigger state unwritable" in out.getvalue()

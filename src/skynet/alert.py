@@ -53,13 +53,17 @@ def credentials(path: Path | None = None, required: tuple[str, ...] = _KEYS) -> 
 
 def _ping_target(url: str) -> tuple[str, str]:
     """`https://<host>/<path>` only: no userinfo, port, query, or fragment."""
-    parts = urllib.parse.urlsplit(url)
-    if (parts.scheme != "https" or not parts.hostname or parts.port is not None
-            or parts.username or parts.password or parts.query or parts.fragment
-            or not common.valid_host(parts.hostname) or not parts.path.startswith("/")
-            or not common.printable(parts.path)):
+    try:  # urlsplit and .port raise ValueError on a bad port or bracketed host
+        parts = urllib.parse.urlsplit(url)
+        bad = (parts.scheme != "https" or not parts.hostname or parts.port is not None
+               or parts.username or parts.password or parts.query or parts.fragment
+               or not common.valid_host(parts.hostname) or not parts.path.startswith("/")
+               or not common.printable(parts.path))
+    except ValueError:
+        bad = True
+    if bad:
         raise AlertError("invalid alert credential assignments")
-    return parts.hostname, parts.path.rstrip("/")
+    return str(parts.hostname), parts.path.rstrip("/")
 
 
 def _connection(host: str) -> http.client.HTTPSConnection:

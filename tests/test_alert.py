@@ -25,6 +25,7 @@ def _good(tmp_path: Path, url: str = URL) -> Path:
 @pytest.mark.parametrize("url", [
     "http://hc-ping.com/x", "https://user:pw@hc-ping.com/x", "https://hc-ping.com:8443/x",
     "https://hc-ping.com/x?y=1", "https://hc-ping.com",
+    "https://hc-ping.com:abc/x", "https://hc-ping.com:99999/x", "https://[x/x",
 ])
 def test_ping_url_must_be_plain_https(tmp_path: Path, url: str) -> None:
     with pytest.raises(alert.AlertError):
@@ -75,3 +76,9 @@ def test_a_missing_or_bad_ping_url_never_blocks_a_push(
     path = _file(tmp_path, f"PUSHOVER_TOKEN={TOKEN}\nPUSHOVER_USER={USER}\n{ping_line}")
     assert alert.send("skynet: svc/demo", "DOWN", path=path) is None
     assert alert.ping(path=path) is not None  # only the ping itself fails
+
+
+def test_a_malformed_ping_url_is_a_reason_never_a_crash(tmp_path: Path) -> None:
+    path = _file(tmp_path, f"PUSHOVER_TOKEN={TOKEN}\nPUSHOVER_USER={USER}\n"
+                           "HEALTHCHECK_URL=https://hc-ping.com:abc/x\n")
+    assert alert.ping(path=path) == "invalid alert credential assignments"

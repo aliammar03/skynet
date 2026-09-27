@@ -47,6 +47,7 @@ FACTS = ("verified", "failed")
 SERVICE_LABEL = "skynet.service"
 STALE_PASS_SECONDS = 15 * 60
 RETRY_SECONDS = 60
+TRIGGER = "trigger"
 SKIPPED_FILES = {".env.git", ".env.sops"}
 _KEY = re.compile(r"\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=")
 _MANUAL = re.compile(r"^x-skynet:[ \t]*(?:#.*)?\n(?:[ \t]+.*\n)*?[ \t]+deploy:[ \t]*manual[ \t]*(?:#.*)?$",
@@ -523,8 +524,9 @@ def pending_if_moved(repo: Path, *, context: str, ledger: Ledger,
     try:
         common.atomic_write_text(path, json.dumps({"head": head, "due": due,
                                                    "failures": failures}) + "\n")
-    except OSError:
-        raise WriteError("trigger state unwritable", UNAVAILABLE) from None
+    except OSError:  # the pass ran and is reported; the unit must fail so this alerts
+        results.append({"target": TRIGGER, "outcome": "unrecorded", "code": UNAVAILABLE,
+                        "reason": "trigger state unwritable; every tick will run a full pass"})
     return results
 
 
@@ -764,7 +766,11 @@ def run_deploy(repo: Path, service: str | None, *, revision: str | None, dry_run
             for result in results:
                 writepath.emit(result, json_output, stdout)
             codes = [int(r.get("code", 0)) for r in results]
-            if if_moved:  # the timer: reported outcomes are not unit failures; a crash (1) is
+            if if_moved:  # the timer: reported outcomes are not unit failures; a crash (1) is,
+                # and so is trigger state it cannot keep (nothing else would alert on it)
+                if any(r.get("target") == TRIGGER and r.get("outcome") == "unrecorded"
+                       for r in results):
+                    return FAILED
                 return writepath.ROLLBACK_FAILED if writepath.ROLLBACK_FAILED in codes else 0
             return max(codes, default=0)
     except WriteError as error:
