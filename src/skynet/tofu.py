@@ -20,6 +20,7 @@ ADR 0008, OpenTofu half. One stack per actuator; the directory is the scope.
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import os
 import subprocess
@@ -44,6 +45,8 @@ PLAN_FILE = "skynet.tfplan"
 GUEST_TYPES = {"proxmox_virtual_environment_container": "lxc", "proxmox_virtual_environment_vm": "qemu"}
 REFUSED_ACTIONS = {"delete", "forget"}
 HOLD_AFTER_FAILURES = 3
+# Outcomes after a write ran: retrying could disrupt guests again or repeat a partial create.
+HELD_OUTCOMES = frozenset({"failed", "rolled-back", "rollback-failed"})
 MISMATCH = "plan differs from the approved plan (drift or an unapproved change); re-plan in a new PR"
 NO_APPROVAL = "plan has changes but the merged revision carries no approved-plan.json"
 
@@ -116,20 +119,31 @@ STACKS = {stack.name: stack for stack in (
 
 # --- the normalized change -------------------------------------------------------------------
 
-def _mask(value: Any, sensitive: Any) -> Any:
+def _commit(value: Any, secret: bytes) -> str:
+    """A keyed commitment to a sensitive value: it changes when the value changes, and without the
+    key it cannot be brute-forced back to the value."""
+    if not secret:
+        raise WriteError("plan has sensitive values but no commitment key; cannot compare safely",
+                         UNAVAILABLE)
+    canonical = json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+    return "(sensitive:" + hmac.new(secret, canonical, hashlib.sha256).hexdigest() + ")"
+
+
+def _mask(value: Any, sensitive: Any, secret: bytes) -> Any:
     if sensitive is True:
-        return "(sensitive)"
+        return _commit(value, secret)
     if isinstance(value, dict) and isinstance(sensitive, dict):
-        return {key: _mask(item, sensitive.get(key)) for key, item in value.items()}
+        return {key: _mask(item, sensitive.get(key), secret) for key, item in value.items()}
     if isinstance(value, list) and isinstance(sensitive, list):
-        return [_mask(item, sensitive[index] if index < len(sensitive) else None)
+        return [_mask(item, sensitive[index] if index < len(sensitive) else None, secret)
                 for index, item in enumerate(value)]
     return value
 
 
-def changes(plan: dict[str, Any]) -> list[dict[str, Any]]:
+def changes(plan: dict[str, Any], secret: bytes = b"") -> list[dict[str, Any]]:
     """Every resource change that does something (moves and imports included), in address order.
-    `before` is left out: it is refresh noise, not the effect."""
+    `before` is left out: it is refresh noise, not the effect. Sensitive values become keyed
+    commitments (`secret`), so the hash follows them without the plan revealing them."""
     found = []
     for entry in plan.get("resource_changes") or []:
         change = entry.get("change") or {}
@@ -140,7 +154,7 @@ def changes(plan: dict[str, Any]) -> list[dict[str, Any]]:
         found.append({
             "address": entry.get("address"), "previous_address": moved, "type": entry.get("type"),
             "actions": actions, "importing": bool(importing),
-            "after": _mask(change.get("after"), change.get("after_sensitive")),
+            "after": _mask(change.get("after"), change.get("after_sensitive"), secret),
             "after_unknown": change.get("after_unknown"),
         })
     return sorted(found, key=lambda item: str(item["address"]))
@@ -280,7 +294,7 @@ class Workspace:
                  "tofu plan failed", 0, 2)
         raw = _require(_tofu(self.dir, self.env, "show", "-json", PLAN_FILE, timeout=300), "tofu show failed")
         try:
-            found = changes(json.loads(raw))
+            found = changes(json.loads(raw), self.env["TF_VAR_state_passphrase"].encode())
         except (ValueError, AttributeError, TypeError):
             raise WriteError("tofu show returned an unreadable plan", UNAVAILABLE) from None
         return found, plan_hash(self.stack.name, found)
@@ -406,27 +420,83 @@ def _write(path: Path, content: bytes | None) -> None:
         raise WriteError("local tofu state unwritable", UNAVAILABLE) from None
 
 
-def sync_state(repo: Path, ledger: Ledger, stack: str) -> bytes | None:
-    """Make the local state equal the branch and return it. A missing local file is rebuilt from
-    git; a local file the branch lacks (an unrecorded apply) is pushed before anything else."""
-    fetch_state(repo)
-    remote, local = branch_state(repo, stack), _read(local_state(ledger, stack))
+def _digest(content: bytes | None) -> str:
+    return hashlib.sha256(content).hexdigest() if content is not None else "absent"
+
+
+def _base_path(ledger: Ledger, stack: str) -> Path:
+    """The digest of the branch state the local file was last synced to or pushed as."""
+    return state_dir(ledger) / f"{stack}.base"
+
+
+def _base(ledger: Ledger, stack: str) -> str | None:
+    try:
+        return _base_path(ledger, stack).read_text(encoding="utf-8").strip() or None
+    except FileNotFoundError:
+        return None
+    except OSError:
+        raise WriteError("local tofu state base unreadable", UNAVAILABLE) from None
+
+
+def _set_base(ledger: Ledger, stack: str, content: bytes | None) -> None:
+    try:
+        _base_path(ledger, stack).parent.mkdir(parents=True, exist_ok=True)
+        common.atomic_write_text(_base_path(ledger, stack), _digest(content) + "\n")
+    except OSError:
+        raise WriteError("local tofu state base unwritable", UNAVAILABLE) from None
+
+
+def classify(ledger: Ledger, stack: str, remote: bytes | None) -> str:
+    """How the local cache relates to the branch: `missing`, `same`, `pending` (local writes on top
+    of the current branch), `stale` (the branch moved, local did not), or `diverged` (both moved).
+    A bootstrap (no branch, no base) counts as pending."""
+    local = _read(local_state(ledger, stack))
     if local is None:
-        _write(local_state(ledger, stack), remote)
+        return "missing"
+    if local == remote:
+        return "same"
+    base = _base(ledger, stack) or ("absent" if remote is None else None)
+    if base == _digest(remote):
+        return "pending"
+    if base == _digest(local):
+        return "stale"
+    return "diverged"
+
+
+DIVERGED = "local tofu state and the tofu-state branch both changed; reconcile by hand"
+
+
+def sync_state(repo: Path, ledger: Ledger, stack: str) -> bytes | None:
+    """Make the local state equal the branch and return it. A missing or stale local file is
+    rebuilt from git; pending local writes (an unrecorded apply) are pushed before anything else;
+    a divergence is refused."""
+    fetch_state(repo)
+    remote = branch_state(repo, stack)
+    kind = classify(ledger, stack, remote)
+    path = local_state(ledger, stack)
+    if kind in ("missing", "stale"):
+        _write(path, remote)
+        _set_base(ledger, stack, remote)
         return remote
-    if local != remote:
-        record_state(repo, stack, local, None, f"tofu-state({stack}): record unpushed local state")
-    return local
+    if kind == "diverged":
+        raise WriteError(DIVERGED, UNAVAILABLE)
+    if kind == "pending":
+        _record(repo, ledger, stack, None, f"tofu-state({stack}): record unpushed local state")
+    else:
+        _set_base(ledger, stack, remote)
+    return _read(path)
 
 
 def _state_copy(repo: Path, ledger: Ledger, stack: str, into: Path) -> Path:
-    """A read-only copy of the current state (local if present, else the branch)."""
-    local = _read(local_state(ledger, stack))
-    if local is None and fetch_state(repo):
-        local = branch_state(repo, stack)
+    """A read-only copy of the current state: pending local writes if any, else the branch."""
+    remote = branch_state(repo, stack) if fetch_state(repo) else None
+    kind = classify(ledger, stack, remote)
+    if kind == "diverged":
+        raise WriteError(DIVERGED, UNAVAILABLE)
+    content = _read(local_state(ledger, stack)) if kind == "pending" else remote
     path = into / f"{stack}.tfstate"
-    if local is not None:
-        path.write_bytes(local)
+    if content is not None:
+        path.write_bytes(content)
     return path
 
 
@@ -533,11 +603,18 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                                              "operation": operation.id},
                         f"tofu-state({name}): {operation.id} applied {target[:12]}")
 
-            return writepath.run(operation, ledger, preflight=preflight, snapshot=snapshot,
-                                 execute=execute, verify=verify, rollback=rollback,
-                                 reconcile=reconcile, commit=commit)
+            result = writepath.run(operation, ledger, preflight=preflight, snapshot=snapshot,
+                                   execute=execute, verify=verify, rollback=rollback,
+                                   reconcile=reconcile, commit=commit)
     except WriteError as error:  # the workspace itself (credentials, checkout) is unavailable
         return _refused(ledger, name, error.reason, error.code, target)
+    if result.outcome in HELD_OUTCOMES or (result.outcome == "refused" and result.code != UNAVAILABLE):
+        try:
+            hold(ledger, name, target)
+            result.note("hold", "ok", "not retried until main moves")
+        except WriteError as error:
+            result.note("hold", "failed", error.reason)
+    return result
 
 
 def _record(repo: Path, ledger: Ledger, stack: str, record: dict[str, Any] | None, message: str) -> None:
@@ -545,6 +622,7 @@ def _record(repo: Path, ledger: Ledger, stack: str, record: dict[str, Any] | Non
     if state is None:
         raise WriteError("no local tofu state to record", UNAVAILABLE)
     record_state(repo, stack, state, record, message)
+    _set_base(ledger, stack, state)
 
 
 def _prune(saved: _Saved, operation: Operation) -> None:
@@ -575,6 +653,11 @@ def settle_interrupted(repo: Path, ledger: Ledger) -> list[dict[str, Any]]:
                 note = f"state not recorded: {error.reason}"
         operation = writepath.settle(ledger, entry, alarm=f"interrupted tofu apply; {note}; "
                                      f"snapshots {context.get('snapshot', '?')} kept; check by hand")
+        if stack in STACKS and entry.get("source"):
+            try:
+                hold(ledger, stack, str(entry["source"]))
+            except WriteError as error:
+                operation.note("hold", "failed", error.reason)
         results.append(writepath.report(operation))
     return results
 
@@ -593,47 +676,64 @@ def _facts(ledger: Ledger) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
-def pending(repo: Path, *, ledger: Ledger) -> list[dict[str, Any]]:
-    """Apply each stack whose newest input commit on main is not the applied one (main is already
-    fetched by the deploy pass). A refused revision, or one that could not be planned three passes
-    running, is held and alerts once; it is retried only when main moves."""
-    results = settle_interrupted(repo, ledger)
-    fetch_state(repo)
+def _fact(ledger: Ledger, name: str, revision: str) -> dict[str, Any]:
+    """This stack's retry fact for `revision`; a fact for another revision is reset (main moved)."""
+    known = _facts(ledger).get(name)
+    if isinstance(known, dict) and known.get("revision") == revision:
+        return known
+    return {"revision": revision, "failures": 0, "held": False}
+
+
+def _save_fact(ledger: Ledger, name: str, fact: dict[str, Any]) -> None:
     facts = _facts(ledger)
-    before = json.dumps(facts, sort_keys=True)
-    for name, stack in STACKS.items():
-        target = input_revision(repo, stack)
-        if target is None or applied(repo, name).get("revision") == target:
-            continue
-        known = facts.get(name)
-        fact: dict[str, Any] = known if isinstance(known, dict) else {}
-        if fact.get("revision") != target:
-            fact = {"revision": target, "failures": 0, "held": False}
-        if fact.get("held"):
-            results.append({"target": f"tofu/{name}", "source": target, "outcome": "held",
-                            "reason": "refused revision; awaiting a new merge"})
-            continue
-        result = writepath.report(apply(repo, name, revision=target, ledger=ledger, refresh=False))
-        if result.get("outcome") == "refused" and result.get("code") != UNAVAILABLE:
-            fact["held"] = True
-        elif result.get("code") == UNAVAILABLE:
-            fact["failures"] = int(fact.get("failures", 0)) + 1
-            fact["held"] = fact["failures"] >= HOLD_AFTER_FAILURES
-        if fact.get("held"):
-            failure = alert.send(f"skynet: tofu/{name} held", writepath.line(result), priority=1)
-            result.setdefault("steps", []).append(
-                {"step": "alert", "outcome": "failed" if failure else "ok", **({"detail": failure}
-                                                                              if failure else {})})
-        facts[name] = fact
-        results.append(result)
-    if json.dumps(facts, sort_keys=True) == before:
-        return results
+    facts[name] = fact
     try:
         _facts_path(ledger).parent.mkdir(parents=True, exist_ok=True)
         common.atomic_write_text(_facts_path(ledger), json.dumps(facts, sort_keys=True) + "\n")
     except OSError:
-        results.append({"target": "tofu", "outcome": "unrecorded", "code": UNAVAILABLE,
-                        "reason": "tofu pending facts unwritable"})
+        raise WriteError("tofu hold unwritable", UNAVAILABLE) from None
+
+
+def hold(ledger: Ledger, name: str, revision: str) -> None:
+    """Never retry this revision automatically: only a new merge (or a human) moves it."""
+    fact = _fact(ledger, name, revision)
+    fact["held"] = True
+    _save_fact(ledger, name, fact)
+
+
+def pending(repo: Path, *, ledger: Ledger) -> list[dict[str, Any]]:
+    """Apply each stack whose newest input commit on main is not the applied one (main is already
+    fetched by the deploy pass). A revision that was refused, failed, rolled back, or interrupted,
+    or that could not be planned three passes running, is held; it is retried only when main
+    moves. A hold alerts once, unless the outcome already alerted."""
+    results = settle_interrupted(repo, ledger)
+    fetch_state(repo)
+    for name, stack in STACKS.items():
+        target = input_revision(repo, stack)
+        if target is None or applied(repo, name).get("revision") == target:
+            continue
+        fact = _fact(ledger, name, target)
+        if fact.get("held"):
+            results.append({"target": f"tofu/{name}", "source": target, "outcome": "held",
+                            "reason": "revision refused or failed; awaiting a new merge"})
+            continue
+        result = writepath.report(apply(repo, name, revision=target, ledger=ledger, refresh=False))
+        held = _fact(ledger, name, target).get("held", False)  # apply() holds its own failures
+        if not held and result.get("code") == UNAVAILABLE and result.get("outcome") in (
+                "refused", "unavailable"):
+            fact["failures"] = int(fact.get("failures", 0)) + 1
+            held = fact["held"] = fact["failures"] >= HOLD_AFTER_FAILURES
+            try:
+                _save_fact(ledger, name, fact)
+            except WriteError as error:
+                results.append({"target": f"tofu/{name}", "outcome": "unrecorded",
+                                "code": UNAVAILABLE, "reason": error.reason})
+        if held and result.get("outcome") not in writepath.ALARMS:
+            failure = alert.send(f"skynet: tofu/{name} held", writepath.line(result), priority=1)
+            result.setdefault("steps", []).append(
+                {"step": "alert", "outcome": "failed" if failure else "ok", **({"detail": failure}
+                                                                              if failure else {})})
+        results.append(result)
     return results
 
 

@@ -147,11 +147,24 @@ def test_no_ops_drop_out_and_moves_and_imports_stay() -> None:
     assert [item["address"] for item in found] == ["a.c", "a.d"]
 
 
-def test_sensitive_values_are_masked() -> None:
-    entry = change("a.b", VM, ["update"], password="hunter2", name="n")
+def _secret_plan(password: str) -> dict[str, Any]:
+    entry = change("a.b", VM, ["update"], password=password, name="n")
     entry["change"]["after_sensitive"] = {"password": True}
-    (found,) = tofu.changes({"resource_changes": [entry]})
-    assert found["after"] == {"password": "(sensitive)", "name": "n"}
+    return {"resource_changes": [entry]}
+
+
+def test_sensitive_values_are_hidden_but_bound_into_the_hash() -> None:
+    key = b"state-passphrase"
+    digest = lambda password: tofu.plan_hash("s", tofu.changes(_secret_plan(password), key))  # noqa: E731
+    (found,) = tofu.changes(_secret_plan("hunter2"), key)
+    assert "hunter2" not in json.dumps(found) and found["after"]["name"] == "n"
+    assert digest("hunter2") == digest("hunter2")
+    assert digest("hunter2") != digest("hunter3")  # a changed secret is a changed effect
+
+
+def test_sensitive_values_without_a_key_are_refused() -> None:
+    with pytest.raises(WriteError, match="cannot compare safely"):
+        tofu.changes(_secret_plan("hunter2"))
 
 
 # --- apply -----------------------------------------------------------------------------------
@@ -305,6 +318,38 @@ def test_a_refused_revision_is_held_and_alerts_once_until_main_moves(fake: Fake,
     assert moved[0]["outcome"] == "success" and fake.applied["proxmox-core"] == NEW
 
 
+@pytest.mark.parametrize("plan,outcome", [
+    ([guest(10030, cores=4)], "rolled-back"),
+    ([guest(10030, cores=4), guest(10040, actions=["create"])], "rollback-failed"),
+])
+def test_a_failed_apply_is_held_not_retried(fake: Fake, tmp_path: Path,
+                                            plan: list[dict[str, Any]], outcome: str) -> None:
+    ledger = Ledger(tmp_path / "state")
+    fake.apply_error = True
+    fake.plan = plan
+    fake.approve()
+    first = tofu.pending(tmp_path, ledger=ledger)
+    assert first[0]["outcome"] == outcome
+    fake.calls.clear()
+    for _ in range(3):
+        again = tofu.pending(tmp_path, ledger=ledger)
+        assert again[0]["outcome"] == "held"
+    assert "apply" not in fake.calls and ("create", 10030) not in fake.calls
+    # One alert: the rollback-failed alarm itself, or the hold for a rollback.
+    assert len(fake.alerts) == 1
+
+
+def test_an_interrupted_apply_holds_its_revision(fake: Fake, tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "state")
+    ledger.append(Operation("tofu", "tofu/proxmox-core", REV,
+                            context={"stack": "proxmox-core", "snapshot": "skynet-x"}).record("started"))
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    results = tofu.pending(tmp_path, ledger=ledger)
+    assert [r["outcome"] for r in results] == ["rollback-failed", "held"]
+    assert "apply" not in fake.calls
+
+
 def test_an_unplannable_revision_is_retried_then_held(fake: Fake, tmp_path: Path,
                                                       monkeypatch: pytest.MonkeyPatch) -> None:
     ledger = Ledger(tmp_path / "state")
@@ -350,15 +395,54 @@ def test_state_round_trips_through_the_branch_and_rebuilds_a_lost_local_file(clo
     assert tofu.local_state(ledger, "proxmox-core").read_bytes() == b"v1"
 
 
-def test_an_unpushed_local_state_is_pushed_before_anything_else(clone: Path, tmp_path: Path) -> None:
+def test_pending_local_writes_are_pushed_before_anything_else(clone: Path, tmp_path: Path) -> None:
     ledger = Ledger(tmp_path / "state")
     tofu.record_state(clone, "proxmox-core", b"v1", {"revision": REV}, "first")
-    path = tofu.local_state(ledger, "proxmox-core")
-    path.parent.mkdir(parents=True)
-    path.write_bytes(b"v2")
+    assert tofu.sync_state(clone, ledger, "proxmox-core") == b"v1"  # the cache's base is v1
+    tofu.local_state(ledger, "proxmox-core").write_bytes(b"v2")  # an apply that was not recorded
     assert tofu.sync_state(clone, ledger, "proxmox-core") == b"v2"
     assert tofu.branch_state(clone, "proxmox-core") == b"v2"
     assert tofu.applied(clone, "proxmox-core") == {"revision": REV}  # the record is kept
+
+
+def test_a_stale_cache_never_overwrites_newer_branch_state(clone: Path, tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "state")
+    tofu.record_state(clone, "proxmox-core", b"v1", {"revision": REV}, "first")
+    tofu.sync_state(clone, ledger, "proxmox-core")
+    tofu.record_state(clone, "proxmox-core", b"v2", {"revision": NEW}, "applied elsewhere")
+    assert tofu.sync_state(clone, ledger, "proxmox-core") == b"v2"  # the cache is refreshed
+    assert tofu.branch_state(clone, "proxmox-core") == b"v2"
+    assert tofu.local_state(ledger, "proxmox-core").read_bytes() == b"v2"
+
+
+def test_a_diverged_cache_is_refused(clone: Path, tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "state")
+    tofu.record_state(clone, "proxmox-core", b"v1", None, "first")
+    tofu.sync_state(clone, ledger, "proxmox-core")
+    tofu.local_state(ledger, "proxmox-core").write_bytes(b"local")
+    tofu.record_state(clone, "proxmox-core", b"remote", None, "elsewhere")
+    with pytest.raises(WriteError, match="both changed"):
+        tofu.sync_state(clone, ledger, "proxmox-core")
+    assert tofu.branch_state(clone, "proxmox-core") == b"remote"
+
+
+def test_a_first_local_state_bootstraps_the_branch(clone: Path, tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "state")
+    path = tofu.local_state(ledger, "proxmox-core")
+    path.parent.mkdir(parents=True)
+    path.write_bytes(b"split")
+    assert tofu.sync_state(clone, ledger, "proxmox-core") == b"split"
+    assert tofu.branch_state(clone, "proxmox-core") == b"split"
+
+
+def test_a_local_file_without_a_base_beside_branch_state_is_refused(clone: Path, tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "state")
+    tofu.record_state(clone, "proxmox-core", b"v1", None, "first")
+    path = tofu.local_state(ledger, "proxmox-core")
+    path.parent.mkdir(parents=True)
+    path.write_bytes(b"unknown provenance")
+    with pytest.raises(WriteError, match="both changed"):
+        tofu.sync_state(clone, ledger, "proxmox-core")
 
 
 def test_an_unchanged_record_makes_no_commit(clone: Path) -> None:
