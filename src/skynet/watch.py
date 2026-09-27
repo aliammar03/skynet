@@ -48,12 +48,12 @@ def transition(entry: dict[str, Any] | None, healthy: bool, reason: str | None,
         if unsent:  # kept until `_push` confirms it went out
             state["recovery_pending"] = unsent
         return state, unsent or None
-    state.pop("recovery_pending", None)  # a new failure supersedes an unsent recovery
     state["failures"] = int(state.get("failures", 0)) + 1
     state["reason"] = reason
     if state.get("status") != "unhealthy":
         if state["failures"] < FAILURES_TO_ALERT:
-            return state, None
+            return state, None  # a blip: an unsent recovery stays pending
+        state.pop("recovery_pending", None)  # down again: the DOWN alert supersedes it
         state.update(status="unhealthy", since=now, alerted=False)
     if not state.get("alerted"):
         return state, f"DOWN — {reason}"

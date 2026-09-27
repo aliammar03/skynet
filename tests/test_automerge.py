@@ -6,11 +6,11 @@ from typing import Any
 
 import pytest
 
-from skynet import automerge, deploy
+from skynet import automerge, deploy, writepath
 from skynet.deploy import HostFacts
 from skynet.writepath import Ledger, WriteError
 
-VERIFIED, FAILED, HEAD = "1" * 40, "2" * 40, "9" * 40
+VERIFIED, FAILED, HEAD, MERGE = "1" * 40, "2" * 40, "9" * 40, "6" * 40
 
 
 class Hub:
@@ -21,7 +21,7 @@ class Hub:
             "files": [{"path": "compose/demo/compose.yaml"}]}
         self.facts = HostFacts(verified=VERIFIED, failed=FAILED)
         self.main = FAILED
-        self.trees = {HEAD: "tree-a", VERIFIED: "tree-a"}
+        self.trees = {HEAD: "tree-a", VERIFIED: "tree-a", MERGE: "tree-a"}
         self.green = True
         self.merged: list[list[str]] = []
         self.checks = 0
@@ -41,7 +41,7 @@ def hub(monkeypatch: pytest.MonkeyPatch) -> Hub:
             fake.merged.append(args)
             return b""
         if args[:3] == ["gh", "pr", "view"]:
-            return b"MERGED\n" if fake.merged else b"OPEN\n"
+            return f"MERGED {MERGE}\n".encode() if fake.merged else b"OPEN \n"
         raise AssertionError(args)
 
     def check_green(repo: Path, oid: str) -> None:
@@ -202,3 +202,15 @@ def test_changed_files_come_from_git_against_main(tmp_path: Path) -> None:
     git("commit", "-qam", "revert")
     assert automerge.changed_files(repo, git("rev-parse", "HEAD")) == [
         "AGENTS.md", "compose/demo/AGENTS.md", "compose/demo/compose.yaml"]
+
+
+def test_a_squash_that_mixed_in_a_concurrent_fix_alerts_as_rollback_failed(
+        hub: Hub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`--match-head-commit` pins only the PR head; the landed service tree is checked after."""
+    pushed: list[str] = []
+    monkeypatch.setattr(writepath.alert, "send",
+                        lambda title, message, priority=0, path=None: pushed.append(title))
+    hub.trees[MERGE] = "tree-mixed"
+    [result] = _run(tmp_path)
+    assert (result["outcome"], result["code"]) == ("rollback-failed", 4)
+    assert automerge.MIXED in result["reason"] and pushed == ["skynet: pr/7 rollback-failed"]

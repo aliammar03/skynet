@@ -53,7 +53,8 @@ revision.
 [AGENTS.md §3](../../AGENTS.md) gate (`src/skynet/automerge.py`): opened by the executor, only
 `compose/<svc>/` changed, its tree identical to the host's `verified` revision, `main` still at the
 failed revision, `bin/check` green on the head. The merge pins that head
-(`--match-head-commit`). Any failed check is recorded once per head and leaves the PR for Ali.
+(`--match-head-commit`); because that doesn't pin `main`, the squash commit's `compose/<svc>/` is
+then required to be exactly the verified tree, and anything else is `rollback-failed` (alerts). Any failed check is recorded once per head and leaves the PR for Ali.
 
 ## One deploy
 

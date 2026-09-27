@@ -153,6 +153,19 @@ def test_an_unsent_recovery_is_retried(lab: Lab, tmp_path: Path) -> None:
     assert [message.split(" ")[0] for _, message in lab.sent] == ["DOWN", "recovered"]
 
 
+def test_a_blip_keeps_an_unsent_recovery_pending(lab: Lab, tmp_path: Path) -> None:
+    lab.health["demo"] = False
+    _pass(tmp_path, 0)
+    _pass(tmp_path, 1)                                   # DOWN sent
+    lab.health["demo"], lab.send_fails = True, True
+    _pass(tmp_path, 2)                                   # recovery not sent
+    lab.health["demo"], lab.send_fails = False, False
+    _pass(tmp_path, 3)                                   # one blip, below the threshold
+    lab.health["demo"] = True
+    _pass(tmp_path, 4)
+    assert [message.split(" ")[0] for _, message in lab.sent] == ["DOWN", "recovered"]
+
+
 @pytest.mark.parametrize("entry, healthy, expected", [
     (None, False, None),
     ({"status": "healthy", "failures": 1}, False, "DOWN — x"),

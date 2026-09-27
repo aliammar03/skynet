@@ -32,6 +32,7 @@ from skynet.writepath import FAILED, UNAVAILABLE, USAGE, Ledger, Operation, Writ
 BRANCH = re.compile(r"revert/([A-Za-z0-9][A-Za-z0-9_.-]*)-([0-9a-f]{12})")
 CHECK_SECONDS = 900.0
 CHECK_TRIES = 3
+MIXED = "the squash commit's service tree is not the verified tree (main moved during the merge)"
 CHECK_RED = "bin/check did not pass on the PR head (red, timed out, or could not run)"
 
 
@@ -134,6 +135,23 @@ def gate(repo: Path, pr: dict[str, Any], *, context: str, executor: str) -> tupl
     return service, facts.failed
 
 
+def verified_tree(service: str, context: str) -> str | None:
+    return deploy.host_facts(context, service).verified
+
+
+def landed_as_verified(repo: Path, merge: str, service: str, verified: str | None) -> None:
+    """`--match-head-commit` pins the PR head, not main: a fix to another file of the same
+    service merged in the seconds before the squash would be mixed in. Require the squash commit's
+    `compose/<svc>/` to be exactly the verified tree; otherwise it is `rollback-failed` and alerts."""
+    if not deployment.REVISION.fullmatch(merge) or verified is None:
+        raise WriteError(MIXED, FAILED)
+    deploy.fetch(repo)
+    path = f"compose/{service}"
+    landed = tree(repo, merge, path)
+    if landed is None or landed != tree(repo, verified, path):
+        raise WriteError(MIXED, FAILED)
+
+
 def refused_before(ledger: Ledger, target: str, oid: str) -> bool:
     """Leave a PR alone at this head after a policy refusal, or after `CHECK_TRIES` attempts
     that failed for a reason that might pass next time (a red `bin/check`, a merge that did not
@@ -173,13 +191,18 @@ def merge_one(repo: Path, pr: dict[str, Any], *, context: str, ledger: Ledger,
                     "--match-head-commit", oid], "gh pr merge failed", FAILED, cwd=repo)
 
     def verify(_: None) -> dict[str, Any]:
-        state = deploy._ok(["gh", "pr", "view", str(number), "--json", "state", "--jq", ".state"],
-                           "PR state unavailable", cwd=repo).decode().strip()
+        state, _space, merge = deploy._ok(
+            ["gh", "pr", "view", str(number), "--json", "state,mergeCommit", "--jq",
+             '[.state, (.mergeCommit.oid // "")] | join(" ")'],
+            "PR state unavailable", cwd=repo).decode().strip().partition(" ")
         if state != "MERGED":
             raise WriteError("PR is not merged", FAILED)
-        return {"state": state}
+        landed_as_verified(repo, merge, service, verified_tree(service, context))
+        return {"state": state, "merge_commit": merge}
 
     def rollback(_: None, error: WriteError) -> str:
+        if error.reason == MIXED:  # merged, but not as checked: a merge is never undone by a bot
+            raise WriteError("a merged PR cannot be undone automatically; check main by hand")
         return "not-needed"  # nothing merged, or main now holds the verified tree: both safe
 
     return writepath.run(operation, ledger, preflight=preflight, snapshot=lambda: None,

@@ -99,8 +99,9 @@ change.
    executor's GitHub login opened it against `main`; it changes nothing outside `compose/<svc>/`;
    that tree is identical to the Docker host's `verified` revision, and the host's `failed`
    revision is the one the branch names; `main` has not moved past that failed revision; and
-   `bin/check` is green on the PR head. The merge pins the checked head. Any failure is recorded
-   and leaves the PR for Ali. (SKY-025 P14.)
+   `bin/check` is green on the PR head. The merge pins the checked head, and the squash commit's
+   `compose/<svc>/` must then be exactly the verified tree; if it is not, that is
+   `rollback-failed` and alerts. Any failure is recorded and leaves the PR for Ali. (SKY-025 P14.)
 
 <!-- promote actions one at a time, each with a PR that says why it is safe unattended -->
 
