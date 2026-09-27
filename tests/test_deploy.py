@@ -324,3 +324,14 @@ def test_real_git_helpers(git_repo: tuple[Path, str]) -> None:
     assert not deploy.manual(repo, "demo", "HEAD")
     with pytest.raises(WriteError):
         deploy.resolve(repo, "--upload-pack=evil")
+
+
+def test_release_changes_name_mounted_files_only(git_repo: tuple[Path, str]) -> None:
+    repo, first = git_repo
+    project = repo / "compose" / "demo"
+    (project / "app.ini").write_text("changed\n")
+    (project / ".env.git").write_text("PLAIN=2\n")
+    (project / "compose.yaml").write_text("name: demo\nservices: {}\n")
+    subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@t",
+                    "commit", "-qam", "second"], check=True)
+    assert deploy.release_changes(repo, "demo", first, deploy.resolve(repo, "HEAD")) == ["app.ini"]
