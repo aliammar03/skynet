@@ -42,7 +42,7 @@ since 2026-08-31 and a failed docker-dmz restic run (cause unknown). Phase 16 no
 from scratch. Until it lands, no new off-site copy is known to land, and older copies are unverified
 (accepted by Ali, 2026-09-26).
 
-**Next:** Phase 14 lands `skynet watch` (5 min, state-change Pushover alerts, healthchecks.io
+**Next:** Phase 14 lands `skynet watch` (3 min, state-change Pushover alerts, healthchecks.io
 dead-man's switch), `skynet log`, a 30 s `ls-remote` deploy trigger, retirement of services removed
 from `compose/`, and the revert-PR auto-merge gate (AGENTS.md §3's first entry). Before the ops VM
 can be rebuilt, Ali creates `secrets/alerts.env.sops` (Pushover token + user, healthchecks ping URL)
@@ -119,7 +119,7 @@ Everything else in `scripts/` and `bin/` is ported by the phase that owns it bel
 | 11 | Purge and consolidate | Light | forwarders gone; shared collector core; `skynet plan`/`skynet new` | nothing calls a deleted path; `skynet collect all` works live |
 | 12 | Census and gates | Full | live facts recorded; gates in Python | blocker table filled; `skynet check` replaces the shell gates, same failures caught |
 | 13 | Write-path skeleton + `skynet deploy` + publish | Full | ADR 0008 Docker model: one executor, dry-run effect in PR, auto-rollback to last verified; Caddy/Auth/DNS publish | real deploy; forced failure rolls back automatically; Arcane Git Sync off |
-| 14 | Live health monitor | Full | `skynet watch` timer every 5 min, push alert on state change | stopped test container alerts within 10 min; recovery alert follows; no alert storm |
+| 14 | Live health monitor | Full | `skynet watch` timer every 3 min, push alert on state change | stopped test container alerts within 10 min; recovery alert follows; no alert storm |
 | 15 | OpenTofu under ADR 0008 | Full | per-actuator stacks, plan+hash in PR, apply-on-merge with hash match, state on `tofu-state` branch, nightly drift plan | mismatched hash refused; delete/protected-guest refused; injected apply failure restores the snapshot; state rebuilt from git |
 | 16 | Greenfield backup and restore | Full | a new backup strategy designed from scratch: payload selection, off-site target and credential, consistency, restore | off-site copy verified complete; empty or incomplete copy fails loudly and alerts; isolated restore of one service and one guest from off-site; kit-only restore proven |
 | 17 | Provision, onboard, OS updates | Full | provision/onboard, pins, age identity, OS-aware updates | one guest provisioned and updated; failed update stops with rollback |
@@ -179,7 +179,7 @@ Recorded in `docs/design/gitops-loop.md` (13), `docs/design/observability.md` (1
 ### Phase 14 — Live health monitor   `[x]` · review: Full
 
 1. `skynet watch`: a systemd timer on the ops VM runs the Phase 10 verifier for every deployed
-   service every 5 minutes (T1 read only).
+   service, passes starting every 3 minutes (T1 read only).
 2. Alert on **state change** only: healthy → unhealthy after two consecutive failures, and back.
    One message per change, no storms, a daily "still down" reminder at most.
 3. Push through the channel recorded in Phase 12; its credential is a sops-materialized file like

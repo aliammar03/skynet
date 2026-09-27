@@ -408,6 +408,34 @@ def test_failed_retirement_brings_the_service_back(retiring: FakeHost, tmp_path:
     assert ("up", "gone", OLD) in retiring.calls and retiring.running["gone"] == OLD
 
 
+def test_retirement_without_a_recoverable_revision_is_refused(
+        retiring: FakeHost, tmp_path: Path) -> None:
+    retiring.facts["gone"] = HostFacts()                 # nothing verified to come back to
+    operation = deploy.retire(tmp_path, "gone", context="docker-dmz", ledger=Ledger(tmp_path / "s"))
+    assert operation.outcome == "refused" and "no verified revision" in str(operation.reason)
+    assert not [call for call in retiring.calls if "down" in call]
+
+
+def test_recovery_is_staged_before_anything_is_removed(retiring: FakeHost, tmp_path: Path) -> None:
+    deploy.retire(tmp_path, "gone", context="docker-dmz", ledger=Ledger(tmp_path / "s"))
+    order = [call for call in retiring.calls if call[:1] in {("render",), ("stage",)} or "down" in call]
+    assert order[:3] == [("render", "gone", OLD), ("stage", "gone", OLD),
+                         ("compose", "-p", "gone", "down", "--remove-orphans")]
+
+
+def test_partial_removal_with_failed_recovery_alerts(
+        retiring: FakeHost, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from skynet import writepath
+    pushed: list[str] = []
+    monkeypatch.setattr(writepath.alert, "send",
+                        lambda title, message, priority=0, path=None: pushed.append(title))
+    retiring.bad_down = True                             # down half-failed ...
+    retiring.bad_up.add(OLD)                             # ... and the recovery can't come up
+    operation = deploy.retire(tmp_path, "gone", context="docker-dmz", ledger=Ledger(tmp_path / "s"))
+    assert (operation.outcome, operation.code) == ("rollback-failed", 4)
+    assert pushed == ["skynet: svc/gone rollback-failed"]
+
+
 def test_trigger_runs_only_when_main_moved_or_the_last_pass_is_stale(
         host: FakeHost, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ledger, head = Ledger(tmp_path / "state"), {"sha": NEW}

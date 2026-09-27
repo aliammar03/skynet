@@ -242,16 +242,31 @@ def _run_locked(operation: Operation, ledger: Ledger, preflight: Callable[[], An
         else:
             operation.outcome = "rolled-back" if operation.recovery == "rolled-back" else "failed"
             operation.code = FAILED
-        _alarm(operation)
-        ledger.append(operation.record("final"))
+        _finish(operation, ledger)
         return
     operation.outcome = "success"
     try:
         operation.step("record", lambda: commit(saved))
     except WriteError as error:  # live and verified, but the next write cannot find it
         operation.outcome, operation.reason, operation.code = "unrecorded", error.reason, UNAVAILABLE
+    _finish(operation, ledger)
+
+
+def _finish(operation: Operation, ledger: Ledger) -> None:
+    """After a write ran: alarm if needed, then the final record. A final record that cannot be
+    kept is itself `unrecorded` (not `unavailable`: something changed) and alerts, once."""
     _alarm(operation)
-    ledger.append(operation.record("final"))
+    try:
+        ledger.append(operation.record("final"))
+    except WriteError as error:
+        prior = operation.outcome + (f": {operation.reason}" if operation.reason else "")
+        operation.reason = f"{prior}; final record lost ({error.reason})"
+        if operation.outcome != "rollback-failed":
+            operation.code = UNAVAILABLE
+        operation.outcome = "unrecorded"
+        if not any(step.get("step") == "alert" and step.get("outcome") == "ok"
+                   for step in operation.steps):
+            _alarm(operation)
 
 
 def _alarm(operation: Operation) -> None:

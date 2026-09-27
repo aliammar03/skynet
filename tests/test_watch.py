@@ -1,6 +1,7 @@
 """`skynet watch`: an outage alerts once within two passes, a flap never alerts, recovery alerts
 once, and a monitor that cannot observe says so instead of going quiet (F14)."""
 
+import time
 from pathlib import Path
 from typing import Any
 
@@ -41,7 +42,12 @@ def lab(monkeypatch: pytest.MonkeyPatch) -> Lab:
     monkeypatch.setattr(deploy, "fetch", lambda repo: None)
     monkeypatch.setattr(deploy, "services", lambda repo, ref="": sorted(fake.health))
     monkeypatch.setattr(deploy, "manual", lambda repo, service, ref: False)
+    def reachable(context: str) -> None:
+        if fake.docker_down:
+            raise WriteError("Docker host unreachable", 3)
+
     monkeypatch.setattr(deploy, "observe", observe)
+    monkeypatch.setattr(watch, "docker_reachable", reachable)
     monkeypatch.setattr(alert, "send", send)
     monkeypatch.setattr(alert, "ping", lambda ok=True, path=None: fake.pings.append(ok))
     return fake
@@ -184,3 +190,92 @@ def test_a_blip_keeps_an_unsent_recovery_pending(lab: Lab, tmp_path: Path) -> No
 ])
 def test_transition_table(entry: dict[str, Any] | None, healthy: bool, expected: str | None) -> None:
     assert watch.transition(entry, healthy, None if healthy else "x", 60.0)[1] == expected
+
+
+def test_an_empty_declaration_is_not_healthy_and_keeps_state(lab: Lab, tmp_path: Path) -> None:
+    lab.health["demo"] = False
+    _pass(tmp_path, 0)                                   # demo: one strike recorded
+    lab.health.clear()                                   # main suddenly declares nothing
+    assert [_pass(tmp_path, m) for m in (1, 2)] == [3, 3]
+    assert lab.pings == [True, True, False]              # /fail once the monitor is down
+    assert [title for title, _ in lab.sent] == ["skynet: monitor"]
+    assert '"svc/demo"' in (tmp_path / "state" / "watch.json").read_text()  # not discarded
+
+
+class Clock:
+    """A fake wall clock: observations and pushes take time; passes start on a schedule."""
+
+    def __init__(self) -> None:
+        self.t = 0.0
+
+    def __call__(self) -> float:
+        return self.t
+
+
+def test_a_pass_over_budget_rotates_and_alerts_as_a_coverage_gap(
+        lab: Lab, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    clock = Clock()
+    lab.health = {"a": True, "b": True, "c": True}
+    seen: list[str] = []
+
+    def slow(repo: Path, service: str, context: str, revision: str | None = None) -> dict[str, Any]:
+        seen.append(service)
+        clock.t += 50.0
+        return {"revision": REV}
+
+    monkeypatch.setattr(deploy, "observe", slow)
+
+    def run_at(start: float) -> int:
+        clock.t = start
+        return watch.run(tmp_path, context="c", state_dir=tmp_path / "state", json_output=False,
+                         stdout=Out(), now=start, clock=clock)  # type: ignore[arg-type]
+
+    run_at(0.0)
+    run_at(181.0)
+    assert seen == ["a", "b", "c", "a"]                  # 2 per pass; c first in pass two
+    assert [title for title, _ in lab.sent] == ["skynet: monitor"]
+    assert "not observed within the pass budget" in lab.sent[0][1]
+
+
+def test_an_outage_alerts_within_ten_minutes_with_slow_probes(
+        lab: Lab, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The latency budget, simulated: passes start 181 s apart (OnUnitActiveSec=3m plus
+    AccuracySec), each observation takes 35 s, a push takes 15 s; the outage of the last-observed
+    service starts at every 10 s offset across two intervals."""
+    clock = Clock()
+    lab.health = {"a": True, "b": True, "c": True}
+    outage = {"at": 0.0}
+    alerted: list[float] = []
+
+    def slow(repo: Path, service: str, context: str, revision: str | None = None) -> dict[str, Any]:
+        began = clock.t
+        clock.t += 35.0
+        if service == "c" and began >= outage["at"]:
+            raise WriteError("container is not healthy", 1)
+        return {"revision": REV}
+
+    def send(title: str, message: str, *, priority: int = 0, path: Any = None) -> None:
+        clock.t += 15.0
+        if message.startswith("DOWN"):
+            alerted.append(clock.t)
+
+    monkeypatch.setattr(deploy, "observe", slow)
+    monkeypatch.setattr(alert, "send", send)
+    worst = 0.0
+    for offset in range(0, 362, 10):
+        state = tmp_path / f"state-{offset}"
+        outage["at"], alerted[:] = 1000.0 + offset, []
+        start = 0.0
+        while not alerted:
+            clock.t = start
+            watch.run(tmp_path, context="c", state_dir=state, json_output=False,
+                      stdout=Out(), now=start, clock=clock)  # type: ignore[arg-type]
+            assert clock.t - start < 181.0               # a pass fits inside its interval
+            start += 181.0
+        worst = max(worst, alerted[0] - outage["at"])
+    assert worst < 600.0
+
+
+def test_an_observation_that_overruns_its_cap_fails_that_service() -> None:
+    with pytest.raises(WriteError, match="observation exceeded"):
+        watch._bounded(lambda: (time.sleep(2), {})[1], 0.1)

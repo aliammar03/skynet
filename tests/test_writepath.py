@@ -202,3 +202,30 @@ def test_busy_reports_a_held_lock(tmp_path: Path) -> None:
 def test_one_line_format() -> None:
     assert writepath.line({"target": "svc/x", "source": "b" * 40, "outcome": "refused",
                            "reason": "unmerged"}) == f"svc/x@{'b' * 12}: refused — unmerged"
+
+
+def test_a_lost_final_record_after_a_write_is_unrecorded_and_alerts(
+        tmp_path: Path, pushed: list[tuple[str, str, int]], monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger, calls = Ledger(tmp_path), []
+    real = Ledger.append
+
+    def append(self: Ledger, entry: dict[str, Any]) -> None:
+        if entry.get("phase") == "final":
+            raise WriteError("operation record unavailable", 3)
+        real(self, entry)
+
+    monkeypatch.setattr(Ledger, "append", append)
+    operation = _run(ledger, calls)
+    assert calls[:4] == ["preflight", "snapshot", "execute", "verify"]
+    assert (operation.outcome, operation.code) == ("unrecorded", 3)
+    assert "final record lost" in str(operation.reason)
+    assert [title for title, _, _ in pushed] == ["skynet: svc/demo unrecorded"]
+
+
+def test_a_lost_started_record_changes_nothing(
+        tmp_path: Path, pushed: list[tuple[str, str, int]], monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+    monkeypatch.setattr(Ledger, "append", lambda self, entry: (_ for _ in ()).throw(
+        WriteError("operation record unavailable", 3)))
+    operation = _run(Ledger(tmp_path), calls)
+    assert operation.outcome == "unavailable" and "execute" not in calls and pushed == []

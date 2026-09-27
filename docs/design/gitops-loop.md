@@ -27,7 +27,7 @@ apply   skynet-deploy timer (every 30 s): `skynet deploy --pending --if-moved`
 verify  every container at the revision, running, healthy; declared routes answer
 recover automatic redeploy of the last verified revision, then a revert PR that merges itself
         when the AGENTS.md §3 gate holds
-watch   `skynet watch` every 5 min; an outage reaches Ali's phone (observability spoke)
+watch   `skynet watch` every 3 min; an outage reaches Ali's phone (observability spoke)
 ```
 
 A service's **revision** is the newest commit on `origin/main` that touched `compose/<svc>/`.

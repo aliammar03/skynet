@@ -610,8 +610,14 @@ def retire(repo: Path, service: str, *, context: str, ledger: Ledger) -> Operati
         kept.extend(_payload_check(rows, service))
 
     def snapshot() -> _Saved:
+        """Prove recovery before removing anything: the verified revision, rendered from git and
+        staged on the host, is what a failed retirement brings back. No such revision: refused."""
         saved.facts = host_facts(context, service)
         saved.previous = running(context, service)
+        if saved.facts.verified is None:
+            raise WriteError("no verified revision to recover to; retire by hand", USAGE)
+        saved.release = render(repo, service, saved.facts.verified)
+        stage(context, saved.release)
         return saved
 
     def execute(state: _Saved) -> None:
@@ -626,15 +632,10 @@ def retire(repo: Path, service: str, *, context: str, ledger: Ledger) -> Operati
         return {"containers": 0, "volumes_kept": kept}
 
     def rollback(state: _Saved, error: WriteError) -> str:
-        back = state.facts.verified or state.previous
-        if back is None:
-            operation.note("rollback-target", "skipped", "no verified or running revision")
-            return "no-rollback-target"
-        release = render(repo, service, back)
-        stage(context, release)
-        up(context, release)
-        check(repo, context, release)
-        operation.note("rollback-target", "ok", f"running verified {back}")
+        assert state.release is not None  # the snapshot refuses without one
+        up(context, state.release)  # a failure here is rollback-failed, which alerts
+        check(repo, context, state.release)
+        operation.note("rollback-target", "ok", f"running verified {state.release.revision}")
         return "rolled-back"
 
     def reconcile() -> dict[str, Any]:

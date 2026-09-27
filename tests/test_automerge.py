@@ -1,5 +1,6 @@
 """The revert auto-merge gate: every check must hold, and any failure leaves the PR for Ali."""
 
+import json
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -37,6 +38,9 @@ class Hub:
         self.closed = False
         self.close_during_check = False
         self.close_during_merge = False
+        self.retarget_during_check: dict[str, Any] = {}   # e.g. base changed while bin/check ran
+        self.current: dict[str, Any] = {}
+        self.on_main = True                                # is the squash commit on main?
 
 
 @pytest.fixture
@@ -60,6 +64,9 @@ def hub(monkeypatch: pytest.MonkeyPatch) -> Hub:
                 raise WriteError(reason, code)
             return b""
         if args[:3] == ["gh", "pr", "view"]:
+            if "number,state,baseRefName,headRefName,headRefOid,author" in args:
+                state = "MERGED" if fake.merged else "CLOSED" if fake.closed else "OPEN"
+                return json.dumps({**fake.pr, **fake.current, "state": state}).encode()
             if "state,mergeCommit" in args:
                 if fake.merged and fake.view_fails_after_merge:
                     raise WriteError(reason, code)
@@ -72,6 +79,7 @@ def hub(monkeypatch: pytest.MonkeyPatch) -> Hub:
     def check_green(repo: Path, oid: str) -> None:
         fake.checks += 1
         fake.closed = fake.closed or fake.close_during_check
+        fake.current.update(fake.retarget_during_check)
         if fake.main_after_check:
             fake.pending_main = fake.main_after_check
         if not fake.green:
@@ -87,6 +95,7 @@ def hub(monkeypatch: pytest.MonkeyPatch) -> Hub:
     monkeypatch.setattr(automerge, "changed_files", lambda repo, oid: [
         row["path"] for row in fake.pr["files"]])
     monkeypatch.setattr(deploy, "fetch", fetch)
+    monkeypatch.setattr(deploy, "merged", lambda repo, revision: fake.on_main)
     monkeypatch.setattr(automerge, "tree", lambda repo, rev, path: fake.trees.get(rev))
     monkeypatch.setattr(automerge, "check_green", check_green)
     def host_facts(context: str, service: str) -> HostFacts:
@@ -308,3 +317,26 @@ def test_a_pr_closed_during_the_merge_is_not_a_page(
     hub.close_during_merge = True
     [result] = _run(tmp_path)
     assert (result["outcome"], result["recovery"]) == ("failed", "not-needed") and pushed == []
+
+
+@pytest.mark.parametrize("change, reason", [
+    ({"baseRefName": "release"}, "not a revert PR against main"),
+    ({"headRefOid": "8" * 40}, "PR head changed since it was checked"),
+    ({"author": {"login": "someone"}}, "not opened by the executor"),
+])
+def test_a_pr_changed_while_bin_check_ran_is_not_merged(
+        hub: Hub, tmp_path: Path, change: dict[str, Any], reason: str) -> None:
+    """The listing is minutes old by merge time: GitHub's current PR is what gets checked."""
+    hub.retarget_during_check = change
+    [result] = _run(tmp_path)
+    assert result["outcome"] == "refused" and reason in result["reason"]
+    assert hub.merged == []
+
+
+def test_a_squash_that_is_not_on_main_alerts(
+        hub: Hub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    pushed = _pushes(monkeypatch)
+    hub.on_main = False
+    [result] = _run(tmp_path)
+    assert result["outcome"] == "rollback-failed" and "not on main" in result["reason"]
+    assert pushed == ["skynet: pr/7 rollback-failed"]

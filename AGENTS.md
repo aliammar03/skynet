@@ -127,7 +127,7 @@ edit compose/<svc>/ → branch → PR (bin/check + tier review + `skynet deploy 
    → skynet-deploy timer (30 s `ls-remote`): `skynet deploy --pending` applies the merged
      revision, verifies it, and retires projects removed from compose/
    → on failure: automatic redeploy of the last verified revision + a revert PR (§3 gate merges it)
-   → skynet watch (5 min): an outage or a failed rollback reaches Ali's phone (Pushover)
+   → skynet watch (3 min): an outage or a failed rollback reaches Ali's phone (Pushover)
 ```
 
 - One executor: `skynet deploy` renders compose + env at one revision and applies them together

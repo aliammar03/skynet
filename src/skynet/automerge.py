@@ -14,8 +14,10 @@ merges without a human only when every check holds; any failure leaves it open f
 The merge pins the head it checked (`--match-head-commit`). Every attempt is a recorded
 operation; a policy refusal at one head is recorded once and then left alone, and a red
 `bin/check` or a merge that did not land is retried on later passes, up to three times per head.
-The gate runs twice: before `bin/check` and again under the write lock, each time against a
-freshly fetched `main`, so a fix merged meanwhile is never overwritten.
+The gate runs twice: before `bin/check`, and again under the write lock against the PR's
+current metadata from GitHub (state, base, head, author) and a freshly fetched `main`, so a
+retargeted PR or a fix merged meanwhile is never merged over. After the merge, the squash commit
+must be on `main` and hold exactly the verified service tree.
 """
 
 from __future__ import annotations
@@ -145,10 +147,26 @@ def landed_as_verified(repo: Path, merge: str, service: str, verified: str) -> N
     if not deployment.REVISION.fullmatch(merge):
         raise WriteError(MIXED, FAILED)
     deploy.fetch(repo)
+    if not deploy.merged(repo, merge):  # the destination: the squash must be on main itself
+        raise WriteError("the merge commit is not on main", FAILED)
     path = f"compose/{service}"
     landed = tree(repo, merge, path)
     if landed is None or landed != tree(repo, verified, path):
         raise WriteError(MIXED, FAILED)
+
+
+def fresh_pr(repo: Path, number: int) -> dict[str, Any]:
+    """The PR's current metadata, straight from GitHub (never the pass's old listing)."""
+    raw = deploy._ok(["gh", "pr", "view", str(number), "--json",
+                      "number,state,baseRefName,headRefName,headRefOid,author"],
+                     "PR state unavailable", cwd=repo)
+    try:
+        current = json.loads(raw)
+    except ValueError:
+        raise WriteError("PR state unavailable", UNAVAILABLE) from None
+    if not isinstance(current, dict):
+        raise WriteError("PR state unavailable", UNAVAILABLE)
+    return current
 
 
 def pr_state(repo: Path, number: int) -> str | None:
@@ -193,11 +211,16 @@ def merge_one(repo: Path, pr: dict[str, Any], *, context: str, ledger: Ledger,
     operation.note("gate", "ok", f"svc/{service}: failed {failed[:12]} → verified tree; bin/check green")
     merge_sent = False
 
-    def preflight() -> None:  # re-check under the lock, against a freshly fetched main
+    def preflight() -> None:
+        """Under the lock, just before merging: the PR as GitHub has it now (state, base, head,
+        author) and a freshly fetched main, since `bin/check` may have taken minutes."""
         nonlocal verified
-        verified = gate(repo, pr, context=context, executor=executor)[2]
-        if pr_state(repo, number) != "OPEN":  # Ali may have closed it to fix forward
+        current = fresh_pr(repo, number)
+        if current.get("state") != "OPEN":  # Ali may have closed it to fix forward
             raise WriteError("PR is no longer open", USAGE)
+        if (current.get("headRefName"), current.get("headRefOid")) != (pr.get("headRefName"), oid):
+            raise WriteError("PR head changed since it was checked", USAGE)
+        verified = gate(repo, current, context=context, executor=executor)[2]
 
     def execute(_: None) -> None:
         nonlocal merge_sent

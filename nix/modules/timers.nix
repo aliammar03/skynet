@@ -1,5 +1,5 @@
 { lib, ... }:
-# The ops VM's scheduled units — skynet-deploy (30 s merge trigger), skynet-watch (5 min health
+# The ops VM's scheduled units — skynet-deploy (30 s merge trigger), skynet-watch (3 min health
 # monitor), skynet-nightly, and the OnFailure alert. `skynet` itself is a system package (flake.nix).
 #
 # The lab's other scheduled backups are NOT the ops VM's; they live in scripts/systemd/ for the
@@ -73,15 +73,20 @@ in
       # 1 = a service is unhealthy, 3 = monitor unavailable: both alert by state change. A run that
       # dies before its ping is caught by the dead-man's switch.
       SuccessExitStatus = [ 1 3 ];
-      TimeoutStartSec = "15m";
+      # A pass is bounded to well under one interval (src/skynet/watch.py); this is the backstop.
+      TimeoutStartSec = "4m";
     };
   };
+  # Passes START 3 min apart (OnUnitActiveSec, not OnUnitInactiveSec: a pass's own run time must
+  # not stretch the gap). With two strikes and a bounded pass, an outage alerts in < 10 min; the
+  # budget is in docs/design/observability.md.
   systemd.timers.skynet-watch = {
-    description = "Verify every deployed service every 5 minutes";
+    description = "Verify every deployed service, passes starting 3 minutes apart";
     wantedBy = [ "timers.target" ];
     timerConfig = {
       OnBootSec = "3m";
-      OnUnitInactiveSec = "5m";
+      OnUnitActiveSec = "3m";
+      AccuracySec = "1s";
     };
   };
 
