@@ -62,7 +62,7 @@ Design context: [`../../docs/design/identity-and-proxy.md`](../../docs/design/id
    an own-auth internal route, and commit `tofu/technitium-dns/approved-plan.json` with it. Ali
    merges it; the agent does not merge its own PR.
 
-4. After the merge, the timer's pass creates the record (`skynet log --kind tofu`). A `held`
+4. After the merge, the `skynet-tofu` timer creates the record (`skynet log --kind tofu`). A `held`
    `tofu/technitium-dns` means the merged plan differs from the approved one: re-plan in a new PR.
 
 5. The timer deploys the merged `caddy-apps` revision (the container is recreated with the new

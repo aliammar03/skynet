@@ -45,7 +45,7 @@ from scratch. Until it lands, no new off-site copy is known to land, and older c
 **Next:** Phase 15 (OpenTofu under ADR 0008) is built and in its PR. There are three stacks,
 `tofu/proxmox-core`, `tofu/technitium-dns`, and `tofu/cloudflare-dns`; the directory is the scope,
 and `proxmox-network` waits for its first resource. `skynet tofu plan <stack> --approve` writes the
-PR's `approved-plan.json`. The deploy timer's pass applies a merged stack only when its re-plan hash
+PR's `approved-plan.json`. The `skynet-tofu` timer (every minute) applies a merged stack only when its re-plan hash
 matches, refuses delete/replace/forget, excluded guests, and foreign types, snapshots guest updates
 through `pve.py`, and mirrors encrypted state to the `tofu-state` branch. `skynet tofu drift` feeds
 the nightly. `tofu-env.sh`, `tofu-apply.sh`, and `pve-snapshot.sh` are deleted. Live, 2026-09-27:

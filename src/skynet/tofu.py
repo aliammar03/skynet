@@ -45,14 +45,25 @@ APPROVED = "approved-plan.json"
 PLAN_FILE = "skynet.tfplan"
 GUEST_TYPES = {"proxmox_virtual_environment_container": "lxc", "proxmox_virtual_environment_vm": "qemu"}
 REFUSED_ACTIONS = {"delete", "forget"}
-HOLD_AFTER_FAILURES = 3
-# The time budget. The deploy unit's TimeoutStartSec is PASS_SECONDS (nix/modules/timers.nix; a
-# test pins them together). A stack starts only if its worst case, a hung apply plus the full
-# rollback, still fits before the deadline, so systemd never kills a rollback half-way.
+ALERT_AFTER_FAILURES = 3
+NOT_SETTLED = "an interrupted tofu apply is not settled yet; retrying next pass"
+CONTENDED = frozenset({writepath.LOCK_BUSY, NOT_SETTLED})
+# The time budget. The skynet-tofu unit's TimeoutStartSec is PASS_SECONDS (nix/modules/timers.nix;
+# a test pins them together). A stack starts only if its worst case still fits before the deadline,
+# so systemd never kills a rollback half-way. The worst case counts every wait: each tofu command's
+# timeout; per guest, every Proxmox task (the POST, the task wait, and a last poll that may start at
+# the deadline) plus the status reads; and an allowance for each git call and alert.
 TOFU_SECONDS = {"init": 300, "plan": 900, "show": 120, "apply": 1800, "verify": 900}
 MAX_GUESTS = 5  # snapshotted guests per apply; bounds the rollback time
-STACK_BUDGET = sum(TOFU_SECONDS.values()) + MAX_GUESTS * 4 * pve.TASK_SECONDS  # status/snap/back/prune
-PASS_SECONDS = 4 * 3600
+_TASK = 2 * pve.TIMEOUT + pve.TASK_SECONDS + pve.POLL_SECONDS  # POST, wait, a last in-flight poll
+GUEST_SECONDS = (pve.TIMEOUT                                  # status before the snapshot
+                 + 3 * _TASK                                  # snapshot, rollback, prune
+                 + pve.TASK_SECONDS + pve.TIMEOUT + pve.POLL_SECONDS)  # wait to see the power state
+GIT_CALLS, GIT_SECONDS, ALERTS = 60, 60, 4  # per stack: sync, record, hold, checkout; alerts
+STACK_BUDGET = (sum(TOFU_SECONDS.values()) + MAX_GUESTS * GUEST_SECONDS + GIT_CALLS * GIT_SECONDS
+                + 120 + ALERTS * int(alert.TIMEOUT))  # 120: the source archive
+PASS_SECONDS = 5 * 3600
+PASS_MARGIN = 300  # reporting, the exit, and systemd's own stop
 # Outcomes after a write ran: retrying could disrupt guests again or repeat a partial create.
 HELD_OUTCOMES = frozenset({"failed", "rolled-back", "rollback-failed"})
 MISMATCH = "plan differs from the approved plan (drift or an unapproved change); re-plan in a new PR"
@@ -672,8 +683,7 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
             def reconcile() -> dict[str, Any]:
                 # An interrupted apply is settled only by settle_interrupted (alarm, hold, kept
                 # snapshots); if it could not run yet, wait for it rather than paper over it.
-                raise WriteError("an interrupted tofu apply is not settled yet; retrying next pass",
-                                 UNAVAILABLE)
+                raise WriteError(NOT_SETTLED, UNAVAILABLE)
 
             def commit(state_: _Saved) -> None:
                 _prune(state_, operation)
@@ -758,26 +768,27 @@ def _facts(ledger: Ledger) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
-def _failures(ledger: Ledger, name: str, revision: str) -> int:
-    """Consecutive `unavailable` passes for this revision (a local count; only a hold is durable)."""
-    known = _facts(ledger).get(name)
-    if isinstance(known, dict) and known.get("revision") == revision:
-        return int(known.get("failures", 0))
-    return 0
-
-
-def _count_failure(ledger: Ledger, name: str, revision: str) -> int:
+def _set_failures(ledger: Ledger, name: str, revision: str, count: int) -> None:
+    """Consecutive `unavailable` passes for this revision (local; losing it only delays an alert).
+    Merged into the stack's fact so it never erases a local hold."""
     facts = _facts(ledger)
-    count = _failures(ledger, name, revision) + 1
     known = facts.get(name)
     fact: dict[str, Any] = known if isinstance(known, dict) else {}
-    facts[name] = {**fact, "revision": revision, "failures": count}  # keeps a local `held`
+    if fact.get("revision") == revision and int(fact.get("failures", 0)) == count:
+        return
+    facts[name] = {**fact, "revision": revision, "failures": count}
     try:
         _facts_path(ledger).parent.mkdir(parents=True, exist_ok=True)
         common.atomic_write_text(_facts_path(ledger), json.dumps(facts, sort_keys=True) + "\n")
     except OSError:
-        pass  # a lost count only delays a hold; the durable hold is in git
-    return count
+        pass
+
+
+def _failures(ledger: Ledger, name: str, revision: str) -> int:
+    known = _facts(ledger).get(name)
+    if isinstance(known, dict) and known.get("revision") == revision:
+        return int(known.get("failures", 0))
+    return 0
 
 
 def _hold(repo: Path, ledger: Ledger, name: str, revision: str, reason: str,
@@ -825,11 +836,33 @@ def is_held(repo: Path, name: str, revision: str, ledger: Ledger | None = None) 
     return held(repo, name).get("revision") in (revision, "*")
 
 
+def _alert(result: dict[str, Any], title: str) -> None:
+    failure = alert.send(title, writepath.line(result), priority=1)
+    result.setdefault("steps", []).append(
+        {"step": "alert", "outcome": "failed" if failure else "ok", **({"detail": failure}
+                                                                      if failure else {})})
+
+
+def _count(ledger: Ledger, name: str, target: str, result: dict[str, Any]) -> None:
+    """Unavailability changes nothing live, so it is retried, never held. Waiting on another write
+    (the lock, an unsettled interruption) is not a failure at all. Any other outcome resets the
+    count; three `unavailable` passes in a row alert once."""
+    if result.get("code") != UNAVAILABLE or result.get("outcome") not in ("refused", "unavailable"):
+        _set_failures(ledger, name, target, 0)
+        return
+    if result.get("reason") in CONTENDED:
+        return
+    count = _failures(ledger, name, target) + 1
+    _set_failures(ledger, name, target, count)
+    if count == ALERT_AFTER_FAILURES:
+        _alert(result, f"skynet: tofu/{name} unavailable {count} passes running")
+
+
 def pending(repo: Path, *, ledger: Ledger, deadline: float | None = None) -> list[dict[str, Any]]:
     """Apply each stack whose newest input commit on main is not the applied one (main is already
-    fetched by the deploy pass). A revision that was refused, failed, rolled back, or interrupted,
-    or that could not be planned three passes running, is held on the state branch; it is retried
-    only when main moves. A hold alerts once, unless the outcome already alerted."""
+    fetched). A revision that was refused, failed, rolled back, or interrupted is held on the state
+    branch and retried only when main moves; a hold alerts once, unless the outcome already
+    alerted. An unavailable pass is retried (see `_count`)."""
     results = settle_interrupted(repo, ledger)
     fetch_state(repo)
     for name, stack in STACKS.items():
@@ -845,19 +878,12 @@ def pending(repo: Path, *, ledger: Ledger, deadline: float | None = None) -> lis
                             "reason": "revision refused or failed; awaiting a new merge"})
             continue
         result = writepath.report(apply(repo, name, revision=target, ledger=ledger, refresh=False))
-        if (result.get("code") == UNAVAILABLE and result.get("outcome") in ("refused", "unavailable")
-                and _count_failure(ledger, name, target) >= HOLD_AFTER_FAILURES):
-            counted = Operation("tofu", f"tofu/{name}", target, id=str(result.get("id") or "pending"))
-            _hold(repo, ledger, name, target, "could not plan three passes running", counted)
-            result.setdefault("steps", []).extend(counted.steps)
+        _count(ledger, name, target, result)
         now_held = any(step.get("step") == "hold" and step.get("outcome") == "ok"
                        for step in result.get("steps", []))
         # A hold git refused already alerted in _hold; a durable hold alerts once here.
         if now_held and result.get("outcome") not in writepath.ALARMS:
-            failure = alert.send(f"skynet: tofu/{name} held", writepath.line(result), priority=1)
-            result.setdefault("steps", []).append(
-                {"step": "alert", "outcome": "failed" if failure else "ok", **({"detail": failure}
-                                                                              if failure else {})})
+            _alert(result, f"skynet: tofu/{name} held")
         results.append(result)
     return results
 
@@ -929,16 +955,22 @@ def run_drift(repo: Path, *, output: Path, state_dir_: Path, stdout: TextIO) -> 
 def run_apply(repo: Path, name: str | None, *, revision: str | None, pending_all: bool,
               state_dir_: Path, json_output: bool, stdout: TextIO) -> int:
     ledger = Ledger(state_dir_)
-    if pending_all:
+    if pending_all:  # the skynet-tofu timer
+        deadline = time.monotonic() + PASS_SECONDS - PASS_MARGIN
         try:
             deploy.fetch(repo)
-            results = pending(repo, ledger=ledger)
+            results = pending(repo, ledger=ledger, deadline=deadline)
         except WriteError as error:
             results = [{"target": "tofu", "outcome": "unavailable", "reason": error.reason,
                         "code": error.code}]
         for result in results:
             writepath.emit(result, json_output, stdout)
-        return max((int(result.get("code", 0)) for result in results), default=OK)
+        # Recorded outcomes are not unit failures (they alert themselves); an alert that could not
+        # be sent is, so OnFailure reaches the phone. 4 = rollback-failed whose alert went out.
+        if any(deploy.alert_failed(result) for result in results):
+            return FAILED
+        codes = [int(result.get("code", 0)) for result in results]
+        return writepath.ROLLBACK_FAILED if writepath.ROLLBACK_FAILED in codes else OK
     assert name is not None
     result = writepath.report(apply(repo, name, revision=revision, ledger=ledger))
     writepath.emit(result, json_output, stdout)

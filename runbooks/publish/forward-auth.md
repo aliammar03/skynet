@@ -77,7 +77,7 @@ Design context: [`../../docs/design/identity-and-proxy.md`](../../docs/design/id
 
 4. The same PR carried `tofu/technitium-dns/approved-plan.json` (from
    `skynet tofu plan technitium-dns --approve` after committing the Caddyfile; expect only the
-   derived A record). After the merge, the timer's pass creates the record; confirm it with
+   derived A record). After the merge, the `skynet-tofu` timer creates the record; confirm it with
    `skynet log --kind tofu`. A `held` result means the merged plan differs: re-plan in a new PR.
 
 ## Verify

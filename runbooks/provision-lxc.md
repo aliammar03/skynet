@@ -24,7 +24,7 @@ rollback: "No automatic rollback for a new LXC; operator recovery on partial cre
    ```bash
    skynet tofu plan proxmox-core --approve   # expect one create; the PR diff shows approved-plan.json
    ```
-   Open the PR. After the merge, the deploy timer's pass applies it (`skynet log --kind tofu`). A
+   Open the PR. After the merge, the `skynet-tofu` timer applies it (`skynet log --kind tofu`). A
    held result means the merged plan no longer matches: re-plan in a new PR. If the create fails it
    alerts; stop, and never auto-destroy a partial create. After success, inject a required age identity before first deploy and run `nix run github:serokell/deploy-rs -- .#lxc-<name>`.
 6. Verify the service, refresh inventory, and keep the entity audit green. Day-two changes are edit → PR → deploy.

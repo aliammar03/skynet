@@ -1,6 +1,6 @@
 { lib, ... }:
-# The ops VM's scheduled units — skynet-deploy (30 s merge trigger), skynet-watch (3 min health
-# monitor), skynet-nightly, and the OnFailure alert. `skynet` itself is a system package (flake.nix).
+# The ops VM's scheduled units — skynet-deploy (30 s merge trigger), skynet-tofu (1 min Tofu
+# apply-on-merge), skynet-watch (3 min health monitor), skynet-nightly, and the OnFailure alert. `skynet` itself is a system package (flake.nix).
 #
 # The lab's other scheduled backups are NOT the ops VM's; they live in scripts/systemd/ for the
 # hosts that install them:
@@ -44,9 +44,7 @@ in
       # whose alert went out. A crash (Python exits 1), an alert that could not be sent (1),
       # unwritable trigger state (1), a timeout, or a kill fires OnFailure.
       SuccessExitStatus = [ 4 ];
-      # = tofu.PASS_SECONDS: a Tofu stack starts only if a hung apply plus its full rollback
-      # still fits (src/skynet/tofu.py); a test pins the two together.
-      TimeoutStartSec = "4h";
+      TimeoutStartSec = "60m";
     };
   };
   systemd.timers.skynet-deploy = {
@@ -55,6 +53,38 @@ in
     timerConfig = {
       OnBootSec = "2m";
       OnUnitInactiveSec = "30s";
+      AccuracySec = "5s";
+    };
+  };
+
+  # OpenTofu under ADR 0008: each minute, apply every stack whose merged inputs are not the applied
+  # ones and whose re-plan matches the PR's approved hash (src/skynet/tofu.py). Its own unit, so a
+  # hung apply never delays a Docker deploy; both share the one write lock.
+  systemd.services.skynet-tofu = {
+    description = "skynet tofu apply --pending (apply merged, hash-approved stacks)";
+    wants = [ "network-online.target" ];
+    after = [ "network-online.target" ];
+    onFailure = [ "skynet-alert@%n.service" ];
+    environment = commonEnv;
+    serviceConfig = {
+      Type = "oneshot";
+      User = "aliammar";
+      WorkingDirectory = repo;
+      ExecStart = "/run/current-system/sw/bin/skynet tofu apply --pending --repo ${repo}";
+      # 0 for every outcome the pass records and alerts itself; 4 = rollback-failed whose alert
+      # went out. A crash, an unsent alert, a timeout, or a kill fires OnFailure.
+      SuccessExitStatus = [ 4 ];
+      # = tofu.PASS_SECONDS: a stack starts only if its full worst case, apply plus rollback,
+      # still fits (src/skynet/tofu.py); a test pins the two together.
+      TimeoutStartSec = "5h";
+    };
+  };
+  systemd.timers.skynet-tofu = {
+    description = "Apply merged OpenTofu stacks, checked every minute";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnBootSec = "3m";
+      OnUnitInactiveSec = "60s";
       AccuracySec = "5s";
     };
   };

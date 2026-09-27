@@ -32,6 +32,7 @@ T = TypeVar("T")
 
 # Exit codes shared by every write path.
 OK, FAILED, USAGE, UNAVAILABLE, ROLLBACK_FAILED = 0, 1, 2, 3, 4
+LOCK_BUSY = "another write holds the lock"
 # Outcomes that leave live state unknown to the record: a human must look, so they alert.
 ALARMS = frozenset({"rollback-failed", "unrecorded"})
 
@@ -114,7 +115,7 @@ class Ledger:
                     break
                 except OSError:
                     if time.monotonic() >= deadline:
-                        raise WriteError("another write holds the lock", UNAVAILABLE) from None
+                        raise WriteError(LOCK_BUSY, UNAVAILABLE) from None
                     time.sleep(0.05)
             yield
 

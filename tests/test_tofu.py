@@ -498,25 +498,61 @@ def test_too_many_guests_in_one_apply_are_refused(fake: Fake, tmp_path: Path) ->
 def test_the_unit_timeout_covers_a_full_pass_budget() -> None:
     import re
     nix = (Path(__file__).resolve().parents[1] / "nix/modules/timers.nix").read_text()
-    unit = nix[nix.index("systemd.services.skynet-deploy"):nix.index("systemd.timers.skynet-deploy")]
+    unit = nix[nix.index("systemd.services.skynet-tofu"):nix.index("systemd.timers.skynet-tofu")]
     hours = int(re.search(r'TimeoutStartSec = "(\d+)h";', unit)[1])  # type: ignore[index]
     assert hours * 3600 == tofu.PASS_SECONDS
-    # A Docker pass of up to an hour, then one stack's hung apply plus its full rollback.
-    assert 3600 + tofu.STACK_BUDGET + 300 <= tofu.PASS_SECONDS
-    assert max(tofu.TOFU_SECONDS.values()) < tofu.STACK_BUDGET
+    assert 'skynet tofu apply --pending' in unit
+    # One stack's full worst case fits in a pass, with the margin left for reporting.
+    assert tofu.STACK_BUDGET <= tofu.PASS_SECONDS - tofu.PASS_MARGIN
+    # Every wait is in it: all tofu commands, and per guest every task's HTTP call and last poll.
+    assert tofu.GUEST_SECONDS >= 4 * (pve.TASK_SECONDS + pve.TIMEOUT) + pve.TIMEOUT
+    assert tofu.STACK_BUDGET > sum(tofu.TOFU_SECONDS.values()) + tofu.MAX_GUESTS * tofu.GUEST_SECONDS
 
 
-def test_an_unplannable_revision_is_retried_then_held(fake: Fake, tmp_path: Path,
-                                                      monkeypatch: pytest.MonkeyPatch) -> None:
+def test_an_unplannable_revision_is_retried_and_alerts_once_never_held(
+        fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ledger = Ledger(tmp_path / "state")
 
     def broken(self: FakeSpace, state: Path) -> None:
         raise WriteError("tofu init failed", UNAVAILABLE)
 
     monkeypatch.setattr(FakeSpace, "init", broken)
-    outcomes = [tofu.pending(tmp_path, ledger=ledger)[0]["outcome"] for _ in range(4)]
-    assert outcomes == ["refused", "refused", "refused", "held"]
-    assert fake.alerts == ["skynet: tofu/proxmox-core held"]
+    outcomes = [tofu.pending(tmp_path, ledger=ledger)[0]["outcome"] for _ in range(5)]
+    assert outcomes == ["refused"] * 5  # every pass retries: nothing live changed
+    assert fake.alerts == ["skynet: tofu/proxmox-core unavailable 3 passes running"]
+    assert fake.holds == {}
+    monkeypatch.undo()
+
+
+def test_waiting_on_another_write_is_not_a_failure(fake: Fake, tmp_path: Path,
+                                                   monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger = Ledger(tmp_path / "state")
+    monkeypatch.setattr(Ledger, "wait", 0.01)
+    for _ in range(4):
+        with ledger.lock():  # a manual apply or a long deploy holds the lock
+            result = tofu.pending(tmp_path, ledger=ledger)[0]
+        assert result["reason"] == writepath.LOCK_BUSY
+    assert fake.alerts == [] and fake.holds == {}
+    fake.plan = []
+    assert tofu.pending(tmp_path, ledger=ledger)[0]["outcome"] == "success"  # applied once free
+
+
+def test_only_consecutive_failures_count(fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger = Ledger(tmp_path / "state")
+    broken = [True, True, False, True, True]
+
+    def flaky(self: FakeSpace, state: Path) -> None:
+        if broken.pop(0):
+            raise WriteError("tofu init failed", UNAVAILABLE)
+
+    monkeypatch.setattr(FakeSpace, "init", flaky)
+    fake.plan = [guest(10030, cores=4)]  # no approval: the good pass is a (held) refusal
+    fake.inputs["proxmox-core"] = REV
+    for _ in range(2):
+        tofu.pending(tmp_path, ledger=ledger)
+    assert tofu._failures(ledger, "proxmox-core", REV) == 2
+    tofu.pending(tmp_path, ledger=ledger)  # a real outcome resets the count
+    assert tofu._failures(ledger, "proxmox-core", REV) == 0
 
 
 # --- the state branch ------------------------------------------------------------------------

@@ -37,7 +37,7 @@ rollback: "restore the prior DNS declaration through its approved path"
 
 3. Change the declared source on a branch rebased on `main`, commit it, run
    `skynet tofu plan <technitium-dns|cloudflare-dns> --approve`, and commit the `approved-plan.json`
-   with the PR. After the merge, the deploy timer's pass applies it (`skynet log --kind tofu`).
+   with the PR. After the merge, the `skynet-tofu` timer applies it (`skynet log --kind tofu`).
    Internal records are declared in `tofu/technitium-dns/records.tf` (app records derive from
    `compose/caddy-apps/Caddyfile`); public tunnel CNAMEs derive from `compose/cloudflared/config.yml`
    into `tofu/cloudflare-dns/records.tf`. Do not hand-run a provider token call. The Technitium token cannot yet delete records; deletion requires its documented grant or human UI action.
