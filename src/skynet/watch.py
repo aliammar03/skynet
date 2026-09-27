@@ -9,9 +9,9 @@ for every non-manual service on `origin/main`, and alerts on **state change** on
 - still down: at most one reminder a day.
 
 A pass that cannot observe at all (no fetch, no Docker, no state) is the pseudo-target `monitor`,
-which runs through the same rule, and pings the dead-man's switch `/fail`; a normal pass pings it
-healthy. While a write holds the lock, only the target it is changing is skipped (a deploy
-mid-flight is not an outage); every other service is still checked.
+which runs through the same rule; once it is unhealthy (two failed passes) the pass pings the
+dead-man's switch `/fail`, otherwise healthy. While a write holds the lock, only the target it is
+changing is skipped (a deploy mid-flight is not an outage); every other service is still checked.
 An alert that could not be sent is retried on the next pass. State lives in `state/watch.json`.
 """
 
@@ -151,13 +151,16 @@ def run(repo: Path, *, context: str, state_dir: Path, json_output: bool, stdout:
             if not healthy:
                 code = FAILED
         states = fresh
+    # `/fail` pages at once on healthchecks.io, so it follows the same two-strike rule as the
+    # monitor alert. Unwritable state can't count strikes (and won't heal itself): fail at once.
+    monitor_down = states.get(MONITOR, {}).get("status") == "unhealthy"
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         common.atomic_write_text(path, json.dumps(states, indent=2, sort_keys=True) + "\n")
     except OSError:
         lines.append({"target": MONITOR, "outcome": "unavailable", "reason": "watch state unwritable"})
-        code = UNAVAILABLE
-    ping_failure = alert.ping(code != UNAVAILABLE)
+        code, monitor_down = UNAVAILABLE, True
+    ping_failure = alert.ping(not monitor_down)
     if ping_failure:
         lines.append({"target": "dead-man", "outcome": "unavailable", "reason": ping_failure})
     for row in lines:

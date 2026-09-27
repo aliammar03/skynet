@@ -54,7 +54,8 @@ revision.
 `compose/<svc>/` changed, its tree identical to the host's `verified` revision, `main` still at the
 failed revision, `bin/check` green on the head. The merge pins that head
 (`--match-head-commit`); because that doesn't pin `main`, the squash commit's `compose/<svc>/` is
-then required to be exactly the verified tree, and anything else is `rollback-failed` (alerts). Any failed check is recorded once per head and leaves the PR for Ali.
+then required to be exactly the verified tree (pinned at gate time). Anything else, or a merge
+that landed or may have but can't be confirmed, is `rollback-failed` (alerts). Any failed check is recorded once per head and leaves the PR for Ali.
 
 ## One deploy
 

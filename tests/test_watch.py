@@ -101,7 +101,7 @@ def test_an_unsent_alert_is_retried_next_pass(lab: Lab, tmp_path: Path) -> None:
 def test_monitor_that_cannot_observe_alerts_and_fails_the_ping(lab: Lab, tmp_path: Path) -> None:
     lab.docker_down = True
     assert [_pass(tmp_path, minute) for minute in range(3)] == [3, 3, 3]
-    assert lab.pings == [False, False, False]
+    assert lab.pings == [True, False, False]  # /fail only once the monitor is down (2 strikes)
     assert [title for title, _ in lab.sent] == ["skynet: monitor"]
     assert not [title for title, _ in lab.sent if "svc/" in title]  # no storm per service
     lab.docker_down = False
@@ -151,6 +151,15 @@ def test_an_unsent_recovery_is_retried(lab: Lab, tmp_path: Path) -> None:
     _pass(tmp_path, 4)
     _pass(tmp_path, 5)
     assert [message.split(" ")[0] for _, message in lab.sent] == ["DOWN", "recovered"]
+
+
+def test_one_failed_pass_neither_alerts_nor_fails_the_ping(lab: Lab, tmp_path: Path) -> None:
+    """A single fetch blip must not page through healthchecks' /fail either."""
+    lab.docker_down = True
+    assert _pass(tmp_path, 0) == 3
+    lab.docker_down = False
+    assert _pass(tmp_path, 1) == 0
+    assert lab.sent == [] and lab.pings == [True, True]
 
 
 def test_a_blip_keeps_an_unsent_recovery_pending(lab: Lab, tmp_path: Path) -> None:

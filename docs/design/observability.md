@@ -127,9 +127,9 @@ and whether it went out is a step in the operation record. A skynet unit that ti
 killed triggers `skynet-alert@` (`skynet alert unit-failed`).
 
 **Channel.** Pushover. **Dead-man's switch.** Every watch pass pings a healthchecks.io check
-(`/fail` when the monitor is unavailable). The check expects a ping every 5 minutes with a
-10-minute grace and alerts through its own Pushover integration, so a dead ops VM or timer still
-reaches the phone. `skynet alert test` sends one message and one ping.
+(`/fail` once the monitor is unhealthy: two failed passes, the same rule as its alert). The check
+expects a ping every 5 minutes with a 10-minute grace and alerts through its own Pushover
+integration, so a dead ops VM or timer still reaches the phone. `skynet alert test` sends one message and one ping.
 
 **Credential.** `secrets/alerts.env.sops` (`PUSHOVER_TOKEN`, `PUSHOVER_USER`, `HEALTHCHECK_URL`),
 materialized `0400 aliammar` at `/opt/skynet-ops/secrets/alerts.env` through the `names` list in

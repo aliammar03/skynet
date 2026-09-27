@@ -106,8 +106,9 @@ def check_green(repo: Path, oid: str) -> None:
         raise WriteError(CHECK_RED, FAILED)
 
 
-def gate(repo: Path, pr: dict[str, Any], *, context: str, executor: str) -> tuple[str, str]:
-    """Every check but `bin/check`; returns (service, failed revision) or raises the reason."""
+def gate(repo: Path, pr: dict[str, Any], *, context: str,
+         executor: str) -> tuple[str, str, str]:
+    """Every check but `bin/check`; returns (service, failed, verified) or raises the reason."""
     match = BRANCH.fullmatch(str(pr.get("headRefName", "")))
     author = pr.get("author")
     if not isinstance(author, dict):
@@ -132,24 +133,30 @@ def gate(repo: Path, pr: dict[str, Any], *, context: str, executor: str) -> tupl
         raise WriteError("revert tree is not the verified revision's tree", USAGE)
     if deploy.service_revision(repo, service) != facts.failed:
         raise WriteError("main has moved past the failed revision", USAGE)
-    return service, facts.failed
+    return service, facts.failed, facts.verified
 
 
-def verified_tree(service: str, context: str) -> str | None:
-    return deploy.host_facts(context, service).verified
-
-
-def landed_as_verified(repo: Path, merge: str, service: str, verified: str | None) -> None:
+def landed_as_verified(repo: Path, merge: str, service: str, verified: str) -> None:
     """`--match-head-commit` pins the PR head, not main: a fix to another file of the same
     service merged in the seconds before the squash would be mixed in. Require the squash commit's
     `compose/<svc>/` to be exactly the verified tree; otherwise it is `rollback-failed` and alerts."""
-    if not deployment.REVISION.fullmatch(merge) or verified is None:
+    if not deployment.REVISION.fullmatch(merge):
         raise WriteError(MIXED, FAILED)
     deploy.fetch(repo)
     path = f"compose/{service}"
     landed = tree(repo, merge, path)
     if landed is None or landed != tree(repo, verified, path):
         raise WriteError(MIXED, FAILED)
+
+
+def landed(repo: Path, number: int) -> bool:
+    """After `gh pr merge` failed: did it merge anyway? Unknown counts as yes."""
+    try:
+        state = deploy._ok(["gh", "pr", "view", str(number), "--json", "state", "--jq", ".state"],
+                           "PR state unavailable", cwd=repo).decode().strip()
+    except WriteError:
+        return True
+    return state != "OPEN"
 
 
 def refused_before(ledger: Ledger, target: str, oid: str) -> bool:
@@ -177,16 +184,20 @@ def merge_one(repo: Path, pr: dict[str, Any], *, context: str, ledger: Ledger,
 
     # The slow checks run before the write lock is taken; a refusal is recorded like any other.
     try:
-        service, failed = gate(repo, pr, context=context, executor=executor)
+        service, failed, verified = gate(repo, pr, context=context, executor=executor)
         check_green(repo, oid)
     except WriteError as error:
         return writepath.refuse(operation, ledger, error.reason, error.code)
     operation.note("gate", "ok", f"svc/{service}: failed {failed[:12]} → verified tree; bin/check green")
+    merge_sent = False
 
     def preflight() -> None:  # re-check under the lock, against a freshly fetched main
-        gate(repo, pr, context=context, executor=executor)
+        nonlocal verified
+        verified = gate(repo, pr, context=context, executor=executor)[2]
 
     def execute(_: None) -> None:
+        nonlocal merge_sent
+        merge_sent = True  # from here a failure may leave a merged PR: rollback must not pass it
         deploy._ok(["gh", "pr", "merge", str(number), "--squash", "--delete-branch",
                     "--match-head-commit", oid], "gh pr merge failed", FAILED, cwd=repo)
 
@@ -197,13 +208,16 @@ def merge_one(repo: Path, pr: dict[str, Any], *, context: str, ledger: Ledger,
             "PR state unavailable", cwd=repo).decode().strip().partition(" ")
         if state != "MERGED":
             raise WriteError("PR is not merged", FAILED)
-        landed_as_verified(repo, merge, service, verified_tree(service, context))
+        landed_as_verified(repo, merge, service, verified)
         return {"state": state, "merge_commit": merge}
 
     def rollback(_: None, error: WriteError) -> str:
-        if error.reason == MIXED:  # merged, but not as checked: a merge is never undone by a bot
-            raise WriteError("a merged PR cannot be undone automatically; check main by hand")
-        return "not-needed"  # nothing merged, or main now holds the verified tree: both safe
+        """Only a merge that surely did not happen is safe to leave. A merge that landed, or may
+        have (a timeout, a failed check after it), is unverified: rollback-failed, which alerts,
+        because a bot never undoes a merge."""
+        if merge_sent and not (error.reason == "gh pr merge failed" and not landed(repo, number)):
+            raise WriteError("merge landed or may have, but is not verified; check main by hand")
+        return "not-needed"
 
     return writepath.run(operation, ledger, preflight=preflight, snapshot=lambda: None,
                          execute=execute, verify=verify, rollback=rollback,
