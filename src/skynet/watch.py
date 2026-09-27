@@ -12,7 +12,8 @@ A pass that cannot observe at all (no fetch, no Docker, no state) is the pseudo-
 which runs through the same rule; once it is unhealthy (two failed passes) the pass pings the
 dead-man's switch `/fail`, otherwise healthy. While a write holds the lock, only the target it is
 changing is skipped (a deploy mid-flight is not an outage); every other service is still checked.
-An alert that could not be sent is retried on the next pass. State lives in `state/watch.json`.
+An alert that could not be sent is retried on the next pass; if a needed push is still owed after
+two passes, the dead-man's switch gets `/fail`. State lives in `state/watch.json`.
 """
 
 from __future__ import annotations
@@ -35,6 +36,7 @@ PASS_BUDGET_SECONDS = 75.0
 OBSERVE_MAX_SECONDS = 60.0
 REMINDER_SECONDS = 24 * 3600
 MONITOR = "monitor"
+DELIVERY = "_delivery"
 
 
 def _stamp(now: float) -> str:
@@ -79,6 +81,17 @@ def _push(target: str, state: dict[str, Any], message: str | None, now: float) -
     elif failure is None:
         state.pop("recovery_pending", None)
     return failure
+
+
+def undelivered_passes(before: dict[str, Any], after: dict[str, Any]) -> int:
+    """Consecutive passes that ended with a push still owed: a DOWN not delivered, or a recovery
+    still pending."""
+    owed = any(isinstance(entry, dict) and (
+        entry.get("status") == "unhealthy" and not entry.get("alerted")
+        or entry.get("recovery_pending")) for key, entry in after.items() if key != DELIVERY)
+    previous = before.get(DELIVERY, {})
+    count = int(previous.get("failed_passes", 0)) if isinstance(previous, dict) else 0
+    return count + 1 if owed else 0
 
 
 def load(path: Path) -> dict[str, Any]:
@@ -157,8 +170,10 @@ def run(repo: Path, *, context: str, state_dir: Path, json_output: bool, stdout:
     path = state_dir / "watch.json"
     code, lines = OK, []
     states: dict[str, Any] = {}
+    loaded: dict[str, Any] = {}
     try:
         states = load(path)
+        loaded = dict(states)
         changing = writes_in_flight(Ledger(state_dir))
         order = targets(repo, states, changing)
         docker_reachable(context)
@@ -210,6 +225,15 @@ def run(repo: Path, *, context: str, state_dir: Path, json_output: bool, stdout:
     # `/fail` pages at once on healthchecks.io, so it follows the same two-strike rule as the
     # monitor alert. Unwritable state can't count strikes (and won't heal itself): fail at once.
     monitor_down = states.get(MONITOR, {}).get("status") == "unhealthy"
+    # A needed push that keeps failing (bad credential, blocked endpoint) must not leave the
+    # independent channel saying all is well: after two passes, escalate through `/fail`.
+    failed_passes = undelivered_passes(loaded, states)
+    states[DELIVERY] = {"failed_passes": failed_passes}
+    if failed_passes >= FAILURES_TO_ALERT:
+        monitor_down = True
+        lines.append({"target": "alerts", "outcome": "undelivered",
+                      "reason": f"a needed push has failed for {failed_passes} passes; "
+                                "escalating through the dead-man's switch"})
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         common.atomic_write_text(path, json.dumps(states, indent=2, sort_keys=True) + "\n")

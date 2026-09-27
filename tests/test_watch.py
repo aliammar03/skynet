@@ -279,3 +279,34 @@ def test_an_outage_alerts_within_ten_minutes_with_slow_probes(
 def test_an_observation_that_overruns_its_cap_fails_that_service() -> None:
     with pytest.raises(WriteError, match="observation exceeded"):
         watch._bounded(lambda: (time.sleep(2), {})[1], 0.1)
+
+
+def test_a_down_alert_that_keeps_failing_to_send_escalates_via_the_dead_man(
+        lab: Lab, tmp_path: Path) -> None:
+    """Observation works, delivery doesn't: the independent channel must not say healthy."""
+    lab.health["demo"], lab.send_fails = False, True
+    for minute in range(5):
+        _pass(tmp_path, minute)
+    assert lab.sent == []
+    assert lab.pings == [True, True, False, False, False]  # owed from pass 2; escalated from 3
+    lab.send_fails = False
+    _pass(tmp_path, 5)                                      # delivered at last
+    assert [message[:4] for _, message in lab.sent] == ["DOWN"] and lab.pings[-1] is True
+
+
+def test_an_undeliverable_recovery_escalates_too(lab: Lab, tmp_path: Path) -> None:
+    lab.health["demo"] = False
+    _pass(tmp_path, 0)
+    _pass(tmp_path, 1)                                      # DOWN delivered
+    lab.health["demo"], lab.send_fails = True, True
+    for minute in range(2, 5):
+        _pass(tmp_path, minute)
+    assert lab.pings[-3:] == [True, False, False]
+
+
+def test_healthy_services_and_a_broken_channel_stay_quiet(lab: Lab, tmp_path: Path) -> None:
+    """Nothing owed, nothing to escalate: a broken credential alone isn't an outage."""
+    lab.send_fails = True
+    for minute in range(3):
+        _pass(tmp_path, minute)
+    assert lab.pings == [True, True, True]

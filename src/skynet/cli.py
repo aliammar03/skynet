@@ -61,6 +61,12 @@ def build_parser() -> argparse.ArgumentParser:
     deploy_command.add_argument("--dry-run", nargs="?", const="HEAD", metavar="REF",
                                 help="print the effect of REF (default HEAD) against what runs; no write")
     _write_options(deploy_command)
+    retire_command = commands.add_parser(
+        "retire", help="retire a project removed from compose/ by hand; releases a retirement hold "
+                       "(T2 write, human-run)")
+    retire_command.add_argument("service", help="the project, already removed from main")
+    retire_command.add_argument("--confirm", required=True, help="repeat the service exactly")
+    _write_options(retire_command)
     watch_command = commands.add_parser(
         "watch", help="verify every deployed service; alert on state change (T1 read, timer)")
     _write_options(watch_command)
@@ -274,6 +280,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                                  context=arguments.docker_context, state_dir=arguments.state_dir,
                                  json_output=arguments.json_output, stdout=sys.stdout,
                                  if_moved=arguments.if_moved)
+    if arguments.command == "retire":
+        if arguments.confirm != arguments.service:
+            print("retire: --confirm must repeat the service exactly", file=sys.stderr)
+            return 2
+        result = writepath.report(deploy.retire(
+            arguments.repo, arguments.service, context=arguments.docker_context,
+            ledger=writepath.Ledger(arguments.state_dir)))
+        writepath.emit(result, arguments.json_output, sys.stdout)
+        return int(result["code"])
     if arguments.command == "watch":
         return watch.run(arguments.repo, context=arguments.docker_context,
                          state_dir=arguments.state_dir, json_output=arguments.json_output,

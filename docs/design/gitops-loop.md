@@ -46,16 +46,22 @@ internet-facing reaches the ops VM.
 its releases and host facts under `/opt/docker/services/<svc>/` are removed. **Named volumes are
 kept** — deleting payload stays a human act; the operation record lists them (`volumes-kept`). A
 project with a writable bind mount into its release directory is refused (retire it by hand). If
-`main` lists no services at all, nothing is retired. A failed retirement redeploys the verified
-revision.
+`main` lists no services at all, nothing is retired. Before removing anything, the verified
+revision is rendered and staged; with none, retirement is refused. A failed retirement redeploys
+it; if that fails too (`rollback-failed`, alerts), the project is **held**: the timer makes no
+further attempt until `skynet retire <svc> --confirm <svc>` (or a later deploy of the service).
+A retirement interrupted after its containers were gone is found again from the operation
+record and finishes its cleanup.
 
 **The revert auto-merge.** After each pass, open `revert/<svc>-<12hex>` PRs go through the
 [AGENTS.md §3](../../AGENTS.md) gate (`src/skynet/automerge.py`): opened by the executor, only
 `compose/<svc>/` changed, its tree identical to the host's `verified` revision, `main` still at the
 failed revision, `bin/check` green on the head. The merge pins that head
-(`--match-head-commit`); because that doesn't pin `main`, the squash commit's `compose/<svc>/` is
+(`--match-head-commit`), and the PR is re-read from GitHub just before; because that doesn't pin `main`, the squash commit's `compose/<svc>/` is
 then required to be exactly the verified tree (pinned at gate time). Anything else, or a merge
-that landed or may have but can't be confirmed, is `rollback-failed` (alerts). Any failed check is recorded once per head and leaves the PR for Ali.
+that landed or may have but can't be confirmed, is `rollback-failed` (alerts). A run interrupted
+after the merge is settled from its `started` record (which holds the approved tree) on the next
+pass. Any failed check is recorded once per head and leaves the PR for Ali.
 
 ## One deploy
 

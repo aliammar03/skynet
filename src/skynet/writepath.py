@@ -63,6 +63,8 @@ class Operation:
     reason: str | None = None
     verification: dict[str, Any] | None = None
     code: int = OK
+    # What a later reconcile needs to judge an interrupted write (e.g. the approved tree).
+    context: dict[str, Any] = field(default_factory=dict)
 
     def step(self, name: str, action: Callable[[], T]) -> T:
         """Run one named step and record its outcome; a WriteError propagates after recording."""
@@ -169,6 +171,26 @@ class Ledger:
             if isinstance(value, dict):
                 entries.append(value)
         return entries
+
+    def unfinished(self, kind: str) -> list[dict[str, Any]]:
+        """Every `started` entry of this kind with no final or reconciled line: interrupted writes
+        a later pass must settle even if nothing else would find them again."""
+        started: dict[str, dict[str, Any]] = {}
+        for entry in self.entries():
+            if entry.get("kind") != kind:
+                continue
+            key = str(entry.get("id"))
+            if entry.get("phase") == "started":
+                started[key] = entry
+            elif entry.get("phase") in {"final", "reconciled"}:
+                started.pop(key, None)
+        return list(started.values())
+
+    def last_final(self, kind: str, target: str) -> dict[str, Any] | None:
+        for entry in reversed(self.entries()):
+            if (entry.get("kind"), entry.get("target"), entry.get("phase")) == (kind, target, "final"):
+                return entry
+        return None
 
     def dangling(self, kind: str, target: str) -> dict[str, Any] | None:
         """The newest `started` entry for this target that never got a final or reconciled line."""
@@ -294,6 +316,24 @@ def refuse(operation: Operation, ledger: Ledger, reason: str, code: int = USAGE)
 def _stop(operation: Operation, ledger: Ledger, outcome: str, error: WriteError) -> None:
     operation.outcome, operation.reason, operation.code = outcome, error.reason, error.code
     ledger.append(operation.record("final"))
+
+
+def settle(ledger: Ledger, entry: dict[str, Any], *, observed: dict[str, Any] | None = None,
+           alarm: str | None = None) -> Operation:
+    """Close an interrupted write found by `Ledger.unfinished`: `reconciled` with what is live,
+    or, when what landed can't be shown safe, a `rollback-failed` final that alerts."""
+    operation = Operation(str(entry.get("kind")), str(entry.get("target")),
+                          str(entry.get("source", "")), id=str(entry.get("id")),
+                          context=dict(entry.get("context") or {}))
+    if alarm is None:
+        ledger.append({"ts": _now(), "phase": "reconciled", "kind": operation.kind,
+                       "target": operation.target, "id": operation.id, "observed": observed or {}})
+        operation.outcome = "reconciled"
+        return operation
+    operation.outcome, operation.code = "rollback-failed", ROLLBACK_FAILED
+    operation.recovery, operation.reason = "rollback-failed", alarm
+    _finish(operation, ledger)
+    return operation
 
 
 def report(operation: Operation) -> dict[str, Any]:

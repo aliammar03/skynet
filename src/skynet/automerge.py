@@ -169,6 +169,58 @@ def fresh_pr(repo: Path, number: int) -> dict[str, Any]:
     return current
 
 
+def merge_commit(repo: Path, number: int) -> tuple[str, str]:
+    """(state, merge commit oid or "")."""
+    state, _space, merge = deploy._ok(
+        ["gh", "pr", "view", str(number), "--json", "state,mergeCommit", "--jq",
+         '[.state, (.mergeCommit.oid // "")] | join(" ")'],
+        "PR state unavailable", cwd=repo).decode().strip().partition(" ")
+    return state, merge
+
+
+def settle_unfinished(repo: Path, ledger: Ledger) -> list[dict[str, Any]]:
+    """An auto-merge interrupted after `gh pr merge` leaves only a `started` record, and its PR
+    is no longer open, so open-PR discovery never finds it again. Settle each one from the record:
+    not merged → reconciled; merged → the squash must be on main with the approved tree, or it
+    is rollback-failed and alerts; GitHub can't say → left for the next pass."""
+    if ledger.busy():
+        return []  # a merge may be running right now
+    results = []
+    for entry in ledger.unfinished("automerge"):
+        target, ctx = str(entry.get("target")), entry.get("context") or {}
+        service, verified = ctx.get("service"), ctx.get("verified")
+        try:
+            number = int(target.removeprefix("pr/"))
+            if not (isinstance(service, str) and isinstance(verified, str)):
+                operation = writepath.settle(ledger, entry, alarm="interrupted auto-merge has no "
+                                             "recorded approved tree; check main by hand")
+            else:
+                state = pr_state(repo, number)
+                if state is None:
+                    results.append({"target": target, "outcome": "unavailable", "code": UNAVAILABLE,
+                                    "reason": "interrupted auto-merge: PR state unknown; retrying"})
+                    continue
+                if state != "MERGED":
+                    operation = writepath.settle(ledger, entry, observed={"state": state})
+                else:
+                    merge = merge_commit(repo, number)[1]
+                    try:
+                        landed_as_verified(repo, merge, service, verified)
+                    except WriteError as error:
+                        operation = writepath.settle(ledger, entry, alarm=f"interrupted auto-merge "
+                                                     f"landed unverified: {error.reason}")
+                    else:
+                        operation = writepath.settle(ledger, entry, observed={
+                            "state": state, "merge_commit": merge, "tree": "verified"})
+        except (ValueError, WriteError) as error:
+            reason = error.reason if isinstance(error, WriteError) else "malformed record"
+            results.append({"target": target, "outcome": "unavailable", "code": UNAVAILABLE,
+                            "reason": f"interrupted auto-merge not settled: {reason}"})
+            continue
+        results.append(writepath.report(operation))
+    return results
+
+
 def pr_state(repo: Path, number: int) -> str | None:
     """OPEN, CLOSED, or MERGED; None when GitHub can't say."""
     try:
@@ -210,6 +262,8 @@ def merge_one(repo: Path, pr: dict[str, Any], *, context: str, ledger: Ledger,
         return writepath.refuse(operation, ledger, error.reason, error.code)
     operation.note("gate", "ok", f"svc/{service}: failed {failed[:12]} → verified tree; bin/check green")
     merge_sent = False
+    # In the `started` record: what an interrupted run's reconcile must find on main.
+    operation.context = {"service": service, "verified": verified, "failed": failed}
 
     def preflight() -> None:
         """Under the lock, just before merging: the PR as GitHub has it now (state, base, head,
@@ -221,6 +275,7 @@ def merge_one(repo: Path, pr: dict[str, Any], *, context: str, ledger: Ledger,
         if (current.get("headRefName"), current.get("headRefOid")) != (pr.get("headRefName"), oid):
             raise WriteError("PR head changed since it was checked", USAGE)
         verified = gate(repo, current, context=context, executor=executor)[2]
+        operation.context["verified"] = verified
 
     def execute(_: None) -> None:
         nonlocal merge_sent
@@ -238,10 +293,7 @@ def merge_one(repo: Path, pr: dict[str, Any], *, context: str, ledger: Ledger,
             raise WriteError(MERGE_UNKNOWN, FAILED) from None
 
     def verify(_: None) -> dict[str, Any]:
-        state, _space, merge = deploy._ok(
-            ["gh", "pr", "view", str(number), "--json", "state,mergeCommit", "--jq",
-             '[.state, (.mergeCommit.oid // "")] | join(" ")'],
-            "PR state unavailable", cwd=repo).decode().strip().partition(" ")
+        state, merge = merge_commit(repo, number)
         if state != "MERGED":
             raise WriteError("PR is not merged", FAILED)
         landed_as_verified(repo, merge, service, verified)
@@ -254,22 +306,28 @@ def merge_one(repo: Path, pr: dict[str, Any], *, context: str, ledger: Ledger,
             raise WriteError("merge landed or may have, but is not verified; check main by hand")
         return "not-needed"
 
+    def reconcile() -> dict[str, Any]:  # settle_unfinished closes these; never merge over one
+        raise WriteError("an interrupted auto-merge of this PR is not settled yet", UNAVAILABLE)
+
     return writepath.run(operation, ledger, preflight=preflight, snapshot=lambda: None,
-                         execute=execute, verify=verify, rollback=rollback,
-                         reconcile=lambda: {"idempotent": True})
+                         execute=execute, verify=verify, rollback=rollback, reconcile=reconcile)
 
 
 def run(repo: Path, *, context: str, ledger: Ledger) -> list[dict[str, Any]]:
-    """Try every open executor revert PR; results in the shared shape."""
+    """Settle interrupted auto-merges, then try every open executor revert PR."""
+    try:
+        results = settle_unfinished(repo, ledger)
+    except WriteError as error:
+        results = [{"target": "automerge", "outcome": "unavailable", "reason": error.reason,
+                    "code": error.code}]
     try:
         prs = open_reverts(repo)
         if not prs:
-            return []
+            return results
         executor = login(repo)
     except WriteError as error:
-        return [{"target": "automerge", "outcome": "unavailable", "reason": error.reason,
-                 "code": error.code}]
-    results = []
+        return results + [{"target": "automerge", "outcome": "unavailable", "reason": error.reason,
+                           "code": error.code}]
     for pr in prs:
         target, oid = f"pr/{pr.get('number')}", str(pr.get("headRefOid", ""))
         try:

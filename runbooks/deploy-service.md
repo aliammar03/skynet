@@ -64,7 +64,9 @@ compose/<svc>/.env.sops      # secrets only (sops+age); omit if the service has 
 Delete `compose/<svc>/` in a PR (plus its Caddyfile/cloudflared routes, then `skynet withdraw`
 for each removed vhost). After merge the timer retires the project: containers and networks come
 down, its releases are removed, and its **named volumes are kept** — `skynet log --kind retire`
-lists them for you to delete by hand once you are sure.
+lists them for you to delete by hand once you are sure. If a retirement's rollback fails, you
+get a `rollback-failed` push and the project is held: resolve it by hand, then
+`skynet retire <svc> --confirm <svc>`.
 
 A new service deploys the same way; it has no rollback target until its first verified deploy,
 so a failed first deploy stops (`no-rollback-target`) instead of guessing.

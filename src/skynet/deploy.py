@@ -469,11 +469,15 @@ def pending(repo: Path, *, context: str, ledger: Ledger) -> list[dict[str, Any]]
     fetch(repo)
     results: list[dict[str, Any]] = []
     try:
-        doomed = retirable(repo, context)
+        doomed, held = retirable(repo, context, ledger)
     except WriteError as error:
-        doomed = []
+        doomed, held = [], []
         results.append({"target": "retire", "outcome": "unavailable", "reason": error.reason,
                         "code": error.code})
+    for service in held:
+        results.append({"target": f"svc/{service}", "outcome": "held",
+                        "reason": "retirement rollback failed; resolve it, then "
+                                  f"`skynet retire {service} --confirm {service}`"})
     for service in doomed:
         results.append(writepath.report(retire(repo, service, context=context, ledger=ledger)))
     for service in services(repo):
@@ -552,12 +556,37 @@ def host_projects(context: str) -> set[str]:
     return names
 
 
-def retirable(repo: Path, context: str) -> list[str]:
-    """Executor-deployed projects with no `compose/<svc>/` on main. An empty main retires nothing."""
+def retirable(repo: Path, context: str, ledger: Ledger) -> tuple[list[str], list[str]]:
+    """(to retire, held). Executor-deployed projects with no `compose/<svc>/` on main, plus any
+    retirement interrupted after its containers were gone (the ledger still has it; the labels
+    don't). A project whose last write was a retirement that failed its rollback is held for a
+    human: the timer never makes another destructive attempt on it. An empty main retires nothing."""
     declared = services(repo)
     if not declared:
         raise WriteError("origin/main declares no services; nothing is retired", UNAVAILABLE)
-    return sorted(host_projects(context) - set(declared))
+    interrupted = {str(entry.get("target")).removeprefix("svc/")
+                   for entry in ledger.unfinished("retire")}
+    candidates = (host_projects(context) | interrupted) - set(declared)
+    held = sorted(service for service in candidates if retire_held(ledger, service))
+    return sorted(candidates - set(held)), held
+
+
+def retire_held(ledger: Ledger, service: str) -> bool:
+    """The service's last real outcome (deploy or retire, refusals aside) is a retirement whose
+    rollback failed. Released by `skynet retire <svc> --confirm <svc>` or a later deploy."""
+    for entry in reversed(ledger.entries()):
+        if (entry.get("target") == f"svc/{service}" and entry.get("phase") == "final"
+                and entry.get("kind") in {"deploy", "retire"} and entry.get("outcome") != "refused"):
+            return entry.get("kind") == "retire" and entry.get("outcome") == "rollback-failed"
+    return False
+
+
+def project_volumes(context: str, service: str) -> list[str]:
+    """Named volumes Compose created for the project: they outlive its containers."""
+    names = _ok(["docker", "--context", context, "volume", "ls", "--quiet", "--filter",
+                 f"label=com.docker.compose.project={service}"], "Docker host unavailable",
+                env=docker_env()).decode("utf-8", "replace").split()
+    return sorted(name for name in names if deployment.NAME.fullmatch(name))
 
 
 def _inspect(context: str, service: str) -> list[dict[str, Any]]:
@@ -594,13 +623,20 @@ def retire(repo: Path, service: str, *, context: str, ledger: Ledger) -> Operati
     operation = Operation("retire", f"svc/{service}", source)
     saved = _Saved()
     kept: list[str] = []
+    leftover = False  # an interrupted retirement: containers already gone, cleanup not done
 
     def preflight() -> None:
+        nonlocal leftover
         if service in services(repo):
             raise WriteError("service is still declared on origin/main", USAGE)
         rows = _inspect(context, service)
         if not rows:
-            raise WriteError("no containers for the project", USAGE)
+            facts = host_facts(context, service)
+            if facts.verified is None and not facts.releases:
+                raise WriteError("no containers or releases for the project", USAGE)
+            leftover = True
+            operation.note("leftover", "ok", "no containers left; finishing the cleanup")
+            return
         try:
             foreign = any(deployment._labels(row).get(SERVICE_LABEL) != service for row in rows)
         except deployment.VerificationError as error:
@@ -621,12 +657,15 @@ def retire(repo: Path, service: str, *, context: str, ledger: Ledger) -> Operati
         return saved
 
     def execute(state: _Saved) -> None:
+        if leftover:
+            return
         _ok(["docker", "--context", context, "compose", "-p", service, "down", "--remove-orphans"],
             "compose down failed", FAILED, env=docker_env(), timeout=300.0)
 
     def verify(state: _Saved) -> dict[str, Any]:
         if _inspect(context, service):
             raise WriteError("containers remain after compose down", FAILED)
+        kept[:] = sorted(set(kept) | set(project_volumes(context, service)))
         if kept:
             operation.note("volumes-kept", "ok", ", ".join(kept))
         return {"containers": 0, "volumes_kept": kept}

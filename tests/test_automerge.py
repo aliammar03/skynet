@@ -340,3 +340,60 @@ def test_a_squash_that_is_not_on_main_alerts(
     [result] = _run(tmp_path)
     assert result["outcome"] == "rollback-failed" and "not on main" in result["reason"]
     assert pushed == ["skynet: pr/7 rollback-failed"]
+
+
+def _interrupted(tmp_path: Path, context: dict[str, Any] | None = None) -> Ledger:
+    """A run killed right after GitHub accepted the merge: only its `started` record exists."""
+    from skynet.writepath import Operation
+    ledger = Ledger(tmp_path / "state")
+    ledger.append(Operation("automerge", "pr/7", HEAD, context=context if context is not None else {
+        "service": "demo", "verified": VERIFIED, "failed": FAILED}).record("started"))
+    return ledger
+
+
+@pytest.fixture
+def merged_elsewhere(hub: Hub, monkeypatch: pytest.MonkeyPatch) -> Hub:
+    hub.merged.append(["gh", "pr", "merge", "7"])        # GitHub has it merged ...
+    monkeypatch.setattr(automerge, "open_reverts", lambda repo: [])  # ... so it's not open
+    return hub
+
+
+def test_an_interrupted_merge_is_verified_from_the_record(merged_elsewhere: Hub,
+                                                           tmp_path: Path) -> None:
+    ledger = _interrupted(tmp_path)
+    [result] = automerge.run(tmp_path, context="docker-dmz", ledger=ledger)
+    assert result["outcome"] == "reconciled" and ledger.unfinished("automerge") == []
+
+
+@pytest.mark.parametrize("breaks", ["mixed", "no-context"])
+def test_an_interrupted_merge_that_cannot_be_shown_safe_alerts(
+        merged_elsewhere: Hub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, breaks: str) -> None:
+    pushed = _pushes(monkeypatch)
+    if breaks == "mixed":
+        merged_elsewhere.trees[MERGE] = "tree-mixed"
+    ledger = _interrupted(tmp_path, {} if breaks == "no-context" else None)
+    [result] = automerge.run(tmp_path, context="docker-dmz", ledger=ledger)
+    assert (result["outcome"], result["code"]) == ("rollback-failed", 4)
+    assert pushed == ["skynet: pr/7 rollback-failed"] and ledger.unfinished("automerge") == []
+
+
+def test_an_interrupted_run_that_never_merged_is_reconciled(
+        hub: Hub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(automerge, "open_reverts", lambda repo: [])
+    ledger = _interrupted(tmp_path)
+    [result] = automerge.run(tmp_path, context="docker-dmz", ledger=ledger)
+    assert result["outcome"] == "reconciled"
+
+
+def test_an_interrupted_run_with_unknown_state_is_left_for_the_next_pass(
+        merged_elsewhere: Hub, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(automerge, "pr_state", lambda repo, number: None)
+    ledger = _interrupted(tmp_path)
+    [result] = automerge.run(tmp_path, context="docker-dmz", ledger=ledger)
+    assert result["outcome"] == "unavailable" and len(ledger.unfinished("automerge")) == 1
+
+
+def test_the_started_record_carries_the_approved_tree(hub: Hub, tmp_path: Path) -> None:
+    _run(tmp_path)
+    [started] = [e for e in Ledger(tmp_path / "state").entries() if e["phase"] == "started"]
+    assert started["context"] == {"service": "demo", "verified": VERIFIED, "failed": FAILED}

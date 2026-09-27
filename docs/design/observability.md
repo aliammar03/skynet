@@ -130,7 +130,9 @@ that: ≤ 2 × 181 + 75 + 60 + 15 ≈ 512 s. `tests/test_watch.py` simulates thi
 
 While a write holds the lock, only the target it is changing is skipped (a deploy mid-flight is
 not an outage); every other service is still checked, so a long write never hides an outage. An
-alert that could not be sent is retried next pass. State: `/opt/skynet-ops/state/watch.json`.
+alert that could not be sent is retried next pass; if a needed push is still owed after two passes
+(a broken credential or blocked endpoint), the dead-man's switch gets `/fail`, so the independent
+channel escalates. State: `/opt/skynet-ops/state/watch.json`.
 
 Write paths alert too: a `rollback-failed` or `unrecorded` outcome pushes a high-priority message,
 and whether it went out is a step in the operation record. A write whose final record can't be kept is

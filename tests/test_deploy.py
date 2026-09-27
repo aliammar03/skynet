@@ -436,6 +436,45 @@ def test_partial_removal_with_failed_recovery_alerts(
     assert pushed == ["skynet: svc/gone rollback-failed"]
 
 
+def test_a_failed_retirement_rollback_holds_the_project(
+        retiring: FakeHost, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """After rollback-failed, later timer passes make no further destructive attempt."""
+    from skynet import writepath
+    monkeypatch.setattr(writepath.alert, "send", lambda *a, **k: None)
+    retiring.bad_down = True
+    retiring.bad_up.add(OLD)
+    ledger = Ledger(tmp_path / "state")
+    first = deploy.pending(tmp_path, context="docker-dmz", ledger=ledger)
+    assert first[-1]["outcome"] == "rollback-failed"
+    downs = len([call for call in retiring.calls if "down" in call])
+    for _ in range(2):
+        again = deploy.pending(tmp_path, context="docker-dmz", ledger=ledger)
+        assert [(r["target"], r["outcome"]) for r in again] == [("svc/gone", "held")]
+    assert len([call for call in retiring.calls if "down" in call]) == downs
+    retiring.bad_down = False                            # Ali resolved it, then releases the hold
+    retiring.bad_up.discard(OLD)
+    assert deploy.retire(tmp_path, "gone", context="docker-dmz", ledger=ledger).outcome == "success"
+    assert not deploy.retire_held(ledger, "gone")
+
+
+def test_an_interrupted_retirement_is_finished_from_the_record(
+        retiring: FakeHost, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Killed after compose down: no containers, no labels, but the ledger remembers."""
+    from skynet.writepath import Operation
+    ledger = Ledger(tmp_path / "state")
+    ledger.append(Operation("retire", "svc/gone", OLD).record("started"))
+    retiring.projects.discard("gone")
+    retiring.containers["gone"] = []
+    monkeypatch.setattr(deploy, "project_volumes", lambda context, service: ["gone_data"])
+    results = deploy.pending(tmp_path, context="docker-dmz", ledger=ledger)
+    assert [(r["target"], r["outcome"]) for r in results] == [("svc/gone", "success")]
+    steps = {step["step"]: step for step in results[0]["steps"]}
+    assert "leftover" in steps and steps["volumes-kept"]["detail"] == "gone_data"
+    assert not [call for call in retiring.calls if "down" in call]
+    assert ("host", 'set -eu; rm -rf "/srv/$1"', "gone") in retiring.calls
+    assert ledger.unfinished("retire") == []
+
+
 def test_trigger_runs_only_when_main_moved_or_the_last_pass_is_stale(
         host: FakeHost, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ledger, head = Ledger(tmp_path / "state"), {"sha": NEW}
