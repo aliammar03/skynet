@@ -29,7 +29,9 @@ plans and T3-excluded guests rather than attempting to make them reversible.
 The Tofu executor applies only the plan it makes from the merged revision, and only when that plan's
 normalized-change hash equals the PR's `approved-plan.json`. A failure is rolled back only when every
 change was a snapshotted guest update or a state-only move; anything else keeps its snapshots,
-records the state OpenTofu wrote, and alerts. A snapshot that cannot be made refuses the apply.
+records the state OpenTofu wrote, and alerts. A snapshot that cannot be made refuses the apply. An apply updates at most five existing guests,
+so a hung apply plus its full rollback fits the deploy unit's 4 h budget; the timer defers a
+stack it cannot finish.
 
 Automated rollback proof lives in the local test suite (`tests/`, run by `bin/check`): an actuator
 claims an A4 promotion only when its failure-case rollback is exercised there and recorded live.

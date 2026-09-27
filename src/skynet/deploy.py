@@ -468,6 +468,7 @@ def pending(repo: Path, *, context: str, ledger: Ledger) -> list[dict[str, Any]]
     project `main` no longer declares (the timer's job). Retirement runs first, so a renamed
     service's old project frees its ports and names before the new one comes up. Merged Tofu
     stacks apply last (`tofu.pending`)."""
+    started = time.monotonic()
     fetch(repo)
     results: list[dict[str, Any]] = []
     try:
@@ -501,7 +502,7 @@ def pending(repo: Path, *, context: str, ledger: Ledger) -> list[dict[str, Any]]
                                                ledger=ledger, refresh=False)))
     from skynet import tofu  # tofu builds on this module's git helpers
     try:
-        results += tofu.pending(repo, ledger=ledger)
+        results += tofu.pending(repo, ledger=ledger, deadline=started + tofu.PASS_SECONDS - 300)
     except WriteError as error:
         results.append({"target": "tofu", "outcome": "unavailable", "reason": error.reason,
                         "code": error.code})

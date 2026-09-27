@@ -138,15 +138,29 @@ def run(fake: Fake, tmp_path: Path, stack: str = "proxmox-core") -> Operation:
 
 # --- the normalized change -------------------------------------------------------------------
 
-def test_hash_ignores_refresh_noise_and_follows_the_effect() -> None:
-    one = guest(cores=2)
-    noisy = guest(cores=2)
-    noisy["change"]["before"] = {"id": "10030", "uptime": 999}
-    other = guest(cores=4)
-    digest = lambda entry: tofu.plan_hash("s", tofu.changes({"resource_changes": [entry]}))  # noqa: E731
-    assert digest(one) == digest(noisy)
-    assert digest(one) != digest(other)
+def _update(before: dict[str, Any], after: dict[str, Any]) -> dict[str, Any]:
+    return {"address": 'ct.g["731"]', "type": CT,
+            "change": {"actions": ["update"], "before": before, "after": after, "after_unknown": {}}}
+
+
+def _digest(*entries: dict[str, Any]) -> str:
+    return tofu.plan_hash("s", tofu.changes({"resource_changes": list(entries)}))
+
+
+def test_hash_is_stable_and_follows_the_effect() -> None:
+    approved = _update({"memory": 1024, "cores": 2}, {"memory": 2048, "cores": 2})
+    assert _digest(approved) == _digest(_update({"memory": 1024, "cores": 2}, {"memory": 2048, "cores": 2}))
+    assert _digest(approved) != _digest(_update({"memory": 1024, "cores": 2}, {"memory": 4096, "cores": 2}))
     assert tofu.plan_hash("s", []) != tofu.plan_hash("t", [])
+
+
+def test_a_hand_edit_to_an_unapproved_attribute_changes_the_hash() -> None:
+    approved = _update({"memory": 1024, "cores": 2}, {"memory": 2048, "cores": 2})
+    # Someone sets cores=6 by hand; the same config would now also put cores back to 2.
+    drifted = _update({"memory": 1024, "cores": 6}, {"memory": 2048, "cores": 2})
+    assert _digest(approved) != _digest(drifted)
+    (found,) = tofu.changes({"resource_changes": [drifted]})
+    assert set(found["delta"]) == {"memory", "cores"}
 
 
 def test_no_ops_drop_out_and_moves_and_imports_stay() -> None:
@@ -418,6 +432,78 @@ def test_settlement_waits_for_a_running_write(fake: Fake, tmp_path: Path,
         assert tofu.settle_interrupted(tmp_path, ledger) == []
     assert [e["id"] for e in ledger.unfinished("tofu")] == [running.id]
     assert fake.recorded == [] and fake.alerts == []
+
+
+def test_a_refused_manual_run_cannot_replace_the_pending_hold(fake: Fake, tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "state")
+    fake.apply_error = True
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    assert tofu.pending(tmp_path, ledger=ledger)[0]["outcome"] == "rolled-back"
+    assert fake.holds["proxmox-core"]["revision"] == REV
+    other = tofu.apply(tmp_path, "proxmox-core", revision=NEW, ledger=ledger)  # manual, not main's
+    assert other.outcome in ("refused", "rolled-back")
+    assert fake.holds["proxmox-core"]["revision"] == REV  # the real hold stands
+    fake.calls.clear()
+    assert tofu.pending(tmp_path, ledger=ledger)[0]["outcome"] == "held"
+    assert "apply" not in fake.calls
+
+
+def test_a_hold_git_refuses_is_kept_locally_and_alerts(fake: Fake, tmp_path: Path,
+                                                      monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger = Ledger(tmp_path / "state")
+
+    def rejected(repo: Path, stack: str, revision: str, reason: str, operation: str) -> None:
+        raise WriteError("state branch push failed (not a fast-forward, or origin unreachable)",
+                         UNAVAILABLE)
+
+    monkeypatch.setattr(tofu, "set_hold", rejected)
+    fake.apply_error = True
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    first = tofu.pending(tmp_path, ledger=ledger)
+    assert first[0]["outcome"] == "rolled-back"
+    assert fake.alerts == ["skynet: tofu/proxmox-core hold not recorded in git"]
+    fake.calls.clear()
+    assert tofu.pending(tmp_path, ledger=ledger)[0]["outcome"] == "held"  # the local fallback
+    assert "apply" not in fake.calls
+
+
+def test_a_run_meeting_an_unsettled_interruption_refuses_rather_than_closing_it(
+        fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger = Ledger(tmp_path / "state")
+    interrupted = Operation("tofu", "tofu/proxmox-core", REV, context={"stack": "proxmox-core"})
+    ledger.append(interrupted.record("started"))
+    monkeypatch.setattr(tofu, "settle_interrupted", lambda repo, ledger: [])  # the lock was busy
+    operation = run(fake, tmp_path)
+    assert operation.outcome == "refused" and "not settled yet" in str(operation.reason)
+    assert [e["id"] for e in ledger.unfinished("tofu")] == [interrupted.id]  # still open
+
+
+def test_a_stack_starts_only_if_its_worst_case_fits_the_pass(fake: Fake, tmp_path: Path) -> None:
+    import time
+    results = tofu.pending(tmp_path, ledger=Ledger(tmp_path / "state"),
+                           deadline=time.monotonic() + tofu.STACK_BUDGET - 1)
+    assert results[0]["outcome"] == "deferred" and fake.calls == []
+
+
+def test_too_many_guests_in_one_apply_are_refused(fake: Fake, tmp_path: Path) -> None:
+    fake.plan = [guest(10030 + n, cores=4) for n in range(tofu.MAX_GUESTS + 1)]
+    fake.approve()
+    operation = run(fake, tmp_path)
+    assert operation.outcome == "refused" and "split it" in str(operation.reason)
+    assert "apply" not in fake.calls
+
+
+def test_the_unit_timeout_covers_a_full_pass_budget() -> None:
+    import re
+    nix = (Path(__file__).resolve().parents[1] / "nix/modules/timers.nix").read_text()
+    unit = nix[nix.index("systemd.services.skynet-deploy"):nix.index("systemd.timers.skynet-deploy")]
+    hours = int(re.search(r'TimeoutStartSec = "(\d+)h";', unit)[1])  # type: ignore[index]
+    assert hours * 3600 == tofu.PASS_SECONDS
+    # A Docker pass of up to an hour, then one stack's hung apply plus its full rollback.
+    assert 3600 + tofu.STACK_BUDGET + 300 <= tofu.PASS_SECONDS
+    assert max(tofu.TOFU_SECONDS.values()) < tofu.STACK_BUDGET
 
 
 def test_an_unplannable_revision_is_retried_then_held(fake: Fake, tmp_path: Path,

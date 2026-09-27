@@ -73,7 +73,7 @@ def host(monkeypatch: pytest.MonkeyPatch) -> FakeHost:
         return "https://example.invalid/pr/1"
 
     monkeypatch.setattr(deploy, "fetch", lambda repo: None)
-    monkeypatch.setattr(tofu, "pending", lambda repo, ledger: [])
+    monkeypatch.setattr(tofu, "pending", lambda repo, ledger, deadline=None: [])
     monkeypatch.setattr(deploy, "resolve", lambda repo, ref: ref)
     monkeypatch.setattr(deploy, "services", lambda repo, ref="": sorted(fake.main))
     monkeypatch.setattr(deploy, "service_revision", lambda repo, service, ref="": fake.main.get(service))

@@ -44,7 +44,9 @@ in
       # whose alert went out. A crash (Python exits 1), an alert that could not be sent (1),
       # unwritable trigger state (1), a timeout, or a kill fires OnFailure.
       SuccessExitStatus = [ 4 ];
-      TimeoutStartSec = "60m";
+      # = tofu.PASS_SECONDS: a Tofu stack starts only if a hung apply plus its full rollback
+      # still fits (src/skynet/tofu.py); a test pins the two together.
+      TimeoutStartSec = "4h";
     };
   };
   systemd.timers.skynet-deploy = {

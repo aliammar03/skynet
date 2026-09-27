@@ -25,6 +25,7 @@ import json
 import os
 import subprocess
 import tempfile
+import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -45,6 +46,13 @@ PLAN_FILE = "skynet.tfplan"
 GUEST_TYPES = {"proxmox_virtual_environment_container": "lxc", "proxmox_virtual_environment_vm": "qemu"}
 REFUSED_ACTIONS = {"delete", "forget"}
 HOLD_AFTER_FAILURES = 3
+# The time budget. The deploy unit's TimeoutStartSec is PASS_SECONDS (nix/modules/timers.nix; a
+# test pins them together). A stack starts only if its worst case, a hung apply plus the full
+# rollback, still fits before the deadline, so systemd never kills a rollback half-way.
+TOFU_SECONDS = {"init": 300, "plan": 900, "show": 120, "apply": 1800, "verify": 900}
+MAX_GUESTS = 5  # snapshotted guests per apply; bounds the rollback time
+STACK_BUDGET = sum(TOFU_SECONDS.values()) + MAX_GUESTS * 4 * pve.TASK_SECONDS  # status/snap/back/prune
+PASS_SECONDS = 4 * 3600
 # Outcomes after a write ran: retrying could disrupt guests again or repeat a partial create.
 HELD_OUTCOMES = frozenset({"failed", "rolled-back", "rollback-failed"})
 MISMATCH = "plan differs from the approved plan (drift or an unapproved change); re-plan in a new PR"
@@ -140,10 +148,22 @@ def _mask(value: Any, sensitive: Any, secret: bytes) -> Any:
     return value
 
 
+def _delta(before: Any, after: Any, unknown: Any) -> dict[str, Any]:
+    """The top-level attributes this change actually moves, as before → after. A hand edit to an
+    attribute the PR did not touch makes it appear here, so the hash no longer matches."""
+    before = before if isinstance(before, dict) else {}
+    after = after if isinstance(after, dict) else {}
+    unknown = unknown if isinstance(unknown, dict) else {}
+    keys = {key for key in before.keys() | after.keys() if before.get(key) != after.get(key)}
+    keys |= {key for key, value in unknown.items() if value}
+    return {key: {"before": before.get(key), "after": after.get(key)} for key in sorted(keys)}
+
+
 def changes(plan: dict[str, Any], secret: bytes = b"") -> list[dict[str, Any]]:
     """Every resource change that does something (moves and imports included), in address order.
-    `before` is left out: it is refresh noise, not the effect. Sensitive values become keyed
-    commitments (`secret`), so the hash follows them without the plan revealing them."""
+    Each carries its full `after` and, for the attributes it actually changes, their `before`:
+    untouched attributes' refresh values stay out. Sensitive values become keyed commitments
+    (`secret`), so the hash follows them without the plan revealing them."""
     found = []
     for entry in plan.get("resource_changes") or []:
         change = entry.get("change") or {}
@@ -156,6 +176,9 @@ def changes(plan: dict[str, Any], secret: bytes = b"") -> list[dict[str, Any]]:
             "actions": actions, "importing": bool(importing),
             "after": _mask(change.get("after"), change.get("after_sensitive"), secret),
             "after_unknown": change.get("after_unknown"),
+            "delta": _delta(_mask(change.get("before"), change.get("before_sensitive"), secret),
+                            _mask(change.get("after"), change.get("after_sensitive"), secret),
+                            change.get("after_unknown")),
         })
     return sorted(found, key=lambda item: str(item["address"]))
 
@@ -284,15 +307,15 @@ class Workspace:
 
     def init(self, state: Path) -> None:
         _require(_tofu(self.dir, self.env, "init", "-no-color", "-input=false", "-lockfile=readonly",
-                       f"-backend-config=path={state}", timeout=600),
+                       f"-backend-config=path={state}", timeout=TOFU_SECONDS["init"]),
                  "tofu init failed")
 
     def plan(self) -> tuple[list[dict[str, Any]], str]:
         """Save a plan in the workspace and return its changes and hash."""
         _require(_tofu(self.dir, self.env, "plan", "-no-color", "-input=false",
-                       "-detailed-exitcode", f"-out={PLAN_FILE}", timeout=1800),
+                       "-detailed-exitcode", f"-out={PLAN_FILE}", timeout=TOFU_SECONDS["plan"]),
                  "tofu plan failed", 0, 2)
-        raw = _require(_tofu(self.dir, self.env, "show", "-json", PLAN_FILE, timeout=300), "tofu show failed")
+        raw = _require(_tofu(self.dir, self.env, "show", "-json", PLAN_FILE, timeout=TOFU_SECONDS["show"]), "tofu show failed")
         try:
             found = changes(json.loads(raw), self.env["TF_VAR_state_passphrase"].encode())
         except (ValueError, AttributeError, TypeError):
@@ -300,15 +323,15 @@ class Workspace:
         return found, plan_hash(self.stack.name, found)
 
     def show(self) -> str:
-        return _require(_tofu(self.dir, self.env, "show", "-no-color", PLAN_FILE, timeout=300), "tofu show failed").decode("utf-8", "replace")
+        return _require(_tofu(self.dir, self.env, "show", "-no-color", PLAN_FILE, timeout=TOFU_SECONDS["show"]), "tofu show failed").decode("utf-8", "replace")
 
     def apply(self) -> None:
         _require(_tofu(self.dir, self.env, "apply", "-no-color", "-input=false", PLAN_FILE,
-                       timeout=3600), "tofu apply failed", 0)
+                       timeout=TOFU_SECONDS["apply"]), "tofu apply failed", 0)
 
     def clean(self) -> None:
         result = _tofu(self.dir, self.env, "plan", "-no-color", "-input=false", "-detailed-exitcode",
-                       timeout=1800)
+                       timeout=TOFU_SECONDS["verify"])
         if result.returncode == 2:
             raise WriteError("post-apply plan is not clean", FAILED)
         _require(result, "post-apply plan unavailable")
@@ -591,6 +614,9 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                 if approval.get("hash") != saved.hash:
                     raise WriteError(MISMATCH, USAGE)
                 refuse(stack, saved.found, excluded_guests(space.root))
+                if len(guests(stack, saved.found)) > MAX_GUESTS:
+                    raise WriteError(f"plan updates more than {MAX_GUESTS} existing guests; split it "
+                                     "so its rollback fits the time budget", USAGE)
 
             def snapshot() -> _Saved:
                 for guest in guests(stack, saved.found):
@@ -644,7 +670,10 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                 return "rolled-back"
 
             def reconcile() -> dict[str, Any]:
-                return {"state": "settled before this run"}
+                # An interrupted apply is settled only by settle_interrupted (alarm, hold, kept
+                # snapshots); if it could not run yet, wait for it rather than paper over it.
+                raise WriteError("an interrupted tofu apply is not settled yet; retrying next pass",
+                                 UNAVAILABLE)
 
             def commit(state_: _Saved) -> None:
                 _prune(state_, operation)
@@ -658,11 +687,7 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
     except WriteError as error:  # the workspace itself (credentials, checkout) is unavailable
         return _refused(ledger, name, error.reason, error.code, target)
     if result.outcome in HELD_OUTCOMES or (result.outcome == "refused" and result.code != UNAVAILABLE):
-        try:
-            hold(repo, name, target, str(result.reason), result.id)
-            result.note("hold", "ok", "not retried until main moves")
-        except WriteError as error:
-            result.note("hold", "failed", error.reason)
+        _hold(repo, ledger, name, target, str(result.reason), result)
     return result
 
 
@@ -715,11 +740,7 @@ def _settle(repo: Path, ledger: Ledger, entry: dict[str, Any]) -> dict[str, Any]
     operation = writepath.settle(ledger, entry, alarm=f"interrupted tofu apply; {note}; "
                                  f"snapshots {context.get('snapshot', '?')} kept; check by hand")
     if stack in STACKS and entry.get("source"):
-        try:
-            hold(repo, stack, str(entry["source"]), "interrupted apply", str(entry.get("id")))
-            operation.note("hold", "ok", "not retried until main moves")
-        except WriteError as error:
-            operation.note("hold", "failed", error.reason)
+        _hold(repo, ledger, stack, str(entry["source"]), "interrupted apply", operation)
     return writepath.report(operation)
 
 
@@ -748,7 +769,9 @@ def _failures(ledger: Ledger, name: str, revision: str) -> int:
 def _count_failure(ledger: Ledger, name: str, revision: str) -> int:
     facts = _facts(ledger)
     count = _failures(ledger, name, revision) + 1
-    facts[name] = {"revision": revision, "failures": count}
+    known = facts.get(name)
+    fact: dict[str, Any] = known if isinstance(known, dict) else {}
+    facts[name] = {**fact, "revision": revision, "failures": count}  # keeps a local `held`
     try:
         _facts_path(ledger).parent.mkdir(parents=True, exist_ok=True)
         common.atomic_write_text(_facts_path(ledger), json.dumps(facts, sort_keys=True) + "\n")
@@ -757,16 +780,52 @@ def _count_failure(ledger: Ledger, name: str, revision: str) -> int:
     return count
 
 
-def hold(repo: Path, name: str, revision: str, reason: str, operation: str) -> None:
-    """Never retry this revision automatically: only a new merge (or a human) moves it."""
-    set_hold(repo, name, revision, reason, operation)
+def _hold(repo: Path, ledger: Ledger, name: str, revision: str, reason: str,
+          operation: Operation) -> None:
+    """Hold `revision` so the timer never retries it, but only when it is the revision the timer
+    would pick (the newest input commit on main): a manual run of another revision must not
+    replace that hold. The hold goes to git (surviving a rebuild) and to a local fallback; a hold
+    git did not take alerts, so a retry loop can never run silently."""
+    try:
+        current = input_revision(repo, STACKS[name])
+    except WriteError:
+        current = None
+    if current is not None and current != revision:
+        operation.note("hold", "skipped", "not the revision main would apply")
+        return
+    _local_hold(ledger, name, revision)
+    try:
+        set_hold(repo, name, revision, reason, operation.id)
+    except WriteError as error:
+        operation.note("hold", "failed", f"{error.reason}; held locally only")
+        failure = alert.send(f"skynet: tofu/{name} hold not recorded in git",
+                             f"{writepath.line(writepath.report(operation))} — held on this VM only",
+                             priority=1)
+        operation.note("alert", "failed" if failure else "ok", failure)
+        return
+    operation.note("hold", "ok", "not retried until main moves")
 
 
-def is_held(repo: Path, name: str, revision: str) -> bool:
+def _local_hold(ledger: Ledger, name: str, revision: str) -> None:
+    facts = _facts(ledger)
+    known = facts.get(name)
+    fact: dict[str, Any] = known if isinstance(known, dict) else {}
+    facts[name] = {**fact, "held": revision}
+    try:
+        _facts_path(ledger).parent.mkdir(parents=True, exist_ok=True)
+        common.atomic_write_text(_facts_path(ledger), json.dumps(facts, sort_keys=True) + "\n")
+    except OSError:
+        pass  # the git hold is the durable one; this is only its fallback
+
+
+def is_held(repo: Path, name: str, revision: str, ledger: Ledger | None = None) -> bool:
+    local = _facts(ledger).get(name) if ledger is not None else None
+    if isinstance(local, dict) and local.get("held") == revision:
+        return True
     return held(repo, name).get("revision") in (revision, "*")
 
 
-def pending(repo: Path, *, ledger: Ledger) -> list[dict[str, Any]]:
+def pending(repo: Path, *, ledger: Ledger, deadline: float | None = None) -> list[dict[str, Any]]:
     """Apply each stack whose newest input commit on main is not the applied one (main is already
     fetched by the deploy pass). A revision that was refused, failed, rolled back, or interrupted,
     or that could not be planned three passes running, is held on the state branch; it is retried
@@ -777,21 +836,23 @@ def pending(repo: Path, *, ledger: Ledger) -> list[dict[str, Any]]:
         target = input_revision(repo, stack)
         if target is None or applied(repo, name).get("revision") == target:
             continue
-        if is_held(repo, name, target):
+        if deadline is not None and time.monotonic() + STACK_BUDGET > deadline:
+            results.append({"target": f"tofu/{name}", "source": target, "outcome": "deferred",
+                            "reason": "not enough of this pass left for a full apply and rollback"})
+            continue
+        if is_held(repo, name, target, ledger):
             results.append({"target": f"tofu/{name}", "source": target, "outcome": "held",
                             "reason": "revision refused or failed; awaiting a new merge"})
             continue
         result = writepath.report(apply(repo, name, revision=target, ledger=ledger, refresh=False))
         if (result.get("code") == UNAVAILABLE and result.get("outcome") in ("refused", "unavailable")
                 and _count_failure(ledger, name, target) >= HOLD_AFTER_FAILURES):
-            try:
-                hold(repo, name, target, "could not plan three passes running", str(result.get("id")))
-                result.setdefault("steps", []).append({"step": "hold", "outcome": "ok"})
-            except WriteError as error:
-                result.setdefault("steps", []).append(
-                    {"step": "hold", "outcome": "failed", "detail": error.reason})
+            counted = Operation("tofu", f"tofu/{name}", target, id=str(result.get("id") or "pending"))
+            _hold(repo, ledger, name, target, "could not plan three passes running", counted)
+            result.setdefault("steps", []).extend(counted.steps)
         now_held = any(step.get("step") == "hold" and step.get("outcome") == "ok"
                        for step in result.get("steps", []))
+        # A hold git refused already alerted in _hold; a durable hold alerts once here.
         if now_held and result.get("outcome") not in writepath.ALARMS:
             failure = alert.send(f"skynet: tofu/{name} held", writepath.line(result), priority=1)
             result.setdefault("steps", []).append(

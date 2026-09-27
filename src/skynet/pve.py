@@ -28,7 +28,7 @@ NODE_CREDENTIALS = {
     "server-proxmox-network": "proxmox-network.env",
 }
 TIMEOUT = 30
-TASK_SECONDS = 600.0
+TASK_SECONDS = 300.0
 POLL_SECONDS = 2.0
 
 
