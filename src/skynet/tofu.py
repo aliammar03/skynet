@@ -67,8 +67,10 @@ def _proxmox_core_env() -> dict[str, str]:
     host = values["PVE_HOST"]
     if not common.valid_host(host):
         raise WriteError("proxmox-core.env credentials unavailable", UNAVAILABLE)
+    # The node's certificate is self-signed: this stack trusts exactly its pinned CA.
     return {"TF_VAR_proxmox_endpoint": f"https://{host}:8006",
-            "TF_VAR_proxmox_api_token": values["PVE_TOKEN_OPERATE"]}
+            "TF_VAR_proxmox_api_token": values["PVE_TOKEN_OPERATE"],
+            "SSL_CERT_FILE": values.get("PVE_CACERT", str(CERTS / "proxmox-core.crt"))}
 
 
 def _technitium_env() -> dict[str, str]:

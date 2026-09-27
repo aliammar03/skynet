@@ -405,6 +405,20 @@ def test_missing_operate_credentials_fail_closed(monkeypatch: pytest.MonkeyPatch
         pve.create(pve.Guest(CORE, "lxc", 10030), "skynet-x")
 
 
+@pytest.mark.parametrize("stack,file,body,pinned", [
+    ("proxmox-core", "proxmox-core.env",
+     "PVE_HOST=10.10.50.11\nPVE_TOKEN_OPERATE=t\nPVE_CACERT=/pin/core.crt\n", "/pin/core.crt"),
+    ("technitium-dns", "technitium.env",
+     "TECH_HOST=10.10.70.50\nTECH_TOKEN=t\nTECH_CACERT=/pin/tech.crt\n", "/pin/tech.crt"),
+])
+def test_self_signed_stacks_trust_exactly_their_pinned_ca(monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+                                                         stack: str, file: str, body: str,
+                                                         pinned: str) -> None:
+    monkeypatch.setenv("SKYNET_SECRETS_DIR", str(tmp_path))
+    (tmp_path / file).write_text(body)
+    assert tofu.STACKS[stack].credentials()["SSL_CERT_FILE"] == pinned
+
+
 def test_unknown_stack_is_refused_and_recorded(tmp_path: Path) -> None:
     ledger = Ledger(tmp_path / "state")
     operation = tofu.apply(tmp_path, "proxmox-network", ledger=ledger)
