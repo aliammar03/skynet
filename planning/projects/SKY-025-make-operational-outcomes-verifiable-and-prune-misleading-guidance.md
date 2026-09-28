@@ -55,8 +55,11 @@ stack on copies of the legacy root state, which is kept in `legacy/`): proxmox-c
 21, cloudflare-dns 6 addresses, and all three stacks plan to **zero changes**. **After merge and an
 ops VM rebuild:** the first timer pass records the empty plans and creates `tofu-state`. Then come
 the drill PRs: a wrong approved hash is held and alerts, a rejected athena `cores` value rolls back
-from its snapshot, and a deleted local state is rebuilt from git. The phase box is ticked by the
-last drill.
+from its snapshot (the LXC path), and a deleted local state is rebuilt from git. The VM path gets its
+own drill: one PR creates `vm-drill`, a running clone of template 9000 with an entity exception; a
+second PR sets a value Proxmox rejects, proving the RAM snapshot, the power-state rollback, and the
+config comparison on a VM; then Ali destroys the VM by hand (the executor refuses deletes). The phase
+box is ticked by the last drill.
 
 This block, the phase boxes, and the frontmatter are the **only** progress record. Each phase PR
 updates them itself; merge is completion ([construction](../../docs/conventions/construction.md)).
