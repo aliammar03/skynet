@@ -80,16 +80,19 @@ These are current settings, changed only by a PR here.
   (`bin/check`) and the pre-commit hook are the automated evidence. The generated-only nightly auto-merge capability
   from [ADR 0004](decisions/0004-auto-merge-generated-only-nightly-prs.md) is suspended and fails
   closed. Review weight follows the Light/Full tiers in [construction](conventions/construction.md).
-- **Autonomy:** two executors act unattended on a human merge
-  ([ADR 0008](decisions/0008-git-model-for-docker-and-opentofu.md)):
-  - `skynet deploy` of a human-merged service revision (A4). Its automatic return to the last
-    verified revision is failure-tested in the local suite and was drilled live (SKY-025 P13).
+- **Autonomy** ([ADR 0008](decisions/0008-git-model-for-docker-and-opentofu.md)):
+  - `skynet deploy` of a human-merged service revision acts unattended (A4). Its automatic return
+    to the last verified revision is failure-tested in the local suite and was drilled live
+    (SKY-025 P13).
   - `skynet tofu apply --pending` of a human-merged stack whose re-plan matches the PR's approved
-    hash (SKY-025 P15). Existing-guest updates are A4: snapshotted, rolled back to their prior power
-    state, and verified. Creates and DNS-record writes are applied unattended because the merge
-    approved that exact effect, but they have no automatic inverse: a failure records the true
-    state, holds the revision in git, and alerts; it is never retried or auto-destroyed.
-    Delete/replace/forget and excluded guests are refused at every level.
+    hash (SKY-025 P15) is **supervised (A3)**: it runs on demand; its `skynet-tofu` timer is not
+    enabled. Existing-guest updates are snapshotted, rolled back to their prior power state, and
+    proved against their pre-snapshot config; creates and DNS-record writes have no automatic
+    inverse, so a failure records the true state, holds the revision in git, and alerts, and is
+    never retried or auto-destroyed. Delete/replace/forget and excluded guests are refused at every
+    level. Enabling the timer (unattended: guest updates A4; creates and DNS writes applied on
+    the merge's approval) is its own human-merged change here, carrying the recorded live LXC and
+    VM rollback drills.
 
   Everything else is report-only; a promotion needs failure-case tests in the local suite plus
   recorded live evidence, and a human-merged change to this section.

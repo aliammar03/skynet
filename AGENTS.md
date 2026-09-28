@@ -142,8 +142,8 @@ edit compose/<svc>/ → branch → PR (bin/check + tier review + `skynet deploy 
 - **OpenTofu follows the same loop, one stack per actuator** (`tofu/proxmox-core/`,
   `tofu/technitium-dns/`, `tofu/cloudflare-dns/`; the directory is the scope). The PR carries the
   change plus `tofu/<stack>/approved-plan.json` from `skynet tofu plan <stack> --approve` (plan from a
-  branch rebased on `main`). The merge approves that effect; the `skynet-tofu` timer (every minute,
-  `skynet tofu apply --pending`, its own unit so it never delays a deploy) re-plans the merged revision and
+  branch rebased on `main`). The merge approves that effect; `skynet tofu apply --pending` (supervised
+  until its drills are recorded, then the `skynet-tofu` timer, each minute) re-plans the merged revision and
   applies it only when its normalized-change hash equals the approved one. A different hash, or an
   apply that failed, rolled back, or was interrupted, is held and alerts; it never retries until
   `main` moves: re-plan in a new PR. The executor refuses delete/replace/forget, excluded guests, and resource types outside the

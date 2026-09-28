@@ -57,7 +57,7 @@ recover automatic return to the last verified state, then a revert PR makes main
    which writes `tofu/<stack>/approved-plan.json`: the hash of the plan's normalized resource
    changes plus an address → action list. The PR diff carries it, and a merge conflict on it forces
    a re-plan.
-3. **Merge is the approval.** After merge, the `skynet-tofu` timer (`skynet tofu apply --pending`, each minute)
+3. **Merge is the approval.** After merge, `skynet tofu apply --pending` (supervised until the live rollback drills are recorded, then the `skynet-tofu` timer, each minute)
    plans each stack whose inputs changed from the merged revision, requires the approved hash, and
    applies that saved plan. A different hash (drift, or a later change) is held and alerts until a
    new PR merges. Delete/replace/forget and protected guests are refused; existing guests are

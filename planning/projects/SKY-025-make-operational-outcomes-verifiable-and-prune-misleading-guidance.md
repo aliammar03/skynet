@@ -45,7 +45,7 @@ from scratch. Until it lands, no new off-site copy is known to land, and older c
 **Next:** Phase 15 (OpenTofu under ADR 0008) is built and in its PR. There are three stacks,
 `tofu/proxmox-core`, `tofu/technitium-dns`, and `tofu/cloudflare-dns`; the directory is the scope,
 and `proxmox-network` waits for its first resource. `skynet tofu plan <stack> --approve` writes the
-PR's `approved-plan.json`. The `skynet-tofu` timer (every minute) applies a merged stack only when its re-plan hash
+PR's `approved-plan.json`. `skynet tofu apply --pending` (supervised; its `skynet-tofu` timer ships disabled) applies a merged stack only when its re-plan hash
 matches, refuses delete/replace/forget, excluded guests, and foreign types, snapshots guest updates
 through `pve.py`, and mirrors encrypted state to the `tofu-state` branch. `skynet tofu drift` feeds
 the nightly. `tofu-env.sh`, `tofu-apply.sh`, and `pve-snapshot.sh` are deleted. Live, 2026-09-27:
@@ -53,13 +53,14 @@ the monolith's plan showed two code-vs-live drifts (CT 240 `startup order=2`, te
 description); both are now declared to match live. The state split ran (a state-only `state rm` per
 stack on copies of the legacy root state, which is kept in `legacy/`): proxmox-core 5, technitium-dns
 21, cloudflare-dns 6 addresses, and all three stacks plan to **zero changes**. **After merge and an
-ops VM rebuild:** the first timer pass records the empty plans and creates `tofu-state`. Then come
+ops VM rebuild:** a supervised `skynet tofu apply --pending` records the empty plans and creates `tofu-state`. Then come
 the drill PRs: a wrong approved hash is held and alerts, a rejected athena `cores` value rolls back
 from its snapshot (the LXC path), and a deleted local state is rebuilt from git. The VM path gets its
 own drill: one PR creates `vm-drill`, a running clone of template 9000 with an entity exception; a
 second PR sets a value Proxmox rejects, proving the RAM snapshot, the power-state rollback, and the
 config comparison on a VM; then Ali destroys the VM by hand (the executor refuses deletes). The phase
-box is ticked by the last drill.
+box is ticked by the promotion PR: it enables the `skynet-tofu` timer and records the drills as the
+constitution's live evidence (human-merged).
 
 This block, the phase boxes, and the frontmatter are the **only** progress record. Each phase PR
 updates them itself; merge is completion ([construction](../../docs/conventions/construction.md)).

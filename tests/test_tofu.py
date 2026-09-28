@@ -52,6 +52,7 @@ class FakeSpace:
 
     def apply(self) -> None:
         self.host.calls.append("apply")
+        self.host.held_at_apply = dict(self.host.holds)
         if self.host.apply_error:
             raise WriteError("tofu apply failed", UNAVAILABLE)
 
@@ -73,6 +74,7 @@ class Fake:
         self.approved: dict[str, Any] | None = None
         self.apply_error = False
         self.dirty = False
+        self.held_at_apply: dict[str, Any] = {}
         self.unverified = False
         self.snapshot_fail: set[int] = set()
         self.rollback_fail: set[int] = set()
@@ -388,6 +390,88 @@ def test_an_unverifiable_apply_is_not_rolled_back(fake: Fake, tmp_path: Path) ->
     assert fake.recorded == [None] and fake.holds["proxmox-core"]["revision"] == REV
 
 
+def test_a_verification_that_cannot_run_is_unverified_not_rolled_back(
+        monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def timed_out(workdir: Path, env: dict[str, str], *args: str, timeout: float) -> Any:
+        raise WriteError("tofu timed out", UNAVAILABLE)  # what deploy._run raises on a timeout
+
+    monkeypatch.setattr(tofu, "_tofu", timed_out)
+    space = tofu.Workspace(tofu.STACKS["proxmox-core"], tmp_path, {})
+    with pytest.raises(WriteError) as raised:
+        space.clean()
+    assert raised.value.reason == tofu.UNVERIFIED
+
+
+def test_the_revision_is_held_before_it_executes(fake: Fake, tmp_path: Path) -> None:
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    assert run(fake, tmp_path).outcome == "success"
+    assert fake.held_at_apply["proxmox-core"]["revision"] == REV
+
+
+def test_a_crash_after_the_final_record_cannot_retry_the_revision(
+        fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger = Ledger(tmp_path / "state")
+    fake.apply_error = True
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+
+    def crash(*args: Any, **kwargs: Any) -> None:
+        raise SystemExit("killed between the final record and the hold")
+
+    real_hold = tofu._hold
+    monkeypatch.setattr(tofu, "_hold", crash)
+    with pytest.raises(SystemExit):
+        tofu.pending(tmp_path, ledger=ledger)
+    monkeypatch.setattr(tofu, "_hold", real_hold)  # the restarted process
+    fake.calls.clear()
+    assert tofu.pending(tmp_path, ledger=ledger)[0]["outcome"] == "held"  # the pre-apply hold
+    assert "apply" not in fake.calls
+
+
+def test_a_failed_snapshot_cleanup_after_success_is_queued_retried_and_alerted(
+        fake: Fake, tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "state")
+    fake.stuck = {10030}
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    operation = run(fake, tmp_path)
+    assert operation.outcome == "success"
+    assert fake.alerts == ["skynet: tofu/proxmox-core snapshot cleanup failed"]
+    assert tofu._facts(ledger)["_cleanup"][0]["vmid"] == 10030
+    fake.stuck.clear()
+    fake.applied["proxmox-core"] = REV  # nothing left to apply: the queue alone is retried
+    results = tofu.pending(tmp_path, ledger=ledger)
+    assert results[0]["target"].startswith("cleanup/") and fake.snapshots == set()
+    assert tofu._facts(ledger)["_cleanup"] == [] and len(fake.alerts) == 1
+
+
+def test_a_failed_snapshot_cleanup_after_rollback_is_queued(fake: Fake, tmp_path: Path) -> None:
+    fake.apply_error = True
+    fake.stuck = {10030}
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    assert run(fake, tmp_path).outcome == "rolled-back"
+    assert tofu._facts(Ledger(tmp_path / "state"))["_cleanup"][0]["vmid"] == 10030
+
+
+@pytest.mark.parametrize("where", ["main", "state"])
+def test_a_pass_that_cannot_reach_git_alerts_after_three(
+        fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, where: str) -> None:
+    import io
+
+    def broken(repo: Path) -> Any:
+        raise WriteError(f"git fetch of {where} failed", UNAVAILABLE)
+
+    monkeypatch.setattr(deploy if where == "main" else tofu,
+                        "fetch" if where == "main" else "fetch_state", broken)
+    codes = [tofu.run_apply(tmp_path, None, revision=None, pending_all=True,
+                            state_dir_=tmp_path / "state", json_output=False, stdout=io.StringIO())
+             for _ in range(5)]
+    assert codes == [0] * 5
+    assert fake.alerts == ["skynet: tofu passes failing (3 in a row)"]
+
+
 def test_a_failed_create_has_no_inverse_records_true_state_and_alerts(fake: Fake, tmp_path: Path) -> None:
     fake.apply_error = True
     fake.plan = [guest(10030, cores=4), guest(10040, actions=["create"])]
@@ -512,10 +596,12 @@ def test_an_unreadable_hold_holds_everything(clone: Path) -> None:
     assert tofu.is_held(clone, "proxmox-core", REV) and tofu.is_held(clone, "proxmox-core", NEW)
 
 
-def test_a_success_clears_the_hold(clone: Path) -> None:
+def test_a_success_clears_only_its_own_revisions_hold(clone: Path) -> None:
     tofu.set_hold(clone, "s", REV, "failed", "op1")
     assert tofu.is_held(clone, "s", REV)
-    tofu.record_state(clone, "s", b"v2", {"revision": NEW}, "applied")
+    tofu.record_state(clone, "s", b"v2", {"revision": NEW}, "manual apply of another revision")
+    assert tofu.held(clone, "s")["revision"] == REV  # the pending revision stays held
+    tofu.record_state(clone, "s", b"v3", {"revision": REV}, "applied")
     assert tofu.held(clone, "s") == {}
 
 
@@ -546,8 +632,8 @@ def test_a_refused_manual_run_cannot_replace_the_pending_hold(fake: Fake, tmp_pa
     assert "apply" not in fake.calls
 
 
-def test_a_hold_git_refuses_is_kept_locally_and_alerts(fake: Fake, tmp_path: Path,
-                                                      monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_pre_apply_hold_git_refuses_applies_nothing_and_retries(
+        fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ledger = Ledger(tmp_path / "state")
 
     def rejected(repo: Path, stack: str, revision: str, reason: str, operation: str) -> None:
@@ -555,14 +641,34 @@ def test_a_hold_git_refuses_is_kept_locally_and_alerts(fake: Fake, tmp_path: Pat
                          UNAVAILABLE)
 
     monkeypatch.setattr(tofu, "set_hold", rejected)
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    first = tofu.pending(tmp_path, ledger=ledger)[0]
+    assert first["outcome"] == "refused" and "pre-apply hold" in first["reason"]
+    assert "apply" not in fake.calls and ("delete", 10030) in fake.calls  # snapshot pruned
+    assert not tofu.is_held(tmp_path, "proxmox-core", REV, ledger)  # retried next pass
+
+
+def test_a_failed_hold_update_after_the_pre_apply_hold_still_holds(
+        fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger = Ledger(tmp_path / "state")
+    writes: list[str] = []
+
+    def once(repo: Path, stack: str, revision: str, reason: str, operation: str) -> None:
+        writes.append(reason)
+        if len(writes) > 1:  # the post-failure update is rejected
+            raise WriteError("state branch push failed (not a fast-forward, or origin unreachable)",
+                             UNAVAILABLE)
+        fake.holds[stack] = {"revision": revision, "reason": reason}
+
+    monkeypatch.setattr(tofu, "set_hold", once)
     fake.apply_error = True
     fake.plan = [guest(10030, cores=4)]
     fake.approve()
-    first = tofu.pending(tmp_path, ledger=ledger)
-    assert first[0]["outcome"] == "rolled-back"
-    assert fake.alerts == ["skynet: tofu/proxmox-core hold not recorded in git"]
+    assert tofu.pending(tmp_path, ledger=ledger)[0]["outcome"] == "rolled-back"
+    assert fake.alerts == ["skynet: tofu/proxmox-core held"]  # no "not recorded" alarm: it is
     fake.calls.clear()
-    assert tofu.pending(tmp_path, ledger=ledger)[0]["outcome"] == "held"  # the local fallback
+    assert tofu.pending(tmp_path, ledger=ledger)[0]["outcome"] == "held"
     assert "apply" not in fake.calls
 
 
@@ -604,6 +710,14 @@ def test_the_unit_timeout_covers_a_full_pass_budget() -> None:
     # Every wait is in it: all tofu commands, and per guest every task's HTTP call and last poll.
     assert tofu.GUEST_SECONDS >= 4 * (pve.TASK_SECONDS + pve.TIMEOUT) + pve.TIMEOUT
     assert tofu.STACK_BUDGET > sum(tofu.TOFU_SECONDS.values()) + tofu.MAX_GUESTS * tofu.GUEST_SECONDS
+
+
+def test_the_tofu_timer_is_not_enabled_before_its_drills() -> None:
+    """Flipping this is the P15 promotion: it lands with the recorded LXC and VM rollback drills."""
+    nix = (Path(__file__).resolve().parents[1] / "nix/modules/timers.nix").read_text()
+    timer = nix[nix.index("systemd.timers.skynet-tofu"):]
+    timer = timer[:timer.index("};\n  };") if "};\n  };" in timer else len(timer)]
+    assert "wantedBy = [ ];" in timer and '"timers.target"' not in timer
 
 
 def test_an_unplannable_revision_is_retried_and_alerts_once_never_held(
@@ -768,6 +882,26 @@ def test_a_branch_that_lost_its_state_is_refused_not_trusted(clone: Path, tmp_pa
     with pytest.raises(WriteError, match="both changed"):
         tofu.sync_state(clone, ledger, "proxmox-core")
     assert tofu.local_state(ledger, "proxmox-core").read_bytes() == b"v1"  # never deleted
+
+
+def test_a_state_commit_is_a_compare_and_swap(clone: Path, tmp_path: Path,
+                                              monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger = Ledger(tmp_path / "state")
+    tofu.record_state(clone, "proxmox-core", b"v1", {"revision": REV}, "first")
+    tofu.sync_state(clone, ledger, "proxmox-core")
+    tofu.local_state(ledger, "proxmox-core").write_bytes(b"v2")  # pending on top of v1
+    real = tofu.classify
+
+    def race(ledger_: Ledger, stack: str, remote: bytes | None) -> str:
+        kind = real(ledger_, stack, remote)  # passes: v2 on top of v1 ...
+        tofu.record_state(clone, stack, b"v3", {"revision": NEW}, "... then elsewhere publishes v3")
+        return kind
+
+    monkeypatch.setattr(tofu, "classify", race)
+    with pytest.raises(WriteError, match="moved since it was checked"):
+        tofu._record(clone, ledger, "proxmox-core", None, "stale parent")
+    assert tofu.branch_state(clone, "proxmox-core") == b"v3"
+    assert tofu.applied(clone, "proxmox-core") == {"revision": NEW}
 
 
 def test_an_unchanged_record_makes_no_commit(clone: Path) -> None:

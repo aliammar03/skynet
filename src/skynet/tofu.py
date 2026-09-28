@@ -370,8 +370,11 @@ class Workspace:
                        timeout=TOFU_SECONDS["apply"]), "tofu apply failed", 0)
 
     def clean(self) -> None:
-        result = _tofu(self.dir, self.env, "plan", "-no-color", "-input=false", "-detailed-exitcode",
-                       timeout=TOFU_SECONDS["verify"])
+        try:
+            result = _tofu(self.dir, self.env, "plan", "-no-color", "-input=false",
+                           "-detailed-exitcode", timeout=TOFU_SECONDS["verify"])
+        except WriteError:  # timed out or could not start: the check never ran
+            raise WriteError(UNVERIFIED, UNAVAILABLE) from None
         if result.returncode == 2:
             raise WriteError("post-apply plan is not clean", FAILED)
         if result.returncode != 0:  # the check could not run: nothing says the apply was wrong
@@ -438,11 +441,24 @@ def applied(repo: Path, stack: str) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
-def write_branch(repo: Path, files: dict[str, bytes | None], message: str) -> str:
+def state_head(repo: Path) -> str:
+    """The fetched state branch commit, or "" when the branch does not exist yet."""
+    if not fetch_state(repo):
+        return ""
+    return deploy._git(repo, "rev-parse", STATE_REF, reason="state branch unreadable")
+
+
+STATE_MOVED = "the tofu-state branch moved since it was checked; not recorded (retried next pass)"
+
+
+def write_branch(repo: Path, files: dict[str, bytes | None], message: str,
+                 expect: str | None = None) -> str:
     """Commit `files` (None removes one) to the state branch; fast-forward only, never the
-    working tree."""
-    exists = fetch_state(repo)
-    parent = deploy._git(repo, "rev-parse", STATE_REF, reason="state branch unreadable") if exists else None
+    working tree. With `expect` (a commit, or "" for no branch) it is a compare-and-swap: a branch
+    that moved since the caller checked it is refused, never silently rebased onto."""
+    parent = state_head(repo) or None
+    if expect is not None and (parent or "") != expect:
+        raise WriteError(STATE_MOVED, UNAVAILABLE)
     with tempfile.TemporaryDirectory(prefix="skynet-state-") as tmp:
         env = {**os.environ, "GIT_INDEX_FILE": str(Path(tmp) / "index")}
 
@@ -474,14 +490,15 @@ def _json_bytes(value: dict[str, Any]) -> bytes:
 
 
 def record_state(repo: Path, stack: str, state: bytes, record: dict[str, Any] | None,
-                 message: str) -> str:
+                 message: str, expect: str | None = None) -> str:
     """Commit this stack's state (and, after a success, its applied record, which also clears a
-    hold)."""
+    hold on that same revision, and only that one) in one commit."""
     files: dict[str, bytes | None] = {f"{stack}/terraform.tfstate": state}
     if record is not None:
         files[f"{stack}/applied.json"] = _json_bytes(record)
-        files[f"{stack}/held.json"] = None
-    return write_branch(repo, files, message)
+        if held(repo, stack).get("revision") == record.get("revision"):
+            files[f"{stack}/held.json"] = None
+    return write_branch(repo, files, message, expect)
 
 
 def held(repo: Path, stack: str) -> dict[str, Any]:
@@ -682,13 +699,17 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                         saved.taken.append(guest)  # before the request: a failed create may leave one
                         pve.create(guest, saved.snapshot)
                     except WriteError:
-                        if _prune(saved, operation):
+                        if _prune(saved, operation, ledger):
                             raise WriteError(f"could not snapshot {guest}; nothing applied",
                                              UNAVAILABLE) from None
                         # A snapshot may remain: hold rather than add another one every minute.
                         raise WriteError(f"could not snapshot {guest}; nothing applied, but "
                                          f"{saved.snapshot} could not be cleaned up") from None
                 operation.context["guests"] = [str(guest) for guest in saved.taken]
+                if saved.found and not _prehold(repo, ledger, name, target, operation):
+                    _prune(saved, operation, ledger)
+                    raise WriteError("could not record the pre-apply hold; nothing applied",
+                                     UNAVAILABLE)
                 return saved
 
             def execute(state_: _Saved) -> None:
@@ -734,7 +755,7 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                     raise WriteError("guest rollback failed: " + "; ".join(failures)
                                      + f" (snapshots {state_.snapshot} kept)")
                 _write(state, state_.before)
-                _prune(state_, operation)
+                _prune(state_, operation, ledger)
                 return "rolled-back"
 
             def reconcile() -> dict[str, Any]:
@@ -743,7 +764,7 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                 raise WriteError(NOT_SETTLED, UNAVAILABLE)
 
             def commit(state_: _Saved) -> None:
-                _prune(state_, operation)
+                _prune(state_, operation, ledger)
                 _record(repo, ledger, name, {"revision": target, "hash": state_.hash,
                                              "operation": operation.id},
                         f"tofu-state({name}): {operation.id} applied {target[:12]}")
@@ -764,28 +785,77 @@ def _record(repo: Path, ledger: Ledger, stack: str, record: dict[str, Any] | Non
     state = _read(local_state(ledger, stack))
     if state is None:
         raise WriteError("no local tofu state to record", UNAVAILABLE)
-    remote = branch_state(repo, stack) if fetch_state(repo) else None
+    parent = state_head(repo)
+    remote = branch_state(repo, stack) if parent else None
     kind = classify(ledger, stack, remote)
     if kind == "diverged":
         raise WriteError(DIVERGED, UNAVAILABLE)
     if kind == "stale":
         raise WriteError("local tofu state is older than the branch; not recorded", UNAVAILABLE)
-    record_state(repo, stack, state, record, message)
+    record_state(repo, stack, state, record, message, expect=parent)  # only onto what was checked
     _set_base(ledger, stack, state)
 
 
-def _prune(saved: _Saved, operation: Operation) -> bool:
-    """Delete this run's snapshot wherever it exists; True when none is left behind."""
-    clean = True
+def _prune(saved: _Saved, operation: Operation, ledger: Ledger | None = None) -> bool:
+    """Delete this run's snapshot wherever it exists; True when none is left behind. A snapshot
+    that could not be deleted goes on the cleanup queue (retried every pass) and alerts once."""
+    left = []
     for guest in saved.taken:
         try:
             if pve.exists(guest, saved.snapshot):
                 pve.delete(guest, saved.snapshot)
         except WriteError as error:
             operation.note("prune", "failed", f"{guest}: {error.reason}")
-            clean = False
+            left.append(guest)
     saved.taken = []
-    return clean
+    if left and ledger is not None:
+        _queue_cleanup(ledger, left, saved.snapshot, operation)
+    return not left
+
+
+def _queue_cleanup(ledger: Ledger, guests_: list[pve.Guest], snapshot: str,
+                   operation: Operation) -> None:
+    facts = _facts(ledger)
+    known = facts.get("_cleanup")
+    queue: list[Any] = known if isinstance(known, list) else []
+    queue += [{"node": g.node, "kind": g.kind, "vmid": g.vmid, "snapshot": snapshot} for g in guests_]
+    facts["_cleanup"] = queue
+    try:
+        _facts_path(ledger).parent.mkdir(parents=True, exist_ok=True)
+        common.atomic_write_text(_facts_path(ledger), json.dumps(facts, sort_keys=True) + "\n")
+    except OSError:
+        operation.note("cleanup-queue", "failed", "cleanup queue unwritable")
+    failure = alert.send(f"skynet: {operation.target} snapshot cleanup failed",
+                         f"{snapshot} left on {', '.join(str(g) for g in guests_)}; retried each pass",
+                         priority=1)
+    operation.note("alert", "failed" if failure else "ok", failure)
+
+
+def retry_cleanup(ledger: Ledger) -> list[dict[str, Any]]:
+    """Retry queued snapshot deletions under the write lock; an item leaves the queue only when
+    its snapshot is gone."""
+    try:
+        with ledger.lock():
+            facts = _facts(ledger)
+            known = facts.get("_cleanup")
+            queue: list[Any] = known if isinstance(known, list) else []
+            if not queue:
+                return []
+            kept, results = [], []
+            for item in queue:
+                try:
+                    guest = pve.Guest(str(item["node"]), str(item["kind"]), int(item["vmid"]))
+                    if pve.exists(guest, str(item["snapshot"])):
+                        pve.delete(guest, str(item["snapshot"]))
+                    results.append({"target": f"cleanup/{guest}", "outcome": "success",
+                                    "reason": f"{item['snapshot']} removed"})
+                except (WriteError, KeyError, TypeError, ValueError):
+                    kept.append(item)
+            facts["_cleanup"] = kept
+            common.atomic_write_text(_facts_path(ledger), json.dumps(facts, sort_keys=True) + "\n")
+            return results
+    except (WriteError, OSError):  # a write holds the lock: retry next pass
+        return []
 
 
 def settle_interrupted(repo: Path, ledger: Ledger) -> list[dict[str, Any]]:
@@ -870,6 +940,13 @@ def _hold(repo: Path, ledger: Ledger, name: str, revision: str, reason: str,
     try:
         set_hold(repo, name, revision, reason, operation.id)
     except WriteError as error:
+        try:
+            already = held(repo, name).get("revision") == revision  # the pre-apply hold
+        except WriteError:
+            already = False
+        if already:
+            operation.note("hold", "ok", f"pre-apply hold stands (reason not updated: {error.reason})")
+            return
         operation.note("hold", "failed", f"{error.reason}; held locally only")
         failure = alert.send(f"skynet: tofu/{name} hold not recorded in git",
                              f"{writepath.line(writepath.report(operation))} — held on this VM only",
@@ -877,6 +954,23 @@ def _hold(repo: Path, ledger: Ledger, name: str, revision: str, reason: str,
         operation.note("alert", "failed" if failure else "ok", failure)
         return
     operation.note("hold", "ok", "not retried until main moves")
+
+
+def _prehold(repo: Path, ledger: Ledger, name: str, revision: str, operation: Operation) -> bool:
+    """Hold the revision *before* it executes: a crash anywhere after this leaves it held, never
+    retried. The success commit clears it (same revision, same commit as the state). A revision
+    the timer would not pick needs no hold. False when the hold could not be recorded in git."""
+    try:
+        if input_revision(repo, STACKS[name]) != revision:
+            return True
+        set_hold(repo, name, revision, "apply in progress; a recorded success clears this",
+                 operation.id)
+    except WriteError as error:
+        operation.note("prehold", "failed", error.reason)
+        return False
+    _local_hold(ledger, name, revision)
+    operation.note("prehold", "ok", "held until a recorded success")
+    return True
 
 
 def _local_hold(ledger: Ledger, name: str, revision: str) -> None:
@@ -926,6 +1020,7 @@ def pending(repo: Path, *, ledger: Ledger, deadline: float | None = None) -> lis
     branch and retried only when main moves; a hold alerts once, unless the outcome already
     alerted. An unavailable pass is retried (see `_count`)."""
     results = settle_interrupted(repo, ledger)
+    results += retry_cleanup(ledger)
     fetch_state(repo)
     for name, stack in STACKS.items():
         target = input_revision(repo, stack)
@@ -1014,6 +1109,27 @@ def run_drift(repo: Path, *, output: Path, state_dir_: Path, stdout: TextIO) -> 
     return code
 
 
+def _pass_failures(ledger: Ledger, failed: dict[str, Any] | None) -> int | None:
+    """Consecutive passes that could not run at all. Three in a row alert once, so a broken remote
+    or credential cannot stop every Tofu apply while the unit reports success. None when the
+    count could not be written."""
+    facts = _facts(ledger)
+    known = facts.get("_pass")
+    previous = known if isinstance(known, int) else 0
+    count = 0 if failed is None else previous + 1
+    if count == previous:
+        return count
+    facts["_pass"] = count
+    try:
+        _facts_path(ledger).parent.mkdir(parents=True, exist_ok=True)
+        common.atomic_write_text(_facts_path(ledger), json.dumps(facts, sort_keys=True) + "\n")
+    except OSError:
+        return None
+    if failed is not None and count == ALERT_AFTER_FAILURES:
+        _alert(failed, f"skynet: tofu passes failing ({count} in a row)")
+    return count
+
+
 def run_apply(repo: Path, name: str | None, *, revision: str | None, pending_all: bool,
               state_dir_: Path, json_output: bool, stdout: TextIO) -> int:
     ledger = Ledger(state_dir_)
@@ -1022,9 +1138,13 @@ def run_apply(repo: Path, name: str | None, *, revision: str | None, pending_all
         try:
             deploy.fetch(repo)
             results = pending(repo, ledger=ledger, deadline=deadline)
-        except WriteError as error:
-            results = [{"target": "tofu", "outcome": "unavailable", "reason": error.reason,
-                        "code": error.code}]
+            _pass_failures(ledger, None)
+        except WriteError as error:  # the pass itself could not run (git, the state branch)
+            unavailable: dict[str, Any] = {"target": "tofu", "outcome": "unavailable",
+                                           "reason": error.reason, "code": error.code}
+            if _pass_failures(ledger, unavailable) is None:
+                return FAILED  # the count cannot be kept: let OnFailure alert instead
+            results = [unavailable]
         for result in results:
             writepath.emit(result, json_output, stdout)
         # Recorded outcomes are not unit failures (they alert themselves); an alert that could not

@@ -34,7 +34,7 @@ rollback: "git revert ingress; public DNS deletion is skynet withdraw (a separat
    Open the exposure PR (with `skynet deploy cloudflared --dry-run HEAD`) and wait for Ali to
    merge. The timer redeploys cloudflared with the new `config.yml` (every revision recreates the
    connector, so no manual restart). Confirm the tunnel is ready with four connections.
-4. The `skynet-tofu` timer creates the CNAMEs (`skynet log --kind tofu`). A `held` `tofu/cloudflare-dns`
+4. `skynet tofu apply --pending` creates the CNAMEs (`skynet log --kind tofu`). A `held` `tofu/cloudflare-dns`
    means the merged plan differs from the approved one: re-plan in a new PR. Internal split DNS is
    the `technitium-dns` stack.
 5. `skynet publish <svc>` — checks the front door and tunnel run `main`, reconciles Authentik for a

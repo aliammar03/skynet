@@ -18,9 +18,9 @@ plans and T3-excluded guests rather than attempting to make them reversible.
 | Actuator | Write path | Recovery on failure | Deterministic decision | A4 eligible |
 |---|---|---|---|---|
 | Compose deploy | `skynet deploy <svc>` / `--pending` (merged revisions only) | Automatic redeploy of the host's `verified` revision, `failed` marker, revert PR | Deployment verifier: every container at the `skynet.revision`, running, healthy; declared routes answer | Yes (A4) |
-| Existing-guest tofu update | `skynet tofu apply <stack>` / `--pending` (merged, hash-approved) | Proxmox snapshot before apply; on apply or verify failure, roll back every guest (continuing past a failure) to its snapshot and prior power state, observe it, then restore the pre-apply state; a failure is held in git | Clean post-apply plan | Yes (A4) |
-| Tofu guest create | `skynet tofu apply` (merged, hash-approved) | None; never auto-destroy a partial create; held in git and alerts | Clean post-apply plan | Unattended on merge; no automatic inverse |
-| Tofu non-guest write (DNS records, templates) | `skynet tofu apply` (merged, hash-approved) | None; held in git and alerts | Clean post-apply plan | Unattended on merge; no automatic inverse |
+| Existing-guest tofu update | `skynet tofu apply <stack>` / `--pending` (merged, hash-approved) | Proxmox snapshot before apply; on apply or verify failure, roll back every guest (continuing past a failure) to its snapshot and prior power state, observe it, then restore the pre-apply state; a failure is held in git | Clean post-apply plan | Supervised (A3); A4 after the live LXC and VM rollback drills |
+| Tofu guest create | `skynet tofu apply` (merged, hash-approved) | None; never auto-destroy a partial create; held in git and alerts | Clean post-apply plan | Supervised; no automatic inverse |
+| Tofu non-guest write (DNS records, templates) | `skynet tofu apply` (merged, hash-approved) | None; held in git and alerts | Clean post-apply plan | Supervised; no automatic inverse |
 | Authentik publish | `skynet publish <svc>` (additive provider/application/outpost binding) | Deletes only the objects the run created; restores the outpost's provider list | Anonymous probe redirects to the login | No |
 | Public route withdraw | `skynet withdraw <vhost> --confirm <vhost>` (git must no longer declare it) | Re-creates a deleted CNAME from its snapshot; Authentik objects are re-made by `publish` | Records absent after the run | No — a delete stays a hard checkpoint |
 | NixOS deployment | deploy-rs / `nixos-rebuild` | deploy-rs magic rollback | Activation health check | Yes |
@@ -35,8 +35,9 @@ changes is one a snapshot restores (`SNAPSHOT_COVERS`); pool membership, disk si
 conversion has no automatic inverse. Every rollback is then proved: the guest's whole config must equal its
 pre-snapshot copy, or the run is `rollback-failed` (alert, hold, snapshot kept). A post-apply check that cannot run leaves the change
 unverified: it alerts and holds, never rolls back. An apply updates at most five existing guests,
-so a hung apply plus its full rollback fits the deploy unit's 4 h budget; the timer defers a
-stack it cannot finish.
+so a hung apply plus its full rollback fits the `skynet-tofu` unit's 5 h budget; a pass defers a
+stack it cannot finish. A revision is held in git before it executes, and only its recorded
+success clears the hold; a snapshot that fails to delete is queued, retried each pass, and alerts.
 
 Automated rollback proof lives in the local test suite (`tests/`, run by `bin/check`): an actuator
 claims an A4 promotion only when its failure-case rollback is exercised there and recorded live.
