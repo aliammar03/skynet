@@ -1,6 +1,5 @@
 {
-  "collected": "2026-09-26T22:35:29+00:00",
-  "host": "10.10.50.25",
+  "collected": "2026-09-05T03:42:19+05:00",
   "controller": {
     "host": "10.10.50.25",
     "version": "6.2.14.11",
@@ -23,14 +22,14 @@
       "mac": "98-03-8E-EC-56-DF",
       "ip": "10.10.50.3",
       "firmware": "1.0.6 Build 20260329 Rel.14489",
-      "needs_upgrade": true,
+      "needs_upgrade": false,
       "status": 1,
       "connected": true,
-      "uptime_s": 913262,
+      "uptime_s": 663476,
       "clients": 18,
       "poe": {
         "support": true,
-        "remain_w": 107.0,
+        "remain_w": 108.2,
         "total_w": 123.0
       },
       "ports": [
@@ -64,8 +63,8 @@
         {
           "port": 4,
           "name": "Infrastructure-Spare",
-          "profile": "IoT",
-          "link": 1,
+          "profile": "Infrastructure-Trunk",
+          "link": 0,
           "speed": null,
           "poe": 1,
           "disabled": false
@@ -139,7 +138,7 @@
       "needs_upgrade": false,
       "status": 1,
       "connected": true,
-      "uptime_s": 913238,
+      "uptime_s": 663457,
       "clients": 5,
       "poe": {
         "support": false
@@ -156,11 +155,11 @@
       "mac": "A8-29-48-FB-27-D0",
       "ip": "10.10.50.6",
       "firmware": "1.3.14 Build 20260128 Rel. 21854",
-      "needs_upgrade": true,
+      "needs_upgrade": false,
       "status": 1,
       "connected": true,
-      "uptime_s": 913223,
-      "clients": 8,
+      "uptime_s": 663466,
+      "clients": 7,
       "poe": {
         "support": false
       },

@@ -1,9 +1,8 @@
 {
-  "collected": "2026-09-26T22:35:29+00:00",
-  "host": "vm-skynet-ops",
+  "collected": "2026-09-05T03:42:19+05:00",
   "source": "caddyfile static parse (compose/)",
   "counts": {
-    "routes": 10
+    "routes": 9
   },
   "routes": [
     {
@@ -44,14 +43,6 @@
       "front_door_alias": "HOST_PROXY_APPS",
       "backend": "10.10.100.95:5984",
       "backend_entity": "svc/obsidian-livesync",
-      "auth": "own-auth/plain"
-    },
-    {
-      "vhost": "homeassistant.aliammar.net",
-      "front_door": "svc/caddy-apps",
-      "front_door_alias": "HOST_PROXY_APPS",
-      "backend": "10.10.30.50:80",
-      "backend_entity": "guest/homeassistant-iot-3050",
       "auth": "own-auth/plain"
     },
     {
