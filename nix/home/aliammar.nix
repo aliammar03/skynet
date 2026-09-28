@@ -75,6 +75,9 @@ in
       ));
     };
     enableMcpIntegration = true;
+    # settings.json is a read-only store symlink, so /model can't persist a choice: declare it here.
+    settings.model = "claude-opus-5-5";
+    settings.effortLevel = "high";
     settings.permissions = {
       # acceptEdits: Write/Edit land without a prompt (matches the ops loop's --permission-mode flag).
       defaultMode = "acceptEdits";
@@ -105,7 +108,7 @@ in
     # Skynet production authority remains governed separately by its tiers and credentials. The
     # exec-policy below hard-blocks the two operations Codex must never perform for itself.
     settings = {
-      model = "gpt-5.6-sol";
+      model = "gpt-6-astra";
       model_reasoning_effort = "medium";
       approval_policy = "never";
       sandbox_mode = "danger-full-access";
