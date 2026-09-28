@@ -77,7 +77,8 @@ in
     enableMcpIntegration = true;
     # settings.json is a read-only store symlink, so /model can't persist a choice: declare it here.
     settings.model = "claude-opus-5-5";
-    settings.effortLevel = "high";
+    # User-scope effort is per model; a top-level effortLevel is ignored for current models.
+    settings.modelSettings."claude-opus-5-5".effortLevel = "high";
     settings.permissions = {
       # acceptEdits: Write/Edit land without a prompt (matches the ops loop's --permission-mode flag).
       defaultMode = "acceptEdits";
