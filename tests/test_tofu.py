@@ -79,6 +79,8 @@ class Fake:
         self.snapshots: set[int] = set()  # guests that really have this run's snapshot
         self.leftover: set[int] = set()  # a failed create that made one anyway
         self.stuck: set[int] = set()  # a snapshot that cannot be deleted
+        self.rolled: set[int] = set()
+        self.config_drift: set[int] = set()  # a rollback that does not bring the config back
         self.power: dict[int, str] = {}
         self.holds: dict[str, dict[str, Any]] = {}
         self.record_error = False
@@ -116,6 +118,8 @@ def fake(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Fake:
                 host.snapshots.discard(g.vmid)
             if action == "rollback" and g.vmid in host.rollback_fail:
                 raise WriteError(f"{g} did not return to running after rollback", UNAVAILABLE)
+            if action == "rollback":
+                host.rolled.add(g.vmid)
         return run
 
     def set_hold(repo: Path, stack: str, revision: str, reason: str, operation: str) -> None:
@@ -147,6 +151,12 @@ def fake(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Fake:
         monkeypatch.setattr(pve, action, snapshot(action))
     monkeypatch.setattr(pve, "status", lambda g: host.power.get(g.vmid, "running"))
     monkeypatch.setattr(pve, "exists", lambda g, name: g.vmid in host.snapshots)
+
+    def config(g: pve.Guest) -> dict[str, Any]:
+        drifted = g.vmid in host.rolled and g.vmid in host.config_drift
+        return {"memory": 1024, "cores": 4 if drifted else 2, "pool": "outside-the-snapshot"}
+
+    monkeypatch.setattr(pve, "config", config)
     monkeypatch.setattr(tofu, "set_hold", set_hold)
     monkeypatch.setattr(tofu, "held", lambda repo, stack: host.holds.get(stack, {}))
     monkeypatch.setattr(alert, "send", send)
@@ -297,6 +307,28 @@ def test_rollback_restores_each_guests_prior_power_state(fake: Fake, tmp_path: P
     fake.approve()
     assert run(fake, tmp_path).outcome == "rolled-back"
     assert ("rollback", 10030, "running") in fake.calls and ("rollback", 10031, "stopped") in fake.calls
+
+
+def test_a_rollback_whose_config_does_not_come_back_is_not_trusted(fake: Fake, tmp_path: Path) -> None:
+    fake.apply_error = True
+    fake.config_drift = {10030}  # SNAPSHOT_COVERS was wrong about something this change touched
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    operation = run(fake, tmp_path)
+    assert operation.outcome == "rollback-failed"
+    import re
+    # Key names only, never values: exactly "cores", then the kept-snapshot note.
+    assert re.search(r"config differs after rollback: cores \(snapshots skynet-[0-9a-f]+ kept\)$",
+                     str(operation.reason))
+    assert not any(c[0] == "delete" for c in fake.calls if isinstance(c, tuple))  # snapshot kept
+    assert fake.holds["proxmox-core"]["revision"] == REV
+
+
+def test_config_comparison_ignores_only_what_a_snapshot_changes(monkeypatch: pytest.MonkeyPatch) -> None:
+    raw = {"memory": 1024, "digest": "abc", "parent": "skynet-x", "lock": "snapshot"}
+    monkeypatch.setattr(pve, "_call", lambda node, method, path, fields=None: dict(raw))
+    assert pve.config(pve.Guest(CORE, "lxc", 10030)) == {"memory": 1024}
+    assert tofu._config_diff({"memory": 1024}, {"memory": 2048, "swap": 512}) == ["memory", "swap"]
 
 
 def test_one_failed_guest_rollback_still_rolls_back_the_rest(fake: Fake, tmp_path: Path) -> None:

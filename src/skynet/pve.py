@@ -106,6 +106,18 @@ def status(guest: Guest) -> str:
     return value
 
 
+# Keys a snapshot itself changes: the config digest, the snapshot parent, and a task's lock.
+SNAPSHOT_KEYS = frozenset({"digest", "parent", "lock"})
+
+
+def config(guest: Guest) -> dict[str, Any]:
+    """The guest's current config, without the keys a snapshot itself changes."""
+    data = _call(guest.node, "GET", f"nodes/{quote(guest.node)}/{guest.kind}/{guest.vmid}/config")
+    if not isinstance(data, dict):
+        raise WriteError("Proxmox returned no guest config", UNAVAILABLE)
+    return {key: value for key, value in data.items() if key not in SNAPSHOT_KEYS}
+
+
 def rollback(guest: Guest, name: str, power: str) -> None:
     """Return the guest to the snapshot and to its power state `power`, observed before success."""
     fields = {"start": "1"} if power == "running" else {}

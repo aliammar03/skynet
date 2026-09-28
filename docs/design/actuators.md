@@ -32,7 +32,8 @@ change was a snapshotted guest update or a state-only move; anything else keeps 
 records the state OpenTofu wrote, and alerts. A snapshot that cannot be made refuses the apply (and one a failed create left behind is
 cleaned up, or the revision is held). A guest update is rolled back only when every attribute it
 changes is one a snapshot restores (`SNAPSHOT_COVERS`); pool membership, disk size, or a template
-conversion has no automatic inverse. A post-apply check that cannot run leaves the change
+conversion has no automatic inverse. Every rollback is then proved: the guest's whole config must equal its
+pre-snapshot copy, or the run is `rollback-failed` (alert, hold, snapshot kept). A post-apply check that cannot run leaves the change
 unverified: it alerts and holds, never rolls back. An apply updates at most five existing guests,
 so a hung apply plus its full rollback fits the deploy unit's 4 h budget; the timer defers a
 stack it cannot finish.

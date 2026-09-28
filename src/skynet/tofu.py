@@ -57,7 +57,7 @@ CONTENDED = frozenset({writepath.LOCK_BUSY, NOT_SETTLED})
 TOFU_SECONDS = {"init": 300, "plan": 900, "show": 120, "apply": 1800, "verify": 900}
 MAX_GUESTS = 5  # snapshotted guests per apply; bounds the rollback time
 _TASK = 2 * pve.TIMEOUT + pve.TASK_SECONDS + pve.POLL_SECONDS  # POST, wait, a last in-flight poll
-GUEST_SECONDS = (pve.TIMEOUT                                  # status before the snapshot
+GUEST_SECONDS = (3 * pve.TIMEOUT                              # status + config before, config after
                  + 3 * _TASK                                  # snapshot, rollback, prune
                  + pve.TASK_SECONDS + pve.TIMEOUT + pve.POLL_SECONDS)  # wait to see the power state
 GIT_CALLS, GIT_SECONDS, ALERTS = 60, 60, 4  # per stack: sync, record, hold, checkout; alerts
@@ -234,7 +234,9 @@ def guests(stack: Stack, found: list[dict[str, Any]]) -> list[pve.Guest]:
 
 # The top-level attributes a Proxmox snapshot rollback restores (the guest's own config; power state
 # is restored separately). Anything else, such as pool membership, a disk resize, or a template
-# conversion, lives outside the snapshot, so a change to it has no automatic inverse.
+# conversion, lives outside the snapshot, so a change to it has no automatic inverse. This list is
+# trusted only to choose the path: every rollback is then proved by comparing the guest's whole
+# config with its pre-snapshot copy.
 SNAPSHOT_COVERS = {
     "proxmox_virtual_environment_container": frozenset({
         "console", "cpu", "description", "features", "initialization", "memory",
@@ -244,6 +246,11 @@ SNAPSHOT_COVERS = {
         "network_device", "on_boot", "operating_system", "serial_device", "started", "startup",
         "tablet_device", "tags", "vga"}),
 }
+
+
+def _config_diff(before: dict[str, Any], after: dict[str, Any]) -> list[str]:
+    """The config keys (names only, never values) that differ."""
+    return sorted(key for key in before.keys() | after.keys() if before.get(key) != after.get(key))
 
 
 def _covered(item: dict[str, Any]) -> bool:
@@ -620,6 +627,7 @@ class _Saved:
     snapshot: str = ""
     taken: list[pve.Guest] = field(default_factory=list)
     power: dict[pve.Guest, str] = field(default_factory=dict)
+    config: dict[pve.Guest, dict[str, Any]] = field(default_factory=dict)
 
 
 def _refused(ledger: Ledger, name: str, reason: str, code: int = USAGE, source: str = "") -> Operation:
@@ -670,6 +678,7 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                 for guest in guests(stack, saved.found):
                     try:
                         saved.power[guest] = pve.status(guest)
+                        saved.config[guest] = pve.config(guest)
                         saved.taken.append(guest)  # before the request: a failed create may leave one
                         pve.create(guest, saved.snapshot)
                     except WriteError:
@@ -708,6 +717,11 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                 for guest in reversed(state_.taken):  # every guest, even after one fails
                     try:
                         pve.rollback(guest, state_.snapshot, state_.power[guest])
+                        # Prove the rollback rather than trust SNAPSHOT_COVERS: the whole config
+                        # must be what it was before the snapshot.
+                        differs = _config_diff(state_.config[guest], pve.config(guest))
+                        if differs:
+                            raise WriteError("config differs after rollback: " + ", ".join(differs))
                     except WriteError as rollback_error:
                         failures.append(f"{guest}: {rollback_error.reason}")
                 if failures:
