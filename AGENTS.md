@@ -147,8 +147,9 @@ edit compose/<svc>/ → branch → PR (bin/check + tier review + `skynet deploy 
   applies it only when its normalized-change hash equals the approved one. A different hash, or an
   apply that failed, rolled back, or was interrupted, is held and alerts; it never retries until
   `main` moves: re-plan in a new PR. The executor refuses delete/replace/forget, excluded guests, and resource types outside the
-  stack at every level. It snapshots each existing-guest update, and rolls back a failed apply whose
-  changes were all snapshotted guest updates. A create or DNS change has no automatic inverse: a
+  stack at every level. It saves each updated guest's config, and a failed apply whose changes were
+  all restorable guest updates writes those configs back (never a snapshot rollback: guest data is
+  kept); a re-plan dirty only outside the approved change is held, not rolled back. A create or DNS change has no automatic inverse: a
   failure alerts for operator recovery and is never auto-destroyed, so those stay below A4. State is
   encrypted and mirrored to the `tofu-state` branch after every apply. Never run a bare `tofu apply`.
 - **Procedures beyond this loop** live as engine-neutral runbooks, catalogued with tier + trigger in

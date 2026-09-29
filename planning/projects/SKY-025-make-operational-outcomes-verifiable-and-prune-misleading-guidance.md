@@ -54,11 +54,14 @@ description); both are now declared to match live. The state split ran (a state-
 stack on copies of the legacy root state, which is kept in `legacy/`): proxmox-core 5, technitium-dns
 21, cloudflare-dns 6 addresses, and all three stacks plan to **zero changes**. **After merge and an
 ops VM rebuild:** a supervised `skynet tofu apply --pending` records the empty plans and creates `tofu-state`. Then come
-the drill PRs: a wrong approved hash is held and alerts, a rejected athena `cores` value rolls back
-from its snapshot (the LXC path), and a deleted local state is rebuilt from git. The VM path gets its
+the drill PRs: a wrong approved hash is held and alerts, a rejected athena `cores` value is undone by
+a config restore (the LXC path), and a deleted local state is rebuilt from git. The VM path gets its
 own drill: one PR creates `vm-drill`, a running clone of template 9000 with an entity exception; a
-second PR sets a value Proxmox rejects, proving the RAM snapshot, the power-state rollback, and the
-config comparison on a VM; then Ali destroys the VM by hand (the executor refuses deletes). The phase
+second PR sets a value Proxmox rejects, proving the config restore, the pending-change reboot, the
+power-state return, and the config comparison on a VM; then Ali destroys the VM by hand (the executor
+refuses deletes). A review (2026-09-29) replaced the snapshot rollback with the config restore,
+gave Tofu its own lock, and made a re-plan dirty only outside the approved change hold rather than
+roll back. The phase
 box is ticked by the promotion PR: it enables the `skynet-tofu` timer and records the drills as the
 constitution's live evidence (human-merged).
 

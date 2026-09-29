@@ -58,8 +58,9 @@ in
   };
 
   # OpenTofu under ADR 0008: each minute, apply every stack whose merged inputs are not the applied
-  # ones and whose re-plan matches the PR's approved hash (src/skynet/tofu.py). Its own unit, so a
-  # hung apply never delays a Docker deploy; both share the one write lock.
+  # ones and whose re-plan matches the PR's approved hash (src/skynet/tofu.py). Its own unit and its
+  # own `tofu` lock, so an hours-long apply never delays a Docker deploy or a revert; an apply that
+  # reboots docker-dmz can overlap a deploy there, which then rolls itself back.
   systemd.services.skynet-tofu = {
     description = "skynet tofu apply --pending (apply merged, hash-approved stacks)";
     wants = [ "network-online.target" ];

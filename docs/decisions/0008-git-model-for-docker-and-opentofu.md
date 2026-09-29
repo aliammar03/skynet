@@ -60,11 +60,12 @@ recover automatic return to the last verified state, then a revert PR makes main
 3. **Merge is the approval.** After merge, `skynet tofu apply --pending` (supervised until the live rollback drills are recorded, then the `skynet-tofu` timer, each minute)
    plans each stack whose inputs changed from the merged revision, requires the approved hash, and
    applies that saved plan. A different hash (drift, or a later change) is held and alerts until a
-   new PR merges. Delete/replace/forget and protected guests are refused; existing guests are
-   snapshotted and rolled back when every change was a snapshotted guest update.
+   new PR merges. Delete/replace/forget and protected guests are refused; an existing guest's
+   config is saved and written back when every change was a restorable guest update.
 4. **State in git.** Each stack's state, already encrypted by OpenTofu with the sops-held passphrase,
    is committed by the executor to a dedicated `tofu-state` branch after every apply. `main` stays
-   code-only; the system rebuilds from `main` + `tofu-state`. Applies are serialized by a local lock.
+   code-only; the system rebuilds from `main` + `tofu-state`. Applies are serialized by a local
+   `tofu` lock, separate from the deploy lock.
 5. **Drift.** The nightly runs a read-only plan per stack and reports any non-empty plan.
 
 ## Consequences
