@@ -37,7 +37,11 @@ pre-snapshot copy, or the run is `rollback-failed` (alert, hold, snapshot kept).
 unverified: it alerts and holds, never rolls back. An apply updates at most five existing guests,
 so a hung apply plus its full rollback fits the `skynet-tofu` unit's 5 h budget; a pass defers a
 stack it cannot finish. A revision is held in git before it executes, and only its recorded
-success clears the hold; a snapshot that fails to delete is queued, retried each pass, and alerts.
+success clears the hold; a snapshot that fails to delete is queued, retried each pass, and alerts. Each snapshot is
+recorded before it is requested, so one left by a crash is found and cleaned. An apply that
+times out is indeterminate (its process group is killed; remote work may still land): never
+rolled back, it keeps its snapshots, holds, and alerts. Each pass first pushes any state the
+branch lacks, under the lock and even for a held revision, without re-running the apply.
 
 Automated rollback proof lives in the local test suite (`tests/`, run by `bin/check`): an actuator
 claims an A4 promotion only when its failure-case rollback is exercised there and recorded live.

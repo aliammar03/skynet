@@ -12,6 +12,7 @@ import pytest
 from skynet import alert, deploy, pve, tofu, writepath
 from skynet.writepath import UNAVAILABLE, Ledger, Operation, WriteError
 
+real_persist = tofu.persist_pending
 REV = "a" * 40
 NEW = "b" * 40
 CT = "proxmox_virtual_environment_container"
@@ -55,6 +56,8 @@ class FakeSpace:
         self.host.held_at_apply = dict(self.host.holds)
         if self.host.apply_error:
             raise WriteError("tofu apply failed", UNAVAILABLE)
+        if self.host.apply_lost:
+            raise WriteError(tofu.INDETERMINATE, UNAVAILABLE)
 
     def clean(self) -> None:
         self.host.calls.append("verify")
@@ -75,6 +78,7 @@ class Fake:
         self.apply_error = False
         self.dirty = False
         self.held_at_apply: dict[str, Any] = {}
+        self.apply_lost = False
         self.unverified = False
         self.snapshot_fail: set[int] = set()
         self.rollback_fail: set[int] = set()
@@ -153,6 +157,7 @@ def fake(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Fake:
         monkeypatch.setattr(pve, action, snapshot(action))
     monkeypatch.setattr(pve, "status", lambda g: host.power.get(g.vmid, "running"))
     monkeypatch.setattr(pve, "exists", lambda g, name: g.vmid in host.snapshots)
+    monkeypatch.setattr(tofu, "persist_pending", lambda repo, ledger: [])  # own tests below
 
     def config(g: pve.Guest) -> dict[str, Any]:
         drifted = g.vmid in host.rolled and g.vmid in host.config_drift
@@ -472,6 +477,41 @@ def test_a_pass_that_cannot_reach_git_alerts_after_three(
     assert fake.alerts == ["skynet: tofu passes failing (3 in a row)"]
 
 
+def test_an_apply_that_times_out_is_indeterminate_not_rolled_back(fake: Fake, tmp_path: Path) -> None:
+    fake.apply_lost = True
+    fake.plan = [guest(10030, cores=4)]  # reversible, if the apply had finished
+    fake.approve()
+    operation = run(fake, tmp_path)
+    assert operation.outcome == "rollback-failed" and "did not finish" in str(operation.reason)
+    assert not any(c[0] in ("rollback", "delete") for c in fake.calls if isinstance(c, tuple))
+    assert fake.holds["proxmox-core"]["revision"] == REV
+
+
+def test_workspace_apply_timeout_is_indeterminate(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def timed_out(workdir: Path, env: dict[str, str], *args: str, timeout: float) -> Any:
+        raise WriteError("tofu timed out", UNAVAILABLE)
+
+    monkeypatch.setattr(tofu, "_tofu", timed_out)
+    with pytest.raises(WriteError) as raised:
+        tofu.Workspace(tofu.STACKS["proxmox-core"], tmp_path, {}).apply()
+    assert raised.value.reason == tofu.INDETERMINATE
+
+
+def test_a_timeout_kills_the_whole_tofu_process_tree(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    import os
+    import time
+    marker = tmp_path / "late-write"
+    script = tmp_path / "fake-tofu"
+    # A "provider" child that would write late, under a parent that hangs.
+    script.write_text(f"#!/bin/sh\n(sleep 1; touch {marker}) &\nsleep 30\n")
+    script.chmod(0o755)
+    monkeypatch.setenv("SKYNET_TOFU", str(script))
+    with pytest.raises(WriteError, match="timed out"):
+        tofu._tofu(tmp_path, {"PATH": os.environ["PATH"]}, "apply", timeout=0.3)
+    time.sleep(1.5)
+    assert not marker.exists()  # the child died with its group
+
+
 def test_a_failed_create_has_no_inverse_records_true_state_and_alerts(fake: Fake, tmp_path: Path) -> None:
     fake.apply_error = True
     fake.plan = [guest(10030, cores=4), guest(10040, actions=["create"])]
@@ -518,7 +558,11 @@ def test_an_interrupted_apply_is_settled_with_an_alarm(fake: Fake, tmp_path: Pat
     ledger.append(interrupted.record("started"))
     fake.plan = []
     operation = run(fake, tmp_path)
-    assert operation.outcome == "success"
+    # Settlement held REV, so the same revision is refused under the lock...
+    assert (operation.outcome, operation.reason) == ("refused", tofu.HELD)
+    # ...unless a supervised recovery says so explicitly.
+    supervised = tofu.apply(tmp_path, "proxmox-core", revision=REV, ledger=ledger, ignore_hold=True)
+    assert supervised.outcome == "success"
     finals = [e for e in ledger.entries() if e.get("id") == interrupted.id and e["phase"] == "final"]
     assert finals and finals[0]["outcome"] == "rollback-failed"
     assert fake.recorded[0] is None and "skynet: tofu/proxmox-core rollback-failed" in fake.alerts
@@ -718,6 +762,115 @@ def test_the_tofu_timer_is_not_enabled_before_its_drills() -> None:
     timer = nix[nix.index("systemd.timers.skynet-tofu"):]
     timer = timer[:timer.index("};\n  };") if "};\n  };" in timer else len(timer)]
     assert "wantedBy = [ ];" in timer and '"timers.target"' not in timer
+
+
+def test_a_held_revision_is_refused_under_the_lock(fake: Fake, tmp_path: Path) -> None:
+    fake.holds["proxmox-core"] = {"revision": REV}
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    operation = run(fake, tmp_path)  # a direct apply, not through pending
+    assert (operation.outcome, operation.reason) == ("refused", tofu.HELD)
+    assert fake.calls == []
+
+
+def test_overlapping_pending_passes_apply_a_revision_once(fake: Fake, tmp_path: Path,
+                                                           monkeypatch: pytest.MonkeyPatch) -> None:
+    import threading
+    ledger = Ledger(tmp_path / "state")
+    fake.apply_error = True
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    real = tofu.is_held
+    outside = threading.Barrier(2)
+    seen = {"n": 0}
+    lock = threading.Lock()
+
+    def both_see_no_hold(repo: Path, name: str, revision: str, ledger_: Any = None) -> bool:
+        with lock:
+            seen["n"] += 1
+            first_two = seen["n"] <= 2
+        if first_two:  # pending's unlocked checks: both callers pass before either applies
+            outside.wait(timeout=5)
+            return False
+        return real(repo, name, revision, ledger_)
+
+    monkeypatch.setattr(tofu, "is_held", both_see_no_hold)
+    outcomes: list[str] = []
+    threads = [threading.Thread(target=lambda: outcomes.append(
+        tofu.pending(tmp_path, ledger=ledger)[0]["outcome"])) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=30)
+    assert fake.calls.count("apply") == 1
+    assert sorted(outcomes) == ["refused", "rolled-back"]
+
+
+def test_state_is_persisted_after_git_recovers_without_rerunning_the_apply(
+        fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger = Ledger(tmp_path / "state")
+    fake.record_error = True  # git is down when the verified apply tries to record
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    assert run(fake, tmp_path).outcome == "unrecorded"
+    fake.record_error = False  # git is back
+    monkeypatch.setattr(tofu, "persist_pending", real_persist)
+    fake.calls.clear()
+    results = tofu.pending(tmp_path, ledger=ledger)
+    assert results[0]["reason"] == "unpushed state persisted to tofu-state"
+    assert fake.recorded[-1] == {"revision": REV, "hash": fake.approved and fake.approved["hash"],
+                                 "operation": fake.recorded[-1]["operation"]}  # type: ignore[index]
+    assert "apply" not in fake.calls  # infrastructure is never rerun to retry a push
+    assert tofu._facts(ledger).get("_unrecorded") == {}
+
+
+def test_partial_failure_state_is_persisted_while_the_revision_stays_held(
+        fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger = Ledger(tmp_path / "state")
+    fake.apply_error = fake.record_error = True
+    fake.plan = [guest(10030, cores=4), guest(10040, actions=["create"])]
+    fake.approve()
+    path = tofu.local_state(ledger, "proxmox-core")
+    path.parent.mkdir(parents=True)
+    path.write_bytes(b"what the partial apply wrote")  # no base: a first, unpushed state
+    assert run(fake, tmp_path).outcome == "rollback-failed"
+    fake.record_error = False
+    monkeypatch.setattr(tofu, "persist_pending", real_persist)
+    fake.calls.clear()
+    results = tofu.pending(tmp_path, ledger=ledger)
+    assert [r["outcome"] for r in results] == ["success", "held"]
+    assert fake.recorded[-1] is None and "apply" not in fake.calls
+
+
+def test_a_crash_after_a_remote_snapshot_leaves_an_intent_the_next_pass_cleans(
+        fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger = Ledger(tmp_path / "state")
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    real_create = pve.create
+
+    def crash(g: pve.Guest, name: str) -> None:
+        fake.snapshots.add(g.vmid)  # Proxmox made it...
+        raise SystemExit("...and the process died before any record")
+
+    monkeypatch.setattr(pve, "create", crash)
+    with pytest.raises(SystemExit):
+        tofu.pending(tmp_path, ledger=ledger)
+    assert ledger.unfinished("tofu") == [] and fake.holds == {}
+    assert [i.get("intent") for i in tofu._facts(ledger)["_cleanup"]] != []
+    monkeypatch.setattr(pve, "create", real_create)
+    results = tofu.retry_cleanup(ledger)
+    assert results and results[0]["outcome"] == "success" and 10030 not in fake.snapshots
+    assert tofu._facts(ledger)["_cleanup"] == []
+
+
+def test_an_intent_whose_operation_was_recorded_is_left_to_its_record(fake: Fake, tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "state")
+    fake.apply_lost = True  # snapshots kept for the operator
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    run(fake, tmp_path)
+    assert tofu.retry_cleanup(ledger) == [] and 10030 in fake.snapshots  # kept, not "cleaned"
 
 
 def test_an_unplannable_revision_is_retried_and_alerts_once_never_held(
