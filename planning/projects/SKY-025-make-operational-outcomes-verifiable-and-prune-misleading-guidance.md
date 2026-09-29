@@ -63,7 +63,11 @@ refuses deletes). A review (2026-09-29) replaced the snapshot rollback with the 
 gave Tofu its own lock, and made a re-plan dirty only outside the approved change hold rather than
 roll back. A second review made a bind-mounted CT (240) skip only its fallback snapshot,
 kept a first local state off the branch until an apply adopts it, serialized pending.json, and
-made `plan --approve` refuse what the executor refuses. The phase
+made `plan --approve` refuse what the executor refuses. A third review fenced a Docker host's
+guest update against deploys (write lock + host fence, host must answer or the config is restored),
+applied approved deletes of derived DNS records while deferring guest deletes, bound approvals to
+their inputs, held unvalidated source, and backed off unavailable stacks; the VM drill adds a
+fenced docker-dmz update. The phase
 box is ticked by the promotion PR: it enables the `skynet-tofu` timer and records the drills as the
 constitution's live evidence (human-merged).
 
