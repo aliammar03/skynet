@@ -1287,7 +1287,7 @@ def _pass_failures(ledger: Ledger, failed: dict[str, Any] | None) -> int | None:
 
 
 def run_apply(repo: Path, name: str | None, *, revision: str | None, pending_all: bool,
-              state_dir_: Path, json_output: bool, stdout: TextIO) -> int:
+              state_dir_: Path, json_output: bool, stdout: TextIO, ignore_hold: bool = False) -> int:
     ledger = Ledger(state_dir_)
     if pending_all:  # the skynet-tofu timer
         deadline = time.monotonic() + PASS_SECONDS - PASS_MARGIN
@@ -1310,7 +1310,8 @@ def run_apply(repo: Path, name: str | None, *, revision: str | None, pending_all
         codes = [int(result.get("code", 0)) for result in results]
         return writepath.ROLLBACK_FAILED if writepath.ROLLBACK_FAILED in codes else OK
     assert name is not None
-    result = writepath.report(apply(repo, name, revision=revision, ledger=ledger))
+    result = writepath.report(apply(repo, name, revision=revision, ledger=ledger,
+                                    ignore_hold=ignore_hold))
     writepath.emit(result, json_output, stdout)
     return int(result["code"])
 
