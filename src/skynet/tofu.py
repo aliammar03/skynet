@@ -440,18 +440,29 @@ def check(stack: Stack, found: list[dict[str, Any]], excluded: Collection[int]) 
                          "split it", USAGE)
 
 
+def _excluded(text: str) -> set[int]:
+    data = json.loads(text)
+    return {int(guest["vmid"]) for guest in data["excluded_guests"]["guests"]}
+
+
 def excluded_guests(root: Path) -> set[int]:
     try:
-        data = json.loads((root / "invariants.json").read_text(encoding="utf-8"))
-        return {int(guest["vmid"]) for guest in data["excluded_guests"]["guests"]}
+        return _excluded((root / "invariants.json").read_text(encoding="utf-8"))
     except (OSError, ValueError, KeyError, TypeError):
         raise WriteError("invariants.json unreadable at the merged revision", UNAVAILABLE) from None
 
 
+def _main_file(repo: Path, path: str) -> str:
+    """One file's text on origin/main, read straight from git objects."""
+    return deploy._git(repo, "show", f"{MAIN}:{path}", reason=f"{path} unreadable on origin/main")
+
+
 def main_excluded(repo: Path) -> frozenset[int]:
     """The excluded guests on origin/main: what a queue entry (local, unreviewed) is checked against."""
-    with deploy.checkout(repo, MAIN, "invariants.json") as root:
-        return frozenset(excluded_guests(root))
+    try:
+        return frozenset(_excluded(_main_file(repo, "invariants.json")))
+    except (ValueError, KeyError, TypeError):
+        raise WriteError("invariants.json unreadable on origin/main", UNAVAILABLE) from None
 
 
 def all_excluded(repo: Path, root: Path) -> frozenset[int]:
@@ -497,7 +508,7 @@ def _tofu(workdir: Path, env: dict[str, str], *args: str,
         process = subprocess.Popen(command, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                    start_new_session=True)
     except OSError:  # never executed: nothing ran, locally or remotely
-        raise WriteError(NOT_STARTED, UNAVAILABLE) from None
+        raise writepath.NotStarted(NOT_STARTED) from None
     try:
         stdout, stderr = process.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
@@ -596,18 +607,21 @@ class Workspace:
         try:
             result = _tofu(self.dir, self.env, "apply", "-no-color", "-input=false", PLAN_FILE,
                            timeout=TOFU_SECONDS["apply"])
-        except WriteError as error:
-            if error.reason == NOT_STARTED:
-                raise
+        except writepath.NotStarted:
+            raise
+        except WriteError:
             raise WriteError(INDETERMINATE, UNAVAILABLE) from None  # remote work may still land
         _require(result, "tofu apply failed", 0)
 
-    def clean(self) -> list[dict[str, Any]]:
-        """The post-apply plan's changes ([] when clean). Any failure to read it is UNVERIFIED:
+    def clean(self, exclude: Collection[str] = ()) -> list[dict[str, Any]]:
+        """The post-apply plan's changes ([] when clean), leaving out what the apply deferred
+        (`exclude`: still pending by design, never drift). Any failure to read it is UNVERIFIED:
         nothing then says the apply was wrong."""
         try:
             result = _tofu(self.dir, self.env, "plan", "-no-color", "-input=false",
-                           "-detailed-exitcode", f"-out={VERIFY_FILE}", timeout=TOFU_SECONDS["verify"])
+                           "-detailed-exitcode", f"-out={VERIFY_FILE}",
+                           *(f"-exclude={address}" for address in exclude),
+                           timeout=TOFU_SECONDS["verify"])
             if result.returncode == 0:
                 return []
             if result.returncode != 2:
@@ -675,19 +689,25 @@ def inputs_digest(repo: Path, revision: str, stack: Stack) -> str:
 
 # --- host fences -----------------------------------------------------------------------------
 
-def docker_hosts(root: Path) -> dict[int, str]:
+def _docker_hosts(text: str) -> dict[int, str]:
     """lab.json's Docker hosts: guest VMID → Docker context (the host label)."""
     try:
-        data = json.loads((root / "lab.json").read_text(encoding="utf-8"))
+        data = json.loads(text)
         return {int(host["vmid"]): str(host["label"]) for host in data["docker_hosts"]["hosts"]}
-    except (OSError, ValueError, KeyError, TypeError):
+    except (ValueError, KeyError, TypeError):
+        raise WriteError("lab.json unreadable", UNAVAILABLE) from None
+
+
+def docker_hosts(root: Path) -> dict[int, str]:
+    try:
+        return _docker_hosts((root / "lab.json").read_text(encoding="utf-8"))
+    except OSError:
         raise WriteError("lab.json unreadable", UNAVAILABLE) from None
 
 
 def all_docker_hosts(repo: Path, root: Path) -> dict[int, str]:
     """The revision's Docker hosts and main's together: a fence is never lifted by an older tree."""
-    with deploy.checkout(repo, MAIN, "lab.json") as main_root:
-        return {**docker_hosts(root), **docker_hosts(main_root)}
+    return {**docker_hosts(root), **_docker_hosts(_main_file(repo, "lab.json"))}
 
 
 def fences(stack: Stack, found: list[dict[str, Any]], hosts: dict[int, str]) -> dict[str, pve.Guest]:
@@ -730,28 +750,54 @@ def settle_hosts(contexts: Collection[str]) -> list[str]:
 _FETCHED: set[str] = set()  # repos whose state branch this process has already fetched
 
 
+def _state_commit(repo: Path) -> str:
+    """The local state ref's commit, or "" when there is none."""
+    result = deploy._run(["git", "-C", str(repo), "rev-parse", "--verify", "--quiet",
+                          f"{STATE_REF}^{{commit}}"])
+    return result.stdout.decode().strip() if result.returncode == 0 else ""
+
+
 def _has_state_ref(repo: Path) -> bool:
-    return deploy._run(["git", "-C", str(repo), "rev-parse", "--verify", "--quiet",
-                        f"{STATE_REF}^{{commit}}"]).returncode == 0
+    return bool(_state_commit(repo))
+
+
+def _swap_state_ref(repo: Path, new: str | None, old: str) -> None:
+    """Move (or with `new` None, delete) the state ref only if it is still `old`. One another
+    process moved meanwhile stands; a ref still at `old` that did not move is a git failure."""
+    swap = ["update-ref", "-d", STATE_REF, old] if new is None else ["update-ref", STATE_REF, new, old]
+    if deploy._run(["git", "-C", str(repo), *swap]).returncode != 0 and _state_commit(repo) == old:
+        raise WriteError("state branch unreadable", UNAVAILABLE)
 
 
 def fetch_state(repo: Path, *, fresh: bool = True) -> bool:
     """Refresh the remote-tracking state branch; False when it does not exist on origin. A branch
     gone from origin also drops the local copy, so no hold, record, or state is read from a branch
-    that no longer exists. `fresh=False` reuses this process's last fetch: inside a locked section
-    only this process writes the branch (after each push the local ref already moved), and the
-    fast-forward-only push still refuses anything that raced it."""
+    that no longer exists. The fetch lands in a private ref and moves the shared one only if no
+    one else moved it meanwhile (compare-and-swap): a read-only fetch racing an apply's push never
+    moves the ref back under it. `fresh=False` reuses this process's last fetch: inside a locked
+    section only this process pushes the branch (after each push the local ref already moved), and
+    the fast-forward-only push still refuses anything that raced it."""
     if not fresh and str(repo) in _FETCHED:
         return _has_state_ref(repo)
+    old = _state_commit(repo)
     heads = deploy._git(repo, "ls-remote", "origin", f"refs/heads/{STATE_BRANCH}",
                         reason="git ls-remote of the state branch failed")
     if not heads:
-        if _has_state_ref(repo):
-            deploy._git(repo, "update-ref", "-d", STATE_REF, reason="state branch unreadable")
+        if old:  # a push that just created the branch stands
+            _swap_state_ref(repo, None, old)
         _FETCHED.add(str(repo))
-        return False
-    deploy._git(repo, "fetch", "--quiet", "origin", f"+refs/heads/{STATE_BRANCH}:{STATE_REF}",
-                reason="git fetch of the state branch failed")
+        return _has_state_ref(repo)
+    private = f"refs/skynet/fetch/{STATE_BRANCH}-{os.getpid()}"
+    try:
+        # --refmap= stops git also updating origin's tracking ref (STATE_REF) behind the swap.
+        deploy._git(repo, "fetch", "--quiet", "--refmap=", "origin",
+                    f"+refs/heads/{STATE_BRANCH}:{private}",
+                    reason="git fetch of the state branch failed")
+        new = deploy._git(repo, "rev-parse", private, reason="state branch unreadable")
+    finally:
+        deploy._run(["git", "-C", str(repo), "update-ref", "-d", private])
+    if new != old:
+        _swap_state_ref(repo, new, old)
     _FETCHED.add(str(repo))
     return True
 
@@ -761,15 +807,20 @@ def _blob(repo: Path, path: str) -> bytes | None:
     not exist. Any other git failure raises: a read error must never look like a missing file."""
     if not _has_state_ref(repo):
         return None  # no state branch yet
-    listed = deploy._run(["git", "-C", str(repo), "ls-tree", "--name-only", STATE_REF, "--", path])
-    if listed.returncode != 0:
+    result = deploy._run(["git", "-C", str(repo), "cat-file", "--batch"],
+                         stdin=f"{STATE_REF}:{path}\n".encode())
+    header, _, rest = result.stdout.partition(b"\n")
+    if result.returncode != 0 or not header:
         raise WriteError("state branch unreadable", UNAVAILABLE)
-    if not listed.stdout.strip():
+    fields = header.split()
+    if fields[-1] == b"missing":
         return None
-    result = deploy._run(["git", "-C", str(repo), "cat-file", "blob", f"{STATE_REF}:{path}"])
-    if result.returncode != 0:
+    if len(fields) != 3 or fields[1] != b"blob" or not fields[2].isdigit():
+        raise WriteError("state branch unreadable", UNAVAILABLE)  # a tree, or a malformed answer
+    size = int(fields[2])
+    if len(rest) != size + 1:
         raise WriteError("state branch unreadable", UNAVAILABLE)
-    return result.stdout
+    return rest[:size]
 
 
 def branch_state(repo: Path, stack: str) -> bytes | None:
@@ -892,10 +943,7 @@ def _write(path: Path, content: bytes | None) -> None:
             path.unlink(missing_ok=True)
             return
         path.parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as handle:
-            handle.write(content)
-        os.chmod(handle.name, 0o600)
-        os.replace(handle.name, path)
+        common.atomic_write_bytes(path, content)  # fsynced: never an empty state after a crash
     except OSError:
         raise WriteError("local tofu state unwritable", UNAVAILABLE) from None
 
@@ -1000,8 +1048,10 @@ def _state_copy(repo: Path, ledger: Ledger, stack: str, into: Path) -> Path:
     if kind in ("missing", "stale") and remote is not None:
         try:
             with ledger.lock(LOCK):
-                if classify(ledger, stack, remote) in ("missing", "stale"):
-                    _hydrate(ledger, stack, remote)
+                # Re-read under the lock: an apply that finished meanwhile moved both.
+                current = branch_state(repo, stack) if fetch_state(repo) else None
+                if current is not None and classify(ledger, stack, current) in ("missing", "stale"):
+                    _hydrate(ledger, stack, current)
         except WriteError:
             pass  # a write holds the lock (or the cache is unwritable): the copy still serves
     if kind == "diverged":
@@ -1034,6 +1084,8 @@ class _Saved:
     deferred: list[str] = field(default_factory=list)  # hard checkpoints left out of the plan
     readonly: dict[str, frozenset[str]] = field(default_factory=dict)  # computed-only attributes
     fences: dict[str, pve.Guest] = field(default_factory=dict)  # Docker context → its host guest
+    preheld: bool = False  # this run holds the revision in git (the pre-apply hold)
+    prior_hold: dict[str, Any] = field(default_factory=dict)  # the hold the pre-apply hold replaced
 
 
 def _refused(ledger: Ledger, name: str, reason: str, code: int = USAGE, source: str = "") -> Operation:
@@ -1097,6 +1149,12 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                     saved.readonly = space.readonly()
                     saved.fences = fences(stack, saved.found, all_docker_hosts(repo, space.root))
 
+            def _undo_snapshot(state_: _Saved) -> None:
+                """Nothing ran: lift the pre-apply hold and remove the snapshots."""
+                if state_.preheld:
+                    _release_prehold(repo, ledger, name, target, operation, state_.prior_hold)
+                _prune(state_, operation, ledger)
+
             def snapshot() -> _Saved:
                 if saved.fences:
                     # Before anything changes: a deploy on this host (whose verification the guest
@@ -1135,13 +1193,20 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                         raise WriteError(f"could not snapshot {guest}; nothing applied, but "
                                          f"{saved.snapshot} could not be cleaned up") from None
                 operation.context["guests"] = [str(guest) for guest in saved.restorable]
-                if saved.found and not _prehold(repo, ledger, name, target, operation):
-                    _prune(saved, operation, ledger)
-                    raise WriteError("could not record the pre-apply hold; nothing applied",
-                                     UNAVAILABLE)
+                if saved.found:
+                    prior = _prehold(repo, ledger, name, target, operation)
+                    if prior is None:
+                        _prune(saved, operation, ledger)
+                        raise WriteError("could not record the pre-apply hold; nothing applied",
+                                         UNAVAILABLE)
+                    saved.prior_hold, saved.preheld = prior, True
                 # Last, once nothing can refuse any more: the approved (or empty) plan accepted
                 # this state, and whatever tofu writes on top of it is this stack's to record.
-                adopt(ledger, name)
+                try:
+                    adopt(ledger, name)
+                except WriteError:
+                    _undo_snapshot(saved)
+                    raise
                 return saved
 
             def execute(state_: _Saved) -> None:
@@ -1150,7 +1215,7 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
 
             def verify(state_: _Saved) -> dict[str, Any]:
                 if state_.found:
-                    remaining = space.clean()
+                    remaining = space.clean(exclude=state_.deferred)
                     if remaining:
                         operation.note("post-apply-plan", "dirty", ", ".join(
                             sorted(str(item["address"]) for item in remaining))[:500])
@@ -1168,12 +1233,11 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                 return {"changes": len(state_.found), "hash": state_.hash, "post_apply_plan": "clean"}
 
             def rollback(state_: _Saved, error: WriteError) -> str:
-                if error.reason == NOT_STARTED:
+                if isinstance(error, writepath.NotStarted):
                     # Nothing ran: no rollback, no hold, no alarm. Release the pre-apply hold and
                     # the snapshots; the pass retries (with a backoff) like any unavailability.
-                    _release_prehold(repo, ledger, name, target, operation)
-                    _prune(state_, operation, ledger)
-                    return writepath.NOT_STARTED
+                    _undo_snapshot(state_)
+                    return "not-needed"
                 if error.reason in UNSETTLED or not reversible(stack, state_.found, state_.readonly):
                     try:
                         _record(repo, ledger, name, None, f"tofu-state({name}): after failed "
@@ -1253,7 +1317,9 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
         _drop_intents(ledger, operation.id)  # resolved: a record now carries this operation
     if result.outcome in HELD_OUTCOMES or (result.outcome == "refused" and result.code != UNAVAILABLE):
         _hold(repo, ledger, name, target, str(result.reason), result)
-    if saved.deferred:
+    # Only a plan that ran leaves its deferrals pending; a refused or unavailable one announces
+    # nothing, so the run that does defer them still alerts.
+    if saved.deferred and result.outcome not in ("refused", "unavailable"):
         _announce_deferred(ledger, name, saved.deferred, result)
     return result
 
@@ -1644,37 +1710,45 @@ def _hold(repo: Path, ledger: Ledger, name: str, revision: str, reason: str,
     operation.note("hold", "ok", "not retried until main moves")
 
 
-def _prehold(repo: Path, ledger: Ledger, name: str, revision: str, operation: Operation) -> bool:
+def _prehold(repo: Path, ledger: Ledger, name: str, revision: str,
+             operation: Operation) -> dict[str, Any] | None:
     """Hold the revision *before* it executes: a crash anywhere after this leaves it held, never
     retried. The success commit clears it (same revision, same commit as the state). A revision
-    the timer would not pick needs no hold. False when the hold could not be recorded in git."""
+    the timer would not pick needs no hold. Returns the hold it replaced ({} for none; a
+    supervised `--ignore-hold` replaces a real one), or None when git did not take the hold."""
     try:
         if input_revision(repo, STACKS[name]) != revision:
-            return True
+            return {}
+        prior = held(repo, name)
         set_hold(repo, name, revision, PREHOLD, operation.id)
     except WriteError as error:
         operation.note("prehold", "failed", error.reason)
-        return False
+        return None
     _local_hold(ledger, name, revision)
     operation.note("prehold", "ok", "held until a recorded success")
-    return True
+    return prior
 
 
 def _release_prehold(repo: Path, ledger: Ledger, name: str, revision: str,
-                     operation: Operation) -> None:
-    """Lift this operation's own pre-apply hold when its apply provably never ran. A hold git keeps
-    (the write failed, or it is another run's) stays: it alerts through `_held`, never silently."""
+                     operation: Operation, prior: dict[str, Any]) -> None:
+    """Lift this operation's own pre-apply hold when nothing ran, putting back the hold it
+    replaced (`prior`), so a supervised run that never started never unholds a failed revision.
+    A hold git keeps (the write failed, or it is another run's) stays: it alerts through `_held`,
+    never silently."""
     try:
         hold = held(repo, name)
         if (hold.get("revision"), hold.get("reason"), hold.get("operation")) == (
                 revision, PREHOLD, operation.id):
-            write_branch(repo, {f"{name}/held.json": None},
+            write_branch(repo, {f"{name}/held.json": _json_bytes(prior) if prior else None},
                          f"tofu-state({name}): release {revision[:12]} ({operation.id} never ran)")
     except WriteError as error:
         operation.note("prehold", "kept", error.reason)
         return
+    if prior.get("revision") in (revision, "*"):
+        operation.note("prehold", "restored", "the earlier hold stands")
+        return
     _clear_local_hold(ledger, name, revision)
-    operation.note("prehold", "released", "tofu never started; retried next pass")
+    operation.note("prehold", "released", "nothing ran; retried next pass")
 
 
 def _local_hold(ledger: Ledger, name: str, revision: str) -> None:
@@ -1725,16 +1799,18 @@ def pending(repo: Path, *, ledger: Ledger, deadline: float | None = None) -> lis
     results += persist_pending(repo, ledger)
     results += retry_cleanup(repo, ledger)
     for name, stack in STACKS.items():
-        target = input_revision(repo, stack)
-        if target is None or applied(repo, name).get("revision") == target:
-            continue
-        try:
+        target: str | None = None
+        try:  # one stack's failure (git, the state branch, local files) never stops the others
+            target = input_revision(repo, stack)
+            if target is None or applied(repo, name).get("revision") == target:
+                continue
             results.append(_pending_stack(repo, ledger, name, target, deadline))
-        except OSError:  # one stack's local failure must never stop the others
-            result: dict[str, Any] = {"target": f"tofu/{name}", "source": target,
-                                      "outcome": "unavailable", "code": UNAVAILABLE,
-                                      "reason": "local tofu files unavailable"}
-            _count(ledger, name, target, result)
+        except (WriteError, OSError) as error:
+            result: dict[str, Any] = {
+                "target": f"tofu/{name}", "outcome": "unavailable", "code": UNAVAILABLE,
+                "reason": error.reason if isinstance(error, WriteError)
+                else "local tofu files unavailable", **({"source": target} if target else {})}
+            _count(ledger, name, target or "unknown", result)
             results.append(result)
     return results
 
@@ -1760,8 +1836,11 @@ def _pending_stack(repo: Path, ledger: Ledger, name: str, target: str,
     # Announced only when this result alerted: its hold step, or its own alarm. A hold it did
     # not announce (a pre-apply hold a run left as `unavailable`) alerts through _held next pass.
     if holds & {"ok", "failed"} or result.get("outcome") in writepath.ALARMS:
-        if is_held(repo, name, target, ledger):
-            _announced(ledger, _hold_key(repo, name, target))
+        try:
+            if is_held(repo, name, target, ledger):
+                _announced(ledger, _hold_key(repo, name, target))
+        except WriteError:
+            pass  # not marked: _held alerts again next pass rather than lose this result
     return result
 
 

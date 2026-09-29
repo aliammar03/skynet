@@ -35,7 +35,8 @@ it makes from it, and only when that plan's normalized-change hash equals the PR
 `approved-plan.json` and the approval's inputs digest equals the stack's inputs at that revision
 (an empty plan needs no approval). A delete, replace, or forget of anything but a derived DNS
 record is excluded from the plan (with whatever depends on it) and deferred; the deferred set is
-part of the hash. The hash covers each change's actions and
+part of the hash, the post-apply re-plan leaves it out too (still pending, never drift), and it
+alerts once, from the first run that applies the rest. The hash covers each change's actions and
 the attributes it moves (before → after); refresh values of untouched attributes, such as a guest
 agent's IP lists, stay out; an attribute wholly known only after apply is bound by name, and a
 partly unknown block by all its known parts. A failure is
@@ -59,7 +60,8 @@ update to a Docker host's guest (lab.json `docker_hosts`) also holds the `write`
 the apply (unless the approved change stops it) and after a restore (if it was running before),
 and a host that never answers is a failed change. A computed-only attribute never ties a re-plan
 to the approved change. A `tofu` that could not even be started changed nothing: its pre-apply
-hold is released and the stack is retried like any unavailability. An apply updates at most five existing
+hold is released (or, under `--ignore-hold`, the hold it overrode is put back) and the stack is
+retried like any unavailability. An apply updates at most five existing
 guests, so a hung apply plus its full rollback fits the `skynet-tofu` unit's 6 h budget; a pass
 defers a stack it cannot finish. A revision is held in git before it executes, and only its recorded
 success clears the hold; every hold alerts once, however it was set (an unreadable `held.json` holds

@@ -50,9 +50,11 @@ locals {
 }
 
 # Guard the derivation — a Caddyfile that parses to zero hosts would otherwise propose deleting every
-# app record. Refuse that (this is the layer's "checker"; the derivation above is the writer).
-check "apps_ingress_parsed" {
-  assert {
+# app record. An output precondition fails the plan (a `check` block only warns); this is the
+# layer's "checker", the derivation above is the writer.
+output "apps_hosts_parsed" {
+  value = length(local.apps_service_hosts)
+  precondition {
     condition     = length(local.apps_service_hosts) > 0
     error_message = "No app vhosts parsed from ${abspath("${path.module}/../../compose/caddy-apps/Caddyfile")} — refusing to wipe app DNS records."
   }

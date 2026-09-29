@@ -67,7 +67,9 @@ made `plan --approve` refuse what the executor refuses. A third review fenced a 
 guest update against deploys (write lock + host fence, host must answer or the config is restored),
 applied approved deletes of derived DNS records while deferring guest deletes, bound approvals to
 their inputs, held unvalidated source, and backed off unavailable stacks; the VM drill adds a
-fenced docker-dmz update. The phase
+fenced docker-dmz update. A fifth review kept deferred addresses out of the post-apply re-plan,
+put back the hold a never-started `--ignore-hold` run overrode, and made the DNS parse guards
+fail the plan (output preconditions; a `check` only warns). The phase
 box is ticked by the promotion PR: it enables the `skynet-tofu` timer and records the drills as the
 constitution's live evidence (human-merged).
 

@@ -15,9 +15,11 @@ locals {
 }
 
 # Guard the derivation — a config that parses to zero hosts would otherwise propose deleting every
-# public CNAME. Refuse that (the writer is the resource below; this is its checker).
-check "cloudflared_ingress_parsed" {
-  assert {
+# public CNAME. An output precondition fails the plan (a `check` block only warns); the writer is
+# the resource below, this is its checker.
+output "public_hosts_parsed" {
+  value = length(local.public_hosts)
+  precondition {
     condition     = length(local.public_hosts) > 0
     error_message = "No hostnames parsed from compose/cloudflared/config.yml — refusing to wipe public CNAMEs."
   }

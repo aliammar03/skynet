@@ -180,10 +180,16 @@ def decode_der(certificate: bytes) -> dict[str, Any]:
 
 def atomic_write_text(path: Path, content: str) -> None:
     """Replace `path` only after a complete, flushed sibling write; OSError on any failure."""
+    atomic_write_bytes(path, content.encode("utf-8"))
+
+
+def atomic_write_bytes(path: Path, content: bytes) -> None:
+    """Replace `path` (mode 0600) only after a complete, fsynced sibling write; OSError on any
+    failure, leaving the previous bytes and no temporary file."""
     temporary: str | None = None
     try:
-        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", newline="", dir=path.parent,
-                                         prefix="." + path.name + ".", delete=False) as stream:
+        with tempfile.NamedTemporaryFile(dir=path.parent, prefix="." + path.name + ".",
+                                         delete=False) as stream:
             temporary = stream.name
             stream.write(content)
             stream.flush()

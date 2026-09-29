@@ -70,15 +70,21 @@ class FakeSpace:
         if self.host.apply_lost:
             raise WriteError(tofu.INDETERMINATE, UNAVAILABLE)
         if self.host.not_started:
-            raise WriteError(tofu.NOT_STARTED, UNAVAILABLE)
+            raise writepath.NotStarted(tofu.NOT_STARTED)
 
-    def clean(self) -> list[dict[str, Any]]:
+    def clean(self, exclude: Any = ()) -> list[dict[str, Any]]:
         self.host.calls.append("verify")
+        self.host.excluded_at_verify.append(sorted(exclude))
         if self.host.unverified:
             raise WriteError(tofu.UNVERIFIED, UNAVAILABLE)
         if self.host.dirty:  # the approved change did not land: the re-plan still wants it
             return tofu.changes({"resource_changes": self.host.plan})
-        return tofu.changes({"resource_changes": self.host.drift})
+        # A deferred change was never applied: the re-plan still wants it unless excluded.
+        stack = tofu.STACKS[self.host.stack]
+        left = [item["address"] for item in tofu.changes({"resource_changes": self.host.plan})
+                if tofu.deferrable(stack, item) and item["address"] not in exclude]
+        return tofu.changes({"resource_changes": self.host.drift + [
+            entry for entry in self.host.plan if entry["address"] in left]})
 
     def approved(self) -> dict[str, Any] | None:
         return self.host.approved
@@ -116,6 +122,7 @@ class Fake:
         self.not_started = False
         self.readonly: dict[str, frozenset[str]] = {}
         self.excluded_at_plan: list[list[str]] = []
+        self.excluded_at_verify: list[list[str]] = []
         self.digest = "i" * 64  # the merged tree's inputs digest
         self.docker_hosts: dict[int, str] = {}
         self.down: set[str] = set()  # Docker contexts that never answer
@@ -220,6 +227,24 @@ def fake(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Fake:
 
 def run(fake: Fake, tmp_path: Path, stack: str = "proxmox-core") -> Operation:
     return tofu.apply(tmp_path, stack, revision=REV, ledger=Ledger(tmp_path / "state"))
+
+
+def branch_holds(fake: Fake, monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
+    """write_branch against the fake's holds: a held.json written or removed lands in them."""
+    written: list[dict[str, Any]] = []
+
+    def write_branch(repo: Path, files: dict[str, Any], message: str, expect: Any = None) -> str:
+        written.append(files)
+        for path, raw in files.items():
+            stack = path.split("/")[0]
+            if raw is None:
+                fake.holds.pop(stack, None)
+            else:
+                fake.holds[stack] = json.loads(raw)
+        return "c"
+
+    monkeypatch.setattr(tofu, "write_branch", write_branch)
+    return written
 
 
 # --- the normalized change -------------------------------------------------------------------
@@ -367,6 +392,7 @@ def test_a_guest_delete_replace_or_forget_is_deferred_never_applied_and_never_bl
     operation = run(fake, tmp_path)
     assert operation.outcome == "success", operation.reason
     assert fake.excluded_at_plan == [[], [doomed["address"]]]  # planned again without it
+    assert fake.excluded_at_verify == [[doomed["address"]]]  # still pending by design: not drift
     assert operation.context["deferred"] == [doomed["address"]]
     assert "apply" in fake.calls and ("create", 10031) not in fake.calls
     assert fake.alerts == ["skynet: tofu/proxmox-core deferred 1 hard-checkpoint change(s)"]
@@ -374,6 +400,23 @@ def test_a_guest_delete_replace_or_forget_is_deferred_never_applied_and_never_bl
     fake.calls.clear()
     tofu.apply(tmp_path, "proxmox-core", revision=REV, ledger=ledger)
     assert len(fake.alerts) == 1  # once per address, not per pass
+
+
+def test_a_refused_plan_never_announces_its_deferrals(fake: Fake, tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "state")
+    doomed = guest(10031, actions=["delete"])
+    fake.plan = [guest(10030, cores=4), doomed]
+    fake.approve()
+    assert fake.approved is not None
+    fake.approved["hash"] = "0" * 64
+    operation = run(fake, tmp_path)
+    assert (operation.outcome, operation.reason) == ("refused", tofu.MISMATCH)
+    assert fake.alerts == []
+    fake.inputs["proxmox-core"] = NEW  # the corrected PR merges
+    fake.approve()
+    operation = tofu.apply(tmp_path, "proxmox-core", revision=NEW, ledger=ledger)
+    assert operation.outcome == "success", operation.reason
+    assert fake.alerts == ["skynet: tofu/proxmox-core deferred 1 hard-checkpoint change(s)"]
 
 
 def test_an_undeferred_guest_delete_is_still_refused() -> None:
@@ -1370,16 +1413,59 @@ def test_settlement_never_pushes_a_stale_cache(clone: Path, tmp_path: Path) -> N
 def test_a_git_read_error_is_not_a_missing_file(clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     tofu.record_state(clone, "s", b"v1", None, "first")
     assert tofu._blob(clone, "s/absent.json") is None  # truly missing
+    assert tofu.branch_state(clone, "s") == b"v1"
     real = deploy._run
 
     def failing(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[bytes]:
-        if "ls-tree" in args:
+        if "cat-file" in args:
             return subprocess.CompletedProcess(args, 128, b"", b"fatal")
         return real(args, **kwargs)
 
     monkeypatch.setattr(deploy, "_run", failing)
     with pytest.raises(WriteError, match="unreadable"):
         tofu.branch_state(clone, "s")
+
+
+def test_a_fetch_never_moves_the_state_ref_under_a_concurrent_push(
+        clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    tofu.record_state(clone, "s", b"v1", None, "first")
+    older = _git(clone, "rev-parse", tofu.STATE_REF)
+    tofu.record_state(clone, "s", b"v2", None, "second")
+    fetched = _git(clone, "rev-parse", tofu.STATE_REF)
+    _git(clone, "update-ref", tofu.STATE_REF, older)  # this process last saw the older head
+    assert tofu.fetch_state(clone) and _git(clone, "rev-parse", tofu.STATE_REF) == fetched
+    _git(clone, "update-ref", tofu.STATE_REF, older)
+    # An apply elsewhere moves the ref while this fetch is in flight (and again before the swap).
+    pushed = _git(clone, "commit-tree", f"{fetched}^{{tree}}", "-p", fetched, "-m", "apply")
+    real = deploy._git
+
+    def racing(repo: Path, *args: str, reason: str = "git unavailable") -> str:
+        if args[0] == "fetch":
+            _git(clone, "update-ref", tofu.STATE_REF, pushed)
+        return real(repo, *args, reason=reason)
+
+    monkeypatch.setattr(deploy, "_git", racing)
+    assert tofu.fetch_state(clone)
+    assert _git(clone, "rev-parse", tofu.STATE_REF) == pushed  # never moved back to `fetched`
+    assert _git(clone, "for-each-ref", "refs/skynet/") == ""  # the private ref is gone
+
+
+def test_a_state_ref_that_git_cannot_move_is_unreadable_not_ignored(
+        clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    tofu.record_state(clone, "s", b"v1", None, "first")
+    older = _git(clone, "rev-parse", tofu.STATE_REF)
+    tofu.record_state(clone, "s", b"v2", None, "second")
+    _git(clone, "update-ref", tofu.STATE_REF, older)
+    real = deploy._run
+
+    def failing(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[bytes]:
+        if "update-ref" in args and tofu.STATE_REF in args:
+            return subprocess.CompletedProcess(args, 128, b"", b"fatal")
+        return real(args, **kwargs)
+
+    monkeypatch.setattr(deploy, "_run", failing)
+    with pytest.raises(WriteError, match="unreadable"):
+        tofu.fetch_state(clone)
 
 
 def test_a_branch_that_lost_its_state_is_refused_not_trusted(clone: Path, tmp_path: Path) -> None:
@@ -2124,6 +2210,24 @@ def test_one_stacks_local_failure_never_stops_the_others(fake: Fake, tmp_path: P
         ("tofu/proxmox-core", "unavailable"), ("tofu/technitium-dns", "success")]
 
 
+def test_one_stacks_state_branch_error_keeps_every_other_result(fake: Fake, tmp_path: Path,
+                                                               monkeypatch: pytest.MonkeyPatch) -> None:
+    fake.inputs = {"proxmox-core": REV, "technitium-dns": NEW, "cloudflare-dns": NEW}
+    real_held = tofu.held
+
+    def held(repo: Path, stack: str) -> dict[str, Any]:
+        if stack == "technitium-dns":
+            raise WriteError("state branch unreadable", UNAVAILABLE)
+        return real_held(repo, stack)
+
+    monkeypatch.setattr(tofu, "held", held)
+    results = tofu.pending(tmp_path, ledger=Ledger(tmp_path / "state"))
+    assert [(r["target"], r["outcome"]) for r in results] == [
+        ("tofu/proxmox-core", "success"), ("tofu/technitium-dns", "unavailable"),
+        ("tofu/cloudflare-dns", "success")]
+    assert results[1]["reason"] == "state branch unreadable"
+
+
 @pytest.mark.parametrize("approval,ok", [
     ({"stack": "proxmox-core", "hash": "a" * 64, "inputs": "b" * 64, "changes": [], "deferred": []}, True),
     ({"stack": "proxmox-core", "hash": "a" * 64, "changes": []}, False),  # made before inputs bound
@@ -2202,7 +2306,7 @@ def test_a_first_state_is_never_adopted_by_a_run_the_snapshot_step_refuses(
     if refusal == "pending-config":
         monkeypatch.setattr(pve, "pending", lambda g: ["memory"])
     else:
-        monkeypatch.setattr(tofu, "_prehold", lambda *args: False)
+        monkeypatch.setattr(tofu, "_prehold", lambda *args: None)
     fake.plan = [guest(10030, cores=4)]
     fake.approve()
     operation = run(fake, tmp_path)
@@ -2238,7 +2342,7 @@ def test_a_tofu_that_never_started_is_retried_not_held(fake: Fake, tmp_path: Pat
     fake.plan = [guest(10030, cores=4)]
     fake.approve()
     result = tofu.pending(tmp_path, ledger=ledger)[0]
-    assert (result["outcome"], result["recovery"]) == ("unavailable", writepath.NOT_STARTED)
+    assert (result["outcome"], result["recovery"]) == ("unavailable", "not-needed")
     assert released == [{"proxmox-core/held.json": None}] and fake.holds == {}
     assert not tofu.is_held(tmp_path, "proxmox-core", REV, ledger)
     assert not any(c[0] == "restore" for c in fake.calls if isinstance(c, tuple))
@@ -2246,8 +2350,44 @@ def test_a_tofu_that_never_started_is_retried_not_held(fake: Fake, tmp_path: Pat
     assert tofu._failures(ledger, "proxmox-core", REV) == 1  # retried after its backoff
 
 
+def test_a_supervised_run_that_never_started_keeps_the_hold_it_overrode(
+        fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger = Ledger(tmp_path / "state")
+    branch_holds(fake, monkeypatch)
+    failed = {"revision": REV, "reason": "rolled back", "operation": "op0"}
+    fake.holds["proxmox-core"] = dict(failed)
+    tofu._local_hold(ledger, "proxmox-core", REV)
+    fake.not_started = True
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    operation = tofu.apply(tmp_path, "proxmox-core", revision=REV, ledger=ledger, ignore_hold=True)
+    assert operation.outcome == "unavailable"
+    assert fake.holds["proxmox-core"] == failed  # put back, not deleted
+    assert tofu.is_held(tmp_path, "proxmox-core", REV, ledger)
+    assert tofu.pending(tmp_path, ledger=ledger)[0]["outcome"] == "held"
+    assert fake.calls.count("apply") == 1  # the timer never retries the failed revision
+
+
+def test_a_failed_adoption_releases_the_prehold_and_the_snapshots(
+        fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger = Ledger(tmp_path / "state")
+    branch_holds(fake, monkeypatch)
+
+    def adopt(ledger_: Ledger, stack: str) -> None:
+        raise WriteError("local tofu state base unwritable", UNAVAILABLE)
+
+    monkeypatch.setattr(tofu, "adopt", adopt)
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    operation = run(fake, tmp_path)
+    assert (operation.outcome, operation.code) == ("refused", UNAVAILABLE)
+    assert "apply" not in fake.calls and ("delete", 10030) in fake.calls
+    assert fake.snapshots == set() and fake.holds == {}
+    assert not tofu.is_held(tmp_path, "proxmox-core", REV, ledger)  # retried next pass
+
+
 def test_an_exec_failure_is_not_indeterminate(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("SKYNET_TOFU", str(tmp_path / "missing-tofu"))
     with pytest.raises(WriteError) as raised:
         tofu.Workspace(tofu.STACKS["proxmox-core"], tmp_path, {}).apply()
-    assert raised.value.reason == tofu.NOT_STARTED
+    assert isinstance(raised.value, writepath.NotStarted) and raised.value.reason == tofu.NOT_STARTED

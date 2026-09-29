@@ -33,9 +33,6 @@ T = TypeVar("T")
 # Exit codes shared by every write path.
 OK, FAILED, USAGE, UNAVAILABLE, ROLLBACK_FAILED = 0, 1, 2, 3, 4
 LOCK_BUSY = "another write holds the lock"
-# A rollback's verdict that the execute step provably never began (its program could not even be
-# started): nothing changed, so the write is `unavailable` and retried, not failed or held.
-NOT_STARTED = "not-started"
 # Outcomes that leave live state unknown to the record: a human must look, so they alert.
 ALARMS = frozenset({"rollback-failed", "unrecorded"})
 
@@ -47,6 +44,15 @@ class WriteError(Exception):
         super().__init__(reason)
         self.reason = reason
         self.code = code
+
+
+class NotStarted(WriteError):
+    """Raised by `execute` when it provably never began (its program could not be started):
+    nothing changed, so after the caller's rollback cleans up, the write is `unavailable` and
+    retried, never failed or held."""
+
+    def __init__(self, reason: str):
+        super().__init__(reason, UNAVAILABLE)
 
 
 def _now() -> str:
@@ -265,8 +271,10 @@ def _run_locked(operation: Operation, ledger: Ledger, preflight: Callable[[], An
         _stop(operation, ledger, "refused", error)
         return
     ledger.append(operation.record("started"))
+    started = False
     try:
         operation.step("execute", lambda: execute(saved))
+        started = True
         operation.verification = operation.step("verify", lambda: verify(saved))
     except WriteError as error:
         failure = error
@@ -278,7 +286,7 @@ def _run_locked(operation: Operation, ledger: Ledger, preflight: Callable[[], An
             operation.outcome, operation.code = "rollback-failed", ROLLBACK_FAILED
             operation.reason = f"{failure.reason}; rollback: {rollback_error.reason}"
         else:
-            if operation.recovery == NOT_STARTED:
+            if isinstance(failure, NotStarted) and not started:
                 operation.outcome, operation.code = "unavailable", UNAVAILABLE
             else:
                 operation.outcome = "rolled-back" if operation.recovery == "rolled-back" else "failed"

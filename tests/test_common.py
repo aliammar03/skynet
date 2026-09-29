@@ -76,6 +76,22 @@ def test_publish_replaces_atomically(tmp_path: Path) -> None:
     assert [p.name for p in tmp_path.iterdir()] == ["snapshot.json"]
 
 
+def test_a_failed_atomic_write_keeps_previous_bytes_and_no_temporary(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    path = tmp_path / "state.bin"
+    common.atomic_write_bytes(path, b"v1")
+    assert path.read_bytes() == b"v1" and path.stat().st_mode & 0o777 == 0o600
+
+    def fail(*_: object) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(common.os, "replace", fail)
+    with pytest.raises(OSError):
+        common.atomic_write_bytes(path, b"v2")
+    assert path.read_bytes() == b"v1"
+    assert [p.name for p in tmp_path.iterdir()] == ["state.bin"]
+
+
 def test_unserializable_publish_keeps_previous_bytes(tmp_path: Path) -> None:
     path = tmp_path / "snapshot.json"
     path.write_text("previous")
