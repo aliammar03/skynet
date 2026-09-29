@@ -88,7 +88,8 @@ def build_parser() -> argparse.ArgumentParser:
     publish_command.add_argument("--dry-run", action="store_true")
     _write_options(publish_command)
     withdraw_command = commands.add_parser(
-        "withdraw", help="delete a removed vhost's Authentik objects and public CNAME (gated delete)")
+        "withdraw", help="delete a removed vhost's Authentik objects (gated delete; its DNS records "
+        "go with the PR that removed it, through skynet tofu)")
     withdraw_command.add_argument("vhost", help="the full hostname, already removed from git")
     withdraw_command.add_argument("--confirm", required=True, help="repeat the vhost exactly")
     _write_options(withdraw_command)

@@ -3,9 +3,9 @@
 #
 # SINGLE SOURCE OF TRUTH = the cloudflared ingress (compose/cloudflared/config.yml). Every `hostname:`
 # there is a published host, so its public CNAME → the tunnel is DERIVED, never hand-listed. An
-# ingress PR carries this stack's `approved-plan.json`; `skynet tofu` applies it after the merge and
-# refuses the delete a removed ingress produces (`skynet withdraw` is that gated delete). Non-tunnel
-# records (the `minki` custom domain, verification TXTs) are manual and not managed here.
+# ingress PR carries this stack's `approved-plan.json`; `skynet tofu` applies it after the merge,
+# including the CNAME delete a removed hostname produces. Non-tunnel records (the `minki` custom
+# domain, verification TXTs) are manual and not managed here.
 locals {
   cloudflared_config = file("${path.module}/../../compose/cloudflared/config.yml")
   # regexall with a capture group returns [["host"], ...] → take the first group of each match.

@@ -33,6 +33,9 @@ T = TypeVar("T")
 # Exit codes shared by every write path.
 OK, FAILED, USAGE, UNAVAILABLE, ROLLBACK_FAILED = 0, 1, 2, 3, 4
 LOCK_BUSY = "another write holds the lock"
+# A rollback's verdict that the execute step provably never began (its program could not even be
+# started): nothing changed, so the write is `unavailable` and retried, not failed or held.
+NOT_STARTED = "not-started"
 # Outcomes that leave live state unknown to the record: a human must look, so they alert.
 ALARMS = frozenset({"rollback-failed", "unrecorded"})
 
@@ -275,8 +278,11 @@ def _run_locked(operation: Operation, ledger: Ledger, preflight: Callable[[], An
             operation.outcome, operation.code = "rollback-failed", ROLLBACK_FAILED
             operation.reason = f"{failure.reason}; rollback: {rollback_error.reason}"
         else:
-            operation.outcome = "rolled-back" if operation.recovery == "rolled-back" else "failed"
-            operation.code = FAILED
+            if operation.recovery == NOT_STARTED:
+                operation.outcome, operation.code = "unavailable", UNAVAILABLE
+            else:
+                operation.outcome = "rolled-back" if operation.recovery == "rolled-back" else "failed"
+                operation.code = FAILED
         _finish(operation, ledger)
         return
     operation.outcome = "success"
