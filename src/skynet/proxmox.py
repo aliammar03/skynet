@@ -22,13 +22,19 @@ TIMEOUT = 15
 _KEYS = ("PVE_HOST", "PVE_TOKEN", "PVE_CACERT", "PVE_TOKEN_OPERATE")
 
 
-def credentials(path: Path, token_name: str = "PVE_TOKEN") -> tuple[str, str, ssl.SSLContext]:
-    """Parse literal credentials and select exactly one declared token for HTTPS."""
+def assignments(path: Path, token_name: str = "PVE_TOKEN") -> dict[str, str]:
+    """Parse literal credentials: a valid host, the pinned CA, and one printable declared token."""
     values = common.read_assignments(path, _KEYS, ("PVE_HOST", "PVE_CACERT", token_name))
-    host = common.require_host(values["PVE_HOST"])
+    common.require_host(values["PVE_HOST"])
     if not common.printable(values[token_name]):
         raise CollectionError("invalid credential token", 3)
-    return host, values[token_name], common.ca_context(values["PVE_CACERT"])
+    return values
+
+
+def credentials(path: Path, token_name: str = "PVE_TOKEN") -> tuple[str, str, ssl.SSLContext]:
+    """Parse literal credentials and select exactly one declared token for HTTPS."""
+    values = assignments(path, token_name)
+    return values["PVE_HOST"], values[token_name], common.ca_context(values["PVE_CACERT"])
 
 
 def get(host: str, token: str, context: ssl.SSLContext, path: str) -> Any:

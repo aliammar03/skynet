@@ -6,13 +6,15 @@ ADR 0008, OpenTofu half. One stack per actuator; the directory is the scope.
   `--approve` writes `tofu/<stack>/approved-plan.json`, which the PR carries. The merge approves it.
 - **apply** (the executor, after merge): plan the merged revision from git objects, require the
   approved hash, refuse delete/replace/forget, excluded guests, and foreign resource types, save
-  each updated guest's config (and a disk-only fallback snapshot), apply that saved plan, and
+  each updated guest's config (and a disk-only fallback snapshot, unless a bind mount stops
+  Proxmox from taking one), apply that saved plan, and
   require a clean re-plan. A failed apply, or a re-plan that still wants the approved change,
   whose changes were all restorable guest updates writes the saved configs back; anything else
   (including a re-plan dirty only elsewhere) has no automatic inverse, is held, and alerts.
 - **record**: state is encrypted by OpenTofu at `/opt/skynet-ops/state/tofu/<stack>.tfstate` and
   mirrored with `<stack>/applied.json` to the `tofu-state` branch. The branch is the truth: a
-  missing local file is rebuilt from it, and a local file the branch lacks is pushed first.
+  missing local file is rebuilt from it, and local writes on top of it are pushed first. A first
+  local state (no branch, no base) is pushed only by an apply at its stack that used it.
 - **pending** (the skynet-tofu timer, under its own `tofu` lock): apply each stack whose newest
   input commit on main is not the applied one. A refusal holds that revision and alerts once,
   until main moves; every hold alerts once, however it was set.
@@ -33,9 +35,9 @@ from collections.abc import Callable, Collection, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, TextIO
+from typing import Any, TextIO, TypeVar
 
-from skynet import alert, common, deploy, pve, writepath
+from skynet import alert, common, deploy, dns, proxmox, publish, pve, writepath
 from skynet.common import CollectionError
 from skynet.deploy import MAIN
 from skynet.writepath import FAILED, OK, UNAVAILABLE, USAGE, Ledger, Operation, WriteError
@@ -43,7 +45,6 @@ from skynet.writepath import FAILED, OK, UNAVAILABLE, USAGE, Ledger, Operation, 
 STATE_BRANCH = "tofu-state"
 STATE_REF = f"refs/remotes/origin/{STATE_BRANCH}"
 SECRETS = Path("/opt/skynet-ops/secrets")
-CERTS = Path("/opt/skynet-ops/certs")
 APPROVED = "approved-plan.json"
 PLAN_FILE = "skynet.tfplan"
 VERIFY_FILE = "skynet-verify.tfplan"
@@ -91,40 +92,35 @@ def _secrets() -> Path:
     return Path(os.environ.get("SKYNET_SECRETS_DIR", SECRETS))
 
 
-def _values(name: str, allowed: tuple[str, ...], required: tuple[str, ...]) -> dict[str, str]:
+def _values(name: str, parse: Callable[[Path], dict[str, str]]) -> dict[str, str]:
+    """A credential file read by the same parser its actuator's API client uses, so a file the
+    snapshot or restore step would reject never passes the plan."""
     try:
-        return common.read_assignments(_secrets() / name, allowed, required)
-    except CollectionError:
+        return parse(_secrets() / name)
+    except (CollectionError, WriteError):
         raise WriteError(f"{name} credentials unavailable", UNAVAILABLE) from None
 
 
 def _proxmox_core_env() -> dict[str, str]:
-    values = _values("proxmox-core.env", ("PVE_HOST", "PVE_TOKEN", "PVE_TOKEN_OPERATE", "PVE_CACERT"),
-                     ("PVE_HOST", "PVE_TOKEN_OPERATE"))
-    host = values["PVE_HOST"]
-    if not common.valid_host(host):
-        raise WriteError("proxmox-core.env credentials unavailable", UNAVAILABLE)
+    values = _values("proxmox-core.env", lambda path: proxmox.assignments(path, "PVE_TOKEN_OPERATE"))
     # The node's certificate is self-signed: this stack trusts exactly its pinned CA.
-    return {"TF_VAR_proxmox_endpoint": f"https://{host}:8006",
+    return {"TF_VAR_proxmox_endpoint": f"https://{values['PVE_HOST']}:8006",
             "TF_VAR_proxmox_api_token": values["PVE_TOKEN_OPERATE"],
-            "SSL_CERT_FILE": values.get("PVE_CACERT", str(CERTS / "proxmox-core.crt"))}
+            "SSL_CERT_FILE": values["PVE_CACERT"]}
 
 
 def _technitium_env() -> dict[str, str]:
-    values = _values("technitium.env", ("TECH_HOST", "TECH_TOKEN", "TECH_CACERT"),
-                     ("TECH_HOST", "TECH_TOKEN"))
-    host = values["TECH_HOST"]
-    if not common.valid_host(host):
-        raise WriteError("technitium.env credentials unavailable", UNAVAILABLE)
+    values = _values("technitium.env", dns.assignments)
     # The provider has no CA argument: this stack alone trusts exactly the pinned certificate.
-    return {"TF_VAR_technitium_url": f"https://{host}:53443",
+    return {"TF_VAR_technitium_url": f"https://{values['TECH_HOST']}:53443",
             "TF_VAR_technitium_api_token": values["TECH_TOKEN"],
-            "SSL_CERT_FILE": values.get("TECH_CACERT", str(CERTS / "technitium.crt"))}
+            "SSL_CERT_FILE": values["TECH_CACERT"]}
 
 
 def _cloudflare_env() -> dict[str, str]:
-    values = _values("cloudflare-dns.env", ("CF_DNS_TOKEN", "CF_ZONE", "TUNNEL_ID"),
-                     ("CF_DNS_TOKEN", "TUNNEL_ID"))
+    values = _values("cloudflare-dns.env", publish.cloudflare_credentials)
+    if not common.printable(values.get("TUNNEL_ID", "")):
+        raise WriteError("cloudflare-dns.env credentials unavailable", UNAVAILABLE)
     return {"TF_VAR_cloudflare_api_token": values["CF_DNS_TOKEN"],
             "TF_VAR_cloudflare_tunnel_id": values["TUNNEL_ID"]}
 
@@ -347,12 +343,33 @@ def refuse(stack: Stack, found: list[dict[str, Any]], excluded: Collection[int])
                 raise WriteError(f"{address}: guest {vmid} is excluded; use its privileged path", USAGE)
 
 
+def check(stack: Stack, found: list[dict[str, Any]], excluded: Collection[int]) -> None:
+    """Everything the executor refuses whatever the approval: run at `plan --approve` too, so a PR
+    never carries an approval the executor would only refuse and hold."""
+    refuse(stack, found, excluded)
+    if len(guests(stack, found)) > MAX_GUESTS:
+        raise WriteError(f"plan updates more than {MAX_GUESTS} existing guests; split it "
+                         "so its rollback fits the time budget", USAGE)
+
+
 def excluded_guests(root: Path) -> set[int]:
     try:
         data = json.loads((root / "invariants.json").read_text(encoding="utf-8"))
         return {int(guest["vmid"]) for guest in data["excluded_guests"]["guests"]}
     except (OSError, ValueError, KeyError, TypeError):
         raise WriteError("invariants.json unreadable at the merged revision", UNAVAILABLE) from None
+
+
+def main_excluded(repo: Path) -> frozenset[int]:
+    """The excluded guests on origin/main: what a queue entry (local, unreviewed) is checked against."""
+    with deploy.checkout(repo, MAIN, "invariants.json") as root:
+        return frozenset(excluded_guests(root))
+
+
+def all_excluded(repo: Path, root: Path) -> frozenset[int]:
+    """The excluded guests at a checked-out revision and on origin/main together: an older or
+    unmerged revision can add an exclusion but never lift one main has."""
+    return frozenset(excluded_guests(root)) | main_excluded(repo)
 
 
 # --- running tofu ----------------------------------------------------------------------------
@@ -677,15 +694,18 @@ def _set_base(ledger: Ledger, stack: str, content: bytes | None) -> None:
 
 def classify(ledger: Ledger, stack: str, remote: bytes | None) -> str:
     """How the local cache relates to the branch: `missing`, `same`, `pending` (local writes on top
-    of the current branch), `stale` (the branch moved, local did not), or `diverged` (both moved).
-    A bootstrap (no branch, no base) counts as pending."""
+    of the current branch), `stale` (the branch moved, local did not), `diverged` (both moved), or
+    `bootstrap` (no branch and no base: a first state of unproven provenance, pushed only by an
+    apply at this stack that used it)."""
     local = _read(local_state(ledger, stack))
     if local is None:
         return "missing"
     if local == remote:
         return "same"
-    base = _base(ledger, stack) or ("absent" if remote is None else None)
-    if remote is None and base not in (None, "absent"):
+    base = _base(ledger, stack)
+    if remote is None and base is None:
+        return "bootstrap"
+    if remote is None and base != "absent":
         return "diverged"  # the branch lost a state it had: never treat that as a stale cache
     if base == _digest(remote):
         return "pending"
@@ -695,12 +715,23 @@ def classify(ledger: Ledger, stack: str, remote: bytes | None) -> str:
 
 
 DIVERGED = "local tofu state and the tofu-state branch both changed; reconcile by hand"
+UNADOPTED = ("local tofu state has no branch and no base; recorded only after an apply at its "
+             "stack accepts it")
+
+
+def adopt(ledger: Ledger, stack: str) -> None:
+    """Make a bootstrap state this stack's (base `absent`: pending writes on no branch) once an
+    apply's plan has accepted it. sync_state has already refused every other base-less case."""
+    if _read(local_state(ledger, stack)) is not None and _base(ledger, stack) is None:
+        _set_base(ledger, stack, None)
 
 
 def sync_state(repo: Path, ledger: Ledger, stack: str) -> bytes | None:
     """Make the local state equal the branch and return it. A missing or stale local file is
     rebuilt from git; pending local writes (an unrecorded apply) are pushed before anything else;
-    a divergence is refused."""
+    a divergence is refused. A bootstrap state is returned unpushed: this apply's plan must accept
+    it (a stray copy of another root plans deletes, which are refused) before `adopt` makes it
+    recordable."""
     fetch_state(repo)
     remote = branch_state(repo, stack)
     kind = classify(ledger, stack, remote)
@@ -711,6 +742,8 @@ def sync_state(repo: Path, ledger: Ledger, stack: str) -> bytes | None:
         return remote
     if kind == "diverged":
         raise WriteError(DIVERGED, UNAVAILABLE)
+    if kind == "bootstrap":
+        return _read(path)
     if kind == "pending":
         _record(repo, ledger, stack, None, f"tofu-state({stack}): record unpushed local state")
     else:
@@ -724,7 +757,7 @@ def _state_copy(repo: Path, ledger: Ledger, stack: str, into: Path) -> Path:
     kind = classify(ledger, stack, remote)
     if kind == "diverged":
         raise WriteError(DIVERGED, UNAVAILABLE)
-    content = _read(local_state(ledger, stack)) if kind == "pending" else remote
+    content = _read(local_state(ledger, stack)) if kind in ("pending", "bootstrap") else remote
     path = into / f"{stack}.tfstate"
     if content is not None:
         path.write_bytes(content)
@@ -744,7 +777,8 @@ class _Saved:
     hash: str = ""
     before: bytes | None = None
     snapshot: str = ""
-    taken: list[pve.Guest] = field(default_factory=list)
+    restorable: list[pve.Guest] = field(default_factory=list)  # config saved: restored on rollback
+    taken: list[pve.Guest] = field(default_factory=list)  # snapshot requested: pruned
     power: dict[pve.Guest, str] = field(default_factory=dict)
     config: dict[pve.Guest, dict[str, Any]] = field(default_factory=dict)
     excluded: frozenset[int] = frozenset()
@@ -755,9 +789,10 @@ def _refused(ledger: Ledger, name: str, reason: str, code: int = USAGE, source: 
 
 
 def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
-          refresh: bool = True, ignore_hold: bool = False) -> Operation:
+          refresh: bool = True, settle: bool = True, ignore_hold: bool = False) -> Operation:
     """Apply one stack at one merged revision through the write-path shape. A held revision is
-    refused under the write lock unless a supervised run passes `ignore_hold`."""
+    refused under the write lock unless a supervised run passes `ignore_hold`. `pending` settles
+    interrupted applies once per pass and passes `settle=False`."""
     stack = STACKS.get(name)
     if stack is None:
         return _refused(ledger, name, "unknown stack")
@@ -769,7 +804,8 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
         return _refused(ledger, name, error.reason, error.code)
     if target is None:
         return _refused(ledger, name, "stack is not on origin/main")
-    settle_interrupted(repo, ledger)
+    if settle:
+        settle_interrupted(repo, ledger)
     operation = Operation("tofu", f"tofu/{name}", target)
     saved = _Saved(snapshot=f"skynet-{operation.id}")
     state = local_state(ledger, name)
@@ -792,13 +828,11 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                     raise WriteError(NO_APPROVAL, USAGE)
                 if approval.get("hash") != saved.hash:
                     raise WriteError(MISMATCH, USAGE)
-                saved.excluded = frozenset(excluded_guests(space.root))
-                refuse(stack, saved.found, saved.excluded)
-                if len(guests(stack, saved.found)) > MAX_GUESTS:
-                    raise WriteError(f"plan updates more than {MAX_GUESTS} existing guests; split it "
-                                     "so its rollback fits the time budget", USAGE)
+                saved.excluded = all_excluded(repo, space.root)
+                check(stack, saved.found, saved.excluded)
 
             def snapshot() -> _Saved:
+                adopt(ledger, name)  # the approved (or empty) plan accepted this state
                 for guest in guests(stack, saved.found):
                     try:
                         saved.power[guest] = pve.status(guest)
@@ -806,6 +840,12 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                         if pve.pending(guest):  # a restore could not prove it came back
                             raise WriteError(f"{guest} has pending config changes; apply or "
                                              "revert them first", USAGE)
+                        saved.restorable.append(guest)
+                        if not pve.snapshottable(saved.config[guest]):
+                            # The rollback restores the saved config, never the snapshot.
+                            operation.note("snapshot", "skipped",
+                                           f"{guest}: bind mount; no fallback snapshot")
+                            continue
                         saved.taken.append(guest)  # before the request: a failed create may leave one
                         # Durable before the request: a crash here (before the `started` record)
                         # leaves an intent the next pass cleans up.
@@ -821,7 +861,7 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                         # A snapshot may remain: hold rather than add another one every minute.
                         raise WriteError(f"could not snapshot {guest}; nothing applied, but "
                                          f"{saved.snapshot} could not be cleaned up") from None
-                operation.context["guests"] = [str(guest) for guest in saved.taken]
+                operation.context["guests"] = [str(guest) for guest in saved.restorable]
                 if saved.found and not _prehold(repo, ledger, name, target, operation):
                     _prune(saved, operation, ledger)
                     raise WriteError("could not record the pre-apply hold; nothing applied",
@@ -864,7 +904,7 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                     raise WriteError("no automatic inverse for these changes; operator recovery "
                                      f"(snapshots {state_.snapshot} kept)")
                 failures = []
-                for guest in reversed(state_.taken):  # every guest, even after one fails
+                for guest in reversed(state_.restorable):  # every guest, even after one fails
                     try:
                         pve.restore(guest, state_.config[guest], state_.power[guest],
                                     excluded=state_.excluded)
@@ -922,7 +962,8 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
 
 def _record(repo: Path, ledger: Ledger, stack: str, record: dict[str, Any] | None, message: str) -> None:
     """Push the local state only when it is pending writes on top of the current branch (or equal
-    to it): a stale or diverged cache must never regress newer state."""
+    to it): a stale or diverged cache must never regress newer state, and a first state no apply
+    at this stack adopted is never pushed."""
     state = _read(local_state(ledger, stack))
     if state is None:
         raise WriteError("no local tofu state to record", UNAVAILABLE)
@@ -931,6 +972,8 @@ def _record(repo: Path, ledger: Ledger, stack: str, record: dict[str, Any] | Non
     kind = classify(ledger, stack, remote)
     if kind == "diverged":
         raise WriteError(DIVERGED, UNAVAILABLE)
+    if kind == "bootstrap":
+        raise WriteError(UNADOPTED, UNAVAILABLE)
     if kind == "stale":
         raise WriteError("local tofu state is older than the branch; not recorded", UNAVAILABLE)
     record_state(repo, stack, state, record, message, expect=parent)  # only onto what was checked
@@ -956,15 +999,10 @@ def _prune(saved: _Saved, operation: Operation, ledger: Ledger | None = None) ->
 
 def _queue_cleanup(ledger: Ledger, guests_: list[pve.Guest], snapshot: str,
                    operation: Operation) -> None:
-    facts = _facts(ledger)
-    known = facts.get("_cleanup")
-    queue: list[Any] = known if isinstance(known, list) else []
-    queue += [{"node": g.node, "kind": g.kind, "vmid": g.vmid, "snapshot": snapshot} for g in guests_]
-    facts["_cleanup"] = queue
+    entries = [{"node": g.node, "kind": g.kind, "vmid": g.vmid, "snapshot": snapshot} for g in guests_]
     try:
-        _facts_path(ledger).parent.mkdir(parents=True, exist_ok=True)
-        common.atomic_write_text(_facts_path(ledger), json.dumps(facts, sort_keys=True) + "\n")
-    except OSError:
+        _update_facts(ledger, lambda facts: _queue(facts).extend(entries))
+    except WriteError:
         operation.note("cleanup-queue", "failed", "cleanup queue unwritable")
     failure = alert.send(f"skynet: {operation.target} snapshot cleanup failed",
                          f"{snapshot} left on {', '.join(str(g) for g in guests_)}; retried each pass",
@@ -972,23 +1010,11 @@ def _queue_cleanup(ledger: Ledger, guests_: list[pve.Guest], snapshot: str,
     operation.note("alert", "failed" if failure else "ok", failure)
 
 
-def _save_facts(ledger: Ledger, facts: dict[str, Any]) -> None:
-    try:
-        _facts_path(ledger).parent.mkdir(parents=True, exist_ok=True)
-        common.atomic_write_text(_facts_path(ledger), json.dumps(facts, sort_keys=True) + "\n")
-    except OSError:
-        raise WriteError("tofu facts unwritable", UNAVAILABLE) from None
-
-
 def _intend(ledger: Ledger, guest: pve.Guest, snapshot: str, operation: str) -> None:
     """Record a snapshot about to be requested, before the request (raises if it cannot)."""
-    facts = _facts(ledger)
-    known = facts.get("_cleanup")
-    queue: list[Any] = known if isinstance(known, list) else []
-    queue.append({"node": guest.node, "kind": guest.kind, "vmid": guest.vmid,
-                  "snapshot": snapshot, "intent": operation})
-    facts["_cleanup"] = queue
-    _save_facts(ledger, facts)
+    entry = {"node": guest.node, "kind": guest.kind, "vmid": guest.vmid, "snapshot": snapshot,
+             "intent": operation}
+    _update_facts(ledger, lambda facts: _queue(facts).append(entry))
 
 
 def _recorded(ledger: Ledger, operation: str) -> bool:
@@ -1003,39 +1029,33 @@ def _drop_intents(ledger: Ledger, operation: str) -> None:
     for an operator, or settled); the intents are no longer needed."""
     if not _recorded(ledger, operation):
         return  # a crash before any record: leave them for retry_cleanup
-    facts = _facts(ledger)
-    known = facts.get("_cleanup")
-    queue: list[Any] = known if isinstance(known, list) else []
-    kept = [item for item in queue if not (isinstance(item, dict) and item.get("intent") == operation)]
-    if len(kept) != len(queue):
-        facts["_cleanup"] = kept
-        try:
-            _save_facts(ledger, facts)
-        except WriteError:
-            pass
+
+    def drop(facts: dict[str, Any]) -> None:
+        if "_cleanup" in facts:
+            facts["_cleanup"] = [item for item in _queue(facts)
+                                 if not (isinstance(item, dict) and item.get("intent") == operation)]
+    try:
+        _update_facts(ledger, drop)
+    except WriteError:
+        pass
 
 
 def _unrecorded(ledger: Ledger, name: str, record: dict[str, Any]) -> None:
-    facts = _facts(ledger)
-    known = facts.get("_unrecorded")
-    store: dict[str, Any] = known if isinstance(known, dict) else {}
-    store[name] = record
-    facts["_unrecorded"] = store
     try:
-        _save_facts(ledger, facts)
+        _update_facts(ledger, lambda facts: _store(facts).update({name: record}))
     except WriteError:
         pass  # the state is still pushed (pending local writes); the record needs a human
 
 
 def _clear_local_hold(ledger: Ledger, name: str, revision: str) -> None:
-    facts = _facts(ledger)
-    fact = facts.get(name)
-    if isinstance(fact, dict) and fact.get("held") == revision:
-        fact.pop("held")
-        try:
-            _save_facts(ledger, facts)
-        except WriteError:
-            pass
+    def clear(facts: dict[str, Any]) -> None:
+        fact = facts.get(name)
+        if isinstance(fact, dict) and fact.get("held") == revision:
+            fact.pop("held")
+    try:
+        _update_facts(ledger, clear)
+    except WriteError:
+        pass
 
 
 def persist_pending(repo: Path, ledger: Ledger) -> list[dict[str, Any]]:
@@ -1044,10 +1064,8 @@ def persist_pending(repo: Path, ledger: Ledger) -> list[dict[str, Any]]:
     held, but its state still reaches git. The state branch is already fetched (`pending`)."""
     try:
         with ledger.lock(LOCK):
-            results = []
-            facts = _facts(ledger)
-            known = facts.get("_unrecorded")
-            store: dict[str, Any] = known if isinstance(known, dict) else {}
+            results, done = [], []
+            store = _store(_facts(ledger))
             for name in STACKS:
                 record = store.get(name) if isinstance(store.get(name), dict) else None
                 try:
@@ -1060,25 +1078,21 @@ def persist_pending(repo: Path, ledger: Ledger) -> list[dict[str, Any]]:
                     results.append({"target": f"tofu/{name}", "outcome": "unavailable",
                                     "code": UNAVAILABLE, "reason": f"state not persisted: {error.reason}"})
                     continue
-                store.pop(name, None)
+                done.append(name)
                 if record:
                     _clear_local_hold(ledger, name, str(record.get("revision")))
                 results.append({"target": f"tofu/{name}", "outcome": "success",
                                 "reason": "unpushed state persisted to tofu-state"})
-            facts = _facts(ledger)
-            facts["_unrecorded"] = store
-            _save_facts(ledger, facts)
+            def forget(facts: dict[str, Any]) -> None:
+                for name in done:
+                    _store(facts).pop(name, None)
+            if done:
+                _update_facts(ledger, forget)
             return results
     except WriteError as error:
         if error.reason == writepath.LOCK_BUSY:
             return []
         raise
-
-
-def main_excluded(repo: Path) -> frozenset[int]:
-    """The excluded guests on origin/main: what a queue entry (local, unreviewed) is checked against."""
-    with deploy.checkout(repo, MAIN, "invariants.json") as root:
-        return frozenset(excluded_guests(root))
 
 
 def retry_cleanup(repo: Path, ledger: Ledger) -> list[dict[str, Any]]:
@@ -1087,16 +1101,15 @@ def retry_cleanup(repo: Path, ledger: Ledger) -> list[dict[str, Any]]:
     and alerts."""
     try:
         with ledger.lock(LOCK):
-            facts = _facts(ledger)
-            known = facts.get("_cleanup")
-            queue: list[Any] = known if isinstance(known, list) else []
+            queue = list(_queue(_facts(ledger)))
             if not queue:
                 return []
             excluded = main_excluded(repo)
-            kept, results = [], []
+            done, results = [], []
             for item in queue:
                 if isinstance(item, dict) and item.get("intent"):
                     if _recorded(ledger, str(item["intent"])):
+                        done.append(item)
                         continue  # its record owns the snapshot now
                     # No record at all: a crash in the snapshot stage; nothing was applied.
                 try:
@@ -1107,17 +1120,21 @@ def retry_cleanup(repo: Path, ledger: Ledger) -> list[dict[str, Any]]:
                                   "dropped, never sent to Proxmox"}
                         _alert(result, f"skynet: tofu cleanup refused for excluded {guest}")
                         results.append(result)
+                        done.append(item)
                         continue
                     if pve.exists(guest, str(item["snapshot"])):
                         pve.delete(guest, str(item["snapshot"]), excluded=excluded)
                     results.append({"target": f"cleanup/{guest}", "outcome": "success",
                                     "reason": f"{item['snapshot']} removed"})
+                    done.append(item)
                 except (WriteError, KeyError, TypeError, ValueError):
-                    kept.append(item)
-            facts["_cleanup"] = kept
-            common.atomic_write_text(_facts_path(ledger), json.dumps(facts, sort_keys=True) + "\n")
+                    pass  # kept: retried next pass
+
+            def forget(facts: dict[str, Any]) -> None:
+                facts["_cleanup"] = [item for item in _queue(facts) if item not in done]
+            _update_facts(ledger, forget)  # entries queued meanwhile are kept
             return results
-    except (WriteError, OSError):  # a write holds the lock: retry next pass
+    except WriteError:  # a write holds the lock: retry next pass
         return []
 
 
@@ -1163,19 +1180,57 @@ def _facts(ledger: Ledger) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
-def _set_failures(ledger: Ledger, name: str, revision: str, count: int) -> None:
-    """Consecutive `unavailable` passes for this revision (local; losing it only delays an alert).
-    Merged into the stack's fact so it never erases a local hold."""
-    facts = _facts(ledger)
-    known = facts.get(name)
-    fact: dict[str, Any] = known if isinstance(known, dict) else {}
-    if fact.get("revision") == revision and int(fact.get("failures", 0)) == count:
-        return
-    facts[name] = {**fact, "revision": revision, "failures": count}
+def _save_facts(ledger: Ledger, facts: dict[str, Any]) -> None:
     try:
         _facts_path(ledger).parent.mkdir(parents=True, exist_ok=True)
         common.atomic_write_text(_facts_path(ledger), json.dumps(facts, sort_keys=True) + "\n")
     except OSError:
+        raise WriteError("tofu facts unwritable", UNAVAILABLE) from None
+
+
+FACTS_LOCK = "tofu-facts"  # pending.json's own lock, held only for one read-modify-write
+_T = TypeVar("_T")
+
+
+def _update_facts(ledger: Ledger, change: Callable[[dict[str, Any]], _T]) -> _T:
+    """Apply `change` to pending.json under its own lock, so the timer's counters and a live
+    apply's cleanup intents never overwrite each other. Written only when something changed;
+    raises WriteError when it cannot be. `change` must not update the facts itself."""
+    with ledger.lock(FACTS_LOCK):
+        facts = _facts(ledger)
+        before = json.dumps(facts, sort_keys=True)
+        result = change(facts)
+        if json.dumps(facts, sort_keys=True) != before:
+            _save_facts(ledger, facts)
+        return result
+
+
+def _queue(facts: dict[str, Any]) -> list[Any]:
+    """The snapshot cleanup queue in `facts`, created if absent."""
+    if not isinstance(facts.get("_cleanup"), list):
+        facts["_cleanup"] = []
+    queue: list[Any] = facts["_cleanup"]
+    return queue
+
+
+def _store(facts: dict[str, Any]) -> dict[str, Any]:
+    """The applied records whose push failed, by stack, created if absent."""
+    if not isinstance(facts.get("_unrecorded"), dict):
+        facts["_unrecorded"] = {}
+    store: dict[str, Any] = facts["_unrecorded"]
+    return store
+
+
+def _set_failures(ledger: Ledger, name: str, revision: str, count: int) -> None:
+    """Consecutive `unavailable` passes for this revision (local; losing it only delays an alert).
+    Merged into the stack's fact so it never erases a local hold."""
+    def count_(facts: dict[str, Any]) -> None:
+        known = facts.get(name)
+        fact: dict[str, Any] = known if isinstance(known, dict) else {}
+        facts[name] = {**fact, "revision": revision, "failures": count}
+    try:
+        _update_facts(ledger, count_)
+    except WriteError:
         pass
 
 
@@ -1236,14 +1291,12 @@ def _prehold(repo: Path, ledger: Ledger, name: str, revision: str, operation: Op
 
 
 def _local_hold(ledger: Ledger, name: str, revision: str) -> None:
-    facts = _facts(ledger)
-    known = facts.get(name)
-    fact: dict[str, Any] = known if isinstance(known, dict) else {}
-    facts[name] = {**fact, "held": revision}
+    def hold(facts: dict[str, Any]) -> None:
+        known = facts.get(name)
+        facts[name] = {**(known if isinstance(known, dict) else {}), "held": revision}
     try:
-        _facts_path(ledger).parent.mkdir(parents=True, exist_ok=True)
-        common.atomic_write_text(_facts_path(ledger), json.dumps(facts, sort_keys=True) + "\n")
-    except OSError:
+        _update_facts(ledger, hold)
+    except WriteError:
         pass  # the git hold is the durable one; this is only its fallback
 
 
@@ -1296,15 +1349,18 @@ def pending(repo: Path, *, ledger: Ledger, deadline: float | None = None) -> lis
         if is_held(repo, name, target, ledger):
             results.append(_held(repo, ledger, name, target))
             continue
-        result = writepath.report(apply(repo, name, revision=target, ledger=ledger, refresh=False))
+        result = writepath.report(apply(repo, name, revision=target, ledger=ledger, refresh=False,
+                                        settle=False))
         _count(ledger, name, target, result)
-        now_held = any(step.get("step") == "hold" and step.get("outcome") == "ok"
-                       for step in result.get("steps", []))
+        holds = {step.get("outcome") for step in result.get("steps", []) if step.get("step") == "hold"}
         # A hold git refused already alerted in _hold; a durable hold alerts once here.
-        if now_held and result.get("outcome") not in writepath.ALARMS:
+        if "ok" in holds and result.get("outcome") not in writepath.ALARMS:
             _alert(result, f"skynet: tofu/{name} held")
-        if is_held(repo, name, target, ledger):  # announced by this result (or its alarm)
-            _announced(ledger, _hold_key(repo, name, target))
+        # Announced only when this result alerted: its hold step, or its own alarm. A hold it did
+        # not announce (a pre-apply hold a run left as `unavailable`) alerts through _held next pass.
+        if holds & {"ok", "failed"} or result.get("outcome") in writepath.ALARMS:
+            if is_held(repo, name, target, ledger):
+                _announced(ledger, _hold_key(repo, name, target))
         results.append(result)
     return results
 
@@ -1318,17 +1374,17 @@ def _hold_key(repo: Path, name: str, target: str) -> str:
 
 def _announced(ledger: Ledger, key: str) -> bool:
     """Mark a hold as alerted; True when it already was. Local: a rebuilt VM re-alerts once."""
-    facts = _facts(ledger)
-    known = facts.get("_hold_alerts")
-    keys: list[Any] = known if isinstance(known, list) else []
-    if key in keys:
-        return True
-    facts["_hold_alerts"] = [*keys, key][-50:]
+    def mark(facts: dict[str, Any]) -> bool:
+        known = facts.get("_hold_alerts")
+        keys: list[Any] = known if isinstance(known, list) else []
+        if key in keys:
+            return True
+        facts["_hold_alerts"] = [*keys, key][-50:]
+        return False
     try:
-        _save_facts(ledger, facts)
+        return _update_facts(ledger, mark)
     except WriteError:
-        pass
-    return False
+        return False  # alert again rather than risk a silent hold
 
 
 def _held(repo: Path, ledger: Ledger, name: str, target: str) -> dict[str, Any]:
@@ -1351,13 +1407,16 @@ def _held(repo: Path, ledger: Ledger, name: str, target: str) -> dict[str, Any]:
 
 # --- plan and drift (read-only) --------------------------------------------------------------
 
-def _read_only_plan(repo: Path, ledger: Ledger, stack: Stack, revision: str,
-                    ) -> tuple[list[dict[str, Any]], str, str]:
+def _read_only_plan(repo: Path, ledger: Ledger, stack: Stack, revision: str, *, approve: bool = False,
+                    ) -> tuple[list[dict[str, Any]], str, str, frozenset[int]]:
+    """A plan against a copy of the state; with `approve`, also the excluded guests to check it
+    against (the revision's and main's)."""
     with tempfile.TemporaryDirectory(prefix="skynet-tofu-") as tmp, \
             workspace(repo, stack, revision) as space:
         space.init(_state_copy(repo, ledger, stack.name, Path(tmp)))
         found, digest = space.plan()
-        return found, digest, space.show()
+        excluded = all_excluded(repo, space.root) if approve and found else frozenset()
+        return found, digest, space.show(), excluded
 
 
 def run_plan(repo: Path, name: str, *, ref: str, approve: bool, state_dir_: Path,
@@ -1369,7 +1428,8 @@ def run_plan(repo: Path, name: str, *, ref: str, approve: bool, state_dir_: Path
         return USAGE
     try:
         revision = deploy.resolve(repo, ref)
-        found, digest, text = _read_only_plan(repo, Ledger(state_dir_), stack, revision)
+        found, digest, text, excluded = _read_only_plan(repo, Ledger(state_dir_), stack, revision,
+                                                        approve=approve)
     except WriteError as error:
         print(f"tofu/{name}: {error.reason}", file=stdout)
         return error.code
@@ -1379,6 +1439,11 @@ def run_plan(repo: Path, name: str, *, ref: str, approve: bool, state_dir_: Path
         if not found:
             print("nothing to approve: the plan is empty", file=stdout)
             return OK
+        try:  # never approve what the executor would only refuse and hold
+            check(stack, found, excluded)
+        except WriteError as error:
+            print(f"not approved: {error.reason}", file=stdout)
+            return error.code
         path = repo / "tofu" / name / APPROVED
         common.atomic_write_text(path, json.dumps(
             {"stack": name, "hash": digest, "changes": summary(found)}, indent=2) + "\n")
@@ -1393,18 +1458,19 @@ def run_drift(repo: Path, *, output: Path, state_dir_: Path, stdout: TextIO) -> 
         deploy.fetch(repo)
         head = deploy.resolve(repo, MAIN)
     except WriteError as error:
-        print(f"tofu drift: {error.reason}", file=stdout)
-        return error.code
-    for name, stack in STACKS.items():
+        # Rewritten even now: the last report must never stand in for tonight's.
+        head, code = "", error.code
+        lines = [f"{name}: plan unavailable — {error.reason}" for name in STACKS]
+    for name, stack in STACKS.items() if head else ():
         try:
-            found, digest, _ = _read_only_plan(repo, ledger, stack, head)
+            found, digest, _, _ = _read_only_plan(repo, ledger, stack, head)
         except WriteError as error:
             lines.append(f"{name}: plan unavailable — {error.reason}")
             code = UNAVAILABLE
             continue
         lines.append(f"{name}: {'no changes' if not found else f'{len(found)} change(s), sha256:{digest}'}")
         lines += [f"  {item['address']}: {'/'.join(item['actions'])}" for item in found]
-    text = f"# tofu drift at {head[:12]}\n" + "\n".join(lines) + "\n"
+    text = f"# tofu drift at {head[:12] or 'unknown (origin/main unreadable)'}\n" + "\n".join(lines) + "\n"
     try:
         common.atomic_write_text(output, text)
     except OSError:
@@ -1417,17 +1483,15 @@ def _pass_failures(ledger: Ledger, failed: dict[str, Any] | None) -> int | None:
     """Consecutive passes that could not run at all. Three in a row alert once, so a broken remote
     or credential cannot stop every Tofu apply while the unit reports success. None when the
     count could not be written."""
-    facts = _facts(ledger)
-    known = facts.get("_pass")
-    previous = known if isinstance(known, int) else 0
-    count = 0 if failed is None else previous + 1
-    if count == previous:
+    def bump(facts: dict[str, Any]) -> int:
+        known = facts.get("_pass")
+        count = 0 if failed is None else (known if isinstance(known, int) else 0) + 1
+        if count or "_pass" in facts:
+            facts["_pass"] = count
         return count
-    facts["_pass"] = count
     try:
-        _facts_path(ledger).parent.mkdir(parents=True, exist_ok=True)
-        common.atomic_write_text(_facts_path(ledger), json.dumps(facts, sort_keys=True) + "\n")
-    except OSError:
+        count = _update_facts(ledger, bump)
+    except WriteError:
         return None
     if failed is not None and count == ALERT_AFTER_FAILURES:
         _alert(failed, f"skynet: tofu passes failing ({count} in a row)")

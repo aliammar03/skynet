@@ -2,7 +2,8 @@
 
 A failed update is undone by writing the guest's pre-apply config back (`restore`), never by a
 snapshot rollback: a guest's disk and RAM carry payload data written after the snapshot. Each apply
-still takes a disk-only snapshot (`create`) as the operator's fallback. Task calls wait for the
+still takes a disk-only snapshot (`create`) as the operator's fallback, except of a guest Proxmox
+cannot snapshot (`snapshottable`). Task calls wait for the
 Proxmox task to stop with `OK`. Every write refuses a constitutionally excluded guest itself, whatever
 its caller checked. The read-only token cannot write, so a missing operate token fails closed.
 Reasons are fixed text, never remote error bodies or token values.
@@ -12,6 +13,7 @@ from __future__ import annotations
 
 import http.client
 import os
+import re
 import ssl
 import time
 from collections.abc import Collection
@@ -130,6 +132,16 @@ def _raw_config(guest: Guest) -> dict[str, Any]:
 def config(guest: Guest) -> dict[str, Any]:
     """The guest's config (pending values included), without the keys a snapshot changes."""
     return {key: value for key, value in _raw_config(guest).items() if key not in SNAPSHOT_KEYS}
+
+
+def snapshottable(saved: dict[str, Any]) -> bool:
+    """False for a container with a bind or device mount point (an `mpN` whose volume is a host
+    path, as CT 240's PBS datastore): Proxmox refuses to snapshot it."""
+    for key, value in saved.items():
+        if re.fullmatch(r"mp\d+", key) and isinstance(value, str):
+            if value.split(",", 1)[0].removeprefix("volume=").startswith("/"):
+                return False
+    return True
 
 
 def pending(guest: Guest) -> list[str]:
