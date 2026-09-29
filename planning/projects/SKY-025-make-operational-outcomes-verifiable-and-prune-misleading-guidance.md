@@ -61,7 +61,9 @@ second PR sets a value Proxmox rejects, proving the config restore, the pending-
 power-state return, and the config comparison on a VM; then Ali destroys the VM by hand (the executor
 refuses deletes). A review (2026-09-29) replaced the snapshot rollback with the config restore,
 gave Tofu its own lock, and made a re-plan dirty only outside the approved change hold rather than
-roll back. The phase
+roll back. A second review made a bind-mounted CT (240) skip only its fallback snapshot,
+kept a first local state off the branch until an apply adopts it, serialized pending.json, and
+made `plan --approve` refuse what the executor refuses. The phase
 box is ticked by the promotion PR: it enables the `skynet-tofu` timer and records the drills as the
 constitution's live evidence (human-merged).
 

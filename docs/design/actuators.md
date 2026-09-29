@@ -19,7 +19,7 @@ plans and T3-excluded guests rather than attempting to make them reversible.
 | Actuator | Write path | Recovery on failure | Deterministic decision | A4 eligible |
 |---|---|---|---|---|
 | Compose deploy | `skynet deploy <svc>` / `--pending` (merged revisions only) | Automatic redeploy of the host's `verified` revision, `failed` marker, revert PR | Deployment verifier: every container at the `skynet.revision`, running, healthy; declared routes answer | Yes (A4) |
-| Existing-guest tofu update | `skynet tofu apply <stack>` / `--pending` (merged, hash-approved) | Each guest's config saved before apply (plus a disk-only snapshot, the operator's fallback); on apply failure, or a re-plan that still wants the approved change, write every guest's saved config back (continuing past a failure), return it to its prior power state, observe it, then restore the pre-apply state; a failure is held in git | Clean post-apply plan | Supervised (A3); A4 after the live LXC and VM rollback drills |
+| Existing-guest tofu update | `skynet tofu apply <stack>` / `--pending` (merged, hash-approved) | Each guest's config saved before apply (plus a disk-only snapshot, the operator's fallback, except of a container with a bind mount, which Proxmox cannot snapshot); on apply failure, or a re-plan that still wants the approved change, write every guest's saved config back (continuing past a failure), return it to its prior power state, observe it, then restore the pre-apply state; a failure is held in git | Clean post-apply plan | Supervised (A3); A4 after the live LXC and VM rollback drills |
 | Tofu guest create | `skynet tofu apply` (merged, hash-approved) | None; never auto-destroy a partial create; held in git and alerts | Clean post-apply plan | Supervised; no automatic inverse |
 | Tofu non-guest write (DNS records, templates) | `skynet tofu apply` (merged, hash-approved) | None; held in git and alerts | Clean post-apply plan | Supervised; no automatic inverse |
 | Authentik publish | `skynet publish <svc>` (additive provider/application/outpost binding) | Deletes only the objects the run created; restores the outpost's provider list | Anonymous probe redirects to the login | No |
@@ -46,14 +46,18 @@ alerts and holds, as does a post-apply check that cannot run. An apply updates a
 guests, so a hung apply plus its full rollback fits the `skynet-tofu` unit's 5 h budget; a pass
 defers a stack it cannot finish. A revision is held in git before it executes, and only its recorded
 success clears the hold; every hold alerts once, however it was set (an unreadable `held.json` holds
-every revision until a supervised `--ignore-hold` success). A snapshot that cannot be made refuses the
+every revision until a supervised `--ignore-hold` success; a hold no run announced alerts on the next
+pass). A snapshot that cannot be made refuses the
 apply (and one a failed create left behind is cleaned up, or the revision is held); one that fails to
 delete is queued, retried each pass, and alerts. Each snapshot is recorded before it is requested, so
 one left by a crash is found and cleaned; a queued entry naming an excluded guest is dropped and
 alerts, and every Proxmox write refuses an excluded guest itself. An apply that times out is
 indeterminate (its process group is killed; remote work may still land): never rolled back, it keeps
 its snapshots, holds, and alerts. Each pass first pushes any state the branch lacks, under the tofu
-lock and even for a held revision, without re-running the apply.
+lock and even for a held revision, without re-running the apply. A first local state (no branch,
+no recorded base) is pushed only after an apply at its stack has planned it and passed every
+refusal. `plan --approve` makes the same refusals, so a PR never carries an approval the executor
+would hold. Excluded guests are the union of the revision's and main's lists.
 
 Automated rollback proof lives in the local test suite (`tests/`, run by `bin/check`): an actuator
 claims an A4 promotion only when its failure-case rollback is exercised there and recorded live.
