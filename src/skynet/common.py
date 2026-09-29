@@ -21,6 +21,12 @@ from typing import Any, TextIO, cast
 HOST = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?")
 _ASSIGNMENT = re.compile(r"\s*([A-Z][A-Z0-9_]*)=(?:'([^']*)'|\"([^\"]*)\"|([^\s'\"]+))\s*(?:#.*)?")
 RETAINED = "refresh failed; any retained snapshot is previous evidence"
+SECRETS = Path("/opt/skynet-ops/secrets")
+
+
+def secrets_dir() -> Path:
+    """The materialized secrets directory (`SKYNET_SECRETS_DIR` overrides it, for tests)."""
+    return Path(os.environ.get("SKYNET_SECRETS_DIR", SECRETS))
 
 
 class CollectionError(Exception):
@@ -184,8 +190,9 @@ def atomic_write_text(path: Path, content: str) -> None:
 
 
 def atomic_write_bytes(path: Path, content: bytes) -> None:
-    """Replace `path` (mode 0600) only after a complete, fsynced sibling write; OSError on any
-    failure, leaving the previous bytes and no temporary file."""
+    """Replace `path` (mode 0600) only after a complete, fsynced sibling write, then fsync the
+    directory so the rename itself survives a crash; OSError on any failure, leaving no
+    temporary file."""
     temporary: str | None = None
     try:
         with tempfile.NamedTemporaryFile(dir=path.parent, prefix="." + path.name + ".",
@@ -195,6 +202,11 @@ def atomic_write_bytes(path: Path, content: bytes) -> None:
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary, path)
+        directory = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
     finally:
         if temporary is not None:
             try:

@@ -13,7 +13,8 @@ which runs through the same rule; once it is unhealthy (two failed passes) the p
 dead-man's switch `/fail`, otherwise healthy. While a write holds the lock, only the target it is
 changing is skipped (a deploy mid-flight is not an outage); every other service is still checked.
 While a write holds a Docker host's fence (a guest update to the host itself), the whole pass is
-skipped: every state is kept, nothing alerts, and the dead-man's switch still hears from it.
+skipped: every state is kept, nothing alerts, and the dead-man's switch still hears from it, for
+at most FENCE_GRACE_SECONDS; a fence held longer is observed through like any other write.
 An alert that could not be sent is retried on the next pass; if a needed push is still owed after
 two passes, the dead-man's switch gets `/fail`. State lives in `state/watch.json`.
 """
@@ -39,6 +40,10 @@ OBSERVE_MAX_SECONDS = 60.0
 REMINDER_SECONDS = 24 * 3600
 MONITOR = "monitor"
 DELIVERY = "_delivery"
+FENCE = "_fence"  # when this pass first saw the host's fence held
+# A guest update's apply, re-plan, and host settle fit well inside this; a fence held longer (a
+# hung apply) must not keep a real outage from the phone.
+FENCE_GRACE_SECONDS = 45 * 60
 
 
 def _stamp(now: float) -> str:
@@ -176,12 +181,19 @@ def run(repo: Path, *, context: str, state_dir: Path, json_output: bool, stdout:
     code, lines = OK, []
     states: dict[str, Any] = {}
     loaded: dict[str, Any] = {}
+    fence_since: float | None = None
     try:
         states = load(path)
         loaded = dict(states)
         ledger = Ledger(state_dir)
-        # A guest write changing this Docker host (a reboot, a resize) is not an outage.
+        # A guest write changing this Docker host (a reboot, a resize) is not an outage, for a
+        # bounded time.
         fenced = ledger.busy(writepath.fence(context))
+        if fenced:
+            known = loaded.get(FENCE)
+            since = known.get("since") if isinstance(known, dict) else None
+            fence_since = float(since) if isinstance(since, int | float) else wall()
+            fenced = wall() - fence_since < FENCE_GRACE_SECONDS
         if not fenced:
             changing = writes_in_flight(ledger)
             order = targets(repo, states, changing)
@@ -234,6 +246,10 @@ def run(repo: Path, *, context: str, state_dir: Path, json_output: bool, stdout:
             _push(MONITOR, monitor, message, wall())
             fresh[MONITOR] = monitor
             states = fresh
+    if fence_since is not None:
+        states[FENCE] = {"since": fence_since}
+    else:
+        states.pop(FENCE, None)
     # `/fail` pages at once on healthchecks.io, so it follows the same two-strike rule as the
     # monitor alert. Unwritable state can't count strikes (and won't heal itself): fail at once.
     monitor_down = states.get(MONITOR, {}).get("status") == "unhealthy"

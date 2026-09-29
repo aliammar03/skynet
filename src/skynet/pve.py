@@ -12,13 +12,11 @@ Reasons are fixed text, never remote error bodies or token values.
 from __future__ import annotations
 
 import http.client
-import os
 import re
 import ssl
 import time
 from collections.abc import Collection
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 from urllib.parse import quote, urlencode
 
@@ -26,7 +24,6 @@ from skynet import common, proxmox
 from skynet.common import CollectionError
 from skynet.writepath import UNAVAILABLE, USAGE, WriteError
 
-SECRETS = Path("/opt/skynet-ops/secrets")
 NODE_CREDENTIALS = {
     "server-proxmox-core": "proxmox-core.env",
     "server-proxmox-network": "proxmox-network.env",
@@ -50,7 +47,7 @@ def _client(node: str) -> tuple[str, str, ssl.SSLContext]:
     name = NODE_CREDENTIALS.get(node)
     if name is None:
         raise WriteError("unknown Proxmox node", UNAVAILABLE)
-    secrets = Path(os.environ.get("SKYNET_SECRETS_DIR", SECRETS))
+    secrets = common.secrets_dir()
     try:
         return proxmox.credentials(secrets / name, "PVE_TOKEN_OPERATE")
     except CollectionError:

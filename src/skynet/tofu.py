@@ -49,7 +49,6 @@ from skynet.writepath import FAILED, OK, UNAVAILABLE, USAGE, Ledger, Operation, 
 
 STATE_BRANCH = "tofu-state"
 STATE_REF = f"refs/remotes/origin/{STATE_BRANCH}"
-SECRETS = Path("/opt/skynet-ops/secrets")
 APPROVED = "approved-plan.json"
 PLAN_FILE = "skynet.tfplan"
 VERIFY_FILE = "skynet-verify.tfplan"
@@ -61,6 +60,9 @@ BACKOFF_SECONDS, BACKOFF_MAX = 60, 3600  # an unavailable stack's retry: 1 min d
 REMIND_SECONDS = 86400  # a stack still unavailable re-alerts daily after its first alert
 HOST_SETTLE_SECONDS = 600  # a fenced Docker host must answer this soon after an apply or restore
 HOST_DOWN = "a fenced Docker host did not answer after the apply"
+# Proxmox's own pending changes on a guest: an operator clears them, so the revision is retried
+# (with a backoff that alerts), never held.
+PENDING = "has pending config changes; apply or revert them (retried each pass)"
 INVALID = "merged source does not validate (tofu validate); fix it in a new PR"
 STALE_APPROVAL = ("approved-plan.json was made for other inputs; re-run `skynet tofu plan "
                   "--approve` on this tree in a new PR")
@@ -104,15 +106,11 @@ NO_APPROVAL = "plan has changes but the merged revision carries no approved-plan
 
 # --- stacks ----------------------------------------------------------------------------------
 
-def _secrets() -> Path:
-    return Path(os.environ.get("SKYNET_SECRETS_DIR", SECRETS))
-
-
 def _values(name: str, parse: Callable[[Path], dict[str, str]]) -> dict[str, str]:
     """A credential file read by the same parser its actuator's API client uses, so a file the
     snapshot or restore step would reject never passes the plan."""
     try:
-        return parse(_secrets() / name)
+        return parse(common.secrets_dir() / name)
     except (CollectionError, WriteError):
         raise WriteError(f"{name} credentials unavailable", UNAVAILABLE) from None
 
@@ -479,7 +477,7 @@ def state_dir(ledger: Ledger) -> Path:
 
 def _env(stack: Stack, ledger: Ledger, *, credentials: bool = True) -> dict[str, str]:
     try:
-        passphrase = (_secrets() / "tofu-passphrase").read_text(encoding="utf-8").strip()
+        passphrase = (common.secrets_dir() / "tofu-passphrase").read_text(encoding="utf-8").strip()
     except (OSError, UnicodeError):
         raise WriteError("tofu state passphrase unavailable", UNAVAILABLE) from None
     if not passphrase:
@@ -1084,8 +1082,10 @@ class _Saved:
     deferred: list[str] = field(default_factory=list)  # hard checkpoints left out of the plan
     readonly: dict[str, frozenset[str]] = field(default_factory=dict)  # computed-only attributes
     fences: dict[str, pve.Guest] = field(default_factory=dict)  # Docker context → its host guest
+    answering: set[str] = field(default_factory=set)  # fenced contexts that answered before
     preheld: bool = False  # this run holds the revision in git (the pre-apply hold)
     prior_hold: dict[str, Any] = field(default_factory=dict)  # the hold the pre-apply hold replaced
+    held_locally: bool = False  # the revision was held on this VM before this run
 
 
 def _refused(ledger: Ledger, name: str, reason: str, code: int = USAGE, source: str = "") -> Operation:
@@ -1152,7 +1152,8 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
             def _undo_snapshot(state_: _Saved) -> None:
                 """Nothing ran: lift the pre-apply hold and remove the snapshots."""
                 if state_.preheld:
-                    _release_prehold(repo, ledger, name, target, operation, state_.prior_hold)
+                    _release_prehold(repo, ledger, name, target, operation, state_.prior_hold,
+                                     keep_local=state_.held_locally)
                 _prune(state_, operation, ledger)
 
             def snapshot() -> _Saved:
@@ -1164,13 +1165,18 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                     for context in saved.fences:
                         fence.enter_context(ledger.lock(writepath.fence(context)))
                     operation.context["fences"] = sorted(saved.fences)
+                    # Only a host that answers now must answer after: a change that fixes a
+                    # host already down is never judged (and rolled back) by that outage.
+                    saved.answering = {context for context in saved.fences if _answers(context)}
+                    silent = sorted(set(saved.fences) - saved.answering)
+                    if silent:
+                        operation.note("hosts", "down before", ", ".join(silent))
                 for guest in guests(stack, saved.found):
                     try:
                         saved.power[guest] = pve.status(guest)
                         saved.config[guest] = pve.config(guest)
                         if pve.pending(guest):  # a restore could not prove it came back
-                            raise WriteError(f"{guest} has pending config changes; apply or "
-                                             "revert them first", USAGE)
+                            raise WriteError(f"{guest} {PENDING}", UNAVAILABLE)
                         saved.restorable.append(guest)
                         if not pve.snapshottable(saved.config[guest]):
                             # The rollback restores the saved config, never the snapshot.
@@ -1183,8 +1189,8 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                         _intend(ledger, guest, saved.snapshot, operation.id)
                         pve.create(guest, saved.snapshot, excluded=saved.excluded)
                     except WriteError as error:
-                        if error.code == USAGE:  # held; a snapshot left behind is queued
-                            _prune(saved, operation, ledger)
+                        if error.code == USAGE or error.reason.endswith(PENDING):
+                            _prune(saved, operation, ledger)  # a snapshot left behind is queued
                             raise
                         if _prune(saved, operation, ledger):
                             raise WriteError(f"could not snapshot {guest}; nothing applied",
@@ -1194,6 +1200,7 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                                          f"{saved.snapshot} could not be cleaned up") from None
                 operation.context["guests"] = [str(guest) for guest in saved.restorable]
                 if saved.found:
+                    saved.held_locally = _held_locally(ledger, name, target)
                     prior = _prehold(repo, ledger, name, target, operation)
                     if prior is None:
                         _prune(saved, operation, ledger)
@@ -1223,14 +1230,34 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                             raise WriteError(NOT_LANDED, FAILED)
                         raise WriteError(DRIFTED, UNAVAILABLE)
                 expected = [context for context, host in state_.fences.items()
-                            if not stopping(state_.found, host.vmid)]  # a planned stop is no outage
+                            if context in state_.answering
+                            and not stopping(state_.found, host.vmid)]  # a planned stop is no outage
                 if expected:
                     down = settle_hosts(expected)
                     if down:
                         operation.note("hosts", "down", ", ".join(down))
                         raise WriteError(HOST_DOWN, FAILED)
                     operation.note("hosts", "ok", ", ".join(expected))
+                _pending_after(state_)
                 return {"changes": len(state_.found), "hash": state_.hash, "post_apply_plan": "clean"}
+
+            def _pending_after(state_: _Saved) -> None:
+                """A landed change Proxmox left pending (awaiting a reboot) blocks the next apply to
+                that guest: say so now, rather than on that later merge."""
+                waiting = []
+                for guest in state_.restorable:
+                    try:
+                        keys = pve.pending(guest)
+                    except WriteError:
+                        continue  # the change is verified; this is only a heads-up
+                    if keys:
+                        waiting.append(f"{guest} ({', '.join(keys)})")
+                if waiting:
+                    operation.note("pending", "left", "; ".join(waiting)[:500])
+                    failure = alert.send(f"skynet: tofu/{name} applied; changes pending on a guest",
+                                         "reboot to apply, or the next change to it waits: "
+                                         + "; ".join(waiting)[:800], priority=1)
+                    operation.note("alert", "failed" if failure else "ok", failure)
 
             def rollback(state_: _Saved, error: WriteError) -> str:
                 if isinstance(error, writepath.NotStarted):
@@ -1274,7 +1301,8 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                     except WriteError as rollback_error:
                         failures.append(f"{guest}: {rollback_error.reason}")
                 running = [context for context, host in state_.fences.items()
-                           if state_.power.get(host) == "running"]  # back to how it was before
+                           if state_.power.get(host) == "running"
+                           and context in state_.answering]  # back to how it was before
                 if running and not failures:
                     failures += [f"{context}: Docker host did not answer after the restore"
                                  for context in settle_hosts(running)]
@@ -1398,11 +1426,17 @@ def _intend(ledger: Ledger, guest: pve.Guest, snapshot: str, operation: str) -> 
     _update_facts(ledger, lambda facts: _queue(facts).append(entry))
 
 
-def _recorded(ledger: Ledger, operation: str) -> bool:
+def _recorded_ids(ledger: Ledger) -> set[str] | None:
+    """Every operation id the record carries (one read); None when the record is unreadable."""
     try:
-        return any(entry.get("id") == operation for entry in ledger.entries())
+        return {str(entry.get("id")) for entry in ledger.entries()}
     except WriteError:
-        return True  # unknown: keep the snapshot rather than guess it is an orphan
+        return None
+
+
+def _recorded(ledger: Ledger, operation: str) -> bool:
+    ids = _recorded_ids(ledger)
+    return ids is None or operation in ids  # unknown: keep the snapshot rather than guess
 
 
 def _drop_intents(ledger: Ledger, operation: str) -> None:
@@ -1495,10 +1529,11 @@ def retry_cleanup(repo: Path, ledger: Ledger) -> list[dict[str, Any]]:
             if not queue:
                 return []
             excluded = main_excluded(repo)
+            ids = _recorded_ids(ledger)
             done, results = [], []
             for item in queue:
                 if isinstance(item, dict) and item.get("intent"):
-                    if _recorded(ledger, str(item["intent"])):
+                    if ids is None or str(item["intent"]) in ids:
                         done.append(item)
                         continue  # its record owns the snapshot now
                     # No record at all: a crash in the snapshot stage; nothing was applied.
@@ -1692,6 +1727,8 @@ def _hold(repo: Path, ledger: Ledger, name: str, revision: str, reason: str,
         return
     _local_hold(ledger, name, revision)
     try:
+        # Outside the write's lock: another run may have pushed since this one last fetched.
+        fetch_state(repo)
         set_hold(repo, name, revision, reason, operation.id)
     except WriteError as error:
         try:
@@ -1730,11 +1767,11 @@ def _prehold(repo: Path, ledger: Ledger, name: str, revision: str,
 
 
 def _release_prehold(repo: Path, ledger: Ledger, name: str, revision: str,
-                     operation: Operation, prior: dict[str, Any]) -> None:
+                     operation: Operation, prior: dict[str, Any], *, keep_local: bool = False) -> None:
     """Lift this operation's own pre-apply hold when nothing ran, putting back the hold it
-    replaced (`prior`), so a supervised run that never started never unholds a failed revision.
-    A hold git keeps (the write failed, or it is another run's) stays: it alerts through `_held`,
-    never silently."""
+    replaced (`prior` in git; `keep_local`: a hold only this VM had), so a supervised run that
+    never started never unholds a failed revision. A hold git keeps (the write failed, or it is
+    another run's) stays: it alerts through `_held`, never silently."""
     try:
         hold = held(repo, name)
         if (hold.get("revision"), hold.get("reason"), hold.get("operation")) == (
@@ -1744,7 +1781,7 @@ def _release_prehold(repo: Path, ledger: Ledger, name: str, revision: str,
     except WriteError as error:
         operation.note("prehold", "kept", error.reason)
         return
-    if prior.get("revision") in (revision, "*"):
+    if keep_local or prior.get("revision") in (revision, "*"):
         operation.note("prehold", "restored", "the earlier hold stands")
         return
     _clear_local_hold(ledger, name, revision)
@@ -1761,9 +1798,13 @@ def _local_hold(ledger: Ledger, name: str, revision: str) -> None:
         pass  # the git hold is the durable one; this is only its fallback
 
 
+def _held_locally(ledger: Ledger, name: str, revision: str) -> bool:
+    local = _facts(ledger).get(name)
+    return isinstance(local, dict) and local.get("held") == revision
+
+
 def is_held(repo: Path, name: str, revision: str, ledger: Ledger | None = None) -> bool:
-    local = _facts(ledger).get(name) if ledger is not None else None
-    if isinstance(local, dict) and local.get("held") == revision:
+    if ledger is not None and _held_locally(ledger, name, revision):
         return True
     return held(repo, name).get("revision") in (revision, "*")
 
@@ -1826,8 +1867,16 @@ def _pending_stack(repo: Path, ledger: Ledger, name: str, target: str,
     if due is not None:
         return {"target": f"tofu/{name}", "source": target, "outcome": "backoff",
                 "reason": f"unavailable; retried in {int(due - _now())} s"}
+    if _write_waiter(ledger, name) == target and ledger.busy():
+        # Its last pass planned, then found a deploy holding the write lock: not re-planned
+        # every minute until that deploy is done.
+        return {"target": f"tofu/{name}", "source": target, "outcome": "deferred",
+                "reason": "a deploy holds the write lock; planned again once it is free"}
     result = writepath.report(apply(repo, name, revision=target, ledger=ledger, refresh=False,
                                     settle=False))
+    _set_write_waiter(ledger, name, target if any(
+        step.get("step") == "snapshot" and step.get("reason") == writepath.LOCK_BUSY
+        for step in result.get("steps", [])) else None)
     _count(ledger, name, target, result)
     holds = {step.get("outcome") for step in result.get("steps", []) if step.get("step") == "hold"}
     # A hold git refused already alerted in _hold; a durable hold alerts once here.
@@ -1842,6 +1891,29 @@ def _pending_stack(repo: Path, ledger: Ledger, name: str, target: str,
         except WriteError:
             pass  # not marked: _held alerts again next pass rather than lose this result
     return result
+
+
+def _write_waiter(ledger: Ledger, name: str) -> str | None:
+    """The revision of this stack whose last pass waited on the deploy write lock."""
+    known = _facts(ledger).get("_write_busy")
+    value = known.get(name) if isinstance(known, dict) else None
+    return value if isinstance(value, str) else None
+
+
+def _set_write_waiter(ledger: Ledger, name: str, revision: str | None) -> None:
+    def mark(facts: dict[str, Any]) -> None:
+        known = facts.get("_write_busy")
+        waiting: dict[str, Any] = known if isinstance(known, dict) else {}
+        if revision is None:
+            waiting.pop(name, None)
+        else:
+            waiting[name] = revision
+        if waiting or "_write_busy" in facts:
+            facts["_write_busy"] = waiting
+    try:
+        _update_facts(ledger, mark)
+    except WriteError:
+        pass  # only an optimization: the next pass plans again
 
 
 def _hold_key(repo: Path, name: str, target: str) -> str:
@@ -1953,6 +2025,9 @@ def run_plan(repo: Path, name: str | None, *, ref: str, approve: bool, state_dir
         return USAGE
     try:
         revision = deploy.resolve(repo, ref)
+        if approve and revision != deploy.resolve(repo, "HEAD"):
+            # The approval is written to the working tree: it must describe that tree's commit.
+            raise WriteError("--approve plans the checked-out commit only (--ref HEAD)", USAGE)
         planned_ = _read_only_plan(repo, Ledger(state_dir_), stack, revision, approve=approve)
     except WriteError as error:
         print(f"tofu/{name}: {error.reason}", file=stdout)

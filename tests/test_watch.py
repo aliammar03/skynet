@@ -142,6 +142,17 @@ def test_a_fenced_docker_host_is_a_planned_change_not_an_outage(lab: Lab, tmp_pa
     assert [title for title, _ in lab.sent] == ["skynet: svc/demo"]
 
 
+def test_a_fence_held_past_its_grace_no_longer_hides_an_outage(lab: Lab, tmp_path: Path) -> None:
+    """A hung guest write keeps its fence; after the grace the host is watched as ever."""
+    lab.docker_down = True
+    grace = int(watch.FENCE_GRACE_SECONDS // 300)  # _pass steps 5 minutes
+    with Ledger(tmp_path / "state").lock(writepath.fence("docker-dmz")):
+        codes = [_pass(tmp_path, minute) for minute in range(grace + 3)]
+    assert codes[:grace] == [0] * grace and codes[grace:] == [3, 3, 3]
+    assert [title for title, _ in lab.sent] == ["skynet: monitor"]
+    assert lab.pings[-1] is False
+
+
 def test_another_hosts_fence_hides_nothing(lab: Lab, tmp_path: Path) -> None:
     lab.health["demo"] = False
     with Ledger(tmp_path / "state").lock(writepath.fence("docker-other")):

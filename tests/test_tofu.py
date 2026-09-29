@@ -127,6 +127,7 @@ class Fake:
         self.docker_hosts: dict[int, str] = {}
         self.down: set[str] = set()  # Docker contexts that never answer
         self.down_after_restore: set[str] = set()
+        self.down_before: set[str] = set()  # Docker contexts already silent before the apply
 
     def approve(self) -> None:
         stack = tofu.STACKS[self.stack]
@@ -209,6 +210,8 @@ def fake(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Fake:
     def answers(context: str) -> bool:
         host.calls.append(("answers", context))
         restored = any(isinstance(c, tuple) and c[0] == "restore" for c in host.calls)
+        if "apply" not in host.calls:
+            return context not in host.down_before
         return context not in (host.down_after_restore if restored else host.down)
 
     monkeypatch.setattr(tofu, "_answers", answers)
@@ -606,9 +609,24 @@ def test_a_guest_with_pending_changes_before_the_apply_is_refused(
     fake.plan = [guest(10030, cores=4), guest(10031, cores=4)]
     fake.approve()
     operation = run(fake, tmp_path)
-    assert operation.outcome == "refused" and "pending config changes" in str(operation.reason)
-    assert operation.code == writepath.USAGE and "apply" not in fake.calls
+    assert operation.outcome == "refused" and tofu.PENDING in str(operation.reason)
+    assert operation.code == UNAVAILABLE and "apply" not in fake.calls
     assert ("delete", 10030) in fake.calls  # the first guest's snapshot is pruned
+    # An operator clears it; the revision is retried, never held until main moves.
+    assert fake.holds == {} and not tofu.is_held(tmp_path, "proxmox-core", REV,
+                                                 Ledger(tmp_path / "state"))
+
+
+def test_changes_an_apply_leaves_pending_alert_at_once(
+        fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(pve, "pending",
+                        lambda g: ["cores"] if "apply" in fake.calls else [])
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    operation = run(fake, tmp_path)
+    assert operation.outcome == "success", operation.reason
+    assert fake.alerts == ["skynet: tofu/proxmox-core applied; changes pending on a guest"]
+    assert any(step["step"] == "pending" and "10030" in step["detail"] for step in operation.steps)
 
 
 def test_an_unverifiable_apply_is_not_rolled_back(fake: Fake, tmp_path: Path) -> None:
@@ -1845,10 +1863,13 @@ def test_a_running_deploy_makes_a_fenced_apply_wait_without_counting(
     fake.docker_hosts = {DMZ: "docker-dmz"}
     fake.plan = [guest(DMZ, kind=VM, cores=4)]
     fake.approve()
+    reasons = []
     for _ in range(4):
         with ledger.lock():  # a deploy on docker-dmz
-            result = tofu.pending(tmp_path, ledger=ledger)[0]
-        assert result["reason"] == writepath.LOCK_BUSY
+            reasons.append(tofu.pending(tmp_path, ledger=ledger)[0]["reason"])
+    assert reasons[0] == writepath.LOCK_BUSY
+    assert all("holds the write lock" in reason for reason in reasons[1:])
+    assert len(fake.excluded_at_plan) == 1  # planned once, not every pass the deploy lasts
     assert not any(c[0] == "create" for c in fake.calls if isinstance(c, tuple))  # nothing touched
     assert fake.alerts == [] and fake.holds == {} and tofu._failures(ledger, "proxmox-core", REV) == 0
     assert tofu.pending(tmp_path, ledger=ledger)[0]["outcome"] == "success"
@@ -1863,6 +1884,18 @@ def test_a_host_that_never_answers_after_the_apply_is_rolled_back(fake: Fake, tm
     assert (operation.outcome, operation.reason) == ("rolled-back", tofu.HOST_DOWN)
     assert ("restore", DMZ, "running") in fake.calls
     assert fake.holds["proxmox-core"]["revision"] == REV
+
+
+def test_a_fix_for_a_host_already_down_is_never_judged_by_that_outage(fake: Fake,
+                                                                        tmp_path: Path) -> None:
+    fake.docker_hosts = {DMZ: "docker-dmz"}
+    fake.down_before = fake.down = {"docker-dmz"}  # e.g. OOM: the PR raises its memory
+    fake.plan = [guest(DMZ, kind=VM, memory=8192)]
+    fake.approve()
+    operation = run(fake, tmp_path)
+    assert operation.outcome == "success", operation.reason
+    assert not any(c[0] == "restore" for c in fake.calls if isinstance(c, tuple))
+    assert any(step.get("outcome") == "down before" for step in operation.steps)
 
 
 def test_a_host_still_down_after_the_restore_is_rollback_failed(fake: Fake, tmp_path: Path) -> None:
@@ -2090,6 +2123,18 @@ def test_the_inputs_digest_follows_every_input_but_the_approval(clone: Path) -> 
     assert tofu.inputs_digest(clone, "HEAD", stack) != first
 
 
+def test_approve_refuses_a_ref_other_than_the_checked_out_commit(monkeypatch: pytest.MonkeyPatch,
+                                                                 tmp_path: Path) -> None:
+    monkeypatch.setattr(deploy, "resolve", lambda repo, ref: REV if ref == "HEAD" else NEW)
+    monkeypatch.setattr(tofu, "_read_only_plan", lambda *args, **kwargs: pytest.fail("planned"))
+    (tmp_path / "tofu/proxmox-core").mkdir(parents=True)
+    out = io.StringIO()
+    assert tofu.run_plan(tmp_path, "proxmox-core", ref="origin/main", approve=True,
+                         state_dir_=tmp_path / "state", stdout=out) == writepath.USAGE
+    assert "--ref HEAD" in out.getvalue()
+    assert not (tmp_path / "tofu/proxmox-core" / tofu.APPROVED).exists()
+
+
 def test_approve_binds_inputs_and_writes_even_an_empty_plan(monkeypatch: pytest.MonkeyPatch,
                                                            tmp_path: Path) -> None:
     monkeypatch.setattr(deploy, "resolve", lambda repo, ref: REV)
@@ -2280,7 +2325,8 @@ def test_a_planned_stop_of_a_docker_host_is_not_a_down_host(fake: Fake, tmp_path
     fake.approve()
     operation = run(fake, tmp_path)
     assert operation.outcome == "success", operation.reason
-    assert not any(c[0] == "answers" for c in fake.calls if isinstance(c, tuple))
+    after = fake.calls[fake.calls.index("apply"):]
+    assert not any(c[0] == "answers" for c in after if isinstance(c, tuple))
 
 
 def test_a_host_stopped_before_the_apply_is_not_awaited_after_its_restore(fake: Fake,
@@ -2366,6 +2412,35 @@ def test_a_supervised_run_that_never_started_keeps_the_hold_it_overrode(
     assert tofu.is_held(tmp_path, "proxmox-core", REV, ledger)
     assert tofu.pending(tmp_path, ledger=ledger)[0]["outcome"] == "held"
     assert fake.calls.count("apply") == 1  # the timer never retries the failed revision
+
+
+def test_a_hold_after_the_lock_is_built_on_a_fresh_fetch(fake: Fake, tmp_path: Path,
+                                                         monkeypatch: pytest.MonkeyPatch) -> None:
+    order: list[str] = []
+    monkeypatch.setattr(tofu, "fetch_state", lambda repo, fresh=True: order.append(
+        f"fetch:{fresh}") or True)
+    real_set_hold = tofu.set_hold
+    monkeypatch.setattr(tofu, "set_hold", lambda *args: order.append("hold") or real_set_hold(*args))
+    fake.apply_error = True
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    run(fake, tmp_path)
+    holds = [index for index, call in enumerate(order) if call == "hold"]
+    assert order[holds[-1] - 1] == "fetch:True"  # the rolled-back hold, not the pre-apply one
+
+
+def test_a_supervised_run_that_never_started_keeps_a_hold_only_this_vm_had(
+        fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger = Ledger(tmp_path / "state")
+    branch_holds(fake, monkeypatch)
+    tofu._local_hold(ledger, "proxmox-core", REV)  # git refused this hold earlier
+    fake.not_started = True
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    operation = tofu.apply(tmp_path, "proxmox-core", revision=REV, ledger=ledger, ignore_hold=True)
+    assert operation.outcome == "unavailable"
+    assert tofu.is_held(tmp_path, "proxmox-core", REV, ledger)
+    assert tofu.pending(tmp_path, ledger=ledger)[0]["outcome"] == "held"
 
 
 def test_a_failed_adoption_releases_the_prehold_and_the_snapshots(

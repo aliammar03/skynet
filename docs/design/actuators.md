@@ -48,7 +48,8 @@ keys that differ are written back, keys the apply added are deleted, the config 
 a compare-and-swap, and a running guest reboots only when changes are left pending. A guest update
 is rolled back only when every attribute it changes is one the restore sets back (`RESTORE_COVERS`);
 pool membership, disk size, or a template conversion has no automatic inverse. A guest with pending
-changes before the apply is refused. Every rollback is then proved: the guest's whole config must
+changes before the apply waits (retried with the unavailable backoff, never held); changes an apply
+leaves pending alert at once. Every rollback is then proved: the guest's whole config must
 equal its pre-apply copy with nothing pending, or the run is `rollback-failed` (alert, hold, snapshot
 kept). A dirty post-apply plan rolls back only when it still wants an (address, attribute) the approved
 change moved, a move, import, or delete again, or a resource it touched created anew; one dirty only
@@ -56,9 +57,11 @@ elsewhere (drift, a provider's perpetual diff, including other attributes of a m
 address) is never rolled back: it alerts and holds, as does a post-apply check that cannot run. An
 update to a Docker host's guest (lab.json `docker_hosts`) also holds the `write` lock and the host's
 `fence-<context>` lock from before its snapshots until its record, so a deploy there waits and
-`skynet watch` skips the host rather than alert; it waits up to 10 min for the host to answer after
-the apply (unless the approved change stops it) and after a restore (if it was running before),
-and a host that never answers is a failed change. A computed-only attribute never ties a re-plan
+`skynet watch` skips the host rather than alert (for at most 45 min; a longer fence is watched
+through); a pass that finds a deploy holding the lock does not re-plan until it is free. It waits up
+to 10 min for the host to answer after the apply (unless the approved change stops it, or the host
+did not answer before it) and after a restore (if it was running and answering before), and a host
+that never answers is a failed change. A computed-only attribute never ties a re-plan
 to the approved change. A `tofu` that could not even be started changed nothing: its pre-apply
 hold is released (or, under `--ignore-hold`, the hold it overrode is put back) and the stack is
 retried like any unavailability. An apply updates at most five existing
@@ -78,7 +81,7 @@ or stale local state from the branch and pushes any state the branch lacks, unde
 even for a held revision, without re-running the apply. A first local state (no branch, no recorded
 base) is pushed only after an apply at its stack has planned it and passed every refusal; one whose
 plan deletes or defers anything is refused. `plan --approve` makes the same refusals, so a PR never carries an approval the executor
-would hold. Excluded guests are the union of the revision's and main's lists.
+would hold; it approves only the checked-out commit, the tree it writes the approval into. Excluded guests are the union of the revision's and main's lists.
 
 Automated rollback proof lives in the local test suite (`tests/`, run by `bin/check`): an actuator
 claims an A4 promotion only when its failure-case rollback is exercised there and recorded live.

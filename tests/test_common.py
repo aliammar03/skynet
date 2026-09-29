@@ -92,6 +92,21 @@ def test_a_failed_atomic_write_keeps_previous_bytes_and_no_temporary(
     assert [p.name for p in tmp_path.iterdir()] == ["state.bin"]
 
 
+def test_an_atomic_write_makes_the_rename_durable(tmp_path: Path,
+                                                  monkeypatch: pytest.MonkeyPatch) -> None:
+    import stat
+    synced: list[bool] = []
+    real = common.os.fsync
+
+    def fsync(fd: int) -> None:
+        synced.append(stat.S_ISDIR(common.os.fstat(fd).st_mode))
+        real(fd)
+
+    monkeypatch.setattr(common.os, "fsync", fsync)
+    common.atomic_write_bytes(tmp_path / "state.bin", b"v1")
+    assert synced == [False, True]  # the file, then its directory after the rename
+
+
 def test_unserializable_publish_keeps_previous_bytes(tmp_path: Path) -> None:
     path = tmp_path / "snapshot.json"
     path.write_text("previous")
