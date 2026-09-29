@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from skynet import alert, deploy, watch
+from skynet import alert, deploy, watch, writepath
 from skynet.writepath import Ledger, Operation, WriteError
 
 REV = "1" * 40
@@ -126,6 +126,28 @@ def test_a_long_write_skips_only_its_own_target(lab: Lab, tmp_path: Path) -> Non
             assert _pass(tmp_path, minute) == 1
     assert [title for title, _ in lab.sent] == ["skynet: svc/other"]
     assert lab.pings == [True, True, True]  # the monitor itself is working
+
+
+def test_a_fenced_docker_host_is_a_planned_change_not_an_outage(lab: Lab, tmp_path: Path) -> None:
+    """A guest update rebooting the host holds its fence: nothing alerts, nothing is lost."""
+    ledger = Ledger(tmp_path / "state")
+    lab.docker_down = True  # the host is rebooting
+    with ledger.lock(writepath.fence("docker-dmz")):
+        assert [_pass(tmp_path, minute) for minute in range(4)] == [0] * 4
+    assert lab.sent == [] and lab.pings == [True] * 4
+    lab.docker_down = False
+    lab.health["demo"] = False  # the fence is gone: a real outage alerts as ever
+    _pass(tmp_path, 4)
+    _pass(tmp_path, 5)
+    assert [title for title, _ in lab.sent] == ["skynet: svc/demo"]
+
+
+def test_another_hosts_fence_hides_nothing(lab: Lab, tmp_path: Path) -> None:
+    lab.health["demo"] = False
+    with Ledger(tmp_path / "state").lock(writepath.fence("docker-other")):
+        _pass(tmp_path, 0)
+        _pass(tmp_path, 1)
+    assert [title for title, _ in lab.sent] == ["skynet: svc/demo"]
 
 
 def test_a_crashed_write_never_hides_a_service(lab: Lab, tmp_path: Path) -> None:

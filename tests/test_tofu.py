@@ -50,9 +50,17 @@ class FakeSpace:
     def init(self, state: Path) -> None:
         self.host.calls.append("init")
 
-    def plan(self) -> tuple[list[dict[str, Any]], str]:
-        found = tofu.changes({"resource_changes": self.host.plan})
-        return found, tofu.plan_hash(self.host.stack, found)
+    def validate(self) -> None:
+        if self.host.invalid:
+            raise WriteError(tofu.INVALID, writepath.USAGE)
+
+    def readonly(self) -> dict[str, frozenset[str]]:
+        return self.host.readonly
+
+    def plan(self, exclude: Any = ()) -> list[dict[str, Any]]:
+        self.host.excluded_at_plan.append(sorted(exclude))
+        return tofu.changes({"resource_changes": [
+            entry for entry in self.host.plan if entry["address"] not in exclude]})
 
     def apply(self) -> None:
         self.host.calls.append("apply")
@@ -102,10 +110,21 @@ class Fake:
         self.recorded: list[dict[str, Any] | None] = []
         self.applied: dict[str, str] = {}
         self.inputs: dict[str, str] = {"proxmox-core": REV}
+        self.invalid = False
+        self.readonly: dict[str, frozenset[str]] = {}
+        self.excluded_at_plan: list[list[str]] = []
+        self.digest = "i" * 64  # the merged tree's inputs digest
+        self.docker_hosts: dict[int, str] = {}
+        self.down: set[str] = set()  # Docker contexts that never answer
+        self.down_after_restore: set[str] = set()
 
     def approve(self) -> None:
+        stack = tofu.STACKS[self.stack]
         found = tofu.changes({"resource_changes": self.plan})
-        self.approved = {"stack": self.stack, "hash": tofu.plan_hash(self.stack, found), "changes": []}
+        deferred = sorted(str(item["address"]) for item in found if tofu.deferrable(stack, item))
+        kept = [item for item in found if item["address"] not in deferred]
+        self.approved = {"stack": self.stack, "hash": tofu.plan_hash(self.stack, kept, deferred),
+                         "inputs": self.digest, "changes": []}
 
 
 @pytest.fixture
@@ -113,8 +132,8 @@ def fake(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Fake:
     host = Fake()
 
     @contextmanager
-    def workspace(repo: Path, stack: tofu.Stack, revision: str, *, credentials: bool = True
-                  ) -> Iterator[FakeSpace]:
+    def workspace(repo: Path, stack: tofu.Stack, revision: str, *, ledger: Ledger,
+                  credentials: bool = True) -> Iterator[FakeSpace]:
         yield FakeSpace(host)
 
     def snapshot(action: str) -> Any:
@@ -173,6 +192,16 @@ def fake(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Fake:
     monkeypatch.setattr(pve, "status", lambda g: host.power.get(g.vmid, "running"))
     monkeypatch.setattr(pve, "exists", lambda g, name: g.vmid in host.snapshots)
     monkeypatch.setattr(tofu, "persist_pending", lambda repo, ledger: [])  # own tests below
+    monkeypatch.setattr(tofu, "inputs_digest", lambda repo, revision, stack: host.digest)
+    monkeypatch.setattr(tofu, "all_docker_hosts", lambda repo, root: dict(host.docker_hosts))
+    monkeypatch.setattr(tofu, "HOST_SETTLE_SECONDS", 0)
+
+    def answers(context: str) -> bool:
+        host.calls.append(("answers", context))
+        restored = any(isinstance(c, tuple) and c[0] == "restore" for c in host.calls)
+        return context not in (host.down_after_restore if restored else host.down)
+
+    monkeypatch.setattr(tofu, "_answers", answers)
 
     def config(g: pve.Guest) -> dict[str, Any]:
         drifted = g.vmid in host.rolled and g.vmid in host.config_drift
@@ -308,13 +337,29 @@ def test_changes_without_an_approved_plan_are_refused(fake: Fake, tmp_path: Path
 
 
 @pytest.mark.parametrize("actions", [["delete"], ["delete", "create"], ["create", "delete"], ["forget"]])
-def test_delete_replace_and_forget_are_refused_even_when_approved(fake: Fake, tmp_path: Path,
-                                                                  actions: list[str]) -> None:
-    fake.plan = [guest(10030, actions=actions)]
+def test_a_guest_delete_replace_or_forget_is_deferred_never_applied_and_never_blocks(
+        fake: Fake, tmp_path: Path, actions: list[str]) -> None:
+    ledger = Ledger(tmp_path / "state")
+    doomed = guest(10031, actions=actions)
+    fake.plan = [guest(10030, cores=4), doomed]
     fake.approve()
     operation = run(fake, tmp_path)
-    assert operation.outcome == "refused" and "hard checkpoint" in str(operation.reason)
-    assert "apply" not in fake.calls
+    assert operation.outcome == "success", operation.reason
+    assert fake.excluded_at_plan == [[], [doomed["address"]]]  # planned again without it
+    assert operation.context["deferred"] == [doomed["address"]]
+    assert "apply" in fake.calls and ("create", 10031) not in fake.calls
+    assert fake.alerts == ["skynet: tofu/proxmox-core deferred 1 hard-checkpoint change(s)"]
+    assert fake.recorded[-1]["deferred"] == [doomed["address"]]  # type: ignore[index]
+    fake.calls.clear()
+    tofu.apply(tmp_path, "proxmox-core", revision=REV, ledger=ledger)
+    assert len(fake.alerts) == 1  # once per address, not per pass
+
+
+def test_an_undeferred_guest_delete_is_still_refused() -> None:
+    stack = tofu.STACKS["proxmox-core"]
+    found = tofu.changes({"resource_changes": [guest(10030, actions=["delete"])]})
+    with pytest.raises(WriteError, match="hard checkpoint"):
+        tofu.refuse(stack, found, ())
 
 
 @pytest.mark.parametrize("entry,reason", [
@@ -998,8 +1043,13 @@ def test_an_unplannable_revision_is_retried_and_alerts_once_never_held(
         raise WriteError("tofu init failed", UNAVAILABLE)
 
     monkeypatch.setattr(FakeSpace, "init", broken)
-    outcomes = [tofu.pending(tmp_path, ledger=ledger)[0]["outcome"] for _ in range(5)]
-    assert outcomes == ["refused"] * 5  # every pass retries: nothing live changed
+    clock = [1000.0]
+    monkeypatch.setattr(tofu, "_now", lambda: clock[0])
+    outcomes = []
+    for _ in range(5):
+        outcomes.append(tofu.pending(tmp_path, ledger=ledger)[0]["outcome"])
+        clock[0] += 3600  # past any backoff
+    assert outcomes == ["refused"] * 5  # every due pass retries: nothing live changed
     assert fake.alerts == ["skynet: tofu/proxmox-core unavailable 3 passes running"]
     assert fake.holds == {}
     monkeypatch.undo()
@@ -1039,10 +1089,13 @@ def test_only_consecutive_failures_count(fake: Fake, tmp_path: Path, monkeypatch
             raise WriteError("tofu init failed", UNAVAILABLE)
 
     monkeypatch.setattr(FakeSpace, "init", flaky)
+    clock = [1000.0]
+    monkeypatch.setattr(tofu, "_now", lambda: clock[0])
     fake.plan = [guest(10030, cores=4)]  # no approval: the good pass is a (held) refusal
     fake.inputs["proxmox-core"] = REV
     for _ in range(2):
         tofu.pending(tmp_path, ledger=ledger)
+        clock[0] += 3600
     assert tofu._failures(ledger, "proxmox-core", REV) == 2
     tofu.pending(tmp_path, ledger=ledger)  # a real outcome resets the count
     assert tofu._failures(ledger, "proxmox-core", REV) == 0
@@ -1144,8 +1197,8 @@ def test_plan_never_approves_what_the_executor_would_refuse(monkeypatch: pytest.
                                                             entries: list[dict[str, Any]]) -> None:
     found = tofu.changes({"resource_changes": entries})
     monkeypatch.setattr(deploy, "resolve", lambda repo, ref: REV)
-    monkeypatch.setattr(tofu, "_read_only_plan",
-                        lambda *args, **kwargs: (found, "h", "the plan", frozenset({2020})))
+    monkeypatch.setattr(tofu, "_read_only_plan", lambda *args, **kwargs: tofu.ReadOnlyPlan(
+        found, "h", "the plan", frozenset({2020}), []))
     (tmp_path / "tofu/proxmox-core").mkdir(parents=True)
     out = io.StringIO()
     code = tofu.run_plan(tmp_path, "proxmox-core", ref="HEAD", approve=True,
@@ -1553,7 +1606,7 @@ def test_self_signed_stacks_trust_exactly_their_pinned_ca(monkeypatch: pytest.Mo
     monkeypatch.setattr(deploy, "checkout", _fake_checkout(tmp_path))
     monkeypatch.setattr(tofu, "_tofu", lambda workdir, env, *args, timeout: (
         seen.append(dict(env)), subprocess.CompletedProcess(args, 0, b"", b""))[1])
-    with tofu.workspace(tmp_path, tofu.STACKS[stack], REV) as space:
+    with tofu.workspace(tmp_path, tofu.STACKS[stack], REV, ledger=Ledger(tmp_path / "state")) as space:
         # Go also loads SSL_CERT_DIR: an empty one leaves the pinned CA the only trust.
         cert_dir = Path(space.env["SSL_CERT_DIR"])
         assert cert_dir.is_dir() and list(cert_dir.iterdir()) == []
@@ -1592,7 +1645,8 @@ def test_the_public_ca_stack_keeps_system_trust(monkeypatch: pytest.MonkeyPatch,
     (tmp_path / "cloudflare-dns.env").write_text("CF_DNS_TOKEN=t\nCF_ZONE=aliammar.net\nTUNNEL_ID=u\n")
     (tmp_path / "tofu-passphrase").write_text("p")
     monkeypatch.setattr(deploy, "checkout", _fake_checkout(tmp_path))
-    with tofu.workspace(tmp_path, tofu.STACKS["cloudflare-dns"], REV) as space:
+    with tofu.workspace(tmp_path, tofu.STACKS["cloudflare-dns"], REV,
+                        ledger=Ledger(tmp_path / "state")) as space:
         assert not any(key.startswith("SSL_CERT_") for key in space.env)
 
 
@@ -1612,3 +1666,423 @@ def test_registry_matches_the_committed_stacks() -> None:
 def test_writepath_line_names_the_stack() -> None:
     assert writepath.line({"target": "tofu/proxmox-core", "source": REV, "outcome": "held"}).startswith(
         "tofu/proxmox-core@aaaaaaaaaaaa: held")
+
+
+# --- host fences (a guest write never overlaps a deploy on its Docker host) -------------------
+
+DMZ = 10015
+
+
+def test_a_docker_host_update_holds_the_deploy_lock_and_its_fence(
+        fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger = Ledger(tmp_path / "state")
+    fake.docker_hosts = {DMZ: "docker-dmz"}
+    fake.plan = [guest(DMZ, kind=VM, cores=4)]
+    fake.approve()
+    seen: list[tuple[bool, bool]] = []
+    monkeypatch.setattr(FakeSpace, "apply", lambda self: seen.append(
+        (ledger.busy(), ledger.busy(writepath.fence("docker-dmz")))))
+    operation = run(fake, tmp_path)
+    assert operation.outcome == "success", operation.reason
+    assert seen == [(True, True)]  # a deploy there waits; watch sees a planned change
+    assert operation.context["fences"] == ["docker-dmz"]
+    assert ("answers", "docker-dmz") in fake.calls  # the host answered before the fence lifted
+    assert not ledger.busy() and not ledger.busy(writepath.fence("docker-dmz"))
+
+
+def test_a_guest_that_hosts_no_docker_takes_no_fence(fake: Fake, tmp_path: Path,
+                                                      monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger = Ledger(tmp_path / "state")
+    fake.docker_hosts = {DMZ: "docker-dmz"}
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    seen: list[bool] = []
+    monkeypatch.setattr(FakeSpace, "apply", lambda self: seen.append(ledger.busy()))
+    assert run(fake, tmp_path).outcome == "success"
+    assert seen == [False]  # an hours-long apply elsewhere never delays a deploy
+
+
+def test_a_running_deploy_makes_a_fenced_apply_wait_without_counting(
+        fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger = Ledger(tmp_path / "state")
+    monkeypatch.setattr(Ledger, "wait", 0.01)
+    fake.docker_hosts = {DMZ: "docker-dmz"}
+    fake.plan = [guest(DMZ, kind=VM, cores=4)]
+    fake.approve()
+    for _ in range(4):
+        with ledger.lock():  # a deploy on docker-dmz
+            result = tofu.pending(tmp_path, ledger=ledger)[0]
+        assert result["reason"] == writepath.LOCK_BUSY
+    assert not any(c[0] == "create" for c in fake.calls if isinstance(c, tuple))  # nothing touched
+    assert fake.alerts == [] and fake.holds == {} and tofu._failures(ledger, "proxmox-core", REV) == 0
+    assert tofu.pending(tmp_path, ledger=ledger)[0]["outcome"] == "success"
+
+
+def test_a_host_that_never_answers_after_the_apply_is_rolled_back(fake: Fake, tmp_path: Path) -> None:
+    fake.docker_hosts = {DMZ: "docker-dmz"}
+    fake.down = {"docker-dmz"}  # e.g. the memory the PR set is too small to boot Docker
+    fake.plan = [guest(DMZ, kind=VM, memory=512)]
+    fake.approve()
+    operation = run(fake, tmp_path)
+    assert (operation.outcome, operation.reason) == ("rolled-back", tofu.HOST_DOWN)
+    assert ("restore", DMZ, "running") in fake.calls
+    assert fake.holds["proxmox-core"]["revision"] == REV
+
+
+def test_a_host_still_down_after_the_restore_is_rollback_failed(fake: Fake, tmp_path: Path) -> None:
+    fake.docker_hosts = {DMZ: "docker-dmz"}
+    fake.down = fake.down_after_restore = {"docker-dmz"}
+    fake.plan = [guest(DMZ, kind=VM, memory=512)]
+    fake.approve()
+    operation = run(fake, tmp_path)
+    assert operation.outcome == "rollback-failed"
+    assert "docker-dmz: Docker host did not answer after the restore" in str(operation.reason)
+    assert fake.alerts == ["skynet: tofu/proxmox-core rollback-failed"]
+
+
+def test_the_fenced_host_is_read_from_lab_json(tmp_path: Path) -> None:
+    (tmp_path / "lab.json").write_text(json.dumps(
+        {"docker_hosts": {"hosts": [{"label": "docker-dmz", "vmid": DMZ}]}}))
+    assert tofu.docker_hosts(tmp_path) == {DMZ: "docker-dmz"}
+    stack = tofu.STACKS["proxmox-core"]
+    found = tofu.changes({"resource_changes": [guest(DMZ, kind=VM, cores=4), guest(10030, cores=4)]})
+    assert tofu.fences(stack, found, {DMZ: "docker-dmz"}) == ["docker-dmz"]
+    (tmp_path / "lab.json").write_text("{}")
+    with pytest.raises(WriteError, match="lab.json unreadable"):
+        tofu.docker_hosts(tmp_path)
+
+
+# --- deletes: derived records applied, guests deferred -----------------------------------------
+
+def _record_change(host: str, actions: list[str]) -> dict[str, Any]:
+    entry = change(f'technitium_record.apps_service["{host}"]', "technitium_record", actions)
+    if actions == ["delete"]:
+        entry["change"]["after"] = None
+    return entry
+
+
+def test_an_approved_dns_record_delete_is_applied(fake: Fake, tmp_path: Path) -> None:
+    fake.stack = "technitium-dns"
+    fake.inputs["technitium-dns"] = REV
+    fake.plan = [_record_change("calibre.aliammar.net", ["delete"]),
+                 _record_change("books.aliammar.net", ["create"])]
+    fake.approve()
+    operation = run(fake, tmp_path, "technitium-dns")
+    assert operation.outcome == "success", operation.reason
+    assert "apply" in fake.calls and fake.excluded_at_plan == [[]]  # nothing deferred
+    assert fake.applied["technitium-dns"] == REV
+
+
+def test_a_dns_delete_that_does_not_land_is_not_landed(fake: Fake, tmp_path: Path) -> None:
+    fake.stack = "technitium-dns"
+    fake.inputs["technitium-dns"] = REV
+    fake.dirty = True  # the token lacks delete: the re-plan still wants it
+    fake.plan = [_record_change("calibre.aliammar.net", ["delete"])]
+    fake.approve()
+    operation = run(fake, tmp_path, "technitium-dns")
+    assert operation.outcome == "rollback-failed" and "no automatic inverse" in str(operation.reason)
+    assert fake.holds["technitium-dns"]["revision"] == REV
+
+
+def test_more_deletes_than_a_pr_should_carry_are_refused_at_approval() -> None:
+    stack = tofu.STACKS["technitium-dns"]
+    found = tofu.changes({"resource_changes": [
+        _record_change(f"h{n}.aliammar.net", ["delete"]) for n in range(tofu.MAX_DELETES + 1)]})
+    with pytest.raises(WriteError, match="parse regression"):
+        tofu.check(stack, found, ())
+    tofu.check(stack, found[:tofu.MAX_DELETES], ())
+
+
+def test_the_deferred_set_is_part_of_the_hash() -> None:
+    assert tofu.plan_hash("s", []) != tofu.plan_hash("s", [], ["g.x"])
+    assert tofu.plan_hash("s", [], ["a", "b"]) == tofu.plan_hash("s", [], ["b", "a"])
+
+
+def test_a_first_state_whose_plan_deletes_records_is_never_adopted(fake: Fake, tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "state")
+    fake.stack = "technitium-dns"
+    fake.inputs["technitium-dns"] = REV
+    path = tofu.local_state(ledger, "technitium-dns")
+    path.parent.mkdir(parents=True)
+    path.write_bytes(b"a stray copy")
+    fake.plan = [_record_change("arcane.aliammar.net", ["delete"])]
+    fake.approve()
+    operation = run(fake, tmp_path, "technitium-dns")
+    assert (operation.outcome, operation.reason) == ("refused", tofu.UNADOPTED_DELETES)
+    assert "apply" not in fake.calls and tofu._base(ledger, "technitium-dns") is None
+
+
+def test_a_first_state_whose_plan_defers_a_guest_delete_is_never_adopted(fake: Fake,
+                                                                        tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "state")
+    path = tofu.local_state(ledger, "proxmox-core")
+    path.parent.mkdir(parents=True)
+    path.write_bytes(b"a copy of the monolith")
+    fake.plan = [guest(10030, cores=4), guest(10031, actions=["delete"])]
+    fake.approve()
+    assert run(fake, tmp_path).reason == tofu.UNADOPTED_DELETES
+    assert tofu._base(ledger, "proxmox-core") is None
+
+
+# --- computed-only attributes ----------------------------------------------------------------
+
+def _agent_update(vmid: int) -> dict[str, Any]:
+    entry = guest(vmid, kind=VM, cores=4)
+    entry["change"]["after_unknown"] = {"ipv4_addresses": True, "mac_addresses": True}
+    return entry
+
+
+def test_computed_only_attributes_never_make_a_guest_update_irreversible(fake: Fake,
+                                                                          tmp_path: Path) -> None:
+    fake.apply_error = True
+    fake.readonly = {VM: frozenset({"ipv4_addresses", "mac_addresses"})}
+    fake.plan = [_agent_update(10030)]
+    fake.approve()
+    operation = run(fake, tmp_path)
+    assert operation.outcome == "rolled-back", operation.reason
+    stack = tofu.STACKS["proxmox-core"]
+    found = tofu.changes({"resource_changes": [_agent_update(10030)]})
+    assert set(found[0]["delta"]) == {"cpu", "ipv4_addresses", "mac_addresses"}
+    assert not tofu.reversible(stack, found)  # without the schema it would not be
+    assert tofu.reversible(stack, found, fake.readonly)
+
+
+def test_the_schema_yields_only_computed_only_attributes(monkeypatch: pytest.MonkeyPatch,
+                                                         tmp_path: Path) -> None:
+    schema = {"provider_schemas": {"registry.opentofu.org/bpg/proxmox": {"resource_schemas": {VM: {
+        "block": {"attributes": {
+            "ipv4_addresses": {"computed": True},
+            "name": {"optional": True, "computed": True},
+            "vm_id": {"optional": True},
+            "node_name": {"required": True},
+        }}}}}}}
+    monkeypatch.setattr(tofu, "_tofu", lambda workdir, env, *args, timeout: subprocess.CompletedProcess(
+        args, 0, json.dumps(schema).encode(), b""))
+    space = tofu.Workspace(tofu.STACKS["proxmox-core"], tmp_path, {})
+    assert space.readonly() == {VM: frozenset({"ipv4_addresses"})}
+
+
+# --- permanent errors hold; unavailability backs off --------------------------------------------
+
+def test_merged_source_that_does_not_validate_is_held_and_alerts_once(fake: Fake, tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "state")
+    fake.invalid = True
+    fake.plan = [guest(10030, cores=4)]
+    first = tofu.pending(tmp_path, ledger=ledger)[0]
+    assert (first["outcome"], first["reason"]) == ("refused", tofu.INVALID)
+    assert fake.holds["proxmox-core"]["revision"] == REV
+    for _ in range(3):
+        assert tofu.pending(tmp_path, ledger=ledger)[0]["outcome"] == "held"
+    assert fake.alerts == ["skynet: tofu/proxmox-core held"]
+
+
+@pytest.mark.parametrize("returncode,stdout,code", [
+    (1, b'{"valid": false, "diagnostics": []}', writepath.USAGE),
+    (1, b"not json", UNAVAILABLE),
+])
+def test_validate_tells_a_bad_revision_from_a_broken_tool(monkeypatch: pytest.MonkeyPatch,
+                                                          tmp_path: Path, returncode: int,
+                                                          stdout: bytes, code: int) -> None:
+    monkeypatch.setattr(tofu, "_tofu", lambda workdir, env, *args, timeout: subprocess.CompletedProcess(
+        args, returncode, stdout, b""))
+    with pytest.raises(WriteError) as raised:
+        tofu.Workspace(tofu.STACKS["proxmox-core"], tmp_path, {}).validate()
+    assert raised.value.code == code
+
+
+def test_an_unavailable_stack_backs_off_and_reminds_daily(fake: Fake, tmp_path: Path,
+                                                          monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger = Ledger(tmp_path / "state")
+    clock = [1000.0]
+    monkeypatch.setattr(tofu, "_now", lambda: clock[0])
+
+    def broken(self: FakeSpace, state: Path) -> None:
+        self.host.calls.append("init")
+        raise WriteError("tofu init failed", UNAVAILABLE)
+
+    monkeypatch.setattr(FakeSpace, "init", broken)
+    assert tofu.pending(tmp_path, ledger=ledger)[0]["outcome"] == "refused"
+    fake.calls.clear()
+    assert tofu.pending(tmp_path, ledger=ledger)[0]["outcome"] == "backoff"
+    assert fake.calls == []  # no plan, no API call, until due
+    attempts = 1
+    while attempts < 40:  # a day and more of passes, every minute
+        clock[0] += 60
+        if tofu.pending(tmp_path, ledger=ledger)[0]["outcome"] != "backoff":
+            attempts += 1
+        if clock[0] > 1000 + 2 * 86400:
+            break
+    delays = 60 * sum(min(2 ** n, 60) for n in range(attempts))
+    assert attempts < 60 and delays > 86400  # doubled to hourly, never every minute
+    assert fake.alerts[0] == "skynet: tofu/proxmox-core unavailable 3 passes running"
+    assert 2 <= len(fake.alerts) <= 3  # the first alert, then one reminder a day
+
+
+# --- approvals bind to their inputs --------------------------------------------------------------
+
+def test_an_approval_made_for_other_inputs_is_refused(fake: Fake, tmp_path: Path) -> None:
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    fake.digest = "j" * 64  # a later PR changed the stack without re-approving
+    operation = run(fake, tmp_path)
+    assert (operation.outcome, operation.reason) == ("refused", tofu.STALE_APPROVAL)
+    assert "apply" not in fake.calls and fake.holds["proxmox-core"]["revision"] == REV
+
+
+def test_an_empty_plan_ignores_a_stale_approval(fake: Fake, tmp_path: Path) -> None:
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    fake.digest, fake.plan = "j" * 64, []  # e.g. an auto-merged revert back to applied inputs
+    assert run(fake, tmp_path).outcome == "success"
+
+
+def test_the_inputs_digest_follows_every_input_but_the_approval(clone: Path) -> None:
+    stack = tofu.STACKS["technitium-dns"]
+    (clone / "tofu/technitium-dns").mkdir(parents=True)
+    (clone / "compose/caddy-apps").mkdir(parents=True)
+    (clone / "tofu/technitium-dns/records.tf").write_text("# v1\n")
+    (clone / "compose/caddy-apps/Caddyfile").write_text("a.aliammar.net {\n}\n")
+    _git(clone, "add", "-A")
+    _git(clone, "commit", "-qm", "v1")
+    first = tofu.inputs_digest(clone, "HEAD", stack)
+    (clone / "tofu/technitium-dns/approved-plan.json").write_text("{}\n")
+    _git(clone, "add", "-A")
+    _git(clone, "commit", "-qm", "approve")
+    assert tofu.inputs_digest(clone, "HEAD", stack) == first
+    (clone / "compose/caddy-apps/Caddyfile").write_text("b.aliammar.net {\n}\n")
+    _git(clone, "commit", "-qam", "a Caddyfile edit")
+    assert tofu.inputs_digest(clone, "HEAD", stack) != first
+
+
+def test_approve_binds_inputs_and_writes_even_an_empty_plan(monkeypatch: pytest.MonkeyPatch,
+                                                           tmp_path: Path) -> None:
+    monkeypatch.setattr(deploy, "resolve", lambda repo, ref: REV)
+    monkeypatch.setattr(tofu, "inputs_digest", lambda repo, revision, stack: "d" * 64)
+    monkeypatch.setattr(tofu, "_read_only_plan", lambda *args, **kwargs: tofu.ReadOnlyPlan(
+        [], tofu.plan_hash("proxmox-core", [], ["g.x"]), "the plan", frozenset(), ["g.x"]))
+    (tmp_path / "tofu/proxmox-core").mkdir(parents=True)
+    out = io.StringIO()
+    assert tofu.run_plan(tmp_path, "proxmox-core", ref="HEAD", approve=True,
+                         state_dir_=tmp_path / "state", stdout=out) == writepath.OK
+    approval = json.loads((tmp_path / "tofu/proxmox-core" / tofu.APPROVED).read_text())
+    assert approval["inputs"] == "d" * 64 and approval["deferred"] == ["g.x"]
+    assert "deferred (hard checkpoint, not applied): g.x" in out.getvalue()
+
+
+def test_changed_selects_stacks_whose_approval_is_missing_or_stale(
+        monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    digests = {("HEAD", "proxmox-core"): "p2", ("main", "proxmox-core"): "p1",
+               ("HEAD", "technitium-dns"): "t1", ("main", "technitium-dns"): "t1",
+               ("HEAD", "cloudflare-dns"): "c2", ("main", "cloudflare-dns"): "c1"}
+    monkeypatch.setattr(deploy, "resolve", lambda repo, ref: "main" if ref == tofu.MAIN else ref)
+    monkeypatch.setattr(tofu, "inputs_digest",
+                        lambda repo, revision, stack: digests[(revision, stack.name)])
+    (tmp_path / "tofu/cloudflare-dns").mkdir(parents=True)
+    (tmp_path / "tofu/cloudflare-dns" / tofu.APPROVED).write_text('{"inputs": "c2"}')
+    # proxmox-core changed without an approval; technitium unchanged; cloudflare already current
+    assert tofu.changed_stacks(tmp_path, "HEAD") == ["proxmox-core"]
+
+
+# --- moves and imports land by their own event -----------------------------------------------
+
+def _moved(**after: Any) -> dict[str, Any]:
+    entry = change("a.c", CT, ["no-op"], **after)
+    entry["previous_address"] = "a.o"
+    return entry
+
+
+@pytest.mark.parametrize("remaining,landed", [
+    ([change("a.c", CT, ["update"], tags=["x"])], True),  # unrelated drift at the moved address
+    ([_moved()], False),                                  # the move again
+    ([change("a.c", CT, ["create"])], False),             # the address wanted whole again
+])
+def test_a_move_lands_by_its_own_event(remaining: list[dict[str, Any]], landed: bool) -> None:
+    approved = tofu.changes({"resource_changes": [_moved()]})
+    assert tofu.overlaps(approved, tofu.changes({"resource_changes": remaining})) is not landed
+
+
+def test_drift_beside_a_landed_import_is_drift_not_a_failed_import() -> None:
+    imported = change("a.d", CT, ["no-op"])
+    imported["change"]["importing"] = {"id": "1"}
+    approved = tofu.changes({"resource_changes": [imported]})
+    drift = tofu.changes({"resource_changes": [change("a.d", CT, ["update"], tags=["x"])]})
+    assert not tofu.overlaps(approved, drift)
+    assert tofu.overlaps(approved, tofu.changes({"resource_changes": [imported]}))
+
+
+# --- a stack with no state, data reads, local state healing, caches ----------------------------
+
+def test_an_empty_success_on_a_stack_with_no_state_is_recorded(clone: Path, tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "state")
+    tofu._record(clone, ledger, "cloudflare-dns", {"revision": REV}, "first empty apply")
+    assert tofu.applied(clone, "cloudflare-dns") == {"revision": REV}
+    assert tofu.branch_state(clone, "cloudflare-dns") is None
+    with pytest.raises(WriteError, match="no local tofu state"):  # state alone: nothing to push
+        tofu._record(clone, ledger, "cloudflare-dns", None, "m")
+
+
+def test_a_data_source_read_is_not_a_change() -> None:
+    read = change("data.proxmox_virtual_environment_nodes.all", "proxmox_virtual_environment_nodes",
+                  ["read"])
+    read["mode"] = "data"
+    assert tofu.changes({"resource_changes": [read]}) == []
+    stack = tofu.STACKS["proxmox-core"]
+    tofu.check(stack, tofu.changes({"resource_changes": [read, guest(10030, cores=4)]}), ())
+
+
+def test_each_pass_rebuilds_a_lost_local_state_without_an_apply(clone: Path, tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "state")
+    tofu.record_state(clone, "proxmox-core", b"v1", {"revision": REV}, "first")
+    results = real_persist(clone, ledger)  # a rebuilt ops VM's first pass
+    assert tofu.local_state(ledger, "proxmox-core").read_bytes() == b"v1"
+    assert tofu.classify(ledger, "proxmox-core", b"v1") == "same"
+    assert {"target": "tofu/proxmox-core", "outcome": "success",
+            "reason": "local state rebuilt from tofu-state"} in results
+
+
+def test_a_read_only_plan_rebuilds_a_lost_local_state(clone: Path, tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "state")
+    tofu.record_state(clone, "proxmox-core", b"v1", {"revision": REV}, "first")
+    copy = tofu._state_copy(clone, ledger, "proxmox-core", tmp_path)
+    assert copy.read_bytes() == b"v1"
+    assert tofu.local_state(ledger, "proxmox-core").read_bytes() == b"v1"
+
+
+def test_an_unwritable_plugin_cache_is_unavailable_not_a_crash(monkeypatch: pytest.MonkeyPatch,
+                                                               tmp_path: Path) -> None:
+    monkeypatch.setenv("SKYNET_SECRETS_DIR", str(tmp_path))
+    (tmp_path / "tofu-passphrase").write_text("p")
+    (tmp_path / "state").write_text("a file where the state directory should be")
+    with pytest.raises(WriteError) as raised:
+        tofu._env(tofu.STACKS["proxmox-core"], Ledger(tmp_path / "state"), credentials=False)
+    assert (raised.value.reason, raised.value.code) == ("tofu plugin cache unwritable", UNAVAILABLE)
+
+
+def test_one_stacks_local_failure_never_stops_the_others(fake: Fake, tmp_path: Path,
+                                                        monkeypatch: pytest.MonkeyPatch) -> None:
+    fake.inputs = {"proxmox-core": REV, "technitium-dns": NEW}
+    real_apply = tofu.apply
+
+    def apply(repo: Path, name: str, **kwargs: Any) -> Operation:
+        if name == "proxmox-core":
+            raise OSError("disk full")
+        return real_apply(repo, name, **kwargs)
+
+    monkeypatch.setattr(tofu, "apply", apply)
+    results = tofu.pending(tmp_path, ledger=Ledger(tmp_path / "state"))
+    assert [(r["target"], r["outcome"]) for r in results] == [
+        ("tofu/proxmox-core", "unavailable"), ("tofu/technitium-dns", "success")]
+
+
+@pytest.mark.parametrize("approval,ok", [
+    ({"stack": "proxmox-core", "hash": "a" * 64, "inputs": "b" * 64, "changes": [], "deferred": []}, True),
+    ({"stack": "proxmox-core", "hash": "a" * 64, "changes": []}, False),  # made before inputs bound
+    ({"stack": "proxmox-core", "hash": "a" * 64, "inputs": "b" * 64, "changes": [], "deferred": "x"},
+     False),
+])
+def test_the_gate_requires_an_approval_bound_to_its_inputs(tmp_path: Path, approval: dict[str, Any],
+                                                          ok: bool) -> None:
+    from skynet import gates
+    (tmp_path / "tofu/proxmox-core").mkdir(parents=True)
+    (tmp_path / "tofu/proxmox-core" / tofu.APPROVED).write_text(json.dumps(approval))
+    assert (gates.tofu_stacks(tmp_path, {}) == []) is ok

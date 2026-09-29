@@ -5,7 +5,8 @@ Git declares publication: a vhost block in `compose/caddy-apps/Caddyfile` (deplo
 and DNS records derived from both by OpenTofu. What git cannot hold is Authentik's per-vhost
 forward-auth objects; `publish` creates them (provider → application → embedded-outpost binding,
 additive only) and proves the route. `withdraw` is the one gated delete: after a PR has removed a
-vhost's declarations, it deletes the leftover application, provider, and public CNAME.
+vhost's declarations, it deletes the leftover Authentik application and provider (the vhost's DNS
+records are derived from git and deleted by `skynet tofu` when that PR merges).
 
 Authentik is reachable only from the apps front door (firewall rule 240), so its API is called
 with `curl -K -` inside the Caddy container; the bearer header and body travel on stdin.
@@ -340,12 +341,13 @@ def _public_dns(hosts: list[str]) -> dict[str, str]:
 @dataclass
 class _Withdrawn:
     authentik: AuthentikState | None = None
-    records: list[dict[str, Any]] = field(default_factory=list)
     deleted: list[str] = field(default_factory=list)
 
 
 def withdraw(repo: Path, vhost: str, confirm: str, *, context: str, ledger: Ledger) -> Operation:
-    """Delete what a removed vhost left behind. Git must no longer declare it; Ali confirms by name."""
+    """Delete the Authentik objects a removed vhost left behind. Git must no longer declare it; Ali
+    confirms by name. Its DNS records are not this path's: they are derived from git, so the PR
+    that removed the vhost carries their delete, and `skynet tofu` applies it."""
     if not _VHOST.fullmatch(vhost):
         return _refused(ledger, "withdraw", f"vhost/{vhost}", "invalid vhost")
     if confirm != vhost:
@@ -366,19 +368,13 @@ def withdraw(repo: Path, vhost: str, confirm: str, *, context: str, ledger: Ledg
             raise WriteError("vhost is still declared on origin/main; remove it by PR first", USAGE)
         values = authentik_credentials()
         parts["authentik"] = Authentik(context, values["AUTHENTIK_URL"], values["AUTHENTIK_TOKEN"])
-        parts["cloudflare"] = _cloudflare()
 
     def snapshot() -> _Withdrawn:
         state.authentik = read_authentik(parts["authentik"])
-        state.records = parts["cloudflare"].records(vhost)
-        if any(record.get("type") != "CNAME" for record in state.records):
-            raise WriteError("vhost has a non-CNAME public record; not withdrawn", FAILED)
-        operation.note("snapshot", "ok", json.dumps({"records": [
-            {k: r.get(k) for k in ("type", "name", "content", "proxied", "ttl")} for r in state.records]}))
         return state
 
     def execute(saved: _Withdrawn) -> None:
-        client, cloudflare = parts["authentik"], parts["cloudflare"]
+        client = parts["authentik"]
         assert saved.authentik is not None
         provider = saved.authentik.provider(vhost)
         if provider is not None:
@@ -388,29 +384,16 @@ def withdraw(repo: Path, vhost: str, confirm: str, *, context: str, ledger: Ledg
                 saved.deleted.append(f"application:{app['slug']}")
             client.call("DELETE", f"/providers/proxy/{provider['pk']}/")
             saved.deleted.append(f"provider:{provider['pk']}")
-        for record in saved.records:
-            cloudflare.call("DELETE", f"zones/{cloudflare.zone_id}/dns_records/{record['id']}")
-            saved.deleted.append(f"cname:{record['name']}")
 
     def verify(saved: _Withdrawn) -> dict[str, Any]:
-        if parts["cloudflare"].records(vhost):
-            raise WriteError("public record still present", FAILED)
         if read_authentik(parts["authentik"]).provider(vhost) is not None:
             raise WriteError("Authentik provider still present", FAILED)
-        return {"deleted": saved.deleted,
-                "not_touched": "internal Technitium record (the zone token cannot delete)"}
+        return {"deleted": saved.deleted}
 
     def rollback(saved: _Withdrawn, error: WriteError) -> str:
-        cloudflare = parts["cloudflare"]
-        restored = False
-        for record in saved.records:
-            if f"cname:{record['name']}" in saved.deleted:
-                cloudflare.call("POST", f"zones/{cloudflare.zone_id}/dns_records", {
-                    k: record[k] for k in ("type", "name", "content", "proxied", "ttl") if k in record})
-                restored = True
-        if any(item.startswith(("provider:", "application:")) for item in saved.deleted):
+        if saved.deleted:
             operation.note("rollback", "partial", "Authentik objects are not recreated; re-run publish")
-        return "rolled-back" if restored else "not-needed"
+        return "not-needed"
 
     return writepath.run(operation, ledger, preflight=preflight, snapshot=snapshot, execute=execute,
                          verify=verify, rollback=rollback, reconcile=lambda: {"idempotent": True})

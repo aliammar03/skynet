@@ -59,8 +59,9 @@ in
 
   # OpenTofu under ADR 0008: each minute, apply every stack whose merged inputs are not the applied
   # ones and whose re-plan matches the PR's approved hash (src/skynet/tofu.py). Its own unit and its
-  # own `tofu` lock, so an hours-long apply never delays a Docker deploy or a revert; an apply that
-  # reboots docker-dmz can overlap a deploy there, which then rolls itself back.
+  # own `tofu` lock, so an hours-long apply never delays a Docker deploy or a revert, except one that
+  # updates a Docker host's guest: it also holds the deploy lock and the host's fence until the host
+  # answers again, so no deploy there is ever verified mid-reboot.
   systemd.services.skynet-tofu = {
     description = "skynet tofu apply --pending (apply merged, hash-approved stacks)";
     wants = [ "network-online.target" ];
@@ -77,7 +78,7 @@ in
       SuccessExitStatus = [ 4 ];
       # = tofu.PASS_SECONDS: a stack starts only if its full worst case, apply plus rollback,
       # still fits (src/skynet/tofu.py); a test pins the two together.
-      TimeoutStartSec = "5h";
+      TimeoutStartSec = "6h";
     };
   };
   # NOT enabled: until the live LXC and VM rollback drills are recorded (SKY-025 P15), the executor

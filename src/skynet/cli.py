@@ -97,7 +97,10 @@ def build_parser() -> argparse.ArgumentParser:
     tofu_actions = tofu_command.add_subparsers(dest="action", required=True)
     tofu_plan = tofu_actions.add_parser(
         "plan", help="plan a committed stack and print its hash; --approve writes approved-plan.json")
-    tofu_plan.add_argument("stack", choices=sorted(tofu.STACKS))
+    tofu_plan_target = tofu_plan.add_mutually_exclusive_group(required=True)
+    tofu_plan_target.add_argument("stack", nargs="?", choices=sorted(tofu.STACKS))
+    tofu_plan_target.add_argument("--changed", action="store_true",
+                                  help="every stack whose approval is missing or stale at --ref")
     tofu_plan.add_argument("--ref", default="HEAD", help="committed revision to plan (default HEAD)")
     tofu_plan.add_argument("--approve", action="store_true",
                            help="write tofu/<stack>/approved-plan.json for the PR")
@@ -336,8 +339,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if arguments.command == "tofu":
         if arguments.action == "plan":
             return tofu.run_plan(arguments.repo, arguments.stack, ref=arguments.ref,
-                                 approve=arguments.approve, state_dir_=arguments.state_dir,
-                                 stdout=sys.stdout)
+                                 approve=arguments.approve, changed=arguments.changed,
+                                 state_dir_=arguments.state_dir, stdout=sys.stdout)
         if arguments.action == "drift":
             output = arguments.output if arguments.output.is_absolute() else arguments.repo / arguments.output
             return tofu.run_drift(arguments.repo, output=output, state_dir_=arguments.state_dir,

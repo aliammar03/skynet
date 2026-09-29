@@ -246,7 +246,7 @@ def engines(repo: Path, invariants: dict[str, Any]) -> list[str]:
 
 def tofu_stacks(repo: Path, invariants: dict[str, Any]) -> list[str]:
     """Every `tofu/<dir>` is a stack the executor knows (the directory is the scope), and every
-    approved plan names its own stack and a sha256."""
+    approved plan names its own stack, its hash, and the digest of the inputs it was made on."""
     from skynet import tofu  # the stack registry lives with its executor
 
     root = repo / "tofu"
@@ -266,10 +266,14 @@ def tofu_stacks(repo: Path, invariants: dict[str, Any]) -> list[str]:
             continue
         value = _json(approved)
         if not (isinstance(value, dict) and value.get("stack") == path.name
-                and isinstance(value.get("hash"), str) and re.fullmatch(r"[0-9a-f]{64}", value["hash"])
-                and isinstance(value.get("changes"), list)):
+                and all(isinstance(value.get(key), str) and re.fullmatch(r"[0-9a-f]{64}", value[key])
+                        for key in ("hash", "inputs"))
+                and isinstance(value.get("changes"), list)
+                and isinstance(value.get("deferred", []), list)
+                and all(isinstance(item, str) for item in value.get("deferred", []))):
             problems.append(f"tofu/{path.name}/{tofu.APPROVED}: needs its own stack, a sha256 hash, "
-                            "and a changes list (write it with `skynet tofu plan --approve`)")
+                            "an inputs digest, a changes list, and a list of deferred addresses "
+                            "(write it with `skynet tofu plan --approve`)")
     return problems
 
 

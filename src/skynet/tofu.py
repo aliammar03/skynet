@@ -3,21 +3,26 @@
 ADR 0008, OpenTofu half. One stack per actuator; the directory is the scope.
 
 - **plan** (the PR author): plan the committed tree, print it and its normalized-change hash;
-  `--approve` writes `tofu/<stack>/approved-plan.json`, which the PR carries. The merge approves it.
-- **apply** (the executor, after merge): plan the merged revision from git objects, require the
-  approved hash, refuse delete/replace/forget, excluded guests, and foreign resource types, save
-  each updated guest's config (and a disk-only fallback snapshot, unless a bind mount stops
-  Proxmox from taking one), apply that saved plan, and
-  require a clean re-plan. A failed apply, or a re-plan that still wants the approved change,
-  whose changes were all restorable guest updates writes the saved configs back; anything else
-  (including a re-plan dirty only elsewhere) has no automatic inverse, is held, and alerts.
+  `--approve` writes `tofu/<stack>/approved-plan.json` (the hash, bound to a digest of the stack's
+  inputs), which the PR carries. The merge approves it.
+- **apply** (the executor, after merge): validate and plan the merged revision from git objects,
+  require the approved hash and inputs, refuse excluded guests and foreign resource types, apply a
+  bounded number of deletes only of a stack's derived DNS records, and defer (exclude from the plan,
+  alert once) a guest's delete/replace/forget, a hard checkpoint that must never block the rest.
+  Save each updated guest's config (and a disk-only fallback snapshot, unless a bind mount stops
+  Proxmox from taking one); fence any Docker host among those guests against deploys; apply that
+  saved plan; require a clean re-plan and every fenced Docker host answering. A failed apply, a
+  re-plan that still wants the approved change, or a fenced host that never answers, whose changes
+  were all restorable guest updates, writes the saved configs back; anything else (including a
+  re-plan dirty only elsewhere) has no automatic inverse, is held, and alerts.
 - **record**: state is encrypted by OpenTofu at `/opt/skynet-ops/state/tofu/<stack>.tfstate` and
-  mirrored with `<stack>/applied.json` to the `tofu-state` branch. The branch is the truth: a
-  missing local file is rebuilt from it, and local writes on top of it are pushed first. A first
-  local state (no branch, no base) is pushed only by an apply at its stack that used it.
+  mirrored with `<stack>/applied.json` to the `tofu-state` branch. The branch is the truth: every
+  pass rebuilds a missing or stale local file from it, and pushes local writes on top of it. A
+  first local state (no branch, no base) is pushed only by an apply at its stack that used it.
 - **pending** (the skynet-tofu timer, under its own `tofu` lock): apply each stack whose newest
   input commit on main is not the applied one. A refusal holds that revision and alerts once,
-  until main moves; every hold alerts once, however it was set.
+  until main moves; every hold alerts once, however it was set. An unavailable stack backs off
+  (1 min doubling to 1 h), alerts on the third failure, and reminds daily.
 - **drift** (the nightly): a read-only plan per stack.
 """
 
@@ -32,12 +37,12 @@ import subprocess
 import tempfile
 import time
 from collections.abc import Callable, Collection, Iterator
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, TextIO, TypeVar
 
-from skynet import alert, common, deploy, dns, proxmox, publish, pve, writepath
+from skynet import alert, common, deploy, dns, proxmox, publish, pve, watch, writepath
 from skynet.common import CollectionError
 from skynet.deploy import MAIN
 from skynet.writepath import FAILED, OK, UNAVAILABLE, USAGE, Ledger, Operation, WriteError
@@ -50,7 +55,15 @@ PLAN_FILE = "skynet.tfplan"
 VERIFY_FILE = "skynet-verify.tfplan"
 GUEST_TYPES = {"proxmox_virtual_environment_container": "lxc", "proxmox_virtual_environment_vm": "qemu"}
 REFUSED_ACTIONS = {"delete", "forget"}
+MAX_DELETES = 3  # derived-record deletes per apply: a parse regression never wipes a zone
 ALERT_AFTER_FAILURES = 3
+BACKOFF_SECONDS, BACKOFF_MAX = 60, 3600  # an unavailable stack's retry: 1 min doubling to 1 h
+REMIND_SECONDS = 86400  # a stack still unavailable re-alerts daily after its first alert
+HOST_SETTLE_SECONDS = 600  # a fenced Docker host must answer this soon after an apply or restore
+HOST_DOWN = "a fenced Docker host did not answer after the apply"
+INVALID = "merged source does not validate (tofu validate); fix it in a new PR"
+STALE_APPROVAL = ("approved-plan.json was made for other inputs; re-run `skynet tofu plan "
+                  "--approve` on this tree in a new PR")
 UNVERIFIED = "post-apply plan could not run"
 DRIFTED = "post-apply plan is dirty outside the approved change (drift or a provider diff)"
 INDETERMINATE = "tofu apply did not finish (timed out or lost); remote work may still be running"
@@ -66,8 +79,8 @@ CONTENDED = frozenset({writepath.LOCK_BUSY, NOT_SETTLED, HELD})
 # so systemd never kills a rollback half-way. The worst case counts every wait: each tofu command's
 # timeout; per guest, every Proxmox task (the POST, the task wait, and a last poll that may start at
 # the deadline) plus the reads; and an allowance for each git call and alert.
-TOFU_SECONDS = {"init": 300, "plan": 900, "show": 120, "apply": 1800, "verify": 900,
-                "verify_show": 120}
+TOFU_SECONDS = {"init": 300, "validate": 120, "schema": 120, "plan": 900, "show": 120,
+                "replan": 900, "replan_show": 120, "apply": 1800, "verify": 900, "verify_show": 120}
 MAX_GUESTS = 5  # updated guests per apply; bounds the rollback time
 _TASK = 2 * pve.TIMEOUT + pve.TASK_SECONDS + pve.POLL_SECONDS  # POST, wait, a last in-flight poll
 GUEST_SECONDS = (3 * pve.TIMEOUT      # before: status, config, pending
@@ -76,9 +89,11 @@ GUEST_SECONDS = (3 * pve.TIMEOUT      # before: status, config, pending
                  + 3 * _TASK          # snapshot, prune, and one power task (reboot, start, or stop)
                  + pve.TASK_SECONDS + pve.TIMEOUT + pve.POLL_SECONDS)  # wait to see the power state
 GIT_CALLS, GIT_SECONDS, ALERTS = 60, 60, 4  # per stack: sync, record, hold, checkout; alerts
+# Every fenced host shares one settle deadline after the apply and one after a restore.
 STACK_BUDGET = (sum(TOFU_SECONDS.values()) + MAX_GUESTS * GUEST_SECONDS + GIT_CALLS * GIT_SECONDS
+                + 2 * HOST_SETTLE_SECONDS
                 + 120 + ALERTS * int(alert.TIMEOUT))  # 120: the source archive
-PASS_SECONDS = 5 * 3600
+PASS_SECONDS = 6 * 3600
 PASS_MARGIN = 300  # reporting, the exit, and systemd's own stop
 # Outcomes after a write ran: retrying could disrupt guests again or repeat a partial create.
 HELD_OUTCOMES = frozenset({"failed", "rolled-back", "rollback-failed"})
@@ -132,6 +147,9 @@ class Stack:
     inputs: tuple[str, ...]  # repo paths whose change needs a new plan (tofu/<stack> is implied)
     credentials: Callable[[], dict[str, str]]
     node: str | None = None  # a Proxmox stack's one node
+    # Types whose approved delete the executor applies: records derived from git, holding no
+    # payload, that the revert of their PR recreates. Every other delete is deferred.
+    deletable: frozenset[str] = frozenset()
 
     @property
     def paths(self) -> tuple[str, ...]:
@@ -141,9 +159,9 @@ class Stack:
 STACKS = {stack.name: stack for stack in (
     Stack("proxmox-core", frozenset(GUEST_TYPES), (), _proxmox_core_env, "server-proxmox-core"),
     Stack("technitium-dns", frozenset({"technitium_record"}), ("compose/caddy-apps/Caddyfile",),
-          _technitium_env),
+          _technitium_env, deletable=frozenset({"technitium_record"})),
     Stack("cloudflare-dns", frozenset({"cloudflare_dns_record"}), ("compose/cloudflared/config.yml",),
-          _cloudflare_env),
+          _cloudflare_env, deletable=frozenset({"cloudflare_dns_record"})),
 )}
 
 
@@ -203,9 +221,12 @@ def changes(plan: dict[str, Any], secret: bytes = b"") -> list[dict[str, Any]]:
     Each carries its full `after` (read for the VMID, node, and template checks) and its `delta`;
     only the delta is hashed, so untouched attributes' refresh values (a guest agent's IP and MAC
     lists) stay out. Sensitive values become keyed commitments (`secret`), so the hash follows them
-    without the plan revealing them."""
+    without the plan revealing them. A data source's read changes nothing: it is not a change
+    (which providers may run at all is the lock file's decision)."""
     found = []
     for entry in plan.get("resource_changes") or []:
+        if entry.get("mode") == "data":
+            continue
         change = entry.get("change") or {}
         actions = list(change.get("actions") or [])
         moved, importing = entry.get("previous_address"), change.get("importing")
@@ -226,9 +247,14 @@ def changes(plan: dict[str, Any], secret: bytes = b"") -> list[dict[str, Any]]:
 HASHED = ("address", "previous_address", "type", "actions", "importing", "delta")
 
 
-def plan_hash(stack: str, found: list[dict[str, Any]]) -> str:
+def plan_hash(stack: str, found: list[dict[str, Any]], deferred: Collection[str] = ()) -> str:
+    """The change set's identity. What a plan defers is part of it: approving a plan approves
+    leaving exactly those addresses for their hard checkpoint."""
     effect = [{key: item.get(key) for key in HASHED} for item in found]
-    canonical = json.dumps({"stack": stack, "changes": effect}, sort_keys=True, separators=(",", ":"))
+    value: dict[str, Any] = {"stack": stack, "changes": effect}
+    if deferred:
+        value["deferred"] = sorted(deferred)
+    canonical = json.dumps(value, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode()).hexdigest()
 
 
@@ -284,50 +310,81 @@ def _config_diff(before: dict[str, Any], after: dict[str, Any]) -> list[str]:
     return sorted(key for key in before.keys() | after.keys() if before.get(key) != after.get(key))
 
 
+WHOLE, MOVED, IMPORTED, DELETED = "*", "@moved", "@import", "@delete"
+
+
 def _touched(found: list[dict[str, Any]]) -> set[tuple[str, str]]:
-    """(address, attribute) pairs a change set moves; a create or an import touches the whole
-    resource ("*")."""
+    """(address, marker) pairs a change set moves: a create touches the whole resource (`*`), an
+    update its attributes, and a move, an import, or a delete only that event."""
     pairs: set[tuple[str, str]] = set()
     for item in found:
-        address = str(item.get("address"))
-        whole = "create" in item.get("actions", []) or item.get("importing") or not item.get("delta")
-        pairs |= {(address, "*")} if whole else {(address, key) for key in item["delta"]}
+        address, actions = str(item.get("address")), item.get("actions", [])
+        if "create" in actions:
+            pairs.add((address, WHOLE))
+            continue
+        if REFUSED_ACTIONS & set(actions):
+            pairs.add((address, DELETED))
+        if item.get("previous_address"):
+            pairs.add((address, MOVED))
+        if item.get("importing"):
+            pairs.add((address, IMPORTED))
+        if "update" in actions:
+            pairs |= {(address, key) for key in item.get("delta") or {}} or {(address, WHOLE)}
     return pairs
 
 
 def overlaps(approved: list[dict[str, Any]], remaining: list[dict[str, Any]]) -> bool:
     """Whether a post-apply plan still wants something the approved change moved: the change did
-    not land. A re-plan dirty only elsewhere is drift or a provider diff, not this change."""
+    not land. A create not landed shows up as anything at its address, and anything the change
+    touched wanted whole again (created anew) did not land either; a move, an import, or a delete
+    shows up only as that same event again. A re-plan dirty only elsewhere (including other
+    attributes of a moved or imported address) is drift or a provider diff, not this change."""
     done, left = _touched(approved), _touched(remaining)
+    created = {address for address, key in done if key == WHOLE}
     addresses = {address for address, _ in done}
-    return bool(done & left) or any(address in addresses and (key == "*" or (address, "*") in done)
+    return bool(done & left) or any(address in created or (key == WHOLE and address in addresses)
                                     for address, key in left)
 
 
-def _covered(item: dict[str, Any]) -> bool:
+def _covered(item: dict[str, Any], readonly: Collection[str] = ()) -> bool:
+    """Every attribute the update moves is one a config restore sets back. A computed-only
+    attribute (the provider's output, never configuration: a guest agent's address lists) is
+    re-read, not restored, so it never makes an update irreversible."""
     covers = RESTORE_COVERS.get(str(item["type"]), frozenset())
-    return all(key in covers or key.startswith("timeout_") for key in item.get("delta", {}))
+    return all(key in covers or key in readonly or key.startswith("timeout_")
+               for key in item.get("delta", {}))
 
 
-def reversible(stack: Stack, found: list[dict[str, Any]]) -> bool:
+def reversible(stack: Stack, found: list[dict[str, Any]],
+               readonly: dict[str, frozenset[str]] | None = None) -> bool:
     """True when every change is a state-only move, or an updated guest's change to attributes a
-    config restore sets back."""
+    config restore sets back (`readonly`: each type's computed-only attributes, from the
+    provider schema)."""
     snapshotted = {guest.vmid for guest in guests(stack, found)}
     for item in found:
         if item["actions"] == ["no-op"] and not item["importing"]:
             continue  # a move: state only
         if (item["type"] in GUEST_TYPES and item["actions"] == ["update"]
-                and _vmid(item) in snapshotted and _covered(item)):
+                and _vmid(item) in snapshotted
+                and _covered(item, (readonly or {}).get(str(item["type"]), frozenset()))):
             continue
         return False
     return True
 
 
+def deferrable(stack: Stack, item: dict[str, Any]) -> bool:
+    """A delete, replace, or forget the executor never applies (anything but a derived record of
+    this stack): excluded from the plan so it waits for its hard checkpoint without blocking the
+    rest of the stack."""
+    return bool(REFUSED_ACTIONS & set(item["actions"])) and item["type"] not in stack.deletable
+
+
 def refuse(stack: Stack, found: list[dict[str, Any]], excluded: Collection[int]) -> None:
-    """The refusals no approval overrides: delete/replace/forget, excluded guests, foreign types."""
+    """The refusals no approval overrides: an undeferred delete/replace/forget of anything but a
+    derived record, excluded guests, foreign types."""
     for item in found:
         address = item["address"]
-        if REFUSED_ACTIONS & set(item["actions"]):
+        if deferrable(stack, item):
             raise WriteError(f"{address}: delete/replace/forget is a hard checkpoint, never applied "
                              "by the executor", USAGE)
         if item["type"] not in stack.types:
@@ -350,6 +407,9 @@ def check(stack: Stack, found: list[dict[str, Any]], excluded: Collection[int]) 
     if len(guests(stack, found)) > MAX_GUESTS:
         raise WriteError(f"plan updates more than {MAX_GUESTS} existing guests; split it "
                          "so its rollback fits the time budget", USAGE)
+    if sum("delete" in item["actions"] for item in found) > MAX_DELETES:
+        raise WriteError(f"plan deletes more than {MAX_DELETES} records (a parse regression?); "
+                         "split it", USAGE)
 
 
 def excluded_guests(root: Path) -> set[int]:
@@ -378,15 +438,19 @@ def state_dir(ledger: Ledger) -> Path:
     return ledger.state_dir / "tofu"
 
 
-def _env(stack: Stack, *, credentials: bool = True) -> dict[str, str]:
+def _env(stack: Stack, ledger: Ledger, *, credentials: bool = True) -> dict[str, str]:
     try:
         passphrase = (_secrets() / "tofu-passphrase").read_text(encoding="utf-8").strip()
     except (OSError, UnicodeError):
         raise WriteError("tofu state passphrase unavailable", UNAVAILABLE) from None
     if not passphrase:
         raise WriteError("tofu state passphrase unavailable", UNAVAILABLE)
-    cache = Path(os.environ.get("HOME", "/tmp")) / ".cache/skynet/tofu-plugins"
-    cache.mkdir(parents=True, exist_ok=True)
+    # Beside the state it serves: persisted, and owned by the account that runs every pass.
+    cache = state_dir(ledger) / "plugins"
+    try:
+        cache.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        raise WriteError("tofu plugin cache unwritable", UNAVAILABLE) from None
     env = {key: os.environ[key] for key in ("PATH", "HOME") if key in os.environ}
     env.update({"TF_IN_AUTOMATION": "1", "TF_INPUT": "0", "TF_PLUGIN_CACHE_DIR": str(cache),
                 "TF_VAR_state_passphrase": passphrase})
@@ -448,17 +512,54 @@ class Workspace:
                        f"-backend-config=path={state}", timeout=TOFU_SECONDS["init"]),
                  "tofu init failed")
 
-    def plan(self) -> tuple[list[dict[str, Any]], str]:
-        """Save a plan in the workspace and return its changes and hash."""
-        _require(_tofu(self.dir, self.env, "plan", "-no-color", "-input=false",
-                       "-detailed-exitcode", f"-out={PLAN_FILE}", timeout=TOFU_SECONDS["plan"]),
-                 "tofu plan failed", 0, 2)
-        raw = _require(_tofu(self.dir, self.env, "show", "-json", PLAN_FILE, timeout=TOFU_SECONDS["show"]), "tofu show failed")
+    def validate(self) -> None:
+        """Static errors are the revision's own: USAGE, so the revision is held rather than
+        re-planned every pass. A validate that cannot run is UNAVAILABLE."""
+        result = _tofu(self.dir, self.env, "validate", "-json", "-no-color",
+                       timeout=TOFU_SECONDS["validate"])
+        if result.returncode == 0:
+            return
         try:
-            found = changes(json.loads(raw), self.env["TF_VAR_state_passphrase"].encode())
+            valid = json.loads(result.stdout).get("valid")
+        except (ValueError, AttributeError):
+            valid = None
+        if valid is False:
+            raise WriteError(INVALID, USAGE)
+        raise WriteError("tofu validate failed", UNAVAILABLE)
+
+    def readonly(self) -> dict[str, frozenset[str]]:
+        """Each resource type's computed-only attributes (provider output, never configuration),
+        from the provider schema. No credentials: the providers are not configured."""
+        raw = _require(_tofu(self.dir, self.env, "providers", "schema", "-json",
+                             timeout=TOFU_SECONDS["schema"]), "tofu providers schema failed")
+        try:
+            result = {}
+            for provider in json.loads(raw)["provider_schemas"].values():
+                for kind, schema in (provider.get("resource_schemas") or {}).items():
+                    attributes = (schema.get("block") or {}).get("attributes") or {}
+                    result[kind] = frozenset(
+                        name for name, spec in attributes.items()
+                        if spec.get("computed") and not spec.get("optional")
+                        and not spec.get("required"))
+            return result
+        except (ValueError, KeyError, TypeError, AttributeError):
+            raise WriteError("tofu providers schema unreadable", UNAVAILABLE) from None
+
+    def plan(self, exclude: Collection[str] = ()) -> list[dict[str, Any]]:
+        """Save a plan in the workspace (leaving out `exclude` and what depends on it) and return
+        its changes."""
+        _require(_tofu(self.dir, self.env, "plan", "-no-color", "-input=false",
+                       "-detailed-exitcode", f"-out={PLAN_FILE}",
+                       *(f"-exclude={address}" for address in exclude),
+                       timeout=TOFU_SECONDS["replan" if exclude else "plan"]),
+                 "tofu plan failed", 0, 2)
+        raw = _require(_tofu(self.dir, self.env, "show", "-json", PLAN_FILE,
+                             timeout=TOFU_SECONDS["replan_show" if exclude else "show"]),
+                       "tofu show failed")
+        try:
+            return changes(json.loads(raw), self.env["TF_VAR_state_passphrase"].encode())
         except (ValueError, AttributeError, TypeError):
             raise WriteError("tofu show returned an unreadable plan", UNAVAILABLE) from None
-        return found, plan_hash(self.stack.name, found)
 
     def show(self) -> str:
         return _require(_tofu(self.dir, self.env, "show", "-no-color", PLAN_FILE, timeout=TOFU_SECONDS["show"]), "tofu show failed").decode("utf-8", "replace")
@@ -500,15 +601,91 @@ class Workspace:
 
 
 @contextmanager
-def workspace(repo: Path, stack: Stack, revision: str, *, credentials: bool = True) -> Iterator[Workspace]:
-    env = _env(stack, credentials=credentials)
-    with deploy.checkout(repo, revision, *stack.paths, "invariants.json") as root:
-        if "SSL_CERT_FILE" in env:
-            # Go also loads every CA in SSL_CERT_DIR (default /etc/ssl/certs): an empty one makes
-            # the pinned certificate the only trust.
-            (root / ".no-system-ca").mkdir()
-            env["SSL_CERT_DIR"] = str(root / ".no-system-ca")
+def workspace(repo: Path, stack: Stack, revision: str, *, ledger: Ledger,
+              credentials: bool = True) -> Iterator[Workspace]:
+    env = _env(stack, ledger, credentials=credentials)
+    with ExitStack() as scope:
+        try:  # only the setup: an error inside the caller's body is the caller's to judge
+            root = scope.enter_context(deploy.checkout(repo, revision, *stack.paths,
+                                                       "invariants.json", "lab.json"))
+            if "SSL_CERT_FILE" in env:
+                # Go also loads every CA in SSL_CERT_DIR (default /etc/ssl/certs): an empty one
+                # makes the pinned certificate the only trust.
+                (root / ".no-system-ca").mkdir()
+                env["SSL_CERT_DIR"] = str(root / ".no-system-ca")
+        except OSError:
+            raise WriteError("tofu workspace unavailable", UNAVAILABLE) from None
         yield Workspace(stack, root, env)
+
+
+def planned(space: Workspace, stack: Stack) -> tuple[list[dict[str, Any]], str, list[str]]:
+    """The plan an approval and the executor both judge: every change except the deletes the
+    executor never applies, which (with anything depending on them) are excluded and returned as
+    deferred, so a pending hard checkpoint never blocks the rest of its stack. The hash covers
+    both."""
+    found = space.plan()
+    deferred = [str(item["address"]) for item in found if deferrable(stack, item)]
+    if not deferred:
+        return found, plan_hash(stack.name, found), []
+    kept = space.plan(exclude=deferred)
+    left = {str(item["address"]) for item in kept}
+    deferred = sorted({str(item["address"]) for item in found} - left)
+    return kept, plan_hash(stack.name, kept, deferred), deferred
+
+
+def inputs_digest(repo: Path, revision: str, stack: Stack) -> str:
+    """The identity of what a stack plans from at `revision`: every input blob but the approval
+    itself, so an approval binds to exactly the tree it was made on."""
+    listing = deploy._git(repo, "ls-tree", "-r", "--full-tree", revision, "--", *stack.paths,
+                          reason="git ls-tree of the stack inputs failed")
+    approval = f"tofu/{stack.name}/{APPROVED}"
+    kept = [line for line in listing.splitlines() if line.partition("\t")[2] != approval]
+    return hashlib.sha256("\n".join(kept).encode()).hexdigest()
+
+
+# --- host fences -----------------------------------------------------------------------------
+
+def docker_hosts(root: Path) -> dict[int, str]:
+    """lab.json's Docker hosts: guest VMID → Docker context (the host label)."""
+    try:
+        data = json.loads((root / "lab.json").read_text(encoding="utf-8"))
+        return {int(host["vmid"]): str(host["label"]) for host in data["docker_hosts"]["hosts"]}
+    except (OSError, ValueError, KeyError, TypeError):
+        raise WriteError("lab.json unreadable", UNAVAILABLE) from None
+
+
+def all_docker_hosts(repo: Path, root: Path) -> dict[int, str]:
+    """The revision's Docker hosts and main's together: a fence is never lifted by an older tree."""
+    with deploy.checkout(repo, MAIN, "lab.json") as main_root:
+        return {**docker_hosts(root), **docker_hosts(main_root)}
+
+
+def fences(stack: Stack, found: list[dict[str, Any]], hosts: dict[int, str]) -> list[str]:
+    """The Docker contexts whose host guest this change updates: a deploy there must wait."""
+    return sorted({hosts[guest.vmid] for guest in guests(stack, found) if guest.vmid in hosts})
+
+
+def _answers(context: str) -> bool:
+    try:
+        watch.docker_reachable(context)
+    except WriteError:
+        return False
+    return True
+
+
+HOST_POLL_SECONDS = 10
+
+
+def settle_hosts(contexts: Collection[str]) -> list[str]:
+    """The fenced Docker hosts that did not answer within HOST_SETTLE_SECONDS (one shared
+    deadline): a guest change that broke its host is a failed change."""
+    deadline = time.monotonic() + HOST_SETTLE_SECONDS
+    waiting = sorted(contexts)
+    while True:
+        waiting = [context for context in waiting if not _answers(context)]
+        if not waiting or time.monotonic() >= deadline:
+            return waiting
+        time.sleep(HOST_POLL_SECONDS)
 
 
 # --- the state branch ------------------------------------------------------------------------
@@ -604,12 +781,14 @@ def _json_bytes(value: dict[str, Any]) -> bytes:
     return (json.dumps(value, sort_keys=True, indent=2) + "\n").encode()
 
 
-def record_state(repo: Path, stack: str, state: bytes, record: dict[str, Any] | None,
+def record_state(repo: Path, stack: str, state: bytes | None, record: dict[str, Any] | None,
                  message: str, expect: str | None = None) -> str:
     """Commit this stack's state (and, after a success, its applied record, which also clears a
     hold on that same revision, and only that one, or an unreadable hold, which only a supervised
     `--ignore-hold` success can reach) in one commit."""
-    files: dict[str, bytes | None] = {f"{stack}/terraform.tfstate": state}
+    files: dict[str, bytes | None] = {}
+    if state is not None:  # None: a stack that holds nothing yet records only its revision
+        files[f"{stack}/terraform.tfstate"] = state
     if record is not None:
         files[f"{stack}/applied.json"] = _json_bytes(record)
         if held(repo, stack).get("revision") in (record.get("revision"), "*"):
@@ -715,6 +894,8 @@ def classify(ledger: Ledger, stack: str, remote: bytes | None) -> str:
 
 
 DIVERGED = "local tofu state and the tofu-state branch both changed; reconcile by hand"
+UNADOPTED_DELETES = ("local tofu state has no branch and no base, and its plan deletes; not "
+                     "adopted (a stray copy of another stack's state?)")
 UNADOPTED = ("local tofu state has no branch and no base; recorded only after an apply at its "
              "stack accepts it")
 
@@ -737,8 +918,7 @@ def sync_state(repo: Path, ledger: Ledger, stack: str) -> bytes | None:
     kind = classify(ledger, stack, remote)
     path = local_state(ledger, stack)
     if kind in ("missing", "stale"):
-        _write(path, remote)
-        _set_base(ledger, stack, remote)
+        _hydrate(ledger, stack, remote)
         return remote
     if kind == "diverged":
         raise WriteError(DIVERGED, UNAVAILABLE)
@@ -751,10 +931,24 @@ def sync_state(repo: Path, ledger: Ledger, stack: str) -> bytes | None:
     return _read(path)
 
 
+def _hydrate(ledger: Ledger, stack: str, remote: bytes | None) -> None:
+    """Make a missing or stale local cache the branch's state (the branch is the truth)."""
+    _write(local_state(ledger, stack), remote)
+    _set_base(ledger, stack, remote)
+
+
 def _state_copy(repo: Path, ledger: Ledger, stack: str, into: Path) -> Path:
-    """A read-only copy of the current state: pending local writes if any, else the branch."""
+    """A read-only copy of the current state: pending local writes if any, else the branch. A
+    missing or stale local cache is rebuilt on the way, when no write holds the tofu lock."""
     remote = branch_state(repo, stack) if fetch_state(repo) else None
     kind = classify(ledger, stack, remote)
+    if kind in ("missing", "stale") and remote is not None:
+        try:
+            with ledger.lock(LOCK):
+                if classify(ledger, stack, remote) in ("missing", "stale"):
+                    _hydrate(ledger, stack, remote)
+        except WriteError:
+            pass  # a write holds the lock (or the cache is unwritable): the copy still serves
     if kind == "diverged":
         raise WriteError(DIVERGED, UNAVAILABLE)
     content = _read(local_state(ledger, stack)) if kind in ("pending", "bootstrap") else remote
@@ -782,6 +976,9 @@ class _Saved:
     power: dict[pve.Guest, str] = field(default_factory=dict)
     config: dict[pve.Guest, dict[str, Any]] = field(default_factory=dict)
     excluded: frozenset[int] = frozenset()
+    deferred: list[str] = field(default_factory=list)  # hard checkpoints left out of the plan
+    readonly: dict[str, frozenset[str]] = field(default_factory=dict)  # computed-only attributes
+    fences: list[str] = field(default_factory=list)  # Docker contexts whose host is updated
 
 
 def _refused(ledger: Ledger, name: str, reason: str, code: int = USAGE, source: str = "") -> Operation:
@@ -809,29 +1006,51 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
     operation = Operation("tofu", f"tofu/{name}", target)
     saved = _Saved(snapshot=f"skynet-{operation.id}")
     state = local_state(ledger, name)
+    fence = ExitStack()  # the deploy lock and host fences, held until the write is recorded
     try:
-        with workspace(repo, stack, target) as space:
+        with workspace(repo, stack, target, ledger=ledger) as space, fence:
             def preflight() -> None:
                 if not deploy.merged(repo, target):
                     raise WriteError("revision is not merged to origin/main", USAGE)
                 saved.before = sync_state(repo, ledger, name)
                 if not ignore_hold and is_held(repo, name, target, ledger):  # re-checked in the lock
                     raise WriteError(HELD, UNAVAILABLE)
+                first = classify(ledger, name, branch_state(repo, name)) == "bootstrap"
                 space.init(state)
-                saved.found, saved.hash = space.plan()
+                space.validate()
+                saved.found, saved.hash, saved.deferred = planned(space, stack)
                 operation.context = {"stack": name, "hash": saved.hash, "snapshot": saved.snapshot,
-                                     "changes": summary(saved.found)}
+                                     "changes": summary(saved.found),
+                                     **({"deferred": saved.deferred} if saved.deferred else {})}
+                if first and (saved.deferred or any(
+                        REFUSED_ACTIONS & set(item["actions"]) for item in saved.found)):
+                    # A first state of unproven provenance (a stray copy of another root plans
+                    # deletes) is never adopted, and nothing it would delete is applied.
+                    raise WriteError(UNADOPTED_DELETES, USAGE)
                 if not saved.found:
                     return
                 approval = space.approved()
                 if approval is None:
                     raise WriteError(NO_APPROVAL, USAGE)
+                if approval.get("inputs") != inputs_digest(repo, target, stack):
+                    raise WriteError(STALE_APPROVAL, USAGE)
                 if approval.get("hash") != saved.hash:
                     raise WriteError(MISMATCH, USAGE)
                 saved.excluded = all_excluded(repo, space.root)
                 check(stack, saved.found, saved.excluded)
+                if guests(stack, saved.found):
+                    saved.readonly = space.readonly()
+                    saved.fences = fences(stack, saved.found, all_docker_hosts(repo, space.root))
 
             def snapshot() -> _Saved:
+                if saved.fences:
+                    # Before anything changes: a deploy on this host (whose verification the guest
+                    # change would fail, rolling back and opening a revert PR) waits for this write,
+                    # and watch sees the fence rather than an outage. Busy: retried next pass.
+                    fence.enter_context(ledger.lock())
+                    for context in saved.fences:
+                        fence.enter_context(ledger.lock(writepath.fence(context)))
+                    operation.context["fences"] = saved.fences
                 adopt(ledger, name)  # the approved (or empty) plan accepted this state
                 for guest in guests(stack, saved.found):
                     try:
@@ -881,10 +1100,16 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                         if overlaps(state_.found, remaining):
                             raise WriteError(NOT_LANDED, FAILED)
                         raise WriteError(DRIFTED, UNAVAILABLE)
+                if state_.fences:
+                    down = settle_hosts(state_.fences)
+                    if down:
+                        operation.note("hosts", "down", ", ".join(down))
+                        raise WriteError(HOST_DOWN, FAILED)
+                    operation.note("hosts", "ok", ", ".join(state_.fences))
                 return {"changes": len(state_.found), "hash": state_.hash, "post_apply_plan": "clean"}
 
             def rollback(state_: _Saved, error: WriteError) -> str:
-                if error.reason in UNSETTLED or not reversible(stack, state_.found):
+                if error.reason in UNSETTLED or not reversible(stack, state_.found, state_.readonly):
                     try:
                         _record(repo, ledger, name, None, f"tofu-state({name}): after failed "
                                 f"{operation.id}")
@@ -919,6 +1144,9 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                                              + ", ".join(waiting))
                     except WriteError as rollback_error:
                         failures.append(f"{guest}: {rollback_error.reason}")
+                if state_.fences and not failures:
+                    failures += [f"{context}: Docker host did not answer after the restore"
+                                 for context in settle_hosts(state_.fences)]
                 if failures:
                     try:
                         _record(repo, ledger, name, None, f"tofu-state({name}): after failed "
@@ -939,7 +1167,8 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
 
             def commit(state_: _Saved) -> None:
                 _prune(state_, operation, ledger)
-                record = {"revision": target, "hash": state_.hash, "operation": operation.id}
+                record = {"revision": target, "hash": state_.hash, "operation": operation.id,
+                          **({"deferred": state_.deferred} if state_.deferred else {})}
                 try:
                     _record(repo, ledger, name, record,
                             f"tofu-state({name}): {operation.id} applied {target[:12]}")
@@ -957,7 +1186,21 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
         _drop_intents(ledger, operation.id)  # resolved: a record now carries this operation
     if result.outcome in HELD_OUTCOMES or (result.outcome == "refused" and result.code != UNAVAILABLE):
         _hold(repo, ledger, name, target, str(result.reason), result)
+    if saved.deferred:
+        _announce_deferred(ledger, name, saved.deferred, result)
     return result
+
+
+def _announce_deferred(ledger: Ledger, name: str, deferred: list[str], operation: Operation) -> None:
+    """A deferred hard checkpoint alerts once per address: it waits for a human, never silently."""
+    new = [address for address in deferred if not _announced(ledger, f"{name}:deferred:{address}")]
+    if not new:
+        return
+    failure = alert.send(f"skynet: tofu/{name} deferred {len(new)} hard-checkpoint change(s)",
+                         "not applied (delete/replace/forget; a supervised path): "
+                         + ", ".join(new)[:800], priority=1)
+    operation.note("deferred", "announced", ", ".join(new)[:500])
+    operation.note("alert", "failed" if failure else "ok", failure)
 
 
 def _record(repo: Path, ledger: Ledger, stack: str, record: dict[str, Any] | None, message: str) -> None:
@@ -965,10 +1208,15 @@ def _record(repo: Path, ledger: Ledger, stack: str, record: dict[str, Any] | Non
     to it): a stale or diverged cache must never regress newer state, and a first state no apply
     at this stack adopted is never pushed."""
     state = _read(local_state(ledger, stack))
-    if state is None:
-        raise WriteError("no local tofu state to record", UNAVAILABLE)
     parent = state_head(repo)
     remote = branch_state(repo, stack) if parent else None
+    if state is None:
+        # A stack that has never held a resource: an empty plan's success records its revision
+        # alone. With state on the branch, a missing local file is a cache to rebuild, not this.
+        if remote is not None or record is None:
+            raise WriteError("no local tofu state to record", UNAVAILABLE)
+        record_state(repo, stack, None, record, message, expect=parent)
+        return
     kind = classify(ledger, stack, remote)
     if kind == "diverged":
         raise WriteError(DIVERGED, UNAVAILABLE)
@@ -1059,18 +1307,27 @@ def _clear_local_hold(ledger: Ledger, name: str, revision: str) -> None:
 
 
 def persist_pending(repo: Path, ledger: Ledger) -> list[dict[str, Any]]:
-    """Push local state the branch lacks (and an applied record whose push failed), under the
-    tofu lock, before any hold is consulted. It never runs infrastructure: a held revision stays
-    held, but its state still reaches git. The state branch is already fetched (`pending`)."""
+    """Make every stack's local state agree with the branch, under the tofu lock, before any hold
+    is consulted: rebuild a missing or stale cache from the branch (so a rebuilt ops VM heals on
+    its first pass), and push local state the branch lacks (and an applied record whose push
+    failed). It never runs infrastructure: a held revision stays held, but its state still reaches
+    git. The state branch is already fetched (`pending`)."""
     try:
         with ledger.lock(LOCK):
-            results, done = [], []
+            results: list[dict[str, Any]] = []
+            done: list[str] = []
             store = _store(_facts(ledger))
             for name in STACKS:
                 record = store.get(name) if isinstance(store.get(name), dict) else None
                 try:
                     remote = branch_state(repo, name)
-                    if classify(ledger, name, remote) != "pending" and record is None:
+                    kind = classify(ledger, name, remote)
+                    if kind in ("missing", "stale") and remote is not None:
+                        _hydrate(ledger, name, remote)
+                        results.append({"target": f"tofu/{name}", "outcome": "success",
+                                        "reason": "local state rebuilt from tofu-state"})
+                        kind = "same"
+                    if kind != "pending" and record is None:
                         continue
                     _record(repo, ledger, name, record,
                             f"tofu-state({name}): persist unpushed local state")
@@ -1221,17 +1478,57 @@ def _store(facts: dict[str, Any]) -> dict[str, Any]:
     return store
 
 
+def _now() -> float:
+    return time.time()
+
+
 def _set_failures(ledger: Ledger, name: str, revision: str, count: int) -> None:
-    """Consecutive `unavailable` passes for this revision (local; losing it only delays an alert).
-    Merged into the stack's fact so it never erases a local hold."""
+    """Reset this revision's count of consecutive `unavailable` passes (and with it the backoff
+    and the reminder clock). Merged into the stack's fact so it never erases a local hold."""
     def count_(facts: dict[str, Any]) -> None:
         known = facts.get(name)
         fact: dict[str, Any] = known if isinstance(known, dict) else {}
-        facts[name] = {**fact, "revision": revision, "failures": count}
+        kept = {key: value for key, value in fact.items() if key == "held"}
+        facts[name] = {**kept, "revision": revision, "failures": count}
     try:
         _update_facts(ledger, count_)
     except WriteError:
         pass
+
+
+def _bump(ledger: Ledger, name: str, revision: str) -> tuple[int, bool]:
+    """One more `unavailable` pass: (the count, whether to alert now). The stack is next tried
+    after a doubling backoff; the third failure alerts, and a failure persisting a day past its
+    last alert alerts again (local facts: losing them only delays an alert)."""
+    now = _now()
+
+    def bump(facts: dict[str, Any]) -> tuple[int, bool]:
+        known = facts.get(name)
+        fact: dict[str, Any] = known if isinstance(known, dict) else {}
+        if fact.get("revision") != revision:
+            fact = {key: value for key, value in fact.items() if key == "held"}
+        count = int(fact.get("failures", 0)) + 1
+        alerted = float(fact.get("alerted", 0))
+        due = count == ALERT_AFTER_FAILURES or (count > ALERT_AFTER_FAILURES
+                                                and now - alerted >= REMIND_SECONDS)
+        facts[name] = {**fact, "revision": revision, "failures": count,
+                       "due": now + min(BACKOFF_SECONDS * 2 ** (count - 1), BACKOFF_MAX),
+                       **({"alerted": now} if due else {})}
+        return count, due
+    try:
+        return _update_facts(ledger, bump)
+    except WriteError:
+        return 0, False
+
+
+def _backoff(ledger: Ledger, name: str, revision: str) -> float | None:
+    """When an unavailable revision is next due, if that is still ahead."""
+    known = _facts(ledger).get(name)
+    if isinstance(known, dict) and known.get("revision") == revision:
+        due = known.get("due")
+        if isinstance(due, int | float) and due > _now():
+            return float(due)
+    return None
 
 
 def _failures(ledger: Ledger, name: str, revision: str) -> int:
@@ -1315,17 +1612,16 @@ def _alert(result: dict[str, Any], title: str) -> None:
 
 
 def _count(ledger: Ledger, name: str, target: str, result: dict[str, Any]) -> None:
-    """Unavailability changes nothing live, so it is retried, never held. Waiting on another write
-    (the lock, an unsettled interruption) is not a failure at all. Any other outcome resets the
-    count; three `unavailable` passes in a row alert once."""
+    """Unavailability changes nothing live, so it is retried (with a backoff), never held. Waiting
+    on another write (the lock, an unsettled interruption) is not a failure at all. Any other
+    outcome resets the count; the third `unavailable` pass in a row alerts, then daily."""
     if result.get("code") != UNAVAILABLE or result.get("outcome") not in ("refused", "unavailable"):
         _set_failures(ledger, name, target, 0)
         return
     if result.get("reason") in CONTENDED:
         return
-    count = _failures(ledger, name, target) + 1
-    _set_failures(ledger, name, target, count)
-    if count == ALERT_AFTER_FAILURES:
+    count, due = _bump(ledger, name, target)
+    if due:
         _alert(result, f"skynet: tofu/{name} unavailable {count} passes running")
 
 
@@ -1342,27 +1638,41 @@ def pending(repo: Path, *, ledger: Ledger, deadline: float | None = None) -> lis
         target = input_revision(repo, stack)
         if target is None or applied(repo, name).get("revision") == target:
             continue
-        if deadline is not None and time.monotonic() + STACK_BUDGET > deadline:
-            results.append({"target": f"tofu/{name}", "source": target, "outcome": "deferred",
-                            "reason": "not enough of this pass left for a full apply and rollback"})
-            continue
-        if is_held(repo, name, target, ledger):
-            results.append(_held(repo, ledger, name, target))
-            continue
-        result = writepath.report(apply(repo, name, revision=target, ledger=ledger, refresh=False,
-                                        settle=False))
-        _count(ledger, name, target, result)
-        holds = {step.get("outcome") for step in result.get("steps", []) if step.get("step") == "hold"}
-        # A hold git refused already alerted in _hold; a durable hold alerts once here.
-        if "ok" in holds and result.get("outcome") not in writepath.ALARMS:
-            _alert(result, f"skynet: tofu/{name} held")
-        # Announced only when this result alerted: its hold step, or its own alarm. A hold it did
-        # not announce (a pre-apply hold a run left as `unavailable`) alerts through _held next pass.
-        if holds & {"ok", "failed"} or result.get("outcome") in writepath.ALARMS:
-            if is_held(repo, name, target, ledger):
-                _announced(ledger, _hold_key(repo, name, target))
-        results.append(result)
+        try:
+            results.append(_pending_stack(repo, ledger, name, target, deadline))
+        except OSError:  # one stack's local failure must never stop the others
+            result: dict[str, Any] = {"target": f"tofu/{name}", "source": target,
+                                      "outcome": "unavailable", "code": UNAVAILABLE,
+                                      "reason": "local tofu files unavailable"}
+            _count(ledger, name, target, result)
+            results.append(result)
     return results
+
+
+def _pending_stack(repo: Path, ledger: Ledger, name: str, target: str,
+                   deadline: float | None) -> dict[str, Any]:
+    if deadline is not None and time.monotonic() + STACK_BUDGET > deadline:
+        return {"target": f"tofu/{name}", "source": target, "outcome": "deferred",
+                "reason": "not enough of this pass left for a full apply and rollback"}
+    if is_held(repo, name, target, ledger):
+        return _held(repo, ledger, name, target)
+    due = _backoff(ledger, name, target)
+    if due is not None:
+        return {"target": f"tofu/{name}", "source": target, "outcome": "backoff",
+                "reason": f"unavailable; retried in {int(due - _now())} s"}
+    result = writepath.report(apply(repo, name, revision=target, ledger=ledger, refresh=False,
+                                    settle=False))
+    _count(ledger, name, target, result)
+    holds = {step.get("outcome") for step in result.get("steps", []) if step.get("step") == "hold"}
+    # A hold git refused already alerted in _hold; a durable hold alerts once here.
+    if "ok" in holds and result.get("outcome") not in writepath.ALARMS:
+        _alert(result, f"skynet: tofu/{name} held")
+    # Announced only when this result alerted: its hold step, or its own alarm. A hold it did
+    # not announce (a pre-apply hold a run left as `unavailable`) alerts through _held next pass.
+    if holds & {"ok", "failed"} or result.get("outcome") in writepath.ALARMS:
+        if is_held(repo, name, target, ledger):
+            _announced(ledger, _hold_key(repo, name, target))
+    return result
 
 
 def _hold_key(repo: Path, name: str, target: str) -> str:
@@ -1407,46 +1717,94 @@ def _held(repo: Path, ledger: Ledger, name: str, target: str) -> dict[str, Any]:
 
 # --- plan and drift (read-only) --------------------------------------------------------------
 
-def _read_only_plan(repo: Path, ledger: Ledger, stack: Stack, revision: str, *, approve: bool = False,
-                    ) -> tuple[list[dict[str, Any]], str, str, frozenset[int]]:
+@dataclass
+class ReadOnlyPlan:
+    found: list[dict[str, Any]]
+    hash: str
+    text: str
+    excluded: frozenset[int]
+    deferred: list[str]
+
+
+def _read_only_plan(repo: Path, ledger: Ledger, stack: Stack, revision: str, *,
+                    approve: bool = False) -> ReadOnlyPlan:
     """A plan against a copy of the state; with `approve`, also the excluded guests to check it
     against (the revision's and main's)."""
     with tempfile.TemporaryDirectory(prefix="skynet-tofu-") as tmp, \
-            workspace(repo, stack, revision) as space:
+            workspace(repo, stack, revision, ledger=ledger) as space:
         space.init(_state_copy(repo, ledger, stack.name, Path(tmp)))
-        found, digest = space.plan()
+        space.validate()
+        found, digest, deferred = planned(space, stack)
         excluded = all_excluded(repo, space.root) if approve and found else frozenset()
-        return found, digest, space.show(), excluded
+        return ReadOnlyPlan(found, digest, space.show(), excluded, deferred)
 
 
-def run_plan(repo: Path, name: str, *, ref: str, approve: bool, state_dir_: Path,
-             stdout: TextIO) -> int:
-    """The PR author's plan: print it and its hash; `--approve` writes approved-plan.json."""
-    stack = STACKS.get(name)
+def _approval(repo: Path, name: str) -> dict[str, Any] | None:
+    """The working tree's approved-plan.json, if readable."""
+    try:
+        value = json.loads((repo / "tofu" / name / APPROVED).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def changed_stacks(repo: Path, revision: str) -> list[str]:
+    """Stacks that need a (re-)approval at `revision`: inputs that differ from origin/main, or an
+    approval made for other inputs."""
+    main = deploy.resolve(repo, MAIN)
+    result = []
+    for name, stack in STACKS.items():
+        digest = inputs_digest(repo, revision, stack)
+        approval = _approval(repo, name)
+        if approval is not None and approval.get("inputs") == digest:
+            continue
+        if approval is not None or digest != inputs_digest(repo, main, stack):
+            result.append(name)
+    return result
+
+
+def run_plan(repo: Path, name: str | None, *, ref: str, approve: bool, state_dir_: Path,
+             stdout: TextIO, changed: bool = False) -> int:
+    """The PR author's plan: print it and its hash; `--approve` writes approved-plan.json, bound
+    to the stack's inputs at the planned revision (an empty plan too, so the approval stays
+    current). `--changed` plans every stack whose approval is missing or stale."""
+    if changed:
+        try:
+            names = changed_stacks(repo, deploy.resolve(repo, ref))
+        except WriteError as error:
+            print(f"tofu plan: {error.reason}", file=stdout)
+            return error.code
+        if not names:
+            print("tofu plan: every stack's approval matches its inputs", file=stdout)
+        return max((run_plan(repo, each, ref=ref, approve=approve, state_dir_=state_dir_,
+                             stdout=stdout) for each in names), default=OK)
+    stack = STACKS.get(name or "")
     if stack is None:
         print(f"tofu plan: unknown stack (one of {', '.join(STACKS)})", file=stdout)
         return USAGE
     try:
         revision = deploy.resolve(repo, ref)
-        found, digest, text, excluded = _read_only_plan(repo, Ledger(state_dir_), stack, revision,
-                                                        approve=approve)
+        planned_ = _read_only_plan(repo, Ledger(state_dir_), stack, revision, approve=approve)
     except WriteError as error:
         print(f"tofu/{name}: {error.reason}", file=stdout)
         return error.code
-    print(text.rstrip(), file=stdout)
-    print(f"\ntofu/{name}@{revision[:12]}: {len(found)} change(s), sha256:{digest}", file=stdout)
+    found = planned_.found
+    print(planned_.text.rstrip(), file=stdout)
+    print(f"\ntofu/{name}@{revision[:12]}: {len(found)} change(s), sha256:{planned_.hash}",
+          file=stdout)
+    for address in planned_.deferred:
+        print(f"  deferred (hard checkpoint, not applied): {address}", file=stdout)
     if approve:
-        if not found:
-            print("nothing to approve: the plan is empty", file=stdout)
-            return OK
         try:  # never approve what the executor would only refuse and hold
-            check(stack, found, excluded)
+            check(stack, found, planned_.excluded)
+            inputs = inputs_digest(repo, revision, stack)
         except WriteError as error:
             print(f"not approved: {error.reason}", file=stdout)
             return error.code
-        path = repo / "tofu" / name / APPROVED
+        path = repo / "tofu" / stack.name / APPROVED
         common.atomic_write_text(path, json.dumps(
-            {"stack": name, "hash": digest, "changes": summary(found)}, indent=2) + "\n")
+            {"stack": stack.name, "hash": planned_.hash, "inputs": inputs,
+             "changes": summary(found), "deferred": planned_.deferred}, indent=2) + "\n")
         print(f"wrote {path.relative_to(repo)}; commit it with the change", file=stdout)
     return OK
 
@@ -1463,13 +1821,15 @@ def run_drift(repo: Path, *, output: Path, state_dir_: Path, stdout: TextIO) -> 
         lines = [f"{name}: plan unavailable — {error.reason}" for name in STACKS]
     for name, stack in STACKS.items() if head else ():
         try:
-            found, digest, _, _ = _read_only_plan(repo, ledger, stack, head)
+            planned_ = _read_only_plan(repo, ledger, stack, head)
         except WriteError as error:
             lines.append(f"{name}: plan unavailable — {error.reason}")
             code = UNAVAILABLE
             continue
-        lines.append(f"{name}: {'no changes' if not found else f'{len(found)} change(s), sha256:{digest}'}")
+        found = planned_.found
+        lines.append(f"{name}: {'no changes' if not found else f'{len(found)} change(s), sha256:{planned_.hash}'}")
         lines += [f"  {item['address']}: {'/'.join(item['actions'])}" for item in found]
+        lines += [f"  {address}: deferred (hard checkpoint)" for address in planned_.deferred]
     text = f"# tofu drift at {head[:12] or 'unknown (origin/main unreadable)'}\n" + "\n".join(lines) + "\n"
     try:
         common.atomic_write_text(output, text)
@@ -1507,9 +1867,12 @@ def run_apply(repo: Path, name: str | None, *, revision: str | None, pending_all
             deploy.fetch(repo)
             results = pending(repo, ledger=ledger, deadline=deadline)
             _pass_failures(ledger, None)
-        except WriteError as error:  # the pass itself could not run (git, the state branch)
-            unavailable: dict[str, Any] = {"target": "tofu", "outcome": "unavailable",
-                                           "reason": error.reason, "code": error.code}
+        except (WriteError, OSError) as error:  # the pass itself could not run (git, state)
+            unavailable: dict[str, Any] = {
+                "target": "tofu", "outcome": "unavailable",
+                "reason": (error.reason if isinstance(error, WriteError)
+                           else "local tofu files unavailable"),
+                "code": error.code if isinstance(error, WriteError) else UNAVAILABLE}
             if _pass_failures(ledger, unavailable) is None:
                 return FAILED  # the count cannot be kept: let OnFailure alert instead
             results = [unavailable]

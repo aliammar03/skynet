@@ -87,6 +87,12 @@ class Operation:
         return {"ts": _now(), "phase": phase, **asdict(self)}
 
 
+def fence(context: str) -> str:
+    """The lock a write holds while it changes a Docker host's guest: watch reads it as "this
+    host is being changed on purpose", never as an outage."""
+    return f"fence-{context}"
+
+
 class Ledger:
     """The local operation record and the one lock serializing all write paths.
 
@@ -103,7 +109,9 @@ class Ledger:
     @contextmanager
     def lock(self, name: str = "write") -> Iterator[None]:
         """The `write` lock serializes the service write paths; `tofu` is OpenTofu's own, so a
-        long apply never delays a deploy. The record itself is shared (one-line appends)."""
+        long apply never delays a deploy, unless it updates a Docker host's guest: then it also
+        takes `write` and that host's `fence` (lock order: `tofu` before `write`, never the
+        reverse). The record itself is shared (one-line appends)."""
         try:
             self.state_dir.mkdir(parents=True, exist_ok=True)
             handle = open(self.state_dir / f"{name}.lock", "a")
@@ -121,10 +129,11 @@ class Ledger:
                     time.sleep(0.05)
             yield
 
-    def busy(self) -> bool:
-        """True while a write holds the lock (a read-only observer skips rather than race it)."""
+    def busy(self, name: str = "write") -> bool:
+        """True while a write holds the lock (a read-only observer skips rather than race it).
+        A flock dies with its holder, so a crashed write never leaves anything looking busy."""
         try:
-            handle = open(self.state_dir / "write.lock", "a")
+            handle = open(self.state_dir / f"{name}.lock", "a")
         except OSError:
             return False
         with handle:
