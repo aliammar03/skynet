@@ -37,7 +37,8 @@ it makes from it, and only when that plan's normalized-change hash equals the PR
 record is excluded from the plan (with whatever depends on it) and deferred; the deferred set is
 part of the hash. The hash covers each change's actions and
 the attributes it moves (before → after); refresh values of untouched attributes, such as a guest
-agent's IP lists, stay out, and an attribute known only after apply is bound by name. A failure is
+agent's IP lists, stay out; an attribute wholly known only after apply is bound by name, and a
+partly unknown block by all its known parts. A failure is
 rolled back only when every change was an updated guest's restorable attributes (computed-only
 attributes, from the provider schema, are provider output and never count) or a state-only move;
 anything else keeps its snapshots, records the state OpenTofu wrote, and alerts. Rollback is a config
@@ -55,7 +56,10 @@ address) is never rolled back: it alerts and holds, as does a post-apply check t
 update to a Docker host's guest (lab.json `docker_hosts`) also holds the `write` lock and the host's
 `fence-<context>` lock from before its snapshots until its record, so a deploy there waits and
 `skynet watch` skips the host rather than alert; it waits up to 10 min for the host to answer after
-the apply (and after a restore), and a host that never answers is a failed change. An apply updates at most five existing
+the apply (unless the approved change stops it) and after a restore (if it was running before),
+and a host that never answers is a failed change. A computed-only attribute never ties a re-plan
+to the approved change. A `tofu` that could not even be started changed nothing: its pre-apply
+hold is released and the stack is retried like any unavailability. An apply updates at most five existing
 guests, so a hung apply plus its full rollback fits the `skynet-tofu` unit's 6 h budget; a pass
 defers a stack it cannot finish. A revision is held in git before it executes, and only its recorded
 success clears the hold; every hold alerts once, however it was set (an unreadable `held.json` holds
