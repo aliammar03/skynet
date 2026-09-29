@@ -5,15 +5,17 @@ ADR 0008, OpenTofu half. One stack per actuator; the directory is the scope.
 - **plan** (the PR author): plan the committed tree, print it and its normalized-change hash;
   `--approve` writes `tofu/<stack>/approved-plan.json`, which the PR carries. The merge approves it.
 - **apply** (the executor, after merge): plan the merged revision from git objects, require the
-  approved hash, refuse delete/replace/forget, excluded guests, and foreign resource types,
-  snapshot every existing-guest update, apply that saved plan, and require a clean re-plan.
-  A failure whose changes were all snapshotted guest updates rolls back; anything else has no
-  automatic inverse and alerts.
+  approved hash, refuse delete/replace/forget, excluded guests, and foreign resource types, save
+  each updated guest's config (and a disk-only fallback snapshot), apply that saved plan, and
+  require a clean re-plan. A failed apply, or a re-plan that still wants the approved change,
+  whose changes were all restorable guest updates writes the saved configs back; anything else
+  (including a re-plan dirty only elsewhere) has no automatic inverse, is held, and alerts.
 - **record**: state is encrypted by OpenTofu at `/opt/skynet-ops/state/tofu/<stack>.tfstate` and
   mirrored with `<stack>/applied.json` to the `tofu-state` branch. The branch is the truth: a
   missing local file is rebuilt from it, and a local file the branch lacks is pushed first.
-- **pending** (the 30 s deploy timer): apply each stack whose newest input commit on main is not
-  the applied one. A refusal holds that revision and alerts once, until main moves.
+- **pending** (the skynet-tofu timer, under its own `tofu` lock): apply each stack whose newest
+  input commit on main is not the applied one. A refusal holds that revision and alerts once,
+  until main moves; every hold alerts once, however it was set.
 - **drift** (the nightly): a read-only plan per stack.
 """
 
@@ -27,7 +29,7 @@ import signal
 import subprocess
 import tempfile
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Collection, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -44,26 +46,33 @@ SECRETS = Path("/opt/skynet-ops/secrets")
 CERTS = Path("/opt/skynet-ops/certs")
 APPROVED = "approved-plan.json"
 PLAN_FILE = "skynet.tfplan"
+VERIFY_FILE = "skynet-verify.tfplan"
 GUEST_TYPES = {"proxmox_virtual_environment_container": "lxc", "proxmox_virtual_environment_vm": "qemu"}
 REFUSED_ACTIONS = {"delete", "forget"}
 ALERT_AFTER_FAILURES = 3
 UNVERIFIED = "post-apply plan could not run"
+DRIFTED = "post-apply plan is dirty outside the approved change (drift or a provider diff)"
 INDETERMINATE = "tofu apply did not finish (timed out or lost); remote work may still be running"
 HELD = "revision is held; awaiting a new merge (or a supervised --ignore-hold)"
 # Outcomes that mean "we do not know what is live": never roll back over them.
-UNSETTLED = frozenset({UNVERIFIED, INDETERMINATE})
+UNSETTLED = frozenset({UNVERIFIED, INDETERMINATE, DRIFTED})
+NOT_LANDED = "post-apply plan still wants the approved change"
+LOCK = "tofu"  # OpenTofu's own write lock (writepath.Ledger.lock)
 NOT_SETTLED = "an interrupted tofu apply is not settled yet; retrying next pass"
 CONTENDED = frozenset({writepath.LOCK_BUSY, NOT_SETTLED, HELD})
 # The time budget. The skynet-tofu unit's TimeoutStartSec is PASS_SECONDS (nix/modules/timers.nix;
 # a test pins them together). A stack starts only if its worst case still fits before the deadline,
 # so systemd never kills a rollback half-way. The worst case counts every wait: each tofu command's
 # timeout; per guest, every Proxmox task (the POST, the task wait, and a last poll that may start at
-# the deadline) plus the status reads; and an allowance for each git call and alert.
-TOFU_SECONDS = {"init": 300, "plan": 900, "show": 120, "apply": 1800, "verify": 900}
-MAX_GUESTS = 5  # snapshotted guests per apply; bounds the rollback time
+# the deadline) plus the reads; and an allowance for each git call and alert.
+TOFU_SECONDS = {"init": 300, "plan": 900, "show": 120, "apply": 1800, "verify": 900,
+                "verify_show": 120}
+MAX_GUESTS = 5  # updated guests per apply; bounds the rollback time
 _TASK = 2 * pve.TIMEOUT + pve.TASK_SECONDS + pve.POLL_SECONDS  # POST, wait, a last in-flight poll
-GUEST_SECONDS = (3 * pve.TIMEOUT                              # status + config before, config after
-                 + 3 * _TASK                                  # snapshot, rollback, prune
+GUEST_SECONDS = (3 * pve.TIMEOUT      # before: status, config, pending
+                 + 4 * pve.TIMEOUT    # restore: config, PUT, pending, status
+                 + 2 * pve.TIMEOUT    # proof: config, pending
+                 + 3 * _TASK          # snapshot, prune, and one power task (reboot, start, or stop)
                  + pve.TASK_SECONDS + pve.TIMEOUT + pve.POLL_SECONDS)  # wait to see the power state
 GIT_CALLS, GIT_SECONDS, ALERTS = 60, 60, 4  # per stack: sync, record, hold, checkout; alerts
 STACK_BUDGET = (sum(TOFU_SECONDS.values()) + MAX_GUESTS * GUEST_SECONDS + GIT_CALLS * GIT_SECONDS
@@ -165,22 +174,40 @@ def _mask(value: Any, sensitive: Any, secret: bytes) -> Any:
     return value
 
 
+UNKNOWN = "(known after apply)"
+
+
+def _has_unknown(value: Any) -> bool:
+    """True only for a `true` leaf: tofu writes a fully known nested block as `[{}]`."""
+    if value is True:
+        return True
+    if isinstance(value, dict):
+        return any(_has_unknown(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_has_unknown(item) for item in value)
+    return False
+
+
 def _delta(before: Any, after: Any, unknown: Any) -> dict[str, Any]:
     """The top-level attributes this change actually moves, as before → after. A hand edit to an
-    attribute the PR did not touch makes it appear here, so the hash no longer matches."""
+    attribute the PR did not touch makes it appear here, so the hash no longer matches. An
+    attribute known only after apply is recorded as such, without its refreshed `before`."""
     before = before if isinstance(before, dict) else {}
     after = after if isinstance(after, dict) else {}
     unknown = unknown if isinstance(unknown, dict) else {}
+    pending = {key for key, value in unknown.items() if _has_unknown(value)}
     keys = {key for key in before.keys() | after.keys() if before.get(key) != after.get(key)}
-    keys |= {key for key, value in unknown.items() if value}
-    return {key: {"before": before.get(key), "after": after.get(key)} for key in sorted(keys)}
+    return {key: ({"after": UNKNOWN} if key in pending
+                  else {"before": before.get(key), "after": after.get(key)})
+            for key in sorted(keys | pending)}
 
 
 def changes(plan: dict[str, Any], secret: bytes = b"") -> list[dict[str, Any]]:
     """Every resource change that does something (moves and imports included), in address order.
-    Each carries its full `after` and, for the attributes it actually changes, their `before`:
-    untouched attributes' refresh values stay out. Sensitive values become keyed commitments
-    (`secret`), so the hash follows them without the plan revealing them."""
+    Each carries its full `after` (read for the VMID, node, and template checks) and its `delta`;
+    only the delta is hashed, so untouched attributes' refresh values (a guest agent's IP and MAC
+    lists) stay out. Sensitive values become keyed commitments (`secret`), so the hash follows them
+    without the plan revealing them."""
     found = []
     for entry in plan.get("resource_changes") or []:
         change = entry.get("change") or {}
@@ -200,8 +227,12 @@ def changes(plan: dict[str, Any], secret: bytes = b"") -> list[dict[str, Any]]:
     return sorted(found, key=lambda item: str(item["address"]))
 
 
+HASHED = ("address", "previous_address", "type", "actions", "importing", "delta")
+
+
 def plan_hash(stack: str, found: list[dict[str, Any]]) -> str:
-    canonical = json.dumps({"stack": stack, "changes": found}, sort_keys=True, separators=(",", ":"))
+    effect = [{key: item.get(key) for key in HASHED} for item in found]
+    canonical = json.dumps({"stack": stack, "changes": effect}, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode()).hexdigest()
 
 
@@ -226,7 +257,7 @@ def _vmid(item: dict[str, Any]) -> int | None:
 
 
 def guests(stack: Stack, found: list[dict[str, Any]]) -> list[pve.Guest]:
-    """The existing guests an update changes: the ones to snapshot. Templates cannot be."""
+    """The existing guests an update changes: the ones whose config is saved. Templates are not."""
     result = []
     for item in found:
         after = _after(item)
@@ -237,12 +268,11 @@ def guests(stack: Stack, found: list[dict[str, Any]]) -> list[pve.Guest]:
     return result
 
 
-# The top-level attributes a Proxmox snapshot rollback restores (the guest's own config; power state
-# is restored separately). Anything else, such as pool membership, a disk resize, or a template
-# conversion, lives outside the snapshot, so a change to it has no automatic inverse. This list is
-# trusted only to choose the path: every rollback is then proved by comparing the guest's whole
-# config with its pre-snapshot copy.
-SNAPSHOT_COVERS = {
+# The top-level attributes a config restore (pve.restore) sets back: plain guest config keys, plus
+# power state. Anything else, such as pool membership, a disk resize (disks cannot shrink), or a
+# template conversion, has no automatic inverse. This list is trusted only to choose the path:
+# every rollback is then proved by comparing the guest's whole config with its pre-apply copy.
+RESTORE_COVERS = {
     "proxmox_virtual_environment_container": frozenset({
         "console", "cpu", "description", "features", "initialization", "memory",
         "network_interface", "operating_system", "started", "startup", "tags"}),
@@ -258,14 +288,34 @@ def _config_diff(before: dict[str, Any], after: dict[str, Any]) -> list[str]:
     return sorted(key for key in before.keys() | after.keys() if before.get(key) != after.get(key))
 
 
+def _touched(found: list[dict[str, Any]]) -> set[tuple[str, str]]:
+    """(address, attribute) pairs a change set moves; a create or an import touches the whole
+    resource ("*")."""
+    pairs: set[tuple[str, str]] = set()
+    for item in found:
+        address = str(item.get("address"))
+        whole = "create" in item.get("actions", []) or item.get("importing") or not item.get("delta")
+        pairs |= {(address, "*")} if whole else {(address, key) for key in item["delta"]}
+    return pairs
+
+
+def overlaps(approved: list[dict[str, Any]], remaining: list[dict[str, Any]]) -> bool:
+    """Whether a post-apply plan still wants something the approved change moved: the change did
+    not land. A re-plan dirty only elsewhere is drift or a provider diff, not this change."""
+    done, left = _touched(approved), _touched(remaining)
+    addresses = {address for address, _ in done}
+    return bool(done & left) or any(address in addresses and (key == "*" or (address, "*") in done)
+                                    for address, key in left)
+
+
 def _covered(item: dict[str, Any]) -> bool:
-    covers = SNAPSHOT_COVERS.get(str(item["type"]), frozenset())
+    covers = RESTORE_COVERS.get(str(item["type"]), frozenset())
     return all(key in covers or key.startswith("timeout_") for key in item.get("delta", {}))
 
 
 def reversible(stack: Stack, found: list[dict[str, Any]]) -> bool:
-    """True when every change is a state-only move, or a snapshotted guest update that changes
-    only attributes the snapshot restores."""
+    """True when every change is a state-only move, or an updated guest's change to attributes a
+    config restore sets back."""
     snapshotted = {guest.vmid for guest in guests(stack, found)}
     for item in found:
         if item["actions"] == ["no-op"] and not item["importing"]:
@@ -277,7 +327,7 @@ def reversible(stack: Stack, found: list[dict[str, Any]]) -> bool:
     return True
 
 
-def refuse(stack: Stack, found: list[dict[str, Any]], excluded: set[int]) -> None:
+def refuse(stack: Stack, found: list[dict[str, Any]], excluded: Collection[int]) -> None:
     """The refusals no approval overrides: delete/replace/forget, excluded guests, foreign types."""
     for item in found:
         address = item["address"]
@@ -373,7 +423,11 @@ class Workspace:
         return self.root / "tofu" / self.stack.name
 
     def init(self, state: Path) -> None:
-        _require(_tofu(self.dir, self.env, "init", "-no-color", "-input=false", "-lockfile=readonly",
+        # Provider install talks to the public registry: no pin, no API credentials.
+        registry = {key: value for key, value in self.env.items()
+                    if not key.startswith("SSL_CERT_")
+                    and (not key.startswith("TF_VAR_") or key == "TF_VAR_state_passphrase")}
+        _require(_tofu(self.dir, registry, "init", "-no-color", "-input=false", "-lockfile=readonly",
                        f"-backend-config=path={state}", timeout=TOFU_SECONDS["init"]),
                  "tofu init failed")
 
@@ -400,16 +454,22 @@ class Workspace:
             raise WriteError(INDETERMINATE, UNAVAILABLE) from None
         _require(result, "tofu apply failed", 0)
 
-    def clean(self) -> None:
+    def clean(self) -> list[dict[str, Any]]:
+        """The post-apply plan's changes ([] when clean). Any failure to read it is UNVERIFIED:
+        nothing then says the apply was wrong."""
         try:
             result = _tofu(self.dir, self.env, "plan", "-no-color", "-input=false",
-                           "-detailed-exitcode", timeout=TOFU_SECONDS["verify"])
-        except WriteError:  # timed out or could not start: the check never ran
+                           "-detailed-exitcode", f"-out={VERIFY_FILE}", timeout=TOFU_SECONDS["verify"])
+            if result.returncode == 0:
+                return []
+            if result.returncode != 2:
+                raise WriteError(UNVERIFIED, UNAVAILABLE)
+            raw = _require(_tofu(self.dir, self.env, "show", "-json", VERIFY_FILE,
+                                 timeout=TOFU_SECONDS["verify_show"]), UNVERIFIED)
+            found = changes(json.loads(raw), self.env["TF_VAR_state_passphrase"].encode())
+        except (WriteError, ValueError, AttributeError, TypeError, KeyError):
             raise WriteError(UNVERIFIED, UNAVAILABLE) from None
-        if result.returncode == 2:
-            raise WriteError("post-apply plan is not clean", FAILED)
-        if result.returncode != 0:  # the check could not run: nothing says the apply was wrong
-            raise WriteError(UNVERIFIED, UNAVAILABLE)
+        return found or [{"address": "(unreadable)", "delta": {}}]  # exit 2 is never "clean"
 
     def approved(self) -> dict[str, Any] | None:
         path = self.dir / APPROVED
@@ -426,6 +486,11 @@ class Workspace:
 def workspace(repo: Path, stack: Stack, revision: str, *, credentials: bool = True) -> Iterator[Workspace]:
     env = _env(stack, credentials=credentials)
     with deploy.checkout(repo, revision, *stack.paths, "invariants.json") as root:
+        if "SSL_CERT_FILE" in env:
+            # Go also loads every CA in SSL_CERT_DIR (default /etc/ssl/certs): an empty one makes
+            # the pinned certificate the only trust.
+            (root / ".no-system-ca").mkdir()
+            env["SSL_CERT_DIR"] = str(root / ".no-system-ca")
         yield Workspace(stack, root, env)
 
 
@@ -479,7 +544,8 @@ def state_head(repo: Path) -> str:
     return deploy._git(repo, "rev-parse", STATE_REF, reason="state branch unreadable")
 
 
-STATE_MOVED = "the tofu-state branch moved since it was checked; not recorded (retried next pass)"
+STATE_MOVED = ("the tofu-state branch moved since it was checked, or origin is unreachable; "
+               "not recorded (retried next pass)")
 
 
 def write_branch(repo: Path, files: dict[str, bytes | None], message: str,
@@ -487,9 +553,9 @@ def write_branch(repo: Path, files: dict[str, bytes | None], message: str,
     """Commit `files` (None removes one) to the state branch; fast-forward only, never the
     working tree. With `expect` (a commit, or "" for no branch) it is a compare-and-swap: a branch
     that moved since the caller checked it is refused, never silently rebased onto."""
-    parent = state_head(repo) or None
-    if expect is not None and (parent or "") != expect:
-        raise WriteError(STATE_MOVED, UNAVAILABLE)
+    # With `expect` the caller has just fetched: it is the parent, and the fast-forward-only push
+    # refuses the commit if the branch has moved since.
+    parent = (state_head(repo) if expect is None else expect) or None
     with tempfile.TemporaryDirectory(prefix="skynet-state-") as tmp:
         env = {**os.environ, "GIT_INDEX_FILE": str(Path(tmp) / "index")}
 
@@ -511,7 +577,8 @@ def write_branch(repo: Path, files: dict[str, bytes | None], message: str,
             return parent
         commit = git("commit-tree", tree, *(["-p", parent] if parent else []), "-m", message)
     deploy._git(repo, "push", "--quiet", "origin", f"{commit}:refs/heads/{STATE_BRANCH}",
-                reason="state branch push failed (not a fast-forward, or origin unreachable)")
+                reason=STATE_MOVED if expect is not None else
+                "state branch push failed (not a fast-forward, or origin unreachable)")
     deploy._git(repo, "update-ref", STATE_REF, commit, reason="state branch unreadable")
     return commit
 
@@ -523,11 +590,12 @@ def _json_bytes(value: dict[str, Any]) -> bytes:
 def record_state(repo: Path, stack: str, state: bytes, record: dict[str, Any] | None,
                  message: str, expect: str | None = None) -> str:
     """Commit this stack's state (and, after a success, its applied record, which also clears a
-    hold on that same revision, and only that one) in one commit."""
+    hold on that same revision, and only that one, or an unreadable hold, which only a supervised
+    `--ignore-hold` success can reach) in one commit."""
     files: dict[str, bytes | None] = {f"{stack}/terraform.tfstate": state}
     if record is not None:
         files[f"{stack}/applied.json"] = _json_bytes(record)
-        if held(repo, stack).get("revision") == record.get("revision"):
+        if held(repo, stack).get("revision") in (record.get("revision"), "*"):
             files[f"{stack}/held.json"] = None
     return write_branch(repo, files, message, expect)
 
@@ -543,6 +611,9 @@ def held(repo: Path, stack: str) -> dict[str, Any]:
     except ValueError:
         return {"revision": "*", "reason": "unreadable hold"}  # fail closed: hold everything
     return value if isinstance(value, dict) else {"revision": "*", "reason": "unreadable hold"}
+
+
+PREHOLD = "apply in progress; a recorded success clears this"
 
 
 def set_hold(repo: Path, stack: str, revision: str, reason: str, operation: str) -> None:
@@ -676,6 +747,7 @@ class _Saved:
     taken: list[pve.Guest] = field(default_factory=list)
     power: dict[pve.Guest, str] = field(default_factory=dict)
     config: dict[pve.Guest, dict[str, Any]] = field(default_factory=dict)
+    excluded: frozenset[int] = frozenset()
 
 
 def _refused(ledger: Ledger, name: str, reason: str, code: int = USAGE, source: str = "") -> Operation:
@@ -720,7 +792,8 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                     raise WriteError(NO_APPROVAL, USAGE)
                 if approval.get("hash") != saved.hash:
                     raise WriteError(MISMATCH, USAGE)
-                refuse(stack, saved.found, excluded_guests(space.root))
+                saved.excluded = frozenset(excluded_guests(space.root))
+                refuse(stack, saved.found, saved.excluded)
                 if len(guests(stack, saved.found)) > MAX_GUESTS:
                     raise WriteError(f"plan updates more than {MAX_GUESTS} existing guests; split it "
                                      "so its rollback fits the time budget", USAGE)
@@ -730,12 +803,18 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                     try:
                         saved.power[guest] = pve.status(guest)
                         saved.config[guest] = pve.config(guest)
+                        if pve.pending(guest):  # a restore could not prove it came back
+                            raise WriteError(f"{guest} has pending config changes; apply or "
+                                             "revert them first", USAGE)
                         saved.taken.append(guest)  # before the request: a failed create may leave one
                         # Durable before the request: a crash here (before the `started` record)
                         # leaves an intent the next pass cleans up.
                         _intend(ledger, guest, saved.snapshot, operation.id)
-                        pve.create(guest, saved.snapshot)
-                    except WriteError:
+                        pve.create(guest, saved.snapshot, excluded=saved.excluded)
+                    except WriteError as error:
+                        if error.code == USAGE:  # held; a snapshot left behind is queued
+                            _prune(saved, operation, ledger)
+                            raise
                         if _prune(saved, operation, ledger):
                             raise WriteError(f"could not snapshot {guest}; nothing applied",
                                              UNAVAILABLE) from None
@@ -755,7 +834,13 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
 
             def verify(state_: _Saved) -> dict[str, Any]:
                 if state_.found:
-                    space.clean()
+                    remaining = space.clean()
+                    if remaining:
+                        operation.note("post-apply-plan", "dirty", ", ".join(
+                            sorted(str(item["address"]) for item in remaining))[:500])
+                        if overlaps(state_.found, remaining):
+                            raise WriteError(NOT_LANDED, FAILED)
+                        raise WriteError(DRIFTED, UNAVAILABLE)
                 return {"changes": len(state_.found), "hash": state_.hash, "post_apply_plan": "clean"}
 
             def rollback(state_: _Saved, error: WriteError) -> str:
@@ -773,17 +858,25 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                         raise WriteError("apply did not finish; not rolled back while remote work "
                                          f"may still land, operator check (snapshots "
                                          f"{state_.snapshot} kept)")
+                    if error.reason == DRIFTED:
+                        raise WriteError("applied, but the re-plan is dirty elsewhere; not rolled "
+                                         f"back, operator check (snapshots {state_.snapshot} kept)")
                     raise WriteError("no automatic inverse for these changes; operator recovery "
                                      f"(snapshots {state_.snapshot} kept)")
                 failures = []
                 for guest in reversed(state_.taken):  # every guest, even after one fails
                     try:
-                        pve.rollback(guest, state_.snapshot, state_.power[guest])
-                        # Prove the rollback rather than trust SNAPSHOT_COVERS: the whole config
-                        # must be what it was before the snapshot.
+                        pve.restore(guest, state_.config[guest], state_.power[guest],
+                                    excluded=state_.excluded)
+                        # Prove the restore rather than trust RESTORE_COVERS: the whole config
+                        # must be what it was before the apply, with nothing left pending.
                         differs = _config_diff(state_.config[guest], pve.config(guest))
                         if differs:
                             raise WriteError("config differs after rollback: " + ", ".join(differs))
+                        waiting = pve.pending(guest)
+                        if waiting:
+                            raise WriteError("changes still pending after rollback: "
+                                             + ", ".join(waiting))
                     except WriteError as rollback_error:
                         failures.append(f"{guest}: {rollback_error.reason}")
                 if failures:
@@ -817,7 +910,7 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
 
             result = writepath.run(operation, ledger, preflight=preflight, snapshot=snapshot,
                                    execute=execute, verify=verify, rollback=rollback,
-                                   reconcile=reconcile, commit=commit)
+                                   reconcile=reconcile, commit=commit, lock=LOCK)
     except WriteError as error:  # the workspace itself (credentials, checkout) is unavailable
         return _refused(ledger, name, error.reason, error.code, target)
     finally:
@@ -851,7 +944,7 @@ def _prune(saved: _Saved, operation: Operation, ledger: Ledger | None = None) ->
     for guest in saved.taken:
         try:
             if pve.exists(guest, saved.snapshot):
-                pve.delete(guest, saved.snapshot)
+                pve.delete(guest, saved.snapshot, excluded=saved.excluded)
         except WriteError as error:
             operation.note("prune", "failed", f"{guest}: {error.reason}")
             left.append(guest)
@@ -947,10 +1040,10 @@ def _clear_local_hold(ledger: Ledger, name: str, revision: str) -> None:
 
 def persist_pending(repo: Path, ledger: Ledger) -> list[dict[str, Any]]:
     """Push local state the branch lacks (and an applied record whose push failed), under the
-    write lock, before any hold is consulted. It never runs infrastructure: a held revision stays
-    held, but its state still reaches git."""
+    tofu lock, before any hold is consulted. It never runs infrastructure: a held revision stays
+    held, but its state still reaches git. The state branch is already fetched (`pending`)."""
     try:
-        with ledger.lock():
+        with ledger.lock(LOCK):
             results = []
             facts = _facts(ledger)
             known = facts.get("_unrecorded")
@@ -958,7 +1051,7 @@ def persist_pending(repo: Path, ledger: Ledger) -> list[dict[str, Any]]:
             for name in STACKS:
                 record = store.get(name) if isinstance(store.get(name), dict) else None
                 try:
-                    remote = branch_state(repo, name) if fetch_state(repo) else None
+                    remote = branch_state(repo, name)
                     if classify(ledger, name, remote) != "pending" and record is None:
                         continue
                     _record(repo, ledger, name, record,
@@ -982,16 +1075,24 @@ def persist_pending(repo: Path, ledger: Ledger) -> list[dict[str, Any]]:
         raise
 
 
-def retry_cleanup(ledger: Ledger) -> list[dict[str, Any]]:
-    """Retry queued snapshot deletions under the write lock; an item leaves the queue only when
-    its snapshot is gone."""
+def main_excluded(repo: Path) -> frozenset[int]:
+    """The excluded guests on origin/main: what a queue entry (local, unreviewed) is checked against."""
+    with deploy.checkout(repo, MAIN, "invariants.json") as root:
+        return frozenset(excluded_guests(root))
+
+
+def retry_cleanup(repo: Path, ledger: Ledger) -> list[dict[str, Any]]:
+    """Retry queued snapshot deletions under the tofu lock; an item leaves the queue only when
+    its snapshot is gone. An entry naming an excluded guest never reaches Proxmox: it is dropped
+    and alerts."""
     try:
-        with ledger.lock():
+        with ledger.lock(LOCK):
             facts = _facts(ledger)
             known = facts.get("_cleanup")
             queue: list[Any] = known if isinstance(known, list) else []
             if not queue:
                 return []
+            excluded = main_excluded(repo)
             kept, results = [], []
             for item in queue:
                 if isinstance(item, dict) and item.get("intent"):
@@ -1000,8 +1101,15 @@ def retry_cleanup(ledger: Ledger) -> list[dict[str, Any]]:
                     # No record at all: a crash in the snapshot stage; nothing was applied.
                 try:
                     guest = pve.Guest(str(item["node"]), str(item["kind"]), int(item["vmid"]))
+                    if guest.vmid in excluded:
+                        result = {"target": f"cleanup/{guest}", "outcome": "refused",
+                                  "code": USAGE, "reason": "queued cleanup names an excluded guest; "
+                                  "dropped, never sent to Proxmox"}
+                        _alert(result, f"skynet: tofu cleanup refused for excluded {guest}")
+                        results.append(result)
+                        continue
                     if pve.exists(guest, str(item["snapshot"])):
-                        pve.delete(guest, str(item["snapshot"]))
+                        pve.delete(guest, str(item["snapshot"]), excluded=excluded)
                     results.append({"target": f"cleanup/{guest}", "outcome": "success",
                                     "reason": f"{item['snapshot']} removed"})
                 except (WriteError, KeyError, TypeError, ValueError):
@@ -1018,7 +1126,7 @@ def settle_interrupted(repo: Path, ledger: Ledger) -> list[dict[str, Any]]:
     is newer than the branch), keep the snapshots, hold the revision, and close the operation as
     rollback-failed so a human looks. Runs under the write lock, so a live apply is never settled."""
     try:
-        with ledger.lock():
+        with ledger.lock(LOCK):
             return [_settle(repo, ledger, entry) for entry in ledger.unfinished("tofu")]
     except WriteError:  # a write holds the lock (or the record is unavailable): settle next pass
         return []
@@ -1118,8 +1226,7 @@ def _prehold(repo: Path, ledger: Ledger, name: str, revision: str, operation: Op
     try:
         if input_revision(repo, STACKS[name]) != revision:
             return True
-        set_hold(repo, name, revision, "apply in progress; a recorded success clears this",
-                 operation.id)
+        set_hold(repo, name, revision, PREHOLD, operation.id)
     except WriteError as error:
         operation.note("prehold", "failed", error.reason)
         return False
@@ -1174,10 +1281,10 @@ def pending(repo: Path, *, ledger: Ledger, deadline: float | None = None) -> lis
     fetched). A revision that was refused, failed, rolled back, or interrupted is held on the state
     branch and retried only when main moves; a hold alerts once, unless the outcome already
     alerted. An unavailable pass is retried (see `_count`)."""
+    fetch_state(repo)  # once per pass; a write fetches again under the lock
     results = settle_interrupted(repo, ledger)
     results += persist_pending(repo, ledger)
-    results += retry_cleanup(ledger)
-    fetch_state(repo)
+    results += retry_cleanup(repo, ledger)
     for name, stack in STACKS.items():
         target = input_revision(repo, stack)
         if target is None or applied(repo, name).get("revision") == target:
@@ -1187,8 +1294,7 @@ def pending(repo: Path, *, ledger: Ledger, deadline: float | None = None) -> lis
                             "reason": "not enough of this pass left for a full apply and rollback"})
             continue
         if is_held(repo, name, target, ledger):
-            results.append({"target": f"tofu/{name}", "source": target, "outcome": "held",
-                            "reason": "revision refused or failed; awaiting a new merge"})
+            results.append(_held(repo, ledger, name, target))
             continue
         result = writepath.report(apply(repo, name, revision=target, ledger=ledger, refresh=False))
         _count(ledger, name, target, result)
@@ -1197,8 +1303,50 @@ def pending(repo: Path, *, ledger: Ledger, deadline: float | None = None) -> lis
         # A hold git refused already alerted in _hold; a durable hold alerts once here.
         if now_held and result.get("outcome") not in writepath.ALARMS:
             _alert(result, f"skynet: tofu/{name} held")
+        if is_held(repo, name, target, ledger):  # announced by this result (or its alarm)
+            _announced(ledger, _hold_key(repo, name, target))
         results.append(result)
     return results
+
+
+def _hold_key(repo: Path, name: str, target: str) -> str:
+    hold = held(repo, name)
+    if hold.get("revision") in (target, "*"):
+        return f"{name}:{hold.get('revision')}:{hold.get('operation', '')}"
+    return f"{name}:{target}:local"
+
+
+def _announced(ledger: Ledger, key: str) -> bool:
+    """Mark a hold as alerted; True when it already was. Local: a rebuilt VM re-alerts once."""
+    facts = _facts(ledger)
+    known = facts.get("_hold_alerts")
+    keys: list[Any] = known if isinstance(known, list) else []
+    if key in keys:
+        return True
+    facts["_hold_alerts"] = [*keys, key][-50:]
+    try:
+        _save_facts(ledger, facts)
+    except WriteError:
+        pass
+    return False
+
+
+def _held(repo: Path, ledger: Ledger, name: str, target: str) -> dict[str, Any]:
+    """A held revision's result. Every hold alerts once, however it was set: a hold nobody
+    announced (an unreadable held.json, a pre-apply hold a crash left before any record, a
+    manual run's refusal) must never stop a stack silently."""
+    hold = held(repo, name)
+    reason = "revision refused or failed; awaiting a new merge"
+    if hold.get("revision") == "*":
+        reason = ("held.json unreadable; every revision held until a supervised "
+                  f"`skynet tofu apply {name} --ignore-hold` succeeds")
+    elif hold.get("reason") == PREHOLD and not _recorded(ledger, str(hold.get("operation"))):
+        reason = ("pre-apply hold with no operation record: nothing executed; check, then "
+                  f"`skynet tofu apply {name} --ignore-hold`")
+    result = {"target": f"tofu/{name}", "source": target, "outcome": "held", "reason": reason}
+    if not _announced(ledger, _hold_key(repo, name, target)):
+        _alert(result, f"skynet: tofu/{name} held")
+    return result
 
 
 # --- plan and drift (read-only) --------------------------------------------------------------

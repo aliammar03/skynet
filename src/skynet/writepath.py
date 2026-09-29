@@ -101,10 +101,12 @@ class Ledger:
         self.path = state_dir / "operations.jsonl"
 
     @contextmanager
-    def lock(self) -> Iterator[None]:
+    def lock(self, name: str = "write") -> Iterator[None]:
+        """The `write` lock serializes the service write paths; `tofu` is OpenTofu's own, so a
+        long apply never delays a deploy. The record itself is shared (one-line appends)."""
         try:
             self.state_dir.mkdir(parents=True, exist_ok=True)
-            handle = open(self.state_dir / "write.lock", "a")
+            handle = open(self.state_dir / f"{name}.lock", "a")
         except OSError:
             raise WriteError("write state directory unavailable", UNAVAILABLE) from None
         with handle:
@@ -217,10 +219,11 @@ def run(
     rollback: Callable[[T, WriteError], str],
     reconcile: Callable[[], dict[str, Any]],
     commit: Callable[[T], Any] = lambda saved: None,
+    lock: str = "write",
 ) -> Operation:
     """Drive one write through the shape and record it. Never raises WriteError."""
     try:
-        with ledger.lock():
+        with ledger.lock(lock):
             _run_locked(operation, ledger, preflight, snapshot, execute, verify, rollback, reconcile,
                         commit)
     except WriteError as error:  # the lock or the record itself is unavailable
