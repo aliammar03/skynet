@@ -3,7 +3,7 @@ summary: "Add Cloudflare Tunnel and public DNS exposure to an already-working in
 trigger: "Expose an internally published service to the public internet"
 tier: "T2 PR-gated"
 executor: "skynet deploy cloudflared, skynet tofu (cloudflare-dns), skynet publish"
-rollback: "git revert ingress; public DNS deletion is skynet withdraw (a separate checkpoint)"
+rollback: "git revert ingress (its public CNAME is deleted with it); Authentik objects via skynet withdraw"
 ---
 
 # Runbook — public tunnel
@@ -46,12 +46,11 @@ rollback: "git revert ingress; public DNS deletion is skynet withdraw (a separat
 
 ## Rollback
 
-- Revert ingress through a PR; the timer redeploys cloudflared. Deleting the public CNAME is
-  destructive and separately approved: after the revert merges,
-  `skynet withdraw <svc>.aliammar.net --confirm <svc>.aliammar.net` deletes the CNAME (and any
-  Authentik objects), snapshotting what it removes. Until then the `cloudflare-dns` stack is held
-  (its plan is a refused delete). Afterwards `skynet tofu drift` confirms state and Cloudflare
-  agree.
+- Revert ingress through a PR carrying the `cloudflare-dns` approval
+  (`skynet tofu plan --changed --approve`; expect only the CNAME's delete). After the merge the
+  timer redeploys cloudflared and `skynet tofu apply --pending` deletes the CNAME. Any Authentik
+  objects are a separate hard checkpoint: `skynet withdraw <svc>.aliammar.net --confirm
+  <svc>.aliammar.net`. Afterwards `skynet tofu drift` confirms state and Cloudflare agree.
 
 ## Evidence
 

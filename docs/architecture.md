@@ -35,10 +35,11 @@ included — from a laptop and a phone hotspot.
   revision, applied together, verified (labels, health, routes). A failure returns to the last
   verified revision and opens a revert PR.
 - **OpenTofu:** edit `tofu/<stack>/` (or a DNS stack's derived input) → PR with
-  `approved-plan.json` from `skynet tofu plan <stack> --approve` → merge → `skynet tofu apply --pending`, run supervised until its drills enable the `skynet-tofu` timer
+  `approved-plan.json` from `skynet tofu plan --changed --approve` → merge → `skynet tofu apply --pending`, run supervised until its drills enable the `skynet-tofu` timer
   (`skynet tofu apply --pending`, each minute, its own unit): re-plan at the merged revision, require the approved hash,
   snapshot existing-guest updates, apply, require a clean re-plan, commit encrypted state to the
-  `tofu-state` branch. Delete/replace is refused; creates and DNS writes have no automatic inverse.
+  `tofu-state` branch. Only derived DNS records are deleted (a guest delete/replace is deferred);
+  creates and DNS writes have no automatic inverse.
 - **App-data backup:** nightly restic of `/opt/docker/appdata` → rclone → Google Drive.
 - **Guest backup:** vzdump → PBS → nightly `rclone sync` of the datastore → Google Drive.
 - **Docs:** `skynet render docs` turns validated inventory into `docs/generated/` (Obsidian).

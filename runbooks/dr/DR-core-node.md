@@ -36,9 +36,10 @@ booting a guest after core loss remain unverified and require supervised recover
    `/opt/skynet-ops/secrets/`; the agent SSH key lands at `~/.ssh/id_ed25519` the same way). No
    manual per-file secret copy — the age key is the one seed.
    - **Tofu state is in git:** each stack's encrypted state is on the `tofu-state` branch. The
-     first `skynet tofu plan <stack>` or apply rebuilds `/opt/skynet-ops/state/tofu/<stack>.tfstate`
-     from it; the passphrase comes back with the age key (`tofu-passphrase.sops`). Then
-     `skynet tofu drift` should report no changes for every stack.
+     first `skynet tofu apply --pending` pass (every stack), or a `skynet tofu plan <stack>` or
+     apply (that stack), rebuilds `/opt/skynet-ops/state/tofu/<stack>.tfstate` from it; the
+     passphrase comes back with the age key (`tofu-passphrase.sops`). Then `skynet tofu drift`
+     should report no changes for every stack.
 5. Reconcile: collectors run, `inventory/` diffed against the last pre-disaster commit.
 
 ## Verify

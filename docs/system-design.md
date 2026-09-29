@@ -90,8 +90,10 @@ These are current settings, changed only by a PR here.
     never a snapshot rollback), is returned to its prior power state, and is proved against its
     pre-apply config; creates and DNS-record writes have no automatic
     inverse, so a failure records the true state, holds the revision in git, and alerts, and is
-    never retried or auto-destroyed. Delete/replace/forget and excluded guests are refused at every
-    level. Enabling the timer (unattended: guest updates A4; creates and DNS writes applied on
+    never retried or auto-destroyed. Excluded guests are refused at every level; a guest
+    delete/replace/forget is deferred (excluded from the plan, alerted once, never applied). The one
+    delete it applies is an approved delete of a derived DNS record (bounded per apply; the revert of
+    its PR recreates it). Enabling the timer (unattended: guest updates A4; creates and DNS writes applied on
     the merge's approval) is its own human-merged change here, carrying the recorded live LXC and
     VM rollback drills.
 
@@ -114,8 +116,9 @@ The detailed token, ACL, and principal design is [access and trust](design/acces
 OPNsense has a T1 live-read path and an approved but not yet implemented T2 firewall-config path;
 the self-leash remains T3. Cloudflare DNS records and Technitium zones are T2; their accounts and
 server settings are T3. OpenTofu applies only through `skynet tofu`: the merged revision's plan must
-match the hash approved in the PR, delete/replace is refused, and state lives on the `tofu-state`
-branch ([ADR 0008](decisions/0008-git-model-for-docker-and-opentofu.md)). See
+match the hash approved in the PR for exactly its inputs, only derived DNS records are ever
+deleted (a guest delete/replace waits, deferred, for its hard checkpoint), and state lives on the
+`tofu-state` branch ([ADR 0008](decisions/0008-git-model-for-docker-and-opentofu.md)). See
 [actuators](design/actuators.md) and the provisioning runbooks.
 
 ## 5. Operator contract and extension index

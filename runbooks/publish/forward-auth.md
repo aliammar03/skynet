@@ -3,7 +3,7 @@ summary: "Publish a service with no native login behind Authentik forward-auth o
 trigger: "Put a no-login service behind Authentik"
 tier: "T2 PR-gated"
 executor: "skynet deploy caddy-apps, skynet publish, skynet tofu (technitium-dns)"
-rollback: "git revert the route, then skynet withdraw (separately approved)"
+rollback: "git revert the route (its DNS record goes with it), then skynet withdraw (separately approved)"
 ---
 
 # Runbook — internal route (Authentik forward-auth)
@@ -91,11 +91,11 @@ dig +short <svc>.aliammar.net @10.10.70.50  # expect 10.10.100.35
 
 ## Rollback
 
-Revert the Caddyfile block by PR; the timer deploys the previous route. Deleting the Authentik
-objects (and any public CNAME) is a separate hard checkpoint: once approved and the revert is on
-`main`, run `skynet withdraw <svc>.aliammar.net --confirm <svc>.aliammar.net`. `skynet tofu` refuses the
-Technitium record's delete plan (the stack stays held and alerts); leave the record visible until
-its compliant delete path exists.
+Revert the Caddyfile block by PR, with the `technitium-dns` approval it needs
+(`skynet tofu plan --changed --approve`; expect only the derived A record's delete). After the
+merge the timer deploys the previous route and `skynet tofu apply --pending` deletes the record.
+Deleting the Authentik objects is a separate hard checkpoint: once approved and the revert is on
+`main`, run `skynet withdraw <svc>.aliammar.net --confirm <svc>.aliammar.net`.
 
 ## Evidence
 

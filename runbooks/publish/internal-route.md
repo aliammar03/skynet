@@ -3,7 +3,7 @@ summary: "Publish an own-auth service on the internal apps Caddy front door."
 trigger: "Give an authenticated service an internal aliammar.net URL"
 tier: "T2 PR-gated"
 executor: "skynet deploy caddy-apps, skynet tofu (technitium-dns), skynet publish"
-rollback: "git revert the Caddyfile route; DNS deletion is a separate checkpoint"
+rollback: "git revert the Caddyfile route; its derived DNS record is deleted with it"
 ---
 
 # Runbook — internal route (own-auth)
@@ -97,11 +97,11 @@ dig +short <svc>.aliammar.net @10.10.70.50  # expect 10.10.100.35
 
 ## Rollback
 
-Revert the Caddyfile block in a PR; the timer deploys the previous route. Removing the
-derived Technitium record is a separate delete hard checkpoint: `skynet tofu` refuses the delete
-plan (the `technitium-dns` stack stays held and alerts), and the current zone token lacks
-record-delete. Do not bypass either guard; leave an
-unused record visible until a compliant deletion path is approved.
+Revert the Caddyfile block in a PR carrying the `technitium-dns` approval
+(`skynet tofu plan --changed --approve`; expect only the derived A record's delete). After the
+merge the timer deploys the previous route and `skynet tofu apply --pending` deletes the record.
+If the delete does not land (for example the zone token lacks record-delete), the stack is held
+and alerts; fix the cause, then re-apply by a new merge.
 
 ## Evidence
 

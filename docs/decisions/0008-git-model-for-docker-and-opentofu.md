@@ -55,17 +55,21 @@ recover automatic return to the last verified state, then a revert PR makes main
    outside the stack.
 2. **Plan in the PR.** The author runs `skynet tofu plan <stack> --approve` (T2 read credentials),
    which writes `tofu/<stack>/approved-plan.json`: the hash of the plan's normalized resource
-   changes plus an address → action list. The PR diff carries it, and a merge conflict on it forces
-   a re-plan.
+   changes, the digest of the stack's inputs it was made on, an address → action list, and the
+   addresses it defers. The PR diff carries it, a merge conflict on it forces a re-plan, and any
+   later input change needs a new one (`skynet tofu plan --changed --approve`).
 3. **Merge is the approval.** After merge, `skynet tofu apply --pending` (supervised until the live rollback drills are recorded, then the `skynet-tofu` timer, each minute)
-   plans each stack whose inputs changed from the merged revision, requires the approved hash, and
-   applies that saved plan. A different hash (drift, or a later change) is held and alerts until a
-   new PR merges. Delete/replace/forget and protected guests are refused; an existing guest's
-   config is saved and written back when every change was a restorable guest update.
+   validates and plans each stack whose inputs changed from the merged revision, requires the
+   approved hash and inputs, and applies that saved plan. A different hash (drift, or a later
+   change) or stale inputs is held and alerts until a new PR merges. Protected guests are refused;
+   an approved delete of a derived DNS record is applied (bounded per apply); a guest
+   delete/replace/forget is deferred — excluded from the plan and alerted once — so it never blocks
+   its stack. An existing guest's config is saved and written back when every change was a
+   restorable guest update.
 4. **State in git.** Each stack's state, already encrypted by OpenTofu with the sops-held passphrase,
    is committed by the executor to a dedicated `tofu-state` branch after every apply. `main` stays
    code-only; the system rebuilds from `main` + `tofu-state`. Applies are serialized by a local
-   `tofu` lock, separate from the deploy lock.
+   `tofu` lock, separate from the deploy lock except while an apply updates a Docker host's guest.
 5. **Drift.** The nightly runs a read-only plan per stack and reports any non-empty plan.
 
 ## Consequences
