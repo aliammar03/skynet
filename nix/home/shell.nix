@@ -10,6 +10,8 @@
 { pkgs, ... }:
 {
   home.sessionPath = [ "$HOME/.local/bin" ];
+  # sshd doesn't forward COLORTERM; without it the hex palettes below are downsampled to 256 colors.
+  home.sessionVariables.COLORTERM = "truecolor";
 
   # Supporting CLIs (the eza/bat/etc. binaries come from their programs.* modules below).
   home.packages = with pkgs; [ eza fd ripgrep tree dust ];
