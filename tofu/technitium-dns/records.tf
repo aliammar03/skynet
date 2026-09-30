@@ -43,18 +43,20 @@ resource "technitium_record" "aliammar_net" {
 # ---------------------------------------------------------------------------------------------------
 locals {
   apps_caddy_ip  = "10.10.100.35" # the caddy-apps front door (compose/caddy-apps)
-  apps_caddyfile = file("${path.module}/../compose/caddy-apps/Caddyfile")
+  apps_caddyfile = file("${path.module}/../../compose/caddy-apps/Caddyfile")
   # Match only site-address lines: a bare "<host>.aliammar.net" at column 0 (reverse_proxy/forward_auth
   # lines are indented; the global-options block starts with "{"), so no false positives.
   apps_service_hosts = toset(regexall("(?m)^[a-z0-9-]+\\.aliammar\\.net", local.apps_caddyfile))
 }
 
 # Guard the derivation — a Caddyfile that parses to zero hosts would otherwise propose deleting every
-# app record. Refuse that (this is the layer's "checker"; the derivation above is the writer).
-check "apps_ingress_parsed" {
-  assert {
+# app record. An output precondition fails the plan (a `check` block only warns); this is the
+# layer's "checker", the derivation above is the writer.
+output "apps_hosts_parsed" {
+  value = length(local.apps_service_hosts)
+  precondition {
     condition     = length(local.apps_service_hosts) > 0
-    error_message = "No app vhosts parsed from ${abspath("${path.module}/../compose/caddy-apps/Caddyfile")} — refusing to wipe app DNS records."
+    error_message = "No app vhosts parsed from ${abspath("${path.module}/../../compose/caddy-apps/Caddyfile")} — refusing to wipe app DNS records."
   }
 }
 

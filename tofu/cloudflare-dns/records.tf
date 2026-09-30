@@ -2,14 +2,12 @@
 # Zone:DNS:Edit token.
 #
 # SINGLE SOURCE OF TRUTH = the cloudflared ingress (compose/cloudflared/config.yml). Every `hostname:`
-# there is a published host, so its public CNAME → the tunnel is DERIVED, never hand-listed: add an
-# merged ingress line → review a saved plan → `scripts/tofu-apply.sh <plan>` creates its CNAME. The
-# wrapper refuses the delete plan produced by removing an ingress; public-record removal is the
-# explicit break-glass hard checkpoint documented in runbooks/publish-service.md. Same derivation
-# shape as the apps Caddyfile → DNS. (Non-tunnel records — the `minki` ChatGPT custom domain, Google/OpenAI verification TXTs
-# — are external/manual and deliberately NOT managed here; the provider only touches declared records.)
+# there is a published host, so its public CNAME → the tunnel is DERIVED, never hand-listed. An
+# ingress PR carries this stack's `approved-plan.json`; `skynet tofu` applies it after the merge,
+# including the CNAME delete a removed hostname produces. Non-tunnel records (the `minki` custom
+# domain, verification TXTs) are manual and not managed here.
 locals {
-  cloudflared_config = file("${path.module}/../compose/cloudflared/config.yml")
+  cloudflared_config = file("${path.module}/../../compose/cloudflared/config.yml")
   # regexall with a capture group returns [["host"], ...] → take the first group of each match.
   public_hosts = toset([
     for m in regexall("(?m)^\\s*-\\s*hostname:\\s*(\\S+)", local.cloudflared_config) : m[0]
@@ -17,9 +15,11 @@ locals {
 }
 
 # Guard the derivation — a config that parses to zero hosts would otherwise propose deleting every
-# public CNAME. Refuse that (the writer is the resource below; this is its checker).
-check "cloudflared_ingress_parsed" {
-  assert {
+# public CNAME. An output precondition fails the plan (a `check` block only warns); the writer is
+# the resource below, this is its checker.
+output "public_hosts_parsed" {
+  value = length(local.public_hosts)
+  precondition {
     condition     = length(local.public_hosts) > 0
     error_message = "No hostnames parsed from compose/cloudflared/config.yml — refusing to wipe public CNAMEs."
   }

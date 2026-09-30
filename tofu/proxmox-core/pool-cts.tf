@@ -1,6 +1,6 @@
 # Core-managed NixOS CTs are declared as data. A new container is one entry in one of the maps
-# below + a `hosts/lxc-<name>/` flake host + a merged PR → explicitly approved saved plan →
-# supervised `scripts/tofu-apply.sh` create. These live core service CTs are intentionally
+# below + a `hosts/lxc-<name>/` flake host + its `approved-plan.json`; the merge is the approval and
+# `skynet tofu` applies it. These live core service CTs are intentionally
 # unpooled; the core-node operate ACL manages their envelopes. A create has no automatic rollback
 # and stays below A4; never auto-destroy a partial failure. Then: envelope (API-only) → Option C key
 # inject → `deploy .#lxc-<name>` (inside). tofu owns the envelope and Nix owns the inside.
@@ -54,7 +54,7 @@ locals {
 }
 
 resource "proxmox_virtual_environment_container" "pool_ct" {
-  # Keep this address for the already-imported adguard-core state; see the moved block below.
+  # The already-imported adguard-core keeps this address.
   for_each = local.imported_core_cts
 
   node_name    = each.value.node
@@ -190,15 +190,4 @@ resource "proxmox_virtual_environment_container" "core_ct" {
     # The template only seeds a new CT; a changed default template must never replace a live one.
     ignore_changes = [operating_system]
   }
-}
-
-# These `moved` blocks preserve state addresses without destroying or recreating live CTs.
-moved {
-  from = proxmox_virtual_environment_container.adguard_core
-  to   = proxmox_virtual_environment_container.pool_ct["adguard-core"]
-}
-
-moved {
-  from = proxmox_virtual_environment_container.pool_ct["athena"]
-  to   = proxmox_virtual_environment_container.core_ct["athena"]
 }

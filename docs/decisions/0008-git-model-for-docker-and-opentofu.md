@@ -1,7 +1,7 @@
 # ADR 0008 — One git model for Docker services and OpenTofu
 
-- **Status:** proposed — Docker half implemented by SKY-025 Phase 13 (`skynet deploy`); becomes
-  accepted when Phase 15 lands the OpenTofu half
+- **Status:** accepted — Docker half implemented by SKY-025 Phase 13 (`skynet deploy`), OpenTofu
+  half by Phase 15 (`skynet tofu`)
 - **Date:** 2026-09-23
 
 ## Context
@@ -49,18 +49,27 @@ recover automatic return to the last verified state, then a revert PR makes main
 
 ### OpenTofu
 
-1. **One stack per actuator:** `tofu/proxmox-core/`, `tofu/proxmox-network/`,
-   `tofu/technitium-dns/`, `tofu/cloudflare-dns/`, each with its own state and lock. Scope becomes a
-   directory, so a mixed plan cannot exist; the runtime scope check goes away.
-2. **Plan in the PR.** The author runs `skynet tofu plan <stack>` (T2 read credentials) and puts the
-   human-readable plan plus a hash of its normalized resource changes in the PR description.
-3. **Merge is the approval.** After merge, `skynet tofu apply <stack>` plans from the merged revision,
-   requires the same normalized-change hash as the PR, and applies that saved plan. A different hash
-   (drift, or a later change) stops with the new plan for a fresh PR. Delete/replace is still refused,
-   protected guests are still refused, and snapshots/rollback for existing guests are unchanged.
+1. **One stack per actuator:** `tofu/proxmox-core/`, `tofu/technitium-dns/`, `tofu/cloudflare-dns/`
+   (and `tofu/proxmox-network/` with its first resource), each with its own state and lock. Scope
+   becomes a directory, so a mixed plan cannot exist; the executor still refuses a resource type
+   outside the stack.
+2. **Plan in the PR.** The author runs `skynet tofu plan <stack> --approve` (T2 read credentials),
+   which writes `tofu/<stack>/approved-plan.json`: the hash of the plan's normalized resource
+   changes, the digest of the stack's inputs it was made on, an address → action list, and the
+   addresses it defers. The PR diff carries it, a merge conflict on it forces a re-plan, and any
+   later input change needs a new one (`skynet tofu plan --changed --approve`).
+3. **Merge is the approval.** After merge, `skynet tofu apply --pending` (supervised until the live rollback drills are recorded, then the `skynet-tofu` timer, each minute)
+   validates and plans each stack whose inputs changed from the merged revision, requires the
+   approved hash and inputs, and applies that saved plan. A different hash (drift, or a later
+   change) or stale inputs is held and alerts until a new PR merges. Protected guests are refused;
+   an approved delete of a derived DNS record is applied (bounded per apply); a guest
+   delete/replace/forget is deferred — excluded from the plan and alerted once — so it never blocks
+   its stack. An existing guest's config is saved and written back when every change was a
+   restorable guest update.
 4. **State in git.** Each stack's state, already encrypted by OpenTofu with the sops-held passphrase,
    is committed by the executor to a dedicated `tofu-state` branch after every apply. `main` stays
-   code-only; the system rebuilds from `main` + `tofu-state`. Applies are serialized by a local lock.
+   code-only; the system rebuilds from `main` + `tofu-state`. Applies are serialized by a local
+   `tofu` lock, separate from the deploy lock except while an apply updates a Docker host's guest.
 5. **Drift.** The nightly runs a read-only plan per stack and reports any non-empty plan.
 
 ## Consequences
@@ -68,8 +77,9 @@ recover automatic return to the last verified state, then a revert PR makes main
 - One human approval per change, made while looking at the actual effect.
 - Deploys get automatic rollback; outages from a bad deploy last minutes, not until Ali is online.
 - Losing the ops VM no longer loses Tofu state.
-- Arcane Git Sync and `gitops-deploy.sh` retire; the state split is a one-time `tofu state mv`
-  migration per resource, done as a supervised saved-plan step.
+- Arcane Git Sync, `gitops-deploy.sh`, `tofu-env.sh`, `tofu-apply.sh`, and `pve-snapshot.sh` retire;
+  the state split is a one-time, state-only `tofu state rm` per stack from a copy of the old root
+  state, proved by zero-change plans.
 - Needs human-merged changes to AGENTS.md §4 and `docs/system-design.md` (approval moves into the PR;
   deploy rollback is automatic). Those land with the phases, not with this ADR.
 - Rejected: committing state to `main` (churns every PR and races reviews); a remote state service

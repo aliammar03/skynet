@@ -137,18 +137,31 @@ edit compose/<svc>/ → branch → PR (bin/check + tier review + `skynet deploy 
   image pinning — live in [gitops-loop](docs/design/gitops-loop.md) + [secrets](docs/design/secrets.md).
   Load them when you touch a deploy, not before.
 - **Publishing** a route = a merged Caddyfile/ingress change deployed as above, then
-  `skynet publish <svc>` for Authentik forward-auth objects. `skynet withdraw <vhost>` is the gated
-  delete of a removed route's leftovers.
-- **Every production OpenTofu write uses the saved-plan executor.** Author the source change and get
-  its PR human-merged; create `tofu plan -out <planfile>` from that approved revision; show the exact
-  saved plan for approval; then run `TOFU_APPLY_SCOPE=<one actuator> scripts/tofu-apply.sh <planfile>`.
-  The wrapper rejects mixed scope (`proxmox-core`, `proxmox-network`, `technitium-dns`, or
-  `cloudflare-dns`) plans. Never use a bare, re-planning `tofu apply` path. Delete/replace remains a
-  hard checkpoint and the wrapper refuses it. A new-guest
-  create is allowed as an explicitly approved, supervised T2 saved-plan action; because no pre-change
-  guest exists to snapshot, it has no automatic rollback and cannot reach A4. A failed partial create
-  needs operator recovery and is never auto-destroyed. The merged-source and human-approval checks are
-  operator procedures; the wrapper proves the saved artifact and scope, not the human identity.
+  `skynet publish <svc>` for Authentik forward-auth objects. Removing a route removes its derived
+  DNS records through the same PR (their delete is in its approved plan); `skynet withdraw <vhost>`
+  is the gated delete of the Authentik objects it leaves.
+- **OpenTofu follows the same loop, one stack per actuator** (`tofu/proxmox-core/`,
+  `tofu/technitium-dns/`, `tofu/cloudflare-dns/`; the directory is the scope). The PR carries the
+  change plus `tofu/<stack>/approved-plan.json` from `skynet tofu plan --changed --approve` (plan from a
+  branch rebased on `main`; the approval is bound to a digest of the stack's inputs, so any later
+  input change needs a new one). The merge approves that effect; `skynet tofu apply --pending`
+  (supervised until its drills are recorded, then the `skynet-tofu` timer, each minute) validates and
+  re-plans the merged revision and applies it only when its normalized-change hash and inputs equal
+  the approved ones. A different hash, stale inputs, source that does not validate, or an apply that
+  failed, rolled back, or was interrupted, is held and alerts; it never retries until `main` moves:
+  re-plan in a new PR. A stack that is only unavailable backs off and alerts. The executor refuses
+  excluded guests and resource types outside the stack at every level. It applies an approved
+  delete only of a **derived DNS record** (at most three per apply; the revert of its PR recreates
+  it); a guest delete/replace/forget is **deferred** — left out of the plan, alerted once, never
+  applied — so it waits for its hard checkpoint without blocking the rest of the stack. It saves
+  each updated guest's config, and a failed apply whose changes were all restorable guest updates
+  writes those configs back (never a snapshot rollback: guest data is kept); a re-plan dirty only
+  outside the approved change is held, not rolled back. An update to a Docker host's guest holds
+  the deploy lock and that host's fence until the host answers again (a host that never answers is
+  a failed change), so it never overlaps a deploy there. A create or DNS change has no automatic
+  inverse: a failure alerts for operator recovery and is never auto-destroyed, so those stay below
+  A4. State is encrypted and mirrored to the `tofu-state` branch after every apply. Never run a
+  bare `tofu apply`.
 - **Procedures beyond this loop** live as engine-neutral runbooks, catalogued with tier + trigger in
   [`runbooks/README.md`](runbooks/README.md) (and the context map). Read one when a task or a
   `SKY-###` execute prompt calls for it; they stay out of the always-loaded context by design.
@@ -208,7 +221,8 @@ Non-trivial additions and overhauls are captured as **Skynet Directives** (`SKY-
 - Nightly = report-only outside the version-controlled auto-approve list. Each promotion is a
   step on the A0–A5 ladder, paid for with evidence; from **A4** a capability needs a rollback that is
   automatic, tested in failure, and run by a dumb executor. Irreversible actions (`destroy`, data
-  deletion, credential rotation, anything T3) stay hard checkpoints **at every level**.
+  deletion, credential rotation, anything T3) stay hard checkpoints **at every level**. A derived
+  DNS record is not payload: git recreates it, so its approved delete is an ordinary PR-gated write.
 - **You never widen your own leash.** Changes to `docs/system-design.md` §1a/§2, this file's §3/§6,
   `invariants.json`, or the gates enforcing them are **human-merged forever**, however autonomous
   everything else becomes. Propose your own promotion; never merge it.

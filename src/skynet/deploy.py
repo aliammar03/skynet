@@ -134,16 +134,17 @@ def manual(repo: Path, service: str, ref: str) -> bool:
     return bool(_MANUAL.search(text + "\n"))
 
 
-def _archive(repo: Path, revision: str, path: str) -> bytes:
-    return _ok(["git", "-C", str(repo), "archive", "--format=tar", revision, "--", path],
+def _archive(repo: Path, revision: str, *paths: str) -> bytes:
+    return _ok(["git", "-C", str(repo), "archive", "--format=tar", revision, "--", *paths],
                "source archive unavailable", timeout=120.0)
 
 
 @contextmanager
-def checkout(repo: Path, revision: str, path: str = "compose") -> Iterator[Path]:
-    """A throwaway extraction of `path` at `revision` in tmpfs (removed on exit)."""
+def checkout(repo: Path, revision: str, *paths: str) -> Iterator[Path]:
+    """A throwaway extraction of `paths` (default `compose`) at `revision` in tmpfs."""
     with tempfile.TemporaryDirectory(prefix="skynet-", dir=_runtime_dir()) as tmp:
-        with tarfile.open(fileobj=io.BytesIO(_archive(repo, revision, path))) as tar:
+        archive = _archive(repo, revision, *(paths or ("compose",)))
+        with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
             tar.extractall(tmp, filter="data")
         yield Path(tmp)
 

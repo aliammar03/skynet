@@ -32,6 +32,7 @@ T = TypeVar("T")
 
 # Exit codes shared by every write path.
 OK, FAILED, USAGE, UNAVAILABLE, ROLLBACK_FAILED = 0, 1, 2, 3, 4
+LOCK_BUSY = "another write holds the lock"
 # Outcomes that leave live state unknown to the record: a human must look, so they alert.
 ALARMS = frozenset({"rollback-failed", "unrecorded"})
 
@@ -43,6 +44,15 @@ class WriteError(Exception):
         super().__init__(reason)
         self.reason = reason
         self.code = code
+
+
+class NotStarted(WriteError):
+    """Raised by `execute` when it provably never began (its program could not be started):
+    nothing changed, so after the caller's rollback cleans up, the write is `unavailable` and
+    retried, never failed or held."""
+
+    def __init__(self, reason: str):
+        super().__init__(reason, UNAVAILABLE)
 
 
 def _now() -> str:
@@ -86,6 +96,12 @@ class Operation:
         return {"ts": _now(), "phase": phase, **asdict(self)}
 
 
+def fence(context: str) -> str:
+    """The lock a write holds while it changes a Docker host's guest: watch reads it as "this
+    host is being changed on purpose", never as an outage."""
+    return f"fence-{context}"
+
+
 class Ledger:
     """The local operation record and the one lock serializing all write paths.
 
@@ -100,10 +116,14 @@ class Ledger:
         self.path = state_dir / "operations.jsonl"
 
     @contextmanager
-    def lock(self) -> Iterator[None]:
+    def lock(self, name: str = "write") -> Iterator[None]:
+        """The `write` lock serializes the service write paths; `tofu` is OpenTofu's own, so a
+        long apply never delays a deploy, unless it updates a Docker host's guest: then it also
+        takes `write` and that host's `fence` (lock order: `tofu` before `write`, never the
+        reverse). The record itself is shared (one-line appends)."""
         try:
             self.state_dir.mkdir(parents=True, exist_ok=True)
-            handle = open(self.state_dir / "write.lock", "a")
+            handle = open(self.state_dir / f"{name}.lock", "a")
         except OSError:
             raise WriteError("write state directory unavailable", UNAVAILABLE) from None
         with handle:
@@ -114,14 +134,15 @@ class Ledger:
                     break
                 except OSError:
                     if time.monotonic() >= deadline:
-                        raise WriteError("another write holds the lock", UNAVAILABLE) from None
+                        raise WriteError(LOCK_BUSY, UNAVAILABLE) from None
                     time.sleep(0.05)
             yield
 
-    def busy(self) -> bool:
-        """True while a write holds the lock (a read-only observer skips rather than race it)."""
+    def busy(self, name: str = "write") -> bool:
+        """True while a write holds the lock (a read-only observer skips rather than race it).
+        A flock dies with its holder, so a crashed write never leaves anything looking busy."""
         try:
-            handle = open(self.state_dir / "write.lock", "a")
+            handle = open(self.state_dir / f"{name}.lock", "a")
         except OSError:
             return False
         with handle:
@@ -216,10 +237,11 @@ def run(
     rollback: Callable[[T, WriteError], str],
     reconcile: Callable[[], dict[str, Any]],
     commit: Callable[[T], Any] = lambda saved: None,
+    lock: str = "write",
 ) -> Operation:
     """Drive one write through the shape and record it. Never raises WriteError."""
     try:
-        with ledger.lock():
+        with ledger.lock(lock):
             _run_locked(operation, ledger, preflight, snapshot, execute, verify, rollback, reconcile,
                         commit)
     except WriteError as error:  # the lock or the record itself is unavailable
@@ -249,8 +271,10 @@ def _run_locked(operation: Operation, ledger: Ledger, preflight: Callable[[], An
         _stop(operation, ledger, "refused", error)
         return
     ledger.append(operation.record("started"))
+    started = False
     try:
         operation.step("execute", lambda: execute(saved))
+        started = True
         operation.verification = operation.step("verify", lambda: verify(saved))
     except WriteError as error:
         failure = error
@@ -262,8 +286,11 @@ def _run_locked(operation: Operation, ledger: Ledger, preflight: Callable[[], An
             operation.outcome, operation.code = "rollback-failed", ROLLBACK_FAILED
             operation.reason = f"{failure.reason}; rollback: {rollback_error.reason}"
         else:
-            operation.outcome = "rolled-back" if operation.recovery == "rolled-back" else "failed"
-            operation.code = FAILED
+            if isinstance(failure, NotStarted) and not started:
+                operation.outcome, operation.code = "unavailable", UNAVAILABLE
+            else:
+                operation.outcome = "rolled-back" if operation.recovery == "rolled-back" else "failed"
+                operation.code = FAILED
         _finish(operation, ledger)
         return
     operation.outcome = "success"

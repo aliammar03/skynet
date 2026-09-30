@@ -2,8 +2,8 @@
 summary: "Add Cloudflare Tunnel and public DNS exposure to an already-working internal route."
 trigger: "Expose an internally published service to the public internet"
 tier: "T2 PR-gated"
-executor: "skynet deploy cloudflared, guarded Cloudflare DNS saved-plan, skynet publish"
-rollback: "git revert ingress; public DNS deletion is skynet withdraw (a separate checkpoint)"
+executor: "skynet deploy cloudflared, skynet tofu (cloudflare-dns), skynet publish"
+rollback: "git revert ingress (its public CNAME is deleted with it); Authentik objects via skynet withdraw"
 ---
 
 # Runbook — public tunnel
@@ -26,17 +26,17 @@ rollback: "git revert ingress; public DNS deletion is skynet withdraw (a separat
    ```
    `originServerName` makes Caddy select the hostname certificate.
 2. A forward-auth service also needs a public `auth.aliammar.net` route. Its Caddy vhost must reject tunnel traffic to `/if/admin/*` while leaving login APIs/flows accessible; include the app, auth route, and their CNAMEs in the PR. Require MFA or a passkey for the public Authentik account.
-3. Open the exposure PR (with `skynet deploy cloudflared --dry-run HEAD`) and wait for Ali to
+3. Commit the ingress, then write the derived CNAMEs' approved plan into the same PR (from a branch
+   rebased on `main`):
+   ```bash
+   skynet tofu plan cloudflare-dns --approve  # expect one CNAME create per new hostname
+   ```
+   Open the exposure PR (with `skynet deploy cloudflared --dry-run HEAD`) and wait for Ali to
    merge. The timer redeploys cloudflared with the new `config.yml` (every revision recreates the
    connector, so no manual restart). Confirm the tunnel is ready with four connections.
-4. Generate, show, approve, and apply the derived Cloudflare DNS plan:
-   ```bash
-   eval "$(scripts/tofu-env.sh)"
-   tofu -chdir=tofu plan -out=/tmp/public-<svc>.tfplan
-   tofu -chdir=tofu show -no-color /tmp/public-<svc>.tfplan
-   TOFU_APPLY_SCOPE=cloudflare-dns scripts/tofu-apply.sh /tmp/public-<svc>.tfplan
-   ```
-   The public CNAME is derived from ingress; internal split DNS remains separately managed.
+4. `skynet tofu apply --pending` creates the CNAMEs (`skynet log --kind tofu`). A `held` `tofu/cloudflare-dns`
+   means the merged plan differs from the approved one: re-plan in a new PR. Internal split DNS is
+   the `technitium-dns` stack.
 5. `skynet publish <svc>` — checks the front door and tunnel run `main`, reconciles Authentik for a
    forward-auth vhost, probes the route, and reports the CNAME as `present` or `pending tofu apply`.
 
@@ -46,12 +46,12 @@ rollback: "git revert ingress; public DNS deletion is skynet withdraw (a separat
 
 ## Rollback
 
-- Revert ingress through a PR; the timer redeploys cloudflared. Deleting the public CNAME is
-  destructive and separately approved: after the revert merges,
-  `skynet withdraw <svc>.aliammar.net --confirm <svc>.aliammar.net` deletes the CNAME (and any
-  Authentik objects), snapshotting what it removes. Then run a read-only `tofu plan` so refresh
-  confirms state and Cloudflare agree.
+- Revert ingress through a PR carrying the `cloudflare-dns` approval
+  (`skynet tofu plan --changed --approve`; expect only the CNAME's delete). After the merge the
+  timer redeploys cloudflared and `skynet tofu apply --pending` deletes the CNAME. Any Authentik
+  objects are a separate hard checkpoint: `skynet withdraw <svc>.aliammar.net --confirm
+  <svc>.aliammar.net`. Afterwards `skynet tofu drift` confirms state and Cloudflare agree.
 
 ## Evidence
 
-- Record the PR, approved saved plan, public endpoint check, authentication result, and tunnel status.
+- Record the PR, its `approved-plan.json` and `skynet log` line, public endpoint check, authentication result, and tunnel status.

@@ -1,31 +1,24 @@
 ---
-summary: "Provision a VM from merged source and an explicitly approved saved plan; creates are supervised T2 without automatic rollback."
+summary: "Provision a VM: a PR carrying its approved plan, applied by skynet tofu after merge; creates have no automatic rollback."
 trigger: "Set up a VM for X, hardened, with restic"
-tier: "Supervised T2 saved-plan create + T2+ root grant"
-executor: "OpenTofu saved-plan wrapper, onboard-host.sh, and provision-restic.sh"
+tier: "T2 PR-gated create + T2+ root grant"
+executor: "skynet tofu (proxmox-core stack), onboard-host.sh, and provision-restic.sh"
 rollback: "No automatic rollback for a new VM; operator recovery on partial create"
 ---
 
 # Runbook — provision a hardened VM
 
-**Tier:** supervised T2 saved-plan create; a T2+ root grant is required for guest hardening.
+**Tier:** T2 PR-gated create; a T2+ root grant is required for guest hardening.
 
 ## Preconditions
 
-- Agree name, VMID/IP, resources, purpose, backup scope, hardening, and partial-create recovery. The merged declaration and exact plan both need approval.
+- Agree name, VMID/IP, resources, purpose, backup scope, hardening, and partial-create recovery. The merge approves the PR's `approved-plan.json`.
 
 ## Steps
 
 1. Plan VLAN/IP (VMID = VLAN + last octet), resources, purpose, and rollback, then receive approval.
-2. Declare a `proxmox_virtual_environment_vm` in `tofu/` that clones `ubuntu-2404-base` (VMID 9000) into `ops-managed`. Set network and a temporary bootstrap SSH key with the API-native `initialization` block; never use a node-SSH snippet. The base image does not contain CA trust or `svc-ops`: log in once with the temporary bootstrap key, run `scripts/onboard-host.sh` as root, then use the expiring root grant. Do not pool OPNsense 5001, CT 635/837, or VM 2020.
-3. Open a PR with the declaration and speculative plan. After Ali merges it, save and show the plan, receive approval, then apply exactly it:
-   ```bash
-   eval "$(scripts/tofu-env.sh)"
-   tofu -chdir=tofu plan -out=/tmp/provision-<newhost>.tfplan
-   tofu -chdir=tofu show -no-color /tmp/provision-<newhost>.tfplan
-   TOFU_APPLY_SCOPE=proxmox-core scripts/tofu-apply.sh /tmp/provision-<newhost>.tfplan
-   ```
-   Check `/cluster/resources` through the read API. On any create/verification failure, stop: the wrapper never auto-destroys a partial VM.
+2. Declare a `proxmox_virtual_environment_vm` in `tofu/proxmox-core/` that clones `ubuntu-2404-base` (VMID 9000) into `ops-managed`. Set network and a temporary bootstrap SSH key with the API-native `initialization` block; never use a node-SSH snippet. The base image does not contain CA trust or `svc-ops`: log in once with the temporary bootstrap key, run `scripts/onboard-host.sh` as root, then use the expiring root grant. Do not pool OPNsense 5001, CT 635/837, or VM 2020.
+3. On a branch rebased on `main`, commit the declaration, run `skynet tofu plan proxmox-core --approve` (expect one create), commit `approved-plan.json`, and open the PR. After Ali merges it, `skynet tofu apply --pending` applies it (the `skynet-tofu` timer once it is enabled) (`skynet log --kind tofu`); a held result means the merged plan differs, so re-plan in a new PR. Check `/cluster/resources` through the read API. A failed create alerts; stop: the executor never auto-destroys a partial VM.
 4. Request the narrowest root grant (for example `gr <newhost> 2h` on the workstation), validate its certificate, then harden SSH, install updates/fail2ban as appropriate, and configure backups:
    ```bash
    scripts/provision-restic.sh <newhost> root@<ip> --docker
@@ -44,4 +37,4 @@ rollback: "No automatic rollback for a new VM; operator recovery on partial crea
 
 ## Evidence
 
-- Preserve the saved plan, approval, provisioning/hardening definitions, and refreshed inventory.
+- Preserve the PR with its `approved-plan.json`, the `skynet log` line, provisioning/hardening definitions, and refreshed inventory.

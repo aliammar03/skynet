@@ -21,6 +21,12 @@ from typing import Any, TextIO, cast
 HOST = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?")
 _ASSIGNMENT = re.compile(r"\s*([A-Z][A-Z0-9_]*)=(?:'([^']*)'|\"([^\"]*)\"|([^\s'\"]+))\s*(?:#.*)?")
 RETAINED = "refresh failed; any retained snapshot is previous evidence"
+SECRETS = Path("/opt/skynet-ops/secrets")
+
+
+def secrets_dir() -> Path:
+    """The materialized secrets directory (`SKYNET_SECRETS_DIR` overrides it, for tests)."""
+    return Path(os.environ.get("SKYNET_SECRETS_DIR", SECRETS))
 
 
 class CollectionError(Exception):
@@ -180,15 +186,30 @@ def decode_der(certificate: bytes) -> dict[str, Any]:
 
 def atomic_write_text(path: Path, content: str) -> None:
     """Replace `path` only after a complete, flushed sibling write; OSError on any failure."""
+    atomic_write_bytes(path, content.encode("utf-8"))
+
+
+def atomic_write_bytes(path: Path, content: bytes) -> None:
+    """Replace `path` (mode 0600) only after a complete, fsynced sibling write, then fsync the
+    directory so the rename itself survives a crash. OSError on any failure before the rename,
+    leaving the previous bytes and no temporary file; once renamed, the write stands."""
     temporary: str | None = None
     try:
-        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", newline="", dir=path.parent,
-                                         prefix="." + path.name + ".", delete=False) as stream:
+        with tempfile.NamedTemporaryFile(dir=path.parent, prefix="." + path.name + ".",
+                                         delete=False) as stream:
             temporary = stream.name
             stream.write(content)
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary, path)
+        try:  # best effort: the new bytes are in place, so a failed flush is no failed write
+            directory = os.open(path.parent, os.O_RDONLY)
+            try:
+                os.fsync(directory)
+            finally:
+                os.close(directory)
+        except OSError:
+            pass
     finally:
         if temporary is not None:
             try:

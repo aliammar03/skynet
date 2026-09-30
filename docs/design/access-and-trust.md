@@ -36,8 +36,9 @@ on the network node. The core ACL can technically reach Unraid VM 2020's envelop
 OpenTofu paths never target it; its guest OS remains T3 and envelope actions are human checkpoints.
 The ACL audit plus `invariants.json` enforce these exclusions and bright lines.
 
-OpenTofu uses the saved-plan executor only. A plan has one declared scope; the wrapper rejects
-mixed scope, delete/replace actions, and un-snapshotable existing-guest updates. See
+OpenTofu applies only through `skynet tofu`, one stack per actuator. It applies the merged plan whose
+hash the PR approved and refuses delete/replace/forget, excluded guests, foreign resource types, and
+existing-guest updates it cannot snapshot. See
 [actuators](actuators.md) and the provisioning runbooks.
 
 ## Workload-host access
@@ -74,7 +75,7 @@ OPNsense has three planes:
   runs non-mutating diagnostics. Its group grants `System: Deny config write`; privileges are granted
   through that group, never directly to the user.
 - **T2 approved, not implemented:** non-self-leash firewall aliases/rules may eventually use a
-  reviewed saved-plan provider path. No provider, write credential, or actuator exists today.
+  reviewed `skynet tofu` stack. No provider, write credential, or actuator exists today.
 - **T3:** node root, account/API-key/certificate administration, reboot/halt, and every rule or alias
   that bounds Skynet's reach. The OPNsense git mirror remains rebuild-from-git truth; live API is for
   fresh observation.

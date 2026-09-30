@@ -209,12 +209,14 @@ def _withdraw(tmp_path: Path, confirm: str = "books.aliammar.net") -> Any:
                             ledger=Ledger(tmp_path / "state"))
 
 
-def test_withdraw_deletes_leftovers_once_git_lets_go(withdrawal: dict[str, Any], tmp_path: Path) -> None:
+def test_withdraw_deletes_authentik_leftovers_once_git_lets_go(withdrawal: dict[str, Any],
+                                                               tmp_path: Path) -> None:
     operation = _withdraw(tmp_path)
     assert operation.outcome == "success"
-    assert withdrawal["cloudflare"].rows == []
     assert [p["pk"] for p in withdrawal["authentik"].providers] == [1]
-    assert operation.verification["deleted"] == ["application:books", "provider:9", "cname:books.aliammar.net"]
+    assert operation.verification["deleted"] == ["application:books", "provider:9"]
+    # The public CNAME is derived from git: the removing PR's tofu apply deletes it, not withdraw.
+    assert withdrawal["cloudflare"].records("books.aliammar.net")
 
 
 def test_withdraw_needs_the_name_repeated(withdrawal: dict[str, Any], tmp_path: Path) -> None:
@@ -229,9 +231,6 @@ def test_withdraw_refuses_while_git_still_declares_the_vhost(withdrawal: dict[st
     assert operation.outcome == "refused" and withdrawal["authentik"].writes == []
 
 
-def test_failed_withdraw_restores_the_public_record(withdrawal: dict[str, Any], tmp_path: Path) -> None:
-    cloudflare = withdrawal["cloudflare"]
-    cloudflare.fail_delete = True
-    operation = _withdraw(tmp_path)
-    assert operation.outcome == "failed"  # nothing of Cloudflare's was deleted, so nothing restored
-    assert cloudflare.records("books.aliammar.net")
+def test_withdraw_never_touches_dns(withdrawal: dict[str, Any], tmp_path: Path) -> None:
+    withdrawal["cloudflare"].fail_delete = True  # any Cloudflare write would fail the run
+    assert _withdraw(tmp_path).outcome == "success"

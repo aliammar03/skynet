@@ -31,14 +31,21 @@ class Credentials:
     context: ssl.SSLContext
 
 
-def credentials(path: Path) -> Credentials:
-    """Parse literal Technitium credentials and prepare CA-file, hostname-verifying trust."""
+def assignments(path: Path) -> dict[str, str]:
+    """Parse literal Technitium credentials: a valid host, a printable token, the pinned CA."""
     keys = ("TECH_HOST", "TECH_TOKEN", "TECH_CACERT")
     values = common.read_assignments(path, keys, keys)
-    host = common.require_host(values["TECH_HOST"])
+    common.require_host(values["TECH_HOST"])
     if not common.printable(values["TECH_TOKEN"]):
         raise CollectionError("invalid credential token", 3)
-    return Credentials(host, values["TECH_TOKEN"], common.ca_context(values["TECH_CACERT"]))
+    return values
+
+
+def credentials(path: Path) -> Credentials:
+    """Parse literal Technitium credentials and prepare CA-file, hostname-verifying trust."""
+    values = assignments(path)
+    return Credentials(values["TECH_HOST"], values["TECH_TOKEN"],
+                       common.ca_context(values["TECH_CACERT"]))
 
 
 def get(settings: Credentials, path: str, params: dict[str, str]) -> dict[str, Any]:

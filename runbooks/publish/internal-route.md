@@ -2,8 +2,8 @@
 summary: "Publish an own-auth service on the internal apps Caddy front door."
 trigger: "Give an authenticated service an internal aliammar.net URL"
 tier: "T2 PR-gated"
-executor: "skynet deploy caddy-apps, guarded DNS saved-plan, skynet publish"
-rollback: "git revert the Caddyfile route; DNS deletion is a separate checkpoint"
+executor: "skynet deploy caddy-apps, skynet tofu (technitium-dns), skynet publish"
+rollback: "git revert the Caddyfile route; its derived DNS record is deleted with it"
 ---
 
 # Runbook — internal route (own-auth)
@@ -51,18 +51,19 @@ Design context: [`../../docs/design/identity-and-proxy.md`](../../docs/design/id
 
    `caddy fmt --overwrite /etc/caddy/Caddyfile` normalizes formatting.
 
-3. Open a teaching PR that states the service, origin `IP:port`, resulting URL, and that this is
-   an own-auth internal route. Ali merges it; the agent does not merge its own PR.
-
-4. From the human-merged revision, create and show the exact saved DNS plan. Apply only the shown
-   plan after explicit approval:
+3. Commit the Caddyfile, then write the derived DNS record's approved plan into the same PR (from a
+   branch rebased on `main`):
 
    ```bash
-   eval "$(scripts/tofu-env.sh)"
-   tofu -chdir=tofu plan -out=/tmp/publish-<svc>.tfplan
-   tofu -chdir=tofu show -no-color /tmp/publish-<svc>.tfplan  # expect only the derived A record
-   TOFU_APPLY_SCOPE=technitium-dns scripts/tofu-apply.sh /tmp/publish-<svc>.tfplan
+   skynet tofu plan technitium-dns --approve  # expect only the derived A record (one create)
    ```
+
+   Open a teaching PR that states the service, origin `IP:port`, resulting URL, and that this is
+   an own-auth internal route, and commit `tofu/technitium-dns/approved-plan.json` with it. Ali
+   merges it; the agent does not merge its own PR.
+
+4. After the merge, `skynet tofu apply --pending` creates the record (`skynet log --kind tofu`). A `held`
+   `tofu/technitium-dns` means the merged plan differs from the approved one: re-plan in a new PR.
 
 5. The timer deploys the merged `caddy-apps` revision (the container is recreated with the new
    Caddyfile; a Caddy that fails its healthcheck rolls back by itself). Then run
@@ -96,14 +97,15 @@ dig +short <svc>.aliammar.net @10.10.70.50  # expect 10.10.100.35
 
 ## Rollback
 
-Revert the Caddyfile block in a PR; the timer deploys the previous route. Removing the
-derived Technitium record is a separate delete hard checkpoint: `scripts/tofu-apply.sh` refuses
-delete plans and the current zone token lacks record-delete. Do not bypass either guard; leave an
-unused record visible until a compliant deletion path is approved.
+Revert the Caddyfile block in a PR carrying the `technitium-dns` approval
+(`skynet tofu plan --changed --approve`; expect only the derived A record's delete). After the
+merge the timer deploys the previous route and `skynet tofu apply --pending` deletes the record.
+If the delete does not land (for example the zone token lacks record-delete), the stack is held
+and alerts; fix the cause, then re-apply by a new merge.
 
 ## Evidence
 
-Record the PR and merge commit, Caddy validation result, saved-plan output and approval, deploy or
+Record the PR and merge commit, Caddy validation result, the `approved-plan.json` and its `skynet log` line, deploy or
 health result, the peer-DMZ response, and the internal `dig` result. Redact tokens and any secret
 material.
 

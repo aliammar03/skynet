@@ -69,6 +69,24 @@ def test_failed_rollback_is_the_hard_checkpoint(tmp_path: Path) -> None:
     assert operation.reason == "compose up failed; rollback: compose up failed"
 
 
+def _never_started(*_: Any) -> Any:
+    raise writepath.NotStarted("program could not be started")
+
+
+def test_an_execute_that_never_started_is_unavailable_after_its_cleanup(tmp_path: Path) -> None:
+    ledger, calls = Ledger(tmp_path), []
+    operation = _run(ledger, calls, execute=_never_started,
+                     rollback=lambda saved, error: calls.append("cleanup") or "not-needed")
+    assert calls[-1] == "cleanup" and "commit" not in calls
+    assert (operation.outcome, operation.code) == ("unavailable", writepath.UNAVAILABLE)
+    assert _records(ledger)[-1]["phase"] == "final"
+
+
+def test_not_started_after_execute_ran_is_a_failure(tmp_path: Path) -> None:
+    operation = _run(Ledger(tmp_path), [], verify=_never_started)
+    assert (operation.outcome, operation.code) == ("rolled-back", 1)
+
+
 def test_no_rollback_target_is_a_plain_failure(tmp_path: Path) -> None:
     operation = _run(Ledger(tmp_path), [], execute=_fail("x"), rollback=lambda *_: "no-rollback-target")
     assert (operation.outcome, operation.recovery, operation.code) == ("failed", "no-rollback-target", 1)

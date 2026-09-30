@@ -12,6 +12,9 @@ A pass that cannot observe at all (no fetch, no Docker, no state) is the pseudo-
 which runs through the same rule; once it is unhealthy (two failed passes) the pass pings the
 dead-man's switch `/fail`, otherwise healthy. While a write holds the lock, only the target it is
 changing is skipped (a deploy mid-flight is not an outage); every other service is still checked.
+While a write holds a Docker host's fence (a guest update to the host itself), the whole pass is
+skipped: every state is kept, nothing alerts, and the dead-man's switch still hears from it, for
+at most FENCE_GRACE_SECONDS; a fence held longer is observed through like any other write.
 An alert that could not be sent is retried on the next pass; if a needed push is still owed after
 two passes, the dead-man's switch gets `/fail`. State lives in `state/watch.json`.
 """
@@ -37,6 +40,11 @@ OBSERVE_MAX_SECONDS = 60.0
 REMINDER_SECONDS = 24 * 3600
 MONITOR = "monitor"
 DELIVERY = "_delivery"
+FENCE = "_fence"  # when this pass first saw the host's fence held
+# At least the longest a Tofu apply can hold the fence (tofu.FENCED_SECONDS, snapshots through a
+# restore and its settle; a test pins it), so a slow rollback never pages; a fence held longer (a
+# hung process) must not keep a real outage from the phone.
+FENCE_GRACE_SECONDS = 5 * 3600
 
 
 def _stamp(now: float) -> str:
@@ -106,6 +114,9 @@ def load(path: Path) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
+FENCED = "a guest write is changing the Docker host"
+
+
 def writes_in_flight(ledger: Ledger) -> set[str]:
     """Targets a write is changing right now. Only while the lock is held: a `started` record
     left by a crash must never hide a service for good."""
@@ -171,12 +182,23 @@ def run(repo: Path, *, context: str, state_dir: Path, json_output: bool, stdout:
     code, lines = OK, []
     states: dict[str, Any] = {}
     loaded: dict[str, Any] = {}
+    fence_since: float | None = None
     try:
         states = load(path)
         loaded = dict(states)
-        changing = writes_in_flight(Ledger(state_dir))
-        order = targets(repo, states, changing)
-        docker_reachable(context)
+        ledger = Ledger(state_dir)
+        # A guest write changing this Docker host (a reboot, a resize) is not an outage, for a
+        # bounded time.
+        fenced = ledger.busy(writepath.fence(context))
+        if fenced:
+            known = loaded.get(FENCE)
+            since = known.get("since") if isinstance(known, dict) else None
+            fence_since = float(since) if isinstance(since, int | float) else wall()
+            fenced = wall() - fence_since < FENCE_GRACE_SECONDS
+        if not fenced:
+            changing = writes_in_flight(ledger)
+            order = targets(repo, states, changing)
+            docker_reachable(context)
     except WriteError as error:
         monitor, message = transition(states.get(MONITOR), False, error.reason, wall())
         failure = _push(MONITOR, monitor, message, wall())
@@ -185,43 +207,50 @@ def run(repo: Path, *, context: str, state_dir: Path, json_output: bool, stdout:
                       **({"alert": failure or "sent"} if message else {})})
         code = UNAVAILABLE
     else:
-        declared = {f"svc/{service}" for service in order} | changing
-        fresh: dict[str, Any] = {key: value for key, value in states.items() if key in declared}
-        for target in sorted(changing):
-            lines.append({"target": target, "outcome": "skipped", "reason": "a write is changing it"})
-        unobserved = []
-        for service in order:
-            target = f"svc/{service}"
-            if clock() - started >= PASS_BUDGET_SECONDS:
-                unobserved.append(target)  # keeps its state; observed first next pass
-                continue
-            try:
-                evidence = _bounded(lambda: deploy.observe(repo, service, context),
-                                    OBSERVE_MAX_SECONDS)
-                healthy, reason, revision = True, None, str(evidence.get("revision", ""))
-            except WriteError as error:
-                healthy, reason, revision = False, error.reason, None
-            entry, message = transition(states.get(target), healthy, reason, wall())
-            failure = _push(target, entry, message, wall())  # at once, not at the end of the pass
-            entry["observed_at"] = wall()
-            fresh[target] = entry
-            row = {"target": target, "source": revision, "outcome": entry["status"],
-                   "reason": reason}
-            if message:
-                row["alert"] = failure or "sent"
-            lines.append(row)
-            if not healthy:
-                code = FAILED
-        for target in unobserved:
-            lines.append({"target": target, "outcome": "skipped", "reason": "pass budget used"})
-        # A pass that can't observe everything in budget breaks the latency promise: that is a
-        # monitor failure (two strikes → alert), not a silent gap.
-        budget_reason = f"{len(unobserved)} service(s) not observed within the pass budget"
-        monitor, message = transition(states.get(MONITOR), not unobserved,
-                                      budget_reason if unobserved else None, wall())
-        _push(MONITOR, monitor, message, wall())
-        fresh[MONITOR] = monitor
-        states = fresh
+        if fenced:  # every service and the monitor keep their state: nothing was observed
+            lines.append({"target": f"host/{context}", "outcome": "skipped", "reason": FENCED})
+        else:
+            declared = {f"svc/{service}" for service in order} | changing
+            fresh: dict[str, Any] = {key: value for key, value in states.items() if key in declared}
+            for target in sorted(changing):
+                lines.append({"target": target, "outcome": "skipped", "reason": "a write is changing it"})
+            unobserved = []
+            for service in order:
+                target = f"svc/{service}"
+                if clock() - started >= PASS_BUDGET_SECONDS:
+                    unobserved.append(target)  # keeps its state; observed first next pass
+                    continue
+                try:
+                    evidence = _bounded(lambda: deploy.observe(repo, service, context),
+                                        OBSERVE_MAX_SECONDS)
+                    healthy, reason, revision = True, None, str(evidence.get("revision", ""))
+                except WriteError as error:
+                    healthy, reason, revision = False, error.reason, None
+                entry, message = transition(states.get(target), healthy, reason, wall())
+                failure = _push(target, entry, message, wall())  # at once, not at the end of the pass
+                entry["observed_at"] = wall()
+                fresh[target] = entry
+                row = {"target": target, "source": revision, "outcome": entry["status"],
+                       "reason": reason}
+                if message:
+                    row["alert"] = failure or "sent"
+                lines.append(row)
+                if not healthy:
+                    code = FAILED
+            for target in unobserved:
+                lines.append({"target": target, "outcome": "skipped", "reason": "pass budget used"})
+            # A pass that can't observe everything in budget breaks the latency promise: that is a
+            # monitor failure (two strikes → alert), not a silent gap.
+            budget_reason = f"{len(unobserved)} service(s) not observed within the pass budget"
+            monitor, message = transition(states.get(MONITOR), not unobserved,
+                                          budget_reason if unobserved else None, wall())
+            _push(MONITOR, monitor, message, wall())
+            fresh[MONITOR] = monitor
+            states = fresh
+    if fence_since is not None:
+        states[FENCE] = {"since": fence_since}
+    else:
+        states.pop(FENCE, None)
     # `/fail` pages at once on healthchecks.io, so it follows the same two-strike rule as the
     # monitor alert. Unwritable state can't count strikes (and won't heal itself): fail at once.
     monitor_down = states.get(MONITOR, {}).get("status") == "unhealthy"

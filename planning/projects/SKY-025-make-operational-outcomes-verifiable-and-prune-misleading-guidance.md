@@ -6,7 +6,7 @@ horizon: long
 created: 2026-09-06
 updated: 2026-09-27
 phases: 18
-current_phase: 14
+current_phase: 15
 tier_touched: [T1, T2, T2+, T3]
 related:
   - docs/system-design.md
@@ -22,7 +22,7 @@ related:
 
 ## Status
 
-**Current:** phases 1–13 done; Phase 14 is in its PR. Docker deploys run through one executor: `skynet deploy` applies the
+**Current:** phases 1–14 done; Phase 15 is in its PR. Docker deploys run through one executor: `skynet deploy` applies the
 merged revision of each `compose/<svc>/` (env and compose rendered together, `skynet.revision` on
 every container), verifies it, and on failure returns to the last verified revision by itself and
 opens a revert PR; a 3-minute `skynet-deploy` timer (`--pending`) replaced Arcane Git Sync, which is
@@ -36,19 +36,45 @@ and `collect all` loops over one collector list. The process overhaul is in: loc
 a two-active-directive limit (SKY-023 archived; SKY-005/006/018/020/024 parked in the backlog),
 a docs-only context budget, and weekly batched Renovate image updates. The deploy and Tofu phases
 follow the git model proposed in [ADR 0008](../../docs/decisions/0008-git-model-for-docker-and-opentofu.md);
-a live health monitor is Phase 14. The hard-law gates are Python (`skynet check`, run by `bin/check` and
+`skynet watch` alerts on a service outage within 10 minutes (Phase 14). The hard-law gates are Python (`skynet check`, run by `bin/check` and
 the pre-commit hook), and the live census is recorded in the owning docs. The census found the PBS off-site sync failing
 since 2026-08-31 and a failed docker-dmz restic run (cause unknown). Phase 16 now redesigns backup
 from scratch. Until it lands, no new off-site copy is known to land, and older copies are unverified
 (accepted by Ali, 2026-09-26).
 
-**Next:** Phase 14 (PR #276) adds `skynet watch` (passes every 3 min, state-change Pushover
-alerts, healthchecks.io dead-man's switch), `skynet log`, a 30 s `ls-remote` deploy trigger,
-retirement of services removed from `compose/`, and the revert-PR auto-merge gate (AGENTS.md §3's
-first entry). Live drill 2026-09-27 on the ops VM built from the PR (`skynet-drill`, #278–#281):
-merge→deploy 29 s; stop→DOWN push 4 min 57 s; restart→recovered push 2 min 30 s; broken
-healthcheck → rollback, executor revert #280 auto-merged by the gate (16 s after it opened) and
-redeployed; removal → retired in 29 s with the volume kept. Then Phase 15.
+**Next:** Phase 15 (OpenTofu under ADR 0008) is built and in its PR. There are three stacks,
+`tofu/proxmox-core`, `tofu/technitium-dns`, and `tofu/cloudflare-dns`; the directory is the scope,
+and `proxmox-network` waits for its first resource. `skynet tofu plan <stack> --approve` writes the
+PR's `approved-plan.json`. `skynet tofu apply --pending` (supervised; its `skynet-tofu` timer ships disabled) applies a merged stack only when its re-plan hash
+matches, refuses delete/replace/forget, excluded guests, and foreign types, snapshots guest updates
+through `pve.py`, and mirrors encrypted state to the `tofu-state` branch. `skynet tofu drift` feeds
+the nightly. `tofu-env.sh`, `tofu-apply.sh`, and `pve-snapshot.sh` are deleted. Live, 2026-09-27:
+the monolith's plan showed two code-vs-live drifts (CT 240 `startup order=2`, template 9000's
+description); both are now declared to match live. The state split ran (a state-only `state rm` per
+stack on copies of the legacy root state, which is kept in `legacy/`): proxmox-core 5, technitium-dns
+21, cloudflare-dns 6 addresses, and all three stacks plan to **zero changes**. **After merge and an
+ops VM rebuild:** a supervised `skynet tofu apply --pending` records the empty plans and creates `tofu-state`. Then come
+the drill PRs: a wrong approved hash is held and alerts, a rejected athena `cores` value is undone by
+a config restore (the LXC path), and a deleted local state is rebuilt from git. The VM path gets its
+own drill: one PR creates `vm-drill`, a running clone of template 9000 with an entity exception; a
+second PR sets a value Proxmox rejects, proving the config restore, the pending-change reboot, the
+power-state return, and the config comparison on a VM; then Ali destroys the VM by hand (the executor
+refuses deletes). A review (2026-09-29) replaced the snapshot rollback with the config restore,
+gave Tofu its own lock, and made a re-plan dirty only outside the approved change hold rather than
+roll back. A second review made a bind-mounted CT (240) skip only its fallback snapshot,
+kept a first local state off the branch until an apply adopts it, serialized pending.json, and
+made `plan --approve` refuse what the executor refuses. A third review fenced a Docker host's
+guest update against deploys (write lock + host fence, host must answer or the config is restored),
+applied approved deletes of derived DNS records while deferring guest deletes, bound approvals to
+their inputs, held unvalidated source, and backed off unavailable stacks; the VM drill adds a
+fenced docker-dmz update. A fifth review kept deferred addresses out of the post-apply re-plan,
+put back the hold a never-started `--ignore-hold` run overrode, and made the DNS parse guards
+fail the plan (output preconditions; a `check` only warns). A sixth review let a guest's pending
+changes wait instead of holding, judged only hosts that answered before the apply, and bounded
+watch's fence skip. A seventh review sized that bound from the executor's own worst case (5 h),
+limited deletes to derived records, and gave the timer an `--if-moved` gate. The phase
+box is ticked by the promotion PR: it enables the `skynet-tofu` timer and records the drills as the
+constitution's live evidence (human-merged).
 
 This block, the phase boxes, and the frontmatter are the **only** progress record. Each phase PR
 updates them itself; merge is completion ([construction](../../docs/conventions/construction.md)).

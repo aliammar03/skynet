@@ -30,7 +30,7 @@ entries, deployed through the normal reviewed PR → `skynet deploy` loop. Caddy
 Apps Caddy uses Let's Encrypt DNS-01 through Cloudflare's public authoritative DNS. Its scoped
 Cloudflare DNS token writes only `aliammar.net` challenges; it reaches the Cloudflare API over 443,
 not authoritative DNS on port 53. Internal A records are derived from the apps Caddyfile through
-the reviewed saved-plan DNS path.
+the `technitium-dns` stack (`skynet tofu`).
 
 ## Internal publish paths
 
@@ -57,10 +57,11 @@ A hostname is public only when both are present in reviewed configuration:
 2. Its Cloudflare CNAME, derived from the ingress and applied through the scoped DNS path.
 
 The human merge of the ingress change is the publish gate. Cloudflare DNS record writes are T2, but
-account, Access policy, tunnel configuration, and zone settings are T3. The saved-plan executor
-refuses deletion; removing a public record is the explicit hard-checkpoint `skynet withdraw <vhost>`,
-which runs only after git no longer declares the vhost and snapshots the record it deletes. Internal clients always resolve directly to Apps Caddy and never
-transit Cloudflare.
+account, Access policy, tunnel configuration, and zone settings are T3. Removing an ingress entry
+removes its CNAME in the same PR: the record is derived, so its delete is in the approved plan and
+`skynet tofu` applies it after the merge. The vhost's Authentik objects are the explicit
+hard-checkpoint `skynet withdraw <vhost>`, which runs only after git no longer declares the vhost.
+Internal clients always resolve directly to Apps Caddy and never transit Cloudflare.
 
 ## Residual boundary
 
