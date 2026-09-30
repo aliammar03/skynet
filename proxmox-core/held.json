@@ -1,5 +1,5 @@
 {
-  "operation": "95f507d6474c",
-  "reason": "tofu apply failed",
-  "revision": "92d0ecdfeb5f4c479987bad2850a5ac43a650f2a"
+  "operation": "1c7edffc8dca",
+  "reason": "apply in progress; a recorded success clears this",
+  "revision": "edd4ac82a9508a8d7e8cae2459aca1a9ea9c2732"
 }
