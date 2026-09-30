@@ -1,7 +1,7 @@
 {
   "stack": "proxmox-core",
-  "hash": "8e5419441528ed565fae6c6f313c84367b80fd3e9b3cc5d3b7013443c22fb865",
-  "inputs": "b059b1b8d190c61fab155d9af025024c3ecb866e71f7cbd1a864c5681bd59cc0",
+  "hash": "574ec208399be74086fd906788a6d01fbf73740560ec49c1fc993ae7e6e326fe",
+  "inputs": "cb190e3cc24b8cb9b9d4543c088dca23019c1e990e8251c69b0261d90708f97e",
   "changes": [
     {
       "address": "proxmox_virtual_environment_container.core_ct[\"athena\"]",
