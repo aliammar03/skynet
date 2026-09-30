@@ -48,7 +48,7 @@ locals {
       memory = 8192
       swap   = 2048
       disk   = 64
-      tags   = ["nixos", "obsidian", "skynet"] # sorted: Proxmox stores tags sorted
+      tags   = ["drill", "nixos", "obsidian", "skynet"] # sorted: Proxmox stores tags sorted
     }
   }
 }
