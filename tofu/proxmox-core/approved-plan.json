@@ -1,14 +1,14 @@
 {
+  "stack": "proxmox-core",
+  "hash": "8e5419441528ed565fae6c6f313c84367b80fd3e9b3cc5d3b7013443c22fb865",
+  "inputs": "b059b1b8d190c61fab155d9af025024c3ecb866e71f7cbd1a864c5681bd59cc0",
   "changes": [
     {
+      "address": "proxmox_virtual_environment_container.core_ct[\"athena\"]",
       "actions": [
         "update"
-      ],
-      "address": "proxmox_virtual_environment_container.core_ct[\"athena\"]"
+      ]
     }
   ],
-  "deferred": [],
-  "hash": "0000000000000000000000000000000000000000000000000000000000000000",
-  "inputs": "b059b1b8d190c61fab155d9af025024c3ecb866e71f7cbd1a864c5681bd59cc0",
-  "stack": "proxmox-core"
+  "deferred": []
 }
