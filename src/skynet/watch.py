@@ -41,9 +41,10 @@ REMINDER_SECONDS = 24 * 3600
 MONITOR = "monitor"
 DELIVERY = "_delivery"
 FENCE = "_fence"  # when this pass first saw the host's fence held
-# A guest update's apply, re-plan, and host settle fit well inside this; a fence held longer (a
-# hung apply) must not keep a real outage from the phone.
-FENCE_GRACE_SECONDS = 45 * 60
+# At least the longest a Tofu apply can hold the fence (tofu.FENCED_SECONDS, snapshots through a
+# restore and its settle; a test pins it), so a slow rollback never pages; a fence held longer (a
+# hung process) must not keep a real outage from the phone.
+FENCE_GRACE_SECONDS = 5 * 3600
 
 
 def _stamp(now: float) -> str:

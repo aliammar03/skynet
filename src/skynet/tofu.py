@@ -96,6 +96,10 @@ GIT_CALLS, GIT_SECONDS, ALERTS = 60, 60, 4  # per stack: sync, record, hold, che
 STACK_BUDGET = (sum(TOFU_SECONDS.values()) + MAX_GUESTS * GUEST_SECONDS + GIT_CALLS * GIT_SECONDS
                 + 2 * HOST_SETTLE_SECONDS
                 + 120 + ALERTS * int(alert.TIMEOUT))  # 120: the source archive
+# How long an apply can hold a Docker host's fence (snapshots to record): everything but the steps
+# before it takes the fence. `skynet watch` honors a fence at least this long (a test pins it).
+FENCED_SECONDS = (STACK_BUDGET - 120 - sum(TOFU_SECONDS[step] for step in (
+    "init", "validate", "schema", "plan", "show", "replan", "replan_show")))
 PASS_SECONDS = 6 * 3600
 PASS_MARGIN = 300  # reporting, the exit, and systemd's own stop
 # Outcomes after a write ran: retrying could disrupt guests again or repeat a partial create.
@@ -146,9 +150,10 @@ class Stack:
     inputs: tuple[str, ...]  # repo paths whose change needs a new plan (tofu/<stack> is implied)
     credentials: Callable[[], dict[str, str]]
     node: str | None = None  # a Proxmox stack's one node
-    # Types whose approved delete the executor applies: records derived from git, holding no
-    # payload, that the revert of their PR recreates. Every other delete is deferred.
-    deletable: frozenset[str] = frozenset()
+    # The resources whose approved delete the executor applies: records derived from git (by
+    # address, `<type>.<name>`), holding no payload, that the revert of their PR recreates. Every
+    # other delete, a hand-listed record's included, is deferred.
+    deletable: tuple[str, ...] = ()
 
     @property
     def paths(self) -> tuple[str, ...]:
@@ -158,9 +163,9 @@ class Stack:
 STACKS = {stack.name: stack for stack in (
     Stack("proxmox-core", frozenset(GUEST_TYPES), (), _proxmox_core_env, "server-proxmox-core"),
     Stack("technitium-dns", frozenset({"technitium_record"}), ("compose/caddy-apps/Caddyfile",),
-          _technitium_env, deletable=frozenset({"technitium_record"})),
+          _technitium_env, deletable=("technitium_record.apps_service",)),
     Stack("cloudflare-dns", frozenset({"cloudflare_dns_record"}), ("compose/cloudflared/config.yml",),
-          _cloudflare_env, deletable=frozenset({"cloudflare_dns_record"})),
+          _cloudflare_env, deletable=("cloudflare_dns_record.tunnel",)),
 )}
 
 
@@ -402,7 +407,9 @@ def deferrable(stack: Stack, item: dict[str, Any]) -> bool:
     """A delete, replace, or forget the executor never applies (anything but a derived record of
     this stack): excluded from the plan so it waits for its hard checkpoint without blocking the
     rest of the stack."""
-    return bool(REFUSED_ACTIONS & set(item["actions"])) and item["type"] not in stack.deletable
+    address = str(item["address"])
+    derived = any(address == name or address.startswith(name + "[") for name in stack.deletable)
+    return bool(REFUSED_ACTIONS & set(item["actions"])) and not derived
 
 
 def refuse(stack: Stack, found: list[dict[str, Any]], excluded: Collection[int]) -> None:
@@ -1334,6 +1341,7 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                 except WriteError:
                     _unrecorded(ledger, name, record)  # the persistence step pushes it later
                     raise
+                _forget_unrecorded(ledger, name)  # an older unpushed record must never land over it
                 _clear_local_hold(ledger, name, target)
 
             result = writepath.run(operation, ledger, preflight=preflight, snapshot=snapshot,
@@ -1354,14 +1362,20 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
 
 def _announce_deferred(ledger: Ledger, name: str, deferred: list[str], operation: Operation) -> None:
     """A deferred hard checkpoint alerts once per address: it waits for a human, never silently."""
-    new = [address for address in deferred if not _announced(ledger, f"{name}:deferred:{address}")]
+    known = _facts(ledger).get("_hold_alerts")
+    seen = known if isinstance(known, list) else []
+    new = [address for address in deferred if f"{name}:deferred:{address}" not in seen]
     if not new:
         return
     failure = alert.send(f"skynet: tofu/{name} deferred {len(new)} hard-checkpoint change(s)",
                          "not applied (delete/replace/forget; a supervised path): "
                          + ", ".join(new)[:800], priority=1)
-    operation.note("deferred", "announced", ", ".join(new)[:500])
     operation.note("alert", "failed" if failure else "ok", failure)
+    if failure:
+        return  # not marked: the next run that defers them alerts again
+    operation.note("deferred", "announced", ", ".join(new)[:500])
+    for address in new:
+        _announced(ledger, f"{name}:deferred:{address}")
 
 
 def _record(repo: Path, ledger: Ledger, stack: str, record: dict[str, Any] | None, message: str) -> None:
@@ -1436,14 +1450,15 @@ def _recorded_ids(ledger: Ledger) -> set[str] | None:
 
 def _recorded(ledger: Ledger, operation: str) -> bool:
     ids = _recorded_ids(ledger)
-    return ids is None or operation in ids  # unknown: keep the snapshot rather than guess
+    return ids is None or operation in ids  # unknown: assume recorded, never claim "no record"
 
 
 def _drop_intents(ledger: Ledger, operation: str) -> None:
     """Once a record carries the operation, its snapshots are owned by that record (pruned, kept
     for an operator, or settled); the intents are no longer needed."""
-    if not _recorded(ledger, operation):
-        return  # a crash before any record: leave them for retry_cleanup
+    ids = _recorded_ids(ledger)
+    if ids is None or operation not in ids:
+        return  # no record (a crash first), or none readable: leave them for retry_cleanup
 
     def drop(facts: dict[str, Any]) -> None:
         if "_cleanup" in facts:
@@ -1460,6 +1475,16 @@ def _unrecorded(ledger: Ledger, name: str, record: dict[str, Any]) -> None:
         _update_facts(ledger, lambda facts: _store(facts).update({name: record}))
     except WriteError:
         pass  # the state is still pushed (pending local writes); the record needs a human
+
+
+def _forget_unrecorded(ledger: Ledger, name: str) -> None:
+    def forget(facts: dict[str, Any]) -> None:
+        if isinstance(facts.get("_unrecorded"), dict):
+            facts["_unrecorded"].pop(name, None)
+    try:
+        _update_facts(ledger, forget)
+    except WriteError:
+        pass  # persist_pending drops a record older than the branch's (`_superseded`)
 
 
 def _clear_local_hold(ledger: Ledger, name: str, revision: str) -> None:
@@ -1483,10 +1508,14 @@ def persist_pending(repo: Path, ledger: Ledger) -> list[dict[str, Any]]:
         with ledger.lock(LOCK):
             results: list[dict[str, Any]] = []
             done: list[str] = []
+            dropped: list[str] = []  # stored records older than the branch's: never pushed
             store = _store(_facts(ledger))
             for name in STACKS:
                 record = store.get(name) if isinstance(store.get(name), dict) else None
                 try:
+                    if record is not None and _superseded(repo, name, record):
+                        record = None  # a later apply recorded a newer revision
+                        dropped.append(name)
                     remote = branch_state(repo, name)
                     kind = classify(ledger, name, remote)
                     if kind in ("missing", "stale") and remote is not None:
@@ -1508,15 +1537,25 @@ def persist_pending(repo: Path, ledger: Ledger) -> list[dict[str, Any]]:
                 results.append({"target": f"tofu/{name}", "outcome": "success",
                                 "reason": "unpushed state persisted to tofu-state"})
             def forget(facts: dict[str, Any]) -> None:
-                for name in done:
+                for name in done + dropped:
                     _store(facts).pop(name, None)
-            if done:
+            if done or dropped:
                 _update_facts(ledger, forget)
             return results
     except WriteError as error:
         if error.reason == writepath.LOCK_BUSY:
             return []
         raise
+
+
+def _superseded(repo: Path, name: str, record: dict[str, Any]) -> bool:
+    """A stored applied record is superseded when the branch's applied revision is a strictly
+    later commit: pushing it would regress applied.json."""
+    current, stored = applied(repo, name).get("revision"), record.get("revision")
+    if not isinstance(current, str) or not isinstance(stored, str) or current == stored:
+        return False
+    return deploy._run(["git", "-C", str(repo), "merge-base", "--is-ancestor", stored,
+                        current]).returncode == 0
 
 
 def retry_cleanup(repo: Path, ledger: Ledger) -> list[dict[str, Any]]:
@@ -1533,7 +1572,9 @@ def retry_cleanup(repo: Path, ledger: Ledger) -> list[dict[str, Any]]:
             done, results = [], []
             for item in queue:
                 if isinstance(item, dict) and item.get("intent"):
-                    if ids is None or str(item["intent"]) in ids:
+                    if ids is None:
+                        continue  # the record is unreadable: keep the intent, never guess
+                    if str(item["intent"]) in ids:
                         done.append(item)
                         continue  # its record owns the snapshot now
                     # No record at all: a crash in the snapshot stage; nothing was applied.
@@ -2046,9 +2087,13 @@ def run_plan(repo: Path, name: str | None, *, ref: str, approve: bool, state_dir
             print(f"not approved: {error.reason}", file=stdout)
             return error.code
         path = repo / "tofu" / stack.name / APPROVED
-        common.atomic_write_text(path, json.dumps(
-            {"stack": stack.name, "hash": planned_.hash, "inputs": inputs,
-             "changes": summary(found), "deferred": planned_.deferred}, indent=2) + "\n")
+        try:
+            common.atomic_write_text(path, json.dumps(
+                {"stack": stack.name, "hash": planned_.hash, "inputs": inputs,
+                 "changes": summary(found), "deferred": planned_.deferred}, indent=2) + "\n")
+        except OSError:
+            print(f"not approved: {path.relative_to(repo)} unwritable", file=stdout)
+            return UNAVAILABLE
         print(f"wrote {path.relative_to(repo)}; commit it with the change", file=stdout)
     return OK
 
@@ -2102,15 +2147,51 @@ def _pass_failures(ledger: Ledger, failed: dict[str, Any] | None) -> int | None:
     return count
 
 
+QUIET_PASS_SECONDS = 15 * 60  # with nothing in flight and main unmoved, a full pass this often
+
+
+def _quiet(repo: Path, ledger: Ledger, now: float) -> tuple[str, bool]:
+    """The `--if-moved` gate: main's remote head (a cheap `ls-remote`, no fetch), and whether this
+    tick can skip. It skips only while main has not moved since a pass that left nothing to do
+    (no result at all: nothing held, retried, queued, or settled) and that pass is recent."""
+    head = deploy.remote_main(repo)
+    try:
+        seen = json.loads((state_dir(ledger) / "main-seen.json").read_text(encoding="utf-8"))
+        return head, head == str(seen["head"]) and now < float(seen["due"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return head, False
+
+
+def _seen(ledger: Ledger, head: str, due: float) -> bool:
+    try:
+        state_dir(ledger).mkdir(parents=True, exist_ok=True)
+        common.atomic_write_text(state_dir(ledger) / "main-seen.json",
+                                 json.dumps({"head": head, "due": due}) + "\n")
+    except OSError:
+        return False
+    return True
+
+
 def run_apply(repo: Path, name: str | None, *, revision: str | None, pending_all: bool,
-              state_dir_: Path, json_output: bool, stdout: TextIO, ignore_hold: bool = False) -> int:
+              state_dir_: Path, json_output: bool, stdout: TextIO, ignore_hold: bool = False,
+              if_moved: bool = False) -> int:
     ledger = Ledger(state_dir_)
     if pending_all:  # the skynet-tofu timer
         deadline = time.monotonic() + PASS_SECONDS - PASS_MARGIN
         try:
+            head = ""
+            if if_moved:
+                head, skip = _quiet(repo, ledger, _now())
+                if skip:
+                    return OK
             deploy.fetch(repo)
             results = pending(repo, ledger=ledger, deadline=deadline)
             _pass_failures(ledger, None)
+            # A pass that did anything runs again next tick; a quiet one sleeps until main moves.
+            if if_moved and not _seen(ledger, head, _now() + QUIET_PASS_SECONDS if not results
+                                      else 0.0):
+                results.append({"target": "tofu", "outcome": "unrecorded", "code": UNAVAILABLE,
+                                "reason": "trigger state unwritable; every tick runs a full pass"})
         except (WriteError, OSError) as error:  # the pass itself could not run (git, state)
             unavailable: dict[str, Any] = {
                 "target": "tofu", "outcome": "unavailable",

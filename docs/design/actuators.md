@@ -34,7 +34,7 @@ The Tofu executor validates the merged revision (a static error holds it), appli
 it makes from it, and only when that plan's normalized-change hash equals the PR's
 `approved-plan.json` and the approval's inputs digest equals the stack's inputs at that revision
 (an empty plan needs no approval). A delete, replace, or forget of anything but a derived DNS
-record is excluded from the plan (with whatever depends on it) and deferred; the deferred set is
+record (an app vhost's A record or a tunnel CNAME, never a hand-listed one) is excluded from the plan (with whatever depends on it) and deferred; the deferred set is
 part of the hash, the post-apply re-plan leaves it out too (still pending, never drift), and it
 alerts once, from the first run that applies the rest. The hash covers each change's actions and
 the attributes it moves (before → after); refresh values of untouched attributes, such as a guest
@@ -57,8 +57,9 @@ elsewhere (drift, a provider's perpetual diff, including other attributes of a m
 address) is never rolled back: it alerts and holds, as does a post-apply check that cannot run. An
 update to a Docker host's guest (lab.json `docker_hosts`) also holds the `write` lock and the host's
 `fence-<context>` lock from before its snapshots until its record, so a deploy there waits and
-`skynet watch` skips the host rather than alert (for at most 45 min; a longer fence is watched
-through); a pass that finds a deploy holding the lock does not re-plan until it is free. It waits up
+`skynet watch` skips the host rather than alert (for at most 5 h, the longest an apply can hold it;
+a longer fence is watched through); a pass that finds a deploy holding the lock does not re-plan
+until it is free. It waits up
 to 10 min for the host to answer after the apply (unless the approved change stops it, or the host
 did not answer before it) and after a restore (if it was running and answering before), and a host
 that never answers is a failed change. A computed-only attribute never ties a re-plan
@@ -76,7 +77,9 @@ one left by a crash is found and cleaned; a queued entry naming an excluded gues
 alerts, and every Proxmox write refuses an excluded guest itself. An apply that times out is
 indeterminate (its process group is killed; remote work may still land): never rolled back, it keeps
 its snapshots, holds, and alerts. A stack that is only unavailable is retried after a backoff (1 min
-doubling to 1 h), alerts on its third failure, and again daily. Each pass first rebuilds a missing
+doubling to 1 h), alerts on its third failure, and again daily. The timer runs
+`--pending --if-moved`: a tick is skipped while `main` is unmoved since a pass that left nothing to
+do (at most 15 min), so an idle lab costs one `ls-remote` a minute. Each pass first rebuilds a missing
 or stale local state from the branch and pushes any state the branch lacks, under the tofu lock and
 even for a held revision, without re-running the apply. A first local state (no branch, no recorded
 base) is pushed only after an apply at its stack has planned it and passed every refusal; one whose

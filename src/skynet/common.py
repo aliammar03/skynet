@@ -191,8 +191,8 @@ def atomic_write_text(path: Path, content: str) -> None:
 
 def atomic_write_bytes(path: Path, content: bytes) -> None:
     """Replace `path` (mode 0600) only after a complete, fsynced sibling write, then fsync the
-    directory so the rename itself survives a crash; OSError on any failure, leaving no
-    temporary file."""
+    directory so the rename itself survives a crash. OSError on any failure before the rename,
+    leaving the previous bytes and no temporary file; once renamed, the write stands."""
     temporary: str | None = None
     try:
         with tempfile.NamedTemporaryFile(dir=path.parent, prefix="." + path.name + ".",
@@ -202,11 +202,14 @@ def atomic_write_bytes(path: Path, content: bytes) -> None:
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary, path)
-        directory = os.open(path.parent, os.O_RDONLY)
-        try:
-            os.fsync(directory)
-        finally:
-            os.close(directory)
+        try:  # best effort: the new bytes are in place, so a failed flush is no failed write
+            directory = os.open(path.parent, os.O_RDONLY)
+            try:
+                os.fsync(directory)
+            finally:
+                os.close(directory)
+        except OSError:
+            pass
     finally:
         if temporary is not None:
             try:

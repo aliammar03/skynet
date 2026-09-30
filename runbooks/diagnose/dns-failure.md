@@ -40,7 +40,7 @@ rollback: "restore the prior DNS declaration through its approved path"
    with the PR. After the merge, `skynet tofu apply --pending` applies it (the `skynet-tofu` timer once it is enabled) (`skynet log --kind tofu`).
    Internal records are declared in `tofu/technitium-dns/records.tf` (app records derive from
    `compose/caddy-apps/Caddyfile`); public tunnel CNAMEs derive from `compose/cloudflared/config.yml`
-   into `tofu/cloudflare-dns/records.tf`. Do not hand-run a provider token call. The Technitium token cannot yet delete records; deletion requires its documented grant or human UI action.
+   into `tofu/cloudflare-dns/records.tf`. Do not hand-run a provider token call. A removed app vhost's derived record is deleted by the executor after the merge; a hand-listed record's removal is deferred for a human.
 
 ## Verify
 

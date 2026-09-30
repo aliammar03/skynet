@@ -72,7 +72,7 @@ in
       Type = "oneshot";
       User = "aliammar";
       WorkingDirectory = repo;
-      ExecStart = "/run/current-system/sw/bin/skynet tofu apply --pending --repo ${repo}";
+      ExecStart = "/run/current-system/sw/bin/skynet tofu apply --pending --if-moved --repo ${repo}";
       # 0 for every outcome the pass records and alerts itself; 4 = rollback-failed whose alert
       # went out. A crash, an unsent alert, a timeout, or a kill fires OnFailure.
       SuccessExitStatus = [ 4 ];

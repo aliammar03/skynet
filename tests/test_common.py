@@ -107,6 +107,21 @@ def test_an_atomic_write_makes_the_rename_durable(tmp_path: Path,
     assert synced == [False, True]  # the file, then its directory after the rename
 
 
+def test_a_failed_directory_flush_never_fails_a_completed_write(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import stat
+    real = common.os.fsync
+
+    def fsync(fd: int) -> None:
+        if stat.S_ISDIR(common.os.fstat(fd).st_mode):
+            raise OSError("EIO")
+        real(fd)
+
+    monkeypatch.setattr(common.os, "fsync", fsync)
+    common.atomic_write_bytes(tmp_path / "state.bin", b"v1")  # no raise: the bytes are in place
+    assert (tmp_path / "state.bin").read_bytes() == b"v1"
+
+
 def test_unserializable_publish_keeps_previous_bytes(tmp_path: Path) -> None:
     path = tmp_path / "snapshot.json"
     path.write_text("previous")

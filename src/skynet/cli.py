@@ -112,6 +112,8 @@ def build_parser() -> argparse.ArgumentParser:
     tofu_target.add_argument("--pending", action="store_true",
                              help="apply every stack whose merged inputs are not the applied ones")
     tofu_apply.add_argument("--revision", help="a merged commit (default: newest touching the stack)")
+    tofu_apply.add_argument("--if-moved", action="store_true",
+                            help="the timer: skip the pass while main is unmoved and nothing is in flight")
     tofu_apply.add_argument("--ignore-hold", action="store_true",
                             help="supervised recovery: apply a held revision (one stack, never --pending)")
     tofu_drift = tofu_actions.add_parser("drift", help="read-only plan of every stack at origin/main")
@@ -349,8 +351,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         if arguments.pending and (arguments.revision or arguments.ignore_hold):
             print("tofu apply: --pending takes no --revision or --ignore-hold", file=sys.stderr)
             return 2
+        if arguments.if_moved and not arguments.pending:
+            print("tofu apply: --if-moved needs --pending", file=sys.stderr)
+            return 2
         return tofu.run_apply(arguments.repo, arguments.stack, revision=arguments.revision,
                               pending_all=arguments.pending, ignore_hold=arguments.ignore_hold,
+                              if_moved=arguments.if_moved,
                               state_dir_=arguments.state_dir,
                               json_output=arguments.json_output, stdout=sys.stdout)
     if arguments.command == "collect":

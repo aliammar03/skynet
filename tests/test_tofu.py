@@ -405,6 +405,25 @@ def test_a_guest_delete_replace_or_forget_is_deferred_never_applied_and_never_bl
     assert len(fake.alerts) == 1  # once per address, not per pass
 
 
+def test_a_deferral_whose_alert_failed_alerts_again(fake: Fake, tmp_path: Path,
+                                                    monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger = Ledger(tmp_path / "state")
+    sent: list[str] = []
+
+    def send(title: str, message: str, priority: int = 0) -> str | None:
+        sent.append(title)
+        return "pushover unreachable" if len(sent) == 1 else None
+
+    monkeypatch.setattr(alert, "send", send)
+    fake.plan = [guest(10030, cores=4), guest(10031, actions=["delete"])]
+    fake.approve()
+    assert run(fake, tmp_path).outcome == "success"
+    fake.inputs["proxmox-core"] = NEW
+    fake.approve()
+    assert tofu.apply(tmp_path, "proxmox-core", revision=NEW, ledger=ledger).outcome == "success"
+    assert sent == ["skynet: tofu/proxmox-core deferred 1 hard-checkpoint change(s)"] * 2
+
+
 def test_a_refused_plan_never_announces_its_deferrals(fake: Fake, tmp_path: Path) -> None:
     ledger = Ledger(tmp_path / "state")
     doomed = guest(10031, actions=["delete"])
@@ -986,13 +1005,42 @@ def test_too_many_guests_in_one_apply_are_refused(fake: Fake, tmp_path: Path) ->
     assert "apply" not in fake.calls
 
 
+def test_watch_honors_a_fence_as_long_as_an_apply_can_hold_it() -> None:
+    from skynet import watch
+    assert watch.FENCE_GRACE_SECONDS >= tofu.FENCED_SECONDS
+    assert tofu.FENCED_SECONDS >= tofu.MAX_GUESTS * tofu.GUEST_SECONDS + tofu.TOFU_SECONDS["apply"]
+
+
+def test_the_timer_skips_quiet_ticks_until_main_moves(fake: Fake, tmp_path: Path,
+                                                      monkeypatch: pytest.MonkeyPatch) -> None:
+    head = {"main": "m1"}
+    passes: list[int] = []
+    monkeypatch.setattr(deploy, "remote_main", lambda repo: head["main"])
+    real_pending = tofu.pending
+    monkeypatch.setattr(tofu, "pending", lambda repo, **kw: passes.append(1) or real_pending(repo, **kw))
+    fake.applied["proxmox-core"] = REV  # nothing to do: the pass returns no result
+
+    def tick() -> int:
+        return tofu.run_apply(tmp_path, None, revision=None, pending_all=True, if_moved=True,
+                              state_dir_=tmp_path / "state", json_output=True, stdout=io.StringIO())
+
+    assert [tick() for _ in range(3)] == [0, 0, 0] and len(passes) == 1  # quiet: one full pass
+    head["main"] = "m2"  # a merge: the stack is pending
+    fake.applied["proxmox-core"] = None
+    tick()
+    assert len(passes) == 2 and fake.applied["proxmox-core"] == REV  # applied
+    tick()  # a pass that did something is followed by a full one...
+    tick()  # ...which found nothing, so this tick sleeps
+    assert len(passes) == 3
+
+
 def test_the_unit_timeout_covers_a_full_pass_budget() -> None:
     import re
     nix = (Path(__file__).resolve().parents[1] / "nix/modules/timers.nix").read_text()
     unit = nix[nix.index("systemd.services.skynet-tofu"):nix.index("systemd.timers.skynet-tofu")]
     hours = int(re.search(r'TimeoutStartSec = "(\d+)h";', unit)[1])  # type: ignore[index]
     assert hours * 3600 == tofu.PASS_SECONDS
-    assert 'skynet tofu apply --pending' in unit
+    assert 'skynet tofu apply --pending --if-moved' in unit
     # One stack's full worst case fits in a pass, with the margin left for reporting.
     assert tofu.STACK_BUDGET <= tofu.PASS_SECONDS - tofu.PASS_MARGIN
     # Every wait is in it: all tofu commands, and per guest every task's HTTP call and last poll.
@@ -1068,6 +1116,24 @@ def test_state_is_persisted_after_git_recovers_without_rerunning_the_apply(
     assert tofu._facts(ledger).get("_unrecorded") == {}
 
 
+def test_a_later_recorded_success_retires_an_older_unpushed_record(fake: Fake, tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "state")
+    tofu._unrecorded(ledger, "proxmox-core", {"revision": "0" * 40, "operation": "old"})
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    assert run(fake, tmp_path).outcome == "success"
+    assert tofu._facts(ledger).get("_unrecorded") == {}  # never pushed over the newer record
+
+
+def test_a_stored_record_older_than_the_branch_is_superseded(clone: Path) -> None:
+    older = _git(clone, "rev-parse", "HEAD")
+    _git(clone, "commit", "-q", "--allow-empty", "-m", "later")
+    newer = _git(clone, "rev-parse", "HEAD")
+    tofu.record_state(clone, "proxmox-core", b"v1", {"revision": newer}, "applied")
+    assert tofu._superseded(clone, "proxmox-core", {"revision": older})
+    assert not tofu._superseded(clone, "proxmox-core", {"revision": newer})
+
+
 def test_partial_failure_state_is_persisted_while_the_revision_stays_held(
         fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ledger = Ledger(tmp_path / "state")
@@ -1106,6 +1172,21 @@ def test_a_crash_after_a_remote_snapshot_leaves_an_intent_the_next_pass_cleans(
     results = tofu.retry_cleanup(tmp_path, ledger)
     assert results and results[0]["outcome"] == "success" and 10030 not in fake.snapshots
     assert tofu._facts(ledger)["_cleanup"] == []
+
+
+def test_an_unreadable_record_keeps_a_crash_left_intent(
+        fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    ledger = Ledger(tmp_path / "state")
+    tofu._intend(ledger, pve.Guest(CORE, "lxc", 10030), "skynet-x", "op-crashed")
+    fake.snapshots.add(10030)
+    ledger.path.parent.mkdir(parents=True, exist_ok=True)
+    with ledger.path.open("a") as stream:
+        stream.write('{"torn": ')  # a crash mid-append
+    assert tofu.retry_cleanup(tmp_path, ledger) == []
+    assert [i.get("intent") for i in tofu._facts(ledger)["_cleanup"]] == ["op-crashed"]
+    tofu._drop_intents(ledger, "op-crashed")
+    assert [i.get("intent") for i in tofu._facts(ledger)["_cleanup"]] == ["op-crashed"]
+    assert 10030 in fake.snapshots  # neither deleted nor forgotten
 
 
 def test_an_intent_whose_operation_was_recorded_is_left_to_its_record(fake: Fake, tmp_path: Path) -> None:
@@ -1942,6 +2023,19 @@ def test_an_approved_dns_record_delete_is_applied(fake: Fake, tmp_path: Path) ->
     assert fake.applied["technitium-dns"] == REV
 
 
+def test_a_hand_listed_record_delete_is_deferred_not_applied() -> None:
+    stack = tofu.STACKS["technitium-dns"]
+    vanity = change('technitium_record.aliammar_net["pbs"]', "technitium_record", ["delete"])
+    derived = _record_change("calibre.aliammar.net", ["delete"])
+    (vanity_found,) = tofu.changes({"resource_changes": [vanity]})
+    (derived_found,) = tofu.changes({"resource_changes": [derived]})
+    assert tofu.deferrable(stack, vanity_found) and not tofu.deferrable(stack, derived_found)
+    tunnel = change('cloudflare_dns_record.tunnel["a.aliammar.net"]', "cloudflare_dns_record",
+                    ["delete"])
+    (tunnel_found,) = tofu.changes({"resource_changes": [tunnel]})
+    assert not tofu.deferrable(tofu.STACKS["cloudflare-dns"], tunnel_found)
+
+
 def test_a_dns_delete_that_does_not_land_is_not_landed(fake: Fake, tmp_path: Path) -> None:
     fake.stack = "technitium-dns"
     fake.inputs["technitium-dns"] = REV
@@ -2133,6 +2227,18 @@ def test_approve_refuses_a_ref_other_than_the_checked_out_commit(monkeypatch: py
                          state_dir_=tmp_path / "state", stdout=out) == writepath.USAGE
     assert "--ref HEAD" in out.getvalue()
     assert not (tmp_path / "tofu/proxmox-core" / tofu.APPROVED).exists()
+
+
+def test_an_unwritable_approval_is_a_clean_refusal(monkeypatch: pytest.MonkeyPatch,
+                                                   tmp_path: Path) -> None:
+    monkeypatch.setattr(deploy, "resolve", lambda repo, ref: REV)
+    monkeypatch.setattr(tofu, "inputs_digest", lambda repo, revision, stack: "d" * 64)
+    monkeypatch.setattr(tofu, "_read_only_plan", lambda *args, **kwargs: tofu.ReadOnlyPlan(
+        [], tofu.plan_hash("proxmox-core", []), "the plan", frozenset(), []))
+    out = io.StringIO()  # tofu/proxmox-core/ does not exist: the write fails
+    assert tofu.run_plan(tmp_path, "proxmox-core", ref="HEAD", approve=True,
+                         state_dir_=tmp_path / "state", stdout=out) == UNAVAILABLE
+    assert "not approved" in out.getvalue() and "unwritable" in out.getvalue()
 
 
 def test_approve_binds_inputs_and_writes_even_an_empty_plan(monkeypatch: pytest.MonkeyPatch,

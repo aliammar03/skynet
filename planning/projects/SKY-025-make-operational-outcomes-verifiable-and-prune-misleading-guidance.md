@@ -71,7 +71,8 @@ fenced docker-dmz update. A fifth review kept deferred addresses out of the post
 put back the hold a never-started `--ignore-hold` run overrode, and made the DNS parse guards
 fail the plan (output preconditions; a `check` only warns). A sixth review let a guest's pending
 changes wait instead of holding, judged only hosts that answered before the apply, and bounded
-watch's fence skip to 45 min. The phase
+watch's fence skip. A seventh review sized that bound from the executor's own worst case (5 h),
+limited deletes to derived records, and gave the timer an `--if-moved` gate. The phase
 box is ticked by the promotion PR: it enables the `skynet-tofu` timer and records the drills as the
 constitution's live evidence (human-merged).
 
