@@ -1,5 +1,5 @@
 {
-  "operation": "36edcf551396",
-  "reason": "plan differs from the approved plan (drift or an unapproved change); re-plan in a new PR",
-  "revision": "ac41790e326ecde69f87f4afecb2c97f50967d20"
+  "operation": "526fc0442322",
+  "reason": "apply in progress; a recorded success clears this",
+  "revision": "5bd7501a2bb660a41d7979cdf10537fd7233e0d0"
 }
