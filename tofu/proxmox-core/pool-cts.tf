@@ -163,7 +163,10 @@ resource "proxmox_virtual_environment_container" "core_ct" {
     mac_address = each.value.mac
   }
 
-  features { nesting = true }
+  features {
+    nesting = true
+    keyctl  = true # DRILL D5: Proxmox refuses non-root feature changes except nesting
+  }
 
   console {
     enabled   = true
