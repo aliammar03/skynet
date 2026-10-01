@@ -6,6 +6,7 @@ resource "proxmox_virtual_environment_vm" "vm_drill" {
   node_name = "server-proxmox-core"
   vm_id     = 10099
   name      = "vm-drill"
+  description = "SKY-025 P15 drill guest (D8 interrupted apply)"
   pool_id   = "ops-managed"
   tags      = ["drill", "skynet"] # sorted: Proxmox stores tags sorted
   on_boot   = false
