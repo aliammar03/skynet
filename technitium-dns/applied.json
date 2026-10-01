@@ -1,5 +1,8 @@
 {
-  "hash": "faa96b309aa41c78a5c17b03013a40eae3f93b9fbcd6063952b4029601951c6d",
-  "operation": "ea5f3ab6e9b3",
-  "revision": "a6a695943189f90216666be597efdd109627579e"
+  "deferred": [
+    "technitium_record.aliammar_net[\"technitium-network\"]"
+  ],
+  "hash": "66c16edf0e8dc6806f9cb61c0aa232d820eaceed4a8c54210e74ca7cc7d56818",
+  "operation": "b3b714a8a092",
+  "revision": "59fed4e9bee2cc88e0af5cae4593a4bbe947a10e"
 }
