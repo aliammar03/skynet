@@ -2,7 +2,7 @@ resource "proxmox_virtual_environment_vm" "docker_dmz" {
   node_name = "server-proxmox-core"
   vm_id     = 10015
   name      = "vm-docker-dmz"
-  tags      = ["community-script", "drill"] # sorted: Proxmox stores tags sorted
+  tags      = ["community-script"]
   on_boot   = true
   started   = true
 

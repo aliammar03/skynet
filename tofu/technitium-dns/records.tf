@@ -18,6 +18,7 @@ locals {
     "proxmox-network"    = { ip = "10.10.60.35", ttl = 300 }
     "unraid"             = { ip = "10.10.60.35", ttl = 300 }
     "technitium-core"    = { ip = "10.10.60.35", ttl = 3600 }
+    "technitium-network" = { ip = "10.10.60.35", ttl = 3600 }
   }
 }
 
