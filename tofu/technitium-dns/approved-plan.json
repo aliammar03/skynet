@@ -1,16 +1,7 @@
 {
   "stack": "technitium-dns",
-  "hash": "66c16edf0e8dc6806f9cb61c0aa232d820eaceed4a8c54210e74ca7cc7d56818",
-  "inputs": "6d0f4547e8458a741596f2fe542bed3c46c44f78b0241b0f54a2f0a61cc12627",
-  "changes": [
-    {
-      "address": "technitium_record.apps_service[\"tofu-drill.aliammar.net\"]",
-      "actions": [
-        "delete"
-      ]
-    }
-  ],
-  "deferred": [
-    "technitium_record.aliammar_net[\"technitium-network\"]"
-  ]
+  "hash": "c1ae06225cad2953c4b53884321574e6d7de9afbc9bf4954153120c6063fd218",
+  "inputs": "f6a5b6ff25a922a43d4feeffe58df852374d73defd7d094fb624afc6725b6edd",
+  "changes": [],
+  "deferred": []
 }
