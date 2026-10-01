@@ -1,0 +1,14 @@
+{
+  "stack": "technitium-dns",
+  "hash": "faa96b309aa41c78a5c17b03013a40eae3f93b9fbcd6063952b4029601951c6d",
+  "inputs": "f9bd04cf035a6b1f2420c69bd55a8f5c1882bdf2fe1079f8f590fc4fb1e12192",
+  "changes": [
+    {
+      "address": "technitium_record.apps_service[\"tofu-drill.aliammar.net\"]",
+      "actions": [
+        "create"
+      ]
+    }
+  ],
+  "deferred": []
+}
