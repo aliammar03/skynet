@@ -1,5 +1,8 @@
 {
-  "hash": "090b0788cbcec188911038a09a51bda5b7cf32ef85bc7df3508d427140311444",
-  "operation": "2b6302969aa1",
-  "revision": "ef1562d4998d8e3864979bfddf914d1b60d7ec42"
+  "deferred": [
+    "proxmox_virtual_environment_vm.vm_drill"
+  ],
+  "hash": "ad24be82d0fb960f8598de27baf15d45a092a7ddb178aa109dc633809ad4912d",
+  "operation": "a1f20a792bb9",
+  "revision": "cb30aa0d4fa0a7fd51127ff46d88b6731dad3c33"
 }
