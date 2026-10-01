@@ -25,7 +25,9 @@
   "entity_conventions": {
     "why": "The VMID/IP law (ADR 0001 and docs/conventions/naming.md) derives a guest address from its VLAN and last two VMID digits. The invariant gate requires every running entity to be mapped or declared here. T3 guests are listed separately in excluded_guests; this list is for intentionally unmapped running guests. Changing declared_vlans requires a docs/conventions/naming.md change.",
     "declared_vlans": [10, 20, 30, 50, 60, 70, 80, 90, 100],
-    "exceptions": []
+    "exceptions": [
+      { "vmid": 10099, "name": "vm-drill", "why": "SKY-025 P15 live drill guest (D7/D8); throwaway, destroyed by hand after the drills, then this entry is removed." }
+    ]
   },
 
   "ops_managed_pools": {
