@@ -19,13 +19,12 @@ resource "proxmox_virtual_environment_vm" "vm_drill" {
   }
 
   cpu {
-    cores = 1
+    cores = 2
     type  = "host"
   }
 
   memory {
     dedicated = 1024
-    floating  = 2048 # DRILL D7b: balloon above assigned memory; Proxmox rejects it
   }
 
   agent {
