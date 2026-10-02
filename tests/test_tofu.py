@@ -49,6 +49,8 @@ class FakeSpace:
 
     def init(self, state: Path) -> None:
         self.host.calls.append("init")
+        if self.host.init_not_started:
+            raise writepath.NotStarted(tofu.NOT_STARTED)
 
     def validate(self) -> None:
         if self.host.invalid:
@@ -120,6 +122,7 @@ class Fake:
         self.inputs: dict[str, str] = {"proxmox-core": REV}
         self.invalid = False
         self.not_started = False
+        self.init_not_started = False  # tofu cannot be started at all (before any snapshot)
         self.readonly: dict[str, frozenset[str]] = {}
         self.excluded_at_plan: list[list[str]] = []
         self.excluded_at_verify: list[list[str]] = []
@@ -622,13 +625,13 @@ def test_a_restore_that_leaves_changes_pending_is_not_trusted(fake: Fake, tmp_pa
     assert not any(c[0] == "delete" for c in fake.calls if isinstance(c, tuple))  # snapshot kept
 
 
-def test_a_guest_with_pending_changes_before_the_apply_is_refused(
+def test_a_guest_with_pending_changes_before_the_apply_waits(
         fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(pve, "pending", lambda g: ["memory"] if g.vmid == 10031 else [])
     fake.plan = [guest(10030, cores=4), guest(10031, cores=4)]
     fake.approve()
     operation = run(fake, tmp_path)
-    assert operation.outcome == "refused" and tofu.PENDING in str(operation.reason)
+    assert operation.outcome == "unavailable" and tofu.PENDING in str(operation.reason)
     assert operation.code == UNAVAILABLE and "apply" not in fake.calls
     assert ("delete", 10030) in fake.calls  # the first guest's snapshot is pruned
     # An operator clears it; the revision is retried, never held until main moves.
@@ -2462,7 +2465,9 @@ def test_a_first_state_is_never_adopted_by_a_run_the_snapshot_step_refuses(
     fake.plan = [guest(10030, cores=4)]
     fake.approve()
     operation = run(fake, tmp_path)
-    assert operation.outcome == "refused" and "apply" not in fake.calls
+    # A pending guest waits (unavailable); a refused pre-apply hold is a refusal. Neither applies.
+    expected = "unavailable" if refusal == "pending-config" else "refused"
+    assert operation.outcome == expected and "apply" not in fake.calls
     assert tofu._base(ledger, "proxmox-core") is None  # still unadopted: never pushed
     assert tofu.classify(ledger, "proxmox-core", None) == "bootstrap"
 
@@ -2500,6 +2505,20 @@ def test_a_tofu_that_never_started_is_retried_not_held(fake: Fake, tmp_path: Pat
     assert not any(c[0] == "restore" for c in fake.calls if isinstance(c, tuple))
     assert ("delete", 10030) in fake.calls and fake.alerts == []  # snapshot pruned, no alarm
     assert tofu._failures(ledger, "proxmox-core", REV) == 1  # retried after its backoff
+
+
+def test_a_tofu_that_cannot_start_before_any_snapshot_is_unavailable(
+        fake: Fake, tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "state")
+    fake.init_not_started = True
+    fake.plan = [guest(10030, cores=4)]
+    fake.approve()
+    result = tofu.pending(tmp_path, ledger=ledger)[0]
+    assert (result["outcome"], result["code"]) == ("unavailable", UNAVAILABLE)
+    assert tofu.NOT_STARTED in str(result["reason"])
+    assert not any(isinstance(c, tuple) for c in fake.calls)  # no snapshot, no restore
+    assert fake.holds == {} and not tofu.is_held(tmp_path, "proxmox-core", REV, ledger)
+    assert fake.alerts == [] and tofu._failures(ledger, "proxmox-core", REV) == 1
 
 
 def test_a_supervised_run_that_never_started_keeps_the_hold_it_overrode(

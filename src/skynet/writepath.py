@@ -47,9 +47,10 @@ class WriteError(Exception):
 
 
 class NotStarted(WriteError):
-    """Raised by `execute` when it provably never began (its program could not be started):
-    nothing changed, so after the caller's rollback cleans up, the write is `unavailable` and
-    retried, never failed or held."""
+    """Raised when a write provably never began (its program could not be started, or its
+    target is not ready): nothing changed, so the write is `unavailable` and retried, never
+    refused, failed, or held. Raised by `execute`, it is `unavailable` after the caller's
+    rollback cleans up."""
 
     def __init__(self, reason: str):
         super().__init__(reason, UNAVAILABLE)
@@ -267,6 +268,9 @@ def _run_locked(operation: Operation, ledger: Ledger, preflight: Callable[[], An
     try:
         operation.step("preflight", preflight)
         saved = operation.step("snapshot", snapshot)
+    except NotStarted as error:
+        _stop(operation, ledger, "unavailable", error)
+        return
     except WriteError as error:
         _stop(operation, ledger, "refused", error)
         return

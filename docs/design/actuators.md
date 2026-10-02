@@ -48,7 +48,7 @@ keys that differ are written back, keys the apply added are deleted, the config 
 a compare-and-swap, and a running guest reboots only when changes are left pending. A guest update
 is rolled back only when every attribute it changes is one the restore sets back (`RESTORE_COVERS`);
 pool membership, disk size, or a template conversion has no automatic inverse. A guest with pending
-changes before the apply waits (retried with the unavailable backoff, never held); changes an apply
+changes before the apply waits (recorded `unavailable`, retried with its backoff, never held); changes an apply
 leaves pending alert at once. Every rollback is then proved: the guest's whole config must
 equal its pre-apply copy with nothing pending, or the run is `rollback-failed` (alert, hold, snapshot
 kept). A dirty post-apply plan rolls back only when it still wants an (address, attribute) the approved
@@ -63,9 +63,10 @@ until it is free. It waits up
 to 10 min for the host to answer after the apply (unless the approved change stops it, or the host
 did not answer before it) and after a restore (if it was running and answering before), and a host
 that never answers is a failed change. A computed-only attribute never ties a re-plan
-to the approved change. A `tofu` that could not even be started changed nothing: its pre-apply
-hold is released (or, under `--ignore-hold`, the hold it overrode is put back) and the stack is
-retried like any unavailability. An apply updates at most five existing
+to the approved change. A `tofu` that could not even be started changed nothing, at whatever step
+it failed: the run is recorded `unavailable`, any pre-apply hold is released (or, under
+`--ignore-hold`, the hold it overrode is put back), and the stack is retried like any
+unavailability. An apply updates at most five existing
 guests, so a hung apply plus its full rollback fits the `skynet-tofu` unit's 6 h budget; a pass
 defers a stack it cannot finish. A revision is held in git before it executes, and only its recorded
 success clears the hold; every hold alerts once, however it was set (an unreadable `held.json` holds

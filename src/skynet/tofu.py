@@ -1183,7 +1183,7 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                         saved.power[guest] = pve.status(guest)
                         saved.config[guest] = pve.config(guest)
                         if pve.pending(guest):  # a restore could not prove it came back
-                            raise WriteError(f"{guest} {PENDING}", UNAVAILABLE)
+                            raise writepath.NotStarted(f"{guest} {PENDING}")
                         saved.restorable.append(guest)
                         if not pve.snapshottable(saved.config[guest]):
                             # The rollback restores the saved config, never the snapshot.

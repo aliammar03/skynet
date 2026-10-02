@@ -153,6 +153,25 @@ def test_a_fence_held_past_its_grace_no_longer_hides_an_outage(lab: Lab, tmp_pat
     assert lab.pings[-1] is False
 
 
+def test_the_fence_grace_ends_exactly_at_its_bound_however_long_a_pass_takes(
+        lab: Lab, tmp_path: Path) -> None:
+    """The fence is judged at each pass's scheduled start, never mid-pass: a slow first pass
+    (here 7 s per clock read) must not push the grace past its bound."""
+    lab.docker_down = True
+    ticks = iter(range(0, 10**6, 7))
+
+    def slow(minute: int) -> int:
+        return watch.run(tmp_path, context="docker-dmz", state_dir=tmp_path / "state",
+                         json_output=False, stdout=Out(),  # type: ignore[arg-type]
+                         now=1_000_000.0 + minute * 300, clock=lambda: float(next(ticks)))
+
+    grace = int(watch.FENCE_GRACE_SECONDS // 300)
+    with Ledger(tmp_path / "state").lock(writepath.fence("docker-dmz")):
+        first = slow(0)
+        at_bound = _pass(tmp_path, grace)
+    assert (first, at_bound) == (0, 3)
+
+
 def test_another_hosts_fence_hides_nothing(lab: Lab, tmp_path: Path) -> None:
     lab.health["demo"] = False
     with Ledger(tmp_path / "state").lock(writepath.fence("docker-other")):
