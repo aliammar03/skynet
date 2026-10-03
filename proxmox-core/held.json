@@ -1,5 +1,5 @@
 {
   "operation": "1f3b75ccf9b6",
-  "reason": "apply in progress; a recorded success clears this",
+  "reason": "tofu apply failed",
   "revision": "1749011074f049b21a0a3622b70cd7ee5c277b9d"
 }
