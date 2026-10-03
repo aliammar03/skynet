@@ -3,6 +3,7 @@
 # must write vm-drill's saved config back and reboot it. Throwaway: their deletes are deferred, they
 # are destroyed by an Ali-approved API call, and this file and their entity exceptions are removed.
 # VMID↔IP law; MACs pinned from the vlan/octet hex (100=0x64; 99=0x63, 98=0x62).
+# Re-run after F3 (#303): the restore restarts a pending guest by a forced shutdown + start.
 resource "proxmox_virtual_environment_vm" "vm_drill" {
   node_name = "server-proxmox-core"
   vm_id     = 10099
