@@ -35,7 +35,7 @@ included — from a laptop and a phone hotspot.
   revision, applied together, verified (labels, health, routes). A failure returns to the last
   verified revision and opens a revert PR.
 - **OpenTofu:** edit `tofu/<stack>/` (or a DNS stack's derived input) → PR with
-  `approved-plan.json` from `skynet tofu plan --changed --approve` → merge → `skynet tofu apply --pending`, run supervised until its drills enable the `skynet-tofu` timer
+  `approved-plan.json` from `skynet tofu plan --changed --approve` → merge → the `skynet-tofu` timer
   (`skynet tofu apply --pending`, each minute, its own unit): re-plan at the merged revision, require the approved hash,
   snapshot existing-guest updates, apply, require a clean re-plan, commit encrypted state to the
   `tofu-state` branch. Only derived DNS records are deleted (a guest delete/replace is deferred);

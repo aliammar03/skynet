@@ -1048,12 +1048,13 @@ def test_the_unit_timeout_covers_a_full_pass_budget() -> None:
     assert tofu.STACK_BUDGET > sum(tofu.TOFU_SECONDS.values()) + tofu.MAX_GUESTS * tofu.GUEST_SECONDS
 
 
-def test_the_tofu_timer_is_not_enabled_before_its_drills() -> None:
-    """Flipping this is the P15 promotion: it lands with the recorded LXC and VM rollback drills."""
+def test_the_tofu_timer_is_enabled_after_its_drills() -> None:
+    """The P15 promotion enabled it with the recorded LXC and VM rollback drills; turning it off
+    again is a human-merged change to docs/system-design.md as well."""
     nix = (Path(__file__).resolve().parents[1] / "nix/modules/timers.nix").read_text()
     timer = nix[nix.index("systemd.timers.skynet-tofu"):]
     timer = timer[:timer.index("};\n  };") if "};\n  };" in timer else len(timer)]
-    assert "wantedBy = [ ];" in timer and '"timers.target"' not in timer
+    assert 'wantedBy = [ "timers.target" ];' in timer
 
 
 def test_a_held_revision_is_refused_under_the_lock(fake: Fake, tmp_path: Path) -> None:

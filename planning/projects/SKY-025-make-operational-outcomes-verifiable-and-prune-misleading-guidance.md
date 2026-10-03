@@ -4,9 +4,9 @@ title: Rebuild the Skynet engine in Python
 status: in-progress
 horizon: long
 created: 2026-09-06
-updated: 2026-09-27
+updated: 2026-10-03
 phases: 18
-current_phase: 15
+current_phase: 16
 tier_touched: [T1, T2, T2+, T3]
 related:
   - docs/system-design.md
@@ -22,7 +22,7 @@ related:
 
 ## Status
 
-**Current:** phases 1–14 done; Phase 15 is in its PR. Docker deploys run through one executor: `skynet deploy` applies the
+**Current:** phases 1–15 done. Docker deploys run through one executor: `skynet deploy` applies the
 merged revision of each `compose/<svc>/` (env and compose rendered together, `skynet.revision` on
 every container), verifies it, and on failure returns to the last verified revision by itself and
 opens a revert PR; a 3-minute `skynet-deploy` timer (`--pending`) replaced Arcane Git Sync, which is
@@ -42,39 +42,19 @@ since 2026-08-31 and a failed docker-dmz restic run (cause unknown). Phase 16 no
 from scratch. Until it lands, no new off-site copy is known to land, and older copies are unverified
 (accepted by Ali, 2026-09-26).
 
-**Next:** Phase 15 (OpenTofu under ADR 0008) is built and in its PR. There are three stacks,
-`tofu/proxmox-core`, `tofu/technitium-dns`, and `tofu/cloudflare-dns`; the directory is the scope,
-and `proxmox-network` waits for its first resource. `skynet tofu plan <stack> --approve` writes the
-PR's `approved-plan.json`. `skynet tofu apply --pending` (supervised; its `skynet-tofu` timer ships disabled) applies a merged stack only when its re-plan hash
-matches, refuses delete/replace/forget, excluded guests, and foreign types, snapshots guest updates
-through `pve.py`, and mirrors encrypted state to the `tofu-state` branch. `skynet tofu drift` feeds
-the nightly. `tofu-env.sh`, `tofu-apply.sh`, and `pve-snapshot.sh` are deleted. Live, 2026-09-27:
-the monolith's plan showed two code-vs-live drifts (CT 240 `startup order=2`, template 9000's
-description); both are now declared to match live. The state split ran (a state-only `state rm` per
-stack on copies of the legacy root state, which is kept in `legacy/`): proxmox-core 5, technitium-dns
-21, cloudflare-dns 6 addresses, and all three stacks plan to **zero changes**. **After merge and an
-ops VM rebuild:** a supervised `skynet tofu apply --pending` records the empty plans and creates `tofu-state`. Then come
-the drill PRs: a wrong approved hash is held and alerts, a rejected athena `cores` value is undone by
-a config restore (the LXC path), and a deleted local state is rebuilt from git. The VM path gets its
-own drill: one PR creates `vm-drill`, a running clone of template 9000 with an entity exception; a
-second PR sets a value Proxmox rejects, proving the config restore, the pending-change reboot, the
-power-state return, and the config comparison on a VM; then Ali destroys the VM by hand (the executor
-refuses deletes). A review (2026-09-29) replaced the snapshot rollback with the config restore,
-gave Tofu its own lock, and made a re-plan dirty only outside the approved change hold rather than
-roll back. A second review made a bind-mounted CT (240) skip only its fallback snapshot,
-kept a first local state off the branch until an apply adopts it, serialized pending.json, and
-made `plan --approve` refuse what the executor refuses. A third review fenced a Docker host's
-guest update against deploys (write lock + host fence, host must answer or the config is restored),
-applied approved deletes of derived DNS records while deferring guest deletes, bound approvals to
-their inputs, held unvalidated source, and backed off unavailable stacks; the VM drill adds a
-fenced docker-dmz update. A fifth review kept deferred addresses out of the post-apply re-plan,
-put back the hold a never-started `--ignore-hold` run overrode, and made the DNS parse guards
-fail the plan (output preconditions; a `check` only warns). A sixth review let a guest's pending
-changes wait instead of holding, judged only hosts that answered before the apply, and bounded
-watch's fence skip. A seventh review sized that bound from the executor's own worst case (5 h),
-limited deletes to derived records, and gave the timer an `--if-moved` gate. The phase
-box is ticked by the promotion PR: it enables the `skynet-tofu` timer and records the drills as the
-constitution's live evidence (human-merged).
+OpenTofu follows ADR 0008 too (Phase 15): three stacks (`tofu/proxmox-core`, `tofu/technitium-dns`,
+`tofu/cloudflare-dns`; the directory is the scope, `proxmox-network` waits for its first resource).
+A PR carries `approved-plan.json` from `skynet tofu plan <stack> --approve`; after the merge the
+`skynet-tofu` timer (`apply --pending --if-moved`, each minute) applies a stack only when its re-plan
+hash and inputs match, config-restores a failed guest update, defers guest deletes, applies derived
+DNS deletes, fences Docker-host updates against deploys, and mirrors encrypted state to the
+`tofu-state` branch. `skynet tofu drift` feeds the nightly. The live drills (2026-09-30 – 10-01,
+table under Phase 15) are the evidence for enabling the timer.
+
+**Next:** Phase 16 (greenfield backup and restore). Open from Phase 15: the restore's write-back of
+differing keys and its reboot-if-pending branch are proven offline only (every live rejected value
+was refused before Proxmox wrote anything); a superseded hold stays on `tofu-state` after an
+empty-plan success until the next real apply.
 
 This block, the phase boxes, and the frontmatter are the **only** progress record. Each phase PR
 updates them itself; merge is completion ([construction](../../docs/conventions/construction.md)).
@@ -231,7 +211,7 @@ Recorded in `docs/design/gitops-loop.md` (13), `docs/design/observability.md` (1
    green. Anything else stays open for Ali. Adding the list entry and the gate edits AGENTS.md §3
    and `docs/system-design.md` — human-merged in the Phase 14 PR.
 
-### Phase 15 — OpenTofu under ADR 0008   `[ ]` · review: Full
+### Phase 15 — OpenTofu under ADR 0008   `[x]` · review: Full
 
 1. Split `tofu/` into `proxmox-core`, `proxmox-network`, `technitium-dns`, `cloudflare-dns` stacks;
    migrate state with `tofu state mv` as a supervised saved-plan step (zero-change plans after).
@@ -244,6 +224,30 @@ Recorded in `docs/design/gitops-loop.md` (13), `docs/design/observability.md` (1
 5. Nightly read-only drift plan per stack.
 6. Delete `tofu-env.sh`, `tofu-apply.sh`, `pve-snapshot.sh`. Update AGENTS.md §4 and the constitution
    (approval moves into the PR — human-merged).
+
+**Live evidence** (2026-09-30 – 10-01, timer off, every pass run by hand; raw record in the journal
+episodes of those dates). PRs #286–#298; every merge by Ali.
+
+| Drill | Expected | Observed | Verdict |
+|---|---|---|---|
+| D0 | #282 installed, timer off, check green, secrets 0400, no `tofu-state`, `ops` canDelete | all hold | pass |
+| D1 bootstrap | drift clean; empty applies create `tofu-state`; state encrypted; idempotent | 3× success; per stack applied.json + tfstate; blobs have no `resources`, no plaintext; 2nd pass silent | pass |
+| D2 state from git | local state rebuilt byte-identical, no apply, no alert | rebuilt == branch == old copy; no ledger line | pass |
+| D3 wrong hash (#286) | refused, held, one alert, athena unchanged | refused "plan differs"; hold; 1 alert; config byte-identical; later passes silent | pass |
+| D4 tofu not started (#287) | `unavailable`, hold released, snapshot pruned, no alert; then success | at `init`: `refused` (F1); at apply (forced by race): `unavailable`, hold set+released, snapshot pruned; then success, clean re-plan | pass after F1 fix (#299) |
+| D5 LXC rejected value (#288, #289) | `rolled-back`, config equal, power kept, held, one alert; revert = empty success | as expected (Proxmox refused `keyctl` before writing) | pass |
+| D6 contention + fence (#290) | `LOCK_BUSY` uncounted, then `deferred`; fenced apply: watch skips, deploys wait, host answers | as expected; locks held by the apply, `host/docker-dmz: skipped`, `hosts: ok` (no deploy was pending to contend) | pass |
+| D7a create (#291) | create, clean re-plan, running, no snapshot | as expected (10099, ops-managed, pinned MAC) | pass |
+| D7b VM rejected value (#292) | `rolled-back`, config equal, power kept | as expected (balloon > memory refused before writing) | pass |
+| D7c pending (#293, #294) | success + pending alert; next PR waits, not held; applies after reboot | as expected; the wait was recorded `refused` (F1) | pass after F1 fix (#299) |
+| D8 interrupted apply (#294) | `rollback-failed`, one alarm, held, snapshot kept; `--ignore-hold` recovers | as expected (tofu died with its pipe before writing); recovery success; snapshot removed | pass |
+| D7d deferred delete (#297) | athena change applied; vm-drill deferred, one alert, clean re-plan, listed by drift | as expected; then 10099 destroyed by a one-off API call Ali approved | pass |
+| D9a parse guards | empty Caddyfile / config.yml fails the plan | fails at `tofu validate` on the output precondition | pass |
+| D9b DNS (#295, #296) | derived create, derived delete applied, hand-listed delete deferred | as expected; resolver answered within 30 s; `*_parsed` output recorded | pass |
+| D10 drift (#298) | all stacks clean | 3× no changes, nothing deferred | pass |
+
+F1 (a never-started write recorded `refused`) and F2 (a fence-grace test that flaked) were fixed by
+#299 before this promotion.
 
 ### Phase 16 — Greenfield backup and restore   `[ ]` · review: Full
 

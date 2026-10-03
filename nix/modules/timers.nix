@@ -1,6 +1,6 @@
 { lib, ... }:
 # The ops VM's scheduled units — skynet-deploy (30 s merge trigger), skynet-tofu (1 min Tofu
-# apply-on-merge; defined but not enabled until its drills are recorded), skynet-watch (3 min health monitor), skynet-nightly, and the OnFailure alert. `skynet` itself is a system package (flake.nix).
+# apply-on-merge), skynet-watch (3 min health monitor), skynet-nightly, and the OnFailure alert. `skynet` itself is a system package (flake.nix).
 #
 # The lab's other scheduled backups are NOT the ops VM's; they live in scripts/systemd/ for the
 # hosts that install them:
@@ -81,12 +81,11 @@ in
       TimeoutStartSec = "6h";
     };
   };
-  # NOT enabled: until the live LXC and VM rollback drills are recorded (SKY-025 P15), the executor
-  # runs supervised (`skynet tofu apply --pending`, or `systemctl start skynet-tofu`). The promotion
-  # PR that carries that evidence adds `wantedBy = [ "timers.target" ];` (a test pins this).
+  # Enabled by the SKY-025 P15 promotion, which carries the live LXC and VM rollback drills
+  # (journal 2026-09-30, 2026-10-01). A test pins it enabled.
   systemd.timers.skynet-tofu = {
     description = "Apply merged OpenTofu stacks, checked every minute";
-    wantedBy = [ ];
+    wantedBy = [ "timers.target" ];
     timerConfig = {
       OnBootSec = "3m";
       OnUnitInactiveSec = "60s";
