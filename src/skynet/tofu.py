@@ -893,16 +893,20 @@ def _json_bytes(value: dict[str, Any]) -> bytes:
 
 
 def record_state(repo: Path, stack: str, state: bytes | None, record: dict[str, Any] | None,
-                 message: str, expect: str | None = None) -> str:
+                 message: str, expect: str | None = None, newest: bool = False) -> str:
     """Commit this stack's state (and, after a success, its applied record, which also clears a
-    hold on that same revision, and only that one, or an unreadable hold, which only a supervised
-    `--ignore-hold` success can reach) in one commit."""
+    hold on that same revision, and an unreadable hold, which only a supervised `--ignore-hold`
+    success can reach) in one commit. When the recorded revision is the stack's `newest` (its
+    input revision on main, the only one `--pending` applies), a hold on a strict ancestor is dead
+    and is cleared too. A hold on any other revision stays."""
     files: dict[str, bytes | None] = {}
     if state is not None:  # None: a stack that holds nothing yet records only its revision
         files[f"{stack}/terraform.tfstate"] = state
     if record is not None:
         files[f"{stack}/applied.json"] = _json_bytes(record)
-        if held(repo, stack).get("revision") in (record.get("revision"), "*"):
+        hold = held(repo, stack).get("revision")
+        if hold in (record.get("revision"), "*") or (
+                newest and _is_ancestor(repo, hold, record.get("revision"))):
             files[f"{stack}/held.json"] = None
     return write_branch(repo, files, message, expect)
 
@@ -1335,14 +1339,15 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                 _prune(state_, operation, ledger)
                 record = {"revision": target, "hash": state_.hash, "operation": operation.id,
                           **({"deferred": state_.deferred} if state_.deferred else {})}
+                latest = _newest(repo, name, target)
                 try:
                     _record(repo, ledger, name, record,
-                            f"tofu-state({name}): {operation.id} applied {target[:12]}")
+                            f"tofu-state({name}): {operation.id} applied {target[:12]}", newest=latest)
                 except WriteError:
                     _unrecorded(ledger, name, record)  # the persistence step pushes it later
                     raise
                 _forget_unrecorded(ledger, name)  # an older unpushed record must never land over it
-                _clear_local_hold(ledger, name, target)
+                _clear_local_hold(ledger, name, target, repo if latest else None)
 
             result = writepath.run(operation, ledger, preflight=preflight, snapshot=snapshot,
                                    execute=execute, verify=verify, rollback=rollback,
@@ -1353,18 +1358,35 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
         _drop_intents(ledger, operation.id)  # resolved: a record now carries this operation
     if result.outcome in HELD_OUTCOMES or (result.outcome == "refused" and result.code != UNAVAILABLE):
         _hold(repo, ledger, name, target, str(result.reason), result)
-    # Only a plan that ran leaves its deferrals pending; a refused or unavailable one announces
-    # nothing, so the run that does defer them still alerts.
-    if saved.deferred and result.outcome not in ("refused", "unavailable"):
-        _announce_deferred(ledger, name, saved.deferred, result)
+    # Only a plan that ran knows the stack's deferrals; a refused or unavailable one announces (and
+    # forgets) nothing, so the run that does defer them still alerts.
+    if saved.hash and result.outcome not in ("refused", "unavailable"):  # a plan ran
+        # Only the stack's newest revision knows its full deferral set: a supervised run of
+        # another revision announces what it defers but forgets nothing.
+        _announce_deferred(ledger, name, saved.deferred, result, forget=_newest(repo, name, target))
     return result
 
 
-def _announce_deferred(ledger: Ledger, name: str, deferred: list[str], operation: Operation) -> None:
-    """A deferred hard checkpoint alerts once per address: it waits for a human, never silently."""
-    known = _facts(ledger).get("_hold_alerts")
-    seen = known if isinstance(known, list) else []
-    new = [address for address in deferred if f"{name}:deferred:{address}" not in seen]
+def _announce_deferred(ledger: Ledger, name: str, deferred: list[str], operation: Operation, *,
+                       forget: bool) -> None:
+    """A deferred hard checkpoint alerts once per address while it stays deferred: it waits for a
+    human, never silently. When `forget` (the run planned the stack's newest revision), an
+    address it no longer defers (applied by hand, re-declared, gone) is forgotten, so a later
+    deferral of the same address alerts again."""
+    prefix = f"{name}:deferred:"
+    current = {prefix + address for address in deferred}
+
+    def unseen(facts: dict[str, Any]) -> list[str]:
+        known = facts.get("_hold_alerts")
+        keys = known if isinstance(known, list) else []
+        if forget and isinstance(known, list):
+            keys = [key for key in keys if not str(key).startswith(prefix) or key in current]
+            facts["_hold_alerts"] = keys
+        return [address for address in deferred if prefix + address not in keys]
+    try:
+        new = _update_facts(ledger, unseen)
+    except WriteError:  # unwritable facts: still alert on what was never marked
+        new = unseen(_facts(ledger))
     if not new:
         return
     failure = alert.send(f"skynet: tofu/{name} deferred {len(new)} hard-checkpoint change(s)",
@@ -1378,7 +1400,8 @@ def _announce_deferred(ledger: Ledger, name: str, deferred: list[str], operation
         _announced(ledger, f"{name}:deferred:{address}")
 
 
-def _record(repo: Path, ledger: Ledger, stack: str, record: dict[str, Any] | None, message: str) -> None:
+def _record(repo: Path, ledger: Ledger, stack: str, record: dict[str, Any] | None, message: str,
+            newest: bool = False) -> None:
     """Push the local state only when it is pending writes on top of the current branch (or equal
     to it): a stale or diverged cache must never regress newer state, and a first state no apply
     at this stack adopted is never pushed."""
@@ -1390,7 +1413,7 @@ def _record(repo: Path, ledger: Ledger, stack: str, record: dict[str, Any] | Non
         # alone. With state on the branch, a missing local file is a cache to rebuild, not this.
         if remote is not None or record is None:
             raise WriteError("no local tofu state to record", UNAVAILABLE)
-        record_state(repo, stack, None, record, message, expect=parent)
+        record_state(repo, stack, None, record, message, expect=parent, newest=newest)
         return
     kind = classify(ledger, stack, remote)
     if kind == "diverged":
@@ -1399,7 +1422,8 @@ def _record(repo: Path, ledger: Ledger, stack: str, record: dict[str, Any] | Non
         raise WriteError(UNADOPTED, UNAVAILABLE)
     if kind == "stale":
         raise WriteError("local tofu state is older than the branch; not recorded", UNAVAILABLE)
-    record_state(repo, stack, state, record, message, expect=parent)  # only onto what was checked
+    record_state(repo, stack, state, record, message, expect=parent,  # only onto what was checked
+                 newest=newest)
     _set_base(ledger, stack, state)
 
 
@@ -1487,10 +1511,16 @@ def _forget_unrecorded(ledger: Ledger, name: str) -> None:
         pass  # persist_pending drops a record older than the branch's (`_superseded`)
 
 
-def _clear_local_hold(ledger: Ledger, name: str, revision: str) -> None:
+def _clear_local_hold(ledger: Ledger, name: str, revision: str, repo: Path | None = None) -> None:
+    """Drop the local fallback hold on `revision` and, given `repo` (the caller recorded the
+    stack's newest revision), one it supersedes. Never raises: the record already landed."""
+    local = _facts(ledger).get(name)
+    old = local.get("held") if isinstance(local, dict) else None
+    clears = {revision} | ({old} if repo is not None and _is_ancestor(repo, old, revision) else set())
+
     def clear(facts: dict[str, Any]) -> None:
         fact = facts.get(name)
-        if isinstance(fact, dict) and fact.get("held") == revision:
+        if isinstance(fact, dict) and fact.get("held") in clears:
             fact.pop("held")
     try:
         _update_facts(ledger, clear)
@@ -1525,15 +1555,17 @@ def persist_pending(repo: Path, ledger: Ledger) -> list[dict[str, Any]]:
                         kind = "same"
                     if kind != "pending" and record is None:
                         continue
+                    latest = record is not None and _newest(repo, name, str(record.get("revision")))
                     _record(repo, ledger, name, record,
-                            f"tofu-state({name}): persist unpushed local state")
+                            f"tofu-state({name}): persist unpushed local state", newest=latest)
                 except WriteError as error:
                     results.append({"target": f"tofu/{name}", "outcome": "unavailable",
                                     "code": UNAVAILABLE, "reason": f"state not persisted: {error.reason}"})
                     continue
                 done.append(name)
                 if record:
-                    _clear_local_hold(ledger, name, str(record.get("revision")))
+                    _clear_local_hold(ledger, name, str(record.get("revision")),
+                                      repo if latest else None)
                 results.append({"target": f"tofu/{name}", "outcome": "success",
                                 "reason": "unpushed state persisted to tofu-state"})
             def forget(facts: dict[str, Any]) -> None:
@@ -1548,14 +1580,32 @@ def persist_pending(repo: Path, ledger: Ledger) -> list[dict[str, Any]]:
         raise
 
 
+def _is_ancestor(repo: Path, older: Any, newer: Any) -> bool:
+    """True when `older` is a strict ancestor of `newer` (both commits known to `repo`). A git
+    that cannot answer reads as False: callers then keep a hold or a record, never drop one."""
+    if not isinstance(older, str) or not isinstance(newer, str) or older == newer:
+        return False
+    try:
+        return deploy._run(["git", "-C", str(repo), "merge-base", "--is-ancestor", older,
+                            newer]).returncode == 0
+    except WriteError:
+        return False
+
+
+def _newest(repo: Path, name: str, revision: str) -> bool:
+    """True when `revision` is the stack's input revision on main, the only one `--pending`
+    applies: its success makes an older hold dead, and its plan holds the stack's whole deferral
+    set. Unreadable: False (nothing is cleared or forgotten)."""
+    try:
+        return input_revision(repo, STACKS[name]) == revision
+    except (WriteError, KeyError):
+        return False
+
+
 def _superseded(repo: Path, name: str, record: dict[str, Any]) -> bool:
     """A stored applied record is superseded when the branch's applied revision is a strictly
     later commit: pushing it would regress applied.json."""
-    current, stored = applied(repo, name).get("revision"), record.get("revision")
-    if not isinstance(current, str) or not isinstance(stored, str) or current == stored:
-        return False
-    return deploy._run(["git", "-C", str(repo), "merge-base", "--is-ancestor", stored,
-                        current]).returncode == 0
+    return _is_ancestor(repo, record.get("revision"), applied(repo, name).get("revision"))
 
 
 def retry_cleanup(repo: Path, ledger: Ledger) -> list[dict[str, Any]]:

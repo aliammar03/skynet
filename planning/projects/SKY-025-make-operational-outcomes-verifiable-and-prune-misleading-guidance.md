@@ -51,8 +51,7 @@ DNS deletes, fences Docker-host updates against deploys, and mirrors encrypted s
 `tofu-state` branch. `skynet tofu drift` feeds the nightly. The live drills (2026-09-30 – 10-01,
 table under Phase 15) are the evidence for enabling the timer.
 
-**Next:** Phase 16 (greenfield backup and restore). Open from Phase 15: a superseded hold stays on
-`tofu-state` after an empty-plan success until the next real apply.
+**Next:** Phase 16 (greenfield backup and restore).
 
 This block, the phase boxes, and the frontmatter are the **only** progress record. Each phase PR
 updates them itself; merge is completion ([construction](../../docs/conventions/construction.md)).

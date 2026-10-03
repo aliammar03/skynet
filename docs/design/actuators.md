@@ -36,7 +36,9 @@ it makes from it, and only when that plan's normalized-change hash equals the PR
 (an empty plan needs no approval). A delete, replace, or forget of anything but a derived DNS
 record (an app vhost's A record or a tunnel CNAME, never a hand-listed one) is excluded from the plan (with whatever depends on it) and deferred; the deferred set is
 part of the hash, the post-apply re-plan leaves it out too (still pending, never drift), and it
-alerts once, from the first run that applies the rest. The hash covers each change's actions and
+alerts once per address while it stays deferred, from the first run that applies the rest (an
+address a plan of the stack's newest revision no longer defers is forgotten, so deferring it again
+alerts again). The hash covers each change's actions and
 the attributes it moves (before → after); refresh values of untouched attributes, such as a guest
 agent's IP lists, stay out; an attribute wholly known only after apply is bound by name, and a
 partly unknown block by all its known parts. A failure is
@@ -70,7 +72,8 @@ it failed: the run is recorded `unavailable`, any pre-apply hold is released (or
 unavailability. An apply updates at most five existing
 guests, so a hung apply plus its full rollback fits the `skynet-tofu` unit's 6 h budget; a pass
 defers a stack it cannot finish. A revision is held in git before it executes, and only its recorded
-success clears the hold; every hold alerts once, however it was set (an unreadable `held.json` holds
+success, or the success of the stack's newest revision (its input revision on `main`) when the held one
+is its ancestor, clears the hold; every hold alerts once, however it was set (an unreadable `held.json` holds
 every revision until a supervised `--ignore-hold` success; a hold no run announced alerts on the next
 pass). A snapshot that cannot be made refuses the
 apply (and one a failed create left behind is cleaned up, or the revision is held); one that fails to
