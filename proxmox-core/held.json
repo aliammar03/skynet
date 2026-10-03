@@ -1,5 +1,5 @@
 {
-  "operation": "efe1871712b0",
-  "reason": "tofu apply failed; rollback: guest rollback failed: qemu/10099@server-proxmox-core: Proxmox task failed (snapshots skynet-efe1871712b0 kept)",
-  "revision": "f68ab268947cd0db9abe96cf0d2e6364b57461e7"
+  "operation": "1f3b75ccf9b6",
+  "reason": "apply in progress; a recorded success clears this",
+  "revision": "1749011074f049b21a0a3622b70cd7ee5c277b9d"
 }
