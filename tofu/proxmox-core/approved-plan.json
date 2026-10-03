@@ -1,7 +1,7 @@
 {
   "stack": "proxmox-core",
   "hash": "a4d9bee5f8fc3a08e528ad934044db907358f3b2844a19b72ff32bc22fccf355",
-  "inputs": "7c830453e468b6d6da7ae83f554b4156cfcdd862b7cee0903106badaeb85c97c",
+  "inputs": "c3e789e290bb0653d64873f78d89be658c6610d94492971dd548f8327c24374d",
   "changes": [
     {
       "address": "proxmox_virtual_environment_vm.vm_drill",
