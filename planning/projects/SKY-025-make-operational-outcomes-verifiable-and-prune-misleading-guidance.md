@@ -51,10 +51,8 @@ DNS deletes, fences Docker-host updates against deploys, and mirrors encrypted s
 `tofu-state` branch. `skynet tofu drift` feeds the nightly. The live drills (2026-09-30 – 10-01,
 table under Phase 15) are the evidence for enabling the timer.
 
-**Next:** Phase 16 (greenfield backup and restore). Open from Phase 15: the restore's write-back of
-differing keys and its reboot-if-pending branch are proven offline only (every live rejected value
-was refused before Proxmox wrote anything); a superseded hold stays on `tofu-state` after an
-empty-plan success until the next real apply.
+**Next:** Phase 16 (greenfield backup and restore). Open from Phase 15: a superseded hold stays on
+`tofu-state` after an empty-plan success until the next real apply.
 
 This block, the phase boxes, and the frontmatter are the **only** progress record. Each phase PR
 updates them itself; merge is completion ([construction](../../docs/conventions/construction.md)).
@@ -245,9 +243,11 @@ episodes of those dates). PRs #286–#298; every merge by Ali.
 | D9a parse guards | empty Caddyfile / config.yml fails the plan | fails at `tofu validate` on the output precondition | pass |
 | D9b DNS (#295, #296) | derived create, derived delete applied, hand-listed delete deferred | as expected; resolver answered within 30 s; `*_parsed` output recorded | pass |
 | D10 drift (#298) | all stacks clean | 3× no changes, nothing deferred | pass |
+| Write-back (#301–#305, timer-applied) | a landed change on one guest is written back when the same apply fails on another; a pending write-back restarts the guest; whole config proven | #302: write-back accepted, but a plain reboot timed out on a just-booted guest → `rollback-failed` (F3, fixed by #303); #304: forced shutdown at 120 s + start, proof equal, `rolled-back` | pass after F3 fix |
 
 F1 (a never-started write recorded `refused`) and F2 (a fence-grace test that flaked) were fixed by
-#299 before this promotion.
+#299 before this promotion; F3 (the restore's restart was a plain reboot that a guest ignoring ACPI
+timed out) by #303.
 
 ### Phase 16 — Greenfield backup and restore   `[ ]` · review: Full
 
