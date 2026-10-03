@@ -18,7 +18,7 @@ resource "proxmox_virtual_environment_vm" "vm_drill" {
   }
 
   cpu {
-    cores = 1
+    cores = 2 # DRILL write-back: lands (bpg reboots the VM to apply it)
     type  = "host"
   }
 
@@ -87,6 +87,7 @@ resource "proxmox_virtual_environment_vm" "vm_drill2" {
 
   memory {
     dedicated = 1024
+    floating  = 2048 # DRILL write-back: Proxmox rejects it, failing the apply
   }
 
   agent {

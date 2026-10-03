@@ -1,18 +1,18 @@
 {
   "stack": "proxmox-core",
-  "hash": "c5068e7844c535fabe6c50e41908462046569c0017ce5f20e85d4cb4467bf6fe",
-  "inputs": "82013d85efbb4a1f1b6873f45e629e8fe3348c9ed300698faab1d265dba3c046",
+  "hash": "a4d9bee5f8fc3a08e528ad934044db907358f3b2844a19b72ff32bc22fccf355",
+  "inputs": "7c830453e468b6d6da7ae83f554b4156cfcdd862b7cee0903106badaeb85c97c",
   "changes": [
     {
       "address": "proxmox_virtual_environment_vm.vm_drill",
       "actions": [
-        "create"
+        "update"
       ]
     },
     {
       "address": "proxmox_virtual_environment_vm.vm_drill2",
       "actions": [
-        "create"
+        "update"
       ]
     }
   ],
