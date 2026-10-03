@@ -178,6 +178,8 @@ def run(repo: Path, *, context: str, state_dir: Path, json_output: bool, stdout:
     def wall() -> float:
         return time.time() if now is None else now + clock() - started
 
+    begun = time.time() if now is None else now  # the fence is judged at the pass's start
+
     path = state_dir / "watch.json"
     code, lines = OK, []
     states: dict[str, Any] = {}
@@ -193,8 +195,8 @@ def run(repo: Path, *, context: str, state_dir: Path, json_output: bool, stdout:
         if fenced:
             known = loaded.get(FENCE)
             since = known.get("since") if isinstance(known, dict) else None
-            fence_since = float(since) if isinstance(since, int | float) else wall()
-            fenced = wall() - fence_since < FENCE_GRACE_SECONDS
+            fence_since = float(since) if isinstance(since, int | float) else begun
+            fenced = begun - fence_since < FENCE_GRACE_SECONDS
         if not fenced:
             changing = writes_in_flight(ledger)
             order = targets(repo, states, changing)

@@ -82,6 +82,22 @@ def test_an_execute_that_never_started_is_unavailable_after_its_cleanup(tmp_path
     assert _records(ledger)[-1]["phase"] == "final"
 
 
+@pytest.mark.parametrize("stage", ["preflight", "snapshot"])
+def test_a_write_that_never_started_before_execute_is_unavailable(tmp_path: Path,
+                                                                  stage: str) -> None:
+    ledger, calls = Ledger(tmp_path), []
+    operation = _run(ledger, calls, **{stage: _never_started})
+    assert "execute" not in calls and "rollback" not in calls
+    assert (operation.outcome, operation.code) == ("unavailable", writepath.UNAVAILABLE)
+    assert [record["phase"] for record in _records(ledger)] == ["final"]  # never `started`
+    assert _records(ledger)[-1]["outcome"] == "unavailable"
+
+
+def test_any_other_refusal_before_execute_stays_refused(tmp_path: Path) -> None:
+    operation = _run(Ledger(tmp_path), [], preflight=_fail("busy", writepath.UNAVAILABLE))
+    assert (operation.outcome, operation.code) == ("refused", writepath.UNAVAILABLE)
+
+
 def test_not_started_after_execute_ran_is_a_failure(tmp_path: Path) -> None:
     operation = _run(Ledger(tmp_path), [], verify=_never_started)
     assert (operation.outcome, operation.code) == ("rolled-back", 1)
