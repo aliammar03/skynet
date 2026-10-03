@@ -427,6 +427,44 @@ def test_a_deferral_whose_alert_failed_alerts_again(fake: Fake, tmp_path: Path,
     assert sent == ["skynet: tofu/proxmox-core deferred 1 hard-checkpoint change(s)"] * 2
 
 
+DEFERRED_ALERT = "skynet: tofu/proxmox-core deferred 1 hard-checkpoint change(s)"
+
+
+def test_a_guest_deferred_again_after_its_deferral_resolved_alerts_again(fake: Fake,
+                                                                        tmp_path: Path) -> None:
+    """Live (2026-10-03): a guest re-declared at an address whose old deferral had resolved was
+    deferred again with no alert, because the old marker was never forgotten."""
+    ledger = Ledger(tmp_path / "state")
+    doomed = guest(10031, actions=["delete"])
+    fake.plan = [guest(10030, cores=4), doomed]
+    fake.approve()
+    assert run(fake, tmp_path).outcome == "success"
+    fake.plan = [guest(10030, cores=5)]  # destroyed by hand: nothing is deferred any more
+    fake.inputs["proxmox-core"] = NEW
+    fake.approve()
+    assert tofu.apply(tmp_path, "proxmox-core", revision=NEW, ledger=ledger).outcome == "success"
+    third = "c" * 40  # re-declared, then its declaration removed again
+    fake.plan = [guest(10030, cores=6), doomed]
+    fake.inputs["proxmox-core"] = third
+    fake.approve()
+    assert tofu.apply(tmp_path, "proxmox-core", revision=third, ledger=ledger).outcome == "success"
+    assert fake.alerts == [DEFERRED_ALERT] * 2
+
+
+def test_a_refused_run_forgets_no_deferral(fake: Fake, tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "state")
+    fake.plan = [guest(10030, cores=4), guest(10031, actions=["delete"])]
+    fake.approve()
+    assert run(fake, tmp_path).outcome == "success"
+    fake.plan = [guest(10030, cores=5)]  # a later plan without it, but refused
+    fake.inputs["proxmox-core"] = NEW
+    fake.approve()
+    assert fake.approved is not None
+    fake.approved["hash"] = "0" * 64
+    assert tofu.apply(tmp_path, "proxmox-core", revision=NEW, ledger=ledger).outcome == "refused"
+    assert f"proxmox-core:deferred:{guest(10031)['address']}" in tofu._facts(ledger)["_hold_alerts"]
+
+
 def test_a_refused_plan_never_announces_its_deferrals(fake: Fake, tmp_path: Path) -> None:
     ledger = Ledger(tmp_path / "state")
     doomed = guest(10031, actions=["delete"])
@@ -913,6 +951,31 @@ def test_a_success_clears_only_its_own_revisions_hold(clone: Path) -> None:
     assert tofu.held(clone, "s")["revision"] == REV  # the pending revision stays held
     tofu.record_state(clone, "s", b"v3", {"revision": REV}, "applied")
     assert tofu.held(clone, "s") == {}
+
+
+def _commit(repo: Path, message: str) -> str:
+    _git(repo, "commit", "-q", "--allow-empty", "-m", message)
+    return subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"], check=True,
+                          capture_output=True, text=True).stdout.strip()
+
+
+def test_a_success_clears_a_hold_it_supersedes_but_not_a_siblings(clone: Path,
+                                                                  tmp_path: Path) -> None:
+    """Live (2026-10-03): an empty-plan success left the previous revision's hold on tofu-state."""
+    older = _commit(clone, "the held revision")
+    newer = _commit(clone, "a later merge")
+    tofu.set_hold(clone, "s", older, "rolled back", "op1")
+    tofu.record_state(clone, "s", b"v1", {"revision": newer}, "applied")
+    assert tofu.held(clone, "s") == {}  # superseded: --pending never applies `older` again
+    _git(clone, "checkout", "-q", older)
+    sibling = _commit(clone, "a branch that never reached newer")
+    tofu.set_hold(clone, "s", sibling, "rolled back", "op2")
+    tofu.record_state(clone, "s", b"v2", {"revision": newer}, "applied again")
+    assert tofu.held(clone, "s")["revision"] == sibling
+    ledger = Ledger(tmp_path / "state")
+    tofu._local_hold(ledger, "s", older)
+    tofu._clear_local_hold(ledger, "s", newer, clone)
+    assert not tofu._held_locally(ledger, "s", older)
 
 
 def test_settlement_waits_for_a_running_write(fake: Fake, tmp_path: Path,

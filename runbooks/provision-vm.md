@@ -34,6 +34,7 @@ rollback: "No automatic rollback for a new VM; operator recovery on partial crea
 ## Rollback
 
 - A new VM has no pre-change snapshot. Stop for operator recovery on partial create; later declaration changes use human-merged `git revert`.
+- Retiring it later is not a rollback: removing the declaration defers the delete (one alert); after Ali approves, destroy it as in [diagnose/tofu-stuck](diagnose/tofu-stuck.md#retire-a-guest-deferred-delete).
 
 ## Evidence
 

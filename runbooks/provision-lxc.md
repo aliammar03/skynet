@@ -40,6 +40,7 @@ Model it under `local.imported_core_cts` with an `import {}` block, and iterate 
 ## Rollback
 
 - New CTs have no pre-change snapshot. Stop for operator recovery on partial creation; later configuration rolls back through human-merged revert plus deploy.
+- Retiring it later is not a rollback: removing the declaration defers the delete (one alert); after Ali approves, destroy it as in [diagnose/tofu-stuck](diagnose/tofu-stuck.md#retire-a-guest-deferred-delete).
 
 ## Evidence
 

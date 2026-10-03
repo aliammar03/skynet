@@ -895,14 +895,16 @@ def _json_bytes(value: dict[str, Any]) -> bytes:
 def record_state(repo: Path, stack: str, state: bytes | None, record: dict[str, Any] | None,
                  message: str, expect: str | None = None) -> str:
     """Commit this stack's state (and, after a success, its applied record, which also clears a
-    hold on that same revision, and only that one, or an unreadable hold, which only a supervised
-    `--ignore-hold` success can reach) in one commit."""
+    hold on that same revision or on one it supersedes — a strict ancestor, which `--pending`
+    never applies again — and an unreadable hold, which only a supervised `--ignore-hold` success
+    can reach) in one commit. A hold on any other revision stays."""
     files: dict[str, bytes | None] = {}
     if state is not None:  # None: a stack that holds nothing yet records only its revision
         files[f"{stack}/terraform.tfstate"] = state
     if record is not None:
         files[f"{stack}/applied.json"] = _json_bytes(record)
-        if held(repo, stack).get("revision") in (record.get("revision"), "*"):
+        hold = held(repo, stack).get("revision")
+        if hold in (record.get("revision"), "*") or _is_ancestor(repo, hold, record.get("revision")):
             files[f"{stack}/held.json"] = None
     return write_branch(repo, files, message, expect)
 
@@ -1342,7 +1344,7 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
                     _unrecorded(ledger, name, record)  # the persistence step pushes it later
                     raise
                 _forget_unrecorded(ledger, name)  # an older unpushed record must never land over it
-                _clear_local_hold(ledger, name, target)
+                _clear_local_hold(ledger, name, target, repo)
 
             result = writepath.run(operation, ledger, preflight=preflight, snapshot=snapshot,
                                    execute=execute, verify=verify, rollback=rollback,
@@ -1353,15 +1355,30 @@ def apply(repo: Path, name: str, *, revision: str | None = None, ledger: Ledger,
         _drop_intents(ledger, operation.id)  # resolved: a record now carries this operation
     if result.outcome in HELD_OUTCOMES or (result.outcome == "refused" and result.code != UNAVAILABLE):
         _hold(repo, ledger, name, target, str(result.reason), result)
-    # Only a plan that ran leaves its deferrals pending; a refused or unavailable one announces
-    # nothing, so the run that does defer them still alerts.
-    if saved.deferred and result.outcome not in ("refused", "unavailable"):
+    # Only a plan that ran knows the stack's deferrals; a refused or unavailable one announces (and
+    # forgets) nothing, so the run that does defer them still alerts.
+    if saved.hash and result.outcome not in ("refused", "unavailable"):  # a plan ran
         _announce_deferred(ledger, name, saved.deferred, result)
     return result
 
 
 def _announce_deferred(ledger: Ledger, name: str, deferred: list[str], operation: Operation) -> None:
-    """A deferred hard checkpoint alerts once per address: it waits for a human, never silently."""
+    """A deferred hard checkpoint alerts once per address while it stays deferred: it waits for a
+    human, never silently. An address this plan no longer defers (applied by hand, re-declared,
+    gone) is forgotten, so a later deferral of the same address alerts again."""
+    prefix, current = f"{name}:deferred:", {f"{name}:deferred:{address}" for address in deferred}
+
+    def forget(facts: dict[str, Any]) -> None:
+        known = facts.get("_hold_alerts")
+        if isinstance(known, list):
+            facts["_hold_alerts"] = [key for key in known if not str(key).startswith(prefix)
+                                     or key in current]
+    try:
+        _update_facts(ledger, forget)
+    except WriteError:
+        pass  # a stale marker only silences a re-deferral; never fail the run for it
+    if not deferred:
+        return
     known = _facts(ledger).get("_hold_alerts")
     seen = known if isinstance(known, list) else []
     new = [address for address in deferred if f"{name}:deferred:{address}" not in seen]
@@ -1487,10 +1504,15 @@ def _forget_unrecorded(ledger: Ledger, name: str) -> None:
         pass  # persist_pending drops a record older than the branch's (`_superseded`)
 
 
-def _clear_local_hold(ledger: Ledger, name: str, revision: str) -> None:
+def _clear_local_hold(ledger: Ledger, name: str, revision: str, repo: Path | None = None) -> None:
+    """Drop the local fallback hold on `revision` (and, given `repo`, one it supersedes)."""
+    local = _facts(ledger).get(name)
+    old = local.get("held") if isinstance(local, dict) else None
+    clears = {revision} | ({old} if repo is not None and _is_ancestor(repo, old, revision) else set())
+
     def clear(facts: dict[str, Any]) -> None:
         fact = facts.get(name)
-        if isinstance(fact, dict) and fact.get("held") == revision:
+        if isinstance(fact, dict) and fact.get("held") in clears:
             fact.pop("held")
     try:
         _update_facts(ledger, clear)
@@ -1548,14 +1570,18 @@ def persist_pending(repo: Path, ledger: Ledger) -> list[dict[str, Any]]:
         raise
 
 
+def _is_ancestor(repo: Path, older: Any, newer: Any) -> bool:
+    """True when `older` is a strict ancestor of `newer` (both commits known to `repo`)."""
+    if not isinstance(older, str) or not isinstance(newer, str) or older == newer:
+        return False
+    return deploy._run(["git", "-C", str(repo), "merge-base", "--is-ancestor", older,
+                        newer]).returncode == 0
+
+
 def _superseded(repo: Path, name: str, record: dict[str, Any]) -> bool:
     """A stored applied record is superseded when the branch's applied revision is a strictly
     later commit: pushing it would regress applied.json."""
-    current, stored = applied(repo, name).get("revision"), record.get("revision")
-    if not isinstance(current, str) or not isinstance(stored, str) or current == stored:
-        return False
-    return deploy._run(["git", "-C", str(repo), "merge-base", "--is-ancestor", stored,
-                        current]).returncode == 0
+    return _is_ancestor(repo, record.get("revision"), applied(repo, name).get("revision"))
 
 
 def retry_cleanup(repo: Path, ledger: Ledger) -> list[dict[str, Any]]:
