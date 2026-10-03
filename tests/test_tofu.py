@@ -175,7 +175,8 @@ def fake(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Fake:
     def set_hold(repo: Path, stack: str, revision: str, reason: str, operation: str) -> None:
         host.holds[stack] = {"revision": revision, "reason": reason, "operation": operation}
 
-    def record(repo: Path, ledger: Ledger, stack: str, record: dict[str, Any] | None, message: str) -> None:
+    def record(repo: Path, ledger: Ledger, stack: str, record: dict[str, Any] | None, message: str,
+               newest: bool = False) -> None:
         if host.record_error:
             raise WriteError("state branch push failed", UNAVAILABLE)
         host.recorded.append(record)
@@ -463,6 +464,25 @@ def test_a_refused_run_forgets_no_deferral(fake: Fake, tmp_path: Path) -> None:
     fake.approved["hash"] = "0" * 64
     assert tofu.apply(tmp_path, "proxmox-core", revision=NEW, ledger=ledger).outcome == "refused"
     assert f"proxmox-core:deferred:{guest(10031)['address']}" in tofu._facts(ledger)["_hold_alerts"]
+
+
+def test_a_supervised_run_of_an_older_revision_forgets_no_deferral(fake: Fake,
+                                                                   tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "state")
+    doomed = guest(10031, actions=["delete"])
+    fake.plan = [guest(10030, cores=4), doomed]
+    fake.approve()
+    assert run(fake, tmp_path).outcome == "success"
+    fake.inputs["proxmox-core"] = NEW  # main's newest revision still defers `doomed`
+    fake.plan = [guest(10030, cores=5)]  # an older revision run by hand plans without it
+    fake.approve()
+    assert tofu.apply(tmp_path, "proxmox-core", revision=REV, ledger=ledger,
+                      ignore_hold=True).outcome == "success"
+    assert f"proxmox-core:deferred:{doomed['address']}" in tofu._facts(ledger)["_hold_alerts"]
+    fake.plan = [guest(10030, cores=6), doomed]
+    fake.approve()
+    assert tofu.apply(tmp_path, "proxmox-core", revision=NEW, ledger=ledger).outcome == "success"
+    assert fake.alerts == [DEFERRED_ALERT]  # the deferral never went away: no second alert
 
 
 def test_a_refused_plan_never_announces_its_deferrals(fake: Fake, tmp_path: Path) -> None:
@@ -965,7 +985,9 @@ def test_a_success_clears_a_hold_it_supersedes_but_not_a_siblings(clone: Path,
     older = _commit(clone, "the held revision")
     newer = _commit(clone, "a later merge")
     tofu.set_hold(clone, "s", older, "rolled back", "op1")
-    tofu.record_state(clone, "s", b"v1", {"revision": newer}, "applied")
+    tofu.record_state(clone, "s", b"v0", {"revision": newer}, "supervised --revision of HEAD")
+    assert tofu.held(clone, "s")["revision"] == older  # `older` may still be the stack's newest
+    tofu.record_state(clone, "s", b"v1", {"revision": newer}, "applied", newest=True)
     assert tofu.held(clone, "s") == {}  # superseded: --pending never applies `older` again
     _git(clone, "checkout", "-q", older)
     sibling = _commit(clone, "a branch that never reached newer")
@@ -976,6 +998,35 @@ def test_a_success_clears_a_hold_it_supersedes_but_not_a_siblings(clone: Path,
     tofu._local_hold(ledger, "s", older)
     tofu._clear_local_hold(ledger, "s", newer, clone)
     assert not tofu._held_locally(ledger, "s", older)
+
+
+def test_a_git_that_cannot_answer_never_fails_a_recorded_success(
+        monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The ancestry check runs after the record landed: a slow git must not turn it unrecorded."""
+    def slow(args: list[str], **kwargs: Any) -> Any:
+        raise WriteError("git timed out", UNAVAILABLE)
+
+    monkeypatch.setattr(deploy, "_run", slow)
+    assert tofu._is_ancestor(tmp_path, REV, NEW) is False
+    ledger = Ledger(tmp_path / "state")
+    tofu._local_hold(ledger, "s", REV)
+    tofu._clear_local_hold(ledger, "s", NEW, tmp_path)  # must not raise
+    assert tofu._held_locally(ledger, "s", REV)  # kept: never cleared on an unknown answer
+
+
+def test_a_delayed_record_of_the_newest_revision_clears_a_superseded_local_hold(
+        monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "state")
+    tofu._local_hold(ledger, "proxmox-core", REV)
+    tofu._unrecorded(ledger, "proxmox-core", {"revision": NEW, "hash": "h", "operation": "op"})
+    monkeypatch.setattr(tofu, "_superseded", lambda *a: False)
+    monkeypatch.setattr(tofu, "branch_state", lambda *a: None)
+    monkeypatch.setattr(tofu, "classify", lambda *a: "same")
+    monkeypatch.setattr(tofu, "_record", lambda *a, **k: None)
+    monkeypatch.setattr(tofu, "_newest", lambda repo, name, revision: revision == NEW)
+    monkeypatch.setattr(tofu, "_is_ancestor", lambda repo, older, newer: (older, newer) == (REV, NEW))
+    tofu.persist_pending(tmp_path, ledger)
+    assert not tofu._held_locally(ledger, "proxmox-core", REV)
 
 
 def test_settlement_waits_for_a_running_write(fake: Fake, tmp_path: Path,

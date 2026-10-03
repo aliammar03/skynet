@@ -49,11 +49,23 @@ systemctl status skynet-tofu.timer
 
 ### Operate API helper (T2; never echo the env)
 
+Quote every path (zsh globs an unquoted `?`). `run` posts an action and waits for its task, so the
+next step never races a running stop or shutdown.
+
 ```bash
 set -a; . /opt/skynet-ops/secrets/proxmox-core.env; set +a
 pve() { local m=$1 p=$2; shift 2; curl -sS --cacert "$PVE_CACERT" -X "$m" \
   -H "Authorization: PVEAPIToken=$PVE_TOKEN_OPERATE" "https://$PVE_HOST:8006/api2/json/$p" "$@"; }
 N=nodes/server-proxmox-core
+run() {   # run METHOD PATH [curl args…]: start a task, wait for it, fail unless it ends OK
+  local upid st; upid=$(pve "$@" | jq -r .data)
+  [[ $upid == UPID:* ]] || { echo "no task: $upid" >&2; return 1; }
+  while st=$(pve GET "$N/tasks/$(jq -rn --arg u "$upid" '$u|@uri')/status" | jq -r .data.status); \
+    [[ $st != stopped ]]; do sleep 2; done
+  pve GET "$N/tasks/$(jq -rn --arg u "$upid" '$u|@uri')/status" | jq -e '.data.exitstatus == "OK"' >/dev/null \
+    || { echo "task failed: $upid" >&2; return 1; }
+}
+K=qemu   # or lxc, for a container
 ```
 
 ### Restart a guest with pending changes
@@ -61,22 +73,22 @@ N=nodes/server-proxmox-core
 Graceful first, forced if ignored (a guest still booting or without ACPI ignores a plain reboot):
 
 ```bash
-pve POST $N/qemu/<vmid>/status/shutdown -d forceStop=1 -d timeout=120   # lxc: $N/lxc/<vmid>/…
-pve POST $N/qemu/<vmid>/status/start
-pve GET  $N/qemu/<vmid>/pending | jq '[.data[] | select(.pending != null or .delete != null)]'  # []
+run POST "$N/$K/<vmid>/status/shutdown" -d forceStop=1 -d timeout=120   # up to 120 s, then forced
+run POST "$N/$K/<vmid>/status/start"
+pve GET "$N/$K/<vmid>/pending" | jq '[.data[] | select(.pending != null or .delete != null)]'  # []
 ```
 
 ### Recover after rollback-failed
 
 1. Read the guests and the kept snapshot from the record (`context.guests`, `context.snapshot` =
    `skynet-<operation>`). Compare each guest's live config with the snapshot's:
-   `pve GET $N/qemu/<vmid>/config` vs `pve GET $N/qemu/<vmid>/snapshot/skynet-<op>/config`.
+   `pve GET "$N/$K/<vmid>/config"` vs `pve GET "$N/$K/<vmid>/snapshot/skynet-<op>/config"`.
 2. Bring each guest to the intended config: restart it if changes are pending (above); fix a key
    by hand only with Ali's go.
 3. Either re-run the merged revision supervised — `skynet tofu apply <stack> --ignore-hold` (one
    stack, never `--pending`) — or move `main` with a fix or revert PR.
 4. Once every guest is proven, delete the kept snapshot on each:
-   `pve DELETE $N/qemu/<vmid>/snapshot/skynet-<op>`; `jq '._cleanup'
+   `run DELETE "$N/$K/<vmid>/snapshot/skynet-<op>"`; `jq '._cleanup'
    /opt/skynet-ops/state/tofu/pending.json` must be `[]`.
 
 ### Retire a guest (deferred delete)
@@ -85,11 +97,12 @@ pve GET  $N/qemu/<vmid>/pending | jq '[.data[] | select(.pending != null or .del
    approval; expect `deferred` in `approved-plan.json`. After the merge the timer defers it and
    alerts once.
 2. Ali approves the destroy (hard checkpoint, every time).
-3. Check identity, then destroy:
+3. Check identity (VMID, name, pool, not a template, not excluded), then destroy; `K=lxc` for a
+   container:
    ```bash
-   pve GET cluster/resources?type=vm | jq '.data[] | select(.vmid==<vmid>) | {vmid,name,pool,template}'
-   pve POST $N/qemu/<vmid>/status/stop
-   pve DELETE "$N/qemu/<vmid>?purge=1&destroy-unreferenced-disks=1"
+   pve GET "cluster/resources?type=vm" | jq '.data[] | select(.vmid==<vmid>) | {vmid,type,name,pool,template}'
+   run POST "$N/$K/<vmid>/status/stop"
+   run DELETE "$N/$K/<vmid>?purge=1&destroy-unreferenced-disks=1"
    ```
 4. `skynet tofu drift` no longer lists it; the next apply drops it from state.
 
