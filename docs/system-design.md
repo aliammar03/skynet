@@ -85,17 +85,17 @@ These are current settings, changed only by a PR here.
     to the last verified revision is failure-tested in the local suite and was drilled live
     (SKY-025 P13).
   - `skynet tofu apply --pending` of a human-merged stack whose re-plan matches the PR's approved
-    hash (SKY-025 P15) is **supervised (A3)**: it runs on demand; its `skynet-tofu` timer is not
-    enabled. A failed existing-guest update gets its saved config written back (a config restore,
+    hash (SKY-025 P15) runs unattended on the `skynet-tofu` timer: existing-guest updates act at
+    **A4**; creates and DNS-record writes are applied on the merge's approval and stay below A4
+    (no automatic inverse). Evidence: the live drills recorded in SKY-025 Phase 15 and the journal
+    (2026-09-30, 2026-10-01). A failed existing-guest update gets its saved config written back (a config restore,
     never a snapshot rollback), is returned to its prior power state, and is proved against its
     pre-apply config; creates and DNS-record writes have no automatic
     inverse, so a failure records the true state, holds the revision in git, and alerts, and is
     never retried or auto-destroyed. Excluded guests are refused at every level; a guest
     delete/replace/forget is deferred (excluded from the plan, alerted once, never applied). The one
     delete it applies is an approved delete of a derived DNS record (bounded per apply; the revert of
-    its PR recreates it). Enabling the timer (unattended: guest updates A4; creates and DNS writes applied on
-    the merge's approval) is its own human-merged change here, carrying the recorded live LXC and
-    VM rollback drills.
+    its PR recreates it).
 
   Everything else is report-only; a promotion needs failure-case tests in the local suite plus
   recorded live evidence, and a human-merged change to this section.

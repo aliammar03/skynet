@@ -145,7 +145,7 @@ edit compose/<svc>/ → branch → PR (bin/check + tier review + `skynet deploy 
   change plus `tofu/<stack>/approved-plan.json` from `skynet tofu plan --changed --approve` (plan from a
   branch rebased on `main`; the approval is bound to a digest of the stack's inputs, so any later
   input change needs a new one). The merge approves that effect; `skynet tofu apply --pending`
-  (supervised until its drills are recorded, then the `skynet-tofu` timer, each minute) validates and
+  (the `skynet-tofu` timer, each minute) validates and
   re-plans the merged revision and applies it only when its normalized-change hash and inputs equal
   the approved ones. A different hash, stale inputs, source that does not validate, or an apply that
   failed, rolled back, or was interrupted, is held and alerts; it never retries until `main` moves:
