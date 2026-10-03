@@ -45,7 +45,8 @@ attributes, from the provider schema, are provider output and never count) or a 
 anything else keeps its snapshots, records the state OpenTofu wrote, and alerts. Rollback is a config
 restore, never a snapshot rollback: a guest's disk and RAM hold payload data written since. Only the
 keys that differ are written back, keys the apply added are deleted, the config digest makes the write
-a compare-and-swap, and a running guest reboots only when changes are left pending. A guest update
+a compare-and-swap, and a running guest is restarted only when changes are left pending (an ACPI shutdown, forced after
+120 s, then a start, so a guest that ignores ACPI never stalls the restore). A guest update
 is rolled back only when every attribute it changes is one the restore sets back (`RESTORE_COVERS`);
 pool membership, disk size, or a template conversion has no automatic inverse. A guest with pending
 changes before the apply waits (recorded `unavailable`, retried with its backoff, never held); changes an apply

@@ -1718,11 +1718,12 @@ class FakeProxmox:
             return self.pending
         if path.endswith("/status/current"):
             return {"status": self.power}
-        if path.endswith("/status/reboot"):
-            self.pending = []
+        if path.endswith("/status/reboot"):  # a guest that ignores ACPI: the reboot times out
+            self.exitstatus = "VM quit/powerdown failed - got timeout"
             return "UPID:node:1"
         if path.endswith("/status/start"):
             self.power = "running"
+            self.pending = []  # Proxmox applies pending changes when the guest starts
         if path.endswith("/status/shutdown"):
             self.power = "stopped"
         return "UPID:node:1"
@@ -1759,12 +1760,25 @@ def test_restore_of_an_unchanged_guest_writes_nothing(monkeypatch: pytest.Monkey
     assert [c[0] for c in api.calls if c[0] != "GET"] == []
 
 
-def test_restore_reboots_a_running_guest_only_when_changes_are_pending(
+def test_restore_restarts_a_running_guest_only_when_changes_are_pending(
         monkeypatch: pytest.MonkeyPatch) -> None:
     api = FakeProxmox({"cores": 4}, pending_after_put=True)
     monkeypatch.setattr(pve, "_call", api)
     pve.restore(pve.Guest(CORE, "qemu", 10030), {"cores": 2}, "running", excluded=())
-    assert [c[1] for c in api.calls if c[0] == "POST"] == ["status/reboot"] and api.pending == []
+    posts = [(c[1], c[2]) for c in api.calls if c[0] == "POST"]
+    assert posts == [("status/shutdown", {"forceStop": "1", "timeout": str(pve.SHUTDOWN_GRACE)}),
+                     ("status/start", {})]
+    assert api.pending == [] and api.power == "running"
+
+
+def test_a_guest_that_ignores_acpi_never_fails_the_restore(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Live (2026-10-03): a VM booted 1 s earlier ignored a graceful reboot, which timed out after
+    60 s and failed the rollback. The restart is a shutdown forced after its grace, then a start."""
+    api = FakeProxmox({"cores": 4}, pending_after_put=True)  # the fake's reboot task times out
+    monkeypatch.setattr(pve, "_call", api)
+    pve.restore(pve.Guest(CORE, "qemu", 10030), {"cores": 2}, "running", excluded=())
+    assert not any(c[1] == "status/reboot" for c in api.calls)
+    assert api.exitstatus == "OK" and api.pending == [] and api.power == "running"
 
 
 def test_restore_stops_a_guest_first_so_its_config_applies_at_once(
@@ -1796,7 +1810,7 @@ def test_a_guest_that_does_not_come_back_fails_the_restore(monkeypatch: pytest.M
 
     monkeypatch.setattr(pve, "_call", stuck)
     monkeypatch.setattr(pve, "POLL_SECONDS", 0)
-    monkeypatch.setattr(pve, "TASK_SECONDS", 0)
+    monkeypatch.setattr(pve, "OBSERVE_SECONDS", 0)
     with pytest.raises(WriteError, match="did not return to running"):
         pve.restore(LXC, {"cores": 2}, "running", excluded=())
 

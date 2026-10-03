@@ -89,8 +89,8 @@ _TASK = 2 * pve.TIMEOUT + pve.TASK_SECONDS + pve.POLL_SECONDS  # POST, wait, a l
 GUEST_SECONDS = (3 * pve.TIMEOUT      # before: status, config, pending
                  + 4 * pve.TIMEOUT    # restore: config, PUT, pending, status
                  + 2 * pve.TIMEOUT    # proof: config, pending
-                 + 3 * _TASK          # snapshot, prune, and one power task (reboot, start, or stop)
-                 + pve.TASK_SECONDS + pve.TIMEOUT + pve.POLL_SECONDS)  # wait to see the power state
+                 + 4 * _TASK          # snapshot, prune, and two power tasks (a forced shutdown, a start)
+                 + 2 * (pve.OBSERVE_SECONDS + pve.TIMEOUT + pve.POLL_SECONDS))  # see each power state
 GIT_CALLS, GIT_SECONDS, ALERTS = 60, 60, 4  # per stack: sync, record, hold, checkout; alerts
 # Every fenced host shares one settle deadline after the apply and one after a restore.
 STACK_BUDGET = (sum(TOFU_SECONDS.values()) + MAX_GUESTS * GUEST_SECONDS + GIT_CALLS * GIT_SECONDS

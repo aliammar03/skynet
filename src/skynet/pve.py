@@ -31,6 +31,8 @@ NODE_CREDENTIALS = {
 TIMEOUT = 30
 TASK_SECONDS = 300.0
 POLL_SECONDS = 2.0
+OBSERVE_SECONDS = 60.0  # a power task has finished: its state must show within this
+SHUTDOWN_GRACE = 120  # an ACPI shutdown is forced after this many seconds
 
 
 @dataclass(frozen=True)
@@ -156,7 +158,7 @@ def _set_power(guest: Guest, power: str) -> None:
         if power == "running":
             action, fields = "start", {}
         elif power == "stopped":
-            action, fields = "shutdown", {"forceStop": "1", "timeout": "120"}
+            action, fields = "shutdown", {"forceStop": "1", "timeout": str(SHUTDOWN_GRACE)}
         else:
             raise WriteError(f"{guest} cannot be returned to {power}", UNAVAILABLE)
         _wait(guest.node, _call(guest.node, "POST", f"{_guest_path(guest)}/status/{action}", fields))
@@ -164,7 +166,7 @@ def _set_power(guest: Guest, power: str) -> None:
 
 
 def _observe(guest: Guest, power: str) -> None:
-    deadline = time.monotonic() + TASK_SECONDS
+    deadline = time.monotonic() + OBSERVE_SECONDS
     while status(guest) != power:
         if time.monotonic() >= deadline:
             raise WriteError(f"{guest} did not return to {power}", UNAVAILABLE)
@@ -175,7 +177,9 @@ def restore(guest: Guest, saved: dict[str, Any], power: str, *, excluded: Collec
     """Write `saved` (a `config()` copy) back and return the guest to `power`. Only keys that
     differ are sent; keys the failed apply added are deleted; the current digest makes the write a
     compare-and-swap. A guest that should stay stopped is stopped first, so the write applies at
-    once; a running one is rebooted only when the write left changes pending."""
+    once; a running one is restarted only when the write left changes pending: an ACPI shutdown,
+    forced after SHUTDOWN_GRACE, then a start. A guest that ignores ACPI (still booting, hung, no
+    handler) is forced off, so the restore never stalls on it, as a plain reboot would."""
     _guard(guest, excluded)
     if power == "stopped":
         _set_power(guest, power)
@@ -192,10 +196,8 @@ def restore(guest: Guest, saved: dict[str, Any], power: str, *, excluded: Collec
         if isinstance(result, str) and result.startswith("UPID:"):
             _wait(guest.node, result)
     if power == "running" and pending(guest) and status(guest) == "running":
-        _wait(guest.node, _call(guest.node, "POST", f"{_guest_path(guest)}/status/reboot", {}))
-        _observe(guest, power)
-    else:
-        _set_power(guest, power)
+        _set_power(guest, "stopped")
+    _set_power(guest, power)
 
 
 def exists(guest: Guest, name: str) -> bool:
