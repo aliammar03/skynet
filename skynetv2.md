@@ -67,7 +67,7 @@ Nothing outside the lab pushes into it.
 | D9 | Offsite = **Google Drive** via rclone with Ali's own OAuth client, **published to production** | Drive is what Ali has; "Testing" mode tokens expire every 7 days |
 | D10 | No OpenTofu. VMs come from versioned `hosts/<h>/proxmox.sh`; DNS records as decided in P2; the Cloudflare wildcard CNAME is set once by hand | Guests change rarely |
 | D11 | The agent never merges, never holds a private age key, never gets a Docker socket | GitHub and missing credentials enforce the leash |
-| D13 | `aliammar-skynet` has **Write**; `main` is guarded by a ruleset (PR + code-owner review + check `nix`; only admins bypass) | Branches in one repo; enables P6 auto-merge; the ruleset, not the role, is the leash |
+| D13 | `aliammar-skynet` has **Write**. The `main` ruleset requires a PR and check `nix` and blocks force-push/deletion; no review is required (Ali's call, 2026-10-21) | Branches in one repo, no approval clicks. "Never merge" is a **soft wall**: AGENTS.md + Claude Code deny rules |
 | D12 | v1 archived; fresh repo; new ops VM built alongside the old one, which is then retired | Clean start without a blind spot |
 
 ## Rules
@@ -149,15 +149,15 @@ skynet/
   automation.
 - **Age identity:** each host's age key is derived from its SSH host key (`ssh-to-age`). sops-nix
   uses it, and on Docker hosts doco-cd does too.
-- **Agent git flow:** the agent pushes branch `p<N>/<slug>` to `origin` and opens a PR. It never pushes
-  `main` and never merges (the ruleset enforces both). One PR = one reviewable change, CI green first.
+- **Agent git flow:** the agent pushes branch `p<N>/<slug>` to `origin` and opens a PR. The ruleset blocks
+  pushes to `main`; "never merge" is the soft wall (D13). One PR = one reviewable change, CI green first.
 
 ## Credentials ledger
 
 | Identity | Holds | Scope | Phase |
 |---|---|---|---|
 | Ali | GitHub owner, age master key, SSH CA, Proxmox/OPNsense/Unraid root, Discord owner, Google + Cloudflare accounts | everything | — |
-| aliammar-skynet | classic PAT `public_repo`, `workflow` | **Write**: branches, PRs, labels. Can't push `main` or merge without Ali (ruleset) | P0 |
+| aliammar-skynet | classic PAT `public_repo`, `workflow` | **Write**: branches, PRs, labels. Can't push `main` (ruleset); could merge, but won't (soft wall, D13) | P0 |
 | ops host key | decrypts `secrets/ops.yaml` | ops | P0 |
 | Discord bot | bot token | `#skynet` chat | P0 |
 | Renovate app | repo contents/PRs | PRs (automerge P6) | P0 |
@@ -207,9 +207,9 @@ accounts.
 | 3 | agent / Ali | Agent: `git -C ~/skynet remote set-url origin https://github.com/aliammar03/skynet-v1.git`, so v1 never polls the new repo. Ali: repoint or delete other v1 clones (workstation, Obsidian). |
 | 4 | Ali | Create `aliammar03/skynet` (public, empty). Create the machine account `aliammar-skynet` with a classic PAT (`public_repo`, `workflow`). Install the Renovate (Mend) app on the new repo. |
 | 5 | agent | Build the first commit in `~/skynet-v2` (contents below). `nix flake check` + build `ops` locally. |
-| 6 | Ali / agent | Ali adds `aliammar-skynet` as a **Write** collaborator; the agent accepts and pushes `main`. After CI's first run, Ali adds a ruleset on the default branch: require PR, **require review from Code Owners**, dismiss stale approvals, require check `nix`, block force-push and deletion, bypass = Repository admin only. Actions → workflow permissions read-only, and untick "Allow GitHub Actions to create and approve pull requests". The agent then proves a direct push to `main` is rejected. |
-| 7 | Ali | On the core node run `hosts/ops/proxmox.sh`. In the VM console: `sudo -i; passwd`; `ip -br link`; `ip addr add 10.10.90.91/24 dev <if>; ip route add default via 10.10.90.1; echo nameserver 10.10.70.51 > /etc/resolv.conf` |
-| 8 | agent | From 9090 (same VLAN): `ssh-copy-id root@10.10.90.91`, then `nix run github:nix-community/nixos-anywhere -- --flake .#ops --target-host root@10.10.90.91 --generate-hardware-config nixos-generate-config hosts/ops/hardware.nix`. PR with `hardware.nix`. |
+| 6 | Ali / agent | Ali adds `aliammar-skynet` as a **Write** collaborator; the agent accepts and pushes `main`. After CI's first run, Ali adds a ruleset on the default branch: require PR, require check `nix`, block force-push and deletion, bypass = Repository admin only (no required review, D13). Actions → workflow permissions read-only, and untick "Allow GitHub Actions to create and approve pull requests". The agent then proves a direct push to `main` is rejected. |
+| 7 | Ali | On the core node run `hosts/ops/proxmox.sh`. In the VM console: `sudo -i`; `ip -br link`; `ip addr add 10.10.90.91/24 dev <if>; ip route add default via 10.10.90.1; echo nameserver 10.10.70.51 > /etc/resolv.conf`; `mkdir -p ~/.ssh; curl -fsSL https://raw.githubusercontent.com/aliammar03/skynet/main/hosts/ops/installer.pub > ~/.ssh/authorized_keys` |
+| 8 | agent | From 9090 (same VLAN): `nix run github:nix-community/nixos-anywhere -- --flake .#ops --target-host root@10.10.90.91 --generate-hardware-config nixos-generate-config hosts/ops/hardware.nix`. PR with `hardware.nix`. |
 | 9 | agent | `ssh-keyscan -t ed25519 10.10.90.91 \| ssh-to-age` → add recipient `ops` to `.sops.yaml` (PR). |
 | 10 | Ali | On the workstation, `sops secrets/ops.yaml` with `discord_bot_token` and `github_token` (the aliammar-skynet PAT). Merge. comin applies it and the agent units start. |
 | 11 | Ali | `ssh ali@10.10.90.91` → `sudo -iu skynet` → `tmux attach -t skynet`. Then: `/login` (Claude subscription), trust `~/skynet`, accept Remote Control, `/plugin install discord@claude-plugins-official`. DM the bot → `/discord:access pair <code>` → `/discord:access policy allowlist`. Run `claude remote-control` once interactively to accept its prompt. |
@@ -304,7 +304,7 @@ systemd.services.skynet-agent = {   # the persistent conversation: Discord + Cla
 - comin on ops shows `main`'s HEAD deployed. A trivial merged PR is live within ~2 min.
 - After rebooting ops, both agent units come back without manual steps.
 - The bot answers in `#skynet` from the new VM. The Claude app shows "Skynet" and can spawn a session.
-- The agent opens a PR from a branch, CI runs on it, and it can't merge until Ali approves.
+- The agent opens a PR from a branch, CI runs on it, and Ali merges it.
 - v1 timers are off except `skynet-watch`. The v1 repo is archived. The survival kit has the new age key.
 
 ---
