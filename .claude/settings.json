@@ -20,6 +20,12 @@
     ],
     "deny": [
       "Bash(gh pr merge:*)",
+      "Bash(gh pr review:*)",
+      "Bash(gh api graphql:*)",
+      "Bash(gh api --method=PUT:*)",
+      "Bash(gh api --method PUT:*)",
+      "Bash(gh api -XPUT:*)",
+      "Bash(gh api -X PUT:*)",
       "Bash(gh repo edit:*)",
       "Bash(gh repo delete:*)",
       "Bash(gh repo archive:*)",

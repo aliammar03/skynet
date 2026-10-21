@@ -11,4 +11,6 @@ Claude app. VMID 9091 · 10.10.90.91 · VLAN 90 · server-proxmox-core · 4 vCPU
 - **Rebuild:** `proxmox.sh` on the node → boot the NixOS ISO → `nixos-anywhere --flake .#ops
   --target-host root@10.10.90.91 --generate-hardware-config nixos-generate-config
   hosts/ops/hardware.nix` → one-time `/login` and Discord pairing as `skynet`.
+- **`installer.pub`:** the key nixos-anywhere uses to SSH into the NixOS installer (public; the
+  installed system allows no root login).
 - **State worth keeping:** `/home/skynet/.claude` (logins, plugin, memory), covered by PBS.
