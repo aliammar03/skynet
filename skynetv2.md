@@ -212,7 +212,7 @@ accounts.
 | 8 | agent | From 9090 (same VLAN): `nix run github:nix-community/nixos-anywhere -- --flake .#ops --target-host root@10.10.90.91 --generate-hardware-config nixos-generate-config hosts/ops/hardware.nix`. PR with `hardware.nix`. |
 | 9 | agent | `ssh-keyscan -t ed25519 10.10.90.91 \| ssh-to-age` → add recipient `ops` to `.sops.yaml` (PR). |
 | 10 | Ali | On the workstation, `sops secrets/ops.yaml` with `discord_bot_token` and `github_token` (the aliammar-skynet PAT). Merge. comin applies it and the agent units start. |
-| 11 | Ali | `ssh ali@10.10.90.91` → `sudo -iu skynet` → `tmux attach -t skynet`. Then: `/login` (Claude subscription), trust `~/skynet`, accept Remote Control, `/plugin install discord@claude-plugins-official`. DM the bot → `/discord:access pair <code>` → `/discord:access policy allowlist`. Run `claude remote-control` once interactively to accept its prompt. |
+| 11 | Ali | `ssh ali@10.10.90.91` → `sudo -iu skynet` → `tmux -L skynet attach`. Then: `/login` (Claude subscription), trust `~/skynet`, accept Remote Control, `/plugin install discord@claude-plugins-official`. DM the bot → `/discord:access pair <code>` → `/discord:access policy allowlist`. Run `claude remote-control` once interactively to accept its prompt. |
 | 12 | both | Check the exit criteria. |
 | 13 | Ali | OPNsense: **add** 10.10.90.91 to alias `HOST_SKYNET_OPS`; .90 stays until P1 exit. |
 
@@ -270,8 +270,8 @@ systemd.services.skynet-agent = {   # the persistent conversation: Discord + Cla
   serviceConfig = {
     User = "skynet"; WorkingDirectory = "/home/skynet/skynet"; Type = "forking"; Restart = "always";
     EnvironmentFile = config.sops.templates."agent.env".path;
-    ExecStart = "${pkgs.tmux}/bin/tmux new-session -d -s skynet 'claude --remote-control Skynet --channels plugin:discord@claude-plugins-official --permission-mode acceptEdits'";
-    ExecStop  = "${pkgs.tmux}/bin/tmux kill-session -t skynet";
+    ExecStart = "${pkgs.tmux}/bin/tmux -L skynet new-session -d -s skynet 'claude --remote-control Skynet --channels plugin:discord@claude-plugins-official --permission-mode acceptEdits'";
+    ExecStop  = "${pkgs.tmux}/bin/tmux -L skynet kill-server";
   };
 };
 # skynet-spawn: same shape, tmux session "spawn",
@@ -293,8 +293,8 @@ systemd.services.skynet-agent = {   # the persistent conversation: Discord + Cla
   contract · hard checkpoints · "the plan is skynetv2.md".
 - `README.md` (human intro) · `skynetv2.md` (this file) · `.github/CODEOWNERS` (`* @aliammar03`).
 - `.github/workflows/check.yml`: runs on PR + push to main; `permissions: contents: read`. Job
-  `nix`: checkout → `cachix/install-nix-action` → `nix flake check` →
-  `nix build .#nixosConfigurations.ops.config.system.build.toplevel`.
+  `nix`: checkout → `cachix/install-nix-action` → `nix flake check --no-build` (evaluates every host,
+  about 30 s; the host builds, and comin keeps the current generation if a build fails).
 - `renovate.json`: `config:recommended`; `nix.enabled: true`; `lockFileMaintenance` weekly
   (Monday, Asia/Karachi); dependency dashboard; no automerge.
 
