@@ -21,7 +21,7 @@
 
 | Phase | Title | State |
 |---|---|---|
-| P0 | Foundations + new ops VM | in progress — steps 1–11 done |
+| P0 | Foundations + new ops VM | in progress — steps 1–12 done |
 | P1 | docker-admin: admin door, identity, status | ready (detailed) |
 | P2 | DNS (Technitium only) + remote access | outline |
 | P3 | docker-dmz: apps + public path | outline |
