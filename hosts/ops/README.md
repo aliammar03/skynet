@@ -5,9 +5,12 @@ Claude app. VMID 9091 · 10.10.90.91 · VLAN 90 · server-proxmox-core · 4 vCPU
 
 - **Sessions:** `skynet-agent` (tmux `skynet`: the persistent Discord + Remote Control conversation)
   and `skynet-spawn` (tmux `spawn`: on-demand sessions from the Claude app, one git worktree each).
-  Each runs in its own tmux server. Watch or drive: `sudo -iu skynet tmux -L skynet attach`
-  (or `-L spawn`); detach with Ctrl+B, D.
+  Each runs in its own tmux server. Watch or drive: `skynet-attach` (or `skynet-attach spawn`);
+  detach with **F12**.
 - **Secrets:** `secrets/ops.yaml` → `discord_bot_token`, `github_token` (aliammar-skynet PAT).
+  `GH_TOKEN` reaches the sessions via their environment. The Discord token is written by
+  `skynet-discord-token` to `~/.claude/channels/discord/.env`, the file the plugin reads, because
+  Claude doesn't pass the session environment to plugin servers.
 - **Updates:** comin pulls `main` every 60 s.
 - **Rebuild:** `proxmox.sh` on the node → boot the NixOS ISO → `nixos-anywhere --flake .#ops
   --target-host root@10.10.90.91 --generate-hardware-config nixos-generate-config
