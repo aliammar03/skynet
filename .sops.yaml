@@ -1,0 +1,10 @@
+# Every file: Ali's master key + the one host that uses it.
+keys:
+  - &ali age1REPLACE_WITH_ALI_PUBLIC_KEY
+  # - &ops age1...        # added after install: ssh-keyscan -t ed25519 10.10.90.91 | ssh-to-age
+creation_rules:
+  - path_regex: ^secrets/ops\.yaml$
+    key_groups:
+      - age:
+          - *ali
+          # - *ops
