@@ -37,6 +37,7 @@ let
     after = [
       "network-online.target"
       "skynet-clone.service"
+      "skynet-discord-token.service"
     ];
     path = sessionPath;
     serviceConfig = {
@@ -59,6 +60,9 @@ in
   };
 
   environment.systemPackages = with pkgs; [
+    (writeShellScriptBin "skynet-attach" ''
+      exec sudo -iu skynet tmux -L "''${1:-skynet}" attach
+    '')
     unstable.claude-code
     unstable.mcp-nixos
     bun
@@ -74,15 +78,52 @@ in
   ];
 
   sops = lib.mkIf hasSecrets {
-    secrets.discord_bot_token.owner = "skynet";
+    secrets.discord_bot_token = {
+      owner = "skynet";
+      restartUnits = [
+        "skynet-discord-token.service"
+        "skynet-agent.service"
+      ];
+    };
     secrets.github_token.owner = "skynet";
     templates."agent.env" = {
       owner = "skynet";
       content = ''
-        DISCORD_BOT_TOKEN=${config.sops.placeholder.discord_bot_token}
         GH_TOKEN=${config.sops.placeholder.github_token}
       '';
     };
+  };
+
+  # The Discord channel plugin reads its token from ~/.claude/channels/discord/.env; Claude doesn't
+  # pass the session's environment to plugin servers. A real file, not a symlink: the plugin refuses
+  # to send files under that folder, and a symlink pointing outside it would slip past that check.
+  systemd.services.skynet-discord-token = lib.mkIf hasSecrets {
+    description = "Give the Discord channel plugin its bot token";
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      User = "skynet";
+      UMask = "0077";
+    };
+    script = ''
+      dir=${home}/.claude/channels/discord
+      mkdir -p "$dir" && chmod 700 "$dir"
+      printf 'DISCORD_BOT_TOKEN=%s\n' "$(cat ${
+        config.sops.secrets.discord_bot_token.path or "/dev/null"
+      })" > "$dir/.env.new"
+      mv "$dir/.env.new" "$dir/.env"
+    '';
+  };
+
+  # Attaching: `skynet-attach` (or `skynet-attach spawn`). Detach: F12, or Ctrl+B then D.
+  programs.tmux = {
+    enable = true;
+    extraConfig = ''
+      bind -n F12 detach-client
+      set -g mouse on
+      set -g status-right "F12 detach "
+    '';
   };
 
   # First boot: clone the repo and set the agent's git identity (pushes go to branches; main is ruleset-guarded).
