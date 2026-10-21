@@ -11,6 +11,9 @@ Claude app. VMID 9091 · 10.10.90.91 · VLAN 90 · server-proxmox-core · 4 vCPU
   `GH_TOKEN` reaches the sessions via their environment. The Discord token is written by
   `skynet-discord-token` to `~/.claude/channels/discord/.env`, the file the plugin reads, because
   Claude doesn't pass the session environment to plugin servers.
+- **Permissions:** both sessions run in Claude Code **auto mode**: a classifier approves routine
+  actions and sends anything risky to Ali as a Discord prompt. `.claude/settings.json` deny rules
+  (merge, force-push, sudo) apply in every mode.
 - **Updates:** comin pulls `main` every 60 s.
 - **Rebuild:** `proxmox.sh` on the node → boot the NixOS ISO → `nixos-anywhere --flake .#ops
   --target-host root@10.10.90.91 --generate-hardware-config nixos-generate-config
