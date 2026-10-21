@@ -14,6 +14,13 @@ let
   home = "/home/skynet";
   repo = "${home}/skynet";
   hasSecrets = builtins.pathExists (../secrets + "/${config.networking.hostName}.yaml");
+  # The Proxmox nodes are standalone (no cluster), so each has its own `skynet@pve!read` token.
+  pveHeader = node: {
+    owner = "skynet";
+    content = ''
+      Authorization: PVEAPIToken=skynet@pve!read=${config.sops.placeholder."pve_${node}_read_token"}
+    '';
+  };
   # A Claude session in its own tmux server (one server per unit, so restarting one session never
   # kills another). As skynet: `tmux -L <name> attach` to see or drive it.
   session = name: cmd: {
@@ -77,6 +84,21 @@ in
       owner = "skynet";
       content = ''
         GH_TOKEN=${config.sops.placeholder.github_token}
+      '';
+    };
+
+    # Read-only lab APIs (diagnose lane). Rendered as files curl reads itself, so a value never
+    # lands in an environment, a command line or the transcript. Usage: hosts/ops/README.md.
+    secrets.pve_core_read_token = { };
+    secrets.pve_network_read_token = { };
+    secrets.opnsense_read_key = { };
+    secrets.opnsense_read_secret = { };
+    templates."pve-core.header" = pveHeader "core";
+    templates."pve-network.header" = pveHeader "network";
+    templates."opnsense.netrc" = {
+      owner = "skynet";
+      content = ''
+        machine 10.10.50.1 login ${config.sops.placeholder.opnsense_read_key} password ${config.sops.placeholder.opnsense_read_secret}
       '';
     };
   };

@@ -34,7 +34,8 @@
       "Bash(git push origin HEAD:main:*)",
       "Bash(git push --force:*)",
       "Bash(git push -f:*)",
-      "Bash(sudo:*)"
+      "Bash(sudo:*)",
+      "Read(//run/secrets/**)"
     ]
   },
   "enabledMcpjsonServers": [

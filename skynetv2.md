@@ -22,7 +22,7 @@
 | Phase | Title | State |
 |---|---|---|
 | P0 | Foundations + new ops VM | in progress — steps 1–12 done |
-| P1 | docker-admin: admin door, identity, status | ready (detailed) |
+| P1 | docker-admin: admin door, identity, status | in progress — read-only access for prechecks |
 | P2 | DNS (Technitium only) + remote access | outline |
 | P3 | docker-dmz: apps + public path | outline |
 | P4 | Backups → Google Drive | outline |
@@ -167,8 +167,9 @@ skynet/
 | `#alerts` webhook | post only | Gatus, Apprise, comin, healthchecks.io | P1 |
 | docker-dmz host key, tunnel credentials | `stacks/dmz/**`, cloudflared | that host | P3 |
 | rclone | Drive scope, Ali's own OAuth client | backup jobs | P4 |
-| `skynet@pve` tokens | `read` = PVEAuditor on `/`; `operate` = VM.PowerMgmt on pool `skynet` | Proxmox | P5 / P6 |
-| PBS / OPNsense / Technitium | read-only users | diagnose | P5 / P6 |
+| `skynet@pve` tokens | `read` = PVEAuditor on `/`, one per node (the nodes aren't clustered); `operate` = VM.PowerMgmt on pool `skynet` | Proxmox | P1 / P6 |
+| OPNsense `skynet-read` | API key | Diagnostics: ARP Table · Firewall: Aliases · Firewall: Rules [new] · System: Deny config write | P1 |
+| PBS / Technitium | read-only users | diagnose | P5 / P6 |
 
 ---
 
@@ -322,6 +323,8 @@ systemd.services.skynet-agent = {   # the persistent conversation: Discord + Cla
 doco-cd, Authelia, Gatus and alerting, which P3 reuses.
 
 ### Prechecks (agent, read-only)
+
+Access: `skynet@pve!read` on each node and OPNsense `skynet-read` (ledger), in `secrets/ops.yaml`.
 
 - **IP and VMID:** 10.10.50.40 is unused (ping, OPNsense ARP, Technitium) and VMID 5040 is free.
 - **RAM:** the network node has about 5 GB free, so start docker-admin at 4 GB.
