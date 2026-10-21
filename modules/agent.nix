@@ -149,6 +149,6 @@ in
   };
 
   # Persistent conversation (Discord + Claude app) and on-demand app sessions in their own worktrees.
-  systemd.services.skynet-agent = session "skynet" "claude --remote-control Skynet --channels plugin:discord@claude-plugins-official --permission-mode acceptEdits";
-  systemd.services.skynet-spawn = session "spawn" "claude remote-control --spawn worktree --permission-mode acceptEdits";
+  systemd.services.skynet-agent = session "skynet" "claude --remote-control Skynet --channels plugin:discord@claude-plugins-official --permission-mode auto";
+  systemd.services.skynet-spawn = session "spawn" "claude remote-control --spawn worktree --permission-mode auto";
 }

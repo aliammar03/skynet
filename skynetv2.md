@@ -270,12 +270,12 @@ systemd.services.skynet-agent = {   # the persistent conversation: Discord + Cla
   serviceConfig = {
     User = "skynet"; WorkingDirectory = "/home/skynet/skynet"; Type = "forking"; Restart = "always";
     EnvironmentFile = config.sops.templates."agent.env".path;
-    ExecStart = "${pkgs.tmux}/bin/tmux -L skynet new-session -d -s skynet 'claude --remote-control Skynet --channels plugin:discord@claude-plugins-official --permission-mode acceptEdits'";
+    ExecStart = "${pkgs.tmux}/bin/tmux -L skynet new-session -d -s skynet 'claude --remote-control Skynet --channels plugin:discord@claude-plugins-official --permission-mode auto'";
     ExecStop  = "${pkgs.tmux}/bin/tmux -L skynet kill-server";
   };
 };
 # skynet-spawn: same shape, tmux session "spawn",
-#   'claude remote-control --spawn worktree --permission-mode acceptEdits' (on-demand app sessions)
+#   'claude remote-control --spawn worktree --permission-mode auto' (on-demand app sessions)
 ```
 
   Verify that `--remote-control` and `--channels` work together in one session. If they don't,

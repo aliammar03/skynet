@@ -16,7 +16,8 @@
       "Bash(gh pr checks:*)",
       "Bash(nix flake check:*)",
       "Bash(nix build:*)",
-      "Bash(nix eval:*)"
+      "Bash(nix eval:*)",
+      "mcp__plugin_discord_discord"
     ],
     "deny": [
       "Bash(gh pr merge:*)",
