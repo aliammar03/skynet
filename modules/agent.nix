@@ -14,20 +14,6 @@ let
   home = "/home/skynet";
   repo = "${home}/skynet";
   hasSecrets = builtins.pathExists (../secrets + "/${config.networking.hostName}.yaml");
-  sessionPath = (
-    with pkgs;
-    [
-      unstable.claude-code
-      unstable.mcp-nixos
-      bun # Claude Code channel plugins run on Bun
-      nodejs
-      git
-      gh
-      tmux
-      coreutils
-      bash
-    ]
-  );
   # A Claude session in its own tmux server (one server per unit, so restarting one session never
   # kills another). As skynet: `tmux -L <name> attach` to see or drive it.
   session = name: cmd: {
@@ -39,7 +25,8 @@ let
       "skynet-clone.service"
       "skynet-discord-token.service"
     ];
-    path = sessionPath;
+    # The same PATH as a login shell: every package installed on the host is visible to the agent.
+    environment.PATH = lib.mkForce "/run/wrappers/bin:/run/current-system/sw/bin";
     serviceConfig = {
       User = "skynet";
       WorkingDirectory = repo;
