@@ -28,7 +28,8 @@ let
       bash
     ]
   );
-  # A tmux-hosted Claude session: `tmux attach -t <name>` (as skynet) to see or drive it.
+  # A Claude session in its own tmux server (one server per unit, so restarting one session never
+  # kills another). As skynet: `tmux -L <name> attach` to see or drive it.
   session = name: cmd: {
     description = "Skynet agent session: ${name}";
     wantedBy = [ "multi-user.target" ];
@@ -45,8 +46,8 @@ let
       Restart = "always";
       RestartSec = 10;
       EnvironmentFile = "-${config.sops.templates."agent.env".path or "/dev/null"}";
-      ExecStart = "${pkgs.tmux}/bin/tmux new-session -d -s ${name} '${cmd}'";
-      ExecStop = "${pkgs.tmux}/bin/tmux kill-session -t ${name}";
+      ExecStart = "${pkgs.tmux}/bin/tmux -L ${name} new-session -d -s ${name} '${cmd}'";
+      ExecStop = "${pkgs.tmux}/bin/tmux -L ${name} kill-server";
     };
   };
 in

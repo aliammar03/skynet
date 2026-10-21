@@ -11,5 +11,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: cachix/install-nix-action@v31
-      - run: nix flake check
-      - run: nix build .#nixosConfigurations.ops.config.system.build.toplevel --print-build-logs
+      # Evaluate every host and output; building happens on the host (comin keeps the current
+      # generation if a build fails), so a full build here would only cost time.
+      - run: nix flake check --no-build
