@@ -24,7 +24,9 @@ lib.mkMerge [
         UMask = "0077";
       };
       script = ''
-        mkdir -p ${keyDir}
+        # sign.sec is 0600 (UMask); the directory stays readable so the public half can be committed.
+        install -d -m 755 ${keyDir}
+        chmod 755 ${keyDir}
         if [ ! -e ${keyDir}/sign.sec ]; then
           nix key generate-secret --key-name ops-cache-1 > ${keyDir}/sign.sec
           nix key convert-secret-to-public < ${keyDir}/sign.sec > ${keyDir}/sign.pub
