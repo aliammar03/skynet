@@ -81,6 +81,15 @@ in
     openssh.authorizedKeys.keys = [ aliKey ];
   };
   security.sudo.wheelNeedsPassword = false;
+  # The agent's diagnose lane on the other hosts: from ops only, no shell features (`restrict`), reads
+  # the journal (container logs included, via the journald log driver). No sudo, no Docker socket.
+  users.users.skynet = lib.mkIf (config.networking.hostName != "ops") {
+    isNormalUser = true;
+    extraGroups = [ "systemd-journal" ];
+    openssh.authorizedKeys.keys = [
+      ''from="10.10.90.91",restrict ${lib.fileContents ../hosts/ops/agent.pub}''
+    ];
+  };
 
   services.qemuGuest.enable = true;
   services.journald.extraConfig = "MaxRetentionSec=2week";
