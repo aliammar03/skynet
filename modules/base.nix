@@ -86,6 +86,9 @@ in
   users.users.skynet = lib.mkIf (config.networking.hostName != "ops") {
     isNormalUser = true;
     extraGroups = [ "systemd-journal" ];
+    # Keeps user@ running between SSH logins. Otherwise a deploy that lands while it stops (10 s
+    # after a login) fails to reload its user units, and switch-to-configuration exits 4.
+    linger = true;
     openssh.authorizedKeys.keys = [
       ''from="10.10.90.91",restrict ${lib.fileContents ../hosts/ops/agent.pub}''
     ];
