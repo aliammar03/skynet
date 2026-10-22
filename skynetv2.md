@@ -22,7 +22,7 @@
 | Phase | Title | State |
 |---|---|---|
 | P0 | Foundations + new ops VM | in progress — steps 1–12 done |
-| P1 | docker-admin: admin door, identity, status | in progress — read-only access for prechecks |
+| P1 | docker-admin: admin door, identity, status | in progress — prechecks done; installer ISO |
 | P2 | DNS (Technitium only) + remote access | outline |
 | P3 | docker-dmz: apps + public path | outline |
 | P4 | Backups → Google Drive | outline |
@@ -337,9 +337,18 @@ Access: `skynet@pve!read` on each node and OPNsense `skynet-read` (ledger), in `
 
 - **`proxmox.sh`:** VM 5040 on server-proxmox-network: 2 cores, 4096 MB, balloon 0, 32 GB
   `local-lvm`.
-  - `net0` tag 50: the host IP 10.10.50.40.
+  - `net0` **untagged** (VLAN 50 is vmbr0's native VLAN on this node): the host IP 10.10.50.40.
   - `net1` tag 60: no IP; it's the macvlan parent.
-  - Install the same way as P0 steps 7–10, with recipient `docker-admin`.
+  - MACs pinned (`BC:24:11:50:40:01` / `:60`), shared with the configs via `hosts/docker-admin/net.nix`.
+- **Install (no console):**
+  1. agent: `nix build .#installer-docker-admin` on ops. That's a NixOS ISO with the static IP on the
+     MAC-matched NIC, sshd on, and only the agent's key (`hosts/ops/agent.pub`) for root.
+  2. Ali, from the workstation:
+     `scp -3 ali@10.10.90.91:<iso path> root@10.10.50.10:/var/lib/vz/template/iso/nixos-installer-docker-admin.iso`,
+     then runs `proxmox.sh` on the node.
+  3. agent: `nixos-anywhere --flake .#docker-admin --target-host root@10.10.50.40
+     --generate-hardware-config nixos-generate-config hosts/docker-admin/hardware.nix` (PR), then
+     recipient `docker-admin` and its secrets as in P0 steps 9–10.
 - **networkd:** NICs renamed by MAC.
   - `lan`: 10.10.50.40/24, gateway .1, DNS .51/.50.
   - `adm60`: up, no address.
@@ -694,6 +703,7 @@ in a drill.
 | Glue | Size |
 |---|---|
 | `modules/{base,agent,docker-host}.nix` | ~250 lines |
+| `modules/installer.nix` (no-touch installer ISO per host) | ~40 lines |
 | `.doco-cd.{admin,dmz}.yml` | ~10 lines each |
 | comin → Discord post-deploy hook | ~10 lines |
 | CI: flake check + `docker compose config` per stack + "routed app has gatus.yaml/README" check | ~60 lines |
