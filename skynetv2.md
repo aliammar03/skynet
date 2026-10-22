@@ -36,9 +36,9 @@
 proxmox-core (12 cpu, 31 GB)                     proxmox-network (8 cpu, 15 GB)
 ├ ops          VM 9091  10.10.90.91   NixOS      ├ OPNsense     VM 5001          (Ali-managed)
 │   Claude Code · Discord · Remote Control       ├ Omada        CT 525           (unchanged)
-├ docker-dmz   VM 10010 10.10.100.10  NixOS      ├ technitium   CT 750 .70.50    (secondary)
+├ docker-dmz   VM 10010 10.10.100.10  NixOS      ├ technitium   CT 750 .70.50    (primary)
 │   doco-cd(dmz) · caddy-apps .35 · cloudflared .33 · apps
-├ technitium   CT 751 10.10.70.51 (primary)      └ docker-admin VM 5040 10.10.50.40 NixOS
+├ technitium   CT 751 10.10.70.51 (secondary)    └ docker-admin VM 5040 10.10.50.40 NixOS
 ├ PBS CT 240 · Unraid VM 2020 · HAOS VM 3050         doco-cd(admin) · caddy-admin 10.10.60.60
 └ athena CT 10030 (own repo, untouched)              Authelia · Gatus · (P5) VictoriaMetrics/Logs · Grafana
 ```
@@ -60,7 +60,7 @@ Nothing outside the lab pushes into it.
 | D2 | Hosts = **NixOS** flake, each host kept current by **comin** (pull) | A host rebuilds from git; no central push credential |
 | D3 | Repo **public**; lab **pulls**; CI = static checks on free GitHub runners | GitHub Free only offers rulesets and CODEOWNERS on public repos; nothing inbound |
 | D4 | **Authelia**, with an auth mode per app: `own` / `oidc` / `forward` | Config lives in git; ~50 MB; OIDC + forward-auth + passkeys |
-| D5 | **Technitium** is the only DNS (751 primary, 750 secondary) and does ad-blocking; AdGuard retired | One product; a wildcard record means no per-app DNS work |
+| D5 | **Technitium** is the only DNS (750 primary, 751 secondary) and does ad-blocking; AdGuard retired | One product; a wildcard record means no per-app DNS work |
 | D6 | Two Docker hosts: **docker-dmz** (apps, core node), **docker-admin** (admin, identity, monitoring; network node) | Segmentation; monitoring survives losing the core node |
 | D7 | Agent = **Claude Code** on the ops VM; chat via **Discord** (Channels) + the Claude app (Remote Control) | Telegram is blocked; no custom UI to build |
 | D8 | All alerts go to Discord `#alerts` (doco-cd via Apprise, Gatus, healthchecks.io, comin hook) | One place to look |
@@ -455,7 +455,7 @@ timeout: 300
 
 ### Admin sites (`sites/*.conf`)
 
-Each site gets `import authelia` once Ali's passkey works. Confirm every IP and port in prechecks.
+Every site except `auth` has `import authelia`. Confirm every IP and port in prechecks.
 If an appliance cert can't be pinned, use `tls_insecure_skip_verify` and note it in the README.
 
 | Name | Upstream | Note |
@@ -471,7 +471,7 @@ If an appliance cert can't be pinned, use `tls_insecure_skip_verify` and note it
 
 ### DNS, firewall, agent wiring
 
-**DNS** (Ali, in the Technitium UI until P2): at cutover, point every admin name → 10.10.60.60 and add
+**DNS** (Ali, in the Technitium-network UI http://10.10.70.50:5380, the primary, until P2): at cutover, point every admin name → 10.10.60.60 and add
 the missing ones (`auth`, `status`, …).
 
 **Firewall** (agent drafts the exact rules, Ali applies them in OPNsense):
@@ -502,9 +502,9 @@ Done in a maintenance window. Rollback = stop caddy-admin, start CT 635.
    `pct shutdown 635`, set `onboot 0`, and remove 10.10.60.35 from `HOST_PROXY_ADMIN`.
 4. Ali enrolls in Authelia:
    - (done with the authelia PR: an argon2 hash in `users.sops.yml` via `sops`);
-   - point `auth` → 10.10.60.60 (it was Authentik's, 10.10.100.35);
+   - point `auth` → 10.10.60.60 (done) (it was Authentik's, 10.10.100.35);
    - log in and register a passkey (the code is in `/opt/appdata/authelia/notification.txt`);
-   - then open a PR adding `import authelia` per site.
+   - then `import authelia` per site (done).
 
    Direct IPs remain the break-glass path.
 5. Retire v1 monitoring:
@@ -527,7 +527,7 @@ Done in a maintenance window. Rollback = stop caddy-admin, start CT 635.
 
 **What**
 - Technitium is the only resolver.
-  - 751 is primary for `aliammar.net`; 750 is secondary (zone transfer + NOTIFY).
+  - 750 (network, .50) is primary for `aliammar.net`; 751 (core, .51) is secondary (zone transfer + NOTIFY).
   - A wildcard `*.aliammar.net` A → 10.10.100.35 (apps door, live in P3). Explicit admin names →
     10.10.60.60.
   - Records are kept in git and applied via the Technitium API or UI. **Decide here** which method
