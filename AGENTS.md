@@ -22,6 +22,7 @@ phase are in [`skynetv2.md`](skynetv2.md) — read its Status first.
 
 ## How to work
 
+- Start every change from fresh `origin/main`: `git fetch origin`, then branch from `origin/main`.
 - One PR = one reviewable change, CI green, written so Ali learns from it.
 - A stack is one folder `stacks/<host>/<name>/`: `compose.yaml`, `secret.sops.env`, `caddy.conf`,
   `gatus.yaml`, `README.md` (contract in `skynetv2.md` → Conventions).
