@@ -494,12 +494,12 @@ the missing ones (`auth`, `status`, …).
 **Agent wiring** (diagnose lane only):
 - SSH: user `skynet` on every host but ops (`base.nix`). Agent key from ops only, `restrict`, group
   `systemd-journal`, no sudo, no Docker socket. Ops pins each host key (`hosts/<host>/ssh_host.pub`).
-- Ali adds `doco_admin_api_key` to `secrets/ops.yaml`.
-- `.mcp.json` gets `doco-admin`: http `http://10.10.50.40:8080/mcp`, header
-  `x-api-key: ${DOCO_ADMIN_API_KEY}`.
+- Ali adds `doco_admin_api_key` (the value of docker-admin's `doco_api_secret`) to `secrets/ops.yaml`.
+- `.mcp.json` gets `doco-admin`: http `http://10.10.50.40:8080/mcp`. The `x-api-key` header comes
+  from `headersHelper` printing a sops-rendered file, so the key is in no environment or config.
 - `.claude/settings.json` denies these doco-cd MCP tools until P6: `destroy_project`,
-  `remove_stack`, `control_stack`, `control_project`, `trigger_scheduled_job`. Allowed: list/get
-  tools and `trigger_poll`.
+  `remove_stack`, `control_stack`, `control_project`, `trigger_scheduled_job`, `compact_mirrors`.
+  Allowed: list/get tools, `get_health` and `trigger_poll`.
 
 ### Cutover
 

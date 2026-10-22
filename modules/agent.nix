@@ -111,6 +111,12 @@ in
         machine 10.10.50.1 login ${config.sops.placeholder.opnsense_read_key} password ${config.sops.placeholder.opnsense_read_secret}
       '';
     };
+    # docker-admin's doco-cd API key; Claude Code's `headersHelper` (.mcp.json) prints this file.
+    secrets.doco_admin_api_key = { };
+    templates."doco-admin.headers.json" = {
+      owner = "skynet";
+      content = builtins.toJSON { x-api-key = config.sops.placeholder.doco_admin_api_key; };
+    };
   };
 
   # The Discord channel plugin reads its token from ~/.claude/channels/discord/.env; Claude doesn't
