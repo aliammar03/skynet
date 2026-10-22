@@ -20,8 +20,6 @@
       "mcp__plugin_discord_discord",
       "mcp__doco-admin__list_projects",
       "mcp__doco-admin__get_project",
-      "mcp__doco-admin__list_stacks",
-      "mcp__doco-admin__get_stack",
       "mcp__doco-admin__list_deployment_runs",
       "mcp__doco-admin__get_deployment_run",
       "mcp__doco-admin__list_scheduled_jobs",
