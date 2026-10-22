@@ -6,9 +6,10 @@
   clients + ops → :443, 230 → admin targets, 830 → DNS; 810 web egress). Also on `edge` for apps.
 - **Auth mode:** `forward`: every site except `auth` passes an Authelia login first, then the
   upstream's own login. Direct IPs bypass Caddy and stay the break-glass path.
-- **Files:** `conf/` is mounted at `/etc/caddy` (no secrets in it): `Caddyfile`, `sites/<name>.conf`
-  (one per name), `certs/` (the upstreams' public certs). A route edit reloads in place
-  (`recreate.ignore` + `--watch`).
+- **Files:** `conf/` is mounted at `/etc/caddy` (no secrets in it): `Caddyfile` and
+  `sites/<name>.conf` (one per name). A route edit reloads in place (`recreate.ignore` + `--watch`).
+  `certs/` (the upstreams' public certs) is mounted at `/etc/caddy-certs`; a change there
+  recreates the container, because `--watch` only reacts to config changes.
 - **Data:** `/opt/appdata/caddy-admin/{data,config}`: certs and ACME account. Re-issuable; no backup
   needed.
 - **Secrets** (`secret.sops.env`): `CLOUDFLARE_API_TOKEN` (Zone → DNS → Edit, `aliammar.net` only).
@@ -28,7 +29,7 @@
 **Gotchas**
 - A regenerated appliance cert (OPNsense, PBS or Omada after a reset or an update) breaks its site
   with a TLS error in the log. Re-pin with
-  `openssl s_client -connect <ip:port> </dev/null | openssl x509 > conf/certs/<name>.pem` (PR).
+  `openssl s_client -connect <ip:port> </dev/null | openssl x509 > certs/<name>.pem` (PR).
 - OPNsense rejects proxied logins unless System → Settings → Administration → Alternate Hostnames
   lists `opnsense.aliammar.net`.
 - Unraid redirects to absolute `http://` URLs; `header_down Location` rewrites them to https.

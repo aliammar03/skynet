@@ -7,7 +7,7 @@
     address = "10.10.50.40/24";
     gateway = "10.10.50.1";
   };
-  # VLAN 60, no host IP: the macvlan parent for caddy-admin (10.10.60.35).
+  # VLAN 60, no host IP: the macvlan parent for caddy-admin (10.10.60.60).
   adm60.mac = "bc:24:11:50:40:60";
   dns = [
     "10.10.70.51"

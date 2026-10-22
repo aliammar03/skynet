@@ -43,8 +43,11 @@ let
       EnvironmentFile = "-${config.sops.templates."agent.env".path or "/dev/null"}";
       # Start on current main, so the session reads today's plan, AGENTS.md and .mcp.json (work
       # happens in worktrees). `-`: a dirty checkout or no network still starts the session.
+      # Both sessions start together, so a lock keeps their git runs from colliding.
       ExecStartPre = "-${pkgs.writeShellScript "skynet-fresh-main" ''
-        cd ${repo} && ${pkgs.git}/bin/git fetch -q origin &&
+        cd ${repo} || exit 1
+        exec 9>.git/skynet-fresh-main.lock && ${pkgs.util-linux}/bin/flock 9 || exit 1
+        ${pkgs.git}/bin/git fetch -q origin &&
           ${pkgs.git}/bin/git switch -q main && ${pkgs.git}/bin/git merge -q --ff-only origin/main
       ''}";
       ExecStart = "${pkgs.tmux}/bin/tmux -L ${name} new-session -d -s ${name} '${cmd}'";
@@ -70,8 +73,15 @@ in
       exec sudo -iu skynet tmux -L "''${1:-skynet}" attach
     '')
     # A fresh terminal Claude session as the agent, in its own git worktree (`claude --worktree`).
+    # The session is a script file: `sudo -i` hands its command to a login shell with `$` unescaped,
+    # so variables written inline would expand there, empty.
     (writeShellScriptBin "skynet-claude" ''
-      exec sudo -iu skynet bash -c 'f=/run/secrets/rendered/agent.env; [ -r "$f" ] && { set -a; . "$f"; set +a; }; cd ~/skynet && git fetch -q origin; exec claude --worktree --permission-mode auto "$@"' skynet-claude "$@"
+      exec sudo -iu skynet ${writeShellScript "skynet-claude-session" ''
+        f=/run/secrets/rendered/agent.env
+        [ -r "$f" ] && { set -a; . "$f"; set +a; }
+        cd ~/skynet && git fetch -q origin
+        exec claude --worktree --permission-mode auto "$@"
+      ''} "$@"
     '')
     unstable.claude-code
     unstable.mcp-nixos

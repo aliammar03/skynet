@@ -353,7 +353,8 @@ Access: `skynet@pve!read` on each node and OPNsense `skynet-read` (ledger), in `
 - **networkd:** NICs renamed by MAC.
   - `lan`: 10.10.50.40/24, gateway .1, DNS .51/.50.
   - `adm60`: up, no address.
-- **Docker:** `virtualisation.docker` with log-driver `journald` and weekly autoPrune.
+- **Docker:** `virtualisation.docker` with log-driver `journald`; a weekly image-only prune (`docker
+  system prune` would delete the stopped job containers doco-cd schedules by).
 - **Networks:** a oneshot creates them idempotently:
   - `edge`: a bridge;
   - `adm60`: a macvlan on parent `adm60`, 10.10.60.0/24, gateway .1.
@@ -409,8 +410,8 @@ timeout: 300
   `edge`; `--watch`. At 10.10.60.60, beside v1's 10.10.60.35, so both run until DNS moves.
 - **Reload, not recreate:** label `cd.doco.deployment.recreate.ignore: "{bindMounts: [/etc/caddy]}"`,
   so route edits apply without recreating the container.
-- **Files:** `conf/` (mounted at `/etc/caddy`, no secrets): `Caddyfile`, `sites/<name>.conf`, `certs/`
-  (upstream certs, public). Beside it: `secret.sops.env` (`CLOUDFLARE_API_TOKEN`).
+- **Files:** `conf/` (mounted at `/etc/caddy`, no secrets): `Caddyfile`, `sites/<name>.conf`; `certs/`
+  (upstream certs, public) at `/etc/caddy-certs`, outside `recreate.ignore` so a re-pin recreates. Beside it: `secret.sops.env` (`CLOUDFLARE_API_TOKEN`).
 - **Caddyfile:**
   - global (no `email`: Let's Encrypt no longer sends expiry mail): `acme_dns cloudflare {env.CLOUDFLARE_API_TOKEN}`, `servers { protocols h1 h2 }`;
   - snippet: `(authelia) { forward_auth authelia:9091 { uri /api/authz/forward-auth; copy_headers Remote-User Remote-Groups Remote-Email Remote-Name } }`;
