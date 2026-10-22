@@ -6,8 +6,12 @@ Claude app. VMID 9091 · 10.10.90.91 · VLAN 90 · server-proxmox-core · 4 vCPU
 - **Sessions:** `skynet-agent` (tmux `skynet`: the persistent Discord + Remote Control conversation)
   and `skynet-spawn` (tmux `spawn`: on-demand sessions from the Claude app, one git worktree each).
   Each runs in its own tmux server. Watch or drive: `skynet-attach` (or `skynet-attach spawn`);
-  detach with **F12**. `skynet-claude` starts a fresh terminal session as the agent in its own
-  worktree.
+  detach with **F12**.
+- **Long work:** `skynet-claude <name>` starts a named interactive session (own worktree, own tmux,
+  visible in the Claude app as `<name>`); run it again to reattach, or to resume the conversation if
+  the session died. Interactive sessions survive internet outages; server-spawned app sessions
+  (`skynet-spawn`) quit after ~10 min offline, so keep those for short tasks. To recover one:
+  `sudo -iu skynet`, `cd` into its folder under `~/skynet/.claude/worktrees/`, `claude --resume`.
 - **Secrets:** `secrets/ops.yaml` → `discord_bot_token`, `github_token` (aliammar-skynet PAT).
   `GH_TOKEN` reaches the sessions via their environment. The Discord token is written by
   `skynet-discord-token` to `~/.claude/channels/discord/.env`, the file the plugin reads, because

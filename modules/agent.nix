@@ -50,9 +50,23 @@ in
     (writeShellScriptBin "skynet-attach" ''
       exec sudo -iu skynet tmux -L "''${1:-skynet}" attach
     '')
-    # A fresh terminal Claude session as the agent, in its own git worktree (`claude --worktree`).
+    # `skynet-claude [name]`: start, reattach or resume a named Claude session as the agent. It runs
+    # interactively (so it rides out internet outages and reconnects by itself), in its own git
+    # worktree and tmux server, and shows in the Claude app under its name. Detach with F12.
     (writeShellScriptBin "skynet-claude" ''
-      exec sudo -iu skynet bash -c 'f=/run/secrets/rendered/agent.env; [ -r "$f" ] && { set -a; . "$f"; set +a; }; cd ~/skynet && git fetch -q origin; exec claude --worktree --permission-mode auto "$@"' skynet-claude "$@"
+      [ "$(id -un)" = skynet ] || exec sudo -iu skynet "$0" "$@"
+      name=''${1:-s$(date +%m%d-%H%M)}
+      case "$name" in *[!a-z0-9-]*) echo "name: lowercase letters, digits and - only" >&2; exit 2 ;; esac
+      f=/run/secrets/rendered/agent.env
+      [ -r "$f" ] && { set -a; . "$f"; set +a; }
+      tmux -L "$name" has-session 2>/dev/null && exec tmux -L "$name" attach
+      wt=$HOME/skynet/.claude/worktrees/$name
+      if [ -d "$wt" ]; then
+        cd "$wt" && cmd="claude --continue"
+      else
+        cd "$HOME/skynet" && git fetch -q origin && cmd="claude --worktree $name"
+      fi
+      exec tmux -L "$name" new-session -s "$name" "$cmd --remote-control $name --permission-mode auto"
     '')
     unstable.claude-code
     unstable.mcp-nixos
