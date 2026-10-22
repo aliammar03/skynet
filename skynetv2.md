@@ -21,8 +21,8 @@
 
 | Phase | Title | State |
 |---|---|---|
-| P0 | Foundations + new ops VM | in progress — steps 1–12 done |
-| P1 | docker-admin: admin door, identity, status | in progress — docker-admin installed; doco-cd |
+| P0 | Foundations + new ops VM | done |
+| P1 | docker-admin: admin door, identity, status | done (2026-10-22); 7 admin names move to .60 with P2's Technitium |
 | P2 | DNS (Technitium only) + remote access | outline |
 | P3 | docker-dmz: apps + public path | outline |
 | P4 | Backups → Google Drive | outline |
@@ -509,8 +509,10 @@ Done in a maintenance window. Rollback = stop caddy-admin, start CT 635.
 
 1. Merge every P1 stack except caddy-admin's macvlan IP. Authelia, Gatus and heartbeat should go green.
 2. Set OPNsense Alternate Hostnames.
-3. Point the admin names → 10.10.60.60 in Technitium. Test every site by name from an admin client.
-   `pct shutdown 635`, set `onboot 0`, and remove 10.10.60.35 from `HOST_PROXY_ADMIN`.
+3. Point the admin names → 10.10.60.60 in Technitium. Done for `opnsense`, `auth`, `status`. The
+   other seven (`proxmox-core`, `proxmox-network`, `pbs`, `omada`, `technitium-core`,
+   `technitium-network`, `unraid`) move with the new Technitium in P2; until then use their IPs.
+   CT 635 is shut down with `onboot 0` (2026-10-22), and `HOST_PROXY_ADMIN` holds only 10.10.60.60.
 4. Ali enrolls in Authelia:
    - (done with the authelia PR: an argon2 hash in `users.sops.yml` via `sops`);
    - point `auth` → 10.10.60.60 (done) (it was Authentik's, 10.10.100.35);
@@ -518,9 +520,8 @@ Done in a maintenance window. Rollback = stop caddy-admin, start CT 635.
    - then `import authelia` per site (done).
 
    Direct IPs remain the break-glass path.
-5. Retire v1 monitoring:
-   - disable `skynet-watch` on 9090 and shut 9090 down (`onboot 0`);
-   - remove 10.10.90.90 from `HOST_SKYNET_OPS`.
+5. Retire v1 monitoring: VM 9090 is shut down with `onboot 0` (2026-10-22), so `skynet-watch` is
+   off and Gatus is the monitor. Remove 10.10.90.90 from `HOST_SKYNET_OPS`.
 
    CT 635 and VM 9090 stay stopped for 14 days, then Ali destroys them (P7).
 
@@ -528,6 +529,8 @@ Done in a maintenance window. Rollback = stop caddy-admin, start CT 635.
 
 - Every admin name loads with a valid cert behind an Authelia passkey. Direct IPs still work.
 - Gatus is all green. A stopped test container alerts in `#alerts`, and so does its recovery.
+  Verified 2026-10-22: `docker stop` on Authelia → doco-cd reconciliation restarted it in 3 s and
+  posted; rule 235 disabled → Gatus posted 4 DOWN after 3 min and 4 RESOLVED after re-enabling.
 - doco-cd deploys and failed comin deploys post to `#alerts`. The healthchecks.io heartbeat is green.
 - The agent lists docker-admin projects and runs via MCP, and answers "is X up?" from Gatus.
 - CT 635 and VM 9090 are off. Renovate tracks every pinned image (compose + Nix).
@@ -537,8 +540,11 @@ Done in a maintenance window. Rollback = stop caddy-admin, start CT 635.
 ## P2 — DNS + remote access `[outline]`
 
 **What**
-- Technitium is the only resolver.
-  - 750 (network, .50) is primary for `aliammar.net`; 751 (core, .51) is secondary (zone transfer + NOTIFY).
+- Technitium is the only resolver, as a **new greenfield deployment** (replacing CTs 750/751; its
+  layout is decided when this phase is fleshed out).
+  - Its zone carries every admin name → 10.10.60.60. Seven still point at the stopped CT 635 until
+    then (P1 Cutover step 3).
+  - Today: 750 (network, .50) is primary for `aliammar.net`; 751 (core, .51) is secondary (zone transfer + NOTIFY).
   - A wildcard `*.aliammar.net` A → 10.10.100.35 (apps door, live in P3). Explicit admin names →
     10.10.60.60.
   - Records are kept in git and applied via the Technitium API or UI. **Decide here** which method
@@ -557,6 +563,7 @@ Done in a maintenance window. Rollback = stop caddy-admin, start CT 635.
 **Exit**
 - Every VLAN resolves via Technitium, and ads are blocked.
 - A phone on WireGuard opens `opnsense.aliammar.net`.
+- Every admin name resolves to 10.10.60.60 and loads behind Authelia.
 - AdGuard is stopped.
 
 **Open:** the record-management method; the secondary's sync settings.
