@@ -139,6 +139,23 @@ in
     '';
   };
 
+  # The agent's SSH key, for nixos-anywhere into installer ISOs (hosts/ops/agent.pub; the installed
+  # systems don't trust it). Generated once; a rebuilt ops gets a new key → update agent.pub.
+  systemd.services.skynet-ssh-key = {
+    description = "Generate the agent's SSH key";
+    wantedBy = [ "multi-user.target" ];
+    path = [ pkgs.openssh ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      User = "skynet";
+    };
+    script = ''
+      mkdir -p -m 700 ${home}/.ssh
+      [ -e ${home}/.ssh/id_ed25519 ] || ssh-keygen -q -t ed25519 -N "" -C skynet@ops -f ${home}/.ssh/id_ed25519
+    '';
+  };
+
   # First boot: clone the repo and set the agent's git identity (pushes go to branches; main is ruleset-guarded).
   systemd.services.skynet-clone = {
     description = "Clone the Skynet repo for the agent";

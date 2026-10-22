@@ -31,9 +31,18 @@
           specialArgs = { inherit inputs; };
           modules = [ ./hosts/${name} ];
         };
+      # `nix build .#installer-<host>` → result/iso/*.iso (modules/installer.nix).
+      mkInstaller =
+        name:
+        (nixpkgs.lib.nixosSystem {
+          inherit system;
+          modules = [ (import ./modules/installer.nix (import ./hosts/${name}/net.nix)) ];
+        }).config.system.build.isoImage;
     in
     {
       nixosConfigurations.ops = mkHost "ops";
+
+      packages.${system}.installer-docker-admin = mkInstaller "docker-admin";
 
       devShells.${system}.default = pkgs.mkShell {
         packages = with pkgs; [
