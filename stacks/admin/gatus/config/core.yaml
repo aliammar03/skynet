@@ -1,0 +1,13 @@
+storage:
+  type: sqlite
+  path: /data/data.db
+ui:
+  title: Skynet status
+  header: Skynet
+alerting:
+  discord:
+    webhook-url: ${DISCORD_ALERTS_WEBHOOK}
+    default-alert:
+      failure-threshold: 3 # three misses in a row (3 min) before #alerts hears about it
+      success-threshold: 2
+      send-on-resolved: true

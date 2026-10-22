@@ -1,0 +1,19 @@
+# Gatus: the lab's status page (status.aliammar.net) and its #alerts. Checks run from docker-admin;
+# admin names resolve to caddy-admin over `edge` (its network aliases), so they test the real door.
+services:
+  gatus:
+    image: docker.io/twinproduction/gatus:v5.37.0@sha256:094eb186e55235db367e90e9d56140e5897b7044c41de23cde4cc18e6da1242e
+    restart: unless-stopped
+    env_file: secret.sops.env # DISCORD_ALERTS_WEBHOOK
+    environment:
+      TZ: Asia/Karachi
+      GATUS_CONFIG_PATH: /config # a directory: every file is merged, endpoint lists append
+    volumes:
+      - ./config:/config:ro
+      - /opt/appdata/gatus:/data # sqlite: check history
+    networks: [edge]
+    # No healthcheck: the image is only the binary (no shell or curl). heartbeat pings healthchecks.io
+    # only while Gatus answers /health, so a dead Gatus pages from outside.
+networks:
+  edge:
+    external: true

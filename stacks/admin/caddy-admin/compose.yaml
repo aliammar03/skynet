@@ -16,7 +16,19 @@ services:
       adm60:
         ipv4_address: 10.10.60.60
         gw_priority: 1 # default route (and replies to clients) via VLAN 60, not Docker's bridge
-      edge: {}
+      edge:
+        # Containers on `edge` (Gatus) reach the door by name here, before DNS; one per site.
+        aliases:
+          - auth.aliammar.net
+          - omada.aliammar.net
+          - opnsense.aliammar.net
+          - pbs.aliammar.net
+          - proxmox-core.aliammar.net
+          - proxmox-network.aliammar.net
+          - status.aliammar.net
+          - technitium-core.aliammar.net
+          - technitium-network.aliammar.net
+          - unraid.aliammar.net
     labels:
       # A route edit updates /etc/caddy in place and --watch reloads it; no recreate, no dropped
       # connections.

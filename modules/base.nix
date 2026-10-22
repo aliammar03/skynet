@@ -13,8 +13,10 @@ let
   hasSecret =
     key:
     builtins.pathExists hostSecrets && lib.hasInfix "\n${key}:" ("\n" + builtins.readFile hostSecrets);
-  # Posts each comin deploy (host, status, commit) to Discord #alerts.
+  # Posts a failed comin deploy (host, status, commit, error) to Discord #alerts. Successes stay quiet:
+  # they'd be one post per host for every merge.
   cominNotify = pkgs.writeShellScript "comin-notify" ''
+    [ "$COMIN_STATUS" = done ] && exit 0
     msg="**$COMIN_HOSTNAME** deploy $COMIN_STATUS: \`''${COMIN_GIT_SHA:0:7}\` $(printf '%s' "$COMIN_GIT_MSG" | head -n1)"
     [ -n "''${COMIN_ERROR_MSG:-}" ] && msg="$msg
     $COMIN_ERROR_MSG"

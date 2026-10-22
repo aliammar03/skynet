@@ -1,11 +1,12 @@
-# Dead-man for docker-admin: doco-cd's scheduler starts this every 5 min and it pings healthchecks.io.
-# A missed ping means the host, Docker, the doco-cd scheduler or egress is down; healthchecks.io then
-# alerts #alerts.
+# Dead-man for docker-admin: doco-cd's scheduler starts this every 5 min and it pings healthchecks.io
+# if Gatus answers. A missed ping means the host, Docker, the doco-cd scheduler, egress or Gatus is
+# down; healthchecks.io then alerts #alerts.
 services:
   heartbeat:
     image: docker.io/curlimages/curl:8.23.0@sha256:11e64e28c5f58c8d93ee95fcf22ac055f48b0bc440e0ce7d8013bbb5ad6aa8ac
     entrypoint: ["/bin/sh", "-c"]
-    command: ['curl -fsS -m 10 --retry 3 -o /dev/null "$$HC_PING_URL"'] # $$: read at run time, not by compose
+    # $$: read at run time, not by compose.
+    command: ['curl -fsS -m 10 -o /dev/null http://gatus:8080/health && curl -fsS -m 10 --retry 3 -o /dev/null "$$HC_PING_URL"']
     env_file: secret.sops.env
     networks: [edge]
     labels:
