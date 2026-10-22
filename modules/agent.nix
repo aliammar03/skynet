@@ -57,6 +57,10 @@ in
     (writeShellScriptBin "skynet-attach" ''
       exec sudo -iu skynet tmux -L "''${1:-skynet}" attach
     '')
+    # A fresh terminal Claude session as the agent, in its own git worktree (`claude --worktree`).
+    (writeShellScriptBin "skynet-claude" ''
+      exec sudo -iu skynet bash -c 'f=/run/secrets/rendered/agent.env; [ -r "$f" ] && { set -a; . "$f"; set +a; }; cd ~/skynet && git fetch -q origin; exec claude --worktree --permission-mode auto "$@"' skynet-claude "$@"
+    '')
     unstable.claude-code
     unstable.mcp-nixos
     bun
@@ -125,7 +129,7 @@ in
     '';
   };
 
-  # Attaching: `skynet-attach` (or `skynet-attach spawn`). Detach: F12, or Ctrl+B then D.
+  # `skynet-attach [spawn]` joins a running session (detach: F12); `skynet-claude` starts a new one.
   programs.tmux = {
     enable = true;
     extraConfig = ''
