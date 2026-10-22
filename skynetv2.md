@@ -110,7 +110,7 @@ skynet/
 
 | File | When | Content |
 |---|---|---|
-| `compose.yaml` | always | images pinned `tag@sha256:…`; a healthcheck; `restart: unless-stopped`; network `edge` (doors also join their macvlan) |
+| `compose.yaml` | always | `container_name: <name>` (not compose's `<project>-<service>-1`); images pinned `tag@sha256:…`; a healthcheck; `restart: unless-stopped`; network `edge` (doors also join their macvlan) |
 | `secret.sops.env` | has secrets | dotenv, sops-encrypted for that host only; used via `env_file` |
 | `caddy.conf` | routed | `@x host x.aliammar.net` + `handle @x { [import authelia] reverse_proxy <container>:<port> }` |
 | `gatus.yaml` | routed | an `endpoints:` list for this app only |
