@@ -2,9 +2,15 @@
 keys:
   - &ali age1wl4edsa2pvac5nt0vvyagnmk3q756ee7lcy4gs6eenasjsl8eeaq8savt2
   - &ops age1vmh2wwd6h6pcqatnzlhf86vnc0pa6gcytga6ng3unlkp3urfrv7qah3khk  # ssh-keyscan -t ed25519 10.10.90.91 | ssh-to-age
+  - &docker-admin age17tyjetvkv48rf2sacrpdtledjqvc4x3dvrwjrmx6sdl06cwdzpzq35fzzf  # ssh-keyscan -t ed25519 10.10.50.40 | ssh-to-age
 creation_rules:
   - path_regex: ^secrets/ops\.yaml$
     key_groups:
       - age:
           - *ali
           - *ops
+  - path_regex: ^secrets/docker-admin\.yaml$
+    key_groups:
+      - age:
+          - *ali
+          - *docker-admin
