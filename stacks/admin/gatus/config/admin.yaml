@@ -1,5 +1,6 @@
 # One row per thing. `service`: each admin UI directly. `door`: caddy-admin + its wildcard cert +
-# Authelia, which every admin site shares, so one check covers the door for all of them.
+# Authelia, which every admin site shares, so one check covers the door for all of them. `job`: a
+# scheduled job's healthchecks.io state (its container is stopped between runs, so Docker can't say).
 x-service: &service
   group: service
   interval: 60s
@@ -37,3 +38,13 @@ endpoints:
 
   - { <<: *dns, name: technitium-network, url: 10.10.70.50 }
   - { <<: *dns, name: technitium-core, url: 10.10.70.51 }
+
+  # healthchecks.io's read-only badge for check `docker-admin` (2-state: up, or down once period +
+  # grace pass with no ping). No alert: healthchecks.io already posts to #alerts.
+  - name: heartbeat
+    group: job
+    url: ${HC_BADGE_URL}
+    interval: 5m
+    conditions:
+      - "[STATUS] == 200"
+      - "[BODY].status == up"

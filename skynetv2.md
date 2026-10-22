@@ -448,6 +448,8 @@ timeout: 300
     and no hairpin through OPNsense;
   - `service`: a TCP connect to each admin UI (OPNsense rule 235 lets docker-admin through);
   - `dns`: `auth.aliammar.net A` against .50 and .51 must answer 10.10.60.60.
+  - `job` (every 5 min, no alert): heartbeat's healthchecks.io badge (`HC_BADGE_URL`) must say
+    `up`. A job's container is stopped between runs, so this row is how the page shows it.
   - doco-cd isn't checked here (its API answers only to ops); heartbeat is a doco-cd job, so a
     dead doco-cd pages via healthchecks.io.
 - From P3, one single-file mount per app `gatus.yaml`.
