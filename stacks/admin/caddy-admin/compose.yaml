@@ -1,0 +1,33 @@
+# The admin door: TLS for *.aliammar.net (Cloudflare DNS-01) in front of the lab's admin UIs. On VLAN 60
+# via the adm60 macvlan; reaches apps on `edge` by container name.
+services:
+  caddy-admin:
+    image: ghcr.io/caddybuilds/caddy-cloudflare:2.11.7@sha256:202f0928fe075b7a914703b7a4759506de6c95c33ce5a256cecbd5c44d8869d0
+    command: [caddy, run, --config, /etc/caddy/Caddyfile, --adapter, caddyfile, --watch]
+    restart: unless-stopped
+    env_file: secret.sops.env
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    volumes:
+      - ./conf:/etc/caddy:ro
+      - /opt/appdata/caddy-admin/data:/data # certificates and ACME account
+      - /opt/appdata/caddy-admin/config:/config
+    networks:
+      adm60:
+        ipv4_address: 10.10.60.60
+        gw_priority: 1 # default route (and replies to clients) via VLAN 60, not Docker's bridge
+      edge: {}
+    labels:
+      # A route edit updates /etc/caddy in place and --watch reloads it; no recreate, no dropped
+      # connections.
+      cd.doco.deployment.recreate.ignore: "{bindMounts: [/etc/caddy]}"
+    healthcheck:
+      test: [CMD, curl, -fsS, -o, /dev/null, http://127.0.0.1:2019/config/]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+networks:
+  adm60:
+    external: true
+  edge:
+    external: true

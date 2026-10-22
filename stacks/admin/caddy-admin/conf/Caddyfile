@@ -1,0 +1,21 @@
+{
+	acme_dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+	servers {
+		protocols h1 h2
+	}
+}
+
+(authelia) {
+	forward_auth authelia:9091 {
+		uri /api/authz/forward-auth
+		copy_headers Remote-User Remote-Groups Remote-Email Remote-Name
+	}
+}
+
+# One wildcard cert, so no admin name lands in certificate transparency logs.
+*.aliammar.net {
+	import /etc/caddy/sites/*.conf
+	handle {
+		respond 404
+	}
+}
