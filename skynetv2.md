@@ -22,7 +22,7 @@
 | Phase | Title | State |
 |---|---|---|
 | P0 | Foundations + new ops VM | in progress — steps 1–12 done |
-| P1 | docker-admin: admin door, identity, status | in progress — docker-admin installed; secrets + doco-cd |
+| P1 | docker-admin: admin door, identity, status | in progress — docker-admin installed; doco-cd |
 | P2 | DNS (Technitium only) + remote access | outline |
 | P3 | docker-dmz: apps + public path | outline |
 | P4 | Backups → Google Drive | outline |
@@ -238,7 +238,7 @@ services.comin = {
   enable = true;
   remotes = [{ name = "origin"; url = "https://github.com/aliammar03/skynet.git";
                branches.main.name = "main"; poller.period = 60; }];
-  # P1: postDeploymentCommand posts $COMIN_HOSTNAME $COMIN_STATUS $COMIN_GIT_SHA to #alerts
+  # P1: postDeploymentCommand posts host / status / commit to #alerts
 };
 ```
 
@@ -357,18 +357,21 @@ Access: `skynet@pve!read` on each node and OPNsense `skynet-read` (ledger), in `
 - **Networks:** a oneshot creates them idempotently:
   - `edge`: a bridge;
   - `adm60`: a macvlan on parent `adm60`, 10.10.60.0/24, gateway .1.
-- **doco-cd's age key:** a oneshot `doco-age-key` writes
-  `ssh-to-age -private-key -i /etc/ssh/ssh_host_ed25519_key` to `/run/doco-cd/age.key` (mode 0400)
-  before doco-cd starts.
-- **`virtualisation.oci-containers`:** digest-pinned; a Renovate regex manager bumps them.
-  - **`apprise`** on `edge`.
-  - **`doco-cd`:**
-    - mounts: the Docker socket; `/var/lib/doco-cd:/data`; the age key;
-    - env: `TZ`, `SOPS_AGE_KEY_FILE`, `APPRISE_API_URL=http://apprise:8000/notify`,
-      `APPRISE_NOTIFY_URLS_FILE`, `APPRISE_NOTIFY_LEVEL=success`, `API_SECRET_FILE`,
-      `MCP_ENABLED=true`, plus the poll config below;
-    - port `10.10.50.40:8080→80`, serving the API, `/mcp` and `/v1/health`. The NixOS firewall allows
-      only 10.10.90.91.
+- **doco-cd's credentials:** a oneshot `doco-cd-credentials` writes `/run/doco-cd/` (0700) before
+  doco-cd starts: `age.key` (`ssh-to-age -private-key` of the host key), `api-secret` and
+  `apprise-urls` (copies of the sops secrets). doco-cd mounts only that folder, never `/run/secrets`.
+- **`virtualisation.oci-containers`** (`modules/docker-host.nix`, option `skynet.docker.docoTarget`):
+  digest-pinned; a Renovate regex manager bumps them.
+  - **`apprise`**: published on `127.0.0.1:8000` only.
+  - **`doco-cd`:** `--network=host`, so the NixOS firewall governs its ports (a published port would
+    bypass it), and `--cap-drop=ALL`.
+    - mounts: the Docker socket; `/var/lib/doco-cd` at the same path (`DATA_MOUNT_PATH` =
+      `DATA_HOST_PATH`), so stacks' relative bind mounts resolve; `/run/doco-cd:ro`;
+    - env: `TZ`, `HTTP_PORT=8080`, `SOPS_AGE_KEY_FILE`, `API_SECRET_FILE`, `MCP_ENABLED=true`,
+      `APPRISE_API_URL=http://127.0.0.1:8000/notify`, `APPRISE_NOTIFY_URLS_FILE`,
+      `APPRISE_NOTIFY_LEVEL=success`, plus the poll config below;
+    - :8080 serves the API, `/mcp` and `/v1/health`; the NixOS firewall admits only 10.10.90.91.
+      Metrics stay on :9120, closed until P5.
 
 ```yaml
 POLL_CONFIG: |
@@ -381,10 +384,13 @@ POLL_CONFIG: |
 - **LAN Nix cache:** ops runs harmonia on 10.10.90.91:5000 (`modules/nix-cache.nix`, priority 30,
   ahead of cache.nixos.org). Other hosts use it once `hosts/ops/cache.pub` is in git. OPNsense:
   `ROLE_NIX_CACHE_CLIENTS` (each NixOS host but ops) → `HOST_SKYNET_OPS` :5000. A new host joins the alias.
-- **comin `postDeploymentCommand`** (in `base.nix`, so it applies to all hosts): curl the `#alerts`
-  webhook with host / status / sha.
-- **`secrets/docker-admin.yaml`:** `apprise_urls` (`discord://<id>/<token>`), `doco_api_secret`,
-  `discord_alerts_webhook`.
+- **comin `postDeploymentCommand`** (in `base.nix`): posts host / status / commit to `#alerts`.
+  It's on for any host whose sops file has `discord_alerts_webhook`.
+- **`secrets/docker-admin.yaml`:** `doco_api_secret` (agent-generated, random) and
+  `discord_alerts_webhook` (the `#alerts` webhook URL). Apprise takes that URL as-is, so one value
+  serves Apprise, comin and Gatus.
+- **Guard:** `base.nix` asserts that every sops secret a host uses exists in its file, so CI fails
+  instead of the switch on the host.
 
 ### `.doco-cd.admin.yml`
 
