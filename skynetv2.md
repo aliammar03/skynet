@@ -572,12 +572,11 @@ Done 2026-10-23:
   - overnight per-minute log (night of 2026-10-23): result pending, added to this section before
     the plan merges.
 
-Ali, before the host PRs:
-- Export the old zone (Technitium UI → Zones → `aliammar.net` → Export) into chat. The agent
-  carries the still-valid records into `dns/aliammar.net.zone`.
-- Note any old Technitium settings worth keeping (allow-list entries, conditional forwarders).
-- Note the DNS servers each VLAN's DHCP hands out today, and OPNsense's own (System → Settings →
-  General).
+- The old zone (Ali's export, 2026-10-23) is a **Forwarder** zone (`FWD "this-server"`): it answers
+  its own records and resolves everything else publicly, including the apex SOA/NS. Caddy's DNS-01
+  checks rely on that, so the new zone keeps the model.
+- DHCP already hands out the Technitium IPs.
+- Settings are greenfield: nothing is carried over from the old servers.
 
 ### Hosts: `hosts/dns-network/`, `hosts/dns-core/` + `modules/dns.nix`
 
@@ -600,8 +599,11 @@ Ali, before the host PRs:
 - **`technitium-sync`** (oneshot, after Technitium; re-runs when `dns/` changes, and at boot):
   1. log in as `admin`;
   2. apply `dns/settings.json` (Set DNS Settings);
-  3. create `aliammar.net` as a Primary zone if it's missing;
-  4. import `dns/aliammar.net.zone` with `overwriteZone=true`, so the zone is exactly the file.
+  3. create `aliammar.net` as a Forwarder zone (`this-server`) if it's missing;
+  4. import `dns/aliammar.net.zone` with `overwriteZone=true`, so the zone is exactly the file. The
+     file is in Technitium's export format, SOA and FWD lines included, so forwarding survives the
+     overwrite. The first build VM proves the round trip; if FWD won't import, the sync overwrites
+     per record and deletes names missing from the file instead.
 
   Idempotent. A failure fails the unit, so the deploy fails and comin posts to `#alerts`.
 - **`secrets/dns-<node>.yaml`:** `technitium_admin_password` (agent-generated, random, one per host)
@@ -611,16 +613,23 @@ Ali, before the host PRs:
 
 ### `dns/` — records and settings in git
 
-- **`aliammar.net.zone`** (RFC 1035, TTL 300): SOA; NS `dns-network` and `dns-core` plus their A
-  records; the admin names `opnsense`, `proxmox-core`, `proxmox-network`, `pbs`, `omada`,
-  `technitium-core`, `technitium-network`, `unraid`, `auth`, `status` → 10.10.60.60; whatever the
-  export shows is still valid. No wildcard until P3.
-- **`settings.json`:**
+- **`aliammar.net.zone`** (Technitium's export format, TTL 300): SOA, the FWD `this-server` line,
+  and the admin names `opnsense`, `proxmox-core`, `proxmox-network`, `pbs`, `omada`,
+  `technitium-core`, `technitium-network`, `unraid`, `auth`, `status` → 10.10.60.60. Left out of the
+  old zone: `arcane` and `caddy` (no site behind them; Arcane retires in P3) and the app names →
+  10.10.100.35 (their door and the wildcard arrive in P3). No wildcard until P3.
+- **`settings.json`:** Technitium's defaults (cache saved across restarts, prefetch, two forwarders
+  raced, NXDOMAIN for blocked names) plus, for speed:
+  - `serveStaleMaxWaitTime` 0: an expired name is answered from cache at once and refreshed in the
+    background, so anything seen in the last 3 days (`serveStaleTtl`) answers in ~1 ms;
+  - `cacheMaximumEntries` 100 000 (default 10 000);
+  - `dnssecValidation` off: no extra key lookups on misses; Google validates upstream and DoH
+    protects the path;
+  - `forwarderTimeout` 1000 ms, `forwarderRetries` 2;
   - forwarders `https://doh.opendns.com/dns-query (208.67.222.222)` and
-    `https://dns.google/dns-query (8.8.8.8)`: protocol HTTPS, concurrent forwarding (Technitium
-    prefers whichever is faster); the IP in brackets means no bootstrap lookup;
-  - DNSSEC validation; serve-stale; cache prefetch; the cache is saved across restarts;
-  - blocking on, answering NXDOMAIN, with HaGeZi Pro
+    `https://dns.google/dns-query (8.8.8.8)` over HTTPS (or plain UDP if the overnight log favours
+    it); the IP in brackets means no bootstrap lookup;
+  - blocking with HaGeZi Pro
     (`https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro-onlydomains.txt`,
     HaGeZi's format for Technitium, ~207k domains), refreshed daily;
   - recursion only for 10.10.0.0/16, 100.64.0.0/10 (Tailscale) and loopback;
@@ -643,7 +652,8 @@ While building:
 After cutover:
 - `ROLE_DNS_RESOLVERS` = .50, .51 only (AdGuard .30/.31 and the build IPs out);
   `ROLE_NIX_CACHE_CLIENTS` drops .52/.53;
-- DHCP on every VLAN hands out .50, .51; OPNsense's own DNS servers are .50, .51;
+- DHCP: check every VLAN lists both .50 and .51 (one of them alone means no failover); OPNsense's
+  own DNS servers are .50, .51;
 - rule 140 ("block other DNS and DoT") on; rule 150 ("any → approved upstreams :53") disabled, then
   deleted after a quiet week. It lets any client skip Technitium;
 - rule 115 (the benchmark's temporary ops → any :53) deleted once the overnight log ends.
@@ -679,7 +689,7 @@ Rollback for either server: stop its VM, `pct start` its CT (same IP).
 - `dig @10.10.70.50` and `@10.10.70.51`: every admin name → 10.10.60.60, `doubleclick.net` blocked,
   the internet resolves. Gatus `dns` rows green.
 - Both VMs were configured only from git, and a merged record change shows on both within ~2 min.
-- Every VLAN's DHCP hands out .50/.51; rule 140 on, rule 150 gone; AdGuard and CTs 750/751 off.
+- Every VLAN's DHCP lists both .50 and .51; rule 140 on, rule 150 gone; AdGuard and CTs 750/751 off.
 - All ten admin names load behind Authelia.
 - On mobile data via Tailscale, a phone opens `https://opnsense.aliammar.net` and
   `https://10.10.50.11:8006`.
