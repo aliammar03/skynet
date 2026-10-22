@@ -52,6 +52,12 @@ in
     inherit home;
     createHome = true;
   };
+  # Host keys of the hosts the agent SSHes into (diagnose lane, base.nix), each checked against its
+  # sops age recipient (`ssh-to-age`) when added.
+  programs.ssh.knownHosts.docker-admin = {
+    hostNames = [ "10.10.50.40" ];
+    publicKeyFile = ../hosts/docker-admin/ssh_host.pub;
+  };
 
   environment.systemPackages = with pkgs; [
     (writeShellScriptBin "skynet-attach" ''

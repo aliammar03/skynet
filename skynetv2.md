@@ -477,6 +477,8 @@ If an appliance cert can't be pinned, use `tls_insecure_skip_verify` and note it
   because DNS-01 needs it.
 
 **Agent wiring** (diagnose lane only):
+- SSH: user `skynet` on every host but ops (`base.nix`). Agent key from ops only, `restrict`, group
+  `systemd-journal`, no sudo, no Docker socket. Ops pins each host key (`hosts/<host>/ssh_host.pub`).
 - Ali adds `doco_admin_api_key` to `secrets/ops.yaml`.
 - `.mcp.json` gets `doco-admin`: http `http://10.10.50.40:8080/mcp`, header
   `x-api-key: ${DOCO_ADMIN_API_KEY}`.
