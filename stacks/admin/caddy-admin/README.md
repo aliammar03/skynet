@@ -31,7 +31,6 @@
   `openssl s_client -connect <ip:port> </dev/null | openssl x509 > conf/certs/<name>.pem` (PR).
 - OPNsense rejects proxied logins unless System → Settings → Administration → Alternate Hostnames
   lists `opnsense.aliammar.net`.
-- A new site also needs its name in the `edge` aliases in `compose.yaml`, so Gatus can check it.
 - Unraid redirects to absolute `http://` URLs; `header_down Location` rewrites them to https.
 - `gw_priority` puts the default route on `adm60`. Without it, replies to clients could leave via
   Docker's bridge and be NATed to the host's IP.

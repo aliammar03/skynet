@@ -1,16 +1,7 @@
-# The admin door and what's behind it. `door` checks go through caddy-admin (TLS, routing,
-# forward-auth); `target` checks hit each upstream directly, so a red one says which side broke.
-x-door: &door
-  group: door
-  interval: 60s
-  client:
-    ignore-redirect: true # forward-auth answers 302 → auth.aliammar.net; following it would test Authelia
-  alerts: [{ type: discord }]
-x-door-conditions: &door-conditions
-  - "[STATUS] == 302"
-  - "[CERTIFICATE_EXPIRATION] > 168h"
-x-target: &target
-  group: target
+# One row per thing. `service`: each admin UI directly. `door`: caddy-admin + its wildcard cert +
+# Authelia, which every admin site shares, so one check covers the door for all of them.
+x-service: &service
+  group: service
   interval: 60s
   conditions: ["[CONNECTED] == true"]
   alerts: [{ type: discord }]
@@ -26,27 +17,23 @@ x-dns: &dns
   alerts: [{ type: discord }]
 
 endpoints:
-  - { <<: *door, name: opnsense, url: https://opnsense.aliammar.net, conditions: *door-conditions }
-  - { <<: *door, name: proxmox-core, url: https://proxmox-core.aliammar.net, conditions: *door-conditions }
-  - { <<: *door, name: proxmox-network, url: https://proxmox-network.aliammar.net, conditions: *door-conditions }
-  - { <<: *door, name: pbs, url: https://pbs.aliammar.net, conditions: *door-conditions }
-  - { <<: *door, name: omada, url: https://omada.aliammar.net, conditions: *door-conditions }
-  - { <<: *door, name: technitium-core, url: https://technitium-core.aliammar.net, conditions: *door-conditions }
-  - { <<: *door, name: technitium-network, url: https://technitium-network.aliammar.net, conditions: *door-conditions }
-  - { <<: *door, name: unraid, url: https://unraid.aliammar.net, conditions: *door-conditions }
-  - <<: *door
-    name: auth
+  - name: caddy-admin + authelia
+    group: door
     url: https://auth.aliammar.net/api/health
-    conditions: ["[STATUS] == 200", "[CERTIFICATE_EXPIRATION] > 168h"]
+    interval: 60s
+    conditions:
+      - "[STATUS] == 200"
+      - "[CERTIFICATE_EXPIRATION] > 168h"
+    alerts: [{ type: discord }]
 
-  - { <<: *target, name: opnsense, url: tcp://10.10.50.1:443 }
-  - { <<: *target, name: proxmox-core, url: tcp://10.10.50.11:8006 }
-  - { <<: *target, name: proxmox-network, url: tcp://10.10.50.10:8006 }
-  - { <<: *target, name: pbs, url: tcp://10.10.20.40:8007 }
-  - { <<: *target, name: omada, url: tcp://10.10.50.25:8043 }
-  - { <<: *target, name: technitium-core, url: tcp://10.10.70.51:5380 }
-  - { <<: *target, name: technitium-network, url: tcp://10.10.70.50:5380 }
-  - { <<: *target, name: unraid, url: tcp://10.10.20.20:80 }
+  - { <<: *service, name: opnsense, url: tcp://10.10.50.1:443 }
+  - { <<: *service, name: proxmox-core, url: tcp://10.10.50.11:8006 }
+  - { <<: *service, name: proxmox-network, url: tcp://10.10.50.10:8006 }
+  - { <<: *service, name: pbs, url: tcp://10.10.20.40:8007 }
+  - { <<: *service, name: omada, url: tcp://10.10.50.25:8043 }
+  - { <<: *service, name: technitium-core, url: tcp://10.10.70.51:5380 }
+  - { <<: *service, name: technitium-network, url: tcp://10.10.70.50:5380 }
+  - { <<: *service, name: unraid, url: tcp://10.10.20.20:80 }
 
   - { <<: *dns, name: technitium-network, url: 10.10.70.50 }
   - { <<: *dns, name: technitium-core, url: 10.10.70.51 }

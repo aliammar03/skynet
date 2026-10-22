@@ -10,18 +10,17 @@
   `discord_alerts_webhook` in `secrets/docker-admin.yaml`).
 - **Upstream:** [Gatus](https://github.com/TwiN/gatus#configuration)
 
-**Checks** (`config/*.yaml`, merged; endpoint lists append)
+**Checks** (`config/*.yaml`, merged; endpoint lists append), one row per thing, every 60 s
 
 | Group | What | Passes when |
 |---|---|---|
-| `door` | each admin site through caddy-admin | `302` to Authelia, cert valid > 7 days (`auth`: `200`) |
-| `target` | each upstream's IP:port | TCP connect |
+| `door` | `auth.aliammar.net/api/health` through caddy-admin (Gatus reaches it by caddy-admin's `edge` alias) | `200`, cert valid > 7 days: Caddy, the wildcard cert and Authelia, shared by every admin site |
+| `service` | each admin UI's IP:port | TCP connect |
 | `dns` | `auth.aliammar.net A` on Technitium .50 and .51 | answer is 10.10.60.60 |
 
 **Gotchas**
-- `door` checks resolve names through caddy-admin's `edge` aliases, not DNS. A new admin site needs
-  its name added there too.
-- `target` checks leave as 10.10.50.40. Upstreams off VLAN 50 need the OPNsense rule for
-  `HOST_DOCKER_ADMIN`.
+- `service` checks leave as 10.10.50.40; OPNsense rule 235 (`HOST_DOCKER_ADMIN` →
+  `ROLE_ADMIN_TARGETS` : `PORT_ADMIN_PROXY`) lets them through.
+- A broken single `sites/<name>.conf` isn't caught here (the door row tests the shared path).
 - No healthcheck (the image has no shell). heartbeat pings healthchecks.io only while
   `/health` answers, so a dead Gatus still pages.

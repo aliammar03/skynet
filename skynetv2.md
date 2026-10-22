@@ -441,12 +441,12 @@ timeout: 300
 - **`config/core.yaml`:** sqlite storage; Discord alerting via `${DISCORD_ALERTS_WEBHOOK}`
   (`secret.sops.env`, Ali copies the `#alerts` URL); default alert: 3 failures to fire, 2 successes
   to clear, send on resolve.
-- **`config/admin.yaml`** endpoints, every 60 s:
-  - `door`: every admin site through caddy-admin, expecting the forward-auth `302` and a cert with
-    more than 7 days left (`auth` expects `200` on `/api/health`, which also covers Authelia).
-    caddy-admin has each name as a network alias on `edge`, so the check reaches the door without
-    DNS and without a hairpin through OPNsense;
-  - `target`: a TCP connect to each upstream, so a red row says which side broke;
+- **`config/admin.yaml`** endpoints, every 60 s, one row per thing:
+  - `door`: `auth.aliammar.net/api/health` through caddy-admin, expecting `200` and a cert with more
+    than 7 days left. That's Caddy, the wildcard cert and Authelia, which every admin site shares.
+    caddy-admin has `auth.aliammar.net` as a network alias on `edge`, so the check needs no DNS
+    and no hairpin through OPNsense;
+  - `service`: a TCP connect to each admin UI (OPNsense rule 235 lets docker-admin through);
   - `dns`: `auth.aliammar.net A` against .50 and .51 must answer 10.10.60.60.
   - doco-cd isn't checked here (its API answers only to ops); heartbeat is a doco-cd job, so a
     dead doco-cd pages via healthchecks.io.
@@ -485,8 +485,8 @@ the missing ones (`auth`, `status`, …).
 **Firewall** (agent drafts the exact rules, Ali applies them in OPNsense):
 - `HOST_DOCKER_ADMIN` 10.10.50.40 → internet :443 (GitHub, registries, Cloudflare API, Discord,
   healthchecks.io, Nix caches); → Technitium :53; → NTP.
-- `HOST_DOCKER_ADMIN` → the monitored targets on the ports above. VLAN 50 targets are on-link;
-  the rest need a rule: → 10.10.20.40:8007, 10.10.20.20:80, 10.10.70.50–51:5380.
+- `HOST_DOCKER_ADMIN` → `ROLE_ADMIN_TARGETS` : `PORT_ADMIN_PROXY` (rule 235, a copy of 230), for
+  Gatus.
 - `HOST_SKYNET_OPS` → `HOST_DOCKER_ADMIN` :8080 and :22.
 - 10.10.60.60 joins `HOST_PROXY_ADMIN` (alias of the v1 Management Caddy rules 210, 230, 830). Cloudflare
   API :443 is covered by 810 (`NET_WEB_EGRESS` includes 10.10.60.0/24), which DNS-01 needs.
