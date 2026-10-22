@@ -41,6 +41,12 @@ let
       Restart = "always";
       RestartSec = 10;
       EnvironmentFile = "-${config.sops.templates."agent.env".path or "/dev/null"}";
+      # Start on current main, so the session reads today's plan, AGENTS.md and .mcp.json (work
+      # happens in worktrees). `-`: a dirty checkout or no network still starts the session.
+      ExecStartPre = "-${pkgs.writeShellScript "skynet-fresh-main" ''
+        cd ${repo} && ${pkgs.git}/bin/git fetch -q origin &&
+          ${pkgs.git}/bin/git switch -q main && ${pkgs.git}/bin/git merge -q --ff-only origin/main
+      ''}";
       ExecStart = "${pkgs.tmux}/bin/tmux -L ${name} new-session -d -s ${name} '${cmd}'";
       ExecStop = "${pkgs.tmux}/bin/tmux -L ${name} kill-server";
     };
