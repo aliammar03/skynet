@@ -1,0 +1,53 @@
+# Authelia 4.39. Secrets come from the environment (secret.sops.env), never this file.
+theme: auto
+
+server:
+  address: tcp://:9091
+  endpoints:
+    authz:
+      forward-auth:
+        implementation: ForwardAuth
+
+log:
+  level: info
+
+authentication_backend:
+  password_reset:
+    disable: true # one user; the password changes via users.sops.yml (PR)
+  file:
+    path: /config/users.yml
+    password:
+      algorithm: argon2
+
+# A passkey is one factor; `two_factor` then also asks for the password.
+webauthn:
+  display_name: Skynet
+  enable_passkey_login: true
+
+totp:
+  issuer: aliammar.net
+
+access_control:
+  default_policy: deny
+  rules:
+    # The agent reads Gatus's API without a login.
+    - domain: status.aliammar.net
+      resources: ['^/api/']
+      networks: [10.10.90.91/32]
+      policy: bypass
+    - domain: '*.aliammar.net'
+      policy: two_factor
+
+session:
+  cookies:
+    - domain: aliammar.net
+      authelia_url: https://auth.aliammar.net
+
+storage:
+  local:
+    path: /data/db.sqlite3
+
+# No mail server: one-time codes (e.g. registering a passkey) land in this file on docker-admin.
+notifier:
+  filesystem:
+    filename: /data/notification.txt

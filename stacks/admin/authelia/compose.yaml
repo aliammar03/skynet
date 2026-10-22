@@ -1,0 +1,18 @@
+# SSO portal (auth.aliammar.net) and forward-auth for the doors: `import authelia` in a site's
+# caddy.conf asks Authelia before proxying.
+services:
+  authelia:
+    image: ghcr.io/authelia/authelia:4.39.28@sha256:bd97cff4fcbf715b5ff1f9ae286afbe6033afce385302520b0368122d43a6f54
+    restart: unless-stopped
+    env_file: secret.sops.env # session, storage and JWT secrets (AUTHELIA_* variables)
+    environment:
+      TZ: Asia/Karachi
+    volumes:
+      - ./configuration.yml:/config/configuration.yml:ro
+      - ./users.sops.yml:/config/users.yml:ro
+      - /opt/appdata/authelia:/data # sqlite (passkeys, TOTP, sessions' state), notification.txt
+    networks: [edge]
+    # The image's own healthcheck (/app/healthcheck.sh) applies.
+networks:
+  edge:
+    external: true
