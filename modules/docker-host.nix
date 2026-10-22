@@ -10,7 +10,9 @@
 let
   inherit (config.skynet.docker) macvlan docoTarget;
   creds = "/run/doco-cd"; # what doco-cd may read: its age key, API secret, Apprise URL
-  data = "/var/lib/doco-cd"; # same path inside and out, so stacks' relative bind mounts resolve
+  # Same path inside and out, so stacks' relative bind mounts resolve. Holds doco-cd's checkout, with
+  # the files this host can decrypt decrypted (root-only, like /run/secrets).
+  data = "/var/lib/doco-cd";
 in
 {
   options.skynet.docker.macvlan = lib.mkOption {
@@ -98,7 +100,7 @@ in
     };
     # Host networking, so the NixOS firewall governs its ports (a published port would bypass it).
     virtualisation.oci-containers.containers.doco-cd = {
-      image = "ghcr.io/kimdre/doco-cd:0.129.0@sha256:79960a8eb7a294db6e5e5af47a702e83d494cc7abe9eecfaacb7c70a71eeb2cb";
+      image = "ghcr.io/kimdre/doco-cd:0.129.1@sha256:9c6e7f0040056465cdbc762b608c8893c64e691d464e34928c14338a6eaf6b8f";
       dependsOn = [ "apprise" ];
       extraOptions = [
         "--network=host"

@@ -443,9 +443,11 @@ timeout: 300
 - From P3, one single-file mount per app `gatus.yaml`.
 
 **`heartbeat`**
-- A `curlimages/curl` doco-cd scheduled job (`cd.doco.job.enabled: "true"`,
+- A `curlimages/curl` doco-cd scheduled job (`cd.doco.job.enabled: "true"`, `notify_on: failure`,
   `cd.doco.job.schedule: "@every 5m"`) that pings healthchecks.io.
 - It's the dead-man for the host, Docker, the doco-cd scheduler and egress.
+- healthchecks.io check `docker-admin` (period 5 min, grace 5 min); `HC_PING_URL` in its
+  `secret.sops.env`. `.sops.yaml` encrypts `stacks/admin/**/*.sops.*` for ali + docker-admin.
 
 ### Admin sites (`sites/*.conf`)
 

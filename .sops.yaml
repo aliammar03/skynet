@@ -14,3 +14,8 @@ creation_rules:
       - age:
           - *ali
           - *docker-admin
+  - path_regex: ^stacks/admin/.*\.sops\.[^/]+$
+    key_groups:
+      - age:
+          - *ali
+          - *docker-admin
