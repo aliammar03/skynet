@@ -41,4 +41,5 @@ in
     subnet = "10.10.60.0/24";
     gateway = "10.10.60.1";
   };
+  skynet.docker.docoTarget = "admin";
 }

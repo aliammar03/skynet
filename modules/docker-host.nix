@@ -1,8 +1,16 @@
-# Docker hosts (docker-admin, docker-dmz): Docker, plus the networks stacks join. Stacks never create
-# networks (skynetv2.md → Conventions → Networks).
-{ config, lib, ... }:
+# Docker hosts (docker-admin, docker-dmz): Docker, the networks stacks join (stacks never create
+# networks; skynetv2.md → Conventions → Networks), and doco-cd, which deploys `stacks/<target>/` from
+# `main`, with Apprise for its Discord notices.
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
-  inherit (config.skynet.docker) macvlan;
+  inherit (config.skynet.docker) macvlan docoTarget;
+  creds = "/run/doco-cd"; # what doco-cd may read: its age key, API secret, Apprise URL
+  data = "/var/lib/doco-cd"; # same path inside and out, so stacks' relative bind mounts resolve
 in
 {
   options.skynet.docker.macvlan = lib.mkOption {
@@ -12,6 +20,11 @@ in
         _: lib.mkOption { type = lib.types.str; }
       );
     };
+  };
+
+  options.skynet.docker.docoTarget = lib.mkOption {
+    type = lib.types.str;
+    description = "doco-cd poll target: reads `.doco-cd.<target>.yml` from the repo.";
   };
 
   config = {
@@ -41,5 +54,85 @@ in
           --subnet ${macvlan.subnet} --gateway ${macvlan.gateway} -o parent=${macvlan.parent} ${macvlan.name}
       '';
     };
+
+    # doco-cd gets only these three files, never /run/secrets. Its age key is the host's own (from the
+    # SSH host key), so it decrypts exactly what sops-nix can.
+    systemd.services.doco-cd-credentials = {
+      description = "Give doco-cd its age key, API secret and Apprise URL";
+      wantedBy = [ "multi-user.target" ];
+      before = [ "docker-doco-cd.service" ];
+      requiredBy = [ "docker-doco-cd.service" ];
+      path = [ pkgs.ssh-to-age ];
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+        UMask = "0077";
+      };
+      script = ''
+        install -d -m 700 ${creds}
+        ssh-to-age -private-key -i /etc/ssh/ssh_host_ed25519_key > ${creds}/age.key
+        install -m 400 ${config.sops.secrets.doco_api_secret.path} ${creds}/api-secret
+        install -m 400 ${config.sops.secrets.discord_alerts_webhook.path} ${creds}/apprise-urls
+      '';
+    };
+    # doco-cd reads the *_FILE values at start, so a changed secret restarts it too.
+    sops.secrets =
+      lib.genAttrs
+        [
+          "doco_api_secret"
+          "discord_alerts_webhook"
+        ]
+        (_: {
+          restartUnits = [
+            "doco-cd-credentials.service"
+            "docker-doco-cd.service"
+          ];
+        });
+    systemd.tmpfiles.rules = [ "d ${data} 0700 root root -" ];
+
+    virtualisation.oci-containers.backend = "docker";
+    # Stateless Apprise API; doco-cd posts to it on loopback.
+    virtualisation.oci-containers.containers.apprise = {
+      image = "docker.io/caronc/apprise:2.0.1@sha256:0b2913b15c8eb47c25345722985ffbfae701326edde21909c205d296d62dd52c";
+      ports = [ "127.0.0.1:8000:8000" ];
+    };
+    # Host networking, so the NixOS firewall governs its ports (a published port would bypass it).
+    virtualisation.oci-containers.containers.doco-cd = {
+      image = "ghcr.io/kimdre/doco-cd:0.129.0@sha256:79960a8eb7a294db6e5e5af47a702e83d494cc7abe9eecfaacb7c70a71eeb2cb";
+      dependsOn = [ "apprise" ];
+      extraOptions = [
+        "--network=host"
+        "--cap-drop=ALL"
+      ];
+      volumes = [
+        "/var/run/docker.sock:/var/run/docker.sock"
+        "${data}:${data}"
+        "${creds}:${creds}:ro"
+      ];
+      environment = {
+        TZ = config.time.timeZone;
+        HTTP_PORT = "8080"; # API, /mcp, /v1/health; metrics stay on 9120
+        DATA_MOUNT_PATH = data;
+        DATA_HOST_PATH = data;
+        SOPS_AGE_KEY_FILE = "${creds}/age.key";
+        API_SECRET_FILE = "${creds}/api-secret";
+        MCP_ENABLED = "true";
+        APPRISE_API_URL = "http://127.0.0.1:8000/notify";
+        APPRISE_NOTIFY_URLS_FILE = "${creds}/apprise-urls";
+        APPRISE_NOTIFY_LEVEL = "success";
+        POLL_CONFIG = builtins.toJSON [
+          {
+            url = "https://github.com/aliammar03/skynet.git";
+            reference = "main";
+            interval = "60s";
+            target = docoTarget;
+          }
+        ];
+      };
+    };
+    # The doco-cd API and MCP answer only to ops (OPNsense must allow it too).
+    networking.firewall.extraCommands = ''
+      iptables -A nixos-fw -p tcp -s 10.10.90.91 --dport 8080 -j nixos-fw-accept
+    '';
   };
 }

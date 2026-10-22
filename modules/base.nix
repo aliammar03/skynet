@@ -9,6 +9,19 @@
 let
   aliKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMY3q277EOHizg5Ji/WUU7WvUi4X/ezbRPebk65lQVBJ aliammar@RK-W";
   hostSecrets = ../secrets + "/${config.networking.hostName}.yaml";
+  # Key names in a sops file are plaintext, so evaluation can tell which secrets a host has.
+  hasSecret =
+    key:
+    builtins.pathExists hostSecrets && lib.hasInfix "\n${key}:" ("\n" + builtins.readFile hostSecrets);
+  # Posts each comin deploy (host, status, commit) to Discord #alerts.
+  cominNotify = pkgs.writeShellScript "comin-notify" ''
+    msg="**$COMIN_HOSTNAME** deploy $COMIN_STATUS: \`''${COMIN_GIT_SHA:0:7}\` $(printf '%s' "$COMIN_GIT_MSG" | head -n1)"
+    [ -n "''${COMIN_ERROR_MSG:-}" ] && msg="$msg
+    $COMIN_ERROR_MSG"
+    ${pkgs.jq}/bin/jq -n --arg c "$msg" '{content: $c[0:1900]}' |
+      ${pkgs.curl}/bin/curl -fsS -m 10 -H 'Content-Type: application/json' -d @- \
+        "$(cat ${config.sops.secrets.discord_alerts_webhook.path or "/dev/null"})"
+  '';
 in
 {
   imports = [
@@ -84,6 +97,7 @@ in
   # Host secrets exist only after the host's age key is added to .sops.yaml (see skynetv2.md P0).
   sops = lib.mkIf (builtins.pathExists hostSecrets) {
     defaultSopsFile = hostSecrets;
+    secrets.discord_alerts_webhook = lib.mkIf (hasSecret "discord_alerts_webhook") { };
     age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
   };
 
@@ -97,7 +111,15 @@ in
         poller.period = 60;
       }
     ];
+    postDeploymentCommand = lib.mkIf (hasSecret "discord_alerts_webhook") cominNotify;
   };
+
+  # CI catches a secret the config uses but the host's sops file lacks; on the host that would fail
+  # the switch.
+  assertions = lib.mapAttrsToList (name: s: {
+    assertion = s.sopsFile != hostSecrets || hasSecret s.key;
+    message = "secrets/${config.networking.hostName}.yaml has no key `${s.key}`: add it with sops before merging.";
+  }) config.sops.secrets;
 
   system.stateVersion = "26.05";
 }
