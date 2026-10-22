@@ -384,7 +384,8 @@ POLL_CONFIG: |
 - **LAN Nix cache:** ops runs harmonia on 10.10.90.91:5000 (`modules/nix-cache.nix`, priority 30,
   ahead of cache.nixos.org). Other hosts use it once `hosts/ops/cache.pub` is in git. OPNsense:
   `ROLE_NIX_CACHE_CLIENTS` (each NixOS host but ops) → `HOST_SKYNET_OPS` :5000. A new host joins the alias.
-- **comin `postDeploymentCommand`** (in `base.nix`): posts host / status / commit to `#alerts`.
+- **comin `postDeploymentCommand`** (in `base.nix`): posts a **failed** deploy (host, status, commit,
+  error) to `#alerts`; successes stay quiet.
   It's on for any host whose sops file has `discord_alerts_webhook`.
 - **`secrets/docker-admin.yaml`:** `doco_api_secret` (agent-generated, random) and
   `discord_alerts_webhook` (the `#alerts` webhook URL). Apprise takes that URL as-is, so one value
@@ -432,16 +433,23 @@ timeout: 300
     `status.aliammar.net` `^/api/` from 10.10.90.91 (so the agent can read Gatus).
 
 **`gatus`**
-- **Container:** image `twinproduction/gatus`; on `edge`; served at `status.aliammar.net`.
-- **Config loading:** `GATUS_CONFIG_PATH=/config`. It's a directory, so all files are merged: maps
-  merge and `endpoints` lists append.
-- **`config/core.yaml`:** sqlite storage; Discord alerting via `${DISCORD_ALERTS_WEBHOOK}`; default
-  alert: 3 failures to fire, 2 successes to clear, send on resolve.
-- **`config/admin.yaml`** endpoints:
-  - every admin site end-to-end through caddy-admin;
-  - the raw targets themselves;
-  - Technitium checked with a DNS query against .50 and .51;
-  - Authelia health; doco-cd `/v1/health`.
+- **Container:** image `twinproduction/gatus`; on `edge`; served at `status.aliammar.net` (behind
+  Authelia; `^/api/` open to ops). Sqlite history in `/opt/appdata/gatus`. The image is only the
+  binary, so no healthcheck: heartbeat pings only while Gatus answers `/health`.
+- **Config loading:** `GATUS_CONFIG_PATH=/config` (`./config` mounted). It's a directory, so all
+  files are merged: maps merge and `endpoints` lists append.
+- **`config/core.yaml`:** sqlite storage; Discord alerting via `${DISCORD_ALERTS_WEBHOOK}`
+  (`secret.sops.env`, Ali copies the `#alerts` URL); default alert: 3 failures to fire, 2 successes
+  to clear, send on resolve.
+- **`config/admin.yaml`** endpoints, every 60 s:
+  - `door`: every admin site through caddy-admin, expecting the forward-auth `302` and a cert with
+    more than 7 days left (`auth` expects `200` on `/api/health`, which also covers Authelia).
+    caddy-admin has each name as a network alias on `edge`, so the check reaches the door without
+    DNS and without a hairpin through OPNsense;
+  - `target`: a TCP connect to each upstream, so a red row says which side broke;
+  - `dns`: `auth.aliammar.net A` against .50 and .51 must answer 10.10.60.60.
+  - doco-cd isn't checked here (its API answers only to ops); heartbeat is a doco-cd job, so a
+    dead doco-cd pages via healthchecks.io.
 - From P3, one single-file mount per app `gatus.yaml`.
 
 **`heartbeat`**
@@ -467,7 +475,7 @@ If an appliance cert can't be pinned, use `tls_insecure_skip_verify` and note it
 | omada | https://10.10.50.25:8043 | pin its self-signed cert, `tls_server_name Omada` |
 | unraid | http://10.10.20.20 | `header_down Location ^http:// https://` (it redirects to absolute http URLs) |
 | auth | authelia:9091 | portal; moves to the apps door in P3 |
-| status | gatus:8080 | |
+| status | gatus:8080 | `import authelia`; API open to ops (Authelia bypass) |
 
 ### DNS, firewall, agent wiring
 
@@ -477,7 +485,8 @@ the missing ones (`auth`, `status`, …).
 **Firewall** (agent drafts the exact rules, Ali applies them in OPNsense):
 - `HOST_DOCKER_ADMIN` 10.10.50.40 → internet :443 (GitHub, registries, Cloudflare API, Discord,
   healthchecks.io, Nix caches); → Technitium :53; → NTP.
-- `HOST_DOCKER_ADMIN` → the monitored targets on the ports above, plus ICMP.
+- `HOST_DOCKER_ADMIN` → the monitored targets on the ports above. VLAN 50 targets are on-link;
+  the rest need a rule: → 10.10.20.40:8007, 10.10.20.20:80, 10.10.70.50–51:5380.
 - `HOST_SKYNET_OPS` → `HOST_DOCKER_ADMIN` :8080 and :22.
 - 10.10.60.60 joins `HOST_PROXY_ADMIN` (alias of the v1 Management Caddy rules 210, 230, 830). Cloudflare
   API :443 is covered by 810 (`NET_WEB_EGRESS` includes 10.10.60.0/24), which DNS-01 needs.
@@ -517,7 +526,7 @@ Done in a maintenance window. Rollback = stop caddy-admin, start CT 635.
 
 - Every admin name loads with a valid cert behind an Authelia passkey. Direct IPs still work.
 - Gatus is all green. A stopped test container alerts in `#alerts`, and so does its recovery.
-- doco-cd and comin deploys post to `#alerts`. The healthchecks.io heartbeat is green.
+- doco-cd deploys and failed comin deploys post to `#alerts`. The healthchecks.io heartbeat is green.
 - The agent lists docker-admin projects and runs via MCP, and answers "is X up?" from Gatus.
 - CT 635 and VM 9090 are off. Renovate tracks every pinned image (compose + Nix).
 

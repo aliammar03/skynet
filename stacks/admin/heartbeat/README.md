@@ -1,7 +1,8 @@
 # heartbeat
 
-- **Purpose:** dead-man for docker-admin. A doco-cd scheduled job pings healthchecks.io check
-  `docker-admin` (project `skynet`, period 5 min, grace 5 min) every 5 min.
+- **Purpose:** dead-man for docker-admin and for Gatus (the watcher). Every 5 min a doco-cd
+  scheduled job pings healthchecks.io check `docker-admin` (project `skynet`, period 5 min, grace
+  5 min), but only if `http://gatus:8080/health` answers.
 - **URL / auth:** none (not routed).
 - **Data:** none.
 - **Secrets** (`secret.sops.env`): `HC_PING_URL`.

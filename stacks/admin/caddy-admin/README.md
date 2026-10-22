@@ -23,6 +23,7 @@
 | omada | https://10.10.50.25:8043 | pinned self-signed `certs/omada.pem`, name `Omada` |
 | technitium-core / -network | http://10.10.70.51:5380 / .50:5380 | none |
 | unraid | http://10.10.20.20 | none |
+| auth / status | authelia:9091 / gatus:8080 (`edge`) | none |
 
 **Gotchas**
 - A regenerated appliance cert (OPNsense, PBS or Omada after a reset or an update) breaks its site
@@ -30,6 +31,7 @@
   `openssl s_client -connect <ip:port> </dev/null | openssl x509 > conf/certs/<name>.pem` (PR).
 - OPNsense rejects proxied logins unless System → Settings → Administration → Alternate Hostnames
   lists `opnsense.aliammar.net`.
+- A new site also needs its name in the `edge` aliases in `compose.yaml`, so Gatus can check it.
 - Unraid redirects to absolute `http://` URLs; `header_down Location` rewrites them to https.
 - `gw_priority` puts the default route on `adm60`. Without it, replies to clients could leave via
   Docker's bridge and be NATed to the host's IP.
