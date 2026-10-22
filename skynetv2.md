@@ -416,16 +416,18 @@ timeout: 300
   - site: `*.aliammar.net { import /etc/caddy/sites/*.conf; handle { respond 404 } }`.
 
 **`authelia`**
-- **Container:** image `authelia/authelia`; on `edge`; port `10.10.50.40:9091` (caddy-apps uses it
-  in P3); data in `/opt/appdata/authelia`.
-- **Files:** `configuration.sops.yml` and `users.sops.yml`, with `.sops.yaml` `encrypted_regex` so
-  only the secret values are encrypted; `oidc-clients.yml` (empty in P1).
-- **Command:** `--config /config/configuration.yml --config /config/oidc-clients.yml`.
+- **Container:** image `ghcr.io/authelia/authelia`; on `edge` only (P3 publishes `10.10.50.40:9091`
+  for caddy-apps); data (sqlite, `notification.txt`) in `/opt/appdata/authelia`.
+- **Files:** `configuration.yml` (plaintext, no secrets); `secret.sops.env` (`AUTHELIA_SESSION_SECRET`,
+  `AUTHELIA_STORAGE_ENCRYPTION_KEY`, `AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET`,
+  agent-generated); `users.sops.yml` (Ali: argon2 hash). P3 adds `oidc-clients.yml` as a second
+  `--config`.
 - **Config:**
   - authz endpoint `forward-auth` (ForwardAuth);
   - `session.cookies: [{domain: aliammar.net, authelia_url: https://auth.aliammar.net}]`;
   - `storage.local` (sqlite); `notifier.filesystem` for now;
-  - `webauthn.enable_passkey_login: true`;
+  - `webauthn.enable_passkey_login: true` (a passkey is one factor; `two_factor` adds the password);
+  - `password_reset.disable: true` (one user; the password changes by PR);
   - access control: `default_policy: deny`, plus `*.aliammar.net → two_factor`, plus a bypass for
     `status.aliammar.net` `^/api/` from 10.10.90.91 (so the agent can read Gatus).
 
@@ -499,7 +501,8 @@ Done in a maintenance window. Rollback = stop caddy-admin, start CT 635.
 3. Point the admin names → 10.10.60.60 in Technitium. Test every site by name from an admin client.
    `pct shutdown 635`, set `onboot 0`, and remove 10.10.60.35 from `HOST_PROXY_ADMIN`.
 4. Ali enrolls in Authelia:
-   - put an argon2 hash (`authelia crypto hash generate argon2`) into `users.sops.yml` via `sops`;
+   - (done with the authelia PR: an argon2 hash in `users.sops.yml` via `sops`);
+   - point `auth` → 10.10.60.60 (it was Authentik's, 10.10.100.35);
    - log in and register a passkey (the code is in `/opt/appdata/authelia/notification.txt`);
    - then open a PR adding `import authelia` per site.
 

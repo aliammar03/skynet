@@ -3,6 +3,10 @@
 	servers {
 		protocols h1 h2
 	}
+	# The healthcheck polls the admin API every 30 s; its request log is noise.
+	log default {
+		exclude admin.api
+	}
 }
 
 (authelia) {
