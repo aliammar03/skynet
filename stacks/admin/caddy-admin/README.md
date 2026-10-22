@@ -4,7 +4,8 @@
   front of the lab's admin UIs; unknown names get 404.
 - **Where:** macvlan `adm60`, 10.10.60.60, in OPNsense alias `HOST_PROXY_ADMIN` (rules 210 admin
   clients + ops → :443, 230 → admin targets, 830 → DNS; 810 web egress). Also on `edge` for apps.
-- **Auth mode:** each upstream's own login; `import authelia` per site once Authelia is enrolled.
+- **Auth mode:** `forward`: every site except `auth` passes an Authelia login first, then the
+  upstream's own login. Direct IPs bypass Caddy and stay the break-glass path.
 - **Files:** `conf/` is mounted at `/etc/caddy` (no secrets in it): `Caddyfile`, `sites/<name>.conf`
   (one per name), `certs/` (the upstreams' public certs). A route edit reloads in place
   (`recreate.ignore` + `--watch`).
