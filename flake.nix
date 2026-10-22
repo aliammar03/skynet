@@ -41,6 +41,7 @@
     in
     {
       nixosConfigurations.ops = mkHost "ops";
+      nixosConfigurations.docker-admin = mkHost "docker-admin";
 
       packages.${system}.installer-docker-admin = mkInstaller "docker-admin";
 
