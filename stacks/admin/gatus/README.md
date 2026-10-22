@@ -7,8 +7,9 @@
   it: `curl https://status.aliammar.net/api/v1/endpoints/statuses`.
 - **Data:** `/opt/appdata/gatus/data.db` (check history; backup class: disposable).
 - **Secrets:** `secret.sops.env`: `DISCORD_ALERTS_WEBHOOK` (the `#alerts` webhook URL, same value as
-  `discord_alerts_webhook` in `secrets/docker-admin.yaml`); `HC_BADGE_URL` (healthchecks.io check
-  `docker-admin` → Badges → JSON, 2-state).
+  `discord_alerts_webhook` in `secrets/docker-admin.yaml`); `HC_BADGE_URL` (healthchecks.io project
+  `skynet` → Badges, 2-state, the `docker-admin` row's JSON URL; it answers
+  `{"status": "up", ...}`).
 - **Upstream:** [Gatus](https://github.com/TwiN/gatus#configuration)
 
 **Checks** (`config/*.yaml`, merged; endpoint lists append), one row per thing, every 60 s unless noted
