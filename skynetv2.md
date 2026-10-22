@@ -22,7 +22,7 @@
 | Phase | Title | State |
 |---|---|---|
 | P0 | Foundations + new ops VM | done |
-| P1 | docker-admin: admin door, identity, status | done, except: 7 admin names move to .60 in P2; Renovate for Nix-pinned images; the stopped-container alert test |
+| P1 | docker-admin: admin door, identity, status | done (2026-10-22); 7 admin names move to .60 with P2's Technitium |
 | P2 | DNS (Technitium only) + remote access | outline |
 | P3 | docker-dmz: apps + public path | outline |
 | P4 | Backups → Google Drive | outline |
@@ -529,6 +529,8 @@ Done in a maintenance window. Rollback = stop caddy-admin, start CT 635.
 
 - Every admin name loads with a valid cert behind an Authelia passkey. Direct IPs still work.
 - Gatus is all green. A stopped test container alerts in `#alerts`, and so does its recovery.
+  Verified 2026-10-22: `docker stop` on Authelia → doco-cd reconciliation restarted it in 3 s and
+  posted; rule 235 disabled → Gatus posted 4 DOWN after 3 min and 4 RESOLVED after re-enabling.
 - doco-cd deploys and failed comin deploys post to `#alerts`. The healthchecks.io heartbeat is green.
 - The agent lists docker-admin projects and runs via MCP, and answers "is X up?" from Gatus.
 - CT 635 and VM 9090 are off. Renovate tracks every pinned image (compose + Nix).
