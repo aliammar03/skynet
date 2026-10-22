@@ -2,6 +2,11 @@
   "mcpServers": {
     "nixos": {
       "command": "mcp-nixos"
+    },
+    "doco-admin": {
+      "type": "http",
+      "url": "http://10.10.50.40:8080/mcp",
+      "headersHelper": "cat /run/secrets/rendered/doco-admin.headers.json"
     }
   }
 }
