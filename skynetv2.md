@@ -436,7 +436,7 @@ If an appliance cert can't be pinned, use `tls_insecure_skip_verify` and note it
 | Name | Upstream | Note |
 |---|---|---|
 | opnsense | https://10.10.50.1 | `tls_server_name OPNsense.internal` + trust its cert (`tls_trust_pool file`). In OPNsense, System → Settings → Administration → **Alternate Hostnames** must include `opnsense.aliammar.net` |
-| proxmox-core / proxmox-network | https://10.10.50.10:8006 / .11:8006 | trust each node's `pve-root-ca.pem` |
+| proxmox-core / proxmox-network | https://10.10.50.11:8006 / .10:8006 | trust each node's `pve-root-ca.pem` |
 | pbs | https://10.10.20.40:8007 | trust its self-signed cert |
 | technitium | http://10.10.70.51:5380 | |
 | omada | https://10.10.50.25:8043 | `header_up Host {upstream_hostport}`; test login and redirects |
@@ -682,7 +682,7 @@ in a drill.
 
 | Thing | Value |
 |---|---|
-| Nodes | server-proxmox-core (12 cpu, 31 GB) · server-proxmox-network (8 cpu, 15 GB) · mgmt IPs 10.10.50.10 / .11 · storage `local` (ISO), `local-lvm` (disks), `pbs-unraid` |
+| Nodes | server-proxmox-core (12 cpu, 31 GB) · server-proxmox-network (8 cpu, 15 GB) · mgmt IPs 10.10.50.11 (core) / 10.10.50.10 (network) · storage `local` (ISO), `local-lvm` (disks), `pbs-unraid` |
 | VLANs | 10 Trusted · 20 Servers · 30 IoT · 50 Mgmt · 60 Admin access · 70 Net services · 80 Identity · 90 Ops · 100 DMZ · 300 ISP L2 passthrough (not routed). `10.10.<vlan>.0/24`, gateway `.1` |
 | Keep | OPNsense VM 5001 (config → `skynet-opnsense` via os-git-backup) · Omada CT 525 (10.10.50.25) · PBS CT 240 (10.10.20.40; starts after Unraid NFS) · Unraid VM 2020 · HAOS VM 3050 (10.10.30.50) · Technitium 751 (10.10.70.51) / 750 (10.10.70.50) · athena CT 10030 (10.10.100.30) |
 | Retire | ops VM 9090 (P1) · Management Caddy CT 635 (P1) · AdGuard 730/731 (P2) · docker-dmz VM 10015 + Arcane, Authentik CT 837 (P3) · template 9000 (P7) |
