@@ -380,7 +380,7 @@ POLL_CONFIG: |
 
 - **LAN Nix cache:** ops runs harmonia on 10.10.90.91:5000 (`modules/nix-cache.nix`, priority 30,
   ahead of cache.nixos.org). Other hosts use it once `hosts/ops/cache.pub` is in git. OPNsense:
-  `HOST_DOCKER_ADMIN` → `HOST_SKYNET_OPS` :5000.
+  `ROLE_NIX_CACHE_CLIENTS` (each NixOS host but ops) → `HOST_SKYNET_OPS` :5000. A new host joins the alias.
 - **comin `postDeploymentCommand`** (in `base.nix`, so it applies to all hosts): curl the `#alerts`
   webhook with host / status / sha.
 - **`secrets/docker-admin.yaml`:** `apprise_urls` (`discord://<id>/<token>`), `doco_api_secret`,

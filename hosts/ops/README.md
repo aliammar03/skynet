@@ -21,8 +21,9 @@ Claude app. VMID 9091 · 10.10.90.91 · VLAN 90 · server-proxmox-core · 4 vCPU
   - `curl -sk --netrc-file /run/secrets/rendered/opnsense.netrc https://10.10.50.1/api/…`.
 
   `-k` because both use self-signed certs; caddy-admin pins them in P1.
-- **LAN Nix cache:** harmonia on :5000 (`modules/nix-cache.nix`) serves ops's store to the hosts in
-  its `clients` list, which OPNsense must also allow. `nix-cache-key` generates the signing key once
+- **LAN Nix cache:** harmonia on :5000 (`modules/nix-cache.nix`) serves ops's store to every other host
+  (they're clients via `base.nix`). ops admits 10.10.0.0/16, and the OPNsense alias
+  `ROLE_NIX_CACHE_CLIENTS` decides which hosts get through: a new host needs adding there. `nix-cache-key` generates the signing key once
   in `/var/lib/nix-cache-key/`. Its public half is `hosts/ops/cache.pub`, which switches the clients
   on. A rebuilt ops gets a new key, so update `cache.pub`.
 - **Permissions:** both sessions run in Claude Code **auto mode**: a classifier approves routine

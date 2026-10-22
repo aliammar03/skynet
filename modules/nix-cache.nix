@@ -6,8 +6,8 @@
 let
   url = "http://10.10.90.91:5000";
   pub = ../hosts/ops/cache.pub;
-  # Hosts allowed through ops's firewall to :5000 (OPNsense must allow them too).
-  clients = [ "10.10.50.40" ];
+  # ops admits the whole lab; OPNsense alias ROLE_NIX_CACHE_CLIENTS decides which hosts get through.
+  # Every host but ops is a client via base.nix, so a new host only needs adding to that alias.
   keyDir = "/var/lib/nix-cache-key";
   isOps = config.networking.hostName == "ops";
 in
@@ -41,9 +41,9 @@ lib.mkMerge [
       signKeyPaths = [ "${keyDir}/sign.sec" ];
       settings.priority = 30; # ahead of cache.nixos.org (40)
     };
-    networking.firewall.extraCommands = lib.concatMapStrings (ip: ''
-      iptables -A nixos-fw -p tcp -s ${ip} --dport 5000 -j nixos-fw-accept
-    '') clients;
+    networking.firewall.extraCommands = ''
+      iptables -A nixos-fw -p tcp -s 10.10.0.0/16 --dport 5000 -j nixos-fw-accept
+    '';
   })
 
   (lib.mkIf (!isOps && builtins.pathExists pub) {
