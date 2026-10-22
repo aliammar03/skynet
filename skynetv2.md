@@ -36,7 +36,7 @@
 proxmox-core (12 cpu, 31 GB)                     proxmox-network (8 cpu, 15 GB)
 ├ ops          VM 9091  10.10.90.91   NixOS      ├ OPNsense     VM 5001          (Ali-managed)
 │   Claude Code · Discord · Remote Control       ├ Omada        CT 525           (unchanged)
-├ docker-dmz   VM 10016 10.10.100.16  NixOS      ├ technitium   CT 750 .70.50    (secondary)
+├ docker-dmz   VM 10010 10.10.100.10  NixOS      ├ technitium   CT 750 .70.50    (secondary)
 │   doco-cd(dmz) · caddy-apps .35 · cloudflared .33 · apps
 ├ technitium   CT 751 10.10.70.51 (primary)      └ docker-admin VM 5040 10.10.50.40 NixOS
 ├ PBS CT 240 · Unraid VM 2020 · HAOS VM 3050         doco-cd(admin) · caddy-admin 10.10.60.60
@@ -552,8 +552,8 @@ Done in a maintenance window. Rollback = stop caddy-admin, start CT 635.
 
 ## P3 — docker-dmz: apps + public path `[outline]`
 
-**What: the host.** New VM 10016:
-- 10.10.100.16 on the core node; NixOS with `docker-host.nix`;
+**What: the host.** New VM 10010:
+- 10.10.100.10 on the core node; NixOS with `docker-host.nix`;
 - target `dmz` (`.doco-cd.dmz.yml`);
 - NIC `dmz` on VLAN 100, carrying the host IP and the macvlan.
 
@@ -652,7 +652,7 @@ take days. restic's pack files keep the file count low.
 
 **What: the operate lane**
 - doco-cd MCP: `control_project` (restart/start/stop) and `trigger_scheduled_job`.
-- Proxmox `skynet@pve!operate`: a custom role with `VM.PowerMgmt` on pool `skynet` (5040, 10016).
+- Proxmox `skynet@pve!operate`: a custom role with `VM.PowerMgmt` on pool `skynet` (5040, 10010).
 - SSH as `svc-ops` on the Docker hosts, with Nix-declared sudo for `systemctl restart docker` and
   `journalctl`.
 - Time-boxed SSH-CA root grants for deep work (the CA stays on Ali's workstation).
