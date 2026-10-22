@@ -15,6 +15,7 @@ in
     inputs.disko.nixosModules.disko
     inputs.sops-nix.nixosModules.sops
     inputs.comin.nixosModules.comin
+    ./nix-cache.nix
   ];
 
   nix.settings = {
