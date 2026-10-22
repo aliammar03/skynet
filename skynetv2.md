@@ -188,7 +188,7 @@ accounts.
 
 - **age key:** `age-keygen -o ~/.config/sops/age/keys.txt`. Private key → survival kit (paper +
   password manager). Give the agent the **public** key.
-- **SSH key:** the workstation SSH **public** key, for user `ali`.
+- **SSH key:** the workstation SSH **public** key, for user `aliammar`.
 - **Discord:**
   - a private server with channels `#skynet` and `#alerts`;
   - Developer Portal app "Skynet": bot token, **Message Content Intent** on, invited with View
@@ -213,7 +213,7 @@ accounts.
 | 8 | agent | From 9090 (same VLAN): `nix run github:nix-community/nixos-anywhere -- --flake .#ops --target-host root@10.10.90.91 --generate-hardware-config nixos-generate-config hosts/ops/hardware.nix`. PR with `hardware.nix`. |
 | 9 | agent | `ssh-keyscan -t ed25519 10.10.90.91 \| ssh-to-age` → add recipient `ops` to `.sops.yaml` (PR). |
 | 10 | Ali | On the workstation, `sops secrets/ops.yaml` with `discord_bot_token` and `github_token` (the aliammar-skynet PAT). Merge. comin applies it and the agent units start. |
-| 11 | Ali | `ssh ali@10.10.90.91` → `sudo -iu skynet` → `tmux -L skynet attach`. Then: `/login` (Claude subscription), trust `~/skynet`, accept Remote Control, `/plugin install discord@claude-plugins-official`. DM the bot → `/discord:access pair <code>` → `/discord:access policy allowlist`. Run `claude remote-control` once interactively to accept its prompt. |
+| 11 | Ali | `ssh aliammar@10.10.90.91` → `sudo -iu skynet` → `tmux -L skynet attach`. Then: `/login` (Claude subscription), trust `~/skynet`, accept Remote Control, `/plugin install discord@claude-plugins-official`. DM the bot → `/discord:access pair <code>` → `/discord:access policy allowlist`. Run `claude remote-control` once interactively to accept its prompt. |
 | 12 | both | Check the exit criteria. |
 | 13 | Ali | OPNsense: **add** 10.10.90.91 to alias `HOST_SKYNET_OPS`; .90 stays until P1 exit. |
 
@@ -228,7 +228,7 @@ accounts.
 **`modules/base.nix`** (every host)
 - flakes, GC + optimise; `time.timeZone = "Asia/Karachi"`; systemd-boot.
 - networkd; sshd with keys only and no root login.
-- user `ali` (wheel, his key, passwordless sudo); qemu-guest-agent; firewall on with 22 open;
+- user `aliammar` (wheel, his key, passwordless sudo); qemu-guest-agent; firewall on with 22 open;
   journald kept 2 weeks.
 - sops-nix with `sops.age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ]`.
 - comin:
@@ -344,7 +344,7 @@ Access: `skynet@pve!read` on each node and OPNsense `skynet-read` (ledger), in `
   1. agent: `nix build .#installer-docker-admin` on ops. That's a NixOS ISO with the static IP on the
      MAC-matched NIC, sshd on, and only the agent's key (`hosts/ops/agent.pub`) for root.
   2. Ali, from the workstation:
-     `scp -3 ali@10.10.90.91:<iso path> root@10.10.50.10:/var/lib/vz/template/iso/nixos-installer-docker-admin.iso`,
+     `scp -3 aliammar@10.10.90.91:<iso path> root@10.10.50.10:/var/lib/vz/template/iso/nixos-installer-docker-admin.iso`,
      then runs `proxmox.sh` on the node.
   3. agent: `hardware.nix` from the running installer
      (`nixos-generate-config --no-filesystems --show-hardware-config`) goes into the host PR, so CI

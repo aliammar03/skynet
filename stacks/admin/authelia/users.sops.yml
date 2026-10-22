@@ -1,10 +1,10 @@
 users:
-    ali:
-        displayname: ENC[AES256_GCM,data:1XBu,iv:4A5sxKh3Lk8YBaFwDJPRNufmyB4l7l8zzI580SmjFzA=,tag:SEhIj1axXm4Hku3PjJi3gQ==,type:str]
-        email: ENC[AES256_GCM,data:QfoQJhPw9Uyp1eHa6I3n7AgoFlw=,iv:3EJm5wK+90rV/hYUAD92Arm6LYFtIaAI+oDNlftx40s=,tag:uppwSOzvdn+s6lkqhjRbHA==,type:str]
-        password: ENC[AES256_GCM,data:yATvkB3jtEU8hTvf2NSSO2zzmk0lWdR69pY2ve/OXR8H0dYYVnjV1i8ztwj/eUJPI0HGlR9l7Ejhzv/FMYicP+9DT9SsHEieUw4Z122hsYnRnzs55mfUe7lGhX3u6gPezA==,iv:TehdhXMUG4T5cQya1z5kxVw9Ju1zSQaJpv7DPLhc2Vg=,tag:G1RWnoc5ig8+78T/S1qeew==,type:str]
+    aliammar:
+        displayname: ENC[AES256_GCM,data:qS+0,iv:ScUbezgyYCPHurZT15QC5zHouv5hy2PvcE9B5ikXcKE=,tag:IgviHsKZ7KWwwD2o1IKNcQ==,type:str]
+        email: ENC[AES256_GCM,data:s9pXNoL4qr0h/D40tToSYt7r0RA=,iv:nkFqxW9mVp1UFwA0HlNuhiZyAwOnoAUUhY3GQlAvXbo=,tag:hHE0/TfTv2Ftoi/7QfN+0w==,type:str]
+        password: ENC[AES256_GCM,data:gTqWrkar4ega499kd3e4qvcTvmYEVswv/YJYsRmwUueL+Is9AlU6XTSMCxwUa2T5QaHsevFCGT/mSbtz6gRBsCEuHbNkrGTFgDeObxJLbPYpZYMvlrcaepERTNZvvph2MA==,iv:wwLwxKXYz8yKnfLN/s9QEPdd3nHB/v2tI9hcttt1/Oo=,tag:9294A2PDHa8iDGVoUzjC6g==,type:str]
         groups:
-            - ENC[AES256_GCM,data:wcIUWIa6,iv:YuEnKjOMODA1ohOrXRITVXPFR6J3jON8hsCBBVJRWhY=,tag:Vg1xHUZjbcJOOzg0i2RmyA==,type:str]
+            - ENC[AES256_GCM,data:MbsyZfQG,iv:j0M1b2O5eHZcWnkz1bm32Qg2h0KwQe7j/byLocR3wic=,tag:omR3rwDC121oMHyOcoWfuA==,type:str]
 sops:
     age:
         - enc: |
@@ -25,7 +25,7 @@ sops:
             SlxW8fJQr8ZaBuT/tjMRjBOs5xYsT6JAXd/c4aGC12dzjziVV0Rcuw==
             -----END AGE ENCRYPTED FILE-----
           recipient: age17tyjetvkv48rf2sacrpdtledjqvc4x3dvrwjrmx6sdl06cwdzpzq35fzzf
-    lastmodified: "2026-10-22T12:45:52Z"
-    mac: ENC[AES256_GCM,data:Lb61P4r02LNhJeGCJKYTwK74OlNovq/sWB4RZFfq886u6tY8vnm9poP4q0V7AacOO7QaqCSqCQWREi/dwoCxGJGtYUrlHr/1Ci3QQEWkBN7AyPRoFB72t8fXUOhmVUMyGlSckEJ+hbqukwJSB+YFO+4rnHfPuv50xGJhpBTYQWQ=,iv:QSFZcRbfIy7dL3wyfIMlq+XMeRGCwhvTw4bp9zjEga0=,tag:T3/ippE4G6JcrUit9CAftg==,type:str]
+    lastmodified: "2026-10-22T16:05:30Z"
+    mac: ENC[AES256_GCM,data:KW8VuX+c+SFmXLueiDuhUQAhyG1RZujA1HRPKqbIa84koIbSZg8lhBsn69riewh7CKhMuJ80yPoG536uogVEr38a1QZSpVXLqNmSW7IPjAOlvPcNuUvF2aiPGBqoslKQpVLMeYbRxWy9/BwcGGdtD+cNHlAASVfyb7LXMtYFd98=,iv:dMXc2gUXCyFDysiDYosg0RXdx7tM/79tU5iQwAAk1cQ=,tag:jWMc1KHukPuKQpYEO+bRoA==,type:str]
     unencrypted_suffix: _unencrypted
     version: 3.13.3
