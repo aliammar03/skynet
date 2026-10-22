@@ -7,7 +7,7 @@
   ...
 }:
 let
-  aliKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMY3q277EOHizg5Ji/WUU7WvUi4X/ezbRPebk65lQVBJ aliammar@RK-W";
+  aliammarKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMY3q277EOHizg5Ji/WUU7WvUi4X/ezbRPebk65lQVBJ aliammar@RK-W";
   hostSecrets = ../secrets + "/${config.networking.hostName}.yaml";
   # Key names in a sops file are plaintext, so evaluation can tell which secrets a host has.
   hasSecret =
@@ -38,7 +38,7 @@ in
     ];
     trusted-users = [
       "root"
-      "ali"
+      "aliammar"
     ];
     auto-optimise-store = true;
   };
@@ -75,10 +75,10 @@ in
   };
 
   users.mutableUsers = false;
-  users.users.ali = {
+  users.users.aliammar = {
     isNormalUser = true;
     extraGroups = [ "wheel" ];
-    openssh.authorizedKeys.keys = [ aliKey ];
+    openssh.authorizedKeys.keys = [ aliammarKey ];
   };
   security.sudo.wheelNeedsPassword = false;
   # The agent's diagnose lane on the other hosts: from ops only, no shell features (`restrict`), reads
