@@ -22,7 +22,7 @@
 | Phase | Title | State |
 |---|---|---|
 | P0 | Foundations + new ops VM | in progress — steps 1–12 done |
-| P1 | docker-admin: admin door, identity, status | in progress — installer booted; host config |
+| P1 | docker-admin: admin door, identity, status | in progress — docker-admin installed; secrets + doco-cd |
 | P2 | DNS (Technitium only) + remote access | outline |
 | P3 | docker-dmz: apps + public path | outline |
 | P4 | Backups → Google Drive | outline |
@@ -349,7 +349,7 @@ Access: `skynet@pve!read` on each node and OPNsense `skynet-read` (ledger), in `
   3. agent: `hardware.nix` from the running installer
      (`nixos-generate-config --no-filesystems --show-hardware-config`) goes into the host PR, so CI
      evaluates the real host. After merge: `nixos-anywhere --flake .#docker-admin --target-host
-     root@10.10.50.40` from `main`, then recipient `docker-admin` and its secrets as in P0 steps 9–10.
+     root@10.10.50.40 --no-substitute-on-destination` from `main` (the whole closure goes over the LAN from ops), then recipient `docker-admin` and its secrets as in P0 steps 9–10.
 - **networkd:** NICs renamed by MAC.
   - `lan`: 10.10.50.40/24, gateway .1, DNS .51/.50.
   - `adm60`: up, no address.

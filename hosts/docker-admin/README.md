@@ -7,7 +7,7 @@ VMID 5040 · 10.10.50.40 · server-proxmox-network · 2 vCPU / 4 GB / 32 GB.
   50 is vmbr0's native VLAN on this node; `adm60` = net1, tag 60, no host IP (caddy-admin's macvlan
   parent).
 - **Install:** `nix build .#installer-docker-admin` on ops → copy the ISO to the node's `local:iso`
-  as `nixos-installer-docker-admin.iso` → `proxmox.sh` → `nixos-anywhere --flake .#docker-admin --target-host root@10.10.50.40` from ops. The ISO comes up
+  as `nixos-installer-docker-admin.iso` → `proxmox.sh` → `nixos-anywhere --flake .#docker-admin --target-host root@10.10.50.40 --no-substitute-on-destination` from ops (closure copied over the LAN). The ISO comes up
   on 10.10.50.40 with only the agent's key for root; the installed system doesn't trust that key.
 - **Docker:** `modules/docker-host.nix`, with journald logs and a weekly prune. The `docker-networks`
   unit creates `edge` (bridge) and `adm60` (macvlan on NIC `adm60`, 10.10.60.0/24); stacks only join them.
