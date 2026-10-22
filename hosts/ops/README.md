@@ -16,8 +16,8 @@ Claude app. VMID 9091 · 10.10.90.91 · VLAN 90 · server-proxmox-core · 4 vCPU
   PVEAuditor on `/`, one per standalone node) and `opnsense_read_key` / `opnsense_read_secret`
   (user `skynet-read`, config writes denied). sops-nix renders them into files under
   `/run/secrets/rendered/` (owner `skynet`, 0400) that curl reads itself:
-  - `curl -sk -H @/run/secrets/rendered/pve-core.header https://10.10.50.10:8006/api2/json/…`
-    (`pve-network.header` → `10.10.50.11`);
+  - `curl -sk -H @/run/secrets/rendered/pve-core.header https://10.10.50.11:8006/api2/json/…`
+    (`pve-network.header` → `10.10.50.10`);
   - `curl -sk --netrc-file /run/secrets/rendered/opnsense.netrc https://10.10.50.1/api/…`.
 
   `-k` because both use self-signed certs; caddy-admin pins them in P1.
