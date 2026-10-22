@@ -39,7 +39,7 @@ proxmox-core (12 cpu, 31 GB)                     proxmox-network (8 cpu, 15 GB)
 ├ docker-dmz   VM 10016 10.10.100.16  NixOS      ├ technitium   CT 750 .70.50    (secondary)
 │   doco-cd(dmz) · caddy-apps .35 · cloudflared .33 · apps
 ├ technitium   CT 751 10.10.70.51 (primary)      └ docker-admin VM 5040 10.10.50.40 NixOS
-├ PBS CT 240 · Unraid VM 2020 · HAOS VM 3050         doco-cd(admin) · caddy-admin 10.10.60.35
+├ PBS CT 240 · Unraid VM 2020 · HAOS VM 3050         doco-cd(admin) · caddy-admin 10.10.60.60
 └ athena CT 10030 (own repo, untouched)              Authelia · Gatus · (P5) VictoriaMetrics/Logs · Grafana
 ```
 
@@ -330,8 +330,8 @@ Access: `skynet@pve!read` on each node and OPNsense `skynet-read` (ledger), in `
 - **RAM:** the network node has about 5 GB free, so start docker-admin at 4 GB.
 - **DNS:** list the A records already pointing at 10.10.60.35 (v1 vanity names) and confirm each
   admin upstream IP/port in the sites table.
-- **Firewall:** list the v1 OPNsense rules that use 10.10.60.35. caddy-admin reuses that IP, so they
-  carry over; record them in its README.
+- **Firewall:** list the v1 OPNsense rules that use 10.10.60.35 (`HOST_PROXY_ADMIN`). caddy-admin
+  joins that alias at 10.10.60.60, so it gets the same rules.
 
 ### Host: `hosts/docker-admin/` + `modules/docker-host.nix`
 
@@ -404,14 +404,14 @@ timeout: 300
 ### Stacks (`stacks/admin/`)
 
 **`caddy-admin`**
-- **Container:** image `ghcr.io/caddybuilds/caddy-cloudflare`; on `adm60` at 10.10.60.35 and on
-  `edge`; `--watch`.
+- **Container:** image `ghcr.io/caddybuilds/caddy-cloudflare`; on `adm60` (`gw_priority: 1`) and on
+  `edge`; `--watch`. At 10.10.60.60, beside v1's 10.10.60.35, so both run until DNS moves.
 - **Reload, not recreate:** label `cd.doco.deployment.recreate.ignore: "{bindMounts: [/etc/caddy]}"`,
   so route edits apply without recreating the container.
-- **Files:** `Caddyfile`, `sites/<name>.conf`, `certs/` (appliance certs, public), `secret.sops.env`
-  (`CLOUDFLARE_API_TOKEN`).
+- **Files:** `conf/` (mounted at `/etc/caddy`, no secrets): `Caddyfile`, `sites/<name>.conf`, `certs/`
+  (upstream certs, public). Beside it: `secret.sops.env` (`CLOUDFLARE_API_TOKEN`).
 - **Caddyfile:**
-  - global: `email`, `acme_dns cloudflare {env.CLOUDFLARE_API_TOKEN}`, `servers { protocols h1 h2 }`;
+  - global (no `email`: Let's Encrypt no longer sends expiry mail): `acme_dns cloudflare {env.CLOUDFLARE_API_TOKEN}`, `servers { protocols h1 h2 }`;
   - snippet: `(authelia) { forward_auth authelia:9091 { uri /api/authz/forward-auth; copy_headers Remote-User Remote-Groups Remote-Email Remote-Name } }`;
   - site: `*.aliammar.net { import /etc/caddy/sites/*.conf; handle { respond 404 } }`.
 
@@ -461,24 +461,24 @@ If an appliance cert can't be pinned, use `tls_insecure_skip_verify` and note it
 | opnsense | https://10.10.50.1 | `tls_server_name OPNsense.internal` + trust its cert (`tls_trust_pool file`). In OPNsense, System → Settings → Administration → **Alternate Hostnames** must include `opnsense.aliammar.net` |
 | proxmox-core / proxmox-network | https://10.10.50.11:8006 / .10:8006 | trust each node's `pve-root-ca.pem` |
 | pbs | https://10.10.20.40:8007 | trust its self-signed cert |
-| technitium | http://10.10.70.51:5380 | |
-| omada | https://10.10.50.25:8043 | `header_up Host {upstream_hostport}`; test login and redirects |
-| unraid | 10.10.20.20 | |
+| technitium-core / technitium-network | http://10.10.70.51:5380 / .50:5380 | CT 751 / CT 750 |
+| omada | https://10.10.50.25:8043 | pin its self-signed cert, `tls_server_name Omada` |
+| unraid | http://10.10.20.20 | `header_down Location ^http:// https://` (it redirects to absolute http URLs) |
 | auth | authelia:9091 | portal; moves to the apps door in P3 |
 | status | gatus:8080 | |
 
 ### DNS, firewall, agent wiring
 
-**DNS** (Ali, in the Technitium UI until P2): add any missing A records → 10.10.60.35
-(`auth`, `status`, …).
+**DNS** (Ali, in the Technitium UI until P2): at cutover, point every admin name → 10.10.60.60 and add
+the missing ones (`auth`, `status`, …).
 
 **Firewall** (agent drafts the exact rules, Ali applies them in OPNsense):
 - `HOST_DOCKER_ADMIN` 10.10.50.40 → internet :443 (GitHub, registries, Cloudflare API, Discord,
   healthchecks.io, Nix caches); → Technitium :53; → NTP.
 - `HOST_DOCKER_ADMIN` → the monitored targets on the ports above, plus ICMP.
 - `HOST_SKYNET_OPS` → `HOST_DOCKER_ADMIN` :8080 and :22.
-- 10.10.60.35 inherits the v1 Management Caddy rules. Verify Cloudflare API :443 is among them,
-  because DNS-01 needs it.
+- 10.10.60.60 joins `HOST_PROXY_ADMIN` (alias of the v1 Management Caddy rules 210, 230, 830). Cloudflare
+  API :443 is covered by 810 (`NET_WEB_EGRESS` includes 10.10.60.0/24), which DNS-01 needs.
 
 **Agent wiring** (diagnose lane only):
 - SSH: user `skynet` on every host but ops (`base.nix`). Agent key from ops only, `restrict`, group
@@ -496,8 +496,8 @@ Done in a maintenance window. Rollback = stop caddy-admin, start CT 635.
 
 1. Merge every P1 stack except caddy-admin's macvlan IP. Authelia, Gatus and heartbeat should go green.
 2. Set OPNsense Alternate Hostnames.
-3. `pct shutdown 635` and set `onboot 0`. Merge caddy-admin with 10.10.60.35. Test every site by name
-   from an admin client.
+3. Point the admin names → 10.10.60.60 in Technitium. Test every site by name from an admin client.
+   `pct shutdown 635`, set `onboot 0`, and remove 10.10.60.35 from `HOST_PROXY_ADMIN`.
 4. Ali enrolls in Authelia:
    - put an argon2 hash (`authelia crypto hash generate argon2`) into `users.sops.yml` via `sops`;
    - log in and register a passkey (the code is in `/opt/appdata/authelia/notification.txt`);
@@ -526,7 +526,7 @@ Done in a maintenance window. Rollback = stop caddy-admin, start CT 635.
 - Technitium is the only resolver.
   - 751 is primary for `aliammar.net`; 750 is secondary (zone transfer + NOTIFY).
   - A wildcard `*.aliammar.net` A → 10.10.100.35 (apps door, live in P3). Explicit admin names →
-    10.10.60.35.
+    10.10.60.60.
   - Records are kept in git and applied via the Technitium API or UI. **Decide here** which method
     round-trips cleanly (zone file import vs API script).
   - Ad-blocking via Technitium block lists. Server settings are Ali-applied and documented in
