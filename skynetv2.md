@@ -962,7 +962,7 @@ in a drill.
 | comin → Discord post-deploy hook | ~10 lines |
 | `modules/dns.nix` + `modules/technitium-sync.sh` (settings + zone via the Technitium API, gratuitous ARP) | ~145 lines |
 | CI: flake check + `docker compose config` per stack + "every stack has a README and a Gatus row" check | ~60 lines |
-| `runbooks/dns-speed-test/dnsbench.py` (run by hand; nothing deploys it) | ~200 lines |
+| `runbooks/dns-speed-test/dnsbench.py` (run by hand; nothing deploys it) | ~450 lines |
 | alert webhook → `claude -p` (P6) | ~40 lines |
 | doco-cd MCP filter proxy (P6, optional) | ~40 lines |
 

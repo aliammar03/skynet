@@ -3,9 +3,12 @@
 #   recursion          a local Unbound on 127.0.0.1:5353 vs OpenDNS/Google
 #   log CSV [--until HH:MM | --minutes N] [--recursion]   one round a minute
 #   cdnlog CSV [--minutes N] [--every M]   every M min: which CDN server each resolver points to
-#   report CSV         p50/p90/p99, raced pairs, hourly p50; for a cdnlog CSV, the CDN servers
+#   ytlog CSV [--minutes N] [--every M]    the same for YouTube, against many more resolvers
+#   report CSV         p50/p90/p99, raced pairs, hourly p50; for a cdnlog CSV, the CDN servers; for a
+#                      ytlog CSV, every resolver and every pair and triple of them, raced
 # Prints where a resolver answered from, never the lab's public IP (some debug answers contain it).
-import csv, collections, datetime, ipaddress, json, random, socket, statistics, string, struct, sys, time
+import csv, collections, concurrent.futures, datetime, ipaddress, itertools, json, random, re, socket, ssl
+import statistics, string, struct, sys, time, urllib.request
 import httpx
 
 RESOLVERS = {  # name: (plain-DNS IP, DoH URL)
@@ -210,7 +213,75 @@ def cdnlog(path, minutes=360, every=2):
                               f"{'fail' if dns_ms is None else f'{dns_ms:.1f}'}\n")
             time.sleep(max(0, every * 60 - (time.time() - start)))
 
-RACES = [("OpenDNS", "Google"), ("OpenDNS", "Google", "Quad9"), ("Quad9-ECS", "Google"), ("OpenDNS", "Quad9"),
+# YouTube. The video servers (rrN---sn-….googlevideo.com) are named in the watch page, picked by the
+# client's IP, and every resolver returns the same IP for them. DNS picks the servers for the rest: the
+# page and its API, thumbnails, avatars, static files. A provider's second address can land elsewhere.
+YT_RESOLVERS = {
+    "OpenDNS": "208.67.222.222", "OpenDNS-2": "208.67.220.220", "Google": "8.8.8.8", "Google-2": "8.8.4.4",
+    "Quad9": "9.9.9.9", "Quad9-2": "149.112.112.112", "Quad9-ECS": "9.9.9.11", "Cloudflare": "1.1.1.1",
+    "Cloudflare-2": "1.0.0.1", "AdGuard": "94.140.14.140", "ControlD": "76.76.2.0", "NextDNS": "45.90.28.0",
+    "DNS.SB": "185.222.222.222", "Level3": "4.2.2.2", "Comodo": "8.26.56.26", "HE": "74.82.42.42",
+    "UltraDNS": "64.6.64.6",
+    "Technitium": "10.10.70.50",   # what the lab's clients get today (from its cache); not raced
+}
+YT = ["www.youtube.com", "m.youtube.com", "music.youtube.com", "youtubei.googleapis.com", "i.ytimg.com",
+      "i9.ytimg.com", "yt3.ggpht.com", "yt3.googleusercontent.com", "www.gstatic.com", "fonts.gstatic.com",
+      "jnn-pa.googleapis.com", "play.google.com", "manifest.googlevideo.com"]
+YT_FALLBACK = ["redirector.googlevideo.com"]   # used only when a video server fails
+OTHER = [n for n in CDN if n not in YT + YT_FALLBACK]   # the P2 set: Facebook, Netflix, Microsoft, Apple, AWS, Akamai
+YT_FETCH = {"www.youtube.com": "/generate_204", "youtubei.googleapis.com": "/generate_204",
+            "i.ytimg.com": "/vi/jNQXAC9IVRw/hqdefault.jpg"}   # one request on a new HTTPS connection
+TLS = ssl.create_default_context()
+
+def video_hosts(n=3):
+    req = urllib.request.Request("https://www.youtube.com/watch?v=jNQXAC9IVRw", headers={
+        "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"})
+    page = urllib.request.urlopen(req, timeout=15).read().decode(errors="replace").replace("%2F", "/")
+    return [h for h, _ in collections.Counter(re.findall(r"rr\d+---sn-[a-z0-9-]+?\.googlevideo\.com", page)).most_common(n)]
+
+def fetch_ms(name, ip):   # TCP + TLS + one request, as a page's first request to a server
+    try:
+        t, data = time.perf_counter(), b""
+        with socket.create_connection((ip, 443), timeout=5) as s, TLS.wrap_socket(s, server_hostname=name) as c:
+            c.sendall(f"GET {YT_FETCH[name]} HTTP/1.1\r\nHost: {name}\r\nUser-Agent: Mozilla/5.0\r\nConnection: close\r\n\r\n".encode())
+            try:
+                while b := c.recv(65536): data += b
+            except ssl.SSLError: pass          # closed without close_notify
+        return (time.perf_counter() - t) * 1000 if data.startswith(b"HTTP/1.1 2") else None
+    except Exception: return None
+
+def ytlog(path, minutes=360, every=2):
+    """Every `every` minutes, each name goes to every resolver at once (a race needs the same moment).
+    Rows: q,ts,resolver,name,dns_ms,first A · c,ts,ip,connect_ms · h,ts,name,ip,fetch_ms"""
+    resolvers = {k: ip for k, ip in YT_RESOLVERS.items() if reachable(Udp(ip))}
+    for k in YT_RESOLVERS.keys() - resolvers.keys(): print(f"skipping {k}: unreachable (firewall? see README)")
+    pool = concurrent.futures.ThreadPoolExecutor(32)
+    end = datetime.datetime.now() + datetime.timedelta(minutes=minutes)
+    print(f"YouTube log to {path} every {every} min until {end:%Y-%m-%d %H:%M}", flush=True)
+    with open(path, "a", buffering=1) as out:
+        out.write(f"# run {int(time.time())}\n")
+        videos, found = [], 0
+        while datetime.datetime.now() < end:
+            start = int(time.time())
+            if start - found >= 3600:              # the video servers can change; look again hourly
+                try: videos, found = video_hosts(), start; out.write(f"# video {' '.join(videos)}\n")
+                except Exception as e: print(f"video servers: {e}", flush=True)
+            ips = collections.defaultdict(set)
+            for n in YT + YT_FALLBACK + videos + OTHER:
+                futs = {k: pool.submit(Udp(ip, 53, 2), query(n)) for k, ip in resolvers.items()}
+                for k, f in futs.items():
+                    try: ms, resp = f.result(); a = a_records(resp) if rcode_ok(resp) else None
+                    except Exception: a = None
+                    out.write(f"q,{start},{k},{n},{'fail' if a is None else f'{ms:.1f}'},{a[0] if a else '-'}\n")
+                    if a: ips[a[0]].add(n)
+            for ip, ms in zip(ips, pool.map(connect_ms, ips)):
+                out.write(f"c,{start},{ip},{'fail' if ms is None else f'{ms:.1f}'}\n")
+            jobs = [(n, ip) for ip, ns in ips.items() for n in ns & YT_FETCH.keys()]
+            for (n, ip), ms in zip(jobs, pool.map(lambda j: fetch_ms(*j), jobs)):
+                out.write(f"h,{start},{n},{ip},{'fail' if ms is None else f'{ms:.1f}'}\n")
+            time.sleep(max(0, every * 60 - (time.time() - start)))
+
+RACES =[("OpenDNS", "Google"), ("OpenDNS", "Google", "Quad9"), ("Quad9-ECS", "Google"), ("OpenDNS", "Quad9"),
          ("Quad9", "Google"), ("OpenDNS", "Quad9-ECS"), ("OpenDNS", "Google", "Quad9-ECS")]
 
 def cdn_report(rows, rounds=()):
@@ -244,7 +315,85 @@ def cdn_report(rows, rounds=()):
     for n in CDN:
         print(f"{n:28}" + "".join(f"{(f'{statistics.median(cell[(n, r, p)]):.0f}' if cell.get((n, r, p)) else '-'):>14}" for r, p in cols))
 
+def yt_report(path):
+    """Every resolver alone, and every pair and triple raced: the fastest answer wins, and its server is
+    the one the lab gets (Technitium's concurrent forwarding, concurrency = the number of forwarders)."""
+    Q, C, H, video = collections.defaultdict(dict), collections.defaultdict(dict), collections.defaultdict(dict), set()
+    num = lambda v: None if v == "fail" else float(v)
+    for row in csv.reader(open(path)):
+        if not row: continue
+        if row[0].startswith("# video"): video.update(row[0].split()[2:])
+        elif row[0] == "q": Q[int(row[1])][row[2], row[3]] = (num(row[4]), None if row[5] == "-" else row[5])
+        elif row[0] == "c": C[int(row[1])][row[2]] = num(row[3])
+        elif row[0] == "h": H[int(row[1])][row[2], row[3]] = num(row[4])
+    rounds = sorted(Q)
+    everyone = sorted({k for r in Q.values() for k, _ in r})
+    cands = [k for k in everyone if k != "Technitium"]
+
+    def stats(group, names, rs=rounds):
+        dns, per, wins, fails, fetch = [], collections.defaultdict(list), collections.Counter(), 0, collections.defaultdict(list)
+        for ts in rs:
+            q = Q[ts]
+            for n in names:
+                got = [(q[k, n][0], k) for k in group if q.get((k, n), (None,))[0] is not None]
+                if not got: fails += 1; continue
+                d, k = min(got); ip = q[k, n][1]; dns.append(d); wins[k] += 1
+                if ip and C[ts].get(ip) is not None: per[n].append(C[ts][ip])
+                if ip and H[ts].get((n, ip)) is not None: fetch[n].append(H[ts][n, ip])
+        return {"mean": statistics.mean(statistics.median(v) for v in per.values()) if per else 9999, "dns": dns,
+                "srv": [x for v in per.values() for x in v], "fails": fails, "wins": wins, "fetch": fetch, "per": per}
+
+    P = lambda xs, q: pct(xs, q) if xs else 9999
+    share = lambda xs, f: f"{100 * sum(map(f, xs)) / len(xs):4.0f}%" if xs else "    -"
+    med = lambda xs: f"{statistics.median(xs):6.0f}" if xs else "     -"
+    yt = {}
+    def ys(g):                               # a group's stats over the YouTube names, computed once
+        if g not in yt: yt[g] = stats(g, YT)
+        return yt[g]
+    rank = lambda g: (round(ys(g)["mean"]), P(ys(g)["dns"], .5))
+    def show(group):
+        s, o = ys(group), stats(group, OTHER)
+        w = " ".join(f"{k} {100 * c / sum(s['wins'].values()):.0f}%" for k, c in s["wins"].most_common(2)) if len(group) > 1 else ""
+        print(f"{' + '.join(group):40} {P(s['dns'], .5):4.0f} {P(s['dns'], .9):4.0f} {100 * s['fails'] / max(1, len(s['dns']) + s['fails']):4.1f}%"
+              f" {s['mean']:5.0f} {P(s['srv'], .9):4.0f} {share(s['srv'], lambda x: x < 10)} {share(s['srv'], lambda x: x > 100)}"
+              f" {med(s['fetch'].get('www.youtube.com'))} {med(s['fetch'].get('i.ytimg.com'))}  | {o['mean']:4.0f}"
+              f" {share(o['srv'], lambda x: x < 10)} {share(o['srv'], lambda x: x > 100)}  {w}", flush=True)
+    head = (f"{'':40} {'answer ms':>9} {'':5} {'YouTube servers, ms':>24} {'page':>6} {'thumb':>6}  | {'other CDNs':>16}\n"
+            f"{'':40} {'p50':>4} {'p90':>4} {'fail':>5} {'mean':>5} {'p90':>4} {'in-ISP':>5} {'far':>5} {'fetch':>6} {'fetch':>6}"
+            f"  | {'mean':>4} {'in-ISP':>5} {'far':>5}  wins")
+    print(f"{len(rounds)} rounds, {len(YT)} YouTube names (servers picked by DNS) + {len(OTHER)} other CDN names (the P2 set).\n"
+          "Server: TCP connect ms; mean = the mean over names of each name's median; in-ISP < 10 ms, far > 100 ms.\n"
+          "Fetch: a new HTTPS connection + one request (page = www.youtube.com/generate_204, thumb = a thumbnail).\n")
+    print("Each resolver alone, best first (Technitium = what the lab's clients get today):\n" + head)
+    singles = sorted(((k,) for k in everyone), key=rank)
+    for g in singles: show(g)
+    every = lambda g: min(ys(g)["wins"][k] for k in g) >= .02 * sum(ys(g)["wins"].values())   # no passengers
+    combos = sorted((c for r in (2, 3) for c in itertools.combinations(cands, r) if every(c)), key=rank)
+    print(f"\nRaced, the best 15 of {len(combos)} pairs and triples whose every member wins 2%+ (and today's pair):\n" + head)
+    for g in combos[:15] + [g for g in [("Google", "OpenDNS")] if g not in combos[:15]]: show(g)
+
+    top = [g[0] for g in singles if g[0] != "Technitium"][:8] + ["Technitium"]
+    print("\nPer name, median server ms:\n" + f"{'':36}" + "".join(f"{k[:11]:>12}" for k in top))
+    for n in YT + YT_FALLBACK + OTHER:
+        print(f"{n:36}" + "".join(med(stats([k], [n])["per"].get(n)).rjust(12) for k in top))
+    ips = lambda ts, n: {Q[ts][k, n][1] for k in everyone if Q[ts].get((k, n), (None, None))[1]}
+    seen = [(ts, n) for ts in rounds for n in video if ips(ts, n)]
+    if seen:
+        vrtt = [C[ts][ip] for ts, n in seen for ip in ips(ts, n) if C[ts].get(ip) is not None]
+        print(f"\nVideo servers ({len(video)} names): one IP from every resolver in "
+              f"{100 * sum(len(ips(ts, n)) == 1 for ts, n in seen) / len(seen):.0f}% of lookups; connect median "
+              f"{statistics.median(vrtt) if vrtt else 0:.0f} ms")
+
+    pick = [("Google", "OpenDNS"), combos[0]] + [(k,) for k in top[:3]]
+    hours = list(dict.fromkeys(datetime.datetime.fromtimestamp(ts).hour for ts in rounds))
+    print("\nHourly, YouTube server mean / answer p50:\nhour " + "".join(f"{' + '.join(c)[:32]:>34}" for c in pick))
+    for h in hours:
+        rs = [ts for ts in rounds if datetime.datetime.fromtimestamp(ts).hour == h]
+        print(f"{h:02d}   " + "".join((lambda s: f"{s['mean']:.0f} / {P(s['dns'], .5):.0f}")(stats(c, YT, rs)).rjust(34) for c in pick))
+
 def report(path):
+    first = next((r for r in csv.reader(open(path)) if r and not r[0].startswith("#")), [""])
+    if first[0] == "q": return yt_report(path)
     # A round starts whenever the run's first row type comes round again. "# run" lines start a run;
     # each run's first round is dropped (it includes connection setup).
     runs, cur = [], None
@@ -293,5 +442,8 @@ if __name__ == "__main__":
     elif a[:1] == ["cdnlog"] and len(a) > 1:
         opt = lambda f, d: int(a[a.index(f) + 1]) if f in a else d
         cdnlog(a[1], opt("--minutes", 360), opt("--every", 2))
+    elif a[:1] == ["ytlog"] and len(a) > 1:
+        opt = lambda f, d: int(a[a.index(f) + 1]) if f in a else d
+        ytlog(a[1], opt("--minutes", 360), opt("--every", 2))
     elif a[:1] == ["report"] and len(a) > 1: report(a[1])
-    else: sys.exit(__doc__ or "usage: dnsbench.py quick | recursion | log CSV [--until HH:MM|--minutes N] [--recursion] | cdnlog CSV [--minutes N] [--every M] | report CSV")
+    else: sys.exit(__doc__ or "usage: dnsbench.py quick | recursion | log CSV [--until HH:MM|--minutes N] [--recursion] | cdnlog CSV [--minutes N] [--every M] | ytlog CSV [--minutes N] [--every M] | report CSV")
