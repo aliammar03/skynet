@@ -1,49 +1,39 @@
 # One row per thing. `service`: each admin UI directly. `door`: caddy-admin + its wildcard cert +
 # Authelia, which every admin site shares, so one check covers the door for all of them. `job`: a
 # scheduled job's healthchecks.io state (its container is stopped between runs, so Docker can't say).
+# `dns`: one suite per Technitium server (below), so a server is one row with its checks as steps.
 x-service: &service
   group: service
   interval: 60s
   conditions: ["[CONNECTED] == true"]
   alerts: [{ type: discord }]
-x-dns: &dns
-  group: dns
-  interval: 60s
-  dns:
-    query-name: auth.aliammar.net
-    query-type: A
-  conditions:
-    - "[DNS_RCODE] == NOERROR"
-    - "[BODY] == 10.10.60.60"
+
+# Suite steps. Each alerts on its own (Gatus has no suite-level alerts), and an alert names only the
+# step, so step names carry the server. `always-run`: a failed step doesn't skip the others.
+x-step: &step
+  always-run: true
   alerts: [{ type: discord }]
-# Forwarding works: a public name resolves.
-x-dns-forward: &dns-forward
-  group: dns
-  interval: 60s
-  dns:
-    query-name: google.com
-    query-type: A
-  conditions: ["[DNS_RCODE] == NOERROR"]
-  alerts: [{ type: discord }]
+x-ui: &ui
+  <<: *step
+  conditions: ["[CONNECTED] == true"]
+x-zone: &zone # the zone answers from git
+  <<: *step
+  dns: { query-name: auth.aliammar.net, query-type: A }
+  conditions: ["[DNS_RCODE] == NOERROR", "[BODY] == 10.10.60.60"]
 # A type a name lacks is "no record" (NOERROR), never NXDOMAIN: musl and resolved would then treat
 # the whole name as missing.
-x-dns-aaaa: &dns-aaaa
-  group: dns
-  interval: 60s
-  dns:
-    query-name: auth.aliammar.net
-    query-type: AAAA
+x-aaaa: &aaaa
+  <<: *step
+  dns: { query-name: auth.aliammar.net, query-type: AAAA }
   conditions: ["[DNS_RCODE] == NOERROR"]
-  alerts: [{ type: discord }]
-# Blocking works: googlesyndication.com is on HaGeZi Pro.
-x-dns-block: &dns-block
-  group: dns
-  interval: 60s
-  dns:
-    query-name: googlesyndication.com
-    query-type: A
+x-forwarding: &forwarding # a public name resolves
+  <<: *step
+  dns: { query-name: google.com, query-type: A }
+  conditions: ["[DNS_RCODE] == NOERROR"]
+x-blocking: &blocking # googlesyndication.com is on HaGeZi Pro
+  <<: *step
+  dns: { query-name: googlesyndication.com, query-type: A }
   conditions: ["[DNS_RCODE] == NXDOMAIN"]
-  alerts: [{ type: discord }]
 
 endpoints:
   - name: caddy-admin + authelia
@@ -60,18 +50,7 @@ endpoints:
   - { <<: *service, name: proxmox-network, url: tcp://10.10.50.10:8006 }
   - { <<: *service, name: pbs, url: tcp://10.10.20.40:8007 }
   - { <<: *service, name: omada, url: tcp://10.10.50.25:8043 }
-  - { <<: *service, name: technitium-core, url: tcp://10.10.70.51:5380 }
-  - { <<: *service, name: technitium-network, url: tcp://10.10.70.50:5380 }
   - { <<: *service, name: unraid, url: tcp://10.10.20.20:80 }
-
-  - { <<: *dns, name: technitium-network, url: 10.10.70.50 }
-  - { <<: *dns-forward, name: technitium-network forwarding, url: 10.10.70.50 }
-  - { <<: *dns-block, name: technitium-network blocking, url: 10.10.70.50 }
-  - { <<: *dns-aaaa, name: technitium-network AAAA, url: 10.10.70.50 }
-  - { <<: *dns, name: technitium-core, url: 10.10.70.51 }
-  - { <<: *dns-forward, name: technitium-core forwarding, url: 10.10.70.51 }
-  - { <<: *dns-block, name: technitium-core blocking, url: 10.10.70.51 }
-  - { <<: *dns-aaaa, name: technitium-core AAAA, url: 10.10.70.51 }
 
   # healthchecks.io's read-only badge for check `docker-admin` (2-state: up, or down once period +
   # grace pass with no ping). No alert: healthchecks.io already posts to #alerts.
@@ -82,3 +61,23 @@ endpoints:
     conditions:
       - "[STATUS] == 200"
       - "[BODY].status == up"
+
+suites:
+  - name: technitium-network
+    group: dns
+    interval: 60s
+    endpoints:
+      - { <<: *ui, name: technitium-network ui, url: tcp://10.10.70.50:5380 }
+      - { <<: *zone, name: technitium-network zone, url: 10.10.70.50 }
+      - { <<: *aaaa, name: technitium-network AAAA, url: 10.10.70.50 }
+      - { <<: *forwarding, name: technitium-network forwarding, url: 10.10.70.50 }
+      - { <<: *blocking, name: technitium-network blocking, url: 10.10.70.50 }
+  - name: technitium-core
+    group: dns
+    interval: 60s
+    endpoints:
+      - { <<: *ui, name: technitium-core ui, url: tcp://10.10.70.51:5380 }
+      - { <<: *zone, name: technitium-core zone, url: 10.10.70.51 }
+      - { <<: *aaaa, name: technitium-core AAAA, url: 10.10.70.51 }
+      - { <<: *forwarding, name: technitium-core forwarding, url: 10.10.70.51 }
+      - { <<: *blocking, name: technitium-core blocking, url: 10.10.70.51 }
