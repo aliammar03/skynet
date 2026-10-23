@@ -23,7 +23,7 @@
 |---|---|---|
 | P0 | Foundations + new ops VM | done |
 | P1 | docker-admin: admin door, identity, status | done (2026-10-22); 7 admin names move to .60 with P2's Technitium |
-| P2 | DNS (Technitium only) + remote access | outline |
+| P2 | DNS (Technitium only) + remote access | detailed — not started |
 | P3 | docker-dmz: apps + public path | outline |
 | P4 | Backups → Google Drive | outline |
 | P5 | Observability (agent eyes) | outline |
@@ -36,9 +36,9 @@
 proxmox-core (12 cpu, 31 GB)                     proxmox-network (8 cpu, 15 GB)
 ├ ops          VM 9091  10.10.90.91   NixOS      ├ OPNsense     VM 5001          (Ali-managed)
 │   Claude Code · Discord · Remote Control       ├ Omada        CT 525           (unchanged)
-├ docker-dmz   VM 10010 10.10.100.10  NixOS      ├ technitium   CT 750 .70.50    (primary)
+├ docker-dmz   VM 10010 10.10.100.10  NixOS      ├ technitium-network VM 7050 10.10.70.50 NixOS
 │   doco-cd(dmz) · caddy-apps .35 · cloudflared .33 · apps
-├ technitium   CT 751 10.10.70.51 (secondary)    └ docker-admin VM 5040 10.10.50.40 NixOS
+├ technitium-core VM 7051 10.10.70.51 NixOS      └ docker-admin VM 5040 10.10.50.40 NixOS
 ├ PBS CT 240 · Unraid VM 2020 · HAOS VM 3050         doco-cd(admin) · caddy-admin 10.10.60.60
 └ athena CT 10030 (own repo, untouched)              Authelia · Gatus · (P5) VictoriaMetrics/Logs · Grafana
 ```
@@ -60,15 +60,16 @@ Nothing outside the lab pushes into it.
 | D2 | Hosts = **NixOS** flake, each host kept current by **comin** (pull) | A host rebuilds from git; no central push credential |
 | D3 | Repo **public**; lab **pulls**; CI = static checks on free GitHub runners | GitHub Free only offers rulesets and CODEOWNERS on public repos; nothing inbound |
 | D4 | **Authelia**, with an auth mode per app: `own` / `oidc` / `forward` | Config lives in git; ~50 MB; OIDC + forward-auth + passkeys |
-| D5 | **Technitium** is the only DNS (750 primary, 751 secondary) and does ad-blocking; AdGuard retired | One product; a wildcard record means no per-app DNS work |
+| D5 | **Technitium** is the only DNS: two equal NixOS VMs (technitium-network .50, technitium-core .51), each loading the zone and its settings from `dns/` in git. Ad-blocking with HaGeZi Pro; forwarding over plain UDP to OpenDNS + Google, raced; AdGuard retired | One product; records and settings are reviewed in PRs and a rebuilt VM comes back complete; from PTCL those two are the fastest resolvers that also hand out the in-ISP CDN caches (P2 benchmark) |
 | D6 | Two Docker hosts: **docker-dmz** (apps, core node), **docker-admin** (admin, identity, monitoring; network node) | Segmentation; monitoring survives losing the core node |
 | D7 | Agent = **Claude Code** on the ops VM; chat via **Discord** (Channels) + the Claude app (Remote Control) | Telegram is blocked; no custom UI to build |
 | D8 | All alerts go to Discord `#alerts` (doco-cd via Apprise, Gatus, healthchecks.io, comin hook) | One place to look |
 | D9 | Offsite = **Google Drive** via rclone with Ali's own OAuth client, **published to production** | Drive is what Ali has; "Testing" mode tokens expire every 7 days |
-| D10 | No OpenTofu. VMs come from versioned `hosts/<h>/proxmox.sh`; DNS records as decided in P2; the Cloudflare wildcard CNAME is set once by hand | Guests change rarely |
-| D11 | The agent never merges, never holds a private age key, never gets a Docker socket | GitHub and missing credentials enforce the leash |
+| D10 | No OpenTofu. VMs come from versioned `hosts/<h>/proxmox.sh`; internal DNS records live in `dns/aliammar.net.zone`; the Cloudflare wildcard CNAME is set once by hand | Guests change rarely |
+| D11 | The agent never merges, never holds a private age key, never gets a Docker socket. While it installs a host it is root on the installer, which holds the new host key that `--copy-host-keys` keeps (`runbooks/new-vm.md`); it reads only the public half | GitHub and missing credentials enforce the leash. The install window was already root-equivalent (the agent installs the OS), and it buys a one-PR install |
 | D13 | `aliammar-skynet` has **Write**. The `main` ruleset requires a PR and check `nix` and blocks force-push/deletion; no review is required (Ali's call, 2026-10-21) | Branches in one repo, no approval clicks. "Never merge" is a **soft wall**: AGENTS.md + Claude Code deny rules |
 | D12 | v1 archived; fresh repo; new ops VM built alongside the old one, which is then retired | Clean start without a blind spot |
+| D14 | Remote access = **Tailscale**, with `os-tailscale` on OPNsense as the subnet router and split DNS for `aliammar.net`; replaces the WireGuard plan | Nothing inbound to open; it keeps working when docker-admin or a node is down, so it can reach what needs fixing |
 
 ## Rules
 
@@ -94,12 +95,13 @@ skynet/
 ├ AGENTS.md  CLAUDE.md (@AGENTS.md)  README.md  skynetv2.md
 ├ flake.nix  flake.lock
 ├ modules/            base.nix (all hosts) · agent.nix (ops) · docker-host.nix (docker-*)
-├ hosts/<host>/       default.nix · disk.nix · hardware.nix · proxmox.sh · README.md
+├ hosts/<host>/       default.nix · net.nix · disk.nix · hardware.nix · proxmox.sh · ssh_host.pub · README.md
 ├ secrets/<host>.yaml host-level secrets (sops-nix)
+├ dns/                aliammar.net.zone · settings.json (Technitium, P2)
 ├ .doco-cd.admin.yml  .doco-cd.dmz.yml
 ├ stacks/admin/<stack>/      (P1+)
 ├ stacks/dmz/<app>/          (P3+)
-├ runbooks/                  (P6)
+├ runbooks/                  new-vm · new-stack · dns-speed-test (P2); more in P6
 ├ .claude/settings.json  .mcp.json  .sops.yaml  renovate.json  .gitignore
 └ .github/workflows/check.yml  .github/CODEOWNERS
 ```
@@ -112,8 +114,6 @@ skynet/
 |---|---|---|
 | `compose.yaml` | always | `container_name: <name>` (not compose's `<project>-<service>-1`); images pinned `tag@sha256:…`; a healthcheck; `restart: unless-stopped`; network `edge` (doors also join their macvlan) |
 | `secret.sops.env` | has secrets | dotenv, sops-encrypted for that host only; used via `env_file` |
-| `caddy.conf` | routed | `@x host x.aliammar.net` + `handle @x { [import authelia] reverse_proxy <container>:<port> }` |
-| `gatus.yaml` | routed | an `endpoints:` list for this app only |
 | `README.md` | always | purpose · URL · auth mode · data paths + backup class · secret key *names* · upstream link · gotchas |
 
 **Routing**
@@ -121,15 +121,19 @@ skynet/
   catch-all `404`.
 - The wildcard cert comes via Cloudflare DNS-01, so individual names never appear in certificate
   transparency logs.
-- A door mounts each `caddy.conf` and `gatus.yaml` as a **single-file bind mount, never the folder**.
-  doco-cd writes decrypted secrets into that folder.
+- A routed app's site file lives in its door: `conf/sites/<name>.conf` (`@x host x.aliammar.net` +
+  `handle @x { [import authelia] reverse_proxy <container>:<port> }`); the door reloads it in place.
+- Every app gets a row in Gatus's `config/admin.yaml` (Gatus runs on docker-admin and checks every
+  host). Route, row and stack land in one PR (`runbooks/new-stack.md`).
+- No container mounts a stack folder itself, because doco-cd writes decrypted secrets into it.
+  Mount single files, or subfolders without `*.sops.*` files.
 
 **Auth modes**
 - **`own`** (default): a plain proxy; the app has its own login.
 - **`oidc`:** the client goes in `stacks/admin/authelia/oidc-clients.yml`. That single file holds
   the whole list, because Authelia replaces a repeated key rather than appending to it. The app's
   secret lives in its `secret.sops.env`.
-- **`forward`:** add `import authelia` to the app's `caddy.conf`.
+- **`forward`:** add `import authelia` to the app's site file.
 
 **Data**
 - Bind mounts go at `/opt/appdata/<app>/<role>`. Named volumes are only for DB engines.
@@ -165,6 +169,8 @@ skynet/
 | caddy-admin / caddy-apps | Cloudflare token `Zone.DNS:Edit` on `aliammar.net` | DNS-01 | P1 / P3 |
 | doco-cd API keys | REST/MCP per Docker host | held by ops (diagnose tools only until P6) | P1 / P3 |
 | `#alerts` webhook | post only | Gatus, Apprise, comin, healthchecks.io | P1 |
+| technitium-network / technitium-core host keys | `secrets/technitium-<node>.yaml`: Technitium `admin` password (agent-generated) | that host | P2 |
+| Tailscale | Ali's account; OPNsense holds the node key | subnet routes 10.10.50.0/24, 10.10.60.60, 10.10.70.50–51 | P2 |
 | docker-dmz host key, tunnel credentials | `stacks/dmz/**`, cloudflared | that host | P3 |
 | rclone | Drive scope, Ali's own OAuth client | backup jobs | P4 |
 | `skynet@pve` tokens | `read` = PVEAuditor on `/`, one per node (the nodes aren't clustered); `operate` = VM.PowerMgmt on pool `skynet` | Proxmox | P1 / P6 |
@@ -453,7 +459,7 @@ timeout: 300
     `up`. A job's container is stopped between runs, so this row is how the page shows it.
   - doco-cd isn't checked here (its API answers only to ops); heartbeat is a doco-cd job, so a
     dead doco-cd pages via healthchecks.io.
-- From P3, one single-file mount per app `gatus.yaml`.
+- P3's apps get their rows here too.
 
 **`heartbeat`**
 - A `curlimages/curl` doco-cd scheduled job (`cd.doco.job.enabled: "true"`, `notify_on: failure`,
@@ -538,36 +544,194 @@ Done in a maintenance window. Rollback = stop caddy-admin, start CT 635.
 
 ---
 
-## P2 — DNS + remote access `[outline]`
+## P2 — DNS + remote access `[detailed]`
 
-**What**
-- Technitium is the only resolver, as a **new greenfield deployment** (replacing CTs 750/751; its
-  layout is decided when this phase is fleshed out).
-  - Its zone carries every admin name → 10.10.60.60. Seven still point at the stopped CT 635 until
-    then (P1 Cutover step 3).
-  - Today: 750 (network, .50) is primary for `aliammar.net`; 751 (core, .51) is secondary (zone transfer + NOTIFY).
-  - A wildcard `*.aliammar.net` A → 10.10.100.35 (apps door, live in P3). Explicit admin names →
-    10.10.60.60.
-  - Records are kept in git and applied via the Technitium API or UI. **Decide here** which method
-    round-trips cleanly (zone file import vs API script).
-  - Ad-blocking via Technitium block lists. Server settings are Ali-applied and documented in
-    `hosts/technitium/README.md`.
-- OPNsense:
-  - DHCP hands out .51/.50 on every VLAN;
-  - `ROLE_DNS_RESOLVERS` drops AdGuard; the "block other DNS" rules stay.
-- Retire AdGuard CTs 730/731.
-- WireGuard road-warrior on OPNsense (if not already set up), using Technitium for DNS and admin-client
-  rights.
+**Goal**
+- Two Technitium VMs that rebuild from git: technitium-network (10.10.70.50, network node) and
+  technitium-core (10.10.70.51, core node). Every record and setting comes from `dns/`.
+- Ads blocked (HaGeZi Pro); lookups forwarded over plain UDP to OpenDNS + Google, raced.
+- All ten admin names → 10.10.60.60. Clients can't bypass Technitium. AdGuard and the old CTs are off.
+- From anywhere, via Tailscale: `*.aliammar.net` resolves (split DNS) and the management network
+  answers by IP.
 
-**Why:** one DNS product; the wildcard ends per-app DNS work; remote admin without exposing anything.
+**Why now:** P3's apps and wildcard need a DNS that git controls. Small blast radius: one server at a
+time, the other keeps answering, and the old CT comes back with `pct start`.
 
-**Exit**
-- Every VLAN resolves via Technitium, and ads are blocked.
-- A phone on WireGuard opens `opnsense.aliammar.net`.
-- Every admin name resolves to 10.10.60.60 and loads behind Authelia.
-- AdGuard is stopped.
+### Prechecks (agent, read-only)
 
-**Open:** the record-management method; the secondary's sync settings.
+Done 2026-10-23:
+- VMIDs 7050/7051 are free on both nodes; build IPs 10.10.70.52/.53 are unused (ping, OPNsense ARP).
+- RAM: the network node has 2.0 GB free with Authentik stopped; the core node 6.8 GB.
+- The old CTs sit on `vmbr0` tag 70 on both nodes.
+- Public `aliammar.net` (Cloudflare) holds only its NS records, so the internal zone shadows nothing.
+- Resolvers, measured from ops over PTCL (Storm is failover only):
+  - answers (p50): Cloudflare ~120 ms at first, then 23–26 ms an hour later; OpenDNS 43 ms (Dubai),
+    Quad9 45 ms (Dubai), Google 46–60 ms (Doha); DoH costs 1–3 ms over plain UDP once connected;
+  - CDN servers handed out: Google and OpenDNS reach Akamai's in-ISP caches (4 ms) and normal
+    YouTube/Facebook edges (~44 ms); Quad9 misses the in-ISP caches; Cloudflare sends YouTube video
+    to ~260 ms servers;
+  - recursion (Unbound from ops) gets the same CDN servers as Google/OpenDNS but is 3–7× slower
+    on names not yet cached (new site p50 295 ms vs OpenDNS 44 ms);
+  - overnight per-minute log, 00:41–09:00 (498 rounds, no failures), p50 / p90 in ms:
+
+    | | Cached name, UDP | Uncached name, first ask¹ | DoH, first query after a quiet minute |
+    |---|---|---|---|
+    | OpenDNS + Google, raced | **44 / 148** | **77 / 160** | 172 / 281 |
+    | OpenDNS | 46 / 170 | 136 / 261 | 172 / 286 |
+    | Google | 56 / 152 | 150 / 253 | 289 / 427 |
+    | Quad9 | 45 / 49 | 161 / 280 | 140 / 272 |
+    | Cloudflare | 25 / 29 | 115 / 154 | 105 / 373 |
+    | Quad9 + Cloudflare, raced | 25 / 29 | 106 / 150 | – |
+    | Recursion | – | 237 / 509 | – |
+
+    ¹ The log asked each round's random name over DoH first (on a connection the cached lookup had
+    just warmed), then over UDP. The UDP repeat was usually a cache hit, so only the first ask counts.
+    A burst test at 10:00 (fresh names per resolver, UDP) agrees: OpenDNS 63, Cloudflare 110, Google
+    148, Quad9 155 ms p50. `dnsbench.py` now uses a fresh name per resolver.
+
+    Steady across the night (no evening-peak data yet). DoH loses 100–230 ms whenever its connection
+    went idle, because the providers close it within a minute. Technitium would pay that on the first
+    lookup after every quiet spell. Plain UDP has no connection to lose, and no interception showed up
+    on it. Cloudflare answers cached names fastest, but OpenDNS + Google raced is quicker on uncached
+    ones and hands out the better CDN servers (above). So: **plain UDP to OpenDNS + Google, raced**.
+    A longer run, evenings included, comes later (`runbooks/dns-speed-test/`).
+
+- The old zone (Ali's export, 2026-10-23) is a **Forwarder** zone (`FWD "this-server"`): it answers
+  its own records and resolves everything else publicly, including the apex SOA/NS. Caddy's DNS-01
+  checks rely on that, so the new zone keeps the model.
+- DHCP already hands out the Technitium IPs.
+- Settings are greenfield: nothing is carried over from the old servers.
+
+### Hosts: `hosts/technitium-network/`, `hosts/technitium-core/` + `modules/dns.nix`
+
+- **`proxmox.sh`:** VM 7050 on server-proxmox-network and VM 7051 on server-proxmox-core: 2 cores,
+  1024 MB, balloon 0, 16 GB `local-lvm`, `net0` on `vmbr0` **tag 70**, MACs pinned
+  `BC:24:11:70:50:01` / `BC:24:11:70:51:01` (each host's `net.nix`).
+- **Install:** `runbooks/new-vm.md`, for the pair in one build PR (below), at the **build IPs**
+  10.10.70.52 (technitium-network) and .53 (technitium-core), beside the old CTs. The PR carries the
+  hardware and host keys read from the running installers, the recipients and the secrets;
+  nixos-anywhere's `--copy-host-keys` keeps those keys.
+- **Network:** `lan` renamed by MAC. The host resolves via 127.0.0.1, then the other server.
+  `services.resolved` is off (its stub would hold :53). A oneshot sends gratuitous ARP once the
+  address is up, so OPNsense learns the new MAC immediately when a VM takes over .50/.51.
+- **Technitium** (`services.technitium-dns-server`, 15.6 in nixpkgs 26.05):
+  - its admin password is set on its very first start only. The VM installs with its secrets (the
+    runbook's single PR), so that start already has it. If the credential can't be loaded, the unit
+    doesn't start, so it never runs with `admin`/`admin`;
+  - ports 53 TCP/UDP and 5380 (web + API) open in the host firewall; OPNsense decides who reaches
+    them;
+  - first start creates `admin` with the password from sops (`DNS_SERVER_ADMIN_PASSWORD_FILE`,
+    passed as a systemd credential because the unit uses `DynamicUser`), and `DNS_SERVER_DOMAIN` =
+    the host's name;
+  - logs go to the console, so to journald (the agent reads them over SSH).
+- **`technitium-sync`** (oneshot, after Technitium; re-runs when `dns/` changes, and at boot):
+  1. log in as `admin`;
+  2. apply `dns/settings.json` (Set DNS Settings);
+  3. create `aliammar.net` as a Forwarder zone (`this-server`) if it's missing;
+  4. import `dns/aliammar.net.zone` with `overwriteZone=true`, so the zone is exactly the file. The
+     file is in Technitium's export format, SOA and FWD lines included, so forwarding survives the
+     overwrite. The first build VM proves the round trip; if FWD won't import, the sync overwrites
+     per record and deletes names missing from the file instead.
+
+  Idempotent. A failure fails the unit, so the deploy fails and comin posts to `#alerts`.
+- **`secrets/technitium-<node>.yaml`:** `technitium_admin_password` (agent-generated, random, one per host)
+  and `discord_alerts_webhook` (Ali copies the `#alerts` URL, so comin posts failures). Ali reads the
+  password with sops to open the UI; settings or records changed in the UI are overwritten on the
+  next sync.
+
+### `dns/` — records and settings in git
+
+- **`aliammar.net.zone`** (Technitium's export format, TTL 300): SOA, the FWD `this-server` line,
+  and the admin names `opnsense`, `proxmox-core`, `proxmox-network`, `pbs`, `omada`,
+  `technitium-core`, `technitium-network`, `unraid`, `auth`, `status` → 10.10.60.60. Left out of the
+  old zone: `arcane` and `caddy` (no site behind them; Arcane retires in P3) and the app names →
+  10.10.100.35 (their door and the wildcard arrive in P3). No wildcard until P3.
+- **`settings.json`:** Technitium's defaults (cache saved across restarts, prefetch, two forwarders
+  raced, NXDOMAIN for blocked names) plus, for speed:
+  - `serveStaleMaxWaitTime` 0: an expired name is answered from cache at once and refreshed in the
+    background, so anything seen in the last 3 days (`serveStaleTtl`) answers in ~1 ms;
+  - `cacheMaximumEntries` 100 000 (default 10 000);
+  - `dnssecValidation` off: no extra key lookups on misses. Google validates upstream, but over
+    plain UDP nothing checks an answer on its way here; accepted for speed;
+  - `forwarderTimeout` 1000 ms, `forwarderRetries` 2;
+  - forwarders `208.67.222.222` (OpenDNS) and `8.8.8.8` (Google), protocol UDP, raced (the
+    overnight log);
+  - blocking with HaGeZi Pro
+    (`https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro-onlydomains.txt`,
+    HaGeZi's format for Technitium, ~207k domains), refreshed daily;
+  - recursion only for 10.10.0.0/16, 100.64.0.0/10 (Tailscale) and loopback;
+  - console logging, local time.
+- **A change** = edit + PR. Both servers apply it within ~2 min of the merge.
+- **`dns/README.md`:** adding a record, checking it (`dig @10.10.70.50 <name>`), and why the UI is
+  read-only in practice.
+
+### Gatus (`stacks/admin/gatus/config/admin.yaml`)
+
+The `dns` group gets per server: `auth` → 10.10.60.60 (exists); `google.com` NOERROR (forwarding
+works); `googlesyndication.com` NXDOMAIN (blocking works: it's on HaGeZi Pro, and the wildcard
+format covers its subdomains; the list holds only `doubleclick.net`'s subdomains, not the domain). The build IPs get the same rows until cutover.
+
+### OPNsense (agent drafts, Ali applies)
+
+While building (ops already reaches every Skynet VLAN on any port, rule 390):
+- `ROLE_DNS_RESOLVERS` += 10.10.70.52, .53 (so rule 100 lets clients test them);
+- `ROLE_NIX_CACHE_CLIENTS` += 10.10.70.50–.53.
+
+After cutover:
+- `ROLE_DNS_RESOLVERS` = .50, .51 only (AdGuard .30/.31 and the build IPs out);
+  `ROLE_NIX_CACHE_CLIENTS` drops .52/.53;
+- DHCP: check every VLAN lists both .50 and .51 (one of them alone means no failover); OPNsense's
+  own DNS servers are .50, .51;
+- rule 140 ("block other DNS and DoT") on; rule 150 ("any → approved upstreams :53") disabled, then
+  deleted after a quiet week. It lets any client skip Technitium. If P3's cloudflared needs public
+  resolvers, it gets its own rule;
+- rule 110 ("resolvers → any :53") stays: it carries the forwarding;
+- rule 115 (the benchmark's temporary ops → any :53) deleted: the overnight log ended 2026-10-23
+  09:00.
+
+### PRs and cutover
+
+- **Build PR:** `modules/dns.nix`, `dns/` (with its README), both hosts (`runbooks/new-vm.md`, as a
+  pair) and the Gatus rows for the build IPs. Merge, then install both. They answer at .52/.53 next
+  to the old CTs.
+- **Cutover PRs, one per server,** so the other keeps answering: `net.nix` → the final IP, that
+  server's Gatus rows and its README. The agent's known_hosts entry lists both IPs from the build PR
+  on, so it needs no change. Ali moves the server's `HOST_` alias in OPNsense.
+
+1. Both VMs green at the build IPs: every zone name answers right, blocking works, forwarders reach
+   out, Gatus rows green.
+2. **technitium-core → .51:** Ali `pct shutdown 751 && pct set 751 --onboot 0`, then merges
+   technitium-core's cutover PR. Check by name from ops and docker-admin; Gatus green.
+3. **technitium-network → .50:** the same with CT 750.
+4. The OPNsense changes above. AdGuard CT 731: `pct shutdown 731 && pct set 731 --onboot 0`
+   (730 is already off).
+5. CTs 750, 751, 730 and 731 stay stopped for 14 days, then P7 destroys them.
+
+Rollback for either server: stop its VM, `pct start` its CT (same IP). Nothing on the VMs needs a
+backup: cache, stats and logs are disposable, and everything else rebuilds from git.
+
+### Tailscale (agent drafts, Ali applies)
+
+1. Ali creates the Tailscale account and an auth key (one-off, pre-approved).
+2. OPNsense: install `os-tailscale`. VPN → Tailscale: enable, the auth key, advertise
+   `10.10.50.0/24, 10.10.60.60/32, 10.10.70.50/32, 10.10.70.51/32`, don't accept DNS.
+3. Tailscale admin: approve the OPNsense node's routes; disable its key expiry.
+4. Tailscale admin → DNS: nameservers 10.10.70.50 and .51, each restricted to `aliammar.net` (split
+   DNS). MagicDNS on; "override local DNS" off.
+5. OPNsense: assign and enable the Tailscale interface. Rules on it, from alias `NET_TAILNET`
+   (100.64.0.0/10): → `HOST_PROXY_ADMIN` :443; → `ROLE_DNS_RESOLVERS` :53; → 10.10.50.0/24 on
+   `PORT_ADMIN_BREAKGLASS`.
+6. Devices: install Tailscale and sign in (Linux: `tailscale up --accept-routes`).
+
+### Exit criteria
+
+- `dig @10.10.70.50` and `@10.10.70.51`: every admin name → 10.10.60.60, `googlesyndication.com` blocked,
+  the internet resolves. Gatus `dns` rows green.
+- Both VMs were configured only from git, and a merged record change shows on both within ~2 min.
+- Every VLAN's DHCP lists both .50 and .51; rule 140 on, rule 150 gone; AdGuard and CTs 750/751 off.
+- All ten admin names load behind Authelia.
+- On mobile data via Tailscale, a phone opens `https://opnsense.aliammar.net` and
+  `https://10.10.50.11:8006`.
 
 ## P3 — docker-dmz: apps + public path `[outline]`
 
@@ -579,7 +743,7 @@ Done in a maintenance window. Rollback = stop caddy-admin, start CT 635.
 **What: the doors.**
 - **`caddy-apps`:**
   - macvlan 10.10.100.35;
-  - a wildcard site importing each app's `caddy.conf` (single-file mounts);
+  - a wildcard site importing its `conf/sites/*.conf`, as caddy-admin does;
   - its `authelia` snippet points at 10.10.50.40:9091;
   - it serves `auth.aliammar.net`.
 - **`cloudflared`:**
@@ -708,7 +872,7 @@ are each fixed or PR'd, with no human step except merges.
 - Proxmox `svc-ops` tokens; the Technitium, Cloudflare and Authentik tokens.
 - OPNsense `svc-skynet-recon`; Omada viewer; the v1 GitHub PAT; v1 healthchecks; the v1 rclone client.
 
-**What: Ali destroys** 9090, 10015, 635, 837, 730, 731 and template 9000.
+**What: Ali destroys** 9090, 10015, 635, 837, 730, 731, 750, 751 and template 9000.
 
 **What: DR**
 - Final survival kit.
@@ -731,10 +895,10 @@ in a drill.
 |---|---|
 | Nodes | server-proxmox-core (12 cpu, 31 GB) · server-proxmox-network (8 cpu, 15 GB) · mgmt IPs 10.10.50.11 (core) / 10.10.50.10 (network) · storage `local` (ISO), `local-lvm` (disks), `pbs-unraid` |
 | VLANs | 10 Trusted · 20 Servers · 30 IoT · 50 Mgmt · 60 Admin access · 70 Net services · 80 Identity · 90 Ops · 100 DMZ · 300 ISP L2 passthrough (not routed). `10.10.<vlan>.0/24`, gateway `.1` |
-| Keep | OPNsense VM 5001 (config → `skynet-opnsense` via os-git-backup) · Omada CT 525 (10.10.50.25) · PBS CT 240 (10.10.20.40; starts after Unraid NFS) · Unraid VM 2020 · HAOS VM 3050 (10.10.30.50) · Technitium 751 (10.10.70.51) / 750 (10.10.70.50) · athena CT 10030 (10.10.100.30) |
-| Retire | ops VM 9090 (P1) · Management Caddy CT 635 (P1) · AdGuard 730/731 (P2) · docker-dmz VM 10015 + Arcane, Authentik CT 837 (P3) · template 9000 (P7) |
-| Domain | `aliammar.net`: public DNS at Cloudflare (tunnel CNAMEs); split-horizon internal zone in Technitium |
-| Gotchas | turn off ballooning on VMs · NixOS LXC serving :53 needs `services.resolved.enable = false` · recreating a guest on the same IP poisons OPNsense's ARP, so pin MACs · cloudflared needs public resolvers |
+| Keep | OPNsense VM 5001 (config → `skynet-opnsense` via os-git-backup) · Omada CT 525 (10.10.50.25) · PBS CT 240 (10.10.20.40; starts after Unraid NFS) · Unraid VM 2020 · HAOS VM 3050 (10.10.30.50) · athena CT 10030 (10.10.100.30) |
+| Retire | ops VM 9090 (P1) · Management Caddy CT 635 (P1) · AdGuard 730/731 and Technitium CTs 750/751 (P2) · docker-dmz VM 10015 + Arcane, Authentik CT 837 (P3) · template 9000 (P7) |
+| Domain | `aliammar.net`: public DNS at Cloudflare (tunnel CNAMEs); split-horizon internal zone in Technitium (`dns/aliammar.net.zone`) |
+| Gotchas | turn off ballooning on VMs · a NixOS host serving :53 needs `services.resolved.enable = false` (its stub holds :53) · recreating a guest on the same IP poisons OPNsense's ARP, so pin MACs · cloudflared needs public resolvers |
 
 ## Glue budget
 
@@ -745,7 +909,9 @@ in a drill.
 | `modules/nix-cache.nix` (ops serves its store on the LAN; harmonia) | ~60 lines |
 | `.doco-cd.{admin,dmz}.yml` | ~10 lines each |
 | comin → Discord post-deploy hook | ~10 lines |
-| CI: flake check + `docker compose config` per stack + "routed app has gatus.yaml/README" check | ~60 lines |
+| `modules/dns.nix` incl. `technitium-sync` (settings + zone via the Technitium API) | ~90 lines |
+| CI: flake check + `docker compose config` per stack + "every stack has a README and a Gatus row" check | ~60 lines |
+| `runbooks/dns-speed-test/dnsbench.py` (run by hand; nothing deploys it) | ~200 lines |
 | alert webhook → `claude -p` (P6) | ~40 lines |
 | doco-cd MCP filter proxy (P6, optional) | ~40 lines |
 

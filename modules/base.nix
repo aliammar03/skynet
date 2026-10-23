@@ -22,7 +22,7 @@ let
     $COMIN_ERROR_MSG"
     ${pkgs.jq}/bin/jq -n --arg c "$msg" '{content: $c[0:1900]}' |
       ${pkgs.curl}/bin/curl -fsS -m 10 -H 'Content-Type: application/json' -d @- \
-        "$(cat ${config.sops.secrets.discord_alerts_webhook.path or "/dev/null"})"
+        "$(cat ${config.sops.secrets.discord_alerts_webhook.path})"
   '';
 in
 {
@@ -108,10 +108,10 @@ in
     tmux
   ];
 
-  # Host secrets exist only after the host's age key is added to .sops.yaml (see skynetv2.md P0).
-  sops = lib.mkIf (builtins.pathExists hostSecrets) {
+  # Every host has secrets/<host>.yaml, with at least the #alerts webhook (runbooks/new-vm.md).
+  sops = {
     defaultSopsFile = hostSecrets;
-    secrets.discord_alerts_webhook = lib.mkIf (hasSecret "discord_alerts_webhook") { };
+    secrets.discord_alerts_webhook = { };
     age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
   };
 
@@ -125,12 +125,18 @@ in
         poller.period = 60;
       }
     ];
-    postDeploymentCommand = lib.mkIf (hasSecret "discord_alerts_webhook") cominNotify;
+    postDeploymentCommand = cominNotify;
   };
 
   # CI catches a secret the config uses but the host's sops file lacks; on the host that would fail
   # the switch.
-  assertions = lib.mapAttrsToList (name: s: {
+  assertions = [
+    {
+      assertion = builtins.pathExists hostSecrets;
+      message = "secrets/${config.networking.hostName}.yaml is missing: every host needs one, with discord_alerts_webhook.";
+    }
+  ]
+  ++ lib.mapAttrsToList (name: s: {
     assertion = s.sopsFile != hostSecrets || hasSecret s.key;
     message = "secrets/${config.networking.hostName}.yaml has no key `${s.key}`: add it with sops before merging.";
   }) config.sops.secrets;
