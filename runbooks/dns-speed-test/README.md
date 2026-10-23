@@ -33,8 +33,9 @@ Run it on ops as `skynet`. `quick` takes ~3 min; the log runs as long as you lea
   by the client's IP. They sit inside the ISP (2–4 ms), and every resolver returns the same IP for
   them, whichever Google front end served the page. DNS picks the servers for the rest: the page and
   its API, thumbnails, avatars, static files. A far front end made the watch page 5 s instead of 1 s.
-  `ytlog` races 17 public resolvers (a provider's second address can land at another site) and
-  Technitium (what clients get today), and `report` ranks every resolver, pair and triple.
+  `ytlog` covers 19 public resolvers, PTCL's own included (a provider's second address can land at
+  another site), and Technitium (what clients get today). `report` ranks every resolver, pair and
+  triple.
 - **One line:** everything follows the default gateway (PTCL); Storm is failover only.
 
 ## Firewall
@@ -63,7 +64,7 @@ nix shell nixpkgs#unbound -c unbound -d -c "$d/unbound.conf" & ub=$!
 # a long run: answer times (one round a minute) and CDN servers (every 2 min), then the reports
 "${PY[@]}" log /tmp/dns-latency.csv --minutes 360 &    # or --until 09:00; add --recursion while Unbound runs
 "${PY[@]}" cdnlog /tmp/dns-cdn.csv --minutes 360 &     # --every N to change the 2 min
-"${PY[@]}" ytlog /tmp/dns-yt.csv --minutes 360 &       # YouTube, 18 resolvers (needs rule 115)
+"${PY[@]}" ytlog /tmp/dns-yt.csv --minutes 360 &       # YouTube, 20 resolvers (needs rule 115)
 "${PY[@]}" report /tmp/dns-latency.csv
 "${PY[@]}" report /tmp/dns-cdn.csv
 "${PY[@]}" report /tmp/dns-yt.csv

@@ -222,6 +222,7 @@ YT_RESOLVERS = {
     "Cloudflare-2": "1.0.0.1", "AdGuard": "94.140.14.140", "ControlD": "76.76.2.0", "NextDNS": "45.90.28.0",
     "DNS.SB": "185.222.222.222", "Level3": "4.2.2.2", "Comodo": "8.26.56.26", "HE": "74.82.42.42",
     "UltraDNS": "64.6.64.6",
+    "PTCL": "39.39.39.39", "PTCL-2": "182.176.100.88",   # the ISP's own, as OPNsense receives them over PPPoE
     "Technitium": "10.10.70.50",   # what the lab's clients get today (from its cache); not raced
 }
 YT = ["www.youtube.com", "m.youtube.com", "music.youtube.com", "youtubei.googleapis.com", "i.ytimg.com",
