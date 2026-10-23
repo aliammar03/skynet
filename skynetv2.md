@@ -598,7 +598,7 @@ Done 2026-10-23:
 - **`proxmox.sh`:** VM 7050 on server-proxmox-network and VM 7051 on server-proxmox-core: 2 cores,
   1024 MB, balloon 0, 16 GB `local-lvm`, `net0` on `vmbr0` **tag 70**, MACs pinned
   `BC:24:11:70:50:01` / `BC:24:11:70:51:01` (each host's `net.nix`).
-- **Install:** `runbooks/new-vm.md`, done for both VMs in **one PR** (below), at the **build IPs**
+- **Install:** `runbooks/new-vm.md`, for the pair in one build PR (below), at the **build IPs**
   10.10.70.52 (dns-network) and .53 (dns-core), beside the old CTs. The PR carries the hardware and
   host keys read from the running installers, the recipients and the secrets; nixos-anywhere's
   `--copy-host-keys` keeps those keys.
@@ -682,24 +682,22 @@ After cutover:
 
 ### PRs and cutover
 
-P2 takes **two PRs**:
-- **Build PR:** `modules/dns.nix`, `dns/`, both hosts (the runbook's one-PR flow for each), the
-  Gatus rows for the build IPs and `dns/README.md`. Merge, then install both. They answer at .52/.53
-  next to the old CTs.
-- **Cutover PR:** both `net.nix` → 10.10.70.50/.51; Gatus rows back to .50/.51 only.
+- **Build PR:** `modules/dns.nix`, `dns/` (with its README), both hosts (`runbooks/new-vm.md`, as a
+  pair) and the Gatus rows for the build IPs. Merge, then install both. They answer at .52/.53 next
+  to the old CTs.
+- **Cutover PRs, one per server,** so the other keeps answering: `net.nix` → the final IP, and that
+  server's Gatus rows.
 
 1. Both VMs green at the build IPs: every zone name answers right, blocking works, forwarders reach
    out, Gatus rows green.
-2. At a quiet moment, Ali runs `pct shutdown 751 && pct set 751 --onboot 0` on core and the same for
-   750 on network, then merges the cutover PR. comin moves both VMs within ~1 min. That minute has
-   no DNS server at .50/.51 (clients' own caches carry most lookups), which is the price of one PR
-   instead of two.
-3. Check by name from ops and docker-admin; Gatus green.
+2. **dns-core → .51:** Ali `pct shutdown 751 && pct set 751 --onboot 0`, then merges dns-core's
+   cutover PR. Check by name from ops and docker-admin; Gatus green.
+3. **dns-network → .50:** the same with CT 750.
 4. The OPNsense changes above. AdGuard CT 731: `pct shutdown 731 && pct set 731 --onboot 0`
    (730 is already off).
 5. CTs 750, 751, 730 and 731 stay stopped for 14 days, then P7 destroys them.
 
-Rollback: stop the VMs, `pct start` the CTs (same IPs). Nothing on the VMs needs a
+Rollback for either server: stop its VM, `pct start` its CT (same IP). Nothing on the VMs needs a
 backup: cache, stats and logs are disposable, and everything else rebuilds from git.
 
 ### Tailscale (agent drafts, Ali applies)

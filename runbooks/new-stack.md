@@ -1,11 +1,26 @@
-# New stack on docker-admin: one PR
+# New stack on a Docker host: one PR
 
-**One PR holds everything:** the stack folder (sections 1–2 and 5–6), its route and DNS record (3)
-and its Gatus row (4). Ali adds his secret values on the branch before merging. doco-cd deploys
-every folder in `stacks/admin/` that has a `compose.yaml` (`.doco-cd.admin.yml`, depth 1) within
-about a minute of the merge. Removing the folder (another PR) removes the stack.
+Every host with `modules/docker-host.nix` runs doco-cd. It deploys each folder in `stacks/<target>/`
+that has a `compose.yaml` (`.doco-cd.<target>.yml`, depth 1) within about a minute of the merge.
+**One PR holds everything:** the stack folder (sections 1, 2, 5 and 6), its route and DNS record (3)
+and its Gatus row (4). Ali adds his secret values on the branch before merging. Removing the folder
+(another PR) removes the stack.
 
-## 1. `stacks/admin/<name>/compose.yaml`
+## Values per Docker host
+
+| | docker-admin |
+|---|---|
+| doco-cd target · stack folder | `admin` · `stacks/admin/` |
+| Door (Caddy) · IP | `caddy-admin` · 10.10.60.60 |
+| Door sites · pinned upstream certs | `stacks/admin/caddy-admin/conf/sites/` · `stacks/admin/caddy-admin/certs/` (`/etc/caddy-certs/`) |
+| Host (agent logs: `ssh skynet@<ip>`) | 10.10.50.40 |
+| doco-cd MCP server | `doco-admin` |
+
+A new Docker host adds its column (`runbooks/new-vm.md` → Docker host). `.sops.yaml` encrypts
+`stacks/<target>/**/*.sops.*` for Ali plus that host. Gatus runs on docker-admin and checks every
+host (`stacks/admin/gatus/config/admin.yaml`).
+
+## 1. `stacks/<target>/<name>/compose.yaml`
 
 ```yaml
 services:
@@ -32,19 +47,18 @@ networks:
 - Use the image's own healthcheck if it has one. An image with no shell can't run one: say so in a
   comment and cover it with Gatus.
 - Write `$$VAR` for a variable the container's shell reads at run time; `$VAR` is compose's.
-- No published ports. The door and Gatus reach the container by name on `edge`. Only doors join a
+- No published ports. The door reaches the container by name on `edge`. Only doors join the host's
   macvlan, and always with a fixed `ipv4_address`.
 
-## 2. Secrets: `secret.sops.env`
+## 2. Secrets: `stacks/<target>/<name>/secret.sops.env`
 
-`.sops.yaml` encrypts `stacks/admin/**/*.sops.*` for Ali and docker-admin. A changed value
-recreates the container on the next deploy.
+A changed value recreates the container on the next deploy.
 - Ali's values, on the PR's branch before the merge:
-  `nix shell nixpkgs#sops -c sops stacks/admin/<name>/secret.sops.env`, then commit and push.
+  `nix shell nixpkgs#sops -c sops stacks/<target>/<name>/secret.sops.env`, then commit and push.
 - Random values (agent), never shown:
-  `python3 -c 'import secrets; print("MY_SECRET=" + secrets.token_hex(32))' | sops encrypt --filename-override stacks/admin/<name>/secret.sops.env --input-type dotenv --output-type dotenv /dev/stdin > stacks/admin/<name>/secret.sops.env`
+  `python3 -c 'import secrets; print("MY_SECRET=" + secrets.token_hex(32))' | sops encrypt --filename-override stacks/<target>/<name>/secret.sops.env --input-type dotenv --output-type dotenv /dev/stdin > stacks/<target>/<name>/secret.sops.env`
 
-## 3. Route (if it has a UI): `stacks/admin/caddy-admin/conf/sites/<name>.conf`
+## 3. Route (if it has a UI): a site file in the host's door sites folder, `<name>.conf`
 
 ```
 @<name> host <name>.aliammar.net
@@ -54,24 +68,28 @@ handle @<name> {
 }
 ```
 
-- Caddy reloads it in place. A cert in `caddy-admin/certs/` restarts the container instead.
-- Leave out `import authelia` only for something that must be reachable without a login.
-- DNS: `<name>` A → 10.10.60.60, as a line in `dns/aliammar.net.zone` in the same PR. Until P2's
+- The door reloads it in place. A new pinned cert restarts the door instead.
+- Leave out `import authelia` (the door's forward-auth snippet) only for something that must be
+  reachable without a login.
+- DNS: `<name>` A → the door's IP, as a line in `dns/aliammar.net.zone` in the same PR. Until P2's
   servers are live, Ali adds it in the Technitium-network UI (http://10.10.70.50:5380) instead.
-- An upstream with a self-signed cert: pin it as `stacks/admin/caddy-admin/certs/<name>.pem` and
-  use `tls_trust_pool file /etc/caddy-certs/<name>.pem` (see `sites/pbs.conf`).
+- An upstream with a self-signed cert: pin it in the door's certs folder and use
+  `tls_trust_pool file /etc/caddy-certs/<name>.pem` (see caddy-admin's `sites/pbs.conf`).
 
-## 4. Monitoring
+## 4. Monitoring: a row in `stacks/admin/gatus/config/admin.yaml`
 
-Add a row to `stacks/admin/gatus/config/admin.yaml`. Gatus is on `edge`, so for example:
-`{ <<: *service, name: <name>, url: tcp://<name>:<port> }`, or an HTTP check on its health URL.
+- A stack on docker-admin: by container name, since Gatus is on the same `edge`
+  (`{ <<: *service, name: <name>, url: tcp://<name>:<port> }`, or HTTP on its health URL).
+- A stack on another host: through its door, `https://<name>.aliammar.net`. The `door` row there
+  shows how: it uses an `edge` alias on the door, so no DNS or firewall hairpin is involved.
 
 ## 5. A scheduled job instead of a service
 
 Labels `cd.doco.job.enabled: "true"`, `cd.doco.job.schedule: "@every 5m"` and
 `cd.doco.job.notify_on: failure`. No `restart` and no healthcheck, because doco-cd starts it on
 schedule. Add `.doco-cd.yml` with `reconciliation: false` in the folder: otherwise the stopped
-container counts as missing and is redeployed, with an `#alerts` post, every poll. See `heartbeat/`.
+container counts as missing and is redeployed, with an `#alerts` post, every poll. See
+`stacks/admin/heartbeat/`.
 
 ## 6. `README.md`
 
@@ -79,18 +97,18 @@ Purpose · URL · auth mode · data paths + backup class · secret key *names* �
 
 ## 7. Check before the PR (agent)
 
-- `nix run nixpkgs#docker-compose -- -f stacks/admin/<name>/compose.yaml config -q`. Run it in a
+- `nix run nixpkgs#docker-compose -- -f stacks/<target>/<name>/compose.yaml config -q`. Run it in a
   temp copy with an empty `secret.sops.env` if the real one isn't there yet.
-- A site change: `caddy adapt` on a temp copy of `caddy-admin/conf` with the paths rewritten and the
-  `acme_dns` line removed (`nix run nixpkgs#caddy -- adapt --config <copy>/Caddyfile`).
+- A site change: `caddy adapt` on a temp copy of the door's `conf/` with the paths rewritten and
+  the `acme_dns` line removed (`nix run nixpkgs#caddy -- adapt --config <copy>/Caddyfile`).
 
 ## 8. After the merge (agent)
 
-- `ssh skynet@10.10.50.40 'journalctl CONTAINER_NAME=doco-cd --since -10min -o cat'` shows
+- `ssh skynet@<host ip> 'journalctl CONTAINER_NAME=doco-cd --since -10min -o cat'` shows
   "deploying stack <name>", then "job completed successfully". Errors name the stack.
-- `ssh skynet@10.10.50.40 'journalctl CONTAINER_NAME=<name> -n 50 -o cat'`
-- `#alerts` gets "Deployment completed"; the Gatus row turns green; `doco-admin` MCP
-  `get_project <name>`.
+- `ssh skynet@<host ip> 'journalctl CONTAINER_NAME=<name> -n 50 -o cat'`
+- `#alerts` gets "Deployment completed", the Gatus row turns green, and the host's doco-cd MCP shows
+  it (`get_project`).
 
 ## Gotchas
 
