@@ -1,14 +1,14 @@
 # technitium-core
 
 DNS server: Technitium, configured only from `dns/` (skynetv2.md → P2, `dns/README.md`).
-VMID 7051 · 10.10.70.53, moving to .51 at its cutover · server-proxmox-core · 2 vCPU / 1 GB / 16 GB.
+VMID 7051 · 10.10.70.51 · server-proxmox-core · 2 vCPU / 1 GB / 16 GB.
 
 - **NIC** (MAC pinned in `proxmox.sh`, matched in `net.nix`): `lan` = net0, tag 70.
 - **Install / rebuild:** `runbooks/new-vm.md`: the installer ISO
   (`nix build .#installer-technitium-core`) boots first, then nixos-anywhere installs with
   `--copy-host-keys` so the host keeps the key its sops recipient was made from.
 - **DNS** (`modules/dns.nix`):
-  - Technitium answers on :53 and serves its UI and API on :5380 (http://10.10.70.53:5380);
+  - Technitium answers on :53 and serves its UI and API on :5380 (http://10.10.70.51:5380);
   - `technitium-sync` applies `dns/settings.json` and `dns/aliammar.net.zone` at boot and on every
     deploy that changes them, so UI edits last only until the next sync;
   - logs go to the journal (`journalctl -u technitium-dns-server -u technitium-sync`);

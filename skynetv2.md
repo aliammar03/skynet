@@ -23,7 +23,7 @@
 |---|---|---|
 | P0 | Foundations + new ops VM | done |
 | P1 | docker-admin: admin door, identity, status | done (2026-10-22); 7 admin names move to .60 with P2's Technitium |
-| P2 | DNS (Technitium only) + remote access | in progress: build PR (both VMs at .52/.53) |
+| P2 | DNS (Technitium only) + remote access | in progress: technitium-core on .51 (VM); technitium-network at .52 until its cutover |
 | P3 | docker-dmz: apps + public path | outline |
 | P4 | Backups → Google Drive | outline |
 | P5 | Observability (agent eyes) | outline |

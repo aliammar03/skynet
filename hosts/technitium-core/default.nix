@@ -1,4 +1,4 @@
-# technitium-core — DNS server. VMID 7051 · 10.10.70.53 (→ .51) · VLAN 70 · proxmox-core.
+# technitium-core — DNS server. VMID 7051 · 10.10.70.51 · VLAN 70 · proxmox-core.
 { ... }:
 let
   net = import ./net.nix;
