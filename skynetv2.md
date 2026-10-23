@@ -60,7 +60,7 @@ Nothing outside the lab pushes into it.
 | D2 | Hosts = **NixOS** flake, each host kept current by **comin** (pull) | A host rebuilds from git; no central push credential |
 | D3 | Repo **public**; lab **pulls**; CI = static checks on free GitHub runners | GitHub Free only offers rulesets and CODEOWNERS on public repos; nothing inbound |
 | D4 | **Authelia**, with an auth mode per app: `own` / `oidc` / `forward` | Config lives in git; ~50 MB; OIDC + forward-auth + passkeys |
-| D5 | **Technitium** is the only DNS: two equal NixOS VMs (dns-network .50, dns-core .51), each loading the zone and its settings from `dns/` in git. Ad-blocking with HaGeZi Pro; forwarding over DoH to OpenDNS + Google; AdGuard retired | One product; records and settings are reviewed in PRs and a rebuilt VM comes back complete; from PTCL those two are the fastest resolvers that also hand out the in-ISP CDN caches (P2 benchmark) |
+| D5 | **Technitium** is the only DNS: two equal NixOS VMs (dns-network .50, dns-core .51), each loading the zone and its settings from `dns/` in git. Ad-blocking with HaGeZi Pro; forwarding over plain UDP to OpenDNS + Google, raced; AdGuard retired | One product; records and settings are reviewed in PRs and a rebuilt VM comes back complete; from PTCL those two are the fastest resolvers that also hand out the in-ISP CDN caches (P2 benchmark) |
 | D6 | Two Docker hosts: **docker-dmz** (apps, core node), **docker-admin** (admin, identity, monitoring; network node) | Segmentation; monitoring survives losing the core node |
 | D7 | Agent = **Claude Code** on the ops VM; chat via **Discord** (Channels) + the Claude app (Remote Control) | Telegram is blocked; no custom UI to build |
 | D8 | All alerts go to Discord `#alerts` (doco-cd via Apprise, Gatus, healthchecks.io, comin hook) | One place to look |
@@ -546,7 +546,7 @@ Done in a maintenance window. Rollback = stop caddy-admin, start CT 635.
 **Goal**
 - Two Technitium VMs that rebuild from git: dns-network (10.10.70.50, network node) and dns-core
   (10.10.70.51, core node). Every record and setting comes from `dns/`.
-- Ads blocked (HaGeZi Pro); lookups forwarded over DoH to OpenDNS + Google.
+- Ads blocked (HaGeZi Pro); lookups forwarded over plain UDP to OpenDNS + Google, raced.
 - All ten admin names → 10.10.60.60. Clients can't bypass Technitium. AdGuard and the old CTs are off.
 - From anywhere, via Tailscale: `*.aliammar.net` resolves (split DNS) and the management network
   answers by IP.
@@ -569,8 +569,22 @@ Done 2026-10-23:
     to ~260 ms servers;
   - recursion (Unbound from ops) gets the same CDN servers as Google/OpenDNS but is 3–7× slower
     on names not yet cached (new site p50 295 ms vs OpenDNS 44 ms);
-  - overnight per-minute log (night of 2026-10-23): result pending, added to this section before
-    the plan merges.
+  - overnight per-minute log, 00:41–09:00 (498 rounds, no failures), p50 / p90 in ms:
+
+    | | UDP, cached name | UDP, uncached name | DoH, first query after a quiet minute |
+    |---|---|---|---|
+    | OpenDNS + Google, raced | **44 / 148** | **57 / 151** | 172 / 281 |
+    | OpenDNS | 46 / 170 | 61 / 243 | 172 / 286 |
+    | Google | 56 / 152 | 145 / 247 | 289 / 427 |
+    | Quad9 | 45 / 49 | 47 / 175 | 140 / 272 |
+    | Cloudflare | 25 / 29 | 27 / 129 | 105 / 373 |
+    | Recursion | – | 237 / 509 | – |
+
+    Steady across the night (no evening-peak data yet). DoH loses 100–230 ms whenever its connection
+    went idle, because the providers close it within a minute. Technitium would pay that on the first
+    lookup after every quiet spell. Plain UDP has no connection to lose, and no interception showed up
+    on it. Cloudflare and Quad9 answer fastest but hand out worse CDN servers (above). So: **plain UDP
+    to OpenDNS + Google, raced**. A longer run, evenings included, comes later.
 
 - The old zone (Ali's export, 2026-10-23) is a **Forwarder** zone (`FWD "this-server"`): it answers
   its own records and resolves everything else publicly, including the apex SOA/NS. Caddy's DNS-01
@@ -623,12 +637,11 @@ Done 2026-10-23:
   - `serveStaleMaxWaitTime` 0: an expired name is answered from cache at once and refreshed in the
     background, so anything seen in the last 3 days (`serveStaleTtl`) answers in ~1 ms;
   - `cacheMaximumEntries` 100 000 (default 10 000);
-  - `dnssecValidation` off: no extra key lookups on misses; Google validates upstream and DoH
-    protects the path;
+  - `dnssecValidation` off: no extra key lookups on misses. Google validates upstream, but over
+    plain UDP nothing checks an answer on its way here; accepted for speed;
   - `forwarderTimeout` 1000 ms, `forwarderRetries` 2;
-  - forwarders `https://doh.opendns.com/dns-query (208.67.222.222)` and
-    `https://dns.google/dns-query (8.8.8.8)` over HTTPS (or plain UDP if the overnight log favours
-    it); the IP in brackets means no bootstrap lookup;
+  - forwarders `208.67.222.222` (OpenDNS) and `8.8.8.8` (Google), protocol UDP, raced (the
+    overnight log);
   - blocking with HaGeZi Pro
     (`https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro-onlydomains.txt`,
     HaGeZi's format for Technitium, ~207k domains), refreshed daily;
@@ -656,7 +669,9 @@ After cutover:
   own DNS servers are .50, .51;
 - rule 140 ("block other DNS and DoT") on; rule 150 ("any → approved upstreams :53") disabled, then
   deleted after a quiet week. It lets any client skip Technitium;
-- rule 115 (the benchmark's temporary ops → any :53) deleted once the overnight log ends.
+- rule 110 ("resolvers → any :53") stays: it carries the forwarding;
+- rule 115 (the benchmark's temporary ops → any :53) deleted: the overnight log ended 2026-10-23
+  09:00.
 
 ### Cutover (one server at a time)
 
