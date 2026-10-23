@@ -2,7 +2,8 @@
 #   quick              answer times per resolver (UDP, DoH; cached vs uncached) + CDN servers handed out
 #   recursion          a local Unbound on 127.0.0.1:5353 vs OpenDNS/Google
 #   log CSV [--until HH:MM | --minutes N] [--recursion]   one round a minute
-#   report CSV         p50/p90/p99, raced pairs, hourly p50
+#   cdnlog CSV [--minutes N] [--every M]   every M min: which CDN server each resolver points to
+#   report CSV         p50/p90/p99, raced pairs, hourly p50; for a cdnlog CSV, the CDN servers
 # Prints where a resolver answered from, never the lab's public IP (some debug answers contain it).
 import csv, collections, datetime, ipaddress, json, random, socket, statistics, string, struct, sys, time
 import httpx
@@ -184,6 +185,41 @@ def log(path, until=None, minutes=None, with_recursion=False):
                     out.write(f"{int(start)},{name},{proto},{kind},{v}\n")
             i += 1; time.sleep(max(0, 60 - (time.time() - start)))
 
+def cdnlog(path, minutes=360, every=2):
+    """Every `every` minutes: each resolver/protocol resolves the CDN names; log the connect time
+    to the server it points at (min over its first two A records). Rows: ts,resolver,proto,cdn:<name>,ms"""
+    askers = []
+    for name, (ip, url) in RESOLVERS.items():
+        for proto, ask in (("udp", Udp(ip)), ("doh", Doh(url))):
+            if reachable(ask): askers.append((name, proto, ask))
+            else: print(f"skipping {name}/{proto}: unreachable (firewall? see README)")
+    end = datetime.datetime.now() + datetime.timedelta(minutes=minutes)
+    print(f"CDN log to {path} every {every} min until {end:%Y-%m-%d %H:%M}", flush=True)
+    with open(path, "a", buffering=1) as out:
+        out.write(f"# run {int(time.time())}\n")
+        while datetime.datetime.now() < end:
+            start = time.time()
+            for name, proto, ask in askers:
+                for n in CDN:
+                    try: ms = min([m for m in map(connect_ms, a_records(ask(query(n))[1])[:2]) if m] or [None])
+                    except Exception: ms = None
+                    out.write(f"{int(start)},{name},{proto},cdn:{n},{'fail' if ms is None else f'{ms:.1f}'}\n")
+            time.sleep(max(0, every * 60 - (time.time() - start)))
+
+def cdn_report(rows):
+    by = collections.defaultdict(list)                  # (resolver, proto) -> [ms]
+    cell = collections.defaultdict(list)                # (name, resolver, proto) -> [ms]
+    for (name, proto, kind), v in rows:
+        by[(name, proto)].append(v); cell[(kind[4:], name, proto)].append(v)
+    print("CDN servers each resolver points to (TCP connect ms; <10 = inside the ISP, >100 = far)")
+    print(f"{'resolver':11} {'proto':5} {'n':>4} {'median':>7} {'in-ISP':>7} {'far':>5}")
+    for (name, proto), xs in sorted(by.items(), key=lambda kv: statistics.median(kv[1])):
+        print(f"{name:11} {proto:5} {len(xs):4} {statistics.median(xs):7.0f} {100*sum(x < 10 for x in xs)/len(xs):6.0f}% {100*sum(x > 100 for x in xs)/len(xs):4.0f}%")
+    cols = sorted(by, key=lambda k: statistics.median(by[k]))
+    print("\nPer name, median ms:\n" + f"{'':28}" + "".join(f"{(n[:8] + '/' + p):>14}" for n, p in cols))
+    for n in CDN:
+        print(f"{n:28}" + "".join(f"{(f'{statistics.median(cell[(n, r, p)]):.0f}' if cell.get((n, r, p)) else '-'):>14}" for r, p in cols))
+
 def report(path):
     # A round starts whenever the run's first row type comes round again. "# run" lines start a run;
     # each run's first round is dropped (it includes connection setup).
@@ -196,6 +232,8 @@ def report(path):
         if key == cur["first"]: cur["rounds"].append({"ts": int(ts)})
         cur["rounds"][-1][key] = None if v == "fail" else float(v)
     rounds = [r for run in runs for r in run["rounds"][1:]]
+    cdn = [(k, v) for r in runs for rr in r["rounds"] for k, v in rr.items() if k != "ts" and k[2].startswith("cdn:") and v is not None]
+    if cdn: return cdn_report(cdn)
     data, fails, hourly, hours = collections.defaultdict(list), collections.Counter(), collections.defaultdict(list), []
     for r in rounds:
         h = datetime.datetime.fromtimestamp(r["ts"]).hour
@@ -227,5 +265,8 @@ if __name__ == "__main__":
     elif a[:1] == ["log"] and len(a) > 1:
         opt = lambda f: a[a.index(f) + 1] if f in a else None
         log(a[1], opt("--until"), int(opt("--minutes")) if opt("--minutes") else None, "--recursion" in a)
+    elif a[:1] == ["cdnlog"] and len(a) > 1:
+        opt = lambda f, d: int(a[a.index(f) + 1]) if f in a else d
+        cdnlog(a[1], opt("--minutes", 360), opt("--every", 2))
     elif a[:1] == ["report"] and len(a) > 1: report(a[1])
-    else: sys.exit(__doc__ or "usage: dnsbench.py quick | recursion | log CSV [--until HH:MM|--minutes N] [--recursion] | report CSV")
+    else: sys.exit(__doc__ or "usage: dnsbench.py quick | recursion | log CSV [--until HH:MM|--minutes N] [--recursion] | cdnlog CSV [--minutes N] [--every M] | report CSV")

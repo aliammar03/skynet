@@ -11,7 +11,7 @@ Run it on ops as `skynet`. `quick` takes ~3 min; the log runs as long as you lea
 - **Two things decide speed:** how fast the answer comes, and which server it points at. CDNs pick
   the server by where the resolver is, or by the client subnet it passes on (ECS). Cloudflare is
   fast but sent YouTube video to ~260 ms servers. Google and OpenDNS reach the 4 ms caches inside the
-  ISP. The CDN table measures this.
+  ISP. The mapping also shifts within the hour, so `cdnlog` records it over the whole run.
 - **Cached vs uncached:** Technitium answers repeats from its own cache, so upstream speed only
   matters for names it doesn't hold. "Cached" asks popular names twice (the resolver has them).
   "Uncached" asks a random name under a real, unsigned domain, so the resolver must go to that
@@ -48,9 +48,11 @@ nix shell nixpkgs#unbound -c unbound-anchor -a "$d/root.key"   # exit 1 just mea
 nix shell nixpkgs#unbound -c unbound -d -c "$d/unbound.conf" & ub=$!
 "${PY[@]}" recursion; kill $ub      # recursion waits up to 10 s for Unbound to answer
 
-# a long run (one round a minute), then the report
-"${PY[@]}" log /tmp/dnslog.csv --until 09:00 &   # or --minutes 120; add --recursion while Unbound runs
-"${PY[@]}" report /tmp/dnslog.csv
+# a long run: answer times (one round a minute) and CDN servers (every 2 min), then the reports
+"${PY[@]}" log /tmp/dns-latency.csv --minutes 360 &    # or --until 09:00; add --recursion while Unbound runs
+"${PY[@]}" cdnlog /tmp/dns-cdn.csv --minutes 360 &     # --every N to change the 2 min
+"${PY[@]}" report /tmp/dns-latency.csv
+"${PY[@]}" report /tmp/dns-cdn.csv
 ```
 
 A long run belongs to the shell that started it. Use tmux, or the agent's background task, so it
@@ -59,7 +61,9 @@ survives.
 ## Reading it
 
 - p50 is a typical lookup and p90 a bad minute. The "raced" lines are what Technitium will see.
-- CDN table: ~4 ms = a cache inside the ISP, ~45 ms = Dubai/Doha, 100+ = far away.
+- CDN table: ~4 ms = a cache inside the ISP, ~45 ms = Dubai/Doha, 100+ = far away. The `cdnlog`
+  report gives each resolver's median, its share of in-ISP servers (<10 ms) and of far ones
+  (>100 ms), and a per-name table.
 - Pick the fastest raced pair whose CDN column matches the best one. Change `dns/settings.json`
   by PR.
 - The script prints where a resolver answered from, never the lab's public IP. Some debug answers
