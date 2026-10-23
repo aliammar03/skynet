@@ -47,6 +47,7 @@ def answers(resp):  # -> [(type, rdata bytes)]
         out.append((t, resp[i:i + n])); i += n
     return out
 
+def rcode_ok(resp): return resp[3] & 0xF in (0, 3)   # NOERROR, NXDOMAIN; SERVFAIL/REFUSED count as failures
 def a_records(resp): return [socket.inet_ntoa(d) for t, d in answers(resp) if t == 1 and len(d) == 4]
 def txt(resp):
     out = []
@@ -75,13 +76,18 @@ class Doh:  # one HTTP/2 connection, reopened after an error (a resolver's real 
             self.c.close(); self.c = None; raise
 
 def reachable(ask):
-    try: ask(query("example.com")); return True
+    try: return rcode_ok(ask(query("example.com"))[1])
     except Exception: return False
+
+def timed(ask, name):
+    ms, resp = ask(query(name))
+    if not rcode_ok(resp): raise RuntimeError(f"rcode {resp[3] & 0xF}")
+    return ms
 
 def ms_list(ask, names):
     xs, fails = [], 0
     for n in names:
-        try: xs.append(ask(query(n))[0])
+        try: xs.append(timed(ask, n))
         except Exception: fails += 1
     return xs, fails
 pct = lambda xs, p: sorted(xs)[min(len(xs) - 1, int(len(xs) * p))]
@@ -139,8 +145,10 @@ def quick():
 
 def recursion():
     rec = Udp("127.0.0.1", 5353, 8)
-    try: rec(query("localhost"))
-    except Exception: sys.exit("no resolver on 127.0.0.1:5353: start Unbound first (README)")
+    for _ in range(20):                      # Unbound may still be starting
+        if reachable(Udp("127.0.0.1", 5353, 1)): break
+        time.sleep(0.5)
+    else: sys.exit("no resolver on 127.0.0.1:5353: start Unbound first (README)")
     askers = {"Recursion": rec, "OpenDNS": Udp(RESOLVERS["OpenDNS"][0]), "Google": Udp(RESOLVERS["Google"][0])}
     for k in [k for k, ask in askers.items() if not reachable(ask)]:
         print(f"skipping {k}: unreachable (firewall? see README)"); del askers[k]
@@ -163,35 +171,50 @@ def log(path, until=None, minutes=None, with_recursion=False):
         if end <= now: end += datetime.timedelta(days=1)
     print(f"logging to {path} until {end:%Y-%m-%d %H:%M}", flush=True)
     with open(path, "a", buffering=1) as out:
+        out.write(f"# run {int(time.time())}\n")   # report drops each run's first round (connection setup)
         i = 0
         while datetime.datetime.now() < end:
-            start, warm, miss = time.time(), WARM[i % len(WARM)], rand_name(PARENTS[i % len(PARENTS)])
+            start, warm = time.time(), WARM[i % len(WARM)]
             for name, proto, ask in targets:
+                # A fresh name per target: one shared name would make every later ask a cache hit.
+                miss = rand_name(PARENTS[i % len(PARENTS)])
                 for kind, n in ([("miss", miss)] if name == "Recursion" else [("warm", warm), ("miss", miss)]):
-                    try: v = f"{ask(query(n))[0]:.1f}"
+                    try: v = f"{timed(ask, n):.1f}"
                     except Exception: v = "fail"
-                    out.write(f"{int(time.time())},{name},{proto},{kind},{v}\n")
+                    out.write(f"{int(start)},{name},{proto},{kind},{v}\n")
             i += 1; time.sleep(max(0, 60 - (time.time() - start)))
 
 def report(path):
-    rows = list(csv.reader(open(path)))
-    t0 = int(rows[0][0]); rows = [r for r in rows if int(r[0]) > t0 + 30]   # first round includes connection setup
-    data, fails, hourly, rounds = collections.defaultdict(list), collections.Counter(), collections.defaultdict(list), collections.defaultdict(dict)
-    for ts, name, proto, kind, v in rows:
-        if v == "fail": fails[(name, proto, kind)] += 1; continue
-        data[(name, proto, kind)].append(float(v))
-        hourly[(name, proto, kind, datetime.datetime.fromtimestamp(int(ts)).hour)].append(float(v))
-        rounds[(int(ts) // 60, kind)][(name, proto)] = float(v)
-    print(f"{'resolver':11} {'proto':5} {'kind':4} {'n':>4} {'fail':>4} {'p50':>5} {'p90':>5} {'p99':>5}")
+    # A round starts whenever the run's first row type comes round again. "# run" lines start a run;
+    # each run's first round is dropped (it includes connection setup).
+    runs, cur = [], None
+    for row in csv.reader(open(path)):
+        if not row: continue
+        if row[0].startswith("#"): cur = None; continue
+        ts, name, proto, kind, v = row; key = (name, proto, kind)
+        if cur is None: cur = {"first": key, "rounds": []}; runs.append(cur)
+        if key == cur["first"]: cur["rounds"].append({"ts": int(ts)})
+        cur["rounds"][-1][key] = None if v == "fail" else float(v)
+    rounds = [r for run in runs for r in run["rounds"][1:]]
+    data, fails, hourly, hours = collections.defaultdict(list), collections.Counter(), collections.defaultdict(list), []
+    for r in rounds:
+        h = datetime.datetime.fromtimestamp(r["ts"]).hour
+        if h not in hours: hours.append(h)                      # in order, also across midnight
+        for key, v in r.items():
+            if key == "ts": continue
+            if v is None: fails[key] += 1
+            else: data[key].append(v); hourly[key + (h,)].append(v)
+    print(f"{len(rounds)} rounds\n{'resolver':11} {'proto':5} {'kind':4} {'n':>4} {'fail':>4} {'p50':>5} {'p90':>5} {'p99':>5}")
     for k in sorted(data, key=lambda k: (k[2], statistics.median(data[k]))):
         xs = data[k]; print(f"{k[0]:11} {k[1]:5} {k[2]:4} {len(xs):4} {fails[k]:4} {pct(xs,.5):5.0f} {pct(xs,.9):5.0f} {pct(xs,.99):5.0f}")
     print("\nRaced (the faster of two each round, what Technitium's concurrent forwarding gets):")
-    for a, b in (("OpenDNS", "Google"), ("Quad9", "Google"), ("OpenDNS", "Cloudflare")):
+    for a, b in (("OpenDNS", "Google"), ("Quad9", "Google"), ("Quad9", "Cloudflare"), ("OpenDNS", "Cloudflare")):
         for proto in ("udp", "doh"):
             for kind in ("warm", "miss"):
-                xs = [min(r[(a, proto)], r[(b, proto)]) for (m, k), r in rounds.items() if k == kind and (a, proto) in r and (b, proto) in r]
+                xs = [min(r[(a, proto, kind)], r[(b, proto, kind)]) for r in rounds
+                      if r.get((a, proto, kind)) is not None and r.get((b, proto, kind)) is not None]
                 if xs: print(f"  {a}+{b} {proto} {kind}: p50 {pct(xs,.5):.0f}  p90 {pct(xs,.9):.0f}  p99 {pct(xs,.99):.0f}")
-    hours = sorted({h for (*_, h) in hourly}); cols = sorted({(n, p) for (n, p, _, _) in hourly})
+    cols = sorted({(n, p) for (n, p, _) in data})
     print("\nHourly p50, cached/uncached:\nhour " + "".join(f"{n[:8] + '/' + p:>14}" for n, p in cols))
     for h in hours:
         cell = lambda n, p: "/".join(f"{statistics.median(hourly[(n, p, k, h)]):.0f}" if hourly.get((n, p, k, h)) else "-" for k in ("warm", "miss"))

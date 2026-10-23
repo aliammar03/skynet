@@ -16,7 +16,8 @@ Run it on ops as `skynet`. `quick` takes ~3 min; the log runs as long as you lea
   matters for names it doesn't hold. "Cached" asks popular names twice (the resolver has them).
   "Uncached" asks a random name under a real, unsigned domain, so the resolver must go to that
   domain's servers. Signed domains are avoided: a resolver can answer random names under them from
-  cache.
+  cache. Every resolver and protocol gets its **own** random name. One shared name made the 2026-10-23
+  night's later asks cache hits at the same provider.
 - **Raced:** Technitium sends each lookup to both forwarders and takes the first answer. `report`
   shows the faster of each pair per round.
 - **DoH and idle connections:** providers close an idle DoH connection within a minute. The first
@@ -27,10 +28,11 @@ Run it on ops as `skynet`. `quick` takes ~3 min; the log runs as long as you lea
 ## Firewall
 
 - DoH (:443) works from ops as-is. Plain DNS (:53) from ops reaches only 1.1.1.1, 8.8.8.8 and 9.9.9.9
-  (rule 150). The script skips anything it can't reach.
-- For the other resolvers over UDP, and for `recursion`, Ali adds a temporary rule: clone rule 110
-  ("Resolvers → approved upstreams"), set sequence `115`, source `HOST_SKYNET_OPS`, description
-  `TEST — ops DNS benchmark`. He deletes it when the test is done.
+  through rule 150, until P2 removes that rule. The script skips anything it can't reach.
+- For the other resolvers over UDP, and for `recursion`, Ali adds a temporary rule. He clones rule
+  110 ("CORE — Resolvers → approved upstreams", which passes `ROLE_DNS_RESOLVERS` → any :53), and
+  sets sequence `115`, source `HOST_SKYNET_OPS`, description `TEST — ops DNS benchmark`. He deletes it
+  when the test is done.
 
 ## Run
 
@@ -44,7 +46,7 @@ PY=(nix shell --impure --expr '(builtins.getFlake "nixpkgs").legacyPackages.x86_
 d=$(mktemp -d); sed "s#@DIR@#$d#g" runbooks/dns-speed-test/unbound.conf > "$d/unbound.conf"
 nix shell nixpkgs#unbound -c unbound-anchor -a "$d/root.key"   # exit 1 just means "anchor written"
 nix shell nixpkgs#unbound -c unbound -d -c "$d/unbound.conf" & ub=$!
-"${PY[@]}" recursion; kill $ub
+"${PY[@]}" recursion; kill $ub      # recursion waits up to 10 s for Unbound to answer
 
 # a long run (one round a minute), then the report
 "${PY[@]}" log /tmp/dnslog.csv --until 09:00 &   # or --minutes 120; add --recursion while Unbound runs
@@ -65,6 +67,6 @@ survives.
 
 ## Last result (2026-10-23, night)
 
-Plain UDP to OpenDNS + Google, raced: p50 44 ms for cached names and 57 ms for uncached, and both
-get the in-ISP caches. Full numbers: `skynetv2.md` → P2 → Prechecks. Still to do: a run that covers
-the evening peak.
+Plain UDP to OpenDNS + Google, raced: p50 44 ms for cached names and 77 ms for uncached (first
+asks), and both get the in-ISP caches. Full numbers: `skynetv2.md` → P2 → Prechecks. Still to do: a
+run that covers the evening peak.

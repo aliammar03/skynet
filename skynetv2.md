@@ -66,7 +66,7 @@ Nothing outside the lab pushes into it.
 | D8 | All alerts go to Discord `#alerts` (doco-cd via Apprise, Gatus, healthchecks.io, comin hook) | One place to look |
 | D9 | Offsite = **Google Drive** via rclone with Ali's own OAuth client, **published to production** | Drive is what Ali has; "Testing" mode tokens expire every 7 days |
 | D10 | No OpenTofu. VMs come from versioned `hosts/<h>/proxmox.sh`; internal DNS records live in `dns/aliammar.net.zone`; the Cloudflare wildcard CNAME is set once by hand | Guests change rarely |
-| D11 | The agent never merges, never holds a private age key, never gets a Docker socket | GitHub and missing credentials enforce the leash |
+| D11 | The agent never merges, never holds a private age key, never gets a Docker socket. While it installs a host it is root on the installer, which holds the new host key that `--copy-host-keys` keeps (`runbooks/new-vm.md`); it reads only the public half | GitHub and missing credentials enforce the leash. The install window was already root-equivalent (the agent installs the OS), and it buys a one-PR install |
 | D13 | `aliammar-skynet` has **Write**. The `main` ruleset requires a PR and check `nix` and blocks force-push/deletion; no review is required (Ali's call, 2026-10-21) | Branches in one repo, no approval clicks. "Never merge" is a **soft wall**: AGENTS.md + Claude Code deny rules |
 | D12 | v1 archived; fresh repo; new ops VM built alongside the old one, which is then retired | Clean start without a blind spot |
 | D14 | Remote access = **Tailscale**, with `os-tailscale` on OPNsense as the subnet router and split DNS for `aliammar.net`; replaces the WireGuard plan | Nothing inbound to open; it keeps working when docker-admin or a node is down, so it can reach what needs fixing |
@@ -95,7 +95,7 @@ skynet/
 ├ AGENTS.md  CLAUDE.md (@AGENTS.md)  README.md  skynetv2.md
 ├ flake.nix  flake.lock
 ├ modules/            base.nix (all hosts) · agent.nix (ops) · docker-host.nix (docker-*)
-├ hosts/<host>/       default.nix · disk.nix · hardware.nix · proxmox.sh · README.md
+├ hosts/<host>/       default.nix · net.nix · disk.nix · hardware.nix · proxmox.sh · ssh_host.pub · README.md
 ├ secrets/<host>.yaml host-level secrets (sops-nix)
 ├ dns/                aliammar.net.zone · settings.json (Technitium, P2)
 ├ .doco-cd.admin.yml  .doco-cd.dmz.yml
@@ -114,8 +114,6 @@ skynet/
 |---|---|---|
 | `compose.yaml` | always | `container_name: <name>` (not compose's `<project>-<service>-1`); images pinned `tag@sha256:…`; a healthcheck; `restart: unless-stopped`; network `edge` (doors also join their macvlan) |
 | `secret.sops.env` | has secrets | dotenv, sops-encrypted for that host only; used via `env_file` |
-| `caddy.conf` | routed | `@x host x.aliammar.net` + `handle @x { [import authelia] reverse_proxy <container>:<port> }` |
-| `gatus.yaml` | routed | an `endpoints:` list for this app only |
 | `README.md` | always | purpose · URL · auth mode · data paths + backup class · secret key *names* · upstream link · gotchas |
 
 **Routing**
@@ -123,15 +121,19 @@ skynet/
   catch-all `404`.
 - The wildcard cert comes via Cloudflare DNS-01, so individual names never appear in certificate
   transparency logs.
-- A door mounts each `caddy.conf` and `gatus.yaml` as a **single-file bind mount, never the folder**.
-  doco-cd writes decrypted secrets into that folder.
+- A routed app's site file lives in its door: `conf/sites/<name>.conf` (`@x host x.aliammar.net` +
+  `handle @x { [import authelia] reverse_proxy <container>:<port> }`); the door reloads it in place.
+- Every app gets a row in Gatus's `config/admin.yaml` (Gatus runs on docker-admin and checks every
+  host). Route, row and stack land in one PR (`runbooks/new-stack.md`).
+- No container mounts a stack folder itself, because doco-cd writes decrypted secrets into it.
+  Mount single files, or subfolders without `*.sops.*` files.
 
 **Auth modes**
 - **`own`** (default): a plain proxy; the app has its own login.
 - **`oidc`:** the client goes in `stacks/admin/authelia/oidc-clients.yml`. That single file holds
   the whole list, because Authelia replaces a repeated key rather than appending to it. The app's
   secret lives in its `secret.sops.env`.
-- **`forward`:** add `import authelia` to the app's `caddy.conf`.
+- **`forward`:** add `import authelia` to the app's site file.
 
 **Data**
 - Bind mounts go at `/opt/appdata/<app>/<role>`. Named volumes are only for DB engines.
@@ -457,7 +459,7 @@ timeout: 300
     `up`. A job's container is stopped between runs, so this row is how the page shows it.
   - doco-cd isn't checked here (its API answers only to ops); heartbeat is a doco-cd job, so a
     dead doco-cd pages via healthchecks.io.
-- From P3, one single-file mount per app `gatus.yaml`.
+- P3's apps get their rows here too.
 
 **`heartbeat`**
 - A `curlimages/curl` doco-cd scheduled job (`cd.doco.job.enabled: "true"`, `notify_on: failure`,
@@ -563,7 +565,7 @@ Done 2026-10-23:
 - The old CTs sit on `vmbr0` tag 70 on both nodes.
 - Public `aliammar.net` (Cloudflare) holds only its NS records, so the internal zone shadows nothing.
 - Resolvers, measured from ops over PTCL (Storm is failover only):
-  - answers (p50): Cloudflare 23–26 ms but swung to ~120 ms within the hour; OpenDNS 43 ms (Dubai),
+  - answers (p50): Cloudflare ~120 ms at first, then 23–26 ms an hour later; OpenDNS 43 ms (Dubai),
     Quad9 45 ms (Dubai), Google 46–60 ms (Doha); DoH costs 1–3 ms over plain UDP once connected;
   - CDN servers handed out: Google and OpenDNS reach Akamai's in-ISP caches (4 ms) and normal
     YouTube/Facebook edges (~44 ms); Quad9 misses the in-ISP caches; Cloudflare sends YouTube video
@@ -572,20 +574,27 @@ Done 2026-10-23:
     on names not yet cached (new site p50 295 ms vs OpenDNS 44 ms);
   - overnight per-minute log, 00:41–09:00 (498 rounds, no failures), p50 / p90 in ms:
 
-    | | UDP, cached name | UDP, uncached name | DoH, first query after a quiet minute |
+    | | Cached name, UDP | Uncached name, first ask¹ | DoH, first query after a quiet minute |
     |---|---|---|---|
-    | OpenDNS + Google, raced | **44 / 148** | **57 / 151** | 172 / 281 |
-    | OpenDNS | 46 / 170 | 61 / 243 | 172 / 286 |
-    | Google | 56 / 152 | 145 / 247 | 289 / 427 |
-    | Quad9 | 45 / 49 | 47 / 175 | 140 / 272 |
-    | Cloudflare | 25 / 29 | 27 / 129 | 105 / 373 |
+    | OpenDNS + Google, raced | **44 / 148** | **77 / 160** | 172 / 281 |
+    | OpenDNS | 46 / 170 | 136 / 261 | 172 / 286 |
+    | Google | 56 / 152 | 150 / 253 | 289 / 427 |
+    | Quad9 | 45 / 49 | 161 / 280 | 140 / 272 |
+    | Cloudflare | 25 / 29 | 115 / 154 | 105 / 373 |
+    | Quad9 + Cloudflare, raced | 25 / 29 | 106 / 150 | – |
     | Recursion | – | 237 / 509 | – |
+
+    ¹ The log asked each round's random name over DoH first (on a connection the cached lookup had
+    just warmed), then over UDP. The UDP repeat was usually a cache hit, so only the first ask counts.
+    A burst test at 10:00 (fresh names per resolver, UDP) agrees: OpenDNS 63, Cloudflare 110, Google
+    148, Quad9 155 ms p50. `dnsbench.py` now uses a fresh name per resolver.
 
     Steady across the night (no evening-peak data yet). DoH loses 100–230 ms whenever its connection
     went idle, because the providers close it within a minute. Technitium would pay that on the first
     lookup after every quiet spell. Plain UDP has no connection to lose, and no interception showed up
-    on it. Cloudflare and Quad9 answer fastest but hand out worse CDN servers (above). So: **plain UDP
-    to OpenDNS + Google, raced**. A longer run, evenings included, comes later.
+    on it. Cloudflare answers cached names fastest, but OpenDNS + Google raced is quicker on uncached
+    ones and hands out the better CDN servers (above). So: **plain UDP to OpenDNS + Google, raced**.
+    A longer run, evenings included, comes later (`runbooks/dns-speed-test/`).
 
 - The old zone (Ali's export, 2026-10-23) is a **Forwarder** zone (`FWD "this-server"`): it answers
   its own records and resolves everything else publicly, including the apex SOA/NS. Caddy's DNS-01
@@ -664,7 +673,7 @@ format covers its subdomains; the list holds only `doubleclick.net`'s subdomains
 
 ### OPNsense (agent drafts, Ali applies)
 
-While building:
+While building (ops already reaches every Skynet VLAN on any port, rule 390):
 - `ROLE_DNS_RESOLVERS` += 10.10.70.52, .53 (so rule 100 lets clients test them);
 - `ROLE_NIX_CACHE_CLIENTS` += 10.10.70.50–.53.
 
@@ -685,8 +694,9 @@ After cutover:
 - **Build PR:** `modules/dns.nix`, `dns/` (with its README), both hosts (`runbooks/new-vm.md`, as a
   pair) and the Gatus rows for the build IPs. Merge, then install both. They answer at .52/.53 next
   to the old CTs.
-- **Cutover PRs, one per server,** so the other keeps answering: `net.nix` → the final IP, and that
-  server's Gatus rows.
+- **Cutover PRs, one per server,** so the other keeps answering: `net.nix` → the final IP, that
+  server's Gatus rows and its README. The agent's known_hosts entry lists both IPs from the build PR
+  on, so it needs no change. Ali moves the server's `HOST_` alias in OPNsense.
 
 1. Both VMs green at the build IPs: every zone name answers right, blocking works, forwarders reach
    out, Gatus rows green.
@@ -733,7 +743,7 @@ backup: cache, stats and logs are disposable, and everything else rebuilds from 
 **What: the doors.**
 - **`caddy-apps`:**
   - macvlan 10.10.100.35;
-  - a wildcard site importing each app's `caddy.conf` (single-file mounts);
+  - a wildcard site importing its `conf/sites/*.conf`, as caddy-admin does;
   - its `authelia` snippet points at 10.10.50.40:9091;
   - it serves `auth.aliammar.net`.
 - **`cloudflared`:**
@@ -900,7 +910,7 @@ in a drill.
 | `.doco-cd.{admin,dmz}.yml` | ~10 lines each |
 | comin → Discord post-deploy hook | ~10 lines |
 | `modules/dns.nix` incl. `technitium-sync` (settings + zone via the Technitium API) | ~90 lines |
-| CI: flake check + `docker compose config` per stack + "routed app has gatus.yaml/README" check | ~60 lines |
+| CI: flake check + `docker compose config` per stack + "every stack has a README and a Gatus row" check | ~60 lines |
 | `runbooks/dns-speed-test/dnsbench.py` (run by hand; nothing deploys it) | ~200 lines |
 | alert webhook → `claude -p` (P6) | ~40 lines |
 | doco-cd MCP filter proxy (P6, optional) | ~40 lines |

@@ -30,7 +30,7 @@ services:
     restart: unless-stopped
     env_file: secret.sops.env        # only if it has secrets
     volumes:
-      - ./config.yml:/config/config.yml:ro   # files from the folder: single files or a subfolder
+      - ./config.yml:/config/config.yml:ro   # single files, or a subfolder with no *.sops.* files
       - /opt/appdata/<name>:/data            # state; its backup class goes in the README
     networks: [edge]
     healthcheck:
@@ -44,21 +44,22 @@ networks:
 ```
 
 - **Never mount the stack folder itself.** doco-cd decrypts `secret.sops.env` into it on deploy.
-- Use the image's own healthcheck if it has one. An image with no shell can't run one: say so in a
-  comment and cover it with Gatus.
+- Use the image's own healthcheck if it has one. An exec-form check needs its tool (`wget`, `curl`)
+  in the image. An image with neither can't have one: say so in a comment and cover it with Gatus.
 - Write `$$VAR` for a variable the container's shell reads at run time; `$VAR` is compose's.
 - No published ports. The door reaches the container by name on `edge`. Only doors join the host's
   macvlan, and always with a fixed `ipv4_address`.
 
 ## 2. Secrets: `stacks/<target>/<name>/secret.sops.env`
 
-A changed value recreates the container on the next deploy.
-- Ali's values, on the PR's branch before the merge:
-  `nix shell nixpkgs#sops -c sops stacks/<target>/<name>/secret.sops.env`, then commit and push.
-- Random values (agent), never shown:
-  `python3 -c 'import secrets; print("MY_SECRET=" + secrets.token_hex(32))' | sops encrypt --filename-override stacks/<target>/<name>/secret.sops.env --input-type dotenv --output-type dotenv /dev/stdin > stacks/<target>/<name>/secret.sops.env`
+A changed value recreates the container on the next deploy. Order matters:
+1. Random values first (agent), all in one command. It can only create the file whole, never add
+   to it, and the values are never shown:
+   `python3 -c 'import secrets; print("MY_SECRET=" + secrets.token_hex(32))' | sops encrypt --filename-override stacks/<target>/<name>/secret.sops.env --input-type dotenv --output-type dotenv /dev/stdin > stacks/<target>/<name>/secret.sops.env`
+2. Then Ali's values, on the PR's branch:
+   `nix shell nixpkgs#sops -c sops stacks/<target>/<name>/secret.sops.env`, commit, push.
 
-## 3. Route (if it has a UI): a site file in the host's door sites folder, `<name>.conf`
+## 3. Route (if it has a UI): a site file in the door's sites folder, `<name>.conf`
 
 ```
 @<name> host <name>.aliammar.net
@@ -78,10 +79,11 @@ handle @<name> {
 
 ## 4. Monitoring: a row in `stacks/admin/gatus/config/admin.yaml`
 
-- A stack on docker-admin: by container name, since Gatus is on the same `edge`
+- A stack on docker-admin: by container name, since Gatus shares its `edge`
   (`{ <<: *service, name: <name>, url: tcp://<name>:<port> }`, or HTTP on its health URL).
-- A stack on another host: through its door, `https://<name>.aliammar.net`. The `door` row there
-  shows how: it uses an `edge` alias on the door, so no DNS or firewall hairpin is involved.
+- A stack on another host: through its door, `https://<name>.aliammar.net`, expecting `302` behind
+  Authelia. That resolves through Technitium to the door's IP and crosses OPNsense, so docker-admin
+  needs a rule to that door on :443. Rule 235 covers the doors in `ROLE_ADMIN_TARGETS`.
 
 ## 5. A scheduled job instead of a service
 
@@ -99,13 +101,19 @@ Purpose · URL · auth mode · data paths + backup class · secret key *names* �
 
 - `nix run nixpkgs#docker-compose -- -f stacks/<target>/<name>/compose.yaml config -q`. Run it in a
   temp copy with an empty `secret.sops.env` if the real one isn't there yet.
-- A site change: `caddy adapt` on a temp copy of the door's `conf/` with the paths rewritten and
-  the `acme_dns` line removed (`nix run nixpkgs#caddy -- adapt --config <copy>/Caddyfile`).
+- A site change: adapt a temp copy of the door's config, then list the site hosts it ends up with.
+  `adapt` exits 0 even when an unclosed brace swallows the sites after it, so compare the list with
+  the files in `sites/` (one host each):
+  ```sh
+  door=stacks/<target>/<door>; d=$(mktemp -d); cp -r "$door/conf" "$d/"
+  sed -i "s#/etc/caddy-certs#$PWD/$door/certs#g; s#/etc/caddy#$d/conf#g; /acme_dns/d" "$d"/conf/Caddyfile "$d"/conf/sites/*.conf
+  nix run nixpkgs#caddy -- adapt --config "$d/conf/Caddyfile" | nix run nixpkgs#jq -- -c '[.apps.http.servers[].routes[].handle[].routes[]?.match[0].host[0] // empty]'
+  ```
 
 ## 8. After the merge (agent)
 
-- `ssh skynet@<host ip> 'journalctl CONTAINER_NAME=doco-cd --since -10min -o cat'` shows
-  "deploying stack <name>", then "job completed successfully". Errors name the stack.
+- `ssh skynet@<host ip> 'journalctl CONTAINER_NAME=doco-cd --since -10min -o cat' | grep '"stack":"<name>"'`
+  shows a `deploying stack` line and no `deployment failed`. doco-cd logs JSON, one object per line.
 - `ssh skynet@<host ip> 'journalctl CONTAINER_NAME=<name> -n 50 -o cat'`
 - `#alerts` gets "Deployment completed", the Gatus row turns green, and the host's doco-cd MCP shows
   it (`get_project`).
