@@ -39,11 +39,13 @@ call settings/set -H 'Content-Type: application/json' --data-binary @"$SETTINGS"
     | [$want[0] | to_entries[] | select(.value != $have[.key]) | .key]
     | if . == [] then true else ("settings not applied: \(join(", "))\n" | halt_error(1)) end' >/dev/null
 
-zones=$(call "zones/list?filterName=$zone")
-if ! jq -e --arg z "$zone" 'any(.response.zones[]; .name == $z)' <<<"$zones" >/dev/null; then
-  call zones/create --data "zone=$zone&type=Forwarder&forwarder=this-server" >/dev/null
-fi
-# The file is the whole zone, SOA and FWD lines included: a record missing from it is deleted.
+type=$(call "zones/list?filterName=$zone" | jq -r --arg z "$zone" '.response.zones[] | select(.name == $z) | .type')
+case $type in
+  Primary) ;;
+  "") call zones/create --data "zone=$zone&type=Primary" >/dev/null ;;
+  *) call zones/convert --data "zone=$zone&type=Primary" >/dev/null ;; # e.g. the old Forwarder zone
+esac
+# The file is the whole zone, SOA and NS lines included: a record missing from it is deleted.
 call "zones/import?zone=$zone&overwriteZone=true" -H 'Content-Type: text/plain' \
   --data-binary @"$ZONE_FILE" >/dev/null
 

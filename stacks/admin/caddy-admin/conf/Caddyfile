@@ -1,5 +1,4 @@
 {
-	acme_dns cloudflare {env.CLOUDFLARE_API_TOKEN}
 	servers {
 		protocols h1 h2
 	}
@@ -18,6 +17,13 @@
 
 # One wildcard cert, so no admin name lands in certificate transparency logs.
 *.aliammar.net {
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+		# Inside the lab Technitium answers for aliammar.net itself (dns/), so Caddy can't see the
+		# challenge record: no propagation check, just a wait; Let's Encrypt checks Cloudflare.
+		propagation_timeout -1
+		propagation_delay 60s
+	}
 	import /etc/caddy/sites/*.conf
 	handle {
 		respond 404
