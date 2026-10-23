@@ -23,7 +23,7 @@
 |---|---|---|
 | P0 | Foundations + new ops VM | done |
 | P1 | docker-admin: admin door, identity, status | done (2026-10-22); 7 admin names move to .60 with P2's Technitium |
-| P2 | DNS (Technitium only) + remote access | in progress: technitium-core on .51 (VM); technitium-network at .52 until its cutover |
+| P2 | DNS (Technitium only) + remote access | in progress: both Technitium VMs on .50/.51; next the OPNsense cleanup, then Tailscale |
 | P3 | docker-dmz: apps + public path | outline |
 | P4 | Backups → Google Drive | outline |
 | P5 | Observability (agent eyes) | outline |
@@ -710,12 +710,16 @@ After cutover:
   to the old CTs.
 - **Cutover PRs, one per server,** so the other keeps answering: `net.nix` → the final IP, that
   server's Gatus rows and its README. The agent's known_hosts entry lists both IPs from the build PR
-  on, so it needs no change. Ali moves the server's `HOST_` alias in OPNsense.
+  on, so it needs no change. Ali moves the server's `HOST_` alias in OPNsense **once the VM answers
+  on its final IP**. Moved earlier, the VM (still on its build IP) loses ops's Nix cache, and its
+  deploy stalls on timeouts.
 
 1. Both VMs green at the build IPs: every zone name answers right, blocking works, forwarders reach
    out, Gatus rows green.
-2. **technitium-core → .51:** Ali `pct shutdown 751 && pct set 751 --onboot 0`, then merges
-   technitium-core's cutover PR. Check by name from ops and docker-admin; Gatus green.
+2. **technitium-core → .51** (done 2026-10-23): Ali `pct shutdown 751 && pct set 751 --onboot 0`,
+   then merges technitium-core's cutover PR. Check by name from ops and docker-admin; Gatus green.
+   Measured right after: the same as CT 750 on cached names (~0.6 ms), faster on the rest (uncached
+   names p50 63 vs 102 ms, new sites 56 vs 167 ms), same CDN servers.
 3. **technitium-network → .50:** the same with CT 750.
 4. The OPNsense changes above. AdGuard CT 731: `pct shutdown 731 && pct set 731 --onboot 0`
    (730 is already off).

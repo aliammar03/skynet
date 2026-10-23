@@ -55,13 +55,11 @@ endpoints:
   - { <<: *service, name: unraid, url: tcp://10.10.20.20:80 }
 
   - { <<: *dns, name: technitium-network, url: 10.10.70.50 }
+  - { <<: *dns-forward, name: technitium-network forwarding, url: 10.10.70.50 }
+  - { <<: *dns-block, name: technitium-network blocking, url: 10.10.70.50 }
   - { <<: *dns, name: technitium-core, url: 10.10.70.51 }
   - { <<: *dns-forward, name: technitium-core forwarding, url: 10.10.70.51 }
   - { <<: *dns-block, name: technitium-core blocking, url: 10.10.70.51 }
-  # technitium-network at its build IP (P2); its cutover moves these rows to .50.
-  - { <<: *dns, name: technitium-network .52, url: 10.10.70.52 }
-  - { <<: *dns-forward, name: technitium-network .52 forwarding, url: 10.10.70.52 }
-  - { <<: *dns-block, name: technitium-network .52 blocking, url: 10.10.70.52 }
 
   # healthchecks.io's read-only badge for check `docker-admin` (2-state: up, or down once period +
   # grace pass with no ping). No alert: healthchecks.io already posts to #alerts.
