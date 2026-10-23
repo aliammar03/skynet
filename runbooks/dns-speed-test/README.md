@@ -18,8 +18,14 @@ Run it on ops as `skynet`. `quick` takes ~3 min; the log runs as long as you lea
   domain's servers. Signed domains are avoided: a resolver can answer random names under them from
   cache. Every resolver and protocol gets its **own** random name. One shared name made the 2026-10-23
   night's later asks cache hits at the same provider.
-- **Raced:** Technitium sends each lookup to both forwarders and takes the first answer. `report`
-  shows the faster of each pair per round.
+- **Raced:** Technitium sends each lookup to every forwarder it races (`forwarderConcurrency`) and
+  takes the first answer. `report` simulates pairs and the OpenDNS + Google + Quad9 triple. In the
+  CDN log, the winner also decides which server you get. A fast non-ECS resolver winning costs the
+  in-ISP caches.
+- **ECS caching:** resolvers that pass your subnet (OpenDNS, Google, Quad9's 9.9.9.11) cache
+  location-dependent answers per subnet. Popular CDN names are then often uncached for you (~145 ms)
+  where plain Quad9 or Cloudflare answer them from a shared cache (~25–45 ms). Technitium's own cache
+  and serve-stale hide most of this from clients.
 - **DoH and idle connections:** providers close an idle DoH connection within a minute. The first
   lookup after a quiet spell pays a new TLS connection: 100–230 ms here, overnight, against 45–60 ms
   on a warm connection. The once-a-minute log shows that cost, while `quick` (a burst) doesn't.

@@ -186,8 +186,9 @@ def log(path, until=None, minutes=None, with_recursion=False):
             i += 1; time.sleep(max(0, 60 - (time.time() - start)))
 
 def cdnlog(path, minutes=360, every=2):
-    """Every `every` minutes: each resolver/protocol resolves the CDN names; log the connect time
-    to the server it points at (min over its first two A records). Rows: ts,resolver,proto,cdn:<name>,ms"""
+    """Every `every` minutes: each resolver/protocol resolves the CDN names; log the connect time to
+    the server it points at (min over its first two A records) and the DNS answer time.
+    Rows: ts,resolver,proto,cdn:<name>,connect_ms,dns_ms"""
     askers = []
     for name, (ip, url) in RESOLVERS.items():
         for proto, ask in (("udp", Udp(ip)), ("doh", Doh(url))):
@@ -201,12 +202,18 @@ def cdnlog(path, minutes=360, every=2):
             start = time.time()
             for name, proto, ask in askers:
                 for n in CDN:
-                    try: ms = min([m for m in map(connect_ms, a_records(ask(query(n))[1])[:2]) if m] or [None])
-                    except Exception: ms = None
-                    out.write(f"{int(start)},{name},{proto},cdn:{n},{'fail' if ms is None else f'{ms:.1f}'}\n")
+                    try:
+                        dns_ms, resp = ask(query(n))
+                        ms = min([m for m in map(connect_ms, a_records(resp)[:2]) if m] or [None])
+                    except Exception: dns_ms, ms = None, None
+                    out.write(f"{int(start)},{name},{proto},cdn:{n},{'fail' if ms is None else f'{ms:.1f}'},"
+                              f"{'fail' if dns_ms is None else f'{dns_ms:.1f}'}\n")
             time.sleep(max(0, every * 60 - (time.time() - start)))
 
-def cdn_report(rows):
+RACES = [("OpenDNS", "Google"), ("OpenDNS", "Google", "Quad9"), ("Quad9-ECS", "Google"), ("OpenDNS", "Quad9"),
+         ("Quad9", "Google"), ("OpenDNS", "Quad9-ECS"), ("OpenDNS", "Google", "Quad9-ECS")]
+
+def cdn_report(rows, rounds=()):
     by = collections.defaultdict(list)                  # (resolver, proto) -> [ms]
     cell = collections.defaultdict(list)                # (name, resolver, proto) -> [ms]
     for (name, proto, kind), v in rows:
@@ -215,6 +222,23 @@ def cdn_report(rows):
     print(f"{'resolver':11} {'proto':5} {'n':>4} {'median':>7} {'in-ISP':>7} {'far':>5}")
     for (name, proto), xs in sorted(by.items(), key=lambda kv: statistics.median(kv[1])):
         print(f"{name:11} {proto:5} {len(xs):4} {statistics.median(xs):7.0f} {100*sum(x < 10 for x in xs)/len(xs):6.0f}% {100*sum(x > 100 for x in xs)/len(xs):4.0f}%")
+    have_dns = any(len(k) == 4 for r in rounds for k in r if k != "ts")
+    if have_dns:
+        print("\nRaced over UDP (the fastest answer wins, as in Technitium's concurrent forwarding):")
+        print(f"{'race':34} {'answer p50':>10} {'p90':>5} {'server median':>13} {'in-ISP':>7} {'far':>5}  wins")
+        for race in RACES:
+            ans, srv, wins = [], [], collections.Counter()
+            for r in rounds:
+                for n in CDN:
+                    cand = [(r[("dns", x, "udp", "cdn:" + n)], r.get((x, "udp", "cdn:" + n)), x) for x in race
+                            if r.get(("dns", x, "udp", "cdn:" + n)) is not None]
+                    if len(cand) < len(race): continue
+                    d, c, x = min(cand); ans.append(d); wins[x] += 1
+                    if c is not None: srv.append(c)
+            if ans and srv:
+                w = " ".join(f"{x} {100 * c / sum(wins.values()):.0f}%" for x, c in wins.most_common())
+                print(f"{' + '.join(race):34} {pct(ans,.5):10.0f} {pct(ans,.9):5.0f} {statistics.median(srv):13.0f}"
+                      f" {100*sum(x < 10 for x in srv)/len(srv):6.0f}% {100*sum(x > 100 for x in srv)/len(srv):4.0f}%  {w}")
     cols = sorted(by, key=lambda k: statistics.median(by[k]))
     print("\nPer name, median ms:\n" + f"{'':28}" + "".join(f"{(n[:8] + '/' + p):>14}" for n, p in cols))
     for n in CDN:
@@ -227,13 +251,14 @@ def report(path):
     for row in csv.reader(open(path)):
         if not row: continue
         if row[0].startswith("#"): cur = None; continue
-        ts, name, proto, kind, v = row; key = (name, proto, kind)
+        ts, name, proto, kind, v = row[:5]; key = (name, proto, kind)
         if cur is None: cur = {"first": key, "rounds": []}; runs.append(cur)
         if key == cur["first"]: cur["rounds"].append({"ts": int(ts)})
         cur["rounds"][-1][key] = None if v == "fail" else float(v)
+        if len(row) > 5 and row[5] != "fail": cur["rounds"][-1][("dns",) + key] = float(row[5])
     rounds = [r for run in runs for r in run["rounds"][1:]]
-    cdn = [(k, v) for r in runs for rr in r["rounds"] for k, v in rr.items() if k != "ts" and k[2].startswith("cdn:") and v is not None]
-    if cdn: return cdn_report(cdn)
+    cdn = [(k, v) for r in runs for rr in r["rounds"] for k, v in rr.items() if len(k) == 3 and k[2].startswith("cdn:") and v is not None]
+    if cdn: return cdn_report(cdn, [rr for r in runs for rr in r["rounds"]])
     data, fails, hourly, hours = collections.defaultdict(list), collections.Counter(), collections.defaultdict(list), []
     for r in rounds:
         h = datetime.datetime.fromtimestamp(r["ts"]).hour
@@ -246,12 +271,12 @@ def report(path):
     for k in sorted(data, key=lambda k: (k[2], statistics.median(data[k]))):
         xs = data[k]; print(f"{k[0]:11} {k[1]:5} {k[2]:4} {len(xs):4} {fails[k]:4} {pct(xs,.5):5.0f} {pct(xs,.9):5.0f} {pct(xs,.99):5.0f}")
     print("\nRaced (the faster of two each round, what Technitium's concurrent forwarding gets):")
-    for a, b in (("OpenDNS", "Google"), ("Quad9", "Google"), ("Quad9", "Cloudflare"), ("OpenDNS", "Cloudflare")):
+    for race in RACES + [("Quad9", "Cloudflare")]:
         for proto in ("udp", "doh"):
             for kind in ("warm", "miss"):
-                xs = [min(r[(a, proto, kind)], r[(b, proto, kind)]) for r in rounds
-                      if r.get((a, proto, kind)) is not None and r.get((b, proto, kind)) is not None]
-                if xs: print(f"  {a}+{b} {proto} {kind}: p50 {pct(xs,.5):.0f}  p90 {pct(xs,.9):.0f}  p99 {pct(xs,.99):.0f}")
+                xs = [min(r[(x, proto, kind)] for x in race) for r in rounds
+                      if all(r.get((x, proto, kind)) is not None for x in race)]
+                if xs: print(f"  {'+'.join(race)} {proto} {kind}: p50 {pct(xs,.5):.0f}  p90 {pct(xs,.9):.0f}  p99 {pct(xs,.99):.0f}")
     cols = sorted({(n, p) for (n, p, _) in data})
     print("\nHourly p50, cached/uncached:\nhour " + "".join(f"{n[:8] + '/' + p:>14}" for n, p in cols))
     for h in hours:
