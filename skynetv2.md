@@ -23,7 +23,7 @@
 |---|---|---|
 | P0 | Foundations + new ops VM | done |
 | P1 | docker-admin: admin door, identity, status | done (2026-10-22); 7 admin names move to .60 with P2's Technitium |
-| P2 | DNS (Technitium only) + remote access | detailed — not started |
+| P2 | DNS (Technitium only) + remote access | in progress: build PR (both VMs at .52/.53) |
 | P3 | docker-dmz: apps + public path | outline |
 | P4 | Backups → Google Drive | outline |
 | P5 | Observability (agent eyes) | outline |
@@ -594,7 +594,11 @@ Done 2026-10-23:
     lookup after every quiet spell. Plain UDP has no connection to lose, and no interception showed up
     on it. Cloudflare answers cached names fastest, but OpenDNS + Google raced is quicker on uncached
     ones and hands out the better CDN servers (above). So: **plain UDP to OpenDNS + Google, raced**.
-    A longer run, evenings included, comes later (`runbooks/dns-speed-test/`).
+    A day run (11:58–17:58, 359 rounds, a fresh name per resolver) confirms it: raced, 44 / 148
+    cached and 62 / 152 uncached. Adding Quad9 only trims the cached p90, which Technitium's cache
+    hides, and Quad9 then wins 70% of the races, so the in-ISP CDN servers drop from 17% to 4% of
+    answers. Quad9 with ECS (9.9.9.11) is slow on uncached names (174 / 500). An evening run comes
+    later (`runbooks/dns-speed-test/`).
 
 - The old zone (Ali's export, 2026-10-23) is a **Forwarder** zone (`FWD "this-server"`): it answers
   its own records and resolves everything else publicly, including the apex SOA/NS. Caddy's DNS-01
@@ -630,10 +634,14 @@ Done 2026-10-23:
   3. create `aliammar.net` as a Forwarder zone (`this-server`) if it's missing;
   4. import `dns/aliammar.net.zone` with `overwriteZone=true`, so the zone is exactly the file. The
      file is in Technitium's export format, SOA and FWD lines included, so forwarding survives the
-     overwrite. The first build VM proves the round trip; if FWD won't import, the sync overwrites
-     per record and deletes names missing from the file instead.
+     overwrite.
 
-  Idempotent. A failure fails the unit, so the deploy fails and comin posts to `#alerts`.
+  Idempotent. A failure fails the unit, so the deploy fails and comin posts to `#alerts`. Proven
+  against Technitium 15.6.2 before the build:
+  - the export equals the file, FWD line included, apart from the SOA serial;
+  - a record or setting changed through the API is undone by the next run;
+  - a bad zone line, a mistyped settings key or a wrong password fails the run, and the zone stays
+    as it was.
 - **`secrets/technitium-<node>.yaml`:** `technitium_admin_password` (agent-generated, random, one per host)
   and `discord_alerts_webhook` (Ali copies the `#alerts` URL, so comin posts failures). Ali reads the
   password with sops to open the UI; settings or records changed in the UI are overwritten on the
@@ -660,6 +668,8 @@ Done 2026-10-23:
     (`https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro-onlydomains.txt`,
     HaGeZi's format for Technitium, ~207k domains), refreshed daily;
   - recursion only for 10.10.0.0/16, 100.64.0.0/10 (Tailscale) and loopback;
+  - the same two ranges bypass Technitium's per-client rate limit. It's on by default (600
+    queries/min per IP), and a Docker host's containers count as one IP;
   - console logging, local time.
 - **A change** = edit + PR. Both servers apply it within ~2 min of the merge.
 - **`dns/README.md`:** adding a record, checking it (`dig @10.10.70.50 <name>`), and why the UI is
@@ -674,20 +684,24 @@ format covers its subdomains; the list holds only `doubleclick.net`'s subdomains
 ### OPNsense (agent drafts, Ali applies)
 
 While building (ops already reaches every Skynet VLAN on any port, rule 390):
-- `ROLE_DNS_RESOLVERS` += 10.10.70.52, .53 (so rule 100 lets clients test them);
-- `ROLE_NIX_CACHE_CLIENTS` += 10.10.70.50–.53.
+- new host aliases `HOST_TECHNITIUM_NETWORK` = 10.10.70.52 and `HOST_TECHNITIUM_CORE` = 10.10.70.53;
+- both nested in `ROLE_DNS_RESOLVERS`, so rule 100 lets clients and Gatus test them and rule 110
+  lets them forward;
+- both nested in `ROLE_NIX_CACHE_CLIENTS`.
+
+A cutover then only edits that server's `HOST_` alias (→ .50 / .51).
 
 After cutover:
-- `ROLE_DNS_RESOLVERS` = .50, .51 only (AdGuard .30/.31 and the build IPs out);
-  `ROLE_NIX_CACHE_CLIENTS` drops .52/.53;
+- `ROLE_DNS_RESOLVERS` = the two `HOST_TECHNITIUM_*` aliases only (AdGuard .30/.31 and the old CTs'
+  .50/.51 entries out);
 - DHCP: check every VLAN lists both .50 and .51 (one of them alone means no failover); OPNsense's
   own DNS servers are .50, .51;
 - rule 140 ("block other DNS and DoT") on; rule 150 ("any → approved upstreams :53") disabled, then
   deleted after a quiet week. It lets any client skip Technitium. If P3's cloudflared needs public
   resolvers, it gets its own rule;
 - rule 110 ("resolvers → any :53") stays: it carries the forwarding;
-- rule 115 (the benchmark's temporary ops → any :53) deleted: the overnight log ended 2026-10-23
-  09:00.
+- rule 115 (the benchmark's temporary ops → any :53) deleted. The last run ended 2026-10-23 17:58,
+  so this one needn't wait for the cutover.
 
 ### PRs and cutover
 
@@ -909,7 +923,7 @@ in a drill.
 | `modules/nix-cache.nix` (ops serves its store on the LAN; harmonia) | ~60 lines |
 | `.doco-cd.{admin,dmz}.yml` | ~10 lines each |
 | comin → Discord post-deploy hook | ~10 lines |
-| `modules/dns.nix` incl. `technitium-sync` (settings + zone via the Technitium API) | ~90 lines |
+| `modules/dns.nix` + `modules/technitium-sync.sh` (settings + zone via the Technitium API, gratuitous ARP) | ~145 lines |
 | CI: flake check + `docker compose config` per stack + "every stack has a README and a Gatus row" check | ~60 lines |
 | `runbooks/dns-speed-test/dnsbench.py` (run by hand; nothing deploys it) | ~200 lines |
 | alert webhook → `claude -p` (P6) | ~40 lines |

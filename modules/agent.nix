@@ -67,6 +67,21 @@ in
     hostNames = [ "10.10.50.40" ];
     publicKeyFile = ../hosts/docker-admin/ssh_host.pub;
   };
+  # Build IP and final IP (P2 cutover), so the cutover needs no change here.
+  programs.ssh.knownHosts.technitium-network = {
+    hostNames = [
+      "10.10.70.52"
+      "10.10.70.50"
+    ];
+    publicKeyFile = ../hosts/technitium-network/ssh_host.pub;
+  };
+  programs.ssh.knownHosts.technitium-core = {
+    hostNames = [
+      "10.10.70.53"
+      "10.10.70.51"
+    ];
+    publicKeyFile = ../hosts/technitium-core/ssh_host.pub;
+  };
 
   environment.systemPackages = with pkgs; [
     (writeShellScriptBin "skynet-attach" ''

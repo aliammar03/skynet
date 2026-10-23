@@ -75,8 +75,9 @@ survives.
 - The script prints where a resolver answered from, never the lab's public IP. Some debug answers
   contain it (OpenDNS `debug.opendns.com`, Google `o-o.myaddr`).
 
-## Last result (2026-10-23, night)
+## Last result (2026-10-23, night and day)
 
-Plain UDP to OpenDNS + Google, raced: p50 44 ms for cached names and 77 ms for uncached (first
-asks), and both get the in-ISP caches. Full numbers: `skynetv2.md` → P2 → Prechecks. Still to do: a
-run that covers the evening peak.
+Plain UDP to OpenDNS + Google, raced. The day run (11:58–17:58) gave p50 / p90 of 44 / 148 ms for
+cached names and 62 / 152 for uncached ones, and both resolvers get the in-ISP caches. The triple
+with Quad9 is no faster on uncached names, and Quad9 then wins most races, losing those caches.
+Full numbers: `skynetv2.md` → P2 → Prechecks. Still to do: a run that covers the evening peak.

@@ -3,6 +3,8 @@ keys:
   - &aliammar age1wl4edsa2pvac5nt0vvyagnmk3q756ee7lcy4gs6eenasjsl8eeaq8savt2
   - &ops age1vmh2wwd6h6pcqatnzlhf86vnc0pa6gcytga6ng3unlkp3urfrv7qah3khk  # ssh-keyscan -t ed25519 10.10.90.91 | ssh-to-age
   - &docker-admin age17tyjetvkv48rf2sacrpdtledjqvc4x3dvrwjrmx6sdl06cwdzpzq35fzzf  # ssh-keyscan -t ed25519 10.10.50.40 | ssh-to-age
+  - &technitium-network age1syvpndflhm06y0wcsef57dq0kczjr3rjjhfqyvptx9yncp800ups2k8nrc  # ssh-to-age < hosts/technitium-network/ssh_host.pub
+  - &technitium-core age1z04wgrdkynk2ez3hlqh67x65ayd2hq743z64wlrc8vvcfrcwqefsgu8ed2  # ssh-to-age < hosts/technitium-core/ssh_host.pub
 creation_rules:
   - path_regex: ^secrets/ops\.yaml$
     key_groups:
@@ -14,6 +16,16 @@ creation_rules:
       - age:
           - *aliammar
           - *docker-admin
+  - path_regex: ^secrets/technitium-network\.yaml$
+    key_groups:
+      - age:
+          - *aliammar
+          - *technitium-network
+  - path_regex: ^secrets/technitium-core\.yaml$
+    key_groups:
+      - age:
+          - *aliammar
+          - *technitium-core
   - path_regex: ^stacks/admin/.*\.sops\.[^/]+$
     key_groups:
       - age:

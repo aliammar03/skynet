@@ -42,8 +42,15 @@
     {
       nixosConfigurations.ops = mkHost "ops";
       nixosConfigurations.docker-admin = mkHost "docker-admin";
+      nixosConfigurations.technitium-network = mkHost "technitium-network";
+      nixosConfigurations.technitium-core = mkHost "technitium-core";
 
-      packages.${system}.installer-docker-admin = mkInstaller "docker-admin";
+      # One attrset: Nix can't merge repeated `packages.${system}.…` (a dynamic attribute name).
+      packages.${system} = {
+        installer-docker-admin = mkInstaller "docker-admin";
+        installer-technitium-network = mkInstaller "technitium-network";
+        installer-technitium-core = mkInstaller "technitium-core";
+      };
 
       devShells.${system}.default = pkgs.mkShell {
         packages = with pkgs; [
