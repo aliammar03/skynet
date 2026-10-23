@@ -600,9 +600,12 @@ Done 2026-10-23:
     answers. Quad9 with ECS (9.9.9.11) is slow on uncached names (174 / 500). An evening run comes
     later (`runbooks/dns-speed-test/`).
 
-- The old zone (Ali's export, 2026-10-23) is a **Forwarder** zone (`FWD "this-server"`): it answers
-  its own records and resolves everything else publicly, including the apex SOA/NS. Caddy's DNS-01
-  checks rely on that, so the new zone keeps the model.
+- The old zone (Ali's export, 2026-10-23) was a **Forwarder** zone (`FWD "this-server"`): it answered
+  its own records and resolved everything else publicly. The new servers started that way too, but a
+  Forwarder zone also sends a missing *type* to public DNS. AAAA for `proxmox-core` then came back
+  NXDOMAIN from Cloudflare. musl (Alpine containers) and systemd-resolved treat that as "the name
+  doesn't exist". So `aliammar.net` is a **Primary** zone (2026-10-23), and caddy-admin's DNS-01
+  skips its own propagation check (below).
 - DHCP already hands out the Technitium IPs.
 - Settings are greenfield: nothing is carried over from the old servers.
 
@@ -631,14 +634,15 @@ Done 2026-10-23:
 - **`technitium-sync`** (oneshot, after Technitium; re-runs when `dns/` changes, and at boot):
   1. log in as `admin`;
   2. apply `dns/settings.json` (Set DNS Settings);
-  3. create `aliammar.net` as a Forwarder zone (`this-server`) if it's missing;
+  3. create `aliammar.net` as a Primary zone if it's missing (or convert it, e.g. from Forwarder);
   4. import `dns/aliammar.net.zone` with `overwriteZone=true`, so the zone is exactly the file. The
-     file is in Technitium's export format, SOA and FWD lines included, so forwarding survives the
-     overwrite.
+     file is in Technitium's export format, SOA and NS lines included.
 
   Idempotent. A failure fails the unit, so the deploy fails and comin posts to `#alerts`. Proven
   against Technitium 15.6.2 before the build:
-  - the export equals the file, FWD line included, apart from the SOA serial;
+  - the export equals the file apart from the SOA serial;
+  - the Forwarder → Primary conversion and a fresh create both end in the file's zone, with AAAA
+    answered "no record";
   - a record or setting changed through the API is undone by the next run;
   - a bad zone line, a mistyped settings key or a wrong password fails the run, and the zone stays
     as it was.
@@ -649,7 +653,7 @@ Done 2026-10-23:
 
 ### `dns/` — records and settings in git
 
-- **`aliammar.net.zone`** (Technitium's export format, TTL 300): SOA, the FWD `this-server` line,
+- **`aliammar.net.zone`** (Technitium's export format, TTL 300): SOA and NS (`ns` → .50 and .51),
   and the admin names `opnsense`, `proxmox-core`, `proxmox-network`, `pbs`, `omada`,
   `technitium-core`, `technitium-network`, `unraid`, `auth`, `status` → 10.10.60.60. Left out of the
   old zone: `arcane` and `caddy` (no site behind them; Arcane retires in P3) and the app names →
@@ -679,7 +683,17 @@ Done 2026-10-23:
 
 The `dns` group gets per server: `auth` → 10.10.60.60 (exists); `google.com` NOERROR (forwarding
 works); `googlesyndication.com` NXDOMAIN (blocking works: it's on HaGeZi Pro, and the wildcard
-format covers its subdomains; the list holds only `doubleclick.net`'s subdomains, not the domain). The build IPs get the same rows until cutover.
+format covers its subdomains; the list holds only `doubleclick.net`'s subdomains, not the domain);
+`auth` AAAA NOERROR (a missing type is "no record", not NXDOMAIN). The build IPs got the same rows
+until cutover.
+
+**caddy-admin's DNS-01** (and caddy-apps' in P3):
+- The site's `tls` block holds the Cloudflare provider, `propagation_timeout -1` and
+  `propagation_delay 60s`.
+- Inside the lab, Technitium answers for `aliammar.net` itself, so Caddy can't see the challenge
+  record. It waits a minute, and Let's Encrypt checks Cloudflare.
+- The current cert first renews around 2026-12-21. Gatus's door row alerts if the cert gets within
+  7 days of expiry.
 
 ### OPNsense (agent drafts, Ali applies)
 

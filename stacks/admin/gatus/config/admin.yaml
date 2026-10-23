@@ -25,6 +25,16 @@ x-dns-forward: &dns-forward
     query-type: A
   conditions: ["[DNS_RCODE] == NOERROR"]
   alerts: [{ type: discord }]
+# A type a name lacks is "no record" (NOERROR), never NXDOMAIN: musl and resolved would then treat
+# the whole name as missing.
+x-dns-aaaa: &dns-aaaa
+  group: dns
+  interval: 60s
+  dns:
+    query-name: auth.aliammar.net
+    query-type: AAAA
+  conditions: ["[DNS_RCODE] == NOERROR"]
+  alerts: [{ type: discord }]
 # Blocking works: googlesyndication.com is on HaGeZi Pro.
 x-dns-block: &dns-block
   group: dns
@@ -57,9 +67,11 @@ endpoints:
   - { <<: *dns, name: technitium-network, url: 10.10.70.50 }
   - { <<: *dns-forward, name: technitium-network forwarding, url: 10.10.70.50 }
   - { <<: *dns-block, name: technitium-network blocking, url: 10.10.70.50 }
+  - { <<: *dns-aaaa, name: technitium-network AAAA, url: 10.10.70.50 }
   - { <<: *dns, name: technitium-core, url: 10.10.70.51 }
   - { <<: *dns-forward, name: technitium-core forwarding, url: 10.10.70.51 }
   - { <<: *dns-block, name: technitium-core blocking, url: 10.10.70.51 }
+  - { <<: *dns-aaaa, name: technitium-core AAAA, url: 10.10.70.51 }
 
   # healthchecks.io's read-only badge for check `docker-admin` (2-state: up, or down once period +
   # grace pass with no ping). No alert: healthchecks.io already posts to #alerts.

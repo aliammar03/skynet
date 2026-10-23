@@ -11,9 +11,12 @@ through Technitium's API at boot and on every deploy that changes them.
 - **Format:** Technitium's export format, one record per line. The file is the whole zone: a record
   missing from it is deleted on the next sync. An export of the zone equals the file, except the SOA
   serial, which Technitium bumps on every change.
-- **Forwarder zone:** the `FWD "this-server"` line makes the server answer the file's records and
-  resolve every other `aliammar.net` name publicly. That includes the apex SOA and NS, which Caddy's
-  DNS-01 checks need. Keep the SOA and FWD lines.
+- **Primary zone:** inside the lab the file is all of `aliammar.net`. A name missing from it is
+  NXDOMAIN, and a type a name lacks (AAAA) is "no record", never NXDOMAIN. A Forwarder zone sent
+  missing types to public DNS, and musl and systemd-resolved then dropped the whole name. Public
+  records at Cloudflare aren't visible inside, so caddy-admin's DNS-01 skips its own propagation
+  check (`stacks/admin/caddy-admin/conf/Caddyfile`). Keep the SOA, NS and `ns` lines. The SOA's last
+  field (300 s) is how long a "doesn't exist" answer is cached.
 - No wildcard until P3.
 
 ## Settings: `settings.json`

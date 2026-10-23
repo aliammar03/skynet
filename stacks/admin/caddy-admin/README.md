@@ -2,6 +2,10 @@
 
 - **Purpose:** the admin door. One wildcard site `*.aliammar.net` (cert via Cloudflare DNS-01) in
   front of the lab's admin UIs; unknown names get 404.
+- **DNS-01 without a propagation check** (the site's `tls` block): inside the lab Technitium answers
+  for `aliammar.net` itself (`dns/README.md`), so Caddy can't see its challenge record. It waits 60 s,
+  then Let's Encrypt checks Cloudflare. A failed renewal retries; Gatus's door row alerts within 7
+  days of expiry.
 - **Where:** macvlan `adm60`, 10.10.60.60, in OPNsense alias `HOST_PROXY_ADMIN` (rules 210 admin
   clients + ops → :443, 230 → admin targets, 830 → DNS; 810 web egress). Also on `edge` for apps.
 - **Auth mode:** `forward`: every site except `auth` passes an Authelia login first, then the
