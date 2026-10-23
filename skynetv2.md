@@ -36,9 +36,9 @@
 proxmox-core (12 cpu, 31 GB)                     proxmox-network (8 cpu, 15 GB)
 ├ ops          VM 9091  10.10.90.91   NixOS      ├ OPNsense     VM 5001          (Ali-managed)
 │   Claude Code · Discord · Remote Control       ├ Omada        CT 525           (unchanged)
-├ docker-dmz   VM 10010 10.10.100.10  NixOS      ├ dns-network  VM 7050 10.10.70.50 NixOS
+├ docker-dmz   VM 10010 10.10.100.10  NixOS      ├ technitium-network VM 7050 10.10.70.50 NixOS
 │   doco-cd(dmz) · caddy-apps .35 · cloudflared .33 · apps
-├ dns-core     VM 7051  10.10.70.51   NixOS      └ docker-admin VM 5040 10.10.50.40 NixOS
+├ technitium-core VM 7051 10.10.70.51 NixOS      └ docker-admin VM 5040 10.10.50.40 NixOS
 ├ PBS CT 240 · Unraid VM 2020 · HAOS VM 3050         doco-cd(admin) · caddy-admin 10.10.60.60
 └ athena CT 10030 (own repo, untouched)              Authelia · Gatus · (P5) VictoriaMetrics/Logs · Grafana
 ```
@@ -60,7 +60,7 @@ Nothing outside the lab pushes into it.
 | D2 | Hosts = **NixOS** flake, each host kept current by **comin** (pull) | A host rebuilds from git; no central push credential |
 | D3 | Repo **public**; lab **pulls**; CI = static checks on free GitHub runners | GitHub Free only offers rulesets and CODEOWNERS on public repos; nothing inbound |
 | D4 | **Authelia**, with an auth mode per app: `own` / `oidc` / `forward` | Config lives in git; ~50 MB; OIDC + forward-auth + passkeys |
-| D5 | **Technitium** is the only DNS: two equal NixOS VMs (dns-network .50, dns-core .51), each loading the zone and its settings from `dns/` in git. Ad-blocking with HaGeZi Pro; forwarding over plain UDP to OpenDNS + Google, raced; AdGuard retired | One product; records and settings are reviewed in PRs and a rebuilt VM comes back complete; from PTCL those two are the fastest resolvers that also hand out the in-ISP CDN caches (P2 benchmark) |
+| D5 | **Technitium** is the only DNS: two equal NixOS VMs (technitium-network .50, technitium-core .51), each loading the zone and its settings from `dns/` in git. Ad-blocking with HaGeZi Pro; forwarding over plain UDP to OpenDNS + Google, raced; AdGuard retired | One product; records and settings are reviewed in PRs and a rebuilt VM comes back complete; from PTCL those two are the fastest resolvers that also hand out the in-ISP CDN caches (P2 benchmark) |
 | D6 | Two Docker hosts: **docker-dmz** (apps, core node), **docker-admin** (admin, identity, monitoring; network node) | Segmentation; monitoring survives losing the core node |
 | D7 | Agent = **Claude Code** on the ops VM; chat via **Discord** (Channels) + the Claude app (Remote Control) | Telegram is blocked; no custom UI to build |
 | D8 | All alerts go to Discord `#alerts` (doco-cd via Apprise, Gatus, healthchecks.io, comin hook) | One place to look |
@@ -169,7 +169,7 @@ skynet/
 | caddy-admin / caddy-apps | Cloudflare token `Zone.DNS:Edit` on `aliammar.net` | DNS-01 | P1 / P3 |
 | doco-cd API keys | REST/MCP per Docker host | held by ops (diagnose tools only until P6) | P1 / P3 |
 | `#alerts` webhook | post only | Gatus, Apprise, comin, healthchecks.io | P1 |
-| dns-network / dns-core host keys | `secrets/dns-<node>.yaml`: Technitium `admin` password (agent-generated) | that host | P2 |
+| technitium-network / technitium-core host keys | `secrets/technitium-<node>.yaml`: Technitium `admin` password (agent-generated) | that host | P2 |
 | Tailscale | Ali's account; OPNsense holds the node key | subnet routes 10.10.50.0/24, 10.10.60.60, 10.10.70.50–51 | P2 |
 | docker-dmz host key, tunnel credentials | `stacks/dmz/**`, cloudflared | that host | P3 |
 | rclone | Drive scope, Ali's own OAuth client | backup jobs | P4 |
@@ -547,8 +547,8 @@ Done in a maintenance window. Rollback = stop caddy-admin, start CT 635.
 ## P2 — DNS + remote access `[detailed]`
 
 **Goal**
-- Two Technitium VMs that rebuild from git: dns-network (10.10.70.50, network node) and dns-core
-  (10.10.70.51, core node). Every record and setting comes from `dns/`.
+- Two Technitium VMs that rebuild from git: technitium-network (10.10.70.50, network node) and
+  technitium-core (10.10.70.51, core node). Every record and setting comes from `dns/`.
 - Ads blocked (HaGeZi Pro); lookups forwarded over plain UDP to OpenDNS + Google, raced.
 - All ten admin names → 10.10.60.60. Clients can't bypass Technitium. AdGuard and the old CTs are off.
 - From anywhere, via Tailscale: `*.aliammar.net` resolves (split DNS) and the management network
@@ -602,15 +602,15 @@ Done 2026-10-23:
 - DHCP already hands out the Technitium IPs.
 - Settings are greenfield: nothing is carried over from the old servers.
 
-### Hosts: `hosts/dns-network/`, `hosts/dns-core/` + `modules/dns.nix`
+### Hosts: `hosts/technitium-network/`, `hosts/technitium-core/` + `modules/dns.nix`
 
 - **`proxmox.sh`:** VM 7050 on server-proxmox-network and VM 7051 on server-proxmox-core: 2 cores,
   1024 MB, balloon 0, 16 GB `local-lvm`, `net0` on `vmbr0` **tag 70**, MACs pinned
   `BC:24:11:70:50:01` / `BC:24:11:70:51:01` (each host's `net.nix`).
 - **Install:** `runbooks/new-vm.md`, for the pair in one build PR (below), at the **build IPs**
-  10.10.70.52 (dns-network) and .53 (dns-core), beside the old CTs. The PR carries the hardware and
-  host keys read from the running installers, the recipients and the secrets; nixos-anywhere's
-  `--copy-host-keys` keeps those keys.
+  10.10.70.52 (technitium-network) and .53 (technitium-core), beside the old CTs. The PR carries the
+  hardware and host keys read from the running installers, the recipients and the secrets;
+  nixos-anywhere's `--copy-host-keys` keeps those keys.
 - **Network:** `lan` renamed by MAC. The host resolves via 127.0.0.1, then the other server.
   `services.resolved` is off (its stub would hold :53). A oneshot sends gratuitous ARP once the
   address is up, so OPNsense learns the new MAC immediately when a VM takes over .50/.51.
@@ -634,7 +634,7 @@ Done 2026-10-23:
      per record and deletes names missing from the file instead.
 
   Idempotent. A failure fails the unit, so the deploy fails and comin posts to `#alerts`.
-- **`secrets/dns-<node>.yaml`:** `technitium_admin_password` (agent-generated, random, one per host)
+- **`secrets/technitium-<node>.yaml`:** `technitium_admin_password` (agent-generated, random, one per host)
   and `discord_alerts_webhook` (Ali copies the `#alerts` URL, so comin posts failures). Ali reads the
   password with sops to open the UI; settings or records changed in the UI are overwritten on the
   next sync.
@@ -700,9 +700,9 @@ After cutover:
 
 1. Both VMs green at the build IPs: every zone name answers right, blocking works, forwarders reach
    out, Gatus rows green.
-2. **dns-core → .51:** Ali `pct shutdown 751 && pct set 751 --onboot 0`, then merges dns-core's
-   cutover PR. Check by name from ops and docker-admin; Gatus green.
-3. **dns-network → .50:** the same with CT 750.
+2. **technitium-core → .51:** Ali `pct shutdown 751 && pct set 751 --onboot 0`, then merges
+   technitium-core's cutover PR. Check by name from ops and docker-admin; Gatus green.
+3. **technitium-network → .50:** the same with CT 750.
 4. The OPNsense changes above. AdGuard CT 731: `pct shutdown 731 && pct set 731 --onboot 0`
    (730 is already off).
 5. CTs 750, 751, 730 and 731 stay stopped for 14 days, then P7 destroys them.
