@@ -11,6 +11,9 @@ services:
     cap_add: [NET_BIND_SERVICE]
     volumes:
       - ./conf:/etc/caddy:ro
+      # Not under recreate.ignore: --watch reloads on config changes only, so a re-pinned cert
+      # recreates the container to load it.
+      - ./certs:/etc/caddy-certs:ro
       - /opt/appdata/caddy-admin/data:/data # certificates and ACME account
       - /opt/appdata/caddy-admin/config:/config
     networks:

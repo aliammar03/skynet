@@ -33,18 +33,32 @@ in
     virtualisation.docker = {
       enable = true;
       daemon.settings.log-driver = "journald";
-      autoPrune = {
-        enable = true;
-        dates = "weekly";
-      };
     };
-
-    # `edge`: the bridge apps and doors share (doors reach apps by container name).
-    systemd.services.docker-networks = {
-      description = "Create the Docker networks stacks join";
-      wantedBy = [ "multi-user.target" ];
+    # Weekly: images no container uses, pulled over a week ago. Not autoPrune (`docker system
+    # prune`): it deletes stopped containers, and a doco-cd job's container (heartbeat) is stopped
+    # between runs; doco-cd finds its jobs by those containers.
+    systemd.services.docker-image-prune = {
+      description = "Prune unused Docker images";
       requires = [ "docker.service" ];
       after = [ "docker.service" ];
+      path = [ config.virtualisation.docker.package ];
+      serviceConfig.Type = "oneshot";
+      script = "docker image prune --all --force --filter until=168h";
+      startAt = "weekly";
+    };
+
+    # `edge`: the bridge apps and doors share (doors reach apps by container name). Create-only: a
+    # changed macvlan subnet needs the network removed by hand. The macvlan has no `--ip-range`, so
+    # every container on it sets a fixed `ipv4_address`; Docker would otherwise hand out VLAN IPs.
+    systemd.services.docker-networks = {
+      description = "Create the Docker networks stacks join";
+      wantedBy = [
+        "multi-user.target"
+        "docker-doco-cd.service"
+      ];
+      requires = [ "docker.service" ];
+      after = [ "docker.service" ];
+      before = [ "docker-doco-cd.service" ];
       path = [ config.virtualisation.docker.package ];
       serviceConfig = {
         Type = "oneshot";
