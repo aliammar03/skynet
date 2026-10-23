@@ -18,8 +18,7 @@
 |---|---|---|
 | `door` | `auth.aliammar.net/api/health` through caddy-admin (Gatus reaches it by caddy-admin's `edge` alias) | `200`, cert valid > 7 days: Caddy, the wildcard cert and Authelia, shared by every admin site |
 | `service` | each admin UI's IP:port | TCP connect |
-| `dns` | `auth.aliammar.net A` on Technitium .50 and .51 | answer is 10.10.60.60 |
-| `dns` | per new Technitium VM, at its build IP until its cutover (P2): `auth.aliammar.net`, `google.com`, `googlesyndication.com` | 10.10.60.60; `NOERROR` (forwarding); `NXDOMAIN` (blocking, HaGeZi Pro) |
+| `dns` | per Technitium server (.50, .51): `auth.aliammar.net`, `google.com`, `googlesyndication.com` | 10.10.60.60; `NOERROR` (forwarding); `NXDOMAIN` (blocking, HaGeZi Pro) |
 | `job` | heartbeat's healthchecks.io badge (`HC_BADGE_URL`), every 5 min, no alert (healthchecks.io alerts) | `status` is `up` |
 
 **Gotchas**
