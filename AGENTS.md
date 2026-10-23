@@ -28,3 +28,5 @@ phase are in [`skynetv2.md`](skynetv2.md) — read its Status first.
   `gatus.yaml`, `README.md` (contract in `skynetv2.md` → Conventions).
 - Docs state current truth, tersely. No incident stories in docs.
 - When a phase is an outline, flesh it out in `skynetv2.md` (PR) before executing it.
+- Recurring jobs (a new VM, a new stack, the DNS speed test) follow `runbooks/`. Fix the runbook in the
+  same PR when reality differs.

@@ -101,7 +101,7 @@ skynet/
 ├ .doco-cd.admin.yml  .doco-cd.dmz.yml
 ├ stacks/admin/<stack>/      (P1+)
 ├ stacks/dmz/<app>/          (P3+)
-├ runbooks/                  (P6)
+├ runbooks/                  new-vm · new-stack · dns-speed-test (P2); more in P6
 ├ .claude/settings.json  .mcp.json  .sops.yaml  renovate.json  .gitignore
 └ .github/workflows/check.yml  .github/CODEOWNERS
 ```
@@ -893,6 +893,7 @@ in a drill.
 | comin → Discord post-deploy hook | ~10 lines |
 | `modules/dns.nix` incl. `technitium-sync` (settings + zone via the Technitium API) | ~90 lines |
 | CI: flake check + `docker compose config` per stack + "routed app has gatus.yaml/README" check | ~60 lines |
+| `runbooks/dns-speed-test/dnsbench.py` (run by hand; nothing deploys it) | ~200 lines |
 | alert webhook → `claude -p` (P6) | ~40 lines |
 | doco-cd MCP filter proxy (P6, optional) | ~40 lines |
 
