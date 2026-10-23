@@ -23,7 +23,7 @@
 |---|---|---|
 | P0 | Foundations + new ops VM | done |
 | P1 | docker-admin: admin door, identity, status | done (2026-10-22); 7 admin names move to .60 with P2's Technitium |
-| P2 | DNS (Technitium only) + remote access | in progress: both Technitium VMs on .50/.51; next the OPNsense cleanup, then Tailscale |
+| P2 | DNS (Technitium only) + remote access | done (2026-10-23); open: OPNsense rules 140/150/115 and CT 731 `onboot` (see P2 exit criteria) |
 | P3 | docker-dmz: apps + public path | outline |
 | P4 | Backups → Google Drive | outline |
 | P5 | Observability (agent eyes) | outline |
@@ -477,7 +477,7 @@ If an appliance cert can't be pinned, use `tls_insecure_skip_verify` and note it
 
 | Name | Upstream | Note |
 |---|---|---|
-| opnsense | https://10.10.50.1 | `tls_server_name OPNsense.internal` + trust its cert (`tls_trust_pool file`). In OPNsense, System → Settings → Administration → **Alternate Hostnames** must include `opnsense.aliammar.net` |
+| opnsense | https://10.10.50.1 | `tls_server_name OPNsense.internal` + trust its cert (`tls_trust_pool file`). In OPNsense, System → Settings → Administration → **Alternate Hostnames** must include `opnsense.aliammar.net` and `auth.aliammar.net` (after an Authelia login the first request's Referer is `auth`, which OPNsense otherwise rejects) |
 | proxmox-core / proxmox-network | https://10.10.50.11:8006 / .10:8006 | trust each node's `pve-root-ca.pem` |
 | pbs | https://10.10.20.40:8007 | trust its self-signed cert |
 | technitium-core / technitium-network | http://10.10.70.51:5380 / .50:5380 | CT 751 / CT 750 |
@@ -752,20 +752,32 @@ backup: cache, stats and logs are disposable, and everything else rebuilds from 
 3. Tailscale admin: approve the OPNsense node's routes; disable its key expiry.
 4. Tailscale admin → DNS: nameservers 10.10.70.50 and .51, each restricted to `aliammar.net` (split
    DNS). MagicDNS on; "override local DNS" off.
-5. OPNsense: assign and enable the Tailscale interface. Rules on it, from alias `NET_TAILNET`
-   (100.64.0.0/10): → `HOST_PROXY_ADMIN` :443; → `ROLE_DNS_RESOLVERS` :53; → 10.10.50.0/24 on
-   `PORT_ADMIN_BREAKGLASS`.
+5. OPNsense: Interfaces → Assignments → device `tailscale0` (it appears only once Tailscale is
+   running) → `TAILSCALE`, enabled, no IP config. Rules on it (sequence 270–272), from alias
+   `NET_TAILNET` (100.64.0.0/10): → `HOST_PROXY_ADMIN` :443; → `ROLE_DNS_RESOLVERS` :53; → MGMT net
+   (10.10.50.0/24) on `PORT_ADMIN_BREAKGLASS`. Tailscale's "Override DNS servers" belongs to global
+   nameservers, so it doesn't apply here (split DNS only).
 6. Devices: install Tailscale and sign in (Linux: `tailscale up --accept-routes`).
 
 ### Exit criteria
 
+Met on 2026-10-23, apart from the items marked open:
 - `dig @10.10.70.50` and `@10.10.70.51`: every admin name → 10.10.60.60, `googlesyndication.com` blocked,
-  the internet resolves. Gatus `dns` rows green.
-- Both VMs were configured only from git, and a merged record change shows on both within ~2 min.
-- Every VLAN's DHCP lists both .50 and .51; rule 140 on, rule 150 gone; AdGuard and CTs 750/751 off.
-- All ten admin names load behind Authelia.
+  the internet resolves. Gatus `dns` rows green. ✅
+- Both VMs were configured only from git, and a merged record change shows on both within ~2 min. ✅
+  (#42 changed the zone; both servers had it within minutes.)
+- Every VLAN's DHCP lists both .50 and .51 (Ali); `ROLE_DNS_RESOLVERS` = the two `HOST_TECHNITIUM_*`
+  aliases ✅. CTs 730, 731, 750 and 751 are stopped ✅. **Open:**
+  - rule 140 on, rule 150 gone, rule 115 deleted;
+  - CT 731 `onboot` 0.
+- All ten admin names load behind Authelia. ✅ OPNsense's Alternate Hostnames now include
+  `auth.aliammar.net` (P1 sites table).
 - On mobile data via Tailscale, a phone opens `https://opnsense.aliammar.net` and
-  `https://10.10.50.11:8006`.
+  `https://10.10.50.11:8006`. ✅ OPNsense: `TAILSCALE` interface, alias `NET_TAILNET`, rules 270–272.
+
+Deferred:
+- Technitium SSO, and the login screen. Authelia stays for now; an Authentik trial comes later
+  (P3 → Open).
 
 ## P3 — docker-dmz: apps + public path `[outline]`
 
@@ -809,7 +821,12 @@ Authentik.
 - Every app is green in Gatus, internally and publicly where listed.
 - The old VM 10015, Authentik CT 837 and Arcane are stopped. Ali destroys them in P7.
 
-**Open:** reuse the v1 tunnel or create a new one; how to lay out the aiometadata stack.
+**Open:**
+- reuse the v1 tunnel or create a new one;
+- how to lay out the aiometadata stack;
+- trial Authentik as the login service: custom login screen (CSS, backgrounds), forward-auth + OIDC,
+  config as blueprints in git. It would replace Authelia (a D4 change) and needs docker-admin
+  resized. Technitium SSO waits for this choice.
 
 ## P4 — Backups → Google Drive `[outline]`
 
