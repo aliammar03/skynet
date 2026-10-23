@@ -597,13 +597,16 @@ Done 2026-10-23:
 - **`proxmox.sh`:** VM 7050 on server-proxmox-network and VM 7051 on server-proxmox-core: 2 cores,
   1024 MB, balloon 0, 16 GB `local-lvm`, `net0` on `vmbr0` **tag 70**, MACs pinned
   `BC:24:11:70:50:01` / `BC:24:11:70:51:01` (each host's `net.nix`).
-- **Install:** the docker-admin flow (installer ISO per host, LAN copy with `scp -3`, `proxmox.sh`,
-  `hardware.nix` PR, nixos-anywhere, then recipient + secrets), at the **build IPs** 10.10.70.52
-  (dns-network) and .53 (dns-core), beside the old CTs.
+- **Install:** `runbooks/new-vm.md` (installer ISO, LAN copy with `scp -3`, `proxmox.sh`,
+  `hardware.nix` PR, nixos-anywhere; then the host key pinned for the agent, recipient and secrets),
+  at the **build IPs** 10.10.70.52 (dns-network) and .53 (dns-core), beside the old CTs.
 - **Network:** `lan` renamed by MAC. The host resolves via 127.0.0.1, then the other server.
   `services.resolved` is off (its stub would hold :53). A oneshot sends gratuitous ARP once the
   address is up, so OPNsense learns the new MAC immediately when a VM takes over .50/.51.
 - **Technitium** (`services.technitium-dns-server`, 15.6 in nixpkgs 26.05):
+  - enabled, with `technitium-sync`, only once the host's sops file has `technitium_admin_password`
+    (`hasSecret`). Technitium sets the admin password on its very first start only, and a fresh
+    install has no secrets yet, so starting earlier would leave `admin`/`admin`;
   - ports 53 TCP/UDP and 5380 (web + API) open in the host firewall; OPNsense decides who reaches
     them;
   - first start creates `admin` with the password from sops (`DNS_SERVER_ADMIN_PASSWORD_FILE`,
@@ -654,7 +657,8 @@ Done 2026-10-23:
 ### Gatus (`stacks/admin/gatus/config/admin.yaml`)
 
 The `dns` group gets per server: `auth` → 10.10.60.60 (exists); `google.com` NOERROR (forwarding
-works); `doubleclick.net` NXDOMAIN (blocking works). The build IPs get the same rows until cutover.
+works); `googlesyndication.com` NXDOMAIN (blocking works: it's on HaGeZi Pro, and the wildcard
+format covers its subdomains; the list holds only `doubleclick.net`'s subdomains, not the domain). The build IPs get the same rows until cutover.
 
 ### OPNsense (agent drafts, Ali applies)
 
@@ -668,7 +672,8 @@ After cutover:
 - DHCP: check every VLAN lists both .50 and .51 (one of them alone means no failover); OPNsense's
   own DNS servers are .50, .51;
 - rule 140 ("block other DNS and DoT") on; rule 150 ("any → approved upstreams :53") disabled, then
-  deleted after a quiet week. It lets any client skip Technitium;
+  deleted after a quiet week. It lets any client skip Technitium. If P3's cloudflared needs public
+  resolvers, it gets its own rule;
 - rule 110 ("resolvers → any :53") stays: it carries the forwarding;
 - rule 115 (the benchmark's temporary ops → any :53) deleted: the overnight log ended 2026-10-23
   09:00.
@@ -684,7 +689,8 @@ After cutover:
    (730 is already off).
 5. CTs 750, 751, 730 and 731 stay stopped for 14 days, then P7 destroys them.
 
-Rollback for either server: stop its VM, `pct start` its CT (same IP).
+Rollback for either server: stop its VM, `pct start` its CT (same IP). Nothing on the VMs needs a
+backup: cache, stats and logs are disposable, and everything else rebuilds from git.
 
 ### Tailscale (agent drafts, Ali applies)
 
@@ -701,7 +707,7 @@ Rollback for either server: stop its VM, `pct start` its CT (same IP).
 
 ### Exit criteria
 
-- `dig @10.10.70.50` and `@10.10.70.51`: every admin name → 10.10.60.60, `doubleclick.net` blocked,
+- `dig @10.10.70.50` and `@10.10.70.51`: every admin name → 10.10.60.60, `googlesyndication.com` blocked,
   the internet resolves. Gatus `dns` rows green.
 - Both VMs were configured only from git, and a merged record change shows on both within ~2 min.
 - Every VLAN's DHCP lists both .50 and .51; rule 140 on, rule 150 gone; AdGuard and CTs 750/751 off.
