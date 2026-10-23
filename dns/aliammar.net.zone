@@ -1,0 +1,13 @@
+$ORIGIN aliammar.net.
+@                     0         IN  SOA           technitium. invalid. 1 900 300 604800 900
+@                     0         IN  FWD           Udp "this-server" False DefaultProxy 0
+auth                  300       IN  A             10.10.60.60
+omada                 300       IN  A             10.10.60.60
+opnsense              300       IN  A             10.10.60.60
+pbs                   300       IN  A             10.10.60.60
+proxmox-core          300       IN  A             10.10.60.60
+proxmox-network       300       IN  A             10.10.60.60
+status                300       IN  A             10.10.60.60
+technitium-core       300       IN  A             10.10.60.60
+technitium-network    300       IN  A             10.10.60.60
+unraid                300       IN  A             10.10.60.60

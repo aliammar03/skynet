@@ -50,8 +50,9 @@ On `p<N>/<h>`:
    `curl -fsSL https://raw.githubusercontent.com/aliammar03/skynet/refs/heads/<branch>/hosts/<h>/proxmox.sh -o /root/proxmox-<h>.sh`,
    read it, then `sh /root/proxmox-<h>.sh`. The VM boots the ISO.
 3. OPNsense:
-   - `ROLE_NIX_CACHE_CLIENTS` += the IP (ops's LAN Nix cache, :5000);
-   - a `HOST_<NAME>` alias, plus the role aliases and rules the host's job needs;
+   - a `HOST_<NAME>` alias with the IP. Nest it, not the IP, in `ROLE_NIX_CACHE_CLIENTS` (ops's
+     LAN Nix cache, :5000) and in the role aliases the host's job needs, then add its rules. A later
+     IP change then edits only the `HOST_` alias;
    - check that its VLAN is in `NET_WEB_EGRESS` (20, 50, 60, 70, 80, 90, 100). comin, the caches and
      the registries need :443. If it isn't, add an egress rule.
 

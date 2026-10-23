@@ -16,6 +16,24 @@ x-dns: &dns
     - "[DNS_RCODE] == NOERROR"
     - "[BODY] == 10.10.60.60"
   alerts: [{ type: discord }]
+# Forwarding works: a public name resolves.
+x-dns-forward: &dns-forward
+  group: dns
+  interval: 60s
+  dns:
+    query-name: google.com
+    query-type: A
+  conditions: ["[DNS_RCODE] == NOERROR"]
+  alerts: [{ type: discord }]
+# Blocking works: googlesyndication.com is on HaGeZi Pro.
+x-dns-block: &dns-block
+  group: dns
+  interval: 60s
+  dns:
+    query-name: googlesyndication.com
+    query-type: A
+  conditions: ["[DNS_RCODE] == NXDOMAIN"]
+  alerts: [{ type: discord }]
 
 endpoints:
   - name: caddy-admin + authelia
@@ -38,6 +56,13 @@ endpoints:
 
   - { <<: *dns, name: technitium-network, url: 10.10.70.50 }
   - { <<: *dns, name: technitium-core, url: 10.10.70.51 }
+  # The new VMs at their build IPs (P2). Each cutover moves its rows to .50/.51 and drops the old one.
+  - { <<: *dns, name: technitium-network .52, url: 10.10.70.52 }
+  - { <<: *dns-forward, name: technitium-network .52 forwarding, url: 10.10.70.52 }
+  - { <<: *dns-block, name: technitium-network .52 blocking, url: 10.10.70.52 }
+  - { <<: *dns, name: technitium-core .53, url: 10.10.70.53 }
+  - { <<: *dns-forward, name: technitium-core .53 forwarding, url: 10.10.70.53 }
+  - { <<: *dns-block, name: technitium-core .53 blocking, url: 10.10.70.53 }
 
   # healthchecks.io's read-only badge for check `docker-admin` (2-state: up, or down once period +
   # grace pass with no ping). No alert: healthchecks.io already posts to #alerts.
