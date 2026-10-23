@@ -681,11 +681,13 @@ Done 2026-10-23:
 
 ### Gatus (`stacks/admin/gatus/config/admin.yaml`)
 
-The `dns` group gets per server: `auth` → 10.10.60.60 (exists); `google.com` NOERROR (forwarding
-works); `googlesyndication.com` NXDOMAIN (blocking works: it's on HaGeZi Pro, and the wildcard
-format covers its subdomains; the list holds only `doubleclick.net`'s subdomains, not the domain);
-`auth` AAAA NOERROR (a missing type is "no record", not NXDOMAIN). The build IPs got the same rows
-until cutover.
+The `dns` group has one Gatus **suite** (one row) per server. Each step alerts on its own:
+- the UI (:5380);
+- `auth` → 10.10.60.60;
+- `auth` AAAA NOERROR (a missing type is "no record", not NXDOMAIN);
+- `google.com` NOERROR (forwarding works);
+- `googlesyndication.com` NXDOMAIN (blocking works: it's on HaGeZi Pro, and the wildcard format
+  covers its subdomains; the list holds only `doubleclick.net`'s subdomains, not the domain).
 
 **caddy-admin's DNS-01** (and caddy-apps' in P3):
 - The site's `tls` block holds the Cloudflare provider, `propagation_timeout -1` and

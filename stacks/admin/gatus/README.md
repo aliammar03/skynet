@@ -4,7 +4,8 @@
   2 passes to clear, a post on recovery too).
 - **URL:** https://status.aliammar.net (caddy-admin → `gatus:8080`).
 - **Auth mode:** `forward` (Authelia). `^/api/` is open to ops (10.10.90.91) so the agent can read
-  it: `curl https://status.aliammar.net/api/v1/endpoints/statuses`.
+  it: `curl https://status.aliammar.net/api/v1/endpoints/statuses`, and the `dns` suites at
+  `/api/v1/suites/statuses`.
 - **Data:** `/opt/appdata/gatus/data.db` (check history; backup class: disposable).
 - **Secrets:** `secret.sops.env`: `DISCORD_ALERTS_WEBHOOK` (the `#alerts` webhook URL, same value as
   `discord_alerts_webhook` in `secrets/docker-admin.yaml`); `HC_BADGE_URL` (healthchecks.io project
@@ -17,11 +18,14 @@
 | Group | What | Passes when |
 |---|---|---|
 | `door` | `auth.aliammar.net/api/health` through caddy-admin (Gatus reaches it by caddy-admin's `edge` alias) | `200`, cert valid > 7 days: Caddy, the wildcard cert and Authelia, shared by every admin site |
-| `service` | each admin UI's IP:port | TCP connect |
-| `dns` | per Technitium server (.50, .51): `auth.aliammar.net` A and AAAA, `google.com`, `googlesyndication.com` | 10.10.60.60; AAAA `NOERROR` (no record, not NXDOMAIN); `NOERROR` (forwarding); `NXDOMAIN` (blocking, HaGeZi Pro) |
+| `service` | each admin UI's IP:port (Technitium's are in its suite) | TCP connect |
+| `dns` | one **suite** (row) per Technitium server (.50, .51); its steps, each alerting on its own as `<server> <step>`: `ui` (:5380), `zone` (`auth.aliammar.net` A), `AAAA` (same name), `forwarding` (`google.com`), `blocking` (`googlesyndication.com`) | connect; 10.10.60.60; `NOERROR` (no record, not NXDOMAIN); `NOERROR`; `NXDOMAIN` (HaGeZi Pro) |
 | `job` | heartbeat's healthchecks.io badge (`HC_BADGE_URL`), every 5 min, no alert (healthchecks.io alerts) | `status` is `up` |
 
 **Gotchas**
+- Suites are alpha in Gatus v5.37. Step names share one namespace with every other check, so each
+  carries its server's name. Alerts go on each step (there are no suite-level alerts), and every
+  step has `always-run`, so one failure doesn't skip the other checks.
 - `service` checks leave as 10.10.50.40; OPNsense rule 235 (`HOST_DOCKER_ADMIN` →
   `ROLE_ADMIN_TARGETS` : `PORT_ADMIN_PROXY`) lets them through.
 - `HC_BADGE_URL` must be in `secret.sops.env` before this config deploys: an unset variable leaves
