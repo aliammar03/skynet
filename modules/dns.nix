@@ -23,6 +23,9 @@ let
 in
 {
   services.resolved.enable = false; # its stub would hold :53
+  # openresolv writes resolv.conf, and with a local server listed it drops the rest by default. Keep
+  # the other server too, so comin can still reach GitHub if Technitium here is down.
+  networking.resolvconf.extraConfig = "resolv_conf_local_only=NO";
 
   services.technitium-dns-server = {
     enable = true;
