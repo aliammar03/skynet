@@ -598,16 +598,17 @@ Done 2026-10-23:
 - **`proxmox.sh`:** VM 7050 on server-proxmox-network and VM 7051 on server-proxmox-core: 2 cores,
   1024 MB, balloon 0, 16 GB `local-lvm`, `net0` on `vmbr0` **tag 70**, MACs pinned
   `BC:24:11:70:50:01` / `BC:24:11:70:51:01` (each host's `net.nix`).
-- **Install:** `runbooks/new-vm.md` (installer ISO, LAN copy with `scp -3`, `proxmox.sh`,
-  `hardware.nix` PR, nixos-anywhere; then the host key pinned for the agent, recipient and secrets),
-  at the **build IPs** 10.10.70.52 (dns-network) and .53 (dns-core), beside the old CTs.
+- **Install:** `runbooks/new-vm.md`, done for both VMs in **one PR** (below), at the **build IPs**
+  10.10.70.52 (dns-network) and .53 (dns-core), beside the old CTs. The PR carries the hardware and
+  host keys read from the running installers, the recipients and the secrets; nixos-anywhere's
+  `--copy-host-keys` keeps those keys.
 - **Network:** `lan` renamed by MAC. The host resolves via 127.0.0.1, then the other server.
   `services.resolved` is off (its stub would hold :53). A oneshot sends gratuitous ARP once the
   address is up, so OPNsense learns the new MAC immediately when a VM takes over .50/.51.
 - **Technitium** (`services.technitium-dns-server`, 15.6 in nixpkgs 26.05):
-  - enabled, with `technitium-sync`, only once the host's sops file has `technitium_admin_password`
-    (`hasSecret`). Technitium sets the admin password on its very first start only, and a fresh
-    install has no secrets yet, so starting earlier would leave `admin`/`admin`;
+  - its admin password is set on its very first start only. The VM installs with its secrets (the
+    runbook's single PR), so that start already has it. If the credential can't be loaded, the unit
+    doesn't start, so it never runs with `admin`/`admin`;
   - ports 53 TCP/UDP and 5380 (web + API) open in the host firewall; OPNsense decides who reaches
     them;
   - first start creates `admin` with the password from sops (`DNS_SERVER_ADMIN_PASSWORD_FILE`,
@@ -679,18 +680,26 @@ After cutover:
 - rule 115 (the benchmark's temporary ops → any :53) deleted: the overnight log ended 2026-10-23
   09:00.
 
-### Cutover (one server at a time)
+### PRs and cutover
+
+P2 takes **two PRs**:
+- **Build PR:** `modules/dns.nix`, `dns/`, both hosts (the runbook's one-PR flow for each), the
+  Gatus rows for the build IPs and `dns/README.md`. Merge, then install both. They answer at .52/.53
+  next to the old CTs.
+- **Cutover PR:** both `net.nix` → 10.10.70.50/.51; Gatus rows back to .50/.51 only.
 
 1. Both VMs green at the build IPs: every zone name answers right, blocking works, forwarders reach
    out, Gatus rows green.
-2. **dns-core → .51:** Ali `pct shutdown 751 && pct set 751 --onboot 0`; the agent's PR sets
-   dns-core's `net.nix` to 10.10.70.51. Check by name from ops and docker-admin; Gatus green.
-3. **dns-network → .50:** the same with CT 750.
+2. At a quiet moment, Ali runs `pct shutdown 751 && pct set 751 --onboot 0` on core and the same for
+   750 on network, then merges the cutover PR. comin moves both VMs within ~1 min. That minute has
+   no DNS server at .50/.51 (clients' own caches carry most lookups), which is the price of one PR
+   instead of two.
+3. Check by name from ops and docker-admin; Gatus green.
 4. The OPNsense changes above. AdGuard CT 731: `pct shutdown 731 && pct set 731 --onboot 0`
    (730 is already off).
 5. CTs 750, 751, 730 and 731 stay stopped for 14 days, then P7 destroys them.
 
-Rollback for either server: stop its VM, `pct start` its CT (same IP). Nothing on the VMs needs a
+Rollback: stop the VMs, `pct start` the CTs (same IPs). Nothing on the VMs needs a
 backup: cache, stats and logs are disposable, and everything else rebuilds from git.
 
 ### Tailscale (agent drafts, Ali applies)

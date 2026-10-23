@@ -1,8 +1,11 @@
-# New NixOS VM
+# New NixOS VM: one PR
 
-From a free VMID to a host that comin keeps current, without anyone typing in a console.
-docker-admin (P1) was built this way. **Agent** steps run on ops as `skynet`, from a checkout of
-`main`; **Ali** steps are his.
+**One PR per VM** (or one for a pair, like P2's DNS servers). The installer boots from the branch
+first, so the PR can carry the VM's real hardware and host key, its sops recipient and its secrets.
+After the merge, nixos-anywhere installs it with that same host key, and everything starts on the
+first boot. comin keeps it current from then on.
+
+**Agent** steps run on ops as `skynet`; **Ali** steps are his.
 
 ## 0. Pick (agent, read-only)
 
@@ -15,86 +18,84 @@ docker-admin (P1) was built this way. **Agent** steps run on ops as `skynet`, fr
 - **VLAN tag:** every NIC is tagged, except VLAN 50 on server-proxmox-network (vmbr0's native VLAN
   there).
 
-## 1. Installer PR (agent)
+## 1. Branch (agent)
 
-- `hosts/<h>/net.nix`: MACs, address, gateway, DNS (shared by the installer and the host).
+On `p<N>/<host>`:
+- `hosts/<h>/net.nix`: MACs, address, gateway, DNS. Both the installer and the host read it.
 - `hosts/<h>/proxmox.sh`: a copy of `hosts/docker-admin/proxmox.sh` with the VMID, name, cores,
   memory, disk, NICs (pinned MACs, tags) and `local:iso/nixos-installer-<h>.iso`.
+- `hosts/<h>/default.nix`: hostName, NICs renamed by MAC (`systemd.network.links`), addresses from
+  `net.nix`, `base.nix` plus the role module. `hosts/<h>/disk.nix`: docker-admin's (disko,
+  `/dev/sda`, ESP + ext4).
 - `hosts/<h>/README.md`: VMID · IP · node · size, then the bullets docker-admin's README has.
-- `flake.nix`: `packages.${system}.installer-<h> = mkInstaller "<h>";`
+- `flake.nix`: `nixosConfigurations.<h> = mkHost "<h>";` and
+  `packages.${system}.installer-<h> = mkInstaller "<h>";`
+- Push the branch, then `nix build .#installer-<h>`, giving `result/iso/nixos-*.iso`: sshd on the
+  host's IP, NIC matched by MAC, root reachable only with the agent's key (`hosts/ops/agent.pub`).
 
-## 2. Boot the installer
+## 2. Boot the installer (Ali)
 
-1. Agent: `nix build .#installer-<h>`, giving `result/iso/nixos-*.iso`: sshd on the host's IP, NIC
-   matched by MAC, root reachable only with the agent's key (`hosts/ops/agent.pub`).
-2. Ali, from the workstation. The copy goes ops → node over the LAN:
+1. Copy the ISO ops → node over the LAN, from the workstation:
    `scp -3 aliammar@10.10.90.91:<iso path> root@<node>:/var/lib/vz/template/iso/nixos-installer-<h>.iso`
    (network node 10.10.50.10, core node 10.10.50.11).
-3. Ali, on that node: run `hosts/<h>/proxmox.sh`. The VM boots the ISO.
+2. On the node, run the branch's `proxmox.sh`:
+   `curl -fsSL https://raw.githubusercontent.com/aliammar03/skynet/refs/heads/<branch>/hosts/<h>/proxmox.sh -o /root/proxmox-<h>.sh`,
+   read it, then `sh /root/proxmox-<h>.sh`. The VM boots the ISO.
+3. OPNsense: `ROLE_NIX_CACHE_CLIENTS` += the IP (ops's LAN Nix cache, :5000), a `HOST_<NAME>` alias,
+   and the role aliases and rules the host's job needs. Web egress (comin, caches, registries)
+   already covers every VLAN in `NET_WEB_EGRESS`.
 
-## 3. Host PR (agent)
+**Don't reboot the installer before step 5.** It makes a new host key on every boot, and step 3
+records the current one.
 
-- `ssh root@<ip> nixos-generate-config --no-filesystems --show-hardware-config > hosts/<h>/hardware.nix`
-- `hosts/<h>/default.nix`: hostName, NICs renamed by MAC (`systemd.network.links`), addresses from
-  `net.nix`, imports `base.nix` plus its role module. `hosts/<h>/disk.nix`: docker-admin's (disko,
-  `/dev/sda`, ESP + ext4).
-- `flake.nix`: `nixosConfigurations.<h> = mkHost "<h>";`
-- **Nothing that needs a secret yet.** The host has no age key until it's installed. Gate those parts
-  on `hasSecret`, or add them in step 6. `base.nix` fails CI if the config uses a secret that
-  `secrets/<h>.yaml` lacks.
-- `nix flake check` passes → Ali merges.
+## 3. Read the VM, finish the PR (agent)
 
-## 4. Install (agent)
-
-`nix run github:nix-community/nixos-anywhere -- --flake .#<h> --target-host root@<ip> --no-substitute-on-destination`
-
-The whole closure goes from ops over the LAN. The VM reboots into NixOS: the boot order is disk
-first, so the ISO can stay attached. From now on there's no root login; the agent's installer key
-no longer works.
-
-## 5. Identity PR (agent)
-
-1. `ssh-keyscan -t ed25519 <ip> 2>/dev/null | cut -d' ' -f2- > hosts/<h>/ssh_host.pub`
-2. `ssh-to-age < hosts/<h>/ssh_host.pub` → a key `&<h>` in `.sops.yaml` and a creation rule
+1. `ssh root@<ip> nixos-generate-config --no-filesystems --show-hardware-config > hosts/<h>/hardware.nix`
+2. `ssh-keyscan -t ed25519 <ip> 2>/dev/null | cut -d' ' -f2- > hosts/<h>/ssh_host.pub`.
+   Step 5 keeps this key, so it becomes the installed host's key.
+3. `.sops.yaml`: a key `&<h>` = `ssh-to-age < hosts/<h>/ssh_host.pub`, and a creation rule
    `^secrets/<h>\.yaml$` for `*aliammar` + `*<h>`. A Docker host also gets
    `^stacks/<target>/.*\.sops\.[^/]+$`.
-3. `modules/agent.nix`: `programs.ssh.knownHosts.<h> = { hostNames = [ "<ip>" ]; publicKeyFile = ../hosts/<h>/ssh_host.pub; };`
+4. `modules/agent.nix`: `programs.ssh.knownHosts.<h> = { hostNames = [ "<ip>" ]; publicKeyFile = ../hosts/<h>/ssh_host.pub; };`
    This pins the key for the agent's log access. `base.nix` already creates user `skynet` there:
    agent key from ops only, journal only.
+5. Random secrets (passwords, API secrets) go straight from a generator into the new file, so the
+   values are never shown:
+   `printf 'my_secret: %s\n' "$(python3 -c 'import secrets; print(secrets.token_hex(32))')" | sops encrypt --filename-override secrets/<h>.yaml --input-type yaml --output-type yaml /dev/stdin > secrets/<h>.yaml`
+6. `nix fmt -- <changed .nix files>`, `nix flake check`, push, open the PR. It says which values
+   Ali must add.
 
-## 6. Secrets (Ali, agent)
+## 4. Secrets and merge (Ali)
 
-- Ali, for values he holds (e.g. `discord_alerts_webhook`, so comin posts failed deploys):
-  `nix shell nixpkgs#sops -c sops secrets/<h>.yaml`
-- Agent, for random values (passwords, API secrets). It writes the file straight from a generator,
-  so the value is never shown:
-  `printf 'my_secret: %s\n' "$(python3 -c 'import secrets; print(secrets.token_hex(32))')" | sops encrypt --filename-override secrets/<h>.yaml --input-type yaml --output-type yaml /dev/stdin > secrets/<h>.yaml`
-  Only for a new file: the agent can't decrypt, so it can't add to an existing one. Ali adds keys
-  with `sops` instead.
-- Then the PR that enables what uses them. comin applies it within about a minute.
+On the branch: `nix shell nixpkgs#sops -c sops secrets/<h>.yaml` to add the values only he holds
+(e.g. `discord_alerts_webhook`, so comin posts failed deploys). Commit and push. CI fails while any
+secret the config uses is missing (`base.nix`), so green means complete. Merge.
 
-## 7. OPNsense (Ali)
+## 5. Install (agent, from `main`)
 
-- `ROLE_NIX_CACHE_CLIENTS` += the IP (ops's LAN Nix cache, :5000).
-- A `HOST_<NAME>` alias, plus the role aliases and rules the host's job needs.
-- Web egress is already allowed for every VLAN in `NET_WEB_EGRESS` (comin, caches, registries).
+`nix run github:nix-community/nixos-anywhere -- --flake .#<h> --target-host root@<ip> --copy-host-keys --no-substitute-on-destination`
 
-## 8. Check (agent)
+- Our ISO identifies as a NixOS installer (`VARIANT_ID=installer`), so nixos-anywhere installs from
+  it directly. `--copy-host-keys` keeps its host key: the one in `ssh_host.pub`, so sops decrypts on
+  the first boot.
+- The closure goes from ops over the LAN. The VM reboots into NixOS; the boot order is disk first,
+  so the ISO can stay attached. From now on there's no root login.
+
+## 6. Check (agent)
 
 - `ssh skynet@<ip> 'systemctl --failed; journalctl -u comin -n 20 -o cat'`: nothing failed, and
   comin is on main's HEAD.
-- A Gatus row for what the host serves.
-- `hosts/<h>/README.md` states the result.
+- A Gatus row for what the host serves. It goes in the PR if the host's address is known up front.
 
 ## Rebuild
 
-Steps 2 and 4 with the existing files. The rebuilt VM has a **new host key**, so redo step 5 and
-have Ali run `nix shell nixpkgs#sops -c sops updatekeys secrets/<h>.yaml` (plus the host's stack
-files) so they're encrypted for the new key.
+The same steps with the existing files: boot the ISO, then rescan the key in step 3. A fresh ISO
+boot makes a new key, so the PR updates `ssh_host.pub` and the `.sops.yaml` recipient, and Ali runs
+`nix shell nixpkgs#sops -c sops updatekeys <file>` for each file the host decrypts. Install with
+`--copy-host-keys` again.
 
 ## Gotchas
 
 - VLAN 50 on the network node is untagged; everywhere else, tag.
 - `--balloon 0`. A NixOS host serving :53 needs `services.resolved.enable = false`.
-- Run `nix fmt` with file arguments (`nix fmt -- hosts/<h>/default.nix`); with none it waits on
-  stdin.
+- Run `nix fmt` with file arguments; with none it waits on stdin.

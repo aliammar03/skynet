@@ -1,7 +1,9 @@
-# New stack on docker-admin
+# New stack on docker-admin: one PR
 
-doco-cd deploys every folder in `stacks/admin/` that has a `compose.yaml` (`.doco-cd.admin.yml`,
-depth 1) within about a minute of the merge. Removing the folder removes the stack.
+**One PR holds everything:** the stack folder (sections 1–2 and 5–6), its route and DNS record (3)
+and its Gatus row (4). Ali adds his secret values on the branch before merging. doco-cd deploys
+every folder in `stacks/admin/` that has a `compose.yaml` (`.doco-cd.admin.yml`, depth 1) within
+about a minute of the merge. Removing the folder (another PR) removes the stack.
 
 ## 1. `stacks/admin/<name>/compose.yaml`
 
@@ -37,7 +39,8 @@ networks:
 
 `.sops.yaml` encrypts `stacks/admin/**/*.sops.*` for Ali and docker-admin. A changed value
 recreates the container on the next deploy.
-- Ali's values: `nix shell nixpkgs#sops -c sops stacks/admin/<name>/secret.sops.env`
+- Ali's values, on the PR's branch before the merge:
+  `nix shell nixpkgs#sops -c sops stacks/admin/<name>/secret.sops.env`, then commit and push.
 - Random values (agent), never shown:
   `python3 -c 'import secrets; print("MY_SECRET=" + secrets.token_hex(32))' | sops encrypt --filename-override stacks/admin/<name>/secret.sops.env --input-type dotenv --output-type dotenv /dev/stdin > stacks/admin/<name>/secret.sops.env`
 
@@ -53,8 +56,8 @@ handle @<name> {
 
 - Caddy reloads it in place. A cert in `caddy-admin/certs/` restarts the container instead.
 - Leave out `import authelia` only for something that must be reachable without a login.
-- DNS: `<name>` A → 10.10.60.60. From P2 that's a line in `dns/aliammar.net.zone`; until then, the
-  Technitium-network UI (http://10.10.70.50:5380).
+- DNS: `<name>` A → 10.10.60.60, as a line in `dns/aliammar.net.zone` in the same PR. Until P2's
+  servers are live, Ali adds it in the Technitium-network UI (http://10.10.70.50:5380) instead.
 - An upstream with a self-signed cert: pin it as `stacks/admin/caddy-admin/certs/<name>.pem` and
   use `tls_trust_pool file /etc/caddy-certs/<name>.pem` (see `sites/pbs.conf`).
 
