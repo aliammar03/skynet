@@ -770,7 +770,7 @@ Met on 2026-10-23, apart from the items marked open:
   aliases ✅. CTs 730, 731, 750 and 751 are stopped ✅. **Open:**
   - rule 140 on, rule 150 gone, rule 115 deleted;
   - CT 731 `onboot` 0.
-- All ten admin names load behind Authelia. ✅ OPNsense's Alternate Hostnames also needs
+- All ten admin names load behind Authelia. ✅ OPNsense's Alternate Hostnames now include
   `auth.aliammar.net` (P1 sites table).
 - On mobile data via Tailscale, a phone opens `https://opnsense.aliammar.net` and
   `https://10.10.50.11:8006`. ✅ OPNsense: `TAILSCALE` interface, alias `NET_TAILNET`, rules 270–272.
