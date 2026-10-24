@@ -19,8 +19,8 @@
   `X_AUTHELIA_CONFIG` merges the three files. The client list lives in one file only: a second
   file's `clients` would replace it, not add to it.
 - **Session:** cookie `authelia_apps_session` on `.aliammar.net`. A different name from admin
-  Authelia's `authelia_session`, so the two never overwrite each other; caddy-apps drops the admin
-  one before proxying.
+  Authelia's `authelia_session`, so the two never overwrite each other. caddy-apps passes it only to
+  this instance (`login` and its forward-auth checks), never to an app, and drops the admin one.
 - **Data:** `/opt/appdata/authelia` on docker-dmz: `db.sqlite3` (passkeys, TOTP, consent; backup
   class: app data) and `notification.txt` (one-time codes; no mail server).
 - **Secrets:** `secret.sops.env`: `AUTHELIA_SESSION_SECRET`, `AUTHELIA_STORAGE_ENCRYPTION_KEY`,

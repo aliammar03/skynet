@@ -12,10 +12,12 @@
 	}
 }
 
-# The apps' own Authelia (stacks/dmz/authelia), never the admin one.
+# The apps' own Authelia (stacks/dmz/authelia), never the admin one. Of the visitor's cookies it gets
+# only its session, which the site saved before dropping it.
 (authelia) {
 	forward_auth authelia:9091 {
 		uri /api/authz/forward-auth
+		header_up Cookie "authelia_apps_session={vars.apps_session}"
 		copy_headers Remote-User Remote-Groups Remote-Email Remote-Name
 	}
 }
@@ -29,9 +31,14 @@
 		propagation_timeout -1
 		propagation_delay 60s
 	}
-	# Admin Authelia's session cookie is scoped to .aliammar.net, so browsers send it here too. Drop
-	# it, so no app ever sees an admin session.
+	# Sessions stay with their portals. Both Authelias' cookies are scoped to .aliammar.net, so
+	# browsers send them to every app. Admin Authelia's is dropped everywhere; the apps' one everywhere
+	# but its portal (login), after it is saved for the `authelia` snippet. No app ever sees a session
+	# it could replay.
+	vars apps_session {http.request.cookie.authelia_apps_session}
+	@app not host login.aliammar.net
 	request_header Cookie `(^|; *)authelia_session=[^;]*` ""
+	request_header @app Cookie `(^|; *)authelia_apps_session=[^;]*` ""
 	import /etc/caddy/sites/*.conf
 	handle {
 		respond 404
