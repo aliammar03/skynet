@@ -1,6 +1,6 @@
 # Marinara Engine (marinara.aliammar.net): AI roleplay. Inside only, behind the apps' Authelia
-# (admins), which is its only login. On the macvlan at v1's .85, so rule 340 lets it reach ComfyUI on
-# the workstation.
+# (admins), which is its only login. Only on the macvlan, at v1's .85: rule 340 lets it reach ComfyUI
+# on the workstation, and it admits only caddy-apps (.35).
 services:
   marinara:
     container_name: marinara
@@ -34,13 +34,13 @@ services:
       MARI_WIKI_CONTENT_MAX_BYTES: "50000"
       MARI_WIKI_REQUEST_TIMEOUT_MS: "30000"
       MARI_WIKI_CACHE_TTL_MS: "300000"
-      CORS_ORIGINS: "*"
-      IP_ALLOWLIST: 10.10.100.35 # caddy-apps on the dmz macvlan
-      IP_ALLOWLIST_ENABLED: "true"
+      CORS_ORIGINS: https://marinara.aliammar.net
       # Authelia (at caddy-apps) is the only login. Marinara's own is off (these override the
-      # secret file), and with no login it admits only caddy-apps: by its macvlan address (they share
-      # the dmz network too, so `marinara` resolves there) or as a Docker peer on edge. Anything else
-      # reaching its macvlan address gets 403.
+      # secret file), so it admits one address, caddy-apps', and nothing else: its macvlan
+      # neighbours get 403. Its two bypasses are off: each would let a client skip the allowlist,
+      # Tailscale's for 100.64.0.0/10 and Docker's for 172.16.0.0/12.
+      IP_ALLOWLIST: 10.10.100.35
+      IP_ALLOWLIST_ENABLED: "true"
       BASIC_AUTH_USER: ""
       BASIC_AUTH_PASS: ""
       BASIC_AUTH_REALM: Marinara-Engine
@@ -48,9 +48,9 @@ services:
       ALLOW_UNAUTHENTICATED_REMOTE: "false"
       TRUSTED_HOSTS: marinara.aliammar.net
       TRUSTED_PRIVATE_NETWORKS: 10.0.0.0/8
-      BYPASS_AUTH_TAILSCALE: "true"
-      BYPASS_AUTH_DOCKER: "true"
-      REQUIRE_AUTH_FOR_DOCKER_PROXY: "false"
+      BYPASS_AUTH_TAILSCALE: "false"
+      BYPASS_AUTH_DOCKER: "false"
+      REQUIRE_AUTH_FOR_DOCKER_PROXY: "true"
       CSRF_TRUSTED_ORIGINS: https://marinara.aliammar.net
       MARINARA_REQUIRE_ADMIN_SECRET_ON_LOOPBACK: "false"
       UPDATES_APPLY_ENABLED: "false" # it may check for updates, never apply them (Renovate does)
@@ -77,11 +77,11 @@ services:
     mem_limit: 1g
     volumes:
       - /opt/appdata/marinara/data:/app/data # chats, characters, settings, stored files
+    # Only the macvlan: it leaves as .85, and caddy-apps reaches it there. Not on `edge`, so no app
+    # reaches it.
     networks:
       dmz:
         ipv4_address: 10.10.100.85 # in ROLE_DMZ_AI_CLIENTS (rule 340: ComfyUI on the workstation)
-        gw_priority: 1 # it leaves as .85, so the rule recognises it
-      edge: {}
     healthcheck:
       test:
         - CMD
@@ -94,6 +94,4 @@ services:
       start_period: 20s
 networks:
   dmz:
-    external: true
-  edge:
     external: true

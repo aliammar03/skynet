@@ -69,6 +69,9 @@ services:
       JIKAN_DB_PASSWORD: ${JIKAN_DB_PASSWORD}
     stop_grace_period: 60s
     mem_limit: 2g
+    # The image declares /data/configdb a volume. A standalone mongod keeps nothing there, so a tmpfs
+    # spares the host an anonymous volume.
+    tmpfs: [/data/configdb]
     volumes:
       - /opt/appdata/jikan/mongo:/data/db
       - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro

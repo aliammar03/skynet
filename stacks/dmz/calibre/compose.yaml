@@ -1,5 +1,6 @@
 # Calibre (calibre.aliammar.net): the e-book library's desktop app, in the browser. No login of its
-# own: the apps' Authelia guards it (admins), inside and through the tunnel.
+# own: the apps' Authelia guards it (admins), inside and through the tunnel. Not on `edge`: caddy-apps
+# is the only container that reaches it.
 services:
   calibre:
     container_name: calibre
@@ -18,7 +19,12 @@ services:
     mem_limit: 2g
     volumes:
       - /opt/appdata/calibre/config:/config # the library, Calibre's settings, the desktop's home
-    networks: [edge]
+    networks:
+      # Shared with caddy-apps alone (internal, from the host's Nix config): the desktop (8080, 8181),
+      # its stream (8082) and Calibre's content server (8081) all answer without a login.
+      door-calibre: {}
+      # Its own way out (metadata, covers); nothing else is on it.
+      egress: {}
     healthcheck:
       # The desktop's web server; the image sets CUSTOM_PORT=8080 (its EXPOSE says 3000, wrongly).
       test: [CMD, curl, -fsS, -o, /dev/null, http://localhost:8080/]
@@ -27,5 +33,6 @@ services:
       retries: 3
       start_period: 30s
 networks:
-  edge:
+  door-calibre:
     external: true
+  egress: {}

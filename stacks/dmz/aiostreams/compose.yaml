@@ -1,6 +1,6 @@
 # AIOStreams (aiostreams.aliammar.net): a Stremio addon that combines stream sources. Its own login
 # plus sign-in through the apps' Authelia (OIDC); public through the tunnel, because Stremio clients
-# call it from anywhere. On the macvlan at v1's .65, so rule 820 (usenet) still names it.
+# call it from anywhere. Only on the macvlan, at v1's .65, so rule 820 (usenet) still names it.
 services:
   aiostreams:
     container_name: aiostreams
@@ -28,14 +28,13 @@ services:
     mem_limit: 1g
     volumes:
       - /opt/appdata/aiostreams/data:/app/data # the database (users, configs)
+    # Only the macvlan: it leaves as .65, and caddy-apps reaches it there. Its issuer and the other
+    # addon (login., aiometadata.aliammar.net) are .35, a macvlan neighbour. Not on `edge`, so a
+    # public app holds no foot in both networks.
     networks:
       dmz:
         ipv4_address: 10.10.100.65 # ROLE_USENET_CLIENTS (rule 820: usenet ports 119/563)
-        gw_priority: 1 # it leaves as .65, so the rule recognises it
-      edge: {}
     # The image's own healthcheck (/api/v1/status) applies.
 networks:
   dmz:
-    external: true
-  edge:
     external: true

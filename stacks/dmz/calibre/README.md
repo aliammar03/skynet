@@ -1,10 +1,14 @@
 # calibre
 
 - **Purpose:** the e-book library: Calibre's desktop app, streamed to the browser.
-- **URL:** https://calibre.aliammar.net (caddy-apps → `calibre:8080` on `edge`). Public through the
-  tunnel.
+- **URL:** https://calibre.aliammar.net (caddy-apps → `calibre:8080` on `door-calibre`). Public
+  through the tunnel.
 - **Auth mode:** forward: the apps' Authelia, group `admins`, a password (`one_factor`). Calibre's
   desktop has no login of its own, so whoever passes Authelia controls the whole library.
+- **Network:** not on `edge`, where every app would reach it: the desktop (8080, 8181), its stream
+  (8082) and Calibre's content server (8081) all answer without a login. It shares `door-calibre`
+  (an internal bridge, from `hosts/docker-dmz`) with caddy-apps alone, and goes online (metadata,
+  covers) through its stack's own `egress` network.
 - **Data:** `/opt/appdata/calibre/config` → `/config`: the library, Calibre's settings and the
   desktop's home (owner 1000; backup class: data). Copied from v1.
 - **Secrets:** none.

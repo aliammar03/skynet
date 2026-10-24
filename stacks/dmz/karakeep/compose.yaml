@@ -1,6 +1,6 @@
 # Karakeep (karakeep.aliammar.net): bookmarks, with full-page archives, OCR and AI tags. Its own login;
-# public through the tunnel. Its browser and its search sit on this stack's own network, out of
-# `edge`'s reach.
+# public through the tunnel. Its browser and its search sit on this stack's own networks, out of
+# `edge`'s reach, and out of each other's.
 services:
   karakeep:
     container_name: karakeep
@@ -75,7 +75,7 @@ services:
     mem_limit: 2g
     volumes:
       - /opt/appdata/karakeep/data:/data # sqlite, assets, archives, OCR cache
-    networks: [edge, backend]
+    networks: [edge, backend, search]
     depends_on:
       chrome:
         condition: service_healthy
@@ -117,7 +117,7 @@ services:
     mem_limit: 512m
     volumes:
       - /opt/appdata/karakeep/meili:/meili_data # the search index (rebuildable from karakeep's data)
-    networks: [backend]
+    networks: [search]
     healthcheck:
       test: [CMD, curl, -fsS, -o, /dev/null, http://localhost:7700/health]
       interval: 30s
@@ -128,5 +128,8 @@ services:
 networks:
   edge:
     external: true
-  # This stack's own: karakeep, its browser and its search. Not internal: the browser crawls the web.
+  # This stack's own. backend: karakeep and its browser; not internal, because the browser crawls
+  # the web. search: karakeep and its index, with no internet, and the browser can't reach it.
   backend: {}
+  search:
+    internal: true

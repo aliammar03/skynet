@@ -1,6 +1,6 @@
 # SillyTavern (sillytavern.aliammar.net): the AI chat front end. No login of its own: the apps'
-# Authelia guards it (admins); inside only. On the macvlan at v1's .69, so rule 340 lets it reach
-# ComfyUI on the workstation.
+# Authelia guards it (admins); inside only. Only on the macvlan, at v1's .69: rule 340 lets it reach
+# ComfyUI on the workstation, and it admits only caddy-apps (.35).
 services:
   sillytavern:
     container_name: sillytavern
@@ -11,21 +11,23 @@ services:
       NODE_ENV: production
       FORCE_COLOR: "1"
       SILLYTAVERN_HEARTBEATINTERVAL: "30"
-      # Its own second gate: the client's address (X-Forwarded-For from caddy-apps, since
-      # config.yaml has enableForwardedWhitelist) must be the lab or the tailnet. It refuses to start
-      # with no gate at all.
-      SILLYTAVERN_WHITELIST: '["::1","127.0.0.1","10.10.0.0/16","100.64.0.0/10"]'
+      # Its own second gate: the connection must come from caddy-apps (or its own healthcheck), so
+      # its macvlan neighbours get 403. The connecting address, not X-Forwarded-For, which would have
+      # to list every client (these override config.yaml). It refuses to start with no gate at all.
+      SILLYTAVERN_WHITELIST: '["::1","127.0.0.1","10.10.100.35"]'
+      SILLYTAVERN_ENABLEFORWARDEDWHITELIST: "false"
+      SILLYTAVERN_WHITELISTDOCKERHOSTS: "false" # no Docker host to trust (its names don't resolve here)
     mem_limit: 1g
     volumes:
       - /opt/appdata/sillytavern/config:/home/node/app/config
       - /opt/appdata/sillytavern/data:/home/node/app/data
       - /opt/appdata/sillytavern/plugins:/home/node/app/plugins
       - /opt/appdata/sillytavern/extensions:/home/node/app/public/scripts/extensions/third-party
+    # Only the macvlan: it leaves as .69, and caddy-apps reaches it there. Not on `edge`, so no app
+    # reaches it.
     networks:
       dmz:
         ipv4_address: 10.10.100.69 # in ROLE_DMZ_AI_CLIENTS (rule 340: ComfyUI on the workstation)
-        gw_priority: 1 # it leaves as .69, so the rule recognises it
-      edge: {}
     healthcheck:
       test: [CMD, node, src/healthcheck.js]
       interval: 30s
@@ -34,6 +36,4 @@ services:
       start_period: 20s
 networks:
   dmz:
-    external: true
-  edge:
     external: true

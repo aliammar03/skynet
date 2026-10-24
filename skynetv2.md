@@ -24,7 +24,7 @@
 | P0 | Foundations + new ops VM | done |
 | P1 | docker-admin: admin door, identity, status | done (2026-10-22); 7 admin names move to .60 with P2's Technitium |
 | P2 | DNS (Technitium only) + remote access | done (2026-10-23); open: OPNsense rules 140/150/115 and CT 731 `onboot` (see P2 exit criteria) |
-| P3 | docker-dmz: apps + public path | in progress: docker-dmz with v1's data (#48) and its doors (#50) are up (2026-10-24); apps back: librespeed, obsidian, karakeep; the rest, with the apps' OIDC, in one PR. Then OPNsense's Authentik rules go, and the exit criteria |
+| P3 | docker-dmz: apps + public path | in progress: docker-dmz with v1's data (#48), its doors (#50) and all ten apps (#51–#61) are up (2026-10-24); the apps reach one another only through the door (#64). Then OPNsense's Authentik rules go, and the exit criteria |
 | P4 | Backups → Google Drive | outline |
 | P5 | Observability (agent eyes) | outline |
 | P6 | Agent autonomy | outline |
@@ -114,7 +114,7 @@ skynet/
 
 | File | When | Content |
 |---|---|---|
-| `compose.yaml` | always | `container_name: <name>` (not compose's `<project>-<service>-1`); images pinned `tag@sha256:…`; a healthcheck; `restart: unless-stopped`; network `edge` (doors also join their macvlan) |
+| `compose.yaml` | always | `container_name: <name>` (not compose's `<project>-<service>-1`); images pinned `tag@sha256:…`; a healthcheck; `restart: unless-stopped`; network `edge` (doors also join their macvlan; exceptions: Networks) |
 | `secret.sops.env` | has secrets | dotenv, sops-encrypted for that host only; used via `env_file` |
 | `README.md` | always | purpose · URL · auth mode · data paths + backup class · secret key *names* · upstream link · gotchas |
 
@@ -155,12 +155,18 @@ skynet/
 **Networks**
 - Shared networks are created by the host's Nix config, not by stacks:
   - `edge`: a bridge shared by apps and doors;
-  - a macvlan for the doors (`dmz`, `adm60`).
+  - a macvlan for the doors (`dmz`, `adm60`);
+  - `door-<app>`: an internal bridge for a door and one app, alone (`skynet.docker.doorNetworks`).
 - A stack with helpers (a browser, a database, a search engine) gives them a network of its own in
   its compose file (`backend`), so nothing outside the stack reaches them. Only the app joins `edge`.
 - Apps get no LAN IP. Doors reach them by container name.
-- The exception is an app that a firewall rule must name (its own egress, e.g. usenet). It joins the
-  macvlan with a fixed IP and `gw_priority: 1`, so its traffic leaves with that IP.
+- The exception is an app that a firewall rule must name (its own egress, e.g. usenet). It joins
+  only the macvlan, with a fixed IP, so its traffic leaves with that IP. Its door is on the macvlan
+  too and reaches it there; no app on `edge` can.
+- Every app on `edge` reaches every other. So an app with no login of its own (auth mode `forward`)
+  stays off it, and only its door reaches it:
+  - on the macvlan (a firewall rule names it), it admits only its door's address;
+  - otherwise it joins `door-<app>`, plus a network of its own if it needs the internet.
 
 ### Hosts and git
 
@@ -805,8 +811,8 @@ Deferred:
   its v1 data.
 - Two doors run on it: caddy-apps (10.10.100.35) and cloudflared (.33). The tunnel is new, and its
   routes live in git. The six public names work from the internet.
-- The apps without a login of their own (calibre, sillytavern) sit behind the apps' own Authelia
-  on docker-dmz (portal `login.aliammar.net`), from inside and outside. Admin Authelia stays
+- The apps without a login of their own (calibre, sillytavern, marinara) sit behind the apps' own
+  Authelia on docker-dmz (portal `login.aliammar.net`), from inside and outside. Admin Authelia stays
   internal.
 - v1's docker-dmz (VM 10015, with Arcane) and Authentik (CT 837) stay off.
 
@@ -877,8 +883,11 @@ Done 2026-10-24:
 - **Jikan** is the self-hosted MyAnimeList API that aiometadata reads, and it becomes its own stack.
   aiometadata reaches `jikan:8080` on `edge`; Jikan's databases sit on an internal network.
 - **Image versions:** images that hold data keep v1's versions (Meilisearch, Typesense, Mongo).
-- **Firewall identity:** aiostreams (.65), marinara (.85) and sillytavern (.69) join the macvlan with
-  their v1 IPs, so rules 820 and 340 keep naming them (Conventions → Networks).
+- **Firewall identity:** aiostreams (.65), marinara (.85) and sillytavern (.69) join only the macvlan,
+  with their v1 IPs, so rules 820 and 340 keep naming them. caddy-apps reaches them there.
+- **No login, no neighbours** (Conventions → Networks): calibre is on `door-calibre`, with
+  caddy-apps alone. sillytavern and marinara admit only caddy-apps' address (`SILLYTAVERN_WHITELIST`;
+  `IP_ALLOWLIST`, with marinara's Docker and Tailscale bypasses off).
 - **OIDC:** aiostreams and aiometadata used Authentik's OIDC, and family members sign in to them now
   and then. They move to the apps' Authelia's OIDC (`stacks/dmz/authelia/`), set up in the same PR
   as them:
@@ -934,8 +943,9 @@ the apps deploy:
   - on the macvlan at 10.10.100.35 (`gw_priority: 1`), and on `edge`;
   - the same wildcard site and DNS-01 `tls` block; HTTP/3 stays off (Obsidian LiveSync);
   - its `authelia` snippet asks the apps' Authelia, `authelia:9091` on docker-dmz's `edge`;
-  - it drops admin Authelia's cookie (`authelia_session`, scoped to `.aliammar.net` like every
-    cookie here) before proxying, so no app ever sees an admin session;
+  - it keeps both Authelias' session cookies (scoped to `.aliammar.net`, so browsers send them to
+    every app) from the apps: admin Authelia's is dropped from every request, and the apps' one from
+    every name but `login`. Only its forward-auth check gets the apps' session;
   - sites `login` (→ the apps' Authelia) and `homeassistant`. Each app adds its own.
 - **The apps' Authelia** (`stacks/dmz/authelia/`, a copy of admin's): on `edge` only, nothing
   published.
@@ -946,10 +956,12 @@ the apps deploy:
 - **Admin Authelia is unchanged:** `auth` stays on caddy-admin (10.10.60.60), nothing is published
   on docker-admin, and the DMZ gets no rule into the management VLAN.
 - **cloudflared** (`stacks/dmz/cloudflared/`):
-  - on the macvlan at .33 (`gw_priority: 1`, rule 800), and on `edge`;
+  - only on the macvlan, at .33 (rule 800): it reaches caddy-apps there by name, and no app
+    directly;
   - `config.yml`: the tunnel ID, then one line per public name → `https://caddy-apps` (TLS name = the
     public name), then `http_status:404`;
-  - `credentials.sops.json`: the tunnel's credentials.
+  - `secret.sops.env`: `TUNNEL_TOKEN`, the tunnel's credentials as one token. Not a credentials
+    file: doco-cd writes decrypted files root-only, and cloudflared runs as its image's own user.
 - **DNS** (`dns/aliammar.net.zone`): `login` and `homeassistant` → 10.10.100.35.
 - **Gatus:**
   - `caddy-apps + authelia`: `https://login.aliammar.net/api/health` through Technitium (→ .35,
@@ -963,10 +975,11 @@ the apps deploy:
    1. `nix shell nixpkgs#cloudflared -c cloudflared tunnel login`, and pick zone `aliammar.net`.
    2. `nix shell nixpkgs#cloudflared -c cloudflared tunnel create skynet`. It prints the tunnel ID
       (not secret; it goes in `config.yml`) and writes `~/.cloudflared/<id>.json`.
-2. On the doors branch, encrypt the credentials:
-   `nix shell nixpkgs#sops -c sops encrypt --filename-override stacks/dmz/cloudflared/credentials.sops.json --input-type json --output-type json ~/.cloudflared/<id>.json > stacks/dmz/cloudflared/credentials.sops.json`.
-   Then delete `~/.cloudflared/<id>.json` and `cert.pem`.
-3. DNS: `*` CNAME `<id>.cfargotunnel.com`, proxied (D10). A name with no ingress line gets 404.
+2. On the doors branch, the tunnel's token, straight into sops (never shown):
+   `nix shell nixpkgs#cloudflared nixpkgs#sops -c sh -c 'set -e; t=$(cloudflared tunnel token skynet); printf "TUNNEL_TOKEN=%s\n" "$t" | sops encrypt --filename-override stacks/dmz/cloudflared/secret.sops.env --input-type dotenv --output-type dotenv /dev/stdin > stacks/dmz/cloudflared/secret.sops.env'`.
+3. DNS: `*` CNAME `<id>.cfargotunnel.com`, proxied (D10), while `cert.pem` still exists:
+   `nix shell nixpkgs#cloudflared -c cloudflared tunnel route dns skynet '*.aliammar.net'`. A name
+   with no ingress line gets 404. Then delete `~/.cloudflared/<id>.json` and `cert.pem`.
 4. An API token for caddy-apps (Edit zone DNS, `aliammar.net` only) → `CLOUDFLARE_API_TOKEN` in
    `stacks/dmz/caddy-apps/secret.sops.env`.
 

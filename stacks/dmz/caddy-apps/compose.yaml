@@ -23,6 +23,8 @@ services:
         # Containers on edge that call these names (the OIDC issuer, the addons) reach this door
         # directly: the host can't reach its own macvlan IPs, so Technitium's .35 fails from edge.
         aliases: [login.aliammar.net, aiometadata.aliammar.net, aiostreams.aliammar.net]
+      # An app with no login of its own, on a network only it and this door share.
+      door-calibre: {}
     labels:
       # A route edit updates /etc/caddy in place and --watch reloads it; no recreate, no dropped
       # connections.
@@ -36,4 +38,6 @@ networks:
   dmz:
     external: true
   edge:
+    external: true
+  door-calibre:
     external: true

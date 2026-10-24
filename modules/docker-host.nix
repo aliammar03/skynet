@@ -8,7 +8,7 @@
   ...
 }:
 let
-  inherit (config.skynet.docker) macvlan docoTarget;
+  inherit (config.skynet.docker) macvlan doorNetworks docoTarget;
   creds = "/run/doco-cd"; # what doco-cd may read: its age key, API secret, Apprise URL
   # Same path inside and out, so stacks' relative bind mounts resolve. Holds doco-cd's checkout, with
   # the files this host can decrypt decrypted (root-only, like /run/secrets).
@@ -16,12 +16,18 @@ let
 in
 {
   options.skynet.docker.macvlan = lib.mkOption {
-    description = "The doors' macvlan: they get LAN IPs on this VLAN; apps never do.";
+    description = "The doors' macvlan: they get LAN IPs on this VLAN; an app only when a firewall rule names it.";
     type = lib.types.submodule {
       options = lib.genAttrs [ "name" "parent" "subnet" "gateway" ] (
         _: lib.mkOption { type = lib.types.str; }
       );
     };
+  };
+
+  options.skynet.docker.doorNetworks = lib.mkOption {
+    type = lib.types.listOf lib.types.str;
+    default = [ ];
+    description = "Internal bridges, each shared by a door and one app with no login of its own, so no other container reaches that app.";
   };
 
   options.skynet.docker.docoTarget = lib.mkOption {
@@ -47,9 +53,10 @@ in
       startAt = "weekly";
     };
 
-    # `edge`: the bridge apps and doors share (doors reach apps by container name). Create-only: a
-    # changed macvlan subnet needs the network removed by hand. The macvlan has no `--ip-range`, so
-    # every container on it sets a fixed `ipv4_address`; Docker would otherwise hand out VLAN IPs.
+    # `edge`: the bridge apps and doors share (doors reach apps by container name). `doorNetworks`:
+    # a door and one app with no login, alone (internal: no route out). Create-only: a changed
+    # macvlan subnet needs the network removed by hand. The macvlan has no `--ip-range`, so every
+    # container on it sets a fixed `ipv4_address`; Docker would otherwise hand out VLAN IPs.
     systemd.services.docker-networks = {
       description = "Create the Docker networks stacks join";
       wantedBy = [
@@ -68,7 +75,10 @@ in
         docker network inspect edge >/dev/null 2>&1 || docker network create edge
         docker network inspect ${macvlan.name} >/dev/null 2>&1 || docker network create -d macvlan \
           --subnet ${macvlan.subnet} --gateway ${macvlan.gateway} -o parent=${macvlan.parent} ${macvlan.name}
-      '';
+      ''
+      + lib.concatMapStrings (n: ''
+        docker network inspect ${n} >/dev/null 2>&1 || docker network create --internal ${n}
+      '') doorNetworks;
     };
 
     # doco-cd gets only these three files, never /run/secrets. Its age key is the host's own (from the

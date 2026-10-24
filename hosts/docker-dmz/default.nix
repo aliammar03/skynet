@@ -33,6 +33,8 @@ in
     subnet = "10.10.100.0/24";
     gateway = "10.10.100.1";
   };
+  # calibre has no login of its own: caddy-apps reaches it on a network only the two share.
+  skynet.docker.doorNetworks = [ "door-calibre" ];
   skynet.docker.docoTarget = "dmz";
 
   # The receiving end of v1's data copy (README.md → v1's data).

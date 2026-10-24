@@ -50,8 +50,14 @@ networks:
   in the image. An image with neither can't have one: say so in a comment and cover it with Gatus.
 - Write `$$VAR` for a variable the container's shell reads at run time; `$VAR` is compose's.
 - No published ports. The door reaches the container by name on `edge`. Only doors join the host's
-  macvlan, plus an app that a firewall rule must name (`skynetv2.md` → Conventions → Networks).
-  Either way, with a fixed `ipv4_address` and `gw_priority: 1`.
+  macvlan (a fixed `ipv4_address`, and `gw_priority: 1` beside `edge`), plus an app that a firewall
+  rule must name, which joins only the macvlan, with a fixed `ipv4_address` (`skynetv2.md` →
+  Conventions → Networks).
+- An app with no login of its own (auth mode `forward`) stays off `edge`. On the macvlan, it admits
+  only the door's address. Otherwise add `door-<name>` to the host's `skynet.docker.doorNetworks`
+  and join it from the app and the door. doco-cd can't deploy a stack whose network doesn't exist
+  yet, so merge the host change first (on docker-dmz the agent may instead create it by hand with
+  the same `docker network create --internal`, D11).
 
 ## 2. Secrets: `stacks/<target>/<name>/secret.sops.env`
 
@@ -82,7 +88,7 @@ handle @<name> {
 - DNS: `<name>` A → the door's IP, as a line in `dns/aliammar.net.zone` in the same PR.
 - docker-dmz: if another container there calls the app by its name (an OIDC issuer, an addon), add
   the name to caddy-apps' `edge` aliases. The host can't reach its own macvlan IPs, so Technitium's
-  .35 fails from `edge`.
+  .35 fails from `edge`. A container on the macvlan reaches .35 directly.
 - An upstream with a self-signed cert: pin it in the door's certs folder and use
   `tls_trust_pool file /etc/caddy-certs/<name>.pem` (see caddy-admin's `sites/pbs.conf`).
 

@@ -7,8 +7,9 @@
 - **Auth mode:** own (karakeep's accounts). Signups are off: new accounts come from the admin
   settings.
 - **Containers:** `karakeep` (web, API and workers), `karakeep-chrome` (the headless browser that
-  crawls pages), `karakeep-meilisearch` (search). The last two sit only on this stack's `backend`
-  network: Chrome's debugging port has no login, so no other container reaches it.
+  crawls pages), `karakeep-meilisearch` (search). The last two sit only on this stack's networks:
+  Chrome on `backend` (its debugging port has no login, so no other container reaches it), and
+  Meilisearch on `search`, which is internal: no internet, and out of the browser's reach.
 - **Data:**
   - `/opt/appdata/karakeep/data` → `/data`: sqlite, assets, archives, OCR cache (backup class:
     data);
