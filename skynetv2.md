@@ -24,7 +24,7 @@
 | P0 | Foundations + new ops VM | done |
 | P1 | docker-admin: admin door, identity, status | done (2026-10-22); 7 admin names move to .60 with P2's Technitium |
 | P2 | DNS (Technitium only) + remote access | done (2026-10-23); open: OPNsense rules 140/150/115 and CT 731 `onboot` (see P2 exit criteria) |
-| P3 | docker-dmz: apps + public path | in progress: docker-dmz up with v1's data (2026-10-24, #48); 10015 off; doors PR open (caddy-apps, cloudflared, the apps' Authelia). v1's apps are down |
+| P3 | docker-dmz: apps + public path | in progress: docker-dmz with v1's data (#48) and its doors (#50) are up (2026-10-24); the apps follow, one PR each, from librespeed. v1's apps are down |
 | P4 | Backups → Google Drive | outline |
 | P5 | Observability (agent eyes) | outline |
 | P6 | Agent autonomy | outline |

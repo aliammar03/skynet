@@ -7,6 +7,11 @@ x-service: &service
   interval: 60s
   conditions: ["[CONNECTED] == true"]
   alerts: [{ type: discord }]
+# An app on another host, through its door by name (Technitium → the door; rule 235).
+x-app: &app
+  group: app
+  interval: 60s
+  alerts: [{ type: discord }]
 
 # Suite steps. Each alerts on its own (Gatus has no suite-level alerts), and an alert names only the
 # step, so step names carry the server. `always-run`: a failed step doesn't skip the others.
@@ -71,6 +76,8 @@ endpoints:
   - { <<: *service, name: pbs, url: tcp://10.10.20.40:8007 }
   - { <<: *service, name: omada, url: tcp://10.10.50.25:8043 }
   - { <<: *service, name: unraid, url: tcp://10.10.20.20:80 }
+
+  - { <<: *app, name: librespeed, url: https://speed.aliammar.net/, conditions: ["[STATUS] == 200"] }
 
   # healthchecks.io's read-only badge for each Docker host's heartbeat check (2-state: up, or down
   # once period + grace pass with no ping). No alert: healthchecks.io already posts to #alerts.
