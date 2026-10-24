@@ -6,8 +6,16 @@ Claude app. VMID 9091 · 10.10.90.91 · VLAN 90 · server-proxmox-core · 4 vCPU
 - **Sessions:** `skynet-agent` (tmux `skynet`: the persistent Discord + Remote Control conversation)
   and `skynet-spawn` (tmux `spawn`: on-demand sessions from the Claude app, one git worktree each).
   Each runs in its own tmux server. Watch or drive: `skynet-attach` (or `skynet-attach spawn`);
-  detach with **F12**. `skynet-claude` starts a fresh terminal session as the agent in its own
-  worktree.
+  detach with **F12**.
+- **Interactive sessions:** `skynet-claude <name>` (a-z, 0-9, -) attaches to the agent's session
+  `<name>`, or starts it: one tmux session (server `claude`, as `skynet`) and one git worktree
+  (`.claude/worktrees/<name>`) per name, with Remote Control on under that name. A name whose worktree
+  holds a conversation (after `/exit` or a reboot) continues it; a new name starts with a blank
+  prompt. `skynet-claude` alone lists the running ones. Run it from a plain shell, not inside tmux.
+- **tmux, mouse:** drag to highlight, right-click to copy to the workstation's clipboard, Ctrl+click
+  a link (Ctrl+Shift+click if tmux takes it). tmux passes the clipboard (OSC 52) and links (OSC 8) to
+  the terminal, so this works over SSH in Windows Terminal; sessions set `FORCE_HYPERLINK=1` so Claude
+  Code prints real links.
 - **Secrets:** `secrets/ops.yaml` → `discord_bot_token`, `github_token` (aliammar-skynet PAT).
   `GH_TOKEN` reaches the sessions via their environment. The Discord token is written by
   `skynet-discord-token` to `~/.claude/channels/discord/.env`, the file the plugin reads, because
