@@ -24,12 +24,14 @@ VMID 10010 · 10.10.100.10 · server-proxmox-core · 6 vCPU / 10 GB / 128 GB.
 
 ## v1's data (P3, once)
 
-Ali copies v1's app data from VM 10015 (10.10.100.15, Docker off) after the install and before the
-apps deploy (skynetv2.md → P3 → Data). One `rsync` per path, as root on both ends, so owners and
+Done 2026-10-24: all 21 paths arrived with v1's sizes and owners, and 10015 is off. Ali copied v1's
+app data from VM 10015 (10.10.100.15, Docker off) after the install and before the apps deploy
+(skynetv2.md → P3 → Data). One `rsync` per path, as root on both ends, so owners and
 modes stay (`--numeric-ids`: CouchDB runs as 5984, Mongo as 999). The volume names are v1's
 `<project>_<volume>`; a wrong path stops only its line, with "No such file or directory".
 
-From the workstation, `ssh -A aliammar@10.10.100.15` (`ssh-add -l` should list your key). Then:
+From a workstation shell whose agent holds the key (`eval "$(ssh-agent -s)"; ssh-add`; `ssh-add -l`
+lists it), `ssh -A aliammar@10.10.100.15`, where `ssh-add -l` lists it too. Then:
 
 1. One at a time, because they can prompt:
    ```sh
@@ -41,9 +43,10 @@ From the workstation, `ssh -A aliammar@10.10.100.15` (`ssh-add -l` should list y
    The last line prints `10.10.100.10 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPYe7/5kzdaippYiP01MB+bleeBIQITJESEMrAU1/HWb`
    (fingerprint `SHA256:KAmUg2H0OdSThbxu8LErVg762NQwe9voi5KQocXfmYg`): root's ssh now trusts
    docker-dmz's key from the repo, so the copy never stops to ask.
-2. The copy, pasted as one block. `-E` keeps `SSH_AUTH_SOCK`, so root's ssh uses your forwarded key.
+2. The copy, pasted as one block. `--preserve-env=SSH_AUTH_SOCK` lets root's ssh use your forwarded
+   key.
    ```sh
-   copy() { sudo -E rsync -aHAX --numeric-ids --mkpath --rsync-path='sudo rsync' "$1/" "aliammar@10.10.100.10:/opt/appdata/$2/"; }
+   copy() { sudo --preserve-env=SSH_AUTH_SOCK rsync -aHAX --numeric-ids --mkpath --rsync-path='sudo rsync' "$1/" "aliammar@10.10.100.10:/opt/appdata/$2/"; }
    A=/opt/docker/appdata V=/var/lib/docker/volumes
    copy $A/librespeed/data                        librespeed/data         # 20K
    copy $V/obsidian-livesync_data/_data           obsidian/couchdb        # 13M
@@ -70,6 +73,6 @@ From the workstation, `ssh -A aliammar@10.10.100.15` (`ssh-add -l` should list y
    aiometadata's `poster-cache` (8.9G) stays behind: it refills.
 3. Compare the sizes, then power 10015 off:
    ```sh
-   sudo -E ssh aliammar@10.10.100.10 "sudo du -sh /opt/appdata/*/*"
+   sudo --preserve-env=SSH_AUTH_SOCK ssh aliammar@10.10.100.10 "sudo du -sh /opt/appdata/*/*"
    sudo poweroff
    ```

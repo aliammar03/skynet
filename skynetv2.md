@@ -24,7 +24,7 @@
 | P0 | Foundations + new ops VM | done |
 | P1 | docker-admin: admin door, identity, status | done (2026-10-22); 7 admin names move to .60 with P2's Technitium |
 | P2 | DNS (Technitium only) + remote access | done (2026-10-23); open: OPNsense rules 140/150/115 and CT 731 `onboot` (see P2 exit criteria) |
-| P3 | docker-dmz: apps + public path | in progress (2026-10-24): Data step 1 done, host PR open. v1's apps are down (Docker off on 10015) |
+| P3 | docker-dmz: apps + public path | in progress: docker-dmz up with v1's data (2026-10-24, #48); 10015 off. Next: doors PR. v1's apps are down |
 | P4 | Backups → Google Drive | outline |
 | P5 | Observability (agent eyes) | outline |
 | P6 | Agent autonomy | outline |
@@ -37,7 +37,7 @@ proxmox-core (12 cpu, 31 GB)                     proxmox-network (8 cpu, 15 GB)
 ├ ops          VM 9091  10.10.90.91   NixOS      ├ OPNsense     VM 5001          (Ali-managed)
 │   Claude Code · Discord · Remote Control       ├ Omada        CT 525           (unchanged)
 ├ docker-dmz   VM 10010 10.10.100.10  NixOS      ├ technitium-network VM 7050 10.10.70.50 NixOS
-│   doco-cd(dmz) · caddy-apps .35 · cloudflared .33 · apps
+│   doco-cd(dmz) · caddy-apps .35 · cloudflared .33 · Authelia (apps) · apps
 ├ technitium-core VM 7051 10.10.70.51 NixOS      └ docker-admin VM 5040 10.10.50.40 NixOS
 ├ PBS CT 240 · Unraid VM 2020 · HAOS VM 3050         doco-cd(admin) · caddy-admin 10.10.60.60
 └ athena CT 10030 (own repo, untouched)              Authelia · Gatus · (P5) VictoriaMetrics/Logs · Grafana
@@ -59,7 +59,7 @@ Nothing outside the lab pushes into it.
 | D1 | Stacks = Docker Compose, deployed by **doco-cd** (polling, SOPS, auto-discovery, reconciliation) | Simplest mature GitOps; keeps compose; Renovate understands it |
 | D2 | Hosts = **NixOS** flake, each host kept current by **comin** (pull) | A host rebuilds from git; no central push credential |
 | D3 | Repo **public**; lab **pulls**; CI = static checks on free GitHub runners | GitHub Free only offers rulesets and CODEOWNERS on public repos; nothing inbound |
-| D4 | **Authelia**, with an auth mode per app: `own` / `oidc` / `forward` | Config lives in git; ~50 MB; OIDC + forward-auth + passkeys |
+| D4 | **Authelia**, with an auth mode per app: `own` / `oidc` / `forward`. One instance per door: admin (docker-admin, internal only) and apps (docker-dmz, reachable from the internet), each with its own users | Config lives in git; ~50 MB; OIDC + forward-auth + passkeys. The internet-facing login stays in the DMZ with the apps it guards, so nothing in the DMZ reaches the management VLAN and family accounts never exist on the admin side (2026-10-24) |
 | D5 | **Technitium** is the only DNS: two equal NixOS VMs (technitium-network .50, technitium-core .51), each loading the zone and its settings from `dns/` in git. Ad-blocking with HaGeZi Pro; forwarding over plain UDP to PTCL + OpenDNS + Google, all three raced; AdGuard retired | One product; records and settings are reviewed in PRs and a rebuilt VM comes back complete. PTCL's resolver answers known names in ~5 ms, OpenDNS is fastest on unknown ones, Google is a second fallback, and all three hand out the in-ISP CDN caches; PTCL's REFUSED for blocked sites falls through to the others (`runbooks/dns-speed-test/`, 2026-10-24) |
 | D6 | Two Docker hosts: **docker-dmz** (apps, core node), **docker-admin** (admin, identity, monitoring; network node) | Segmentation; monitoring survives losing the core node |
 | D7 | Agent = **Claude Code** on the ops VM; chat via **Discord** (Channels) + the Claude app (Remote Control) | Telegram is blocked; no custom UI to build |
@@ -130,11 +130,13 @@ skynet/
 
 **Auth modes**
 - **`own`** (default): a plain proxy; the app has its own login.
-- **`oidc`:** the client goes in `stacks/admin/authelia/oidc-clients.yml`. That single file holds
-  the whole list, because Authelia replaces a repeated key rather than appending to it. The app's
-  secret lives in its `secret.sops.env`, or in `oidc.sops.env` when Ali created that file (the agent
-  can only create a sops file whole).
-- **`forward`:** add `import authelia` to the app's site file.
+- **`oidc`:** the client goes in its door's Authelia: `stacks/<host>/authelia/oidc-clients.yml`
+  (the apps' clients in `stacks/dmz/`). That single file holds the whole list, because Authelia
+  replaces a repeated key rather than appending to it. The app's secret lives in its
+  `secret.sops.env`, or in `oidc.sops.env` when Ali created that file (the agent can only create a
+  sops file whole).
+- **`forward`:** add `import authelia` to the app's site file. Each door's snippet asks its own
+  Authelia, and the app's access rule goes in that Authelia's `configuration.yml`.
 
 **Data**
 - Everything that persists is a bind mount at `/opt/appdata/<stack>/<role>`, databases included
@@ -434,12 +436,12 @@ timeout: 300
   - site: `*.aliammar.net { import /etc/caddy/sites/*.conf; handle { respond 404 } }`.
 
 **`authelia`**
-- **Container:** image `ghcr.io/authelia/authelia`; on `edge` only (P3 publishes `10.10.50.40:9091`
-  for caddy-apps); data (sqlite, `notification.txt`) in `/opt/appdata/authelia`.
+- **Container:** image `ghcr.io/authelia/authelia`; on `edge` only (the apps get their own in P3);
+  data (sqlite, `notification.txt`) in `/opt/appdata/authelia`.
 - **Files:** `configuration.yml` (plaintext, no secrets); `secret.sops.env` (`AUTHELIA_SESSION_SECRET`,
   `AUTHELIA_STORAGE_ENCRYPTION_KEY`, `AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET`,
-  agent-generated); `users.sops.yml` (Ali: argon2 hash). P3 adds `oidc-clients.yml` as a second
-  `--config`.
+  agent-generated); `users.sops.yml` (Ali: argon2 hash). OIDC clients for the apps go in the apps'
+  Authelia (P3).
 - **Config:**
   - authz endpoint `forward-auth` (ForwardAuth);
   - `session.cookies: [{domain: aliammar.net, authelia_url: https://auth.aliammar.net}]`;
@@ -493,7 +495,7 @@ If an appliance cert can't be pinned, use `tls_insecure_skip_verify` and note it
 | technitium-core / technitium-network | http://10.10.70.51:5380 / .50:5380 | CT 751 / CT 750 |
 | omada | https://10.10.50.25:8043 | pin its self-signed cert, `tls_server_name Omada` |
 | unraid | http://10.10.20.20 | `header_down Location ^http:// https://` (it redirects to absolute http URLs) |
-| auth | authelia:9091 | portal; moves to the apps door in P3 |
+| auth | authelia:9091 | portal (the apps' is `login`, P3) |
 | status | gatus:8080 | `import authelia`; API open to ops (Authelia bypass) |
 
 ### DNS, firewall, agent wiring
@@ -797,8 +799,9 @@ Deferred:
   its v1 data.
 - Two doors run on it: caddy-apps (10.10.100.35) and cloudflared (.33). The tunnel is new, and its
   routes live in git. The six public names work from the internet.
-- The apps without a login of their own (calibre, sillytavern) sit behind Authelia, from inside and
-  outside.
+- The apps without a login of their own (calibre, sillytavern) sit behind the apps' own Authelia
+  on docker-dmz (portal `login.aliammar.net`), from inside and outside. Admin Authelia stays
+  internal.
 - v1's docker-dmz (VM 10015, with Arcane) and Authentik (CT 837) stay off.
 
 **Why now:** the apps are down (Prechecks). P3 brings them back on a host that rebuilds from git
@@ -862,7 +865,7 @@ Done 2026-10-24:
 | `aiometadata` (+ redis) | aiometadata | oidc | ✓ | `data`, `cold-store`, `redis` (`poster-cache` starts empty and refills, capped at 20 GB: `POSTER_CACHE_MAX_SIZE=20g`; v1 had 50g) | aiometadata |
 | `aiostreams` | aiostreams | oidc | ✓ | `data` | aiostreams |
 | caddy-apps site | homeassistant | own | | | → `http://10.10.30.50`, as in v1 |
-| caddy-apps site | auth | | ✓ | | → Authelia, `10.10.50.40:9091` |
+| `authelia` | login | (the portal) | ✓ | `data` | new: the apps' Authelia |
 
 - **The names stay.** Clients hold these URLs (LiveSync, Stremio addon links, bookmarks).
 - **Jikan** is the self-hosted MyAnimeList API that aiometadata reads, and it becomes its own stack.
@@ -871,15 +874,16 @@ Done 2026-10-24:
 - **Firewall identity:** aiostreams (.65), marinara (.85) and sillytavern (.69) join the macvlan with
   their v1 IPs, so rules 820 and 340 keep naming them (Conventions → Networks).
 - **OIDC:** aiostreams and aiometadata used Authentik's OIDC, and family members sign in to them now
-  and then. They move to Authelia's OIDC, set up in its own PR before them:
+  and then. They move to the apps' Authelia's OIDC (`stacks/dmz/authelia/`), set up in its own PR
+  before them:
   - the provider: an HMAC secret and a signing key, generated by the agent straight into sops files;
   - one client per app. The agent generates its secret into the app's `oidc.sops.env` and puts the
     secret's digest in `oidc-clients.yml`;
-  - family accounts in `users.sops.yml`, in group `family` (Ali adds the password hashes). They keep
-    their Authentik usernames, because both apps name users by `preferred_username`. Ali's account
-    gets group `admins`;
-  - access: the two apps take a password (`one_factor`) from `family` or `admins`. The admin sites
-    stay `two_factor` and `admins` only.
+  - family accounts in its `users.sops.yml`, in group `family` (Ali adds the password hashes). They
+    keep their Authentik usernames, because both apps name users by `preferred_username`. Ali has an
+    account there too, in group `admins`;
+  - access: the two apps take a password (`one_factor`) from `family` or `admins`. Admin Authelia
+    has no family accounts, and its sites stay `two_factor` and Ali only.
 - **Secrets:** v1's values carry over, because some of them encrypt data (marinara's
   `ENCRYPTION_KEY`, karakeep's `NEXTAUTH_SECRET`). Ali pipes each v1 file into the new one, so no
   value is ever shown:
@@ -904,41 +908,48 @@ the apps deploy:
       volumes.
    4. For the copy, Ali's workstation key (`modules/base.nix`) goes into his user's
       `~/.ssh/authorized_keys` on 10015 (also through `qm guest exec`).
-2. **With the install:**
+2. **With the install** (done 2026-10-24):
    1. Before the installer boots (`runbooks/new-vm.md` step 2), make room for both VMs:
       `qm shutdown 10015 && qm set 10015 --memory 2048 && qm start 10015` (Docker stays off). With
       10015 at 8 GB, the core node has 8 GB free, less than docker-dmz's 10.
-   2. After the install: `ssh -A <you>@10.10.100.15` and run the copy in `hosts/docker-dmz/README.md`
-      (v1's data). It's one line per path of the table, each
-      `sudo -E rsync -aHAX --numeric-ids --mkpath --rsync-path='sudo rsync' <v1 path>/ aliammar@10.10.100.10:/opt/appdata/<stack>/<role>/`.
-      - `-E` keeps the forwarded key for root's ssh.
+   2. After the install: from a workstation shell with the key in an agent
+      (`eval "$(ssh-agent -s)"; ssh-add`), `ssh -A <you>@10.10.100.15` and run the copy in
+      `hosts/docker-dmz/README.md` (v1's data). It's one line per path of the table, each
+      `sudo --preserve-env=SSH_AUTH_SOCK rsync -aHAX --numeric-ids --mkpath --rsync-path='sudo rsync' <v1 path>/ aliammar@10.10.100.10:/opt/appdata/<stack>/<role>/`.
+      - `--preserve-env=SSH_AUTH_SOCK` lets root's ssh use the forwarded key.
       - `--numeric-ids` keeps the owners (CouchDB runs as 5984, Mongo as 999).
-3. `sudo poweroff`. Until P7, 10015 keeps v1's data as it was.
 
-### Doors and auth (one PR, both Docker hosts)
+      All 21 paths arrived with v1's sizes and owners.
+3. `sudo poweroff` (done 2026-10-24). Until P7, 10015 keeps v1's data as it was.
+
+### Doors and auth (one PR, docker-dmz)
 
 - **caddy-apps** (`stacks/dmz/caddy-apps/`, a copy of caddy-admin):
   - on the macvlan at 10.10.100.35 (`gw_priority: 1`), and on `edge`;
   - the same wildcard site and DNS-01 `tls` block; HTTP/3 stays off (Obsidian LiveSync);
-  - its `authelia` snippet asks `10.10.50.40:9091`;
-  - sites `auth` (→ Authelia) and `homeassistant`. Each app adds its own.
-- **Authelia** publishes `10.10.50.40:9091` for caddy-apps (portal and forward-auth). Docker
-  publishes ports past the NixOS firewall, so OPNsense is the gate from other VLANs.
+  - its `authelia` snippet asks the apps' Authelia, `authelia:9091` on docker-dmz's `edge`;
+  - it drops admin Authelia's cookie (`authelia_session`, scoped to `.aliammar.net` like every
+    cookie here) before proxying, so no app ever sees an admin session;
+  - sites `login` (→ the apps' Authelia) and `homeassistant`. Each app adds its own.
+- **The apps' Authelia** (`stacks/dmz/authelia/`, a copy of admin's): on `edge` only, nothing
+  published.
+  - portal `https://login.aliammar.net`; its own session cookie name (`authelia_apps_session`), so the
+    two instances' cookies never overwrite each other;
+  - its own `users.sops.yml` (Ali first; the family with the OIDC PR) and secrets (agent-generated);
+  - `default_policy: deny`. Each app's PR adds its access rule.
+- **Admin Authelia is unchanged:** `auth` stays on caddy-admin (10.10.60.60), nothing is published
+  on docker-admin, and the DMZ gets no rule into the management VLAN.
 - **cloudflared** (`stacks/dmz/cloudflared/`):
   - on the macvlan at .33 (`gw_priority: 1`, rule 800), and on `edge`;
   - `config.yml`: the tunnel ID, then one line per public name → `https://caddy-apps` (TLS name = the
     public name), then `http_status:404`;
   - `credentials.sops.json`: the tunnel's credentials.
-- **DNS** (`dns/aliammar.net.zone`): `auth` and `homeassistant` → 10.10.100.35.
-  - App clients can't reach the admin door, so logins move to this one. Admin clients, ops and the
-    tailnet reach both doors.
-  - The Gatus `dns` suites check `status` instead of `auth`.
+- **DNS** (`dns/aliammar.net.zone`): `login` and `homeassistant` → 10.10.100.35.
 - **Gatus:**
-  - `caddy-apps + authelia`: `https://auth.aliammar.net/api/health` resolved through Technitium
-    (`client.dns-resolver`; on `edge` that name is caddy-admin's alias). It expects 200 and a cert
-    with more than 7 days left.
-  - `public`: the same URL resolved through 1.1.1.1, so it goes Cloudflare → tunnel → cloudflared →
-    caddy-apps → Authelia.
+  - `caddy-apps + authelia`: `https://login.aliammar.net/api/health` through Technitium (→ .35,
+    rule 235). It expects 200 and a cert with more than 7 days left.
+  - `public`: the same URL resolved through 1.1.1.1 (`client.dns-resolver`), so it goes Cloudflare →
+    tunnel → cloudflared → caddy-apps → the apps' Authelia.
 
 ### Cloudflare (Ali)
 
@@ -963,9 +974,9 @@ deletes tunnel `b5171e13…`).
   `ROLE_ADMIN_TARGETS` (rules 230, 235). docker-dmz needs neither, and both are harmless: the host
   opens only :22, and :8080 to ops.
 - **With the doors:**
-  - rule 250: `HOST_PROXY_APPS` → `HOST_DOCKER_ADMIN` TCP 9091 (Authelia);
   - Tailscale: also advertise 10.10.100.35/32 and approve it. Rule 273: `NET_TAILNET` →
-    `HOST_PROXY_APPS` `PORT_WEB`. Logins now go through .35, the admin sites' included;
+    `HOST_PROXY_APPS` `PORT_WEB`, for the app names. Admin names and their logins stay on
+    caddy-admin (rule 270);
   - rule 840: `HOST_DOCKER_ADMIN` → 1.1.1.1 :53, for Gatus's `public` row. P2's rule 150 can then go.
 - **Unchanged, and still right:** 200 (app clients → .35), 235 (Gatus → doors), 340, 430, 800, 810
   and 820.
@@ -978,13 +989,13 @@ deletes tunnel `b5171e13…`).
 2. **Host PR** (`runbooks/new-vm.md`): docker-dmz with its heartbeat (Ali adds the healthchecks.io
    check), its MCP and its column in `runbooks/new-stack.md`. 10015 drops to 2 GB before the
    installer boots (Data step 2.1). Then install.
-3. Ali: Data step 2.2 (the copy), then powers 10015 off.
-4. **Doors PR:** caddy-apps, cloudflared, Authelia's port, DNS and Gatus. Ali does Cloudflare and
-   OPNsense.
+3. Ali: Data step 2.2 (the copy), then powers 10015 off. Done.
+4. **Doors PR:** caddy-apps, cloudflared, the apps' Authelia, DNS and Gatus. Ali does Cloudflare,
+   OPNsense and his account's password hash.
 5. **One PR per app** (`runbooks/new-stack.md`, plus its tunnel line if public), in the table's
    order. librespeed proves the pattern; calibre (forward-auth, public) proves Authelia through the
-   tunnel. The **Authelia OIDC PR** (provider, the two clients, family accounts) goes in before
-   aiometadata.
+   tunnel. The **OIDC PR** on the apps' Authelia (provider, the two clients, family accounts) goes
+   in before aiometadata.
 
 Rollback: revert an app's PR. Until P7, v1 can come back as it was: stop docker-dmz's doors (they
 hold .33/.35), give 10015 its memory back, then `sudo systemctl enable --now docker` on it.
@@ -995,8 +1006,9 @@ hold .33/.35), give 10015 its memory back, then `sudo systemctl enable --now doc
   Stremio addons. The six public names also answer from a phone on mobile data.
 - Gatus is green: the apps door, `public` and every app. docker-dmz's deploys post to `#alerts`, and
   its heartbeat is green.
-- From outside, calibre sends a visitor to Authelia and back.
-- A family account signs in to aiostreams through Authelia, and is refused on an admin site.
+- From outside, calibre sends a visitor to `login.aliammar.net` and back.
+- A family account signs in to aiostreams through the apps' Authelia. It doesn't exist on the admin
+  door, and nothing in the DMZ reaches docker-admin.
 - Over Tailscale, an app name and an admin name both open.
 - 10015 and CT 837 are stopped with `onboot 0` (Arcane went with 10015). P7 destroys them after 14
   days.
