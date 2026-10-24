@@ -1,0 +1,3 @@
+# Merged over .doco-cd.dmz.yml for this stack only. It holds only jobs, whose containers doco-cd
+# creates and never starts (each run is a fresh copy); reconciliation would read them as missing.
+reconciliation: false

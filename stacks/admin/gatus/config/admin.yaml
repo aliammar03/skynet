@@ -112,6 +112,22 @@ endpoints:
     conditions:
       - "[STATUS] == 200"
       - "[BODY].status == up"
+  # The same for each Docker host's nightly backup (stacks/<host>/backup): down after a failed run,
+  # or once a night passes its 3 h grace without one.
+  - name: docker-admin backup
+    group: job
+    url: ${HC_BADGE_URL_BACKUP_ADMIN}
+    interval: 5m
+    conditions:
+      - "[STATUS] == 200"
+      - "[BODY].status == up"
+  - name: docker-dmz backup
+    group: job
+    url: ${HC_BADGE_URL_BACKUP_DMZ}
+    interval: 5m
+    conditions:
+      - "[STATUS] == 200"
+      - "[BODY].status == up"
 
 suites:
   - name: technitium-network

@@ -10,7 +10,9 @@
 - **Secrets:** `secret.sops.env`: `DISCORD_ALERTS_WEBHOOK` (the `#alerts` webhook URL, same value as
   `discord_alerts_webhook` in `secrets/docker-admin.yaml`); `HC_BADGE_URL_ADMIN` (healthchecks.io project
   `skynet` → Badges, 2-state, the `docker-admin` row's JSON URL; it answers
-  `{"status": "up", ...}`); `HC_BADGE_URL_DMZ` (the same for the `docker-dmz` row).
+  `{"status": "up", ...}`); `HC_BADGE_URL_DMZ` (the same for the `docker-dmz` row);
+  `HC_BADGE_URL_BACKUP_ADMIN` and `HC_BADGE_URL_BACKUP_DMZ` (the same for checks
+  `backup docker-admin` and `backup docker-dmz`).
 - **Upstream:** [Gatus](https://github.com/TwiN/gatus#configuration)
 
 **Checks** (`config/*.yaml`, merged; endpoint lists append), one row per thing, every 60 s unless noted
@@ -23,7 +25,7 @@
 | `service` | each admin UI's IP:port (Technitium's are in its suite) | TCP connect |
 | `app` | each app on docker-dmz by its name, through caddy-apps (jikan through aiometadata's) | `200`; `302` to the login for an app behind the apps' Authelia (calibre, sillytavern, marinara; asked with `Accept: text/html`, or Authelia answers 401), whose own health its container's healthcheck covers |
 | `dns` | one **suite** (row) per Technitium server (.50, .51); its steps, each alerting on its own as `<server> <step>`: `ui` (:5380), `zone` (`auth.aliammar.net` A), `AAAA` (same name), `forwarding` (`google.com`), `blocking` (`googlesyndication.com`) | connect; 10.10.60.60; `NOERROR` (no record, not NXDOMAIN); `NOERROR`; `NXDOMAIN` (HaGeZi Pro) |
-| `job` | each Docker host's heartbeat badge (`HC_BADGE_URL_ADMIN`, `HC_BADGE_URL_DMZ`), every 5 min, no alert (healthchecks.io alerts) | `status` is `up` |
+| `job` | each Docker host's heartbeat badge (`HC_BADGE_URL_ADMIN`, `HC_BADGE_URL_DMZ`) and nightly backup's (`HC_BADGE_URL_BACKUP_ADMIN`, `HC_BADGE_URL_BACKUP_DMZ`), every 5 min, no alert (healthchecks.io alerts) | `status` is `up` |
 
 **Gotchas**
 - `GATUS_LOG_LEVEL=WARN`: otherwise every check is an INFO line, passed or failed. The history is
@@ -34,7 +36,7 @@
 - `service` checks and the apps door row leave as 10.10.50.40; OPNsense rule 235 (`HOST_DOCKER_ADMIN` →
   `ROLE_ADMIN_TARGETS` : `PORT_ADMIN_PROXY`) lets them through. `public` asks 1.1.1.1 directly
   (rule 840).
-- `HC_BADGE_URL_ADMIN` and `HC_BADGE_URL_DMZ` must be in `secret.sops.env` before this config deploys: an
+- Every `HC_BADGE_URL_*` must be in `secret.sops.env` before the config naming it deploys: an
   unset variable leaves the row with no URL, and Gatus refuses to start.
 - A broken single `sites/<name>.conf` isn't caught here (the door row tests the shared path).
 - No healthcheck (the image has no shell). heartbeat pings healthchecks.io only while
