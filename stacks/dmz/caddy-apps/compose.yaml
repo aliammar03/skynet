@@ -1,0 +1,36 @@
+# The apps door: TLS for *.aliammar.net (Cloudflare DNS-01) in front of the apps. On VLAN 100 via the
+# dmz macvlan, where cloudflared hands it the public names; reaches the apps (and the apps' Authelia)
+# on `edge` by container name.
+services:
+  caddy-apps:
+    container_name: caddy-apps
+    image: ghcr.io/caddybuilds/caddy-cloudflare:2.11.7@sha256:202f0928fe075b7a914703b7a4759506de6c95c33ce5a256cecbd5c44d8869d0
+    command: [caddy, run, --config, /etc/caddy/Caddyfile, --adapter, caddyfile, --watch]
+    restart: unless-stopped
+    env_file: secret.sops.env
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    mem_limit: 256m
+    volumes:
+      - ./conf:/etc/caddy:ro
+      - /opt/appdata/caddy-apps/data:/data # certificates and ACME account
+      - /opt/appdata/caddy-apps/config:/config
+    networks:
+      dmz:
+        ipv4_address: 10.10.100.35 # HOST_PROXY_APPS (rules 200, 430, 235)
+        gw_priority: 1 # default route (and replies to clients) via VLAN 100, not Docker's bridge
+      edge: {}
+    labels:
+      # A route edit updates /etc/caddy in place and --watch reloads it; no recreate, no dropped
+      # connections.
+      cd.doco.deployment.recreate.ignore: "{bindMounts: [/etc/caddy]}"
+    healthcheck:
+      test: [CMD, curl, -fsS, -o, /dev/null, http://127.0.0.1:2019/config/]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+networks:
+  dmz:
+    external: true
+  edge:
+    external: true

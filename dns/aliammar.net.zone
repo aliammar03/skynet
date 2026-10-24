@@ -2,6 +2,8 @@ $ORIGIN aliammar.net.
 @                     900       IN  SOA           ns hostadmin 1 900 300 604800 300
 @                     14400     IN  NS            ns
 auth                  300       IN  A             10.10.60.60
+homeassistant         300       IN  A             10.10.100.35
+login                 300       IN  A             10.10.100.35
 ns                    300       IN  A             10.10.70.50
 ns                    300       IN  A             10.10.70.51
 omada                 300       IN  A             10.10.60.60

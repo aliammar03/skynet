@@ -1,0 +1,39 @@
+{
+	servers {
+		protocols h1 h2
+		# Public requests arrive from cloudflared (10.10.100.33). Trust its header for the visitor's
+		# address, so logs, the apps and their Authelia see the visitor, not the tunnel.
+		trusted_proxies static 10.10.100.33/32
+		client_ip_headers Cf-Connecting-Ip
+	}
+	# The healthcheck polls the admin API every 30 s; its request log is noise.
+	log default {
+		exclude admin.api
+	}
+}
+
+# The apps' own Authelia (stacks/dmz/authelia), never the admin one.
+(authelia) {
+	forward_auth authelia:9091 {
+		uri /api/authz/forward-auth
+		copy_headers Remote-User Remote-Groups Remote-Email Remote-Name
+	}
+}
+
+# One wildcard cert, so no app name lands in certificate transparency logs.
+*.aliammar.net {
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+		# Inside the lab Technitium answers for aliammar.net itself (dns/), so Caddy can't see the
+		# challenge record: no propagation check, just a wait; Let's Encrypt checks Cloudflare.
+		propagation_timeout -1
+		propagation_delay 60s
+	}
+	# Admin Authelia's session cookie is scoped to .aliammar.net, so browsers send it here too. Drop
+	# it, so no app ever sees an admin session.
+	request_header Cookie `(^|; *)authelia_session=[^;]*` ""
+	import /etc/caddy/sites/*.conf
+	handle {
+		respond 404
+	}
+}

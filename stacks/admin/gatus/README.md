@@ -17,7 +17,9 @@
 
 | Group | What | Passes when |
 |---|---|---|
-| `door` | `auth.aliammar.net/api/health` through caddy-admin (Gatus reaches it by caddy-admin's `edge` alias) | `200`, cert valid > 7 days: Caddy, the wildcard cert and Authelia, shared by every admin site |
+| `door` | `caddy-admin + authelia`: `auth.aliammar.net/api/health` through caddy-admin (Gatus reaches it by caddy-admin's `edge` alias) | `200`, cert valid > 7 days: Caddy, the wildcard cert and Authelia, shared by every admin site |
+| `door` | `caddy-apps + authelia`: `login.aliammar.net/api/health` through caddy-apps (10.10.100.35, via Technitium) | `200`, cert valid > 7 days: the apps door and the apps' Authelia |
+| `door` | `public`: the same URL resolved through 1.1.1.1, so Cloudflare → tunnel → cloudflared → caddy-apps | `200`: the public path |
 | `service` | each admin UI's IP:port (Technitium's are in its suite) | TCP connect |
 | `dns` | one **suite** (row) per Technitium server (.50, .51); its steps, each alerting on its own as `<server> <step>`: `ui` (:5380), `zone` (`auth.aliammar.net` A), `AAAA` (same name), `forwarding` (`google.com`), `blocking` (`googlesyndication.com`) | connect; 10.10.60.60; `NOERROR` (no record, not NXDOMAIN); `NOERROR`; `NXDOMAIN` (HaGeZi Pro) |
 | `job` | each Docker host's heartbeat badge (`HC_BADGE_URL_ADMIN`, `HC_BADGE_URL_DMZ`), every 5 min, no alert (healthchecks.io alerts) | `status` is `up` |
@@ -26,8 +28,9 @@
 - Suites are alpha in Gatus v5.37. Step names share one namespace with every other check, so each
   carries its server's name. Alerts go on each step (there are no suite-level alerts), and every
   step has `always-run`, so one failure doesn't skip the other checks.
-- `service` checks leave as 10.10.50.40; OPNsense rule 235 (`HOST_DOCKER_ADMIN` →
-  `ROLE_ADMIN_TARGETS` : `PORT_ADMIN_PROXY`) lets them through.
+- `service` checks and the apps door row leave as 10.10.50.40; OPNsense rule 235 (`HOST_DOCKER_ADMIN` →
+  `ROLE_ADMIN_TARGETS` : `PORT_ADMIN_PROXY`) lets them through. `public` asks 1.1.1.1 directly
+  (rule 840).
 - `HC_BADGE_URL_ADMIN` and `HC_BADGE_URL_DMZ` must be in `secret.sops.env` before this config deploys: an
   unset variable leaves the row with no URL, and Gatus refuses to start.
 - A broken single `sites/<name>.conf` isn't caught here (the door row tests the shared path).

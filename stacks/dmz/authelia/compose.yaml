@@ -1,0 +1,20 @@
+# The apps' login portal (login.aliammar.net) and forward-auth for caddy-apps: `import authelia` in a
+# site there asks this instance, never the admin one. Reachable from the internet via the tunnel.
+services:
+  authelia:
+    container_name: authelia
+    image: ghcr.io/authelia/authelia:4.39.28@sha256:bd97cff4fcbf715b5ff1f9ae286afbe6033afce385302520b0368122d43a6f54
+    restart: unless-stopped
+    env_file: secret.sops.env # session, storage and JWT secrets (AUTHELIA_* variables)
+    environment:
+      TZ: Asia/Karachi
+    mem_limit: 256m
+    volumes:
+      - ./configuration.yml:/config/configuration.yml:ro
+      - ./users.sops.yml:/config/users.yml:ro
+      - /opt/appdata/authelia:/data # sqlite (passkeys, TOTP, consent), notification.txt
+    networks: [edge]
+    # The image's own healthcheck (/app/healthcheck.sh) applies.
+networks:
+  edge:
+    external: true

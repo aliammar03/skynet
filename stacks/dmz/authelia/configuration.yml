@@ -1,0 +1,56 @@
+# Authelia 4.39 for the apps door: its own users and sessions, reachable from the internet. Admin
+# Authelia (stacks/admin/authelia) is a separate instance. Secrets come from the environment
+# (secret.sops.env), never this file.
+theme: auto
+
+server:
+  address: tcp://:9091
+  endpoints:
+    authz:
+      forward-auth:
+        implementation: ForwardAuth
+
+log:
+  level: info
+
+authentication_backend:
+  password_reset:
+    disable: true # passwords change via users.sops.yml (PR)
+  file:
+    path: /config/users.yml
+    password:
+      algorithm: argon2
+
+# A passkey is one factor.
+webauthn:
+  display_name: Skynet apps
+  enable_passkey_login: true
+
+totp:
+  issuer: login.aliammar.net
+
+# First match wins: each app's PR adds its rule above the catch-all (skynetv2.md → Conventions →
+# Auth modes).
+access_control:
+  default_policy: deny
+  rules:
+    # Last: a name no rule above allows is refused. (With a `deny` default, Authelia also refuses to
+    # start without a rule.)
+    - domain: '*.aliammar.net'
+      policy: deny
+
+session:
+  cookies:
+    # Both instances' cookies live on .aliammar.net; one name would make them overwrite each other.
+    - name: authelia_apps_session
+      domain: aliammar.net
+      authelia_url: https://login.aliammar.net
+
+storage:
+  local:
+    path: /data/db.sqlite3
+
+# No mail server: one-time codes (e.g. registering a passkey) land in this file on docker-dmz.
+notifier:
+  filesystem:
+    filename: /data/notification.txt

@@ -44,6 +44,26 @@ endpoints:
       - "[STATUS] == 200"
       - "[CERTIFICATE_EXPIRATION] > 168h"
     alerts: [{ type: discord }]
+  # The apps door: its own Authelia behind caddy-apps (10.10.100.35 via Technitium; rule 235).
+  - name: caddy-apps + authelia
+    group: door
+    url: https://login.aliammar.net/api/health
+    interval: 60s
+    conditions:
+      - "[STATUS] == 200"
+      - "[CERTIFICATE_EXPIRATION] > 168h"
+    alerts: [{ type: discord }]
+  # The same URL as the internet sees it: public DNS (rule 840), Cloudflare, the tunnel, cloudflared,
+  # caddy-apps, the apps' Authelia. The cert is Cloudflare's, so no expiry condition.
+  - name: public
+    group: door
+    url: https://login.aliammar.net/api/health
+    client:
+      dns-resolver: udp://1.1.1.1:53
+    interval: 60s
+    conditions:
+      - "[STATUS] == 200"
+    alerts: [{ type: discord }]
 
   - { <<: *service, name: opnsense, url: tcp://10.10.50.1:443 }
   - { <<: *service, name: proxmox-core, url: tcp://10.10.50.11:8006 }
