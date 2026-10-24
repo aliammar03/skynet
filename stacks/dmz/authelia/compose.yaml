@@ -8,9 +8,13 @@ services:
     env_file: secret.sops.env # session, storage and JWT secrets (AUTHELIA_* variables)
     environment:
       TZ: Asia/Karachi
+      # Merged in order: the settings, the OIDC clients (digests only), the OIDC provider's keys.
+      X_AUTHELIA_CONFIG: /config/configuration.yml,/config/oidc-clients.yml,/config/oidc.yml
     mem_limit: 256m
     volumes:
       - ./configuration.yml:/config/configuration.yml:ro
+      - ./oidc-clients.yml:/config/oidc-clients.yml:ro
+      - ./oidc.sops.yml:/config/oidc.yml:ro # decrypted by doco-cd
       - ./users.sops.yml:/config/users.yml:ro
       - /opt/appdata/authelia:/data # sqlite (passkeys, TOTP, consent), notification.txt
     networks: [edge]

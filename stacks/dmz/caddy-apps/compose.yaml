@@ -19,7 +19,10 @@ services:
       dmz:
         ipv4_address: 10.10.100.35 # HOST_PROXY_APPS (rules 200, 430, 235)
         gw_priority: 1 # default route (and replies to clients) via VLAN 100, not Docker's bridge
-      edge: {}
+      edge:
+        # Containers on edge that call these names (the OIDC issuer, the addons) reach this door
+        # directly: the host can't reach its own macvlan IPs, so Technitium's .35 fails from edge.
+        aliases: [login.aliammar.net, aiometadata.aliammar.net, aiostreams.aliammar.net]
     labels:
       # A route edit updates /etc/caddy in place and --watch reloads it; no recreate, no dropped
       # connections.

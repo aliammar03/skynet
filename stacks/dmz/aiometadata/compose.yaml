@@ -1,0 +1,129 @@
+# AIOMetadata (aiometadata.aliammar.net): a Stremio metadata addon (catalogs, posters, anime through
+# jikan). Sign-in required, through the apps' Authelia (OIDC); public through the tunnel, because
+# Stremio clients call it from anywhere. Its redis sits on the stack's own internal network.
+services:
+  aiometadata:
+    container_name: aiometadata
+    # v1's build: v1 pinned `latest` at this digest, which no version tag carries.
+    image: ghcr.io/cedya77/aiometadata:latest@sha256:386ef4acbb81004417b10d176f8a4635927d21dfdd95abd4c23a91c46515315e
+    restart: unless-stopped
+    init: true
+    # secret.sops.env (from v1): ADMIN_KEY, IMAGE_PROXY_SIGNING_SECRET, DATABASE_URI, the TMDB, TVDB,
+    # Fanart, MDBList, RPDB and Gemini keys, REDIS_PASSWORD. oidc.sops.env: OIDC_CLIENT_SECRET for
+    # the apps' Authelia (later files win, so it replaces v1's Authentik one).
+    env_file: [secret.sops.env, oidc.sops.env]
+    environment:
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      PORT: "3232"
+      HOST_NAME: https://aiometadata.aliammar.net
+      NODE_ENV: production
+      LOG_LEVEL: info
+      TZ: Asia/Karachi
+      CATALOG_TTL: "86400"
+      META_TTL: "604800"
+      META_CONCURRENCY: "24"
+      HEAP_LOG_INTERVAL_MIN: "30"
+      # Posters: cached on disk, capped at 20 GB (v1 allowed 50 GB); posters don't change, so no TTL,
+      # and an image unused for 90 days goes first.
+      ENABLE_BUILTIN_POSTER_CACHE: "true"
+      POSTER_CACHE_DIR: /app/poster-cache
+      POSTER_CACHE_MAX_SIZE: 20g
+      POSTER_CACHE_MEMORY_SIZE: 512m
+      POSTER_CACHE_TTL_DAYS: "0"
+      POSTER_CACHE_INACTIVE_DAYS: "90"
+      POSTER_PROXY_MAX_AGE_DAYS: "7"
+      POSTER_CACHE_BACKGROUNDS: "true"
+      POSTER_CACHE_LANDSCAPE_POSTERS: "true"
+      POSTER_CACHE_LOGOS: "true"
+      POSTER_CACHE_PROCESSED_IMAGES: "true"
+      POSTER_CACHE_FETCH_CONCURRENCY: "32"
+      POSTER_PROXY_ALLOW_PRIVATE: "false"
+      POSTER_CACHE_THUMBNAILS: "true"
+      POSTER_CACHE_PROVIDER_PRESETS: "true"
+      POSTER_CACHE_INFER_TTL: "false"
+      META_COLD_STORE_ENABLED: "true"
+      META_COLD_STORE_PATH: /app/cold-store/metacache.sqlite
+      META_COLD_STORE_MAX_BYTES: 2gb
+      META_COLD_STORE_COMPRESSION: "true"
+      ENABLE_CACHE_WARMING: "true"
+      CACHE_WARMUP_MODE: comprehensive
+      CACHE_WARMUP_UUID: 1c50d07a-bf36-4f67-bbce-56135d309800 # the config whose catalogs get warmed
+      TMDB_POPULAR_WARMING_ENABLED: "false"
+      MAL_WARMUP_ENABLED: "false"
+      # Sign-in through the apps' Authelia; groups map to permissions.
+      OIDC_ENABLED: "true"
+      OIDC_ISSUER: https://login.aliammar.net
+      OIDC_CLIENT_ID: aiometadata
+      OIDC_GROUPS_CLAIM: groups
+      OIDC_USERNAME_CLAIM: preferred_username
+      OIDC_GROUP_PERMISSIONS: admins=admin,family=createConfig
+      OIDC_DEFAULT_PERMISSIONS: ""
+      OIDC_ALLOW_INSECURE_ISSUER: "false"
+      OIDC_RATE_LIMIT_PER_WINDOW: "20"
+      OIDC_RATE_LIMIT_WINDOW: "300"
+      AUTH_REQUIRE_SIGNIN: "true"
+      # Two proxies before it: caddy-apps, and for public requests cloudflared too (caddy-apps
+      # forwards cloudflared's visitor address). Two hops is the visitor, not 10.10.100.33.
+      TRUST_PROXY_HOPS: "2"
+      SESSION_TTL_SECONDS: "86400"
+      JIKAN_API_BASE: http://jikan:8080/v4
+      CACHE_COMPRESSION_ENABLED: "true"
+      CACHE_COMPRESSION_MIN_BYTES: "2048"
+      CONFIG_CACHE_COMPRESSION_ENABLED: "true"
+      ENABLE_SELF_HEALING: "true"
+      DISABLE_GUEST_MODE: "true"
+      LOG_BUFFER_MAX_ENTRIES: "20000"
+      LOG_BUFFER_MAX_BYTES: "16777216"
+      ANIME_API_OVERLAY_ENABLED: "true"
+      MAL_PAGE_SIZE: "50"
+      PREFER_SMALLER_POSTERS_TMDB: "true"
+      PREFER_SMALLER_LOGOS_TMDB: "false"
+      PREFER_SMALLER_LANDSCAPE_TMDB: "false"
+      PREFER_SMALLER_BACKDROPS_TMDB: "false"
+      IMAGE_WARM_QUEUE: "true"
+      IMAGE_WARM_QUEUE_MAX: "20000"
+      IMAGE_WARM_CONCURRENCY_MIN: "4"
+      IMAGE_WARM_CONCURRENCY_MAX: "24"
+      IMAGE_WARM_TARGET_LAG_MS: "20"
+    stop_grace_period: 30s
+    mem_limit: 4g
+    volumes:
+      - /opt/appdata/aiometadata/data:/app/addon/data # the database (configs, accounts)
+      - /opt/appdata/aiometadata/cold-store:/app/cold-store # metadata kept beyond redis
+      - /opt/appdata/aiometadata/poster-cache:/app/poster-cache # refills itself, up to 20 GB
+    # edge: caddy-apps, jikan and the internet.
+    networks: [edge, backend]
+    depends_on:
+      redis:
+        condition: service_healthy
+    # The image's own healthcheck (wget /health/live) applies.
+
+  redis:
+    container_name: aiometadata-redis
+    image: docker.io/library/redis:7.2.15-alpine@sha256:05a97a479bc73de66f087dc05b569010772880f778cc8671fa6b8aadee32e5c6
+    restart: unless-stopped
+    init: true
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    # $$: the container's shell reads it at start, not compose.
+    command:
+      - sh
+      - -ec
+      - exec redis-server --appendonly yes --appendfsync everysec --save 3600 1 --requirepass "$$REDIS_PASSWORD" --maxmemory 1gb --maxmemory-policy allkeys-lfu
+    mem_limit: 1536m
+    volumes:
+      - /opt/appdata/aiometadata/redis:/data # its cache
+    networks: [backend]
+    healthcheck:
+      test: [CMD-SHELL, "redis-cli --no-auth-warning -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+networks:
+  edge:
+    external: true
+  # This stack's own; redis needs no internet.
+  backend:
+    internal: true

@@ -80,6 +80,9 @@ handle @<name> {
   with `originServerName: <name>.aliammar.net`. Check it with
   `nix run nixpkgs#cloudflared -- tunnel --config stacks/dmz/cloudflared/config.yml ingress validate`.
 - DNS: `<name>` A → the door's IP, as a line in `dns/aliammar.net.zone` in the same PR.
+- docker-dmz: if another container there calls the app by its name (an OIDC issuer, an addon), add
+  the name to caddy-apps' `edge` aliases. The host can't reach its own macvlan IPs, so Technitium's
+  .35 fails from `edge`.
 - An upstream with a self-signed cert: pin it in the door's certs folder and use
   `tls_trust_pool file /etc/caddy-certs/<name>.pem` (see caddy-admin's `sites/pbs.conf`).
 

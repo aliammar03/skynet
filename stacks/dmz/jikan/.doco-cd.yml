@@ -1,0 +1,3 @@
+# Merged over .doco-cd.dmz.yml for this stack only: compose interpolates the containers' secrets
+# (${JIKAN_*}) from the decrypted secret file, as v1 did from its .env.
+env_files: [secret.sops.env]
