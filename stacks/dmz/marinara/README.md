@@ -3,11 +3,12 @@
 - **Purpose:** Marinara Engine, AI roleplay (chats, characters, image generation through ComfyUI on
   the workstation).
 - **URL:** https://marinara.aliammar.net (caddy-apps → `marinara:7860` on `edge`). Inside only.
-- **Auth mode:** own, but open from inside, as in v1: it lets private networks
-  (`ALLOW_UNAUTHENTICATED_PRIVATE_NETWORK`, `TRUSTED_PRIVATE_NETWORKS`) and Docker hosts
-  (`BYPASS_AUTH_DOCKER`) in without a login, and caddy-apps is both. Its basic auth
-  (`BASIC_AUTH_USER`/`PASS`) applies to anything else. So any app client that reaches caddy-apps
-  (rule 200: VLANs 10, 20, 30, 40) can open it.
+- **Auth mode:** forward: the apps' Authelia, group `admins`, a password (`one_factor`), and nothing
+  else. Marinara's own basic auth is off (`BASIC_AUTH_USER`/`PASS` emptied in compose, which
+  overrides v1's values in the secret file). With no login set, it admits only Docker peers
+  (`BYPASS_AUTH_DOCKER`, with `REQUIRE_AUTH_FOR_DOCKER_PROXY=false` for proxied requests), which here
+  means caddy-apps. Its two `ALLOW_UNAUTHENTICATED_*` switches are off, so a client reaching its
+  macvlan address directly gets 403.
 - **Network:** also on the `dmz` macvlan at 10.10.100.85 (v1's address, `gw_priority: 1`), so OPNsense
   rule 340 (`ROLE_DMZ_AI_CLIENTS` → the workstation's ComfyUI :8188) still names it.
 - **Data:** `/opt/appdata/marinara/data` → `/app/data` (owner 1000; backup class: data). Copied from
@@ -20,5 +21,5 @@
 **Gotchas**
 - v1's build, `2.4.1` (v1 pinned `latest` at it). It may check for updates but never applies them
   (`UPDATES_APPLY_ENABLED=false`); Renovate proposes newer images.
-- To put it behind the apps' Authelia instead, add `import authelia` to its site and a rule for
-  `marinara.aliammar.net`.
+- In this version, Docker trust never overrides a configured password: with `BASIC_AUTH_*` set,
+  caddy-apps' requests get the basic-auth prompt (v1 prompted too).

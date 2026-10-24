@@ -34,8 +34,8 @@ totp:
 access_control:
   default_policy: deny
   rules:
-    # Calibre's and SillyTavern's desktops have no login of their own: Ali only.
-    - domain: [calibre.aliammar.net, sillytavern.aliammar.net]
+    # Ali only: none of the three has a login of its own (Marinara's is switched off).
+    - domain: [calibre.aliammar.net, sillytavern.aliammar.net, marinara.aliammar.net]
       subject: ['group:admins']
       policy: one_factor
     # Last: a name no rule above allows is refused. (With a `deny` default, Authelia also refuses to

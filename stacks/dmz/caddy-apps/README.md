@@ -26,8 +26,7 @@
 | homeassistant | http://10.10.30.50:80 | own (Home Assistant trusts this door as its proxy) |
 | speed | librespeed:8080 | none (a LAN test) |
 | obsidian · karakeep · paperless | obsidian:5984 · karakeep:3000 · paperless:8000 | own |
-| marinara | marinara:7860 | own, open from inside (as in v1) |
-| calibre · sillytavern | calibre:8080 · sillytavern:8000 | forward (`import authelia`, admins) |
+| calibre · sillytavern · marinara | calibre:8080 · sillytavern:8000 · marinara:7860 | forward (`import authelia`, admins) |
 | aiometadata · aiostreams | aiometadata:3232 · aiostreams:3000 | oidc |
 
 **Gotchas**
