@@ -19,7 +19,7 @@ Run it on ops as `skynet`. `quick` takes ~3 min; the log runs as long as you lea
   cache. Every resolver and protocol gets its **own** random name. One shared name made the 2026-10-23
   night's later asks cache hits at the same provider.
 - **Raced:** Technitium sends each lookup to every forwarder it races (`forwarderConcurrency`) and
-  takes the first answer. `report` simulates pairs and the OpenDNS + Google + Quad9 triple. In the
+  takes the first answer. `report` simulates races (for a `ytlog` CSV, every pair and triple). In the
   CDN log, the winner also decides which server you get. A fast non-ECS resolver winning costs the
   in-ISP caches.
 - **ECS caching:** resolvers that pass your subnet (OpenDNS, Google, Quad9's 9.9.9.11) cache
@@ -29,6 +29,13 @@ Run it on ops as `skynet`. `quick` takes ~3 min; the log runs as long as you lea
 - **DoH and idle connections:** providers close an idle DoH connection within a minute. The first
   lookup after a quiet spell pays a new TLS connection: 100–230 ms here, overnight, against 45–60 ms
   on a warm connection. The once-a-minute log shows that cost, while `quick` (a burst) doesn't.
+- **YouTube:** the video servers (`rrN---sn-….googlevideo.com`) are named in the watch page, picked
+  by the client's IP. They sit inside the ISP (2–4 ms), and every resolver returns the same IP for
+  them, whichever Google front end served the page. DNS picks the servers for the rest: the page and
+  its API, thumbnails, avatars, static files. A far front end made the watch page 5 s instead of 1 s.
+  `ytlog` covers 19 public resolvers, PTCL's own included (a provider's second address can land at
+  another site), and Technitium (what clients get today). `report` ranks every resolver, pair and
+  triple.
 - **One line:** everything follows the default gateway (PTCL); Storm is failover only.
 
 ## Firewall
@@ -57,8 +64,10 @@ nix shell nixpkgs#unbound -c unbound -d -c "$d/unbound.conf" & ub=$!
 # a long run: answer times (one round a minute) and CDN servers (every 2 min), then the reports
 "${PY[@]}" log /tmp/dns-latency.csv --minutes 360 &    # or --until 09:00; add --recursion while Unbound runs
 "${PY[@]}" cdnlog /tmp/dns-cdn.csv --minutes 360 &     # --every N to change the 2 min
+"${PY[@]}" ytlog /tmp/dns-yt.csv --minutes 360 &       # YouTube, 20 resolvers (needs rule 115)
 "${PY[@]}" report /tmp/dns-latency.csv
 "${PY[@]}" report /tmp/dns-cdn.csv
+"${PY[@]}" report /tmp/dns-yt.csv
 ```
 
 A long run belongs to the shell that started it. Use tmux, or the agent's background task, so it
@@ -70,14 +79,38 @@ survives.
 - CDN table: ~4 ms = a cache inside the ISP, ~45 ms = Dubai/Doha, 100+ = far away. The `cdnlog`
   report gives each resolver's median, its share of in-ISP servers (<10 ms) and of far ones
   (>100 ms), and a per-name table.
+- YouTube report: "mean" is the YouTube server a resolver hands out (the mean over names of each
+  name's median connect ms); "page" and "thumb" are a new HTTPS connection plus one request. Raced
+  sets list only those whose every member wins 2%+ of lookups; "other CDNs" shows what the same set
+  does to the P2 names (TikTok and Steam's in-ISP caches).
 - Pick the fastest raced pair whose CDN column matches the best one. Change `dns/settings.json`
   by PR.
 - The script prints where a resolver answered from, never the lab's public IP. Some debug answers
   contain it (OpenDNS `debug.opendns.com`, Google `o-o.myaddr`).
 
-## Last result (2026-10-23, night and day)
+## Last result (2026-10-24, night and morning)
 
-Plain UDP to OpenDNS + Google, raced. The day run (11:58–17:58) gave p50 / p90 of 44 / 148 ms for
-cached names and 62 / 152 for uncached ones, and both resolvers get the in-ISP caches. The triple
-with Quad9 is no faster on uncached names, and Quad9 then wins most races, losing those caches.
-Full numbers: `skynetv2.md` → P2 → Prechecks. Still to do: a run that covers the evening peak.
+Plain UDP to PTCL (39.39.39.39) + OpenDNS + Google, all three raced.
+
+- **`ytlog`, 02:27–08:27** (181 rounds, 20 resolvers), p50 / p90 answer ms:
+
+  | | Answer | YouTube servers (mean) | Other CDNs in-ISP |
+  |---|---|---|---|
+  | PTCL 39.39.39.39 | 4 / 7, no failures | 43 ms | 25% (TikTok, Steam 4 ms) |
+  | PTCL 182.176.100.88 | 15 / 18 | 43 ms | 1% (TikTok, Steam 14 ms) |
+  | Quad9 | 45 / 48 | 44 ms | 0% |
+  | Google | 58 / 155 | 43 ms | 25% |
+  | OpenDNS | 160 / 174 | 43 ms | 25% |
+  | Cloudflare | 25 / 28 | 216 ms, 47% far | 0% |
+
+  The video servers were the same IP from every resolver in every round. NextDNS, ControlD and
+  UltraDNS made a thumbnail take ~1.2 s instead of 0.3 s.
+- **Names nobody asked for yet** (10:49, through a test Technitium with the lab's settings): PTCL
+  alone is no faster (110 ms p50), OpenDNS is (63–66). Raced, unknown name / real site p50 / p90:
+  OpenDNS + Google (before) 64–70 / 152–161 ms; PTCL + Google 110 / 150 and 7 / 111;
+  PTCL + OpenDNS 49 / 154 and 6 / 46; PTCL + OpenDNS + Google 49 / 142 and 5 / 47.
+- **Blocked sites:** PTCL answers REFUSED for sites on Pakistan's blocklist (pornhub.com,
+  xvideos.com, 1337x.to). Technitium counts that as a failure and takes the next forwarder's answer
+  (41–60 ms).
+
+Still to do: a run that covers the evening peak.

@@ -28,8 +28,8 @@ doesn't read back as written (a typo, say), so the deploy fails and comin posts 
 |---|---|---|
 | `recursion`, `recursionNetworkACL` | loopback, 10.10.0.0/16, 100.64.0.0/10 | the lab and Tailscale only |
 | `qpmLimitBypassList` | 10.10.0.0/16, 100.64.0.0/10 | Technitium rate-limits every client by default (600 queries/min per IP, 6000 per /24), and a Docker host's containers count as one IP |
-| `forwarders`, `forwarderProtocol` | OpenDNS 208.67.222.222, Google 8.8.8.8; UDP | fastest from PTCL among the resolvers that hand out the in-ISP CDN caches (`runbooks/dns-speed-test/`) |
-| `concurrentForwarding`, `forwarderConcurrency` | on, 2 | both are asked; the first answer wins |
+| `forwarders`, `forwarderProtocol` | PTCL 39.39.39.39, OpenDNS 208.67.222.222, Google 8.8.8.8; UDP | PTCL (the ISP's own) answers names it holds in ~5 ms; OpenDNS is fastest on names nobody asked for yet; all three hand out the same YouTube servers and the in-ISP CDN caches (`runbooks/dns-speed-test/`) |
+| `concurrentForwarding`, `forwarderConcurrency` | on, 3 | all three are asked; the first answer wins. PTCL answers REFUSED for sites on Pakistan's blocklist, and Technitium then takes OpenDNS's or Google's answer |
 | `forwarderTimeout`, `forwarderRetries` | 1000 ms, 2 | a dead forwarder is skipped quickly |
 | `dnssecValidation` | off | no extra key lookups on misses. Nothing checks answers over plain UDP; accepted for speed |
 | `saveCache`, `serveStale`, `serveStaleTtl`, `serveStaleMaxWaitTime` | on, on, 3 days, 0 | an expired name answers from cache at once and refreshes in the background; the cache survives restarts |
