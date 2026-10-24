@@ -1,0 +1,132 @@
+# Karakeep (karakeep.aliammar.net): bookmarks, with full-page archives, OCR and AI tags. Its own login;
+# public through the tunnel. Its browser and its search sit on this stack's own network, out of
+# `edge`'s reach.
+services:
+  karakeep:
+    container_name: karakeep
+    # v1's version: it migrates its database on upgrade, so a newer one comes as its own PR.
+    image: ghcr.io/karakeep-app/karakeep:0.33.2@sha256:b069e4307dec06ea06d16989c6861c30a1ff208568be44ed5fb5d422cd3e950c
+    restart: unless-stopped
+    env_file: secret.sops.env # NEXTAUTH_SECRET, MEILI_MASTER_KEY, PROMETHEUS_AUTH_TOKEN, OPENAI_API_KEY
+    environment:
+      TZ: Asia/Karachi
+      NEXTAUTH_URL: https://karakeep.aliammar.net
+      DATA_DIR: /data
+      MEILI_ADDR: http://meilisearch:7700
+      BROWSER_WEB_URL: http://chrome:9222
+      BROWSER_CONNECT_ONDEMAND: "false"
+      # Public: no strangers' accounts (or OpenAI bills). Ali adds users from the admin settings.
+      DISABLE_SIGNUPS: "true"
+      DISABLE_PASSWORD_AUTH: "false"
+      RATE_LIMITING_ENABLED: "true"
+      DISABLE_NEW_RELEASE_CHECK: "false"
+      # AI tagging and summaries (OpenAI), as in v1.
+      INFERENCE_TEXT_MODEL: gpt-5.6-terra
+      INFERENCE_IMAGE_MODEL: gpt-5.6-luna
+      INFERENCE_USE_MAX_COMPLETION_TOKENS: "true"
+      INFERENCE_OUTPUT_SCHEMA: structured
+      OPENAI_REASONING_EFFORT: low
+      OPENAI_SERVICE_TIER: default
+      INFERENCE_CONTEXT_LENGTH: "16384"
+      INFERENCE_MAX_OUTPUT_TOKENS: "4096"
+      INFERENCE_LANG: english
+      INFERENCE_NUM_WORKERS: "2"
+      INFERENCE_JOB_TIMEOUT_SEC: "180"
+      INFERENCE_ENABLE_AUTO_TAGGING: "true"
+      INFERENCE_ENABLE_AUTO_SUMMARIZATION: "true"
+      EMBEDDING_TEXT_MODEL: text-embedding-3-small
+      OCR_USE_LLM: "true"
+      OCR_CACHE_DIR: /data/ocr-cache
+      OCR_LANGS: eng,urd
+      OCR_CONFIDENCE_THRESHOLD: "45"
+      # The crawler: full-page screenshots, PDFs and archives, and videos up to 1 GB.
+      CRAWLER_NUM_WORKERS: "2"
+      CRAWLER_DOWNLOAD_BANNER_IMAGE: "true"
+      CRAWLER_STORE_SCREENSHOT: "true"
+      CRAWLER_FULL_PAGE_SCREENSHOT: "true"
+      CRAWLER_STORE_PDF: "true"
+      CRAWLER_FULL_PAGE_ARCHIVE: "true"
+      CRAWLER_ENABLE_ADBLOCKER: "true"
+      CRAWLER_SCREENSHOT_TIMEOUT_SEC: "30"
+      CRAWLER_NAVIGATE_TIMEOUT_SEC: "60"
+      CRAWLER_PARSE_TIMEOUT_SEC: "120"
+      CRAWLER_JOB_TIMEOUT_SEC: "300"
+      CRAWLER_PARSER_MEM_LIMIT_MB: "1024"
+      CRAWLER_MONOLITH_TIMEOUT_SEC: "60"
+      CRAWLER_DOMAIN_RATE_LIMIT_WINDOW_MS: "1000"
+      CRAWLER_DOMAIN_RATE_LIMIT_MAX_REQUESTS: "2"
+      CRAWLER_VIDEO_DOWNLOAD: "true"
+      CRAWLER_VIDEO_DOWNLOAD_MAX_SIZE: "1024"
+      CRAWLER_VIDEO_DOWNLOAD_TIMEOUT_SEC: "1800"
+      MAX_ASSET_SIZE_MB: "1024"
+      DB_WAL_MODE: "true"
+      SEARCH_NUM_WORKERS: "2"
+      SEARCH_JOB_TIMEOUT_SEC: "120"
+      ASSET_PREPROCESSING_NUM_WORKERS: "2"
+      ASSET_PREPROCESSING_JOB_TIMEOUT_SEC: "300"
+      RULE_ENGINE_NUM_WORKERS: "1"
+      WEBHOOK_NUM_WORKERS: "1"
+      WEBHOOK_TIMEOUT_SEC: "10"
+      WEBHOOK_RETRY_TIMES: "5"
+      LOG_LEVEL: notice
+      EVENT_LOGS_ENABLED: "false"
+      OTEL_TRACING_ENABLED: "false"
+    # Room for the page parser (CRAWLER_PARSER_MEM_LIMIT_MB) beside the web app and its workers.
+    mem_limit: 2g
+    volumes:
+      - /opt/appdata/karakeep/data:/data # sqlite, assets, archives, OCR cache
+    networks: [edge, backend]
+    depends_on:
+      chrome:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+    # The image's own healthcheck (wget /api/health) applies.
+
+  chrome:
+    container_name: karakeep-chrome
+    image: docker.io/zenika/alpine-chrome:124@sha256:eb3378c1ed0079f94db054a5fe1aaa790a254ec0d6bbc67eda052420d86a179d
+    restart: unless-stopped
+    command:
+      - --no-sandbox
+      - --disable-gpu
+      - --disable-dev-shm-usage
+      - --remote-debugging-address=0.0.0.0
+      - --remote-debugging-port=9222
+      - --hide-scrollbars
+      - --disable-blink-features=AutomationControlled
+      - --window-size=1440,900
+    mem_limit: 1g
+    # Only karakeep reaches its debugging port (no login); it reaches the internet to crawl.
+    networks: [backend]
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:9222/json/version]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  meilisearch:
+    container_name: karakeep-meilisearch
+    # v1's version: it holds the index's on-disk format.
+    image: docker.io/getmeili/meilisearch:v1.41.0@sha256:860fa4baed04ae1c235de870edab0c8006227546dea1bbb6411fbfc5e27cf1db
+    restart: unless-stopped
+    env_file: secret.sops.env # MEILI_MASTER_KEY
+    environment:
+      MEILI_NO_ANALYTICS: "true"
+    mem_limit: 512m
+    volumes:
+      - /opt/appdata/karakeep/meili:/meili_data # the search index (rebuildable from karakeep's data)
+    networks: [backend]
+    healthcheck:
+      test: [CMD, curl, -fsS, -o, /dev/null, http://localhost:7700/health]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  edge:
+    external: true
+  # This stack's own: karakeep, its browser and its search. Not internal: the browser crawls the web.
+  backend: {}

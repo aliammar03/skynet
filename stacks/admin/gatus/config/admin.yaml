@@ -80,6 +80,7 @@ endpoints:
   - { <<: *app, name: librespeed, url: https://speed.aliammar.net/, conditions: ["[STATUS] == 200"] }
   # /_up is CouchDB's only path without a login.
   - { <<: *app, name: obsidian, url: https://obsidian.aliammar.net/_up, conditions: ["[STATUS] == 200"] }
+  - { <<: *app, name: karakeep, url: https://karakeep.aliammar.net/api/health, conditions: ["[STATUS] == 200"] }
 
   # healthchecks.io's read-only badge for each Docker host's heartbeat check (2-state: up, or down
   # once period + grace pass with no ping). No alert: healthchecks.io already posts to #alerts.

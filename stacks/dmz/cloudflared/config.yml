@@ -12,4 +12,9 @@ ingress:
     service: https://caddy-apps
     originRequest:
       originServerName: obsidian.aliammar.net
+  # Karakeep: its own login; for the phone apps and the browser extension.
+  - hostname: karakeep.aliammar.net
+    service: https://caddy-apps
+    originRequest:
+      originServerName: karakeep.aliammar.net
   - service: http_status:404

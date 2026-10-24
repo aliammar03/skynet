@@ -111,6 +111,9 @@ in
     virtualisation.oci-containers.containers.apprise = {
       image = "docker.io/caronc/apprise:2.0.1@sha256:0b2913b15c8eb47c25345722985ffbfae701326edde21909c205d296d62dd52c";
       ports = [ "127.0.0.1:8000:8000" ];
+      # One gevent worker serves a few notices a day; the default is 2 × CPUs + 1 (13 on docker-dmz,
+      # ~740 MB).
+      environment.APPRISE_WORKER_COUNT = "1";
     };
     # Host networking, so the NixOS firewall governs its ports (a published port would bypass it).
     virtualisation.oci-containers.containers.doco-cd = {
