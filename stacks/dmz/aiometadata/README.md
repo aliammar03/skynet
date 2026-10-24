@@ -34,6 +34,10 @@
   `FANART_API_KEY`, `RPDB_API_KEY`, `MDBLIST_API_KEY` and `GEMINI_API_KEY` in full, to prefill the
   configure page. They stay blank; the `BUILT_IN_` copies are used, never sent
   (`hasBuiltIn…: true` there).
+- A setting saved in its dashboard (table `addon_settings`) wins over compose's environment, unless
+  the setting is env-only. So keys go in `secret.sops.env`, never the dashboard: saved there, the
+  published ones are served again, whatever compose says. "Reset" in the dashboard deletes a saved
+  value.
 - It calls its issuer (`login.aliammar.net`) from inside: caddy-apps answers that name on `edge`
   (a network alias), because the host can't reach its own macvlan IPs.
 - `TRUST_PROXY_HOPS=2`: caddy-apps, plus cloudflared for public requests. With 1 it would rate-limit
