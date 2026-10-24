@@ -19,7 +19,9 @@
 - **Upstream:** [jikan-rest](https://github.com/jikan-me/jikan-rest)
 
 **Gotchas**
-- Mongo (6.0.4) and Typesense (0.24.1) stay at v1's versions: they hold on-disk formats. Mongo
-  upgrades one major version at a time.
+- Its databases stay within jikan's own compose (`mongo:focal`, i.e. 6.0; `redis:6-alpine`;
+  `typesense:0.24.1`), at their newest patches; Renovate keeps within those (`renovate.json`). Jikan's
+  last release is from 2024-11, so a newer major is untested with it. Mongo upgrades one major at a
+  time, raising its feature compatibility version after each.
 - A changed `JIKAN_*` value reaches the containers only through a redeploy (interpolation), not a
   restart.

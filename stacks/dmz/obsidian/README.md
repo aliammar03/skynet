@@ -19,6 +19,6 @@
 **Gotchas**
 - The image's entrypoint chowns everything under `/opt/couchdb` to 5984. So `local.ini` is mounted at
   `/etc/skynet/couchdb/` and copied in, and the checked-out file keeps its owner.
-- The image version holds the data format: it stays at v1's 3.5.0 until a Renovate PR moves it.
+- CouchDB upgrades its data in place within 3.x; read the release notes before a new major.
 - Cloudflare caps a request body at 100 MB. LiveSync's chunks are far smaller, but a huge attachment
   syncs only from inside.

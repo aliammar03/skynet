@@ -22,7 +22,8 @@
   [SSO](https://github.com/Viren070/AIOStreams/blob/main/packages/docs/content/docs/guides/sso.mdx)
 
 **Gotchas**
-- v1's build, `2026.08.12.1359-nightly` (v1 pinned `nightly` at it). Renovate proposes newer ones;
-  nightlies move fast, so take them deliberately.
+- Stable releases (`v<version>`). Since 2.35 it refuses a database migrated by a different build
+  (its migrations' names must match), so it stays on one channel. v1's nightly database moved to
+  stable cleanly: all its migrations are in the stable release under the same names.
 - It calls its issuer (`login.aliammar.net`) and aiometadata from inside, through Technitium: both
   are .35, caddy-apps' address on the same macvlan.

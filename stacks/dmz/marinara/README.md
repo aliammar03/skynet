@@ -21,8 +21,9 @@
 - **Upstream:** [Marinara Engine](https://github.com/Pasta-Devs/Marinara-Engine)
 
 **Gotchas**
-- v1's build, `2.4.1` (v1 pinned `latest` at it). It may check for updates but never applies them
-  (`UPDATES_APPLY_ENABLED=false`); Renovate proposes newer images.
+- It may check for updates but never applies them (`UPDATES_APPLY_ENABLED=false`); Renovate proposes
+  newer images. An upgrade may migrate its storage, after which older builds refuse it (a downgrade
+  guard): going back needs a copy from before.
 - In this version, Docker trust never overrides a configured password: with `BASIC_AUTH_*` set,
   caddy-apps' requests get the basic-auth prompt (v1 prompted too). It does override the allowlist:
   with `BYPASS_AUTH_DOCKER=true`, every container in 172.16.0.0/12 gets in.

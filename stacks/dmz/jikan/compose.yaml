@@ -55,8 +55,8 @@ services:
 
   mongo:
     container_name: jikan-mongo
-    # v1's version: it holds the database's on-disk format.
-    image: docker.io/library/mongo:6.0.4-focal@sha256:862b0007cff02d5b331c3199a68a7aa0749f49952f2f368c81c50b78adc47c8c
+    # Jikan's compose runs `mongo:focal` (6.0): this is 6.0's last patch. Renovate stays within 6.0.
+    image: docker.io/library/mongo:6.0.28-jammy@sha256:a90cef0143bed76540c2b7e6f299a02165e59b07e459b2fd7fef031c5accf5fd
     restart: unless-stopped
     init: true
     command: [--wiredTigerCacheSizeGB, "0.5"]
@@ -85,7 +85,7 @@ services:
 
   redis:
     container_name: jikan-redis
-    image: docker.io/library/redis:6.2.23-alpine@sha256:ec5e187c913d422cdf60f4216a5fdfb95246792c6de6fe21ff5bed75cbfc8c23
+    image: docker.io/library/redis:6.2.24-alpine@sha256:592b215e9287182f11ba9d7c229dc0ba312bb900a016ea65ae378b0127567319
     restart: unless-stopped
     init: true
     environment:
@@ -108,7 +108,7 @@ services:
 
   typesense:
     container_name: jikan-typesense
-    # v1's version: it holds the index's on-disk format.
+    # Jikan's compose pins 0.24.1, and Renovate keeps it there.
     image: docker.io/typesense/typesense:0.24.1@sha256:9bcff2b829f12074426ca044b56160ca9d777a0c488303469143dd9f8259d4dd
     restart: unless-stopped
     init: true

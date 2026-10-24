@@ -19,7 +19,6 @@
 - **Upstream:** [SillyTavern](https://docs.sillytavern.app/)
 
 **Gotchas**
-- v1 pinned the moving `release` tag at a digest no version tag carries; it stays pinned there until a
-  Renovate PR moves it.
+- A version tag (`1.19.0`), not the moving `release` v1 used, so Renovate proposes each release.
 - `SILLYTAVERN_<KEY>` overrides `config.yaml`'s `<key>` (e.g. `SILLYTAVERN_WHITELIST`). The gate's
   settings are in compose for that reason, not in `config.yaml`, which is app data.
