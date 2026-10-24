@@ -106,6 +106,11 @@ in
     hostNames = [ "10.10.100.10" ];
     publicKeyFile = ../hosts/docker-dmz/ssh_host.pub;
   };
+  # PBS (CT 240) isn't a NixOS host here; its key, checked against the console (D11).
+  programs.ssh.knownHosts.pbs = {
+    hostNames = [ "10.10.20.40" ];
+    publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBOXOpjRJUTG3NiZl2DhRKkTgpNqMjvsR75O7WjFPa9Q";
+  };
 
   environment.systemPackages = with pkgs; [
     (writeShellScriptBin "skynet-attach" ''

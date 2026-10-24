@@ -66,7 +66,7 @@ Nothing outside the lab pushes into it.
 | D8 | All alerts go to Discord `#alerts` (doco-cd via Apprise, Gatus, healthchecks.io, comin hook) | One place to look |
 | D9 | Offsite = **Google Drive** via rclone with Ali's own OAuth client, **published to production** | Drive is what Ali has; "Testing" mode tokens expire every 7 days |
 | D10 | No OpenTofu. VMs come from versioned `hosts/<h>/proxmox.sh`; internal DNS records live in `dns/aliammar.net.zone`; the Cloudflare wildcard CNAME is set once by hand | Guests change rarely |
-| D11 | The agent never merges. It is **root on docker-dmz only** (passwordless sudo, every command in that host's journal), which also gives it that host's Docker socket, host key and secrets; it never prints a secret value or decrypts one on purpose. On docker-dmz's doco-cd MCP it may restart and run jobs; destroying a project or stack asks Ali each time. Everywhere else: no sudo, no Docker socket, no private age key. While it installs a host it is root on the installer, which holds the new host key that `--copy-host-keys` keeps (`runbooks/new-vm.md`); it reads only the public half | The apps host is where operate work happens, and it needs hands (Ali's call, 2026-10-24). docker-admin (admin portal, Gatus, admin secrets) and the DNS servers stay diagnose-only, so GitHub and missing credentials still leash the rest. The install window was already root-equivalent (the agent installs the OS), and it buys a one-PR install |
+| D11 | The agent never merges. It is **root on docker-dmz and on PBS** (CT 240). On docker-dmz: passwordless sudo, every command in that host's journal, which also gives it that host's Docker socket, host key and secrets. On PBS: root over SSH from ops. It never prints a secret value or decrypts one on purpose. On docker-dmz's doco-cd MCP it may restart and run jobs. Destroying a project or stack, or on PBS removing a backup, namespace or datastore, asks Ali each time. Everywhere else: no sudo, no Docker socket, no private age key. While it installs a host it is root on the installer, which holds the new host key that `--copy-host-keys` keeps (`runbooks/new-vm.md`); it reads only the public half | The apps host is where operate work happens, and it needs hands; PBS is where P4's offsite copy and its drills happen (both Ali's call, 2026-10-24). docker-admin (admin portal, Gatus, admin secrets) and the DNS servers stay diagnose-only, so GitHub and missing credentials still leash the rest. The install window was already root-equivalent (the agent installs the OS), and it buys a one-PR install |
 | D13 | `aliammar-skynet` has **Write**. The `main` ruleset requires a PR and check `nix` and blocks force-push/deletion; no review is required (Ali's call, 2026-10-21) | Branches in one repo, no approval clicks. "Never merge" is a **soft wall**: AGENTS.md + Claude Code deny rules |
 | D12 | v1 archived; fresh repo; new ops VM built alongside the old one, which is then retired | Clean start without a blind spot |
 | D14 | Remote access = **Tailscale**, with `os-tailscale` on OPNsense as the subnet router and split DNS for `aliammar.net`; replaces the WireGuard plan | Nothing inbound to open; it keeps working when docker-admin or a node is down, so it can reach what needs fixing |
@@ -186,7 +186,7 @@ skynet/
 | Ali | GitHub owner, age master key, SSH CA, Proxmox/OPNsense/Unraid root, Discord owner, Google + Cloudflare accounts | everything | — |
 | aliammar-skynet | classic PAT `public_repo`, `workflow` | **Write**: branches, PRs, labels. Can't push `main` (ruleset); could merge, but won't (soft wall, D13) | P0 |
 | ops host key | decrypts `secrets/ops.yaml` | ops | P0 |
-| agent (`skynet`) | root on docker-dmz (sudo, D11); doco-dmz MCP restart/job tools | that host; everywhere else diagnose-only | P3 |
+| agent (`skynet`) | root on docker-dmz (sudo) and PBS (SSH key from ops), D11; doco-dmz MCP restart/job tools | those two; everywhere else diagnose-only | P3 / P4 |
 | Discord bot | bot token | `#skynet` chat | P0 |
 | Renovate app | repo contents/PRs | PRs (automerge P6) | P0 |
 | docker-admin host key | `secrets/docker-admin.yaml`, `stacks/admin/**` | that host | P1 |
@@ -198,8 +198,8 @@ skynet/
 | docker-dmz host key, tunnel credentials | `stacks/dmz/**`, cloudflared | that host | P3 |
 | rclone | Drive scope, Ali's own OAuth client | backup jobs | P4 |
 | `skynet@pve` tokens | `read` = PVEAuditor on `/`, one per node (the nodes aren't clustered); `operate` = VM.PowerMgmt on pool `skynet` | Proxmox | P1 / P6 |
-| OPNsense `skynet-read` | API key | Diagnostics: ARP Table · Firewall: Aliases · Firewall: Rules [new] · System: Deny config write | P1 |
-| PBS / Technitium | read-only users | diagnose | P5 / P6 |
+| OPNsense `skynet-read` | API key | Diagnostics: ARP Table · Diagnostics: Logs: Firewall: Live View · Diagnostics: PF Table IP addresses · Diagnostics: Routing tables · Firewall: Aliases · Firewall: Rules [new] · Lobby: Dashboard · System: Gateways · Tailscale · System: Deny config write. Config writes stay denied; PF tables and Tailscale's service could change at runtime, and the agent leaves them to Ali (rule 5) | P1 / P4 |
+| Technitium | read-only user | diagnose | P5 / P6 |
 
 ---
 
