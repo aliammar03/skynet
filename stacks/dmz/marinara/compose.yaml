@@ -4,8 +4,8 @@
 services:
   marinara:
     container_name: marinara
-    # v1's build (v1 pinned `latest` at this digest).
-    image: ghcr.io/pasta-devs/marinara-engine:2.4.1@sha256:eed2d2f7db49d5867f30f90d314c2f668f767246cd6e7a48907c3386720be0db
+    # It migrates its storage on upgrade, one way (README).
+    image: ghcr.io/pasta-devs/marinara-engine:2.5.1@sha256:2d17e6a8fe1f2eefc4f61b6af2a62d51cd8f4746b35b8b068df71a2259aae663
     restart: unless-stopped
     init: true
     # ENCRYPTION_KEY (encrypts the stored API keys: keep v1's), ADMIN_SECRET, SSL_CERT, SSL_KEY,
@@ -18,7 +18,6 @@ services:
       PORT: "7860"
       HOST: 0.0.0.0
       AUTO_OPEN_BROWSER: "true"
-      AUTO_UPDATE_ENABLED: "true"
       AUTO_CREATE_DEFAULT_CONNECTION: "true"
       DATA_DIR: /app/data
       FILE_STORAGE_DIR: /app/data/storage
@@ -68,7 +67,6 @@ services:
       HAPTICS_ALLOW_REMOTE: "false"
       INTIFACE_URL: ws://127.0.0.1:12345
       IMPORT_ALLOWED_ROOTS: ""
-      BACKGROUNDREMOVER_AUTO_INSTALL: "false"
       SPRITE_BACKGROUND_REMOVAL_ENGINE: auto
       BACKGROUNDREMOVER_COMMAND: ""
       BACKGROUNDREMOVER_PYTHON: ""

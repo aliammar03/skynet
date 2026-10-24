@@ -15,8 +15,9 @@
 - **Upstream:** [linuxserver/calibre](https://docs.linuxserver.io/images/docker-calibre/)
 
 **Gotchas**
-- The image is v1's build, `v9.13.0-ls415` (v1 pinned `latest` at it). Calibre upgrades the library
-  database on open, so a newer one comes as its own Renovate PR.
+- Calibre upgrades the library database on open, one way: going back needs a copy from before.
+  Renovate reads linuxserver's `v<version>-ls<build>` tags through a versioning rule in
+  `renovate.json`.
 - The image's `EXPOSE` says 3000, but it sets `CUSTOM_PORT=8080` and serves there.
 - Public and admin-only behind a password: once a passkey is registered on `login`, move its rule
   to `two_factor` (`stacks/dmz/authelia/configuration.yml`).

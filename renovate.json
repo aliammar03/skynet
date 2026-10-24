@@ -18,5 +18,42 @@
       ],
       "datasourceTemplate": "docker"
     }
+  ],
+  "packageRules": [
+    {
+      "description": "linuxserver.io build tags: v<version>-ls<build>",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["lscr.io/linuxserver/**"],
+      "versioning": "regex:^v(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-ls(?<build>\\d+)$"
+    },
+    {
+      "description": "karakeep-chrome tags: <Chrome version>-r<revision>",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["ghcr.io/karakeep-app/karakeep-chrome"],
+      "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)\\.(?<build>\\d+)-r(?<revision>\\d+)$"
+    },
+    {
+      "description": "Meilisearch follows karakeep's own pin (its docker/docker-compose.yml): a newer one can't open the index without a migration",
+      "matchPackageNames": ["docker.io/getmeili/meilisearch"],
+      "enabled": false
+    },
+    {
+      "description": "jikan's databases stay within jikan's own compose: mongo:focal (6.0), redis:6-alpine, typesense:0.24.1",
+      "matchFileNames": ["stacks/dmz/jikan/**"],
+      "matchPackageNames": ["docker.io/library/mongo"],
+      "allowedVersions": "/^6\\.0\\./"
+    },
+    {
+      "description": "jikan's databases stay within jikan's own compose (see above)",
+      "matchFileNames": ["stacks/dmz/jikan/**"],
+      "matchPackageNames": ["docker.io/library/redis"],
+      "allowedVersions": "<7"
+    },
+    {
+      "description": "jikan's databases stay within jikan's own compose (see above)",
+      "matchFileNames": ["stacks/dmz/jikan/**"],
+      "matchPackageNames": ["docker.io/typesense/typesense"],
+      "allowedVersions": "/^0\\.24\\./"
+    }
   ]
 }

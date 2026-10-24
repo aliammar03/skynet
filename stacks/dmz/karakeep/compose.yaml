@@ -4,8 +4,8 @@
 services:
   karakeep:
     container_name: karakeep
-    # v1's version: it migrates its database on upgrade, so a newer one comes as its own PR.
-    image: ghcr.io/karakeep-app/karakeep:0.33.2@sha256:b069e4307dec06ea06d16989c6861c30a1ff208568be44ed5fb5d422cd3e950c
+    # It migrates its database on upgrade, one way (README).
+    image: ghcr.io/karakeep-app/karakeep:0.34.1@sha256:69ae5315c618b7c14c1af3e34c6e211acdb231793af424ecd1cab0b70691d987
     restart: unless-stopped
     env_file: secret.sops.env # NEXTAUTH_SECRET, MEILI_MASTER_KEY, PROMETHEUS_AUTH_TOKEN, OPENAI_API_KEY
     environment:
@@ -85,14 +85,14 @@ services:
 
   chrome:
     container_name: karakeep-chrome
-    image: docker.io/zenika/alpine-chrome:124@sha256:eb3378c1ed0079f94db054a5fe1aaa790a254ec0d6bbc67eda052420d86a179d
+    # Karakeep's own image (Google Chrome stable). Its entrypoint adds --no-sandbox and serves
+    # DevTools on 9222 (socat to Chrome's localhost port), so the command leaves both out.
+    image: ghcr.io/karakeep-app/karakeep-chrome:156.0.8078.47-r1@sha256:4ad61127638dd27bfe685222787c5780dd1d083d23a7658c39af657775814c44
     restart: unless-stopped
+    init: true
     command:
-      - --no-sandbox
       - --disable-gpu
       - --disable-dev-shm-usage
-      - --remote-debugging-address=0.0.0.0
-      - --remote-debugging-port=9222
       - --hide-scrollbars
       - --disable-blink-features=AutomationControlled
       - --window-size=1440,900
@@ -108,7 +108,8 @@ services:
 
   meilisearch:
     container_name: karakeep-meilisearch
-    # v1's version: it holds the index's on-disk format.
+    # Karakeep's own pin (its docker-compose.yml): the index's on-disk format changes between
+    # versions, so it moves only with karakeep's pin.
     image: docker.io/getmeili/meilisearch:v1.41.0@sha256:860fa4baed04ae1c235de870edab0c8006227546dea1bbb6411fbfc5e27cf1db
     restart: unless-stopped
     env_file: secret.sops.env # MEILI_MASTER_KEY

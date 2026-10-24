@@ -4,8 +4,8 @@
 services:
   calibre:
     container_name: calibre
-    # v1's build (v1 pinned `latest` at this digest).
-    image: lscr.io/linuxserver/calibre:v9.13.0-ls415@sha256:f4a17653e7851c4642583ba2cd292509f90b4b8e123596af38b6ee02154676be
+    # linuxserver's build tags; Renovate reads them through a versioning rule (renovate.json).
+    image: lscr.io/linuxserver/calibre:v9.17.0-ls429@sha256:1223ffddba4ae6faedbd029bcfaa27c43eeb6d172e34c7fac5e0fd5bbad27bf3
     restart: unless-stopped
     environment:
       PUID: "1000"

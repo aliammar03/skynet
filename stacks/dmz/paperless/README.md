@@ -15,6 +15,5 @@
 - **Upstream:** [Paperless-ngx](https://docs.paperless-ngx.com/configuration/)
 
 **Gotchas**
-- The image stays at v1's 3.2.1: Paperless migrates its database at start, so a newer version comes as
-  its own Renovate PR, after a backup.
+- Paperless migrates its database at start, one way: going back needs a copy from before.
 - `PAPERLESS_URL` must be the URL the browser uses, or logins fail Django's CSRF check.

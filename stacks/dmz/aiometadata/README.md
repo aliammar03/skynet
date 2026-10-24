@@ -25,8 +25,7 @@
   [SSO](https://github.com/cedya77/aiometadata/blob/main/docs/sso.md)
 
 **Gotchas**
-- v1 pinned the moving `latest` tag at a digest no version tag carries; it stays there until a
-  Renovate PR moves it.
+- A version tag (`3.7.0`), not the moving `latest` v1 used, so Renovate proposes each release.
 - `REDIS_PASSWORD` reaches `REDIS_URL` and the redis container by interpolation (`.doco-cd.yml` →
   `env_files`), so a changed value needs a redeploy, not a restart.
 - It calls its issuer (`login.aliammar.net`) from inside: caddy-apps answers that name on `edge`

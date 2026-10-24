@@ -17,4 +17,3 @@
 **Gotchas**
 - Client IPs come from Caddy's `X-Forwarded-For`; without the proxy every test would show the door's
   address.
-- Image versions with data keep v1's (6.0.2); Renovate proposes newer ones.

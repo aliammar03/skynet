@@ -4,8 +4,7 @@
 services:
   aiometadata:
     container_name: aiometadata
-    # v1's build: v1 pinned `latest` at this digest, which no version tag carries.
-    image: ghcr.io/cedya77/aiometadata:latest@sha256:386ef4acbb81004417b10d176f8a4635927d21dfdd95abd4c23a91c46515315e
+    image: ghcr.io/cedya77/aiometadata:3.7.0@sha256:6bdb7482c9e848e5c5894fa04bcf8580e73ca578ddd47d2a51f337b4a8fa3a85
     restart: unless-stopped
     init: true
     # secret.sops.env (from v1): ADMIN_KEY, IMAGE_PROXY_SIGNING_SECRET, DATABASE_URI, the TMDB, TVDB,
@@ -100,7 +99,7 @@ services:
 
   redis:
     container_name: aiometadata-redis
-    image: docker.io/library/redis:7.2.15-alpine@sha256:05a97a479bc73de66f087dc05b569010772880f778cc8671fa6b8aadee32e5c6
+    image: docker.io/library/redis:8.10.2-alpine@sha256:0bf6577d7774e592b29d093e3ac9390eb91e13d72c21e506afce736de5e0eeb0
     restart: unless-stopped
     init: true
     environment:

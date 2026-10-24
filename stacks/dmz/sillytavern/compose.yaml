@@ -4,8 +4,7 @@
 services:
   sillytavern:
     container_name: sillytavern
-    # v1's build: v1 pinned the moving `release` tag at this digest, which no version tag carries.
-    image: ghcr.io/sillytavern/sillytavern:release@sha256:5bb7ef334602ad72b29351acae4d9744ce16c99a1fab840acbd42a7d49d27d9b
+    image: ghcr.io/sillytavern/sillytavern:1.19.0@sha256:eef27ff0c7961f1a2f488400f581f48ff38f8b910c5d3b8d389138d71791bb14
     restart: unless-stopped
     environment:
       NODE_ENV: production
