@@ -60,7 +60,7 @@ Nothing outside the lab pushes into it.
 | D2 | Hosts = **NixOS** flake, each host kept current by **comin** (pull) | A host rebuilds from git; no central push credential |
 | D3 | Repo **public**; lab **pulls**; CI = static checks on free GitHub runners | GitHub Free only offers rulesets and CODEOWNERS on public repos; nothing inbound |
 | D4 | **Authelia**, with an auth mode per app: `own` / `oidc` / `forward` | Config lives in git; ~50 MB; OIDC + forward-auth + passkeys |
-| D5 | **Technitium** is the only DNS: two equal NixOS VMs (technitium-network .50, technitium-core .51), each loading the zone and its settings from `dns/` in git. Ad-blocking with HaGeZi Pro; forwarding over plain UDP to OpenDNS + Google, raced; AdGuard retired | One product; records and settings are reviewed in PRs and a rebuilt VM comes back complete; from PTCL those two are the fastest resolvers that also hand out the in-ISP CDN caches (P2 benchmark) |
+| D5 | **Technitium** is the only DNS: two equal NixOS VMs (technitium-network .50, technitium-core .51), each loading the zone and its settings from `dns/` in git. Ad-blocking with HaGeZi Pro; forwarding over plain UDP to PTCL + OpenDNS + Google, all three raced; AdGuard retired | One product; records and settings are reviewed in PRs and a rebuilt VM comes back complete. PTCL's resolver answers known names in ~5 ms, OpenDNS is fastest on unknown ones, Google is a second fallback, and all three hand out the in-ISP CDN caches; PTCL's REFUSED for blocked sites falls through to the others (`runbooks/dns-speed-test/`, 2026-10-24) |
 | D6 | Two Docker hosts: **docker-dmz** (apps, core node), **docker-admin** (admin, identity, monitoring; network node) | Segmentation; monitoring survives losing the core node |
 | D7 | Agent = **Claude Code** on the ops VM; chat via **Discord** (Channels) + the Claude app (Remote Control) | Telegram is blocked; no custom UI to build |
 | D8 | All alerts go to Discord `#alerts` (doco-cd via Apprise, Gatus, healthchecks.io, comin hook) | One place to look |
@@ -549,7 +549,7 @@ Done in a maintenance window. Rollback = stop caddy-admin, start CT 635.
 **Goal**
 - Two Technitium VMs that rebuild from git: technitium-network (10.10.70.50, network node) and
   technitium-core (10.10.70.51, core node). Every record and setting comes from `dns/`.
-- Ads blocked (HaGeZi Pro); lookups forwarded over plain UDP to OpenDNS + Google, raced.
+- Ads blocked (HaGeZi Pro); lookups forwarded over plain UDP to PTCL + OpenDNS + Google, raced.
 - All ten admin names → 10.10.60.60. Clients can't bypass Technitium. AdGuard and the old CTs are off.
 - From anywhere, via Tailscale: `*.aliammar.net` resolves (split DNS) and the management network
   answers by IP.
@@ -597,8 +597,9 @@ Done 2026-10-23:
     A day run (11:58–17:58, 359 rounds, a fresh name per resolver) confirms it: raced, 44 / 148
     cached and 62 / 152 uncached. Adding Quad9 only trims the cached p90, which Technitium's cache
     hides, and Quad9 then wins 70% of the races, so the in-ISP CDN servers drop from 17% to 4% of
-    answers. Quad9 with ECS (9.9.9.11) is slow on uncached names (174 / 500). An evening run comes
-    later (`runbooks/dns-speed-test/`).
+    answers. Quad9 with ECS (9.9.9.11) is slow on uncached names (174 / 500). PTCL's own resolvers
+    weren't in these runs; adding them (2026-10-24) changed the pick to PTCL + OpenDNS + Google
+    (`runbooks/dns-speed-test/` → Last result).
 
 - The old zone (Ali's export, 2026-10-23) was a **Forwarder** zone (`FWD "this-server"`): it answered
   its own records and resolved everything else publicly. The new servers started that way too, but a
@@ -658,7 +659,7 @@ Done 2026-10-23:
   `technitium-core`, `technitium-network`, `unraid`, `auth`, `status` → 10.10.60.60. Left out of the
   old zone: `arcane` and `caddy` (no site behind them; Arcane retires in P3) and the app names →
   10.10.100.35 (their door and the wildcard arrive in P3). No wildcard until P3.
-- **`settings.json`:** Technitium's defaults (cache saved across restarts, prefetch, two forwarders
+- **`settings.json`:** Technitium's defaults (cache saved across restarts, prefetch, forwarders
   raced, NXDOMAIN for blocked names) plus, for speed:
   - `serveStaleMaxWaitTime` 0: an expired name is answered from cache at once and refreshed in the
     background, so anything seen in the last 3 days (`serveStaleTtl`) answers in ~1 ms;
@@ -666,8 +667,8 @@ Done 2026-10-23:
   - `dnssecValidation` off: no extra key lookups on misses. Google validates upstream, but over
     plain UDP nothing checks an answer on its way here; accepted for speed;
   - `forwarderTimeout` 1000 ms, `forwarderRetries` 2;
-  - forwarders `208.67.222.222` (OpenDNS) and `8.8.8.8` (Google), protocol UDP, raced (the
-    overnight log);
+  - forwarders `39.39.39.39` (PTCL), `208.67.222.222` (OpenDNS) and `8.8.8.8` (Google), protocol
+    UDP, all three raced (`forwarderConcurrency` 3);
   - blocking with HaGeZi Pro
     (`https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro-onlydomains.txt`,
     HaGeZi's format for Technitium, ~207k domains), refreshed daily;
