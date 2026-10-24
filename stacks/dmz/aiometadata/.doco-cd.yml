@@ -1,3 +1,4 @@
 # Merged over .doco-cd.dmz.yml for this stack only: compose interpolates REDIS_PASSWORD (into
-# REDIS_URL and the redis container) from the decrypted secret file, as v1 did from its .env.
+# REDIS_URL and the redis container) and the API keys (into BUILT_IN_*) from the decrypted secret
+# file, as v1 did from its .env.
 env_files: [secret.sops.env]

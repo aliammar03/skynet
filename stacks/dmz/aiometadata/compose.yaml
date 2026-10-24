@@ -49,6 +49,23 @@ services:
       CACHE_WARMUP_UUID: 1c50d07a-bf36-4f67-bbce-56135d309800 # the config whose catalogs get warmed
       TMDB_POPULAR_WARMING_ENABLED: "false"
       MAL_WARMUP_ENABLED: "false"
+      # The API keys stay on the server. aiometadata hands TMDB_API_KEY and its five siblings to
+      # every visitor (/api/config, signed in or not) to prefill the configure page; the BUILT_IN_
+      # ones it only uses, for anyone without a key of their own. v1's secret file holds the keys
+      # under the published names, so compose moves each across (interpolation, .doco-cd.yml) and
+      # blanks the original.
+      BUILT_IN_TMDB_API_KEY: ${TMDB_API_KEY:-}
+      BUILT_IN_TVDB_API_KEY: ${TVDB_API_KEY:-}
+      BUILT_IN_FANART_API_KEY: ${FANART_API_KEY:-}
+      BUILT_IN_RPDB_API_KEY: ${RPDB_API_KEY:-}
+      BUILT_IN_MDBLIST_API_KEY: ${MDBLIST_API_KEY:-} # bills per call: fine here, every user signs in
+      BUILT_IN_GEMINI_API_KEY: ${GEMINI_API_KEY:-} # likewise
+      TMDB_API_KEY: ""
+      TVDB_API_KEY: ""
+      FANART_API_KEY: ""
+      RPDB_API_KEY: ""
+      MDBLIST_API_KEY: ""
+      GEMINI_API_KEY: ""
       # Sign-in through the apps' Authelia; groups map to permissions.
       OIDC_ENABLED: "true"
       OIDC_ISSUER: https://login.aliammar.net
