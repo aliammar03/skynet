@@ -56,7 +56,7 @@ endpoints:
   # once period + grace pass with no ping). No alert: healthchecks.io already posts to #alerts.
   - name: docker-admin heartbeat
     group: job
-    url: ${HC_BADGE_URL}
+    url: ${HC_BADGE_URL_ADMIN}
     interval: 5m
     conditions:
       - "[STATUS] == 200"
