@@ -1,0 +1,18 @@
+# librespeed
+
+- **Purpose:** a LAN speed test: a wifi client measures its link to the lab, not the ISP. Every test
+  is kept, with the client's IP, at `/results/stats.php`.
+- **URL:** https://speed.aliammar.net (caddy-apps → `librespeed:8080` on `edge`). Inside only: no
+  tunnel line, because a test through Cloudflare would measure the internet path.
+- **Auth mode:** none (a LAN test). The stats page asks for `PASSWORD`.
+- **Data:** `/opt/appdata/librespeed/data` → `/database` (`db.sql`, sqlite: the results; backup
+  class: data). Copied from v1 (P3 → Data).
+- **Secrets** (`secret.sops.env`): `PASSWORD` (stats page), `OBFUSCATION_SALT` (result IDs; keep it,
+  or old result links stop resolving). Both carried over from v1.
+- **Upstream:** [librespeed/speedtest](https://github.com/librespeed/speedtest) ·
+  [Docker settings](https://github.com/librespeed/speedtest/blob/master/doc_docker.md)
+
+**Gotchas**
+- Client IPs come from Caddy's `X-Forwarded-For`; without the proxy every test would show the door's
+  address.
+- Image versions with data keep v1's (6.0.2); Renovate proposes newer ones.

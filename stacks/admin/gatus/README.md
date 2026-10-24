@@ -21,6 +21,7 @@
 | `door` | `caddy-apps + authelia`: `login.aliammar.net/api/health` through caddy-apps (10.10.100.35, via Technitium) | `200`, cert valid > 7 days: the apps door and the apps' Authelia |
 | `door` | `public`: the same URL resolved through 1.1.1.1, so Cloudflare → tunnel → cloudflared → caddy-apps | `200`: the public path |
 | `service` | each admin UI's IP:port (Technitium's are in its suite) | TCP connect |
+| `app` | each app on docker-dmz by its name, through caddy-apps | `200` (`302` behind Authelia) |
 | `dns` | one **suite** (row) per Technitium server (.50, .51); its steps, each alerting on its own as `<server> <step>`: `ui` (:5380), `zone` (`auth.aliammar.net` A), `AAAA` (same name), `forwarding` (`google.com`), `blocking` (`googlesyndication.com`) | connect; 10.10.60.60; `NOERROR` (no record, not NXDOMAIN); `NOERROR`; `NXDOMAIN` (HaGeZi Pro) |
 | `job` | each Docker host's heartbeat badge (`HC_BADGE_URL_ADMIN`, `HC_BADGE_URL_DMZ`), every 5 min, no alert (healthchecks.io alerts) | `status` is `up` |
 

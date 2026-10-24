@@ -1,0 +1,26 @@
+# LibreSpeed: the LAN speed test (speed.aliammar.net), so a wifi client can measure its link to the
+# lab, not the ISP. No login of its own and never public; its stats page has a password.
+services:
+  librespeed:
+    container_name: librespeed
+    image: ghcr.io/librespeed/speedtest:6.0.2-alpine@sha256:456389839009c7fdfc14f0840b840f1cce0f57ca7e24bf957cc745c9f2d8b28b
+    restart: unless-stopped
+    env_file: secret.sops.env # PASSWORD (stats page), OBFUSCATION_SALT (result IDs)
+    environment:
+      TZ: Asia/Karachi
+      MODE: standalone # frontend and backend in this one container
+      WEBPORT: "8080"
+      TITLE: Skynet Speed Test
+      # Every test lands in sqlite, reviewable at /results/stats.php.
+      TELEMETRY: "true"
+      DB_TYPE: sqlite
+      REDACT_IP_ADDRESSES: "false" # keep client IPs: which device ran which test
+      ENABLE_ID_OBFUSCATION: "true" # non-enumerable result IDs
+    mem_limit: 256m
+    volumes:
+      - /opt/appdata/librespeed/data:/database # the entrypoint fixes the sqlite file at /database/db.sql
+    networks: [edge]
+    # The image's own healthcheck (wget on $WEBPORT) applies.
+networks:
+  edge:
+    external: true
