@@ -27,6 +27,27 @@ let
     owner = "skynet";
     content = builtins.toJSON { x-api-key = config.sops.placeholder."doco_${target}_api_key"; };
   };
+  # One interactive session (`skynet-claude <name>`), run by tmux as skynet: its GitHub token, real
+  # links through tmux, Remote Control on, in worktree <name>. A worktree that already holds a
+  # conversation (after /exit or a reboot) continues it; a new name starts fresh.
+  claudeSession = pkgs.writeShellScript "skynet-claude-session" ''
+    name=$1
+    f=/run/secrets/rendered/agent.env
+    [ -r "$f" ] && { set -a; . "$f"; set +a; }
+    export FORCE_HYPERLINK=1 # Claude Code prints OSC 8 links; tmux passes them on (terminal-features)
+    flags="--name $name --remote-control $name --permission-mode auto"
+    wt=${repo}/.claude/worktrees/$name
+    if [ -d "$wt" ]; then
+      cd "$wt" || exit 1
+      # Claude keeps a directory's conversations in ~/.claude/projects/<its path, with / and . as ->.
+      if ls ${home}/.claude/projects/"$(printf %s "$wt" | tr /. --)"/*.jsonl >/dev/null 2>&1; then
+        exec claude --continue $flags
+      fi
+      exec claude $flags
+    fi
+    cd ${repo} && ${pkgs.git}/bin/git fetch -q origin
+    exec claude --worktree "$name" $flags
+  '';
   # A Claude session in its own tmux server (one server per unit, so restarting one session never
   # kills another). As skynet: `tmux -L <name> attach` to see or drive it.
   session = name: cmd: {
@@ -90,16 +111,22 @@ in
     (writeShellScriptBin "skynet-attach" ''
       exec sudo -iu skynet tmux -L "''${1:-skynet}" attach
     '')
-    # A fresh terminal Claude session as the agent, in its own git worktree (`claude --worktree`).
-    # The session is a script file: `sudo -i` hands its command to a login shell with `$` unescaped,
-    # so variables written inline would expand there, empty.
+    # `skynet-claude <name>`: the agent's interactive session <name>. Attaches if it runs, else starts
+    # it in tmux server `claude` (as skynet). The session is a script file: `sudo -i` hands its
+    # command to a login shell with `$` unescaped, so variables written inline would expand there.
     (writeShellScriptBin "skynet-claude" ''
-      exec sudo -iu skynet ${writeShellScript "skynet-claude-session" ''
-        f=/run/secrets/rendered/agent.env
-        [ -r "$f" ] && { set -a; . "$f"; set +a; }
-        cd ~/skynet && git fetch -q origin
-        exec claude --worktree --permission-mode auto "$@"
-      ''} "$@"
+      name=''${1:-}
+      case "$name" in
+        "")
+          echo "usage: skynet-claude <name>   attach to session <name>, or start it (a-z, 0-9, -)"
+          exec sudo -iu skynet tmux -L claude ls
+          ;;
+        *[!a-z0-9-]*)
+          echo "skynet-claude: a name is a-z, 0-9 and -" >&2
+          exit 2
+          ;;
+      esac
+      exec sudo -iu skynet tmux -L claude new-session -A -s "$name" ${claudeSession} "$name"
     '')
     unstable.claude-code
     unstable.mcp-nixos
@@ -173,13 +200,38 @@ in
     '';
   };
 
-  # `skynet-attach [spawn]` joins a running session (detach: F12); `skynet-claude` starts a new one.
+  # `skynet-attach [spawn]` joins a service session, `skynet-claude <name>` an interactive one
+  # (detach: F12). For every tmux on ops.
   programs.tmux = {
     enable = true;
+    # 256 colours and italics inside tmux; the default ("screen") tells apps they have 8.
+    terminal = "tmux-256color";
+    historyLimit = 50000; # enough scrollback to find and copy a long session's output
+    escapeTime = 10; # Esc reaches Claude at once (it interrupts with Esc); the default holds it 500 ms
     extraConfig = ''
       bind -n F12 detach-client
       set -g mouse on
       set -g status-right "F12 detach "
+      # Windows Terminal takes OSC 52 (clipboard), OSC 8 (links) and 24-bit colour; tmux passes all
+      # three on, over SSH too, and tells the apps inside about the colour.
+      set -g set-clipboard on
+      set -as terminal-features ',*:clipboard:hyperlinks:RGB'
+      setenv -g COLORTERM truecolor
+      # A quiet status bar with the session's name, and a selection that stands out.
+      set -g status-style 'bg=colour236,fg=colour250'
+      set -g status-left '#[fg=colour39,bold] #S #[default]'
+      set -g status-left-length 32
+      set -g window-status-current-style 'fg=colour255,bold'
+      set -g message-style 'bg=colour39,fg=colour16'
+      set -g mode-style 'bg=colour31,fg=colour255'
+      set -g pane-border-style 'fg=colour238'
+      set -g pane-active-border-style 'fg=colour39'
+      # Drag highlights and leaves the selection; right-click copies it to the workstation's
+      # clipboard, as in Windows Terminal itself. Right-click elsewhere goes to the app if it wants
+      # the mouse; Alt+right-click keeps tmux's menu.
+      bind -T copy-mode MouseDragEnd1Pane send -X stop-selection
+      bind -T copy-mode-vi MouseDragEnd1Pane send -X stop-selection
+      bind -n MouseDown3Pane if -F '#{pane_in_mode}' { send -X copy-selection-and-cancel } { if -F '#{mouse_any_flag}' { send -M } }
     '';
   };
 
