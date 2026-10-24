@@ -20,8 +20,10 @@ services:
       DISABLE_PASSWORD_AUTH: "false"
       RATE_LIMITING_ENABLED: "true"
       DISABLE_NEW_RELEASE_CHECK: "false"
-      # AI tagging and summaries (OpenAI), as in v1.
-      INFERENCE_TEXT_MODEL: gpt-5.6-terra
+      # AI tagging and summaries (OpenAI). Text: karakeep 0.34's default, which it says costs half what
+      # gpt-5.6-luna does (v1 used gpt-5.6-terra). Images: v1's model; karakeep's default there is
+      # still gpt-4o-mini.
+      INFERENCE_TEXT_MODEL: gpt-6-luna
       INFERENCE_IMAGE_MODEL: gpt-5.6-luna
       INFERENCE_USE_MAX_COMPLETION_TOKENS: "true"
       INFERENCE_OUTPUT_SCHEMA: structured
@@ -46,7 +48,10 @@ services:
       CRAWLER_FULL_PAGE_SCREENSHOT: "true"
       CRAWLER_STORE_PDF: "true"
       CRAWLER_FULL_PAGE_ARCHIVE: "true"
+      CRAWLER_FULL_PAGE_ARCHIVE_MAX_SIZE_MB: "1024" # bigger ones never render; MAX_ASSET_SIZE_MB's cap
       CRAWLER_ENABLE_ADBLOCKER: "true"
+      # Bot checks flag a browser whose timezone doesn't match its IP (Pakistan).
+      CRAWLER_BROWSER_TIMEZONE: Asia/Karachi
       CRAWLER_SCREENSHOT_TIMEOUT_SEC: "30"
       CRAWLER_NAVIGATE_TIMEOUT_SEC: "60"
       CRAWLER_PARSE_TIMEOUT_SEC: "120"
@@ -115,6 +120,7 @@ services:
     env_file: secret.sops.env # MEILI_MASTER_KEY
     environment:
       MEILI_NO_ANALYTICS: "true"
+      MEILI_LOG_LEVEL: WARN # at INFO every healthcheck request is a line
     mem_limit: 512m
     volumes:
       - /opt/appdata/karakeep/meili:/meili_data # the search index (rebuildable from karakeep's data)

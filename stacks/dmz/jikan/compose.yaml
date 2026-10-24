@@ -8,6 +8,9 @@ services:
     restart: unless-stopped
     init: true
     user: "10001:10001"
+    # The image's entrypoint (docker-entrypoint.php writes .env, then `rr serve`), with RoadRunner
+    # at warn: at info its scheduler logs four lines a minute.
+    entrypoint: [/bin/sh, -c, "php /app/docker-entrypoint.php && exec rr serve -c .rr.yaml -o logs.level=warn"]
     environment:
       APP_DEBUG: "false"
       LOG_LEVEL: info
@@ -59,7 +62,10 @@ services:
     image: docker.io/library/mongo:6.0.28-jammy@sha256:a90cef0143bed76540c2b7e6f299a02165e59b07e459b2fd7fef031c5accf5fd
     restart: unless-stopped
     init: true
-    command: [--wiredTigerCacheSizeGB, "0.5"]
+    # --quiet: no line per connection accepted or closed.
+    command: [--wiredTigerCacheSizeGB, "0.5", --quiet]
+    ulimits:
+      nofile: { soft: 64000, hard: 64000 } # what mongod asks for at start
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${JIKAN_DB_ADMIN_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${JIKAN_DB_ADMIN_PASSWORD}
@@ -78,10 +84,12 @@ services:
     networks: [backend]
     healthcheck:
       test: [CMD-SHELL, "mongosh mongodb://localhost:27017 --quiet --eval 'quit(db.runCommand(\"ping\").ok ? 0 : 2)'"]
-      interval: 20s
+      # Once a minute (every 5 s while starting): each check still logs four "client metadata" lines.
+      interval: 60s
+      start_interval: 5s
       timeout: 10s
-      retries: 15
-      start_period: 30s
+      retries: 3
+      start_period: 60s
 
   redis:
     container_name: jikan-redis
@@ -114,6 +122,7 @@ services:
     init: true
     environment:
       TYPESENSE_API_KEY: ${JIKAN_TYPESENSE_API_KEY}
+      GLOG_minloglevel: "1" # warnings and up: at info its raft chatter is two lines every 10 s
     entrypoint: [/opt/typesense-server]
     command: [--data-dir=/data, --thread-pool-size=8, --num-collections-parallel-load=2]
     stop_grace_period: 30s

@@ -8,9 +8,12 @@ services:
     env_file: secret.sops.env # session, storage and JWT secrets (AUTHELIA_* variables)
     environment:
       TZ: Asia/Karachi
+      # In /etc/authelia, not /config: as root the image chowns /config at start, and these are
+      # read-only.
+      X_AUTHELIA_CONFIG: /etc/authelia/configuration.yml
     volumes:
-      - ./configuration.yml:/config/configuration.yml:ro
-      - ./users.sops.yml:/config/users.yml:ro
+      - ./configuration.yml:/etc/authelia/configuration.yml:ro
+      - ./users.sops.yml:/etc/authelia/users.yml:ro
       - /opt/appdata/authelia:/data # sqlite (passkeys, TOTP, sessions' state), notification.txt
     networks: [edge]
     # The image's own healthcheck (/app/healthcheck.sh) applies.

@@ -25,6 +25,8 @@ services:
       AIOSTREAMS_OIDC_ALLOW_LOCAL_LOGIN: "true"
       AIOSTREAMS_OIDC_AUTO_REDIRECT: "false"
       AIOSTREAMS_OIDC_ALLOW_INSECURE_REQUESTS: "false"
+      # Pinned here, over its dashboard setting: v1's database says debug, a line per request.
+      LOG_LEVEL: info
     mem_limit: 1g
     volumes:
       - /opt/appdata/aiostreams/data:/app/data # the database (users, configs)
@@ -34,7 +36,13 @@ services:
     networks:
       dmz:
         ipv4_address: 10.10.100.65 # ROLE_USENET_CLIENTS (rule 820: usenet ports 119/563)
-    # The image's own healthcheck (/api/v1/status) applies.
+    healthcheck:
+      # /api/v1/health answers 55 bytes; the image's own check fetches /api/v1/status, 350 KB a time.
+      test: [CMD, /nodejs/bin/node, -e, "require('http').get('http://127.0.0.1:3000/api/v1/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 networks:
   dmz:
     external: true
