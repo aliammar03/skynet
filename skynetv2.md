@@ -24,8 +24,8 @@
 | P0 | Foundations + new ops VM | done |
 | P1 | docker-admin: admin door, identity, status | done (2026-10-22); 7 admin names move to .60 with P2's Technitium |
 | P2 | DNS (Technitium only) + remote access | done (2026-10-23); open: OPNsense rules 140/150/115 and CT 731 `onboot` (see P2 exit criteria) |
-| P3 | docker-dmz: apps + public path | in progress: docker-dmz with v1's data (#48), its doors (#50) and all ten apps (#51–#61) are up (2026-10-24); the apps reach one another only through the door (#64), and every image is current. Family accounts are skipped for now. Left: OPNsense's Authentik rules (240/245) and the 840/150 swap |
-| P4 | Backups → Google Drive | outline |
+| P3 | docker-dmz: apps + public path | done (2026-10-24): docker-dmz with v1's data (#48), its doors (#50) and all ten apps (#51–#61); the apps reach one another only through the door (#64); every image current (#67). Family accounts skipped for now; rule 150 can go now that 135 (ex-840) serves Gatus's `public` row |
+| P4 | Backups → Google Drive | detailed (2026-10-24): restic in doco-cd jobs and PBS's datastore through rclone crypt, both to Drive; `skynet-restore` |
 | P5 | Observability (agent eyes) | outline |
 | P6 | Agent autonomy | outline |
 | P7 | Retire v1 + disaster recovery | outline |
@@ -64,12 +64,13 @@ Nothing outside the lab pushes into it.
 | D6 | Two Docker hosts: **docker-dmz** (apps, core node), **docker-admin** (admin, identity, monitoring; network node) | Segmentation; monitoring survives losing the core node |
 | D7 | Agent = **Claude Code** on the ops VM; chat via **Discord** (Channels) + the Claude app (Remote Control) | Telegram is blocked; no custom UI to build |
 | D8 | All alerts go to Discord `#alerts` (doco-cd via Apprise, Gatus, healthchecks.io, comin hook) | One place to look |
-| D9 | Offsite = **Google Drive** via rclone with Ali's own OAuth client, **published to production** | Drive is what Ali has; "Testing" mode tokens expire every 7 days |
+| D9 | Offsite = **Google Drive** via rclone with Ali's own OAuth client, scope `drive.file`, **published to production** | Drive is what Ali has; "Testing" mode tokens expire every 7 days; `drive.file` lets rclone see only what it created |
 | D10 | No OpenTofu. VMs come from versioned `hosts/<h>/proxmox.sh`; internal DNS records live in `dns/aliammar.net.zone`; the Cloudflare wildcard CNAME is set once by hand | Guests change rarely |
 | D11 | The agent never merges. It is **root on docker-dmz and on PBS** (CT 240). On docker-dmz: passwordless sudo, every command in that host's journal, which also gives it that host's Docker socket, host key and secrets. On PBS: root over SSH from ops. It never prints a secret value or decrypts one on purpose. On docker-dmz's doco-cd MCP it may restart and run jobs. Destroying a project or stack, or on PBS removing a backup, namespace or datastore, asks Ali each time. Everywhere else: no sudo, no Docker socket, no private age key. While it installs a host it is root on the installer, which holds the new host key that `--copy-host-keys` keeps (`runbooks/new-vm.md`); it reads only the public half | The apps host is where operate work happens, and it needs hands; PBS is where P4's offsite copy and its drills happen (both Ali's call, 2026-10-24). docker-admin (admin portal, Gatus, admin secrets) and the DNS servers stay diagnose-only, so GitHub and missing credentials still leash the rest. The install window was already root-equivalent (the agent installs the OS), and it buys a one-PR install |
 | D13 | `aliammar-skynet` has **Write**. The `main` ruleset requires a PR and check `nix` and blocks force-push/deletion; no review is required (Ali's call, 2026-10-21) | Branches in one repo, no approval clicks. "Never merge" is a **soft wall**: AGENTS.md + Claude Code deny rules |
 | D12 | v1 archived; fresh repo; new ops VM built alongside the old one, which is then retired | Clean start without a blind spot |
 | D14 | Remote access = **Tailscale**, with `os-tailscale` on OPNsense as the subnet router and split DNS for `aliammar.net`; replaces the WireGuard plan | Nothing inbound to open; it keeps working when docker-admin or a node is down, so it can reach what needs fixing |
+| D15 | Backups = **restic** (run by resticprofile) in doco-cd `one_off` jobs that hold the apps stopped (`stop_services`), and PBS's datastore with **rclone** (PVE encrypts its chunks); both to Drive, nightly. PBS is rebuilt greenfield as VM 2041 from Proxmox's automated installer. Restores: `skynet-restore` | Battle-tested pieces. doco-cd already schedules jobs and is the one thing that can stop a stack without reconciliation restarting it. Cold copies need no dumps |
 
 ## Rules
 
@@ -150,7 +151,8 @@ skynet/
   folder gets that folder from the host config (`systemd.tmpfiles`, with its owner), in the stack's
   PR.
 - The README gives each path a backup class: data, or cache (rebuilds itself; not backed up).
-- DB dumps land in `/opt/appdata`, which restic backs up.
+- Backups (P4) copy `/opt/appdata` cold: a doco-cd job holds the stateful services stopped while
+  restic runs, so databases need no dumps, and a restore is the files put back.
 
 **Networks**
 - Shared networks are created by the host's Nix config, not by stacks:
@@ -196,7 +198,10 @@ skynet/
 | technitium-network / technitium-core host keys | `secrets/technitium-<node>.yaml`: Technitium `admin` password (agent-generated) | that host | P2 |
 | Tailscale | Ali's account; OPNsense holds the node key | subnet routes 10.10.50.0/24, 10.10.60.60, 10.10.70.50–51 | P2 |
 | docker-dmz host key, tunnel credentials | `stacks/dmz/**`, cloudflared | that host | P3 |
-| rclone | Drive scope, Ali's own OAuth client | backup jobs | P4 |
+| rclone | Drive, scope `drive.file` (only what rclone created); Ali's own OAuth client | the backup and PBS-offsite jobs | P4 |
+| restic repositories | one password per Docker host (agent-generated) | that host's snapshots | P4 |
+| PBS `pve@pbs` tokens | `core`, `network`: `DatastoreBackup` on their namespace | PVE's backup jobs | P4 |
+| PVE's PBS encryption keys | one per node (PVE-generated); copies in the survival kit | every backup's chunks | P4 |
 | `skynet@pve` tokens | `read` = PVEAuditor on `/`, one per node (the nodes aren't clustered); `operate` = VM.PowerMgmt on pool `skynet` | Proxmox | P1 / P6 |
 | OPNsense `skynet-read` | API key | Diagnostics: ARP Table · Diagnostics: Logs: Firewall: Live View · Diagnostics: PF Table IP addresses · Diagnostics: Routing tables · Firewall: Aliases · Firewall: Rules [new] · Lobby: Dashboard · System: Gateways · Tailscale · System: Deny config write. Config writes stay denied; PF tables and Tailscale's service could change at runtime, and the agent leaves them to Ali (rule 5) | P1 / P4 |
 | Technitium | read-only user | diagnose | P5 / P6 |
@@ -1040,36 +1045,270 @@ hold .33/.35), give 10015 its memory back, then `sudo systemctl enable --now doc
   forward-auth + OIDC, config as blueprints in git. It would replace Authelia (a D4 change) and needs
   docker-admin resized. Technitium SSO waits for this choice; the two OIDC clients would move with it.
 
-## P4 — Backups → Google Drive `[outline]`
+## P4 — Backups → Google Drive `[detailed]`
 
-**What: Drive access.** Ali creates a Google Cloud project and an OAuth "Desktop" client, with the
-consent screen **published to production**. He runs `rclone config` on the workstation, and
-`rclone.conf` goes into sops for each Docker host that needs it.
+**Goal**
+- Every night, each Docker host's app data (`/opt/appdata`) goes to Google Drive as an encrypted
+  restic snapshot. It is taken cold: doco-cd holds the apps stopped for the few minutes it takes.
+- PBS is rebuilt greenfield: VM 2041 from Proxmox's installer, its config in git (`pbs/etc/`), with
+  none of v1's leftovers.
+- Every night, PBS's datastore (every guest's backups, already encrypted by PVE) is mirrored to
+  Drive.
+- One command restores a stack's data from any snapshot: `skynet-restore <stack> [snapshot]`.
+- A failed or missed night posts to `#alerts`, and Gatus shows each job.
 
-**What: app data.** `stacks/<host>/backup/` holds doco-cd scheduled jobs:
-- DB dumps into `/opt/appdata/<app>/dump`;
-- restic → `rclone:gdrive:skynet/restic-<host>`, keeping 7 daily / 4 weekly / 6 monthly;
-- a weekly `restic check --read-data-subset=5%`.
+**Why now:** PBS already backs up every guest nightly, onto Unraid in the same house: 02:00 on the
+network node, 03:30 on the core node, everything but Unraid (VM 2020) and PBS itself (CT 240).
+Nothing is offsite, and app data restores only as a whole VM.
 
-**What: PBS offsite.** PBS stays, with its local datastore on Unraid. `stacks/admin/pbs-offsite`
-mounts the datastore read-only over NFS and runs `rclone sync` → `gdrive:skynet/pbs`:
-- after the backup window and never during garbage collection;
-- with a weekly `rclone check`.
+### Tools (researched 2026-10-24)
 
-**What: proof.** Every job pings healthchecks.io (start / success / fail). The survival kit gets the
-restic password, the PBS encryption key and the rclone client details.
+| Need | Choice | Why | Passed over |
+|---|---|---|---|
+| Backup engine | restic 0.19 | client-side encryption, dedup, snapshots and retention; `restore --delete` puts a folder back exactly; its `rclone:` backend reaches Drive | Kopia (younger), Borg (no Drive), Duplicati (database corruption history), tarball tools such as offen/docker-volume-backup (no dedup: a full upload every night) |
+| Runner | resticprofile 0.33; its image ships restic, rclone and curl | one profile file in git holds backup, retention, check and the healthchecks.io pings (`send-before` / `send-after` / `send-after-fail`). Restores and every other restic command run through it | Backrest and NixOS `services.restic` (their schedulers can't hold doco-cd's stacks stopped), autorestic |
+| Schedule and quiet window | doco-cd `one_off` jobs with `cd.doco.job.stop_services` | doco-cd stops the listed services and waits; it runs the job, then starts them again after success or failure. The gap isn't drift, so reconciliation leaves it alone. Cold files are consistent: no database dumps, and no per-app import on restore | stopping by hand (reconciliation restarts it); `docker pause` (fails healthchecks, then reconciliation restarts it); per-app dumps |
+| Drive | rclone with Ali's own OAuth client, scope `drive.file` (D9) | rclone sees only the files it created. rclone's shared client stops working during 2026 | a service account (no storage on a personal Drive) |
+| PBS offsite | `rclone sync` of the datastore | chunks are immutable files, so each night sends only new ones. PVE already encrypts them client-side; only guest IDs and dates show. Drive keeps deleted files in the trash for 30 days | a second PBS (remote sync); PBS 4's S3 datastores (Drive isn't S3); restic over the datastore (re-deduplicating PBS's chunks); an rclone `crypt` layer (a second key for nothing) |
+| PBS itself | a fresh VM from Proxmox's automated installer (`proxmox-auto-install-assistant`, answer file in git) | the official appliance and upgrade path, installed no-touch like the NixOS hosts | PBS on NixOS (shelved, Open); cleaning CT 240 in place (it keeps v1's users and history) |
 
-**Why:** an offsite payload copy on storage Ali already has, defined in git.
+**Drive's limits** (rclone's docs): 750 GiB uploaded a day, about 2 new files a second, and 10
+requests a second per client.
+- restic's 64 MiB packs (`pack-size`) keep the file count down.
+- The first PBS sync may take days. It resumes each night (`--max-transfer 700G --cutoff-mode soft`).
 
-**Note:** Drive allows about 750 GB/day upload and creates files slowly, so the first PBS sync may
-take days. restic's pack files keep the file count low.
+### Prechecks (agent, read-only; Ali where noted)
 
-**Exit**
-- 7 consecutive green nights.
-- A restore drill: one app from Drive into a scratch folder, plus one PBS guest restore. Evidence goes
-  in the phase PR.
+- **PBS** (done 2026-10-24, as root):
+  - datastore `unraid` on NFS from Unraid (`10.10.20.20:/mnt/user/pbs-backups`);
+  - 233 GB on disk in 135k chunks, for 9.6 TB of guest data;
+  - every chunk encrypted client-side by PVE;
+  - prune at 05:00 and 05:15 (keep 14 daily, 8 weekly, 12 monthly), verify daily, GC Sundays 06:00;
+  - v1's leftovers: 15 groups of retired or vanished guests (203 snapshots; Ali prunes them), user
+    `svc-ops@pbs`, and PBS backing itself up.
+- **Drive** (Ali): free space of at least twice datastore plus app data (about 0.3 TB now).
+- **The uplink:** datastore size ÷ upload speed is the first sync's length (Drive's own pace is
+  about 2 files a second, so 135k chunks take about 19 hours).
+- **Unraid** (Ali): the share's NFS export opened to VM 2041 (read-write) and docker-admin
+  (read-only).
+- **Egress:** both Docker hosts reach Google's APIs on :443 (rule 810).
 
-**Open:** retention; whether any Unraid shares also need offsite.
+### Drive access (Ali, once)
+
+From rclone's "Making your own client_id":
+1. In Google Cloud console, create a project (`skynet-backup`) and enable the Google Drive API.
+2. Google Auth Platform:
+   - audience External, with an app name and your email;
+   - data access: only `https://www.googleapis.com/auth/drive.file`, a non-sensitive scope, so
+     Google needs no verification;
+   - add yourself as a test user.
+3. Clients → Create → Desktop app. Note the client ID and secret.
+4. Audience → **Publish app**. While in Testing, Google expires the refresh token after 7 days. If
+   Publish is greyed out, Branding first wants a home page, a privacy-policy URL (two pages on
+   `aliammar.net` will do) and `aliammar.net` as an authorized domain.
+5. On the workstation, `nix shell nixpkgs#rclone -c rclone config`:
+   - a new remote `gdrive`, type `drive`;
+   - the client ID and secret, scope `drive.file`;
+   - log in in the browser. This writes `~/.config/rclone/rclone.conf`.
+6. Into sops for each consumer, then delete the plaintext:
+   `nix shell nixpkgs#sops -c sops encrypt --filename-override stacks/dmz/backup/rclone.sops.conf --input-type ini --output-type ini ~/.config/rclone/rclone.conf > stacks/dmz/backup/rclone.sops.conf`.
+   Do the same for `stacks/admin/backup/` and `stacks/admin/pbs-offsite/`.
+
+### App data: `stacks/<host>/backup/` (docker-dmz and docker-admin)
+
+One stack per Docker host: three doco-cd `one_off` jobs on the pinned resticprofile image, all
+reading `profiles.yaml` from git.
+- **`backup`**, nightly at 04:30, after the guests' PBS backups:
+  - `stop_services` (below) holds the host's stateful services stopped;
+  - then `resticprofile backup`, with retention right after it;
+  - repository `rclone:gdrive:skynet/restic/<host>`, source `/opt/appdata`, 64 MiB packs;
+  - keeps 7 daily, 4 weekly and 12 monthly snapshots.
+- **`check`**, Sundays: `restic check --read-data-subset 5%`, with nothing stopped.
+- **`restore`**, run only by `skynet-restore`: the same `stop_services`, then
+  `restic restore <snapshot> --target / --include /opt/appdata/<stack> --delete`.
+
+**Stopped during `backup` and `restore`.** These are compose service names, the stacks whose
+READMEs class their data as `data`:
+- docker-dmz: `authelia/authelia`, `obsidian/obsidian`, `karakeep/karakeep`, `paperless/paperless`,
+  `calibre/calibre`, `sillytavern/sillytavern`, `marinara/marinara`, `jikan/jikan`, `jikan/mongo`,
+  `aiometadata/aiometadata`, `aiostreams/aiostreams`, `librespeed/librespeed`;
+- docker-admin: `authelia/authelia`, `gatus/gatus`.
+
+**Not backed up**, because these are class `cache` and rebuild themselves:
+- `aiometadata/poster-cache` and `aiometadata/redis`;
+- `jikan/redis` and `jikan/typesense`;
+- `karakeep/meili`;
+- the doors' certificates.
+
+**Files:**
+- `compose.yaml` and `profiles.yaml`;
+- `secret.sops.env`: `RESTIC_PASSWORD` (agent-generated) and `HC_PING_URL`;
+- `rclone.sops.conf` (Ali's).
+
+**Mounts:** `/opt/appdata`, read-write because restores write. The job copies `rclone.conf`
+somewhere writable at start, since rclone saves refreshed tokens.
+
+**Notes:**
+- The first night uploads everything (docker-dmz has about 7 GB), so the apps stay stopped longer
+  that once.
+- To verify while building: a job scheduled `0 0 30 2 *` (there is no 30 February) must never fire
+  yet still run on `POST /v1/api/job/restore/run`. If not, the restore runs from `skynet-restore`
+  with doco-cd's reconciliation off for its minutes.
+
+### Restores: `skynet-restore` (glue on both Docker hosts, from `modules/docker-host.nix`)
+
+- `skynet-restore <stack> [snapshot]` (default `latest`) does three things:
+  - writes the request to `/opt/appdata/backup/restore.request`;
+  - triggers the `restore` job through doco-cd's API (`/v1/api/job/restore/run?stack=backup`) and
+    waits;
+  - prints the result.
+
+  doco-cd stops the stateful services, restic puts `/opt/appdata/<stack>` back exactly as in the
+  snapshot, and doco-cd starts the services again.
+- `skynet-restore --list [stack]`: the snapshots, and what changed between them.
+- `skynet-restore <stack> [snapshot] --to <dir>`: into a scratch folder, with nothing stopped (for
+  drills, or to fetch one file).
+- `skynet-restore --all [snapshot]`: every stack, for a rebuilt host (P7).
+- It runs as root on the host: `ssh -t <you>@<host> sudo skynet-restore …`. On docker-dmz the agent
+  can run it too (D11).
+- A restore stops every stateful service on its host for those minutes, not just the one stack:
+  one job, one stop list.
+
+### PBS, greenfield: VM 2041 (`pbs/`)
+
+CT 240 carries v1: its users, its retired guests' history, and PBS backing itself up. A new PBS
+starts clean beside it, with its config in git from the first day. CT 240 retires once the new one
+has proved itself.
+- **VM 2041** on the core node, at 10.10.20.41 (VLAN 20): 2 vCPU, 4 GB with 2 GB guaranteed
+  (ballooning: verify, GC and backups use the rest), and a 32 GB OS disk on `local-lvm`. `pbs/proxmox.sh` is the `qm create`, as for
+  the NixOS hosts.
+- **Install:** Proxmox's automated installer. `pbs/answer.toml` holds:
+  - the disk, address and hostname;
+  - root's SSH keys (the agent's and Ali's);
+  - the hash of a random root password (agent-generated; the password goes to sops for Ali).
+
+  The agent builds the ISO on CT 240 (`proxmox-auto-install-assistant prepare-iso`), and Ali boots
+  the VM from it.
+- **Datastore `skynet`:** a new folder in the same Unraid share (`/mnt/user/pbs-backups/skynet`),
+  with namespaces `core` and `network`.
+- **Config from git** (`pbs/etc/`, below):
+  - prune per namespace, keeping 14 daily, 8 weekly and 12 monthly, as now;
+  - verify daily (verified snapshots skipped, re-verified after 30 days);
+  - GC on Sundays at 12:00, after the offsite run.
+- **Users:**
+  - `root@pam` (the agent over SSH, D11);
+  - `pve@pbs`, with tokens `core` and `network`, each `DatastoreBackup` on its own namespace.
+
+  Nothing else.
+- **Cutover** (Ali, PVE config), on each node:
+  - add storage `pbs`: the new server, its token, and a new client-side encryption key (PVE
+    generates it; it goes in the survival kit);
+  - point the backup job at it, leaving out the retired guests until P7 destroys them (core: 10015,
+    9000, 9090, 731, 751; network: 635, 730, 750, 837).
+
+  The first night writes full backups into the new datastore.
+- **CT 240** stays for 30 days, its jobs off, as the fallback with the history. Then P7 removes it
+  and the `unraid` datastore (Ali).
+
+### PBS offsite: `stacks/admin/pbs-offsite/` (docker-admin)
+
+- **Mount** (docker-admin's Nix config): the datastore folder (`/mnt/user/pbs-backups/skynet`) over
+  NFS, read-only and automounted, at `/mnt/pbs-datastore`.
+- **Job** (`one_off`, daily at 06:00): after both nodes' backups and the prune, and outside GC
+  (Sundays 12:00) and verify.
+  - It runs `rclone sync /mnt/pbs-datastore gdrive:skynet/pbs`. The chunks are already encrypted, by
+    PVE's keys.
+  - Flags: `--transfers 4 --tpslimit 8 --drive-chunk-size 64M --max-transfer 700G --cutoff-mode soft`.
+  - It leaves out the datastore's lock and GC-status files.
+- **Weekly:** `rclone check --one-way` against the datastore.
+- **A guest from Drive** (site loss, or the drill): copy the datastore back into a scratch
+  datastore (`rclone copy gdrive:skynet/pbs <dir>`), verify it on PBS, then restore the guest from
+  PVE with its node's key. Try `rclone mount` with `--vfs-cache-mode full` first: it fetches only
+  the chunks the restore reads.
+
+### PBS's config in git: `pbs/etc/`
+
+PBS stays Proxmox's appliance (VM 2041, Debian), but its settings live in git, the way OPNsense's do
+(os-git-backup to `skynet-opnsense`).
+- **`pbs/etc/`:** copies of `/etc/proxmox-backup`'s config files, from an allowlist: `datastore.cfg`,
+  `prune.cfg`, `verification.cfg`, `sync.cfg`, `acl.cfg`, `user.cfg`, `domains.cfg`, `node.cfg`,
+  `notifications.cfg` and `traffic-control.cfg` (the agent checks the list against the live
+  folder). Never the secrets: `shadow.json`, `token.shadow`, `tfa.json`, keys and certificates,
+  `*-priv.cfg`, and `remote.cfg`, which holds passwords.
+- **Changes:** a change on PBS, whether the agent's (root, D11) or one in its UI, is followed by its
+  PR (rule 2).
+- **Drift:** a nightly timer on ops copies the allowlisted files from PBS over SSH and compares them
+  with `main`'s. A difference goes to `#alerts`, naming the files.
+- **Rebuild:**
+  - a fresh PBS from `pbs/answer.toml`, with these files copied back;
+  - the datastore re-added from its Unraid folder, as-is;
+  - PVE's backup credentials re-created;
+  - PVE's storage entry takes the new fingerprint (Ali).
+
+### Monitoring
+
+- **healthchecks.io:** Ali creates three checks, each daily: `backup docker-dmz` and
+  `backup docker-admin` (grace 3 h), and `pbs-offsite` (grace 6 h). Their ping URLs go into the
+  stacks' secrets, and their badge URLs into Gatus's. resticprofile pings start, success and
+  failure; the rclone job pings with curl.
+- **Gatus:** one job row per check from its badge, as for the heartbeats.
+- **`#alerts`:** `notify_on: failure` on every job.
+
+### Survival kit (Ali, outside the lab)
+
+- the restic passwords, one per host;
+- PVE's PBS encryption keys, one per node (Datacenter → Storage → `pbs` → Encryption: download).
+  Without them every copy, on Unraid or on Drive, is unreadable;
+- the OAuth client's ID and secret (logging in again gives a new token);
+- PBS's root password;
+- the age master key.
+
+Copy them with `nix shell nixpkgs#sops -c sops -d <file>` on the workstation, into the password
+manager.
+
+### PRs and order
+
+1. **Ali:**
+   - the Prechecks' answers;
+   - Drive access;
+   - the three healthchecks.io checks.
+2. **PBS greenfield PR:**
+   - `pbs/`: `proxmox.sh`, `answer.toml`, `etc/` and a README; ops' drift timer;
+   - the agent builds the ISO on CT 240, and Ali creates VM 2041 from it;
+   - Ali does the cutover on both nodes, and stores the new encryption keys in the survival kit.
+
+   The first night fills the new datastore.
+3. **App backups PR:**
+   - both `backup` stacks, `skynet-restore` and the Gatus rows;
+   - the restic passwords, agent-generated;
+   - Ali adds `rclone.sops.conf` and the healthchecks.io URLs on the branch.
+
+   The first night runs long.
+4. **Drill:** `skynet-restore librespeed` in place, and karakeep `--to` a scratch folder. Evidence
+   goes in the PR.
+5. **PBS offsite PR:**
+   - the NFS mount and `pbs-offsite`;
+   - Ali: the Unraid export, and an OPNsense rule for docker-admin → Unraid NFS (2049).
+
+   The first sync may take days.
+6. **Drill:** one small guest restored from the Drive copy.
+
+### Exit criteria
+
+- Seven green nights in a row, for all three jobs and for VM 2041's backups. CT 240's jobs are off.
+- Both drills done, with evidence in their PRs.
+- Ali confirms the survival kit is stored.
+- `pbs/etc/` matches PBS, and the drift check is quiet.
+- `runbooks/restore.md` covers five cases: an app, a host, a guest, PBS rebuilt from `pbs/etc/`, and
+  a restore from Drive with nothing else left.
+
+**Open:**
+- Whether any Unraid shares need offsite too (not part of this phase).
+- PBS as a NixOS VM: shelved (Ali, 2026-10-24); its config goes to git meanwhile (`pbs/etc/`). nixpkgs has only the client. A community package and
+  module (nixos-pbs, PBS 4.2.3, from source in an FHS wrapper) has had a few testers since
+  2026-06, with its nixpkgs PR open. Once it lands, trial it beside the current PBS: a sync job
+  into its own datastore, verify, a restore drill. Move only when that holds, by pointing it at
+  the existing Unraid datastore; PVE's storage entry then changes (Ali).
 
 ## P5 — Observability `[outline]`
 
@@ -1161,7 +1400,7 @@ in a drill.
 |---|---|
 | Nodes | server-proxmox-core (12 cpu, 31 GB) · server-proxmox-network (8 cpu, 15 GB) · mgmt IPs 10.10.50.11 (core) / 10.10.50.10 (network) · storage `local` (ISO), `local-lvm` (disks), `pbs-unraid` |
 | VLANs | 10 Trusted · 20 Servers · 30 IoT · 50 Mgmt · 60 Admin access · 70 Net services · 80 Identity · 90 Ops · 100 DMZ · 300 ISP L2 passthrough (not routed). `10.10.<vlan>.0/24`, gateway `.1` |
-| Keep | OPNsense VM 5001 (config → `skynet-opnsense` via os-git-backup) · Omada CT 525 (10.10.50.25) · PBS CT 240 (10.10.20.40; starts after Unraid NFS) · Unraid VM 2020 · HAOS VM 3050 (10.10.30.50) · athena CT 10030 (10.10.100.30) |
+| Keep | OPNsense VM 5001 (config → `skynet-opnsense` via os-git-backup) · Omada CT 525 (10.10.50.25) · PBS CT 240 (10.10.20.40; starts after Unraid NFS; P4 replaces it with VM 2041) · Unraid VM 2020 · HAOS VM 3050 (10.10.30.50) · athena CT 10030 (10.10.100.30) |
 | Retire | ops VM 9090 (P1) · Management Caddy CT 635 (P1) · AdGuard 730/731 and Technitium CTs 750/751 (P2) · docker-dmz VM 10015 + Arcane, Authentik CT 837 (P3) · template 9000 (P7) |
 | Domain | `aliammar.net`: public DNS at Cloudflare (tunnel CNAMEs); split-horizon internal zone in Technitium (`dns/aliammar.net.zone`) |
 | Gotchas | turn off ballooning on VMs · a NixOS host serving :53 needs `services.resolved.enable = false` (its stub holds :53) · recreating a guest on the same IP poisons OPNsense's ARP, so pin MACs |
@@ -1178,6 +1417,10 @@ in a drill.
 | `modules/dns.nix` + `modules/technitium-sync.sh` (settings + zone via the Technitium API, gratuitous ARP) | ~145 lines |
 | CI: flake check + `docker compose config` per stack + "every stack has a README and a Gatus row" check | ~60 lines |
 | `runbooks/dns-speed-test/dnsbench.py` (run by hand; nothing deploys it) | ~450 lines |
+| `stacks/<host>/backup/` job entrypoint (a writable `rclone.conf`, the restore request) (P4) | ~30 lines |
+| `skynet-restore` (P4) | ~60 lines |
+| `stacks/admin/pbs-offsite/` job script (P4) | ~20 lines |
+| ops: PBS config drift check (P4) | ~30 lines |
 | alert webhook → `claude -p` (P6) | ~40 lines |
 | doco-cd MCP filter proxy (P6, optional) | ~40 lines |
 
