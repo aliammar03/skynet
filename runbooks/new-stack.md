@@ -11,8 +11,10 @@ and its Gatus row (4). Ali adds his secret values on the branch before merging. 
 | | docker-admin | docker-dmz |
 |---|---|---|
 | doco-cd target · stack folder | `admin` · `stacks/admin/` | `dmz` · `stacks/dmz/` |
-| Door (Caddy) · IP | `caddy-admin` · 10.10.60.60 | – (P3 doors PR) |
-| Door sites · pinned upstream certs | `stacks/admin/caddy-admin/conf/sites/` · `stacks/admin/caddy-admin/certs/` (`/etc/caddy-certs/`) | – (P3 doors PR) |
+| Door (Caddy) · IP | `caddy-admin` · 10.10.60.60 | `caddy-apps` · 10.10.100.35 |
+| Door sites · pinned upstream certs | `stacks/admin/caddy-admin/conf/sites/` · `stacks/admin/caddy-admin/certs/` (`/etc/caddy-certs/`) | `stacks/dmz/caddy-apps/conf/sites/` · none yet |
+| Its Authelia (`import authelia`, access rules, OIDC clients) | `stacks/admin/authelia/` · portal `auth` | `stacks/dmz/authelia/` · portal `login` |
+| Public (internet) | never | a line in `stacks/dmz/cloudflared/config.yml` |
 | Host (agent logs: `ssh skynet@<ip>`) | 10.10.50.40 | 10.10.100.10 |
 | doco-cd MCP server | `doco-admin` | `doco-dmz` |
 
@@ -72,9 +74,12 @@ handle @<name> {
 
 - The door reloads it in place. A new pinned cert restarts the door instead.
 - Leave out `import authelia` (the door's forward-auth snippet) only for something that must be
-  reachable without a login.
-- DNS: `<name>` A → the door's IP, as a line in `dns/aliammar.net.zone` in the same PR. Until P2's
-  servers are live, Ali adds it in the Technitium-network UI (http://10.10.70.50:5380) instead.
+  reachable without a login. With it, the app's access rule goes in that door's Authelia
+  (`configuration.yml`, above its catch-all deny on docker-dmz).
+- Public (docker-dmz only): its ingress line in `stacks/dmz/cloudflared/config.yml`, before the 404,
+  with `originServerName: <name>.aliammar.net`. Check it with
+  `nix run nixpkgs#cloudflared -- tunnel --config stacks/dmz/cloudflared/config.yml ingress validate`.
+- DNS: `<name>` A → the door's IP, as a line in `dns/aliammar.net.zone` in the same PR.
 - An upstream with a self-signed cert: pin it in the door's certs folder and use
   `tls_trust_pool file /etc/caddy-certs/<name>.pem` (see caddy-admin's `sites/pbs.conf`).
 
@@ -107,7 +112,7 @@ Purpose · URL · auth mode · data paths + backup class · secret key *names* �
   the files in `sites/` (one host each):
   ```sh
   door=stacks/<target>/<door>; d=$(mktemp -d); cp -r "$door/conf" "$d/"
-  sed -i "s#/etc/caddy-certs#$PWD/$door/certs#g; s#/etc/caddy#$d/conf#g; /acme_dns/d" "$d"/conf/Caddyfile "$d"/conf/sites/*.conf
+  sed -i "s#/etc/caddy-certs#$PWD/$door/certs#g; s#/etc/caddy#$d/conf#g; /^\ttls {/,/^\t}/d" "$d"/conf/Caddyfile "$d"/conf/sites/*.conf
   nix run nixpkgs#caddy -- adapt --config "$d/conf/Caddyfile" | nix run nixpkgs#jq -- -c '[.apps.http.servers[].routes[].handle[].routes[]?.match[0].host[0] // empty]'
   ```
 

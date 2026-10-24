@@ -1,7 +1,7 @@
 # docker-dmz
 
-Apps Docker host: doco-cd (target `dmz`), the apps, and their doors caddy-apps (10.10.100.35) and
-cloudflared (.33) (skynetv2.md → P3).
+Apps Docker host: doco-cd (target `dmz`), the apps, their doors caddy-apps (10.10.100.35) and
+cloudflared (.33), and the apps' own Authelia (portal `login`) (skynetv2.md → P3).
 VMID 10010 · 10.10.100.10 · server-proxmox-core · 6 vCPU / 10 GB / 128 GB.
 
 - **NIC** (MAC pinned in `proxmox.sh`, matched in `net.nix`): `dmz` = net0, tag 100. It carries the

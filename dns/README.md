@@ -17,7 +17,8 @@ through Technitium's API at boot and on every deploy that changes them.
   records at Cloudflare aren't visible inside, so caddy-admin's DNS-01 skips its own propagation
   check (`stacks/admin/caddy-admin/conf/Caddyfile`). Keep the SOA, NS and `ns` lines. The SOA's last
   field (300 s) is how long a "doesn't exist" answer is cached.
-- No wildcard until P3.
+- No wildcard inside: each name gets its own line, pointing at its door (`runbooks/new-stack.md` →
+  Route). The `*` CNAME exists only at Cloudflare, for the tunnel.
 
 ## Settings: `settings.json`
 

@@ -1,0 +1,10 @@
+# Tunnel `skynet` (f550cc58-fc42-4300-a774-1619888fe700), locally managed: these are its routes.
+# Cloudflare's `*` CNAME sends every name to the tunnel, so a name is public only with a line here;
+# the rest get 404. Each public app's PR adds its line. First match wins.
+ingress:
+  # The apps' login portal: forward-auth redirects and OIDC sign-ins from outside land here.
+  - hostname: login.aliammar.net
+    service: https://caddy-apps
+    originRequest:
+      originServerName: login.aliammar.net # SNI, and the name caddy-apps' wildcard cert must match
+  - service: http_status:404
