@@ -1,0 +1,12 @@
+# doco-cd on docker-dmz (poll target `dmz`): every folder in stacks/dmz/ with a compose.yaml is
+# a stack. A folder removed from git is removed from the host; volumes are kept.
+working_dir: stacks/dmz
+auto_discovery:
+  enabled: true
+  depth: 1
+  delete: true
+  remove_volumes: false
+reconciliation:
+  enabled: true
+  events: [unhealthy, die, oom]
+timeout: 300

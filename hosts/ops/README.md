@@ -21,12 +21,13 @@ Claude app. VMID 9091 · 10.10.90.91 · VLAN 90 · server-proxmox-core · 4 vCPU
   - `curl -sk --netrc-file /run/secrets/rendered/opnsense.netrc https://10.10.50.1/api/…`.
 
   `-k` because both use self-signed certs (caddy-admin pins them for the browser path).
-- **doco-cd MCP (`doco-admin` in `.mcp.json`):** `doco_admin_api_key` (= docker-admin's
-  `doco_api_secret`) is rendered to `/run/secrets/rendered/doco-admin.headers.json`, which Claude
-  Code's `headersHelper` prints as the `x-api-key` header. `.claude/settings.json` allows the
-  list/get tools (not `list_stacks`/`get_stack`: Swarm only) and `trigger_poll`, and denies `control_project`, `control_stack`,
-  `destroy_project`, `remove_stack`, `trigger_scheduled_job` and `compact_mirrors` (operate lane,
-  P6). A session picks up `.mcp.json` when it starts.
+- **doco-cd MCP (`doco-admin`, `doco-dmz` in `.mcp.json`):** `doco_<target>_api_key` (= that Docker
+  host's `doco_api_secret`) is rendered to `/run/secrets/rendered/doco-<target>.headers.json`, which
+  Claude Code's `headersHelper` prints as the `x-api-key` header. For each server,
+  `.claude/settings.json` allows the list/get tools (not `list_stacks`/`get_stack`: Swarm only) and
+  `trigger_poll`, and denies `control_project`, `control_stack`, `destroy_project`, `remove_stack`,
+  `trigger_scheduled_job` and `compact_mirrors` (operate lane, P6). A session picks up `.mcp.json`
+  when it starts.
 - **LAN Nix cache:** harmonia on :5000 (`modules/nix-cache.nix`) serves ops's store to every other host
   (they're clients via `base.nix`). ops admits 10.10.0.0/16, and the OPNsense alias
   `ROLE_NIX_CACHE_CLIENTS` decides which hosts get through: a new host needs adding there. `nix-cache-key` generates the signing key once

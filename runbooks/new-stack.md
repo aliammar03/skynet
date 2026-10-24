@@ -8,13 +8,13 @@ and its Gatus row (4). Ali adds his secret values on the branch before merging. 
 
 ## Values per Docker host
 
-| | docker-admin |
-|---|---|
-| doco-cd target · stack folder | `admin` · `stacks/admin/` |
-| Door (Caddy) · IP | `caddy-admin` · 10.10.60.60 |
-| Door sites · pinned upstream certs | `stacks/admin/caddy-admin/conf/sites/` · `stacks/admin/caddy-admin/certs/` (`/etc/caddy-certs/`) |
-| Host (agent logs: `ssh skynet@<ip>`) | 10.10.50.40 |
-| doco-cd MCP server | `doco-admin` |
+| | docker-admin | docker-dmz |
+|---|---|---|
+| doco-cd target · stack folder | `admin` · `stacks/admin/` | `dmz` · `stacks/dmz/` |
+| Door (Caddy) · IP | `caddy-admin` · 10.10.60.60 | – (P3 doors PR) |
+| Door sites · pinned upstream certs | `stacks/admin/caddy-admin/conf/sites/` · `stacks/admin/caddy-admin/certs/` (`/etc/caddy-certs/`) | – (P3 doors PR) |
+| Host (agent logs: `ssh skynet@<ip>`) | 10.10.50.40 | 10.10.100.10 |
+| doco-cd MCP server | `doco-admin` | `doco-dmz` |
 
 A new Docker host adds its column (`runbooks/new-vm.md` → Docker host). `.sops.yaml` encrypts
 `stacks/<target>/**/*.sops.*` for Ali plus that host. Gatus runs on docker-admin and checks every

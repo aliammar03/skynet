@@ -21,6 +21,12 @@ let
       Authorization: PVEAPIToken=skynet@pve!read=${config.sops.placeholder."pve_${node}_read_token"}
     '';
   };
+  # A Docker host's doco-cd API key (= its `doco_api_secret`); Claude Code's `headersHelper`
+  # (.mcp.json) prints this file.
+  docoHeaders = target: {
+    owner = "skynet";
+    content = builtins.toJSON { x-api-key = config.sops.placeholder."doco_${target}_api_key"; };
+  };
   # A Claude session in its own tmux server (one server per unit, so restarting one session never
   # kills another). As skynet: `tmux -L <name> attach` to see or drive it.
   session = name: cmd: {
@@ -135,12 +141,10 @@ in
         machine 10.10.50.1 login ${config.sops.placeholder.opnsense_read_key} password ${config.sops.placeholder.opnsense_read_secret}
       '';
     };
-    # docker-admin's doco-cd API key; Claude Code's `headersHelper` (.mcp.json) prints this file.
     secrets.doco_admin_api_key = { };
-    templates."doco-admin.headers.json" = {
-      owner = "skynet";
-      content = builtins.toJSON { x-api-key = config.sops.placeholder.doco_admin_api_key; };
-    };
+    secrets.doco_dmz_api_key = { };
+    templates."doco-admin.headers.json" = docoHeaders "admin";
+    templates."doco-dmz.headers.json" = docoHeaders "dmz";
   };
 
   # The Discord channel plugin reads its token from ~/.claude/channels/discord/.env; Claude doesn't

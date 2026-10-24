@@ -24,7 +24,7 @@
 | P0 | Foundations + new ops VM | done |
 | P1 | docker-admin: admin door, identity, status | done (2026-10-22); 7 admin names move to .60 with P2's Technitium |
 | P2 | DNS (Technitium only) + remote access | done (2026-10-23); open: OPNsense rules 140/150/115 and CT 731 `onboot` (see P2 exit criteria) |
-| P3 | docker-dmz: apps + public path | detailed (2026-10-24), not started. v1's apps are down: VM 10015 stopped |
+| P3 | docker-dmz: apps + public path | in progress (2026-10-24): Data step 1 done, host PR open. v1's apps are down (Docker off on 10015) |
 | P4 | Backups → Google Drive | outline |
 | P5 | Observability (agent eyes) | outline |
 | P6 | Agent autonomy | outline |
@@ -818,7 +818,7 @@ Done 2026-10-24:
   Core node: 31.2 GB RAM, 16.8 GB used with 10015 off. `local-lvm` has 168 of 348 GB free.
 - **The apps** come from v1's archived repo (`compose/`); see the Apps table. Their state is in
   `/opt/docker/appdata/<svc>/<role>`, plus Docker volumes for CouchDB, Meilisearch and Jikan's
-  databases. Sizes come in Data step 1.
+  databases. Sizes: Data step 1.
 - **Rules that name v1 containers:**
   - aiostreams .65 (usenet, rule 820);
   - marinara .85 and sillytavern .69 (ComfyUI on the workstation, rule 340);
@@ -832,7 +832,8 @@ Done 2026-10-24:
 
 - **`proxmox.sh`:** VM 10010 on server-proxmox-core:
   - 6 cores, 10240 MB, balloon 0;
-  - a `local-lvm` disk sized from Data step 1 (about twice v1's data);
+  - 128 GB on `local-lvm`: v1's data is 6.5 GB (Data step 1), and aiometadata's poster cache refills
+    up to 20 GB;
   - one NIC: `virtio=BC:24:11:00:10:01,bridge=vmbr0,tag=100`.
 - **Memory:** with 10 GB here, the node's VMs use 25 of its 31 GB (ops 8, Unraid 4, HAOS 2,
   technitium-core 1). With v1's 16 GB they used all of it. Stacks set memory limits that fit.
@@ -856,8 +857,8 @@ Done 2026-10-24:
 | `calibre` | calibre | forward | ✓ | `config` | calibre |
 | `sillytavern` | sillytavern | forward | | `config`, `data`, `plugins`, `extensions` | silly |
 | `marinara` | marinara | own (basic auth) | | `data` | marinara |
-| `jikan` (+ mongo, redis, typesense) | – | – | | `mongo`, `typesense` | aiometadata's `jikan_*` |
-| `aiometadata` (+ redis) | aiometadata | oidc | ✓ | `data`, `cold-store`, `redis` (`poster-cache` starts empty and refills) | aiometadata |
+| `jikan` (+ mongo, redis, typesense) | – | – | | `mongo`, `typesense`, `redis` | aiometadata's `jikan_*` |
+| `aiometadata` (+ redis) | aiometadata | oidc | ✓ | `data`, `cold-store`, `redis` (`poster-cache` starts empty and refills, capped at 20 GB: `POSTER_CACHE_MAX_SIZE=20g`; v1 had 50g) | aiometadata |
 | `aiostreams` | aiostreams | oidc | ✓ | `data` | aiostreams |
 | caddy-apps site | homeassistant | own | | | → `http://10.10.30.50`, as in v1 |
 | caddy-apps site | auth | | ✓ | | → Authelia, `10.10.50.40:9091` |
@@ -888,7 +889,7 @@ Done 2026-10-24:
 
 The agent can't log in to 10015 and isn't root on docker-dmz. So Ali moves the data, once, before
 the apps deploy:
-1. **Before the host PR:**
+1. **Before the host PR** (done 2026-10-24):
    1. On the core node: `qm set 10015 --memory 8000 --onboot 0 && qm start 10015`. Docker starts
       every v1 container at boot, and in 2 GB they starve the VM until even SSH stops answering.
       docker-dmz doesn't exist yet, so 8 GB fits.
@@ -896,15 +897,21 @@ the apps deploy:
       `qm guest exec 10015 -- systemctl disable --now docker.socket docker.service`. This stops the
       containers and frees their IPs; from then on the VM needs little memory.
    3. `qm guest exec 10015 --timeout 300 -- sh -c 'du -sh /opt/docker/appdata/* /var/lib/docker/volumes/*/_data'`,
-      sent to the agent, which sizes the disk from it.
+      sent to the agent, which sizes the disk from it. To copy: 6.5 GB (calibre 2.4, karakeep 1.8,
+      jikan's Mongo 1.0, marinara 0.8; the rest under 0.2 each). Not copied: aiometadata's poster
+      cache (8.9 GB; it refills), Arcane, v1's caddy-apps and cloudflared, and the anonymous 4 KB
+      volumes.
    4. For the copy, Ali's workstation key (`modules/base.nix`) goes into his user's
       `~/.ssh/authorized_keys` on 10015 (also through `qm guest exec`).
-2. **After the install:** first make room for both VMs: `qm shutdown 10015`,
-   `qm set 10015 --memory 2048`, `qm start 10015` (Docker stays off). Then `ssh -A <you>@10.10.100.15`
-   and run this once per line of the table (the host PR's README lists every line):
-   `sudo -E rsync -aHAX --numeric-ids --mkpath --rsync-path='sudo rsync' <v1 path>/ aliammar@10.10.100.10:/opt/appdata/<stack>/<role>/`.
-   - `-E` keeps the forwarded key for root's ssh.
-   - `--numeric-ids` keeps the owners (CouchDB runs as 5984, Mongo as 999).
+2. **With the install:**
+   1. Before the installer boots (`runbooks/new-vm.md` step 2), make room for both VMs:
+      `qm shutdown 10015 && qm set 10015 --memory 2048 && qm start 10015` (Docker stays off). With
+      10015 at 8 GB, the core node has 8 GB free, less than docker-dmz's 10.
+   2. After the install: `ssh -A <you>@10.10.100.15` and run the copy in `hosts/docker-dmz/README.md`
+      (v1's data). It's one line per path of the table, each
+      `sudo -E rsync -aHAX --numeric-ids --mkpath --rsync-path='sudo rsync' <v1 path>/ aliammar@10.10.100.10:/opt/appdata/<stack>/<role>/`.
+      - `-E` keeps the forwarded key for root's ssh.
+      - `--numeric-ids` keeps the owners (CouchDB runs as 5984, Mongo as 999).
 3. `sudo poweroff`. Until P7, 10015 keeps v1's data as it was.
 
 ### Doors and auth (one PR, both Docker hosts)
@@ -951,7 +958,9 @@ deletes tunnel `b5171e13…`).
 ### OPNsense (agent drafts, Ali applies)
 
 - **With the host:** `HOST_DOCKER_DMZ` → 10.10.100.10 (it was v1's .15), nested in
-  `ROLE_NIX_CACHE_CLIENTS`.
+  `ROLE_NIX_CACHE_CLIENTS`. From v1, the alias is also in rule 300 (SMB/NFS → Unraid) and in
+  `ROLE_ADMIN_TARGETS` (rules 230, 235). docker-dmz needs neither, and both are harmless: the host
+  opens only :22, and :8080 to ops.
 - **With the doors:**
   - rule 250: `HOST_PROXY_APPS` → `HOST_DOCKER_ADMIN` TCP 9091 (Authelia);
   - Tailscale: also advertise 10.10.100.35/32 and approve it. Rule 273: `NET_TAILNET` →
@@ -964,12 +973,13 @@ deletes tunnel `b5171e13…`).
 
 ### PRs and order
 
-1. Ali: Data step 1 (the sizes).
-2. **Host PR** (`runbooks/new-vm.md`): docker-dmz with its heartbeat, its MCP and its column in
-   `runbooks/new-stack.md`. Then install.
-3. Ali: Data step 2 (the copy), then powers 10015 off.
-4. **Doors PR:** caddy-apps, cloudflared, Authelia's port, DNS and Gatus. Ali does Cloudflare,
-   OPNsense and the healthchecks.io check.
+1. Ali: Data step 1 (the sizes). Done.
+2. **Host PR** (`runbooks/new-vm.md`): docker-dmz with its heartbeat (Ali adds the healthchecks.io
+   check), its MCP and its column in `runbooks/new-stack.md`. 10015 drops to 2 GB before the
+   installer boots (Data step 2.1). Then install.
+3. Ali: Data step 2.2 (the copy), then powers 10015 off.
+4. **Doors PR:** caddy-apps, cloudflared, Authelia's port, DNS and Gatus. Ali does Cloudflare and
+   OPNsense.
 5. **One PR per app** (`runbooks/new-stack.md`, plus its tunnel line if public), in the table's
    order. librespeed proves the pattern; calibre (forward-auth, public) proves Authelia through the
    tunnel. The **Authelia OIDC PR** (provider, the two clients, family accounts) goes in before

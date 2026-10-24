@@ -3,6 +3,10 @@
 # in a console. Only the installer trusts the agent's key; the installed system doesn't.
 net:
 { lib, modulesPath, ... }:
+let
+  # The NIC with the host's IP: `lan`, or `dmz` on docker-dmz (one NIC for the host and its doors).
+  nic = net.lan or net.dmz;
+in
 {
   imports = [ "${modulesPath}/installer/cd-dvd/installation-cd-minimal.nix" ];
 
@@ -10,9 +14,9 @@ net:
   networking.useDHCP = false;
   networking.enableIPv6 = false;
   systemd.network.networks."10-lan" = {
-    matchConfig.MACAddress = net.lan.mac;
-    address = [ net.lan.address ];
-    gateway = [ net.lan.gateway ];
+    matchConfig.MACAddress = nic.mac;
+    address = [ nic.address ];
+    gateway = [ nic.gateway ];
     inherit (net) dns;
   };
 
