@@ -1,18 +1,24 @@
 $ORIGIN aliammar.net.
 @                     900       IN  SOA           ns hostadmin 1 900 300 604800 60
 @                     14400     IN  NS            ns
+aiometadata           300       IN  A             10.10.100.35
+aiostreams            300       IN  A             10.10.100.35
 auth                  300       IN  A             10.10.60.60
+calibre               300       IN  A             10.10.100.35
 homeassistant         300       IN  A             10.10.100.35
 karakeep              300       IN  A             10.10.100.35
 login                 300       IN  A             10.10.100.35
+marinara              300       IN  A             10.10.100.35
 ns                    300       IN  A             10.10.70.50
 ns                    300       IN  A             10.10.70.51
 obsidian              300       IN  A             10.10.100.35
 omada                 300       IN  A             10.10.60.60
 opnsense              300       IN  A             10.10.60.60
+paperless             300       IN  A             10.10.100.35
 pbs                   300       IN  A             10.10.60.60
 proxmox-core          300       IN  A             10.10.60.60
 proxmox-network       300       IN  A             10.10.60.60
+sillytavern           300       IN  A             10.10.100.35
 speed                 300       IN  A             10.10.100.35
 status                300       IN  A             10.10.60.60
 technitium-core       300       IN  A             10.10.60.60

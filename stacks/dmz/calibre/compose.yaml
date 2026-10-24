@@ -1,0 +1,31 @@
+# Calibre (calibre.aliammar.net): the e-book library's desktop app, in the browser. No login of its
+# own: the apps' Authelia guards it (admins), inside and through the tunnel.
+services:
+  calibre:
+    container_name: calibre
+    # v1's build (v1 pinned `latest` at this digest).
+    image: lscr.io/linuxserver/calibre:v9.13.0-ls415@sha256:f4a17653e7851c4642583ba2cd292509f90b4b8e123596af38b6ee02154676be
+    restart: unless-stopped
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: Asia/Karachi
+      UMASK: "022"
+      TITLE: Calibre Admin
+      DISABLE_IPV6: "true"
+    shm_size: 1gb # the browser desktop (selkies) needs more than Docker's default 64 MB
+    stop_grace_period: 1m # Calibre writes its database on exit
+    mem_limit: 2g
+    volumes:
+      - /opt/appdata/calibre/config:/config # the library, Calibre's settings, the desktop's home
+    networks: [edge]
+    healthcheck:
+      # The desktop's web server; the image sets CUSTOM_PORT=8080 (its EXPOSE says 3000, wrongly).
+      test: [CMD, curl, -fsS, -o, /dev/null, http://localhost:8080/]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+networks:
+  edge:
+    external: true

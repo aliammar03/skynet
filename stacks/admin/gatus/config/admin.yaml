@@ -12,6 +12,12 @@ x-app: &app
   group: app
   interval: 60s
   alerts: [{ type: discord }]
+# An app behind the apps' Authelia: its door answers 302 to the login (the app itself is its
+# container's healthcheck).
+x-forward: &forward
+  <<: *app
+  client: { ignore-redirect: true }
+  conditions: ["[STATUS] == 302"]
 
 # Suite steps. Each alerts on its own (Gatus has no suite-level alerts), and an alert names only the
 # step, so step names carry the server. `always-run`: a failed step doesn't skip the others.
@@ -81,6 +87,12 @@ endpoints:
   # /_up is CouchDB's only path without a login.
   - { <<: *app, name: obsidian, url: https://obsidian.aliammar.net/_up, conditions: ["[STATUS] == 200"] }
   - { <<: *app, name: karakeep, url: https://karakeep.aliammar.net/api/health, conditions: ["[STATUS] == 200"] }
+  - { <<: *app, name: paperless, url: https://paperless.aliammar.net/accounts/login/, conditions: ["[STATUS] == 200"] }
+  - { <<: *forward, name: calibre, url: https://calibre.aliammar.net/ }
+  - { <<: *forward, name: sillytavern, url: https://sillytavern.aliammar.net/ }
+  - { <<: *app, name: marinara, url: https://marinara.aliammar.net/, conditions: ["[STATUS] == 200"] }
+  - { <<: *app, name: aiometadata, url: https://aiometadata.aliammar.net/health/live, conditions: ["[STATUS] == 200"] }
+  - { <<: *app, name: aiostreams, url: https://aiostreams.aliammar.net/api/v1/status, conditions: ["[STATUS] == 200"] }
 
   # healthchecks.io's read-only badge for each Docker host's heartbeat check (2-state: up, or down
   # once period + grace pass with no ping). No alert: healthchecks.io already posts to #alerts.

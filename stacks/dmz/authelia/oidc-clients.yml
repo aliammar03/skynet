@@ -1,0 +1,50 @@
+# The apps' OIDC clients, merged with configuration.yml and the provider's keys (oidc.sops.yml).
+# This one file holds the whole client list: a second file's `clients` would replace it. Each
+# client_secret is a pbkdf2 digest; the app's plaintext is in its oidc.sops.env.
+identity_providers:
+  oidc:
+    # The two addons take a password (one factor) from Ali's group or the family's.
+    authorization_policies:
+      apps:
+        default_policy: deny
+        rules:
+          - policy: one_factor
+            subject: ['group:admins', 'group:family']
+    # The claims both apps read, in the ID token too (by default Authelia 4.39 sends them only from
+    # the userinfo endpoint).
+    claims_policies:
+      apps:
+        id_token: [email, email_verified, name, preferred_username, groups]
+    clients:
+      - client_id: aiostreams
+        client_name: AIOStreams
+        client_secret: '$pbkdf2-sha512$310000$MTTrTBNdD0J66Ziq7S2n6w$7ysCXHUs6n.wOHKDjxIrYq2hRO3WGsgIW74kUL5/uOebtT.QbM6RhOKmGfWUnAlkOF7wfzygAH7LN6YKwBGPiQ'
+        public: false
+        authorization_policy: apps
+        claims_policy: apps
+        consent_mode: implicit
+        require_pkce: true
+        pkce_challenge_method: S256
+        redirect_uris:
+          - https://aiostreams.aliammar.net/api/v1/auth/oidc/callback
+        scopes: [openid, profile, email, groups]
+        response_types: [code]
+        grant_types: [authorization_code]
+        token_endpoint_auth_method: client_secret_basic
+        userinfo_signed_response_alg: none
+      - client_id: aiometadata
+        client_name: AIOMetadata
+        client_secret: '$pbkdf2-sha512$310000$kwvaw1d1iBOMqesYDVs8DQ$R3HApNfNez8NsA/y822EcpUJhBChU3otkbErZ7QB/E6EepcZDvAhugU.gCX7ZM/07ErtoZJRgyLCJ/Uru.z4DQ'
+        public: false
+        authorization_policy: apps
+        claims_policy: apps
+        consent_mode: implicit
+        require_pkce: true # it always sends PKCE (S256)
+        pkce_challenge_method: S256
+        redirect_uris:
+          - https://aiometadata.aliammar.net/api/auth/oidc/callback
+        scopes: [openid, profile, email, groups]
+        response_types: [code]
+        grant_types: [authorization_code]
+        token_endpoint_auth_method: client_secret_basic
+        userinfo_signed_response_alg: none

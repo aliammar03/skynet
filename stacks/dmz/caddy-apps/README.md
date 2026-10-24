@@ -24,8 +24,17 @@
 |---|---|---|
 | login | authelia:9091 (`edge`) | it *is* the login |
 | homeassistant | http://10.10.30.50:80 | own (Home Assistant trusts this door as its proxy) |
+| speed | librespeed:8080 | none (a LAN test) |
+| obsidian · karakeep · paperless | obsidian:5984 · karakeep:3000 · paperless:8000 | own |
+| marinara | marinara:7860 | own, open from inside (as in v1) |
+| calibre · sillytavern | calibre:8080 · sillytavern:8000 | forward (`import authelia`, admins) |
+| aiometadata · aiostreams | aiometadata:3232 · aiostreams:3000 | oidc |
 
 **Gotchas**
+- On `edge` it answers `login`, `aiometadata` and `aiostreams` by name (network aliases), for the
+  containers that call them from inside (the OIDC issuer, one addon calling another). Through
+  Technitium those names are .35, which the host, and so any container on `edge`, can't reach: a
+  macvlan never talks to its parent. An app that calls another app's name joins this list.
 - Public requests come from cloudflared (10.10.100.33) over the macvlan. Caddy trusts only that IP
   for `Cf-Connecting-Ip`, so its logs and the upstreams see the visitor's address.
 - `gw_priority` puts the default route on `dmz`. Without it, replies to clients could leave via

@@ -1,0 +1,39 @@
+# SillyTavern (sillytavern.aliammar.net): the AI chat front end. No login of its own: the apps'
+# Authelia guards it (admins); inside only. On the macvlan at v1's .69, so rule 340 lets it reach
+# ComfyUI on the workstation.
+services:
+  sillytavern:
+    container_name: sillytavern
+    # v1's build: v1 pinned the moving `release` tag at this digest, which no version tag carries.
+    image: ghcr.io/sillytavern/sillytavern:release@sha256:5bb7ef334602ad72b29351acae4d9744ce16c99a1fab840acbd42a7d49d27d9b
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      FORCE_COLOR: "1"
+      SILLYTAVERN_HEARTBEATINTERVAL: "30"
+      # Its own second gate: the client's address (X-Forwarded-For from caddy-apps, since
+      # config.yaml has enableForwardedWhitelist) must be the lab or the tailnet. It refuses to start
+      # with no gate at all.
+      SILLYTAVERN_WHITELIST: '["::1","127.0.0.1","10.10.0.0/16","100.64.0.0/10"]'
+    mem_limit: 1g
+    volumes:
+      - /opt/appdata/sillytavern/config:/home/node/app/config
+      - /opt/appdata/sillytavern/data:/home/node/app/data
+      - /opt/appdata/sillytavern/plugins:/home/node/app/plugins
+      - /opt/appdata/sillytavern/extensions:/home/node/app/public/scripts/extensions/third-party
+    networks:
+      dmz:
+        ipv4_address: 10.10.100.69 # in ROLE_DMZ_AI_CLIENTS (rule 340: ComfyUI on the workstation)
+        gw_priority: 1 # it leaves as .69, so the rule recognises it
+      edge: {}
+    healthcheck:
+      test: [CMD, node, src/healthcheck.js]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+networks:
+  dmz:
+    external: true
+  edge:
+    external: true

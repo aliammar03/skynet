@@ -17,4 +17,18 @@ ingress:
     service: https://caddy-apps
     originRequest:
       originServerName: karakeep.aliammar.net
+  # Calibre: no login of its own; the apps' Authelia guards it.
+  - hostname: calibre.aliammar.net
+    service: https://caddy-apps
+    originRequest:
+      originServerName: calibre.aliammar.net
+  # The two Stremio addons: clients call them from anywhere; sign-in through the apps' Authelia.
+  - hostname: aiometadata.aliammar.net
+    service: https://caddy-apps
+    originRequest:
+      originServerName: aiometadata.aliammar.net
+  - hostname: aiostreams.aliammar.net
+    service: https://caddy-apps
+    originRequest:
+      originServerName: aiostreams.aliammar.net
   - service: http_status:404
