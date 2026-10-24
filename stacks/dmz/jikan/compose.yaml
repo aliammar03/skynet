@@ -85,7 +85,7 @@ services:
 
   redis:
     container_name: jikan-redis
-    image: docker.io/library/redis:6.2.23-alpine@sha256:ec5e187c913d422cdf60f4216a5fdfb95246792c6de6fe21ff5bed75cbfc8c23
+    image: docker.io/library/redis:6.2.24-alpine@sha256:592b215e9287182f11ba9d7c229dc0ba312bb900a016ea65ae378b0127567319
     restart: unless-stopped
     init: true
     environment:
