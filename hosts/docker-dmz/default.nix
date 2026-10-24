@@ -37,6 +37,9 @@ in
   skynet.docker.doorNetworks = [ "door-calibre" ];
   skynet.docker.docoTarget = "dmz";
 
+  # Redis (paperless, jikan, aiometadata) asks for it at every start: its background saves fork.
+  boot.kernel.sysctl."vm.overcommit_memory" = 1;
+
   # The receiving end of v1's data copy (README.md → v1's data).
   environment.systemPackages = [ pkgs.rsync ];
 

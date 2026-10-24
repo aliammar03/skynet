@@ -20,7 +20,10 @@ services:
     volumes:
       - /opt/appdata/librespeed/data:/database # the entrypoint fixes the sqlite file at /database/db.sql
     networks: [edge]
-    # The image's own healthcheck (wget on $WEBPORT) applies.
+    # The image's own check (wget on $WEBPORT), every 5 min instead of 30 s: each one is a line in
+    # Apache's access log, which goes to stdout.
+    healthcheck:
+      interval: 5m
 networks:
   edge:
     external: true

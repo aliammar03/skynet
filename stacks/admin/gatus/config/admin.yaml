@@ -94,7 +94,7 @@ endpoints:
   - { <<: *forward, name: sillytavern, url: https://sillytavern.aliammar.net/ }
   - { <<: *forward, name: marinara, url: https://marinara.aliammar.net/ }
   - { <<: *app, name: aiometadata, url: https://aiometadata.aliammar.net/health/live, conditions: ["[STATUS] == 200"] }
-  - { <<: *app, name: aiostreams, url: https://aiostreams.aliammar.net/api/v1/status, conditions: ["[STATUS] == 200"] }
+  - { <<: *app, name: aiostreams, url: https://aiostreams.aliammar.net/api/v1/health, conditions: ["[STATUS] == 200"] }
 
   # healthchecks.io's read-only badge for each Docker host's heartbeat check (2-state: up, or down
   # once period + grace pass with no ping). No alert: healthchecks.io already posts to #alerts.

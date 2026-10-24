@@ -25,3 +25,6 @@
   time, raising its feature compatibility version after each.
 - A changed `JIKAN_*` value reaches the containers only through a redeploy (interpolation), not a
   restart.
+- Logs are trimmed to what matters: RoadRunner at warn (compose's entrypoint adds
+  `-o logs.level=warn`), Mongo `--quiet` and checked once a minute, Typesense `GLOG_minloglevel=1`.
+  At their defaults the three logged about 3,300 lines an hour, mostly timers and healthchecks.

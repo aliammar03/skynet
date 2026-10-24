@@ -127,11 +127,12 @@ Purpose · URL · auth mode · data paths + backup class · secret key *names* �
 
 ## 8. After the merge (agent)
 
-- `ssh skynet@<host ip> 'journalctl CONTAINER_NAME=doco-cd --since -10min -o cat' | grep '"stack":"<name>"'`
-  shows a `deploying stack` line and no `deployment failed`. doco-cd logs JSON, one object per line.
+- The host's doco-cd MCP shows the deploy (`list_deployment_runs`, `get_project`), and `#alerts`
+  gets "Deployment completed". doco-cd logs only warnings and errors (`LOG_LEVEL=warn`, JSON):
+  `ssh skynet@<host ip> 'journalctl CONTAINER_NAME=doco-cd --since -10min -o cat'` shows no
+  `deployment failed`.
 - `ssh skynet@<host ip> 'journalctl CONTAINER_NAME=<name> -n 50 -o cat'`
-- `#alerts` gets "Deployment completed", the Gatus row turns green, and the host's doco-cd MCP shows
-  it (`get_project`).
+- The Gatus row turns green.
 
 ## Gotchas
 

@@ -10,14 +10,16 @@ server:
       forward-auth:
         implementation: ForwardAuth
 
+# warn: at info every anonymous forward-auth check (Gatus's, each minute per app) is a line.
+# Failed sign-ins are errors, and Authelia also keeps them in its database.
 log:
-  level: info
+  level: warn
 
 authentication_backend:
   password_reset:
     disable: true # passwords change via users.sops.yml (PR)
   file:
-    path: /config/users.yml
+    path: /etc/authelia/users.yml
     password:
       algorithm: argon2
 

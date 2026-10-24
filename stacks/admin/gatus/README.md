@@ -26,6 +26,8 @@
 | `job` | each Docker host's heartbeat badge (`HC_BADGE_URL_ADMIN`, `HC_BADGE_URL_DMZ`), every 5 min, no alert (healthchecks.io alerts) | `status` is `up` |
 
 **Gotchas**
+- `GATUS_LOG_LEVEL=WARN`: otherwise every check is an INFO line, passed or failed. The history is
+  on the status page and its API (`/api/v1/endpoints/statuses`).
 - Suites are alpha in Gatus v5.37. Step names share one namespace with every other check, so each
   carries its server's name. Alerts go on each step (there are no suite-level alerts), and every
   step has `always-run`, so one failure doesn't skip the other checks.

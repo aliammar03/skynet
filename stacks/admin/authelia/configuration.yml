@@ -15,7 +15,7 @@ authentication_backend:
   password_reset:
     disable: true # one user; the password changes via users.sops.yml (PR)
   file:
-    path: /config/users.yml
+    path: /etc/authelia/users.yml
     password:
       algorithm: argon2
 

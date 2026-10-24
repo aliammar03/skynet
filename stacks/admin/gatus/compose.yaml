@@ -9,6 +9,8 @@ services:
     environment:
       TZ: Asia/Karachi
       GATUS_CONFIG_PATH: /config # a directory: every file is merged, endpoint lists append
+      # Every check is an INFO line, passed or failed; the status page and its API keep the history.
+      GATUS_LOG_LEVEL: WARN
     volumes:
       - ./config:/config:ro
       - /opt/appdata/gatus:/data # sqlite: check history

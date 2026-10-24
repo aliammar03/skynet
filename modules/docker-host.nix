@@ -124,6 +124,12 @@ in
       # One gevent worker serves a few notices a day; the default is 2 × CPUs + 1 (13 on docker-dmz,
       # ~740 MB).
       environment.APPRISE_WORKER_COUNT = "1";
+      # The image declares these volumes; stateless notices keep nothing there, so no anonymous ones.
+      extraOptions = [
+        "--tmpfs=/attach"
+        "--tmpfs=/config"
+        "--tmpfs=/plugin"
+      ];
     };
     # Host networking, so the NixOS firewall governs its ports (a published port would bypass it).
     virtualisation.oci-containers.containers.doco-cd = {
@@ -140,6 +146,9 @@ in
       ];
       environment = {
         TZ = config.time.timeZone;
+        # Every poll is five info lines a minute. Deploys still reach #alerts and the MCP
+        # (list_deployment_runs); failures are errors.
+        LOG_LEVEL = "warn";
         HTTP_PORT = "8080"; # API, /mcp, /v1/health; metrics stay on 9120
         DATA_MOUNT_PATH = data;
         DATA_HOST_PATH = data;
