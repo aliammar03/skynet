@@ -81,6 +81,10 @@ in
     hostNames = [ "10.10.70.51" ];
     publicKeyFile = ../hosts/technitium-core/ssh_host.pub;
   };
+  programs.ssh.knownHosts.docker-dmz = {
+    hostNames = [ "10.10.100.10" ];
+    publicKeyFile = ../hosts/docker-dmz/ssh_host.pub;
+  };
 
   environment.systemPackages = with pkgs; [
     (writeShellScriptBin "skynet-attach" ''

@@ -38,8 +38,9 @@ From the workstation, `ssh -A aliammar@10.10.100.15` (`ssh-add -l` should list y
    sudo install -d -m 700 /root/.ssh
    curl -fsSL https://raw.githubusercontent.com/aliammar03/skynet/main/hosts/docker-dmz/ssh_host.pub | sed 's/^/10.10.100.10 /' | sudo tee -a /root/.ssh/known_hosts
    ```
-   The last line prints `10.10.100.10 ssh-ed25519 …`: root's ssh now trusts docker-dmz's key from
-   git, so the copy never stops to ask.
+   The last line prints `10.10.100.10 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPYe7/5kzdaippYiP01MB+bleeBIQITJESEMrAU1/HWb`
+   (fingerprint `SHA256:KAmUg2H0OdSThbxu8LErVg762NQwe9voi5KQocXfmYg`): root's ssh now trusts
+   docker-dmz's key from the repo, so the copy never stops to ask.
 2. The copy, pasted as one block. `-E` keeps `SSH_AUTH_SOCK`, so root's ssh uses your forwarded key.
    ```sh
    copy() { sudo -E rsync -aHAX --numeric-ids --mkpath --rsync-path='sudo rsync' "$1/" "aliammar@10.10.100.10:/opt/appdata/$2/"; }

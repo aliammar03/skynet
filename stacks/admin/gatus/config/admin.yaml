@@ -52,11 +52,18 @@ endpoints:
   - { <<: *service, name: omada, url: tcp://10.10.50.25:8043 }
   - { <<: *service, name: unraid, url: tcp://10.10.20.20:80 }
 
-  # healthchecks.io's read-only badge for check `docker-admin` (2-state: up, or down once period +
-  # grace pass with no ping). No alert: healthchecks.io already posts to #alerts.
-  - name: heartbeat
+  # healthchecks.io's read-only badge for each Docker host's heartbeat check (2-state: up, or down
+  # once period + grace pass with no ping). No alert: healthchecks.io already posts to #alerts.
+  - name: docker-admin heartbeat
     group: job
     url: ${HC_BADGE_URL}
+    interval: 5m
+    conditions:
+      - "[STATUS] == 200"
+      - "[BODY].status == up"
+  - name: docker-dmz heartbeat
+    group: job
+    url: ${HC_BADGE_URL_DMZ}
     interval: 5m
     conditions:
       - "[STATUS] == 200"

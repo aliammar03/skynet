@@ -842,7 +842,8 @@ Done 2026-10-24:
   IPs, and nothing needs it to.
 - **Docker:**
   - `docker-host.nix` with `docoTarget = "dmz"`, and `.doco-cd.dmz.yml`;
-  - `stacks/dmz/heartbeat` (healthchecks.io check `docker-dmz`);
+  - `stacks/dmz/heartbeat` (healthchecks.io check `docker-dmz`; Gatus row `docker-dmz heartbeat`
+    from its badge);
   - MCP `doco-dmz` for the agent;
   - `rsync`, for the data move.
 
