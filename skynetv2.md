@@ -1180,6 +1180,25 @@ somewhere writable at start, since rclone saves refreshed tokens.
   Try `rclone mount` with `--vfs-cache-mode full` first: it fetches only the chunks the restore
   reads.
 
+### PBS's config in git: `pbs/etc/`
+
+PBS stays Proxmox's appliance (CT 240, Debian), but its settings live in git, the way OPNsense's
+do (os-git-backup to `skynet-opnsense`).
+- **`pbs/etc/`:** copies of `/etc/proxmox-backup`'s config files, from an allowlist: `datastore.cfg`,
+  `prune.cfg`, `verification.cfg`, `sync.cfg`, `acl.cfg`, `user.cfg`, `domains.cfg`, `node.cfg`,
+  `notifications.cfg` and `traffic-control.cfg` (the agent checks the list against the live
+  folder). Never the secrets: `shadow.json`, `token.shadow`, `tfa.json`, keys and certificates,
+  `*-priv.cfg`, and `remote.cfg`, which holds passwords.
+- **Changes:** a change on PBS, whether the agent's (root, D11) or one in its UI, is followed by its
+  PR (rule 2).
+- **Drift:** a nightly timer on ops copies the allowlisted files from PBS over SSH and compares them
+  with `main`'s. A difference goes to `#alerts`, naming the files.
+- **Rebuild:**
+  - a fresh PBS from Proxmox's installer, with these files copied back;
+  - the datastore re-added from its Unraid folder, as-is;
+  - PVE's backup credentials re-created;
+  - PVE's storage entry takes the new fingerprint (Ali).
+
 ### Monitoring
 
 - **healthchecks.io:** Ali creates three checks, each daily: `backup docker-dmz` and
@@ -1221,18 +1240,21 @@ manager.
 
    The first sync may take days.
 5. **Drill:** one small guest restored from the Drive copy.
+6. **PBS config PR** (after D11's PBS root, #73): the first `pbs/etc/` snapshot and ops' drift
+   timer.
 
 ### Exit criteria
 
 - Seven green nights in a row, for all three jobs.
 - Both drills done, with evidence in their PRs.
 - Ali confirms the survival kit is stored.
-- `runbooks/restore.md` covers four cases: an app, a host, a guest, and a restore from Drive with
-  nothing else left.
+- `pbs/etc/` matches PBS, and the drift check is quiet.
+- `runbooks/restore.md` covers five cases: an app, a host, a guest, PBS rebuilt from `pbs/etc/`, and
+  a restore from Drive with nothing else left.
 
 **Open:**
 - Whether any Unraid shares need offsite too (not part of this phase).
-- PBS as a NixOS VM, its config in git: shelved (Ali, 2026-10-24). nixpkgs has only the client. A community package and
+- PBS as a NixOS VM: shelved (Ali, 2026-10-24); its config goes to git meanwhile (`pbs/etc/`). nixpkgs has only the client. A community package and
   module (nixos-pbs, PBS 4.2.3, from source in an FHS wrapper) has had a few testers since
   2026-06, with its nixpkgs PR open. Once it lands, trial it beside the current PBS: a sync job
   into its own datastore, verify, a restore drill. Move only when that holds, by pointing it at
@@ -1348,6 +1370,7 @@ in a drill.
 | `stacks/<host>/backup/` job entrypoint (a writable `rclone.conf`, the restore request) (P4) | ~30 lines |
 | `skynet-restore` (P4) | ~60 lines |
 | `stacks/admin/pbs-offsite/` job script (P4) | ~20 lines |
+| ops: PBS config drift check (P4) | ~30 lines |
 | alert webhook → `claude -p` (P6) | ~40 lines |
 | doco-cd MCP filter proxy (P6, optional) | ~40 lines |
 
