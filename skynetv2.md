@@ -889,13 +889,19 @@ Done 2026-10-24:
 The agent can't log in to 10015 and isn't root on docker-dmz. So Ali moves the data, once, before
 the apps deploy:
 1. **Before the host PR:**
-   1. On the core node: `qm set 10015 --memory 2048 --onboot 0 && qm start 10015`.
-   2. On 10015: `sudo systemctl disable --now docker.socket docker.service`. Its containers come up
-      for a minute at boot; this stops them and frees their IPs.
-   3. `sudo du -sh /opt/docker/appdata/* /var/lib/docker/volumes/*/_data`, sent to the agent, which
-      sizes the disk from it.
-2. **After the install:** `ssh -A <you>@10.10.100.15`. Then run this once per line of the table (the
-   host PR's README lists every line):
+   1. On the core node: `qm set 10015 --memory 8000 --onboot 0 && qm start 10015`. Docker starts
+      every v1 container at boot, and in 2 GB they starve the VM until even SSH stops answering.
+      docker-dmz doesn't exist yet, so 8 GB fits.
+   2. On the core node, through the guest agent (no SSH needed):
+      `qm guest exec 10015 -- systemctl disable --now docker.socket docker.service`. This stops the
+      containers and frees their IPs; from then on the VM needs little memory.
+   3. `qm guest exec 10015 --timeout 300 -- sh -c 'du -sh /opt/docker/appdata/* /var/lib/docker/volumes/*/_data'`,
+      sent to the agent, which sizes the disk from it.
+   4. For the copy, Ali's workstation key (`modules/base.nix`) goes into his user's
+      `~/.ssh/authorized_keys` on 10015 (also through `qm guest exec`).
+2. **After the install:** first make room for both VMs: `qm shutdown 10015`,
+   `qm set 10015 --memory 2048`, `qm start 10015` (Docker stays off). Then `ssh -A <you>@10.10.100.15`
+   and run this once per line of the table (the host PR's README lists every line):
    `sudo -E rsync -aHAX --numeric-ids --mkpath --rsync-path='sudo rsync' <v1 path>/ aliammar@10.10.100.10:/opt/appdata/<stack>/<role>/`.
    - `-E` keeps the forwarded key for root's ssh.
    - `--numeric-ids` keeps the owners (CouchDB runs as 5984, Mongo as 999).
