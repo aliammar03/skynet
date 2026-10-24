@@ -24,7 +24,7 @@
 | P0 | Foundations + new ops VM | done |
 | P1 | docker-admin: admin door, identity, status | done (2026-10-22); 7 admin names move to .60 with P2's Technitium |
 | P2 | DNS (Technitium only) + remote access | done (2026-10-23); open: OPNsense rules 140/150/115 and CT 731 `onboot` (see P2 exit criteria) |
-| P3 | docker-dmz: apps + public path | outline |
+| P3 | docker-dmz: apps + public path | detailed (2026-10-24), not started. v1's apps are down: VM 10015 stopped |
 | P4 | Backups → Google Drive | outline |
 | P5 | Observability (agent eyes) | outline |
 | P6 | Agent autonomy | outline |
@@ -132,11 +132,19 @@ skynet/
 - **`own`** (default): a plain proxy; the app has its own login.
 - **`oidc`:** the client goes in `stacks/admin/authelia/oidc-clients.yml`. That single file holds
   the whole list, because Authelia replaces a repeated key rather than appending to it. The app's
-  secret lives in its `secret.sops.env`.
+  secret lives in its `secret.sops.env`, or in `oidc.sops.env` when Ali created that file (the agent
+  can only create a sops file whole).
 - **`forward`:** add `import authelia` to the app's site file.
 
 **Data**
-- Bind mounts go at `/opt/appdata/<app>/<role>`. Named volumes are only for DB engines.
+- Everything that persists is a bind mount at `/opt/appdata/<stack>/<role>`, databases included
+  (their images fix file ownership at start). A host's state is then one folder to back up or move.
+  No named volumes.
+- Docker creates a missing folder as root and copies none of the image's files into it, as it would
+  into a new named volume. An image that runs as a fixed non-root user and doesn't fix its own
+  folder gets that folder from the host config (`systemd.tmpfiles`, with its owner), in the stack's
+  PR.
+- The README gives each path a backup class: data, or cache (rebuilds itself; not backed up).
 - DB dumps land in `/opt/appdata`, which restic backs up.
 
 **Networks**
@@ -144,6 +152,8 @@ skynet/
   - `edge`: a bridge shared by apps and doors;
   - a macvlan for the doors (`dmz`, `adm60`).
 - Apps get no LAN IP. Doors reach them by container name.
+- The exception is an app that a firewall rule must name (its own egress, e.g. usenet). It joins the
+  macvlan with a fixed IP and `gw_priority: 1`, so its traffic leaves with that IP.
 
 ### Hosts and git
 
@@ -714,8 +724,8 @@ After cutover:
 - DHCP: check every VLAN lists both .50 and .51 (one of them alone means no failover); OPNsense's
   own DNS servers are .50, .51;
 - rule 140 ("block other DNS and DoT") on; rule 150 ("any → approved upstreams :53") disabled, then
-  deleted after a quiet week. It lets any client skip Technitium. If P3's cloudflared needs public
-  resolvers, it gets its own rule;
+  deleted after a quiet week. It lets any client skip Technitium. P3's cloudflared doesn't need it
+  (P3 Prechecks);
 - rule 110 ("resolvers → any :53") stays: it carries the forwarding;
 - rule 115 (the benchmark's temporary ops → any :53) deleted. The last run ended 2026-10-23 17:58,
   so this one needn't wait for the cutover.
@@ -780,54 +790,204 @@ Deferred:
 - Technitium SSO, and the login screen. Authelia stays for now; an Authentik trial comes later
   (P3 → Open).
 
-## P3 — docker-dmz: apps + public path `[outline]`
+## P3 — docker-dmz: apps + public path `[detailed]`
 
-**What: the host.** New VM 10010:
-- 10.10.100.10 on the core node; NixOS with `docker-host.nix`;
-- target `dmz` (`.doco-cd.dmz.yml`);
-- NIC `dmz` on VLAN 100, carrying the host IP and the macvlan.
+**Goal**
+- docker-dmz (VM 10010, 10.10.100.10, core node) runs the apps from git, each at its old URL with
+  its v1 data.
+- Two doors run on it: caddy-apps (10.10.100.35) and cloudflared (.33). The tunnel is new, and its
+  routes live in git. The six public names work from the internet.
+- The apps without a login of their own (calibre, sillytavern) sit behind Authelia, from inside and
+  outside.
+- v1's docker-dmz (VM 10015, with Arcane) and Authentik (CT 837) stay off.
 
-**What: the doors.**
-- **`caddy-apps`:**
-  - macvlan 10.10.100.35;
-  - a wildcard site importing its `conf/sites/*.conf`, as caddy-admin does;
-  - its `authelia` snippet points at 10.10.50.40:9091;
-  - it serves `auth.aliammar.net`.
-- **`cloudflared`:**
-  - macvlan .33;
-  - explicit hostname ingress, then a 404 catch-all;
-  - DNS 1.1.1.1/8.8.8.8 (Technitium returns empty for the `_v2-origintunneld` SRV record).
-- **Cloudflare:** Ali sets the `*.aliammar.net` CNAME → tunnel once.
+**Why now:** the apps are down (Prechecks). P3 brings them back on a host that rebuilds from git
+and fits the node's memory.
 
-**What: migration.** The doors cut over first: they take .35/.33 and proxy to the old backends. Then
-apps move one at a time, in this order: librespeed, silly, calibre (forward), karakeep,
-paperless-ngx, obsidian-livesync (couchdb), aiostreams, aiometadata (mongo, jikan, redis, typesense),
-marinara. For each app:
-1. Ali re-encrypts its secrets for docker-dmz (`sops -d` the v1 file with the old key, then `sops`
-   the new file).
-2. Stop the old app; rsync `/opt/docker/appdata/<svc>` → `/opt/appdata/<app>`.
-3. Deploy, flip its route, confirm Gatus is green.
-4. Add a tunnel hostname if the app is public.
+### Prechecks (agent, read-only)
 
-**Why:** apps come under GitOps on a host rebuilt from git. This retires Arcane, the Ubuntu VM and
-Authentik.
+Done 2026-10-24:
+- **v1 is down:**
+  - VM 10015 (8 vCPU, 16 GB, 256 GB, core node) is stopped. Its last task is its start on
+    2026-09-16. With no stop task since, it went down from inside or was killed. The likely cause is
+    the host's OOM killer: with 10015 running, the node's VMs added up to its 31 GB, and the node
+    has 1.3 GB in swap.
+  - Authentik CT 837 was stopped on 2026-10-22.
+  - Public `aliammar.net` has no app records, so the public path is down too.
+- **Room:** VMID 10010 is free on both nodes; 10.10.100.10, .33 and .35 are silent (ping, ARP).
+  Core node: 31.2 GB RAM, 16.8 GB used with 10015 off. `local-lvm` has 168 of 348 GB free.
+- **The apps** come from v1's archived repo (`compose/`); see the Apps table. Their state is in
+  `/opt/docker/appdata/<svc>/<role>`, plus Docker volumes for CouchDB, Meilisearch and Jikan's
+  databases. Sizes come in Data step 1.
+- **Rules that name v1 containers:**
+  - aiostreams .65 (usenet, rule 820);
+  - marinara .85 and sillytavern .69 (ComfyUI on the workstation, rule 340);
+  - cloudflared .33 (rule 800);
+  - the door .35 (rules 200 and 430, and 240/245 to Authentik).
+- **DNS:** the new Technitium answers cloudflared's SRV lookup
+  (`_v2-origintunneld._tcp.argotunnel.com`); the old CTs answered it empty. So cloudflared uses the
+  normal resolvers and doesn't need rule 150.
 
-**Carry-over gotchas**
-- HTTP/3 off (`protocols h1 h2`) for Obsidian LiveSync.
-- couchdb data ownership.
-- Pin meilisearch and typesense versions.
-- Firewall: caddy-apps → 10.10.50.40:9091.
+### Host: `hosts/docker-dmz/` (`runbooks/new-vm.md`, Docker host part included)
 
-**Exit**
-- Every app is green in Gatus, internally and publicly where listed.
-- The old VM 10015, Authentik CT 837 and Arcane are stopped. Ali destroys them in P7.
+- **`proxmox.sh`:** VM 10010 on server-proxmox-core:
+  - 6 cores, 10240 MB, balloon 0;
+  - a `local-lvm` disk sized from Data step 1 (about twice v1's data);
+  - one NIC: `virtio=BC:24:11:00:10:01,bridge=vmbr0,tag=100`.
+- **Memory:** with 10 GB here, the node's VMs use 25 of its 31 GB (ops 8, Unraid 4, HAOS 2,
+  technitium-core 1). With v1's 16 GB they used all of it. Stacks set memory limits that fit.
+- **Network:** NIC `dmz` (VLAN 100) carries the host IP 10.10.100.10/24 (gateway .1, DNS .51/.50).
+  It is also the parent of the `dmz` macvlan (10.10.100.0/24). The host can't reach its own macvlan
+  IPs, and nothing needs it to.
+- **Docker:**
+  - `docker-host.nix` with `docoTarget = "dmz"`, and `.doco-cd.dmz.yml`;
+  - `stacks/dmz/heartbeat` (healthchecks.io check `docker-dmz`);
+  - MCP `doco-dmz` for the agent;
+  - `rsync`, for the data move.
+
+### Apps
+
+| Stack (`stacks/dmz/`) | Name | Auth | Public | State (`/opt/appdata/<stack>/`) | From v1 |
+|---|---|---|---|---|---|
+| `librespeed` | speed | none (a LAN test) | | `data` | librespeed |
+| `obsidian` | obsidian | own (CouchDB) | ✓ | `couchdb` | obsidian-livesync (volume) |
+| `karakeep` (+ chrome, meilisearch) | karakeep | own | ✓ | `data`, `meili` | karakeep |
+| `paperless` (+ redis) | paperless | own | | `data`, `media`, `consume`, `export` | paperless-ngx |
+| `calibre` | calibre | forward | ✓ | `config` | calibre |
+| `sillytavern` | sillytavern | forward | | `config`, `data`, `plugins`, `extensions` | silly |
+| `marinara` | marinara | own (basic auth) | | `data` | marinara |
+| `jikan` (+ mongo, redis, typesense) | – | – | | `mongo`, `typesense` | aiometadata's `jikan_*` |
+| `aiometadata` (+ redis) | aiometadata | oidc | ✓ | `data`, `cold-store`, `redis` (`poster-cache` starts empty and refills) | aiometadata |
+| `aiostreams` | aiostreams | oidc | ✓ | `data` | aiostreams |
+| caddy-apps site | homeassistant | own | | | → `http://10.10.30.50`, as in v1 |
+| caddy-apps site | auth | | ✓ | | → Authelia, `10.10.50.40:9091` |
+
+- **The names stay.** Clients hold these URLs (LiveSync, Stremio addon links, bookmarks).
+- **Jikan** is the self-hosted MyAnimeList API that aiometadata reads, and it becomes its own stack.
+  aiometadata reaches `jikan:8080` on `edge`; Jikan's databases sit on an internal network.
+- **Image versions:** images that hold data keep v1's versions (Meilisearch, Typesense, Mongo).
+- **Firewall identity:** aiostreams (.65), marinara (.85) and sillytavern (.69) join the macvlan with
+  their v1 IPs, so rules 820 and 340 keep naming them (Conventions → Networks).
+- **OIDC:** aiostreams and aiometadata used Authentik's OIDC, and family members sign in to them now
+  and then. They move to Authelia's OIDC, set up in its own PR before them:
+  - the provider: an HMAC secret and a signing key, generated by the agent straight into sops files;
+  - one client per app. The agent generates its secret into the app's `oidc.sops.env` and puts the
+    secret's digest in `oidc-clients.yml`;
+  - family accounts in `users.sops.yml`, in group `family` (Ali adds the password hashes). They keep
+    their Authentik usernames, because both apps name users by `preferred_username`. Ali's account
+    gets group `admins`;
+  - access: the two apps take a password (`one_factor`) from `family` or `admins`. The admin sites
+    stay `two_factor` and `admins` only.
+- **Secrets:** v1's values carry over, because some of them encrypt data (marinara's
+  `ENCRYPTION_KEY`, karakeep's `NEXTAUTH_SECRET`). Ali pipes each v1 file into the new one, so no
+  value is ever shown:
+  `SOPS_AGE_KEY_FILE=<v1 key> nix shell nixpkgs#sops -c sops -d --input-type dotenv --output-type dotenv <v1>/compose/<svc>/.env.sops | nix shell nixpkgs#sops -c sops encrypt --filename-override stacks/dmz/<stack>/secret.sops.env --input-type dotenv --output-type dotenv /dev/stdin > stacks/dmz/<stack>/secret.sops.env`.
+  v1's `.env.git` (the non-secret part) becomes the compose `environment:`.
+
+### Data (Ali, once)
+
+The agent can't log in to 10015 and isn't root on docker-dmz. So Ali moves the data, once, before
+the apps deploy:
+1. **Before the host PR:**
+   1. On the core node: `qm set 10015 --memory 2048 --onboot 0 && qm start 10015`.
+   2. On 10015: `sudo systemctl disable --now docker.socket docker.service`. Its containers come up
+      for a minute at boot; this stops them and frees their IPs.
+   3. `sudo du -sh /opt/docker/appdata/* /var/lib/docker/volumes/*/_data`, sent to the agent, which
+      sizes the disk from it.
+2. **After the install:** `ssh -A <you>@10.10.100.15`. Then run this once per line of the table (the
+   host PR's README lists every line):
+   `sudo -E rsync -aHAX --numeric-ids --mkpath --rsync-path='sudo rsync' <v1 path>/ aliammar@10.10.100.10:/opt/appdata/<stack>/<role>/`.
+   - `-E` keeps the forwarded key for root's ssh.
+   - `--numeric-ids` keeps the owners (CouchDB runs as 5984, Mongo as 999).
+3. `sudo poweroff`. Until P7, 10015 keeps v1's data as it was.
+
+### Doors and auth (one PR, both Docker hosts)
+
+- **caddy-apps** (`stacks/dmz/caddy-apps/`, a copy of caddy-admin):
+  - on the macvlan at 10.10.100.35 (`gw_priority: 1`), and on `edge`;
+  - the same wildcard site and DNS-01 `tls` block; HTTP/3 stays off (Obsidian LiveSync);
+  - its `authelia` snippet asks `10.10.50.40:9091`;
+  - sites `auth` (→ Authelia) and `homeassistant`. Each app adds its own.
+- **Authelia** publishes `10.10.50.40:9091` for caddy-apps (portal and forward-auth). Docker
+  publishes ports past the NixOS firewall, so OPNsense is the gate from other VLANs.
+- **cloudflared** (`stacks/dmz/cloudflared/`):
+  - on the macvlan at .33 (`gw_priority: 1`, rule 800), and on `edge`;
+  - `config.yml`: the tunnel ID, then one line per public name → `https://caddy-apps` (TLS name = the
+    public name), then `http_status:404`;
+  - `credentials.sops.json`: the tunnel's credentials.
+- **DNS** (`dns/aliammar.net.zone`): `auth` and `homeassistant` → 10.10.100.35.
+  - App clients can't reach the admin door, so logins move to this one. Admin clients, ops and the
+    tailnet reach both doors.
+  - The Gatus `dns` suites check `status` instead of `auth`.
+- **Gatus:**
+  - `caddy-apps + authelia`: `https://auth.aliammar.net/api/health` resolved through Technitium
+    (`client.dns-resolver`; on `edge` that name is caddy-admin's alias). It expects 200 and a cert
+    with more than 7 days left.
+  - `public`: the same URL resolved through 1.1.1.1, so it goes Cloudflare → tunnel → cloudflared →
+    caddy-apps → Authelia.
+
+### Cloudflare (Ali)
+
+1. On the workstation:
+   1. `nix shell nixpkgs#cloudflared -c cloudflared tunnel login`, and pick zone `aliammar.net`.
+   2. `nix shell nixpkgs#cloudflared -c cloudflared tunnel create skynet`. It prints the tunnel ID
+      (not secret; it goes in `config.yml`) and writes `~/.cloudflared/<id>.json`.
+2. On the doors branch, encrypt the credentials:
+   `nix shell nixpkgs#sops -c sops encrypt --filename-override stacks/dmz/cloudflared/credentials.sops.json --input-type json --output-type json ~/.cloudflared/<id>.json > stacks/dmz/cloudflared/credentials.sops.json`.
+   Then delete `~/.cloudflared/<id>.json` and `cert.pem`.
+3. DNS: `*` CNAME `<id>.cfargotunnel.com`, proxied (D10). A name with no ingress line gets 404.
+4. An API token for caddy-apps (Edit zone DNS, `aliammar.net` only) → `CLOUDFLARE_API_TOKEN` in
+   `stacks/dmz/caddy-apps/secret.sops.env`.
+
+The tunnel is new rather than v1's: v1's credentials need v1's key, and P7 revokes them anyway (it
+deletes tunnel `b5171e13…`).
+
+### OPNsense (agent drafts, Ali applies)
+
+- **With the host:** `HOST_DOCKER_DMZ` → 10.10.100.10 (it was v1's .15), nested in
+  `ROLE_NIX_CACHE_CLIENTS`.
+- **With the doors:**
+  - rule 250: `HOST_PROXY_APPS` → `HOST_DOCKER_ADMIN` TCP 9091 (Authelia);
+  - Tailscale: also advertise 10.10.100.35/32 and approve it. Rule 273: `NET_TAILNET` →
+    `HOST_PROXY_APPS` `PORT_WEB`. Logins now go through .35, the admin sites' included;
+  - rule 840: `HOST_DOCKER_ADMIN` → 1.1.1.1 :53, for Gatus's `public` row. P2's rule 150 can then go.
+- **Unchanged, and still right:** 200 (app clients → .35), 235 (Gatus → doors), 340, 430, 800, 810
+  and 820.
+- **After the last app:** rules 240/245 (Authentik) disabled. P7 deletes them, along with
+  `HOST_AUTHENTIK`, `PORT_AUTHENTIK` and v1's .15 in `ROLE_NFS_CLIENTS` and `ROLE_OPS_SSH_TARGETS`.
+
+### PRs and order
+
+1. Ali: Data step 1 (the sizes).
+2. **Host PR** (`runbooks/new-vm.md`): docker-dmz with its heartbeat, its MCP and its column in
+   `runbooks/new-stack.md`. Then install.
+3. Ali: Data step 2 (the copy), then powers 10015 off.
+4. **Doors PR:** caddy-apps, cloudflared, Authelia's port, DNS and Gatus. Ali does Cloudflare,
+   OPNsense and the healthchecks.io check.
+5. **One PR per app** (`runbooks/new-stack.md`, plus its tunnel line if public), in the table's
+   order. librespeed proves the pattern; calibre (forward-auth, public) proves Authelia through the
+   tunnel. The **Authelia OIDC PR** (provider, the two clients, family accounts) goes in before
+   aiometadata.
+
+Rollback: revert an app's PR. Until P7, v1 can come back as it was: stop docker-dmz's doors (they
+hold .33/.35), give 10015 its memory back, then `sudo systemctl enable --now docker` on it.
+
+### Exit criteria
+
+- Every app answers at its URL from inside, with v1's data: notes sync, bookmarks, documents and the
+  Stremio addons. The six public names also answer from a phone on mobile data.
+- Gatus is green: the apps door, `public` and every app. docker-dmz's deploys post to `#alerts`, and
+  its heartbeat is green.
+- From outside, calibre sends a visitor to Authelia and back.
+- A family account signs in to aiostreams through Authelia, and is refused on an admin site.
+- Over Tailscale, an app name and an admin name both open.
+- 10015 and CT 837 are stopped with `onboot 0` (Arcane went with 10015). P7 destroys them after 14
+  days.
 
 **Open:**
-- reuse the v1 tunnel or create a new one;
-- how to lay out the aiometadata stack;
-- trial Authentik as the login service: custom login screen (CSS, backgrounds), forward-auth + OIDC,
-  config as blueprints in git. It would replace Authelia (a D4 change) and needs docker-admin
-  resized. Technitium SSO waits for this choice.
+- Trial Authentik as the login service (not a P3 step): a custom login screen (CSS, backgrounds),
+  forward-auth + OIDC, config as blueprints in git. It would replace Authelia (a D4 change) and needs
+  docker-admin resized. Technitium SSO waits for this choice; the two OIDC clients would move with it.
 
 ## P4 — Backups → Google Drive `[outline]`
 
@@ -869,7 +1029,7 @@ take days. restic's pack files keep the file count low.
   - comin (:4243), doco-cd (:9120) and Gatus.
 - **VictoriaLogs:** hosts ship journald via `systemd-journal-upload`. Docker logs are already in
   journald.
-- **Grafana:** the first Authelia OIDC client, with dashboards provisioned from git.
+- **Grafana:** an Authelia OIDC client, with dashboards provisioned from git.
 - **Alerting:** vmalert → Alertmanager → Discord for disk, memory, backup age and cert expiry.
 - **Homepage** dashboard.
 - **Sizing:** grow docker-admin to 6 GB once Authentik is gone.
@@ -950,7 +1110,7 @@ in a drill.
 | Keep | OPNsense VM 5001 (config → `skynet-opnsense` via os-git-backup) · Omada CT 525 (10.10.50.25) · PBS CT 240 (10.10.20.40; starts after Unraid NFS) · Unraid VM 2020 · HAOS VM 3050 (10.10.30.50) · athena CT 10030 (10.10.100.30) |
 | Retire | ops VM 9090 (P1) · Management Caddy CT 635 (P1) · AdGuard 730/731 and Technitium CTs 750/751 (P2) · docker-dmz VM 10015 + Arcane, Authentik CT 837 (P3) · template 9000 (P7) |
 | Domain | `aliammar.net`: public DNS at Cloudflare (tunnel CNAMEs); split-horizon internal zone in Technitium (`dns/aliammar.net.zone`) |
-| Gotchas | turn off ballooning on VMs · a NixOS host serving :53 needs `services.resolved.enable = false` (its stub holds :53) · recreating a guest on the same IP poisons OPNsense's ARP, so pin MACs · cloudflared needs public resolvers |
+| Gotchas | turn off ballooning on VMs · a NixOS host serving :53 needs `services.resolved.enable = false` (its stub holds :53) · recreating a guest on the same IP poisons OPNsense's ARP, so pin MACs |
 
 ## Glue budget
 

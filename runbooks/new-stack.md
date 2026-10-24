@@ -48,7 +48,8 @@ networks:
   in the image. An image with neither can't have one: say so in a comment and cover it with Gatus.
 - Write `$$VAR` for a variable the container's shell reads at run time; `$VAR` is compose's.
 - No published ports. The door reaches the container by name on `edge`. Only doors join the host's
-  macvlan, and always with a fixed `ipv4_address`.
+  macvlan, plus an app that a firewall rule must name (`skynetv2.md` → Conventions → Networks).
+  Either way, with a fixed `ipv4_address` and `gw_priority: 1`.
 
 ## 2. Secrets: `stacks/<target>/<name>/secret.sops.env`
 
