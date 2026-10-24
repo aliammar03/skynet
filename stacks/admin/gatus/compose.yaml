@@ -5,7 +5,7 @@ services:
     container_name: gatus
     image: docker.io/twinproduction/gatus:v5.37.0@sha256:094eb186e55235db367e90e9d56140e5897b7044c41de23cde4cc18e6da1242e
     restart: unless-stopped
-    env_file: secret.sops.env # DISCORD_ALERTS_WEBHOOK, HC_BADGE_URL
+    env_file: secret.sops.env # DISCORD_ALERTS_WEBHOOK, HC_BADGE_URL_ADMIN, HC_BADGE_URL_DMZ
     environment:
       TZ: Asia/Karachi
       GATUS_CONFIG_PATH: /config # a directory: every file is merged, endpoint lists append

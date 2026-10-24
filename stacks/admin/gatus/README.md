@@ -8,9 +8,9 @@
   `/api/v1/suites/statuses`.
 - **Data:** `/opt/appdata/gatus/data.db` (check history; backup class: disposable).
 - **Secrets:** `secret.sops.env`: `DISCORD_ALERTS_WEBHOOK` (the `#alerts` webhook URL, same value as
-  `discord_alerts_webhook` in `secrets/docker-admin.yaml`); `HC_BADGE_URL` (healthchecks.io project
+  `discord_alerts_webhook` in `secrets/docker-admin.yaml`); `HC_BADGE_URL_ADMIN` (healthchecks.io project
   `skynet` → Badges, 2-state, the `docker-admin` row's JSON URL; it answers
-  `{"status": "up", ...}`).
+  `{"status": "up", ...}`); `HC_BADGE_URL_DMZ` (the same for the `docker-dmz` row).
 - **Upstream:** [Gatus](https://github.com/TwiN/gatus#configuration)
 
 **Checks** (`config/*.yaml`, merged; endpoint lists append), one row per thing, every 60 s unless noted
@@ -20,7 +20,7 @@
 | `door` | `auth.aliammar.net/api/health` through caddy-admin (Gatus reaches it by caddy-admin's `edge` alias) | `200`, cert valid > 7 days: Caddy, the wildcard cert and Authelia, shared by every admin site |
 | `service` | each admin UI's IP:port (Technitium's are in its suite) | TCP connect |
 | `dns` | one **suite** (row) per Technitium server (.50, .51); its steps, each alerting on its own as `<server> <step>`: `ui` (:5380), `zone` (`auth.aliammar.net` A), `AAAA` (same name), `forwarding` (`google.com`), `blocking` (`googlesyndication.com`) | connect; 10.10.60.60; `NOERROR` (no record, not NXDOMAIN); `NOERROR`; `NXDOMAIN` (HaGeZi Pro) |
-| `job` | heartbeat's healthchecks.io badge (`HC_BADGE_URL`), every 5 min, no alert (healthchecks.io alerts) | `status` is `up` |
+| `job` | each Docker host's heartbeat badge (`HC_BADGE_URL_ADMIN`, `HC_BADGE_URL_DMZ`), every 5 min, no alert (healthchecks.io alerts) | `status` is `up` |
 
 **Gotchas**
 - Suites are alpha in Gatus v5.37. Step names share one namespace with every other check, so each
@@ -28,8 +28,8 @@
   step has `always-run`, so one failure doesn't skip the other checks.
 - `service` checks leave as 10.10.50.40; OPNsense rule 235 (`HOST_DOCKER_ADMIN` →
   `ROLE_ADMIN_TARGETS` : `PORT_ADMIN_PROXY`) lets them through.
-- `HC_BADGE_URL` must be in `secret.sops.env` before this config deploys: an unset variable leaves
-  the row with no URL, and Gatus refuses to start.
+- `HC_BADGE_URL_ADMIN` and `HC_BADGE_URL_DMZ` must be in `secret.sops.env` before this config deploys: an
+  unset variable leaves the row with no URL, and Gatus refuses to start.
 - A broken single `sites/<name>.conf` isn't caught here (the door row tests the shared path).
 - No healthcheck (the image has no shell). heartbeat pings healthchecks.io only while
   `/health` answers, so a dead Gatus still pages.
