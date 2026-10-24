@@ -35,11 +35,12 @@ services:
       MARI_WIKI_REQUEST_TIMEOUT_MS: "30000"
       MARI_WIKI_CACHE_TTL_MS: "300000"
       CORS_ORIGINS: "*"
-      IP_ALLOWLIST: ""
-      IP_ALLOWLIST_ENABLED: "false"
+      IP_ALLOWLIST: 10.10.100.35 # caddy-apps on the dmz macvlan
+      IP_ALLOWLIST_ENABLED: "true"
       # Authelia (at caddy-apps) is the only login. Marinara's own is off (these override the
-      # secret file), and with no login it lets in Docker peers only, i.e. caddy-apps (BYPASS_AUTH_DOCKER,
-      # proxied requests included). Anything reaching its macvlan address directly gets 403.
+      # secret file), and with no login it admits only caddy-apps: by its macvlan address (they share
+      # the dmz network too, so `marinara` resolves there) or as a Docker peer on edge. Anything else
+      # reaching its macvlan address gets 403.
       BASIC_AUTH_USER: ""
       BASIC_AUTH_PASS: ""
       BASIC_AUTH_REALM: Marinara-Engine
