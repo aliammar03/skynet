@@ -1,0 +1,32 @@
+# CouchDB for Obsidian Self-hosted LiveSync (obsidian.aliammar.net): the vault syncs here. Its own
+# login (the CouchDB admin), public through the tunnel; the plugin encrypts the notes end to end.
+services:
+  obsidian:
+    container_name: obsidian
+    image: docker.io/library/couchdb:3.5.0@sha256:1c0a30a54535377bc9ae23f42efb1ca4e92abe796f78ec98b768ac1d5874cc1b
+    restart: unless-stopped
+    # The image's entrypoint chowns everything under /opt/couchdb to couchdb (5984). local.ini is
+    # mounted at a neutral path and copied in at start, so the checked-out file is never chowned.
+    entrypoint:
+      - /bin/bash
+      - -c
+      - cp /etc/skynet/couchdb/local.ini /opt/couchdb/etc/local.d/local.ini && exec tini -- /docker-entrypoint.sh /opt/couchdb/bin/couchdb
+    env_file: secret.sops.env # COUCHDB_PASSWORD, COUCHDB_SECRET
+    environment:
+      TZ: Asia/Karachi
+      COUCHDB_USER: aliammar # the login entered in the LiveSync plugin
+    mem_limit: 512m
+    volumes:
+      - /opt/appdata/obsidian/couchdb:/opt/couchdb/data
+      - ./local.ini:/etc/skynet/couchdb/local.ini:ro
+    networks: [edge]
+    healthcheck:
+      # /_up answers without a login (require_valid_user_except_for_up); everything else is 401.
+      test: [CMD, curl, -fsS, -o, /dev/null, http://127.0.0.1:5984/_up]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+networks:
+  edge:
+    external: true

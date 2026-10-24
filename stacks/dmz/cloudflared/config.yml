@@ -7,4 +7,9 @@ ingress:
     service: https://caddy-apps
     originRequest:
       originServerName: login.aliammar.net # SNI, and the name caddy-apps' wildcard cert must match
+  # Obsidian LiveSync: CouchDB's own login; the plugin encrypts the notes end to end.
+  - hostname: obsidian.aliammar.net
+    service: https://caddy-apps
+    originRequest:
+      originServerName: obsidian.aliammar.net
   - service: http_status:404
