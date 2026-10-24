@@ -18,9 +18,10 @@ VMID 10010 · 10.10.100.10 · server-proxmox-core · 6 vCPU / 10 GB / 128 GB.
   → every folder in `stacks/dmz/`. API, `/mcp` and `/v1/health` on :8080 are for ops only (MCP
   `doco-dmz`). Deploy notices go to `#alerts` via Apprise (loopback :8000).
 - **Secrets** (`secrets/docker-dmz.yaml`): `doco_api_secret`, `discord_alerts_webhook`.
-- **Agent access:** user `skynet`, the agent's key from 10.10.90.91 only, group `systemd-journal`
-  (reads all logs, e.g. `journalctl CONTAINER_NAME=doco-cd`); no sudo, no Docker socket. Its host key
-  is `ssh_host.pub`, pinned in ops's known_hosts.
+- **Agent access:** user `skynet`, the agent's key from 10.10.90.91 only, groups `systemd-journal`
+  and `wheel`: **root via passwordless sudo** (D11), Docker included (`sudo docker …`). Every sudo
+  command lands in the journal (`journalctl _COMM=sudo`). Its host key is `ssh_host.pub`, pinned in
+  ops's known_hosts. MCP `doco-dmz` may also restart stacks and run jobs (`hosts/ops/README.md`).
 
 ## v1's data (P3, once)
 
