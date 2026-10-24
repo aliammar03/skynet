@@ -33,7 +33,15 @@
       "mcp__doco-dmz__list_scheduled_jobs",
       "mcp__doco-dmz__list_sync_windows",
       "mcp__doco-dmz__get_health",
-      "mcp__doco-dmz__trigger_poll"
+      "mcp__doco-dmz__trigger_poll",
+      "mcp__doco-dmz__control_project",
+      "mcp__doco-dmz__control_stack",
+      "mcp__doco-dmz__trigger_scheduled_job",
+      "mcp__doco-dmz__compact_mirrors"
+    ],
+    "ask": [
+      "mcp__doco-dmz__destroy_project",
+      "mcp__doco-dmz__remove_stack"
     ],
     "deny": [
       "Bash(gh pr merge:*)",
@@ -57,13 +65,7 @@
       "mcp__doco-admin__destroy_project",
       "mcp__doco-admin__remove_stack",
       "mcp__doco-admin__trigger_scheduled_job",
-      "mcp__doco-admin__compact_mirrors",
-      "mcp__doco-dmz__control_project",
-      "mcp__doco-dmz__control_stack",
-      "mcp__doco-dmz__destroy_project",
-      "mcp__doco-dmz__remove_stack",
-      "mcp__doco-dmz__trigger_scheduled_job",
-      "mcp__doco-dmz__compact_mirrors"
+      "mcp__doco-admin__compact_mirrors"
     ]
   },
   "enabledMcpjsonServers": [

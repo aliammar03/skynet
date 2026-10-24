@@ -37,4 +37,8 @@ in
 
   # The receiving end of v1's data copy (README.md → v1's data).
   environment.systemPackages = [ pkgs.rsync ];
+
+  # The agent is root here (D11): wheel = passwordless sudo (base.nix), each command logged in the
+  # journal. Its key is still accepted from ops only.
+  users.users.skynet.extraGroups = [ "wheel" ];
 }

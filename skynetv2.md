@@ -66,7 +66,7 @@ Nothing outside the lab pushes into it.
 | D8 | All alerts go to Discord `#alerts` (doco-cd via Apprise, Gatus, healthchecks.io, comin hook) | One place to look |
 | D9 | Offsite = **Google Drive** via rclone with Ali's own OAuth client, **published to production** | Drive is what Ali has; "Testing" mode tokens expire every 7 days |
 | D10 | No OpenTofu. VMs come from versioned `hosts/<h>/proxmox.sh`; internal DNS records live in `dns/aliammar.net.zone`; the Cloudflare wildcard CNAME is set once by hand | Guests change rarely |
-| D11 | The agent never merges, never holds a private age key, never gets a Docker socket. While it installs a host it is root on the installer, which holds the new host key that `--copy-host-keys` keeps (`runbooks/new-vm.md`); it reads only the public half | GitHub and missing credentials enforce the leash. The install window was already root-equivalent (the agent installs the OS), and it buys a one-PR install |
+| D11 | The agent never merges. It is **root on docker-dmz only** (passwordless sudo, every command in that host's journal), which also gives it that host's Docker socket, host key and secrets; it never prints a secret value or decrypts one on purpose. On docker-dmz's doco-cd MCP it may restart and run jobs; destroying a project or stack asks Ali each time. Everywhere else: no sudo, no Docker socket, no private age key. While it installs a host it is root on the installer, which holds the new host key that `--copy-host-keys` keeps (`runbooks/new-vm.md`); it reads only the public half | The apps host is where operate work happens, and it needs hands (Ali's call, 2026-10-24). docker-admin (admin portal, Gatus, admin secrets) and the DNS servers stay diagnose-only, so GitHub and missing credentials still leash the rest. The install window was already root-equivalent (the agent installs the OS), and it buys a one-PR install |
 | D13 | `aliammar-skynet` has **Write**. The `main` ruleset requires a PR and check `nix` and blocks force-push/deletion; no review is required (Ali's call, 2026-10-21) | Branches in one repo, no approval clicks. "Never merge" is a **soft wall**: AGENTS.md + Claude Code deny rules |
 | D12 | v1 archived; fresh repo; new ops VM built alongside the old one, which is then retired | Clean start without a blind spot |
 | D14 | Remote access = **Tailscale**, with `os-tailscale` on OPNsense as the subnet router and split DNS for `aliammar.net`; replaces the WireGuard plan | Nothing inbound to open; it keeps working when docker-admin or a node is down, so it can reach what needs fixing |
@@ -80,11 +80,13 @@ Nothing outside the lab pushes into it.
    needs it. No plaintext in git, chat or logs.
 4. **The agent works in four lanes:**
    - **diagnose:** read anything except secrets;
-   - **operate:** granted, reversible verbs (P6);
+   - **operate:** granted verbs: root on docker-dmz and its doco-cd MCP's restart and job tools
+     (D11); the rest in P6;
    - **change:** via PR;
-   - **never:** merge, private keys, Docker socket, OPNsense/Unraid/PVE host config, deleting data.
-5. **Ali handles credentials.** He mints tokens and types them via `sops`. The agent never sees a
-   secret value.
+   - **never:** merge, private keys or a Docker socket outside docker-dmz, OPNsense/Unraid/PVE host
+     config, deleting data.
+5. **Ali handles credentials.** He mints tokens and types them via `sops`. The agent never prints a
+   secret value. As root on docker-dmz it could read that host's, and doesn't.
 6. **Mature tools first.** Custom glue stays inside the Glue budget.
 7. **Every routed app has a health check**, and every backup job checks in to healthchecks.io.
 
@@ -175,6 +177,7 @@ skynet/
 | Ali | GitHub owner, age master key, SSH CA, Proxmox/OPNsense/Unraid root, Discord owner, Google + Cloudflare accounts | everything | — |
 | aliammar-skynet | classic PAT `public_repo`, `workflow` | **Write**: branches, PRs, labels. Can't push `main` (ruleset); could merge, but won't (soft wall, D13) | P0 |
 | ops host key | decrypts `secrets/ops.yaml` | ops | P0 |
+| agent (`skynet`) | root on docker-dmz (sudo, D11); doco-dmz MCP restart/job tools | that host; everywhere else diagnose-only | P3 |
 | Discord bot | bot token | `#skynet` chat | P0 |
 | Renovate app | repo contents/PRs | PRs (automerge P6) | P0 |
 | docker-admin host key | `secrets/docker-admin.yaml`, `stacks/admin/**` | that host | P1 |
@@ -1075,7 +1078,10 @@ take days. restic's pack files keep the file count low.
 ## P6 — Agent autonomy `[outline]`
 
 **What: the operate lane**
-- doco-cd MCP: `control_project` (restart/start/stop) and `trigger_scheduled_job`.
+- Already granted in P3 (D11): root on docker-dmz, and docker-dmz's doco-cd MCP tools
+  (`control_project`, `control_stack`, `trigger_scheduled_job`, `compact_mirrors`; destroy and
+  remove ask Ali). P6 decides the rest.
+- doco-cd MCP: `control_project` (restart/start/stop) and `trigger_scheduled_job`, for docker-admin.
 - Proxmox `skynet@pve!operate`: a custom role with `VM.PowerMgmt` on pool `skynet` (5040, 10010).
 - SSH as `svc-ops` on the Docker hosts, with Nix-declared sudo for `systemctl restart docker` and
   `journalctl`.

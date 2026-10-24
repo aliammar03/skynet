@@ -84,7 +84,8 @@ in
   };
   security.sudo.wheelNeedsPassword = false;
   # The agent's diagnose lane on the other hosts: from ops only, no shell features (`restrict`), reads
-  # the journal (container logs included, via the journald log driver). No sudo, no Docker socket.
+  # the journal (container logs included, via the journald log driver). No sudo, no Docker socket,
+  # except on docker-dmz (D11: its default.nix adds wheel).
   users.users.skynet = lib.mkIf (config.networking.hostName != "ops") {
     isNormalUser = true;
     extraGroups = [ "systemd-journal" ];
