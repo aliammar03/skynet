@@ -18,7 +18,9 @@
   - `secret.sops.env` (from v1): `ADMIN_KEY`, `IMAGE_PROXY_SIGNING_SECRET` (signs poster URLs: keep
     v1's, or posters in clients' cached catalogs break), `DATABASE_URI`, `REDIS_PASSWORD`,
     `TMDB_API_KEY`, `TVDB_API_KEY`, `FANART_API_KEY`, `FANART_API_PROJECT_KEY`, `MDBLIST_API_KEY`,
-    `RPDB_API_KEY`, `GEMINI_API_KEY`, and v1's unused `OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET`;
+    `RPDB_API_KEY`, `GEMINI_API_KEY`, and v1's unused `OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET`. The
+    six API keys reach the app only as `BUILT_IN_*` (compose interpolates them): under their own
+    names aiometadata would publish them;
   - `oidc.sops.env` (agent-generated): `OIDC_CLIENT_SECRET` for the apps' Authelia. It's listed
     after `secret.sops.env`, so it wins; the client ID is in compose.
 - **Upstream:** [AIOMetadata](https://github.com/cedya77/aiometadata) ·
@@ -27,7 +29,11 @@
 **Gotchas**
 - A version tag (`3.7.0`), not the moving `latest` v1 used, so Renovate proposes each release.
 - `REDIS_PASSWORD` reaches `REDIS_URL` and the redis container by interpolation (`.doco-cd.yml` →
-  `env_files`), so a changed value needs a redeploy, not a restart.
+  `env_files`), so a changed value needs a redeploy, not a restart. So do the API keys.
+- `/api/config` answers anyone, sign-in or not, and returns `TMDB_API_KEY`, `TVDB_API_KEY`,
+  `FANART_API_KEY`, `RPDB_API_KEY`, `MDBLIST_API_KEY` and `GEMINI_API_KEY` in full, to prefill the
+  configure page. They stay blank; the `BUILT_IN_` copies are used, never sent
+  (`hasBuiltIn…: true` there).
 - It calls its issuer (`login.aliammar.net`) from inside: caddy-apps answers that name on `edge`
   (a network alias), because the host can't reach its own macvlan IPs.
 - `TRUST_PROXY_HOPS=2`: caddy-apps, plus cloudflared for public requests. With 1 it would rate-limit
