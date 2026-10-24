@@ -1179,8 +1179,8 @@ somewhere writable at start, since rclone saves refreshed tokens.
 CT 240 carries v1: its users, its retired guests' history, and PBS backing itself up. A new PBS
 starts clean beside it, with its config in git from the first day. CT 240 retires once the new one
 has proved itself.
-- **VM 2041** on the core node, at 10.10.20.41 (VLAN 20): 2 vCPU, 4 GB (balloon off), and a 32 GB OS
-  disk on `local-lvm`. The core node has 5.8 GB free. `pbs/proxmox.sh` is the `qm create`, as for
+- **VM 2041** on the core node, at 10.10.20.41 (VLAN 20): 2 vCPU, 4 GB with 2 GB guaranteed
+  (ballooning: verify, GC and backups use the rest), and a 32 GB OS disk on `local-lvm`. `pbs/proxmox.sh` is the `qm create`, as for
   the NixOS hosts.
 - **Install:** Proxmox's automated installer. `pbs/answer.toml` holds:
   - the disk, address and hostname;
