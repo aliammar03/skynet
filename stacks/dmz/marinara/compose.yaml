@@ -1,6 +1,6 @@
-# Marinara Engine (marinara.aliammar.net): AI roleplay. Inside only. As in v1, it asks nothing of
-# private-network and Docker clients (so of anything through caddy-apps); basic auth covers the rest.
-# On the macvlan at v1's .85, so rule 340 lets it reach ComfyUI on the workstation.
+# Marinara Engine (marinara.aliammar.net): AI roleplay. Inside only, behind the apps' Authelia
+# (admins), which is its only login. On the macvlan at v1's .85, so rule 340 lets it reach ComfyUI on
+# the workstation.
 services:
   marinara:
     container_name: marinara
@@ -9,7 +9,7 @@ services:
     restart: unless-stopped
     init: true
     # ENCRYPTION_KEY (encrypts the stored API keys: keep v1's), ADMIN_SECRET, SSL_CERT, SSL_KEY,
-    # BASIC_AUTH_USER, BASIC_AUTH_PASS, GIPHY_API_KEY
+    # GIPHY_API_KEY, and v1's BASIC_AUTH_USER/PASS (emptied below)
     env_file: secret.sops.env
     environment:
       TZ: Asia/Karachi
@@ -37,9 +37,14 @@ services:
       CORS_ORIGINS: "*"
       IP_ALLOWLIST: ""
       IP_ALLOWLIST_ENABLED: "false"
+      # Authelia (at caddy-apps) is the only login. Marinara's own is off (these override the
+      # secret file), and with no login it lets in Docker peers only, i.e. caddy-apps (BYPASS_AUTH_DOCKER,
+      # proxied requests included). Anything reaching its macvlan address directly gets 403.
+      BASIC_AUTH_USER: ""
+      BASIC_AUTH_PASS: ""
       BASIC_AUTH_REALM: Marinara-Engine
-      ALLOW_UNAUTHENTICATED_PRIVATE_NETWORK: "true"
-      ALLOW_UNAUTHENTICATED_REMOTE: "true"
+      ALLOW_UNAUTHENTICATED_PRIVATE_NETWORK: "false"
+      ALLOW_UNAUTHENTICATED_REMOTE: "false"
       TRUSTED_HOSTS: marinara.aliammar.net
       TRUSTED_PRIVATE_NETWORKS: 10.0.0.0/8
       BYPASS_AUTH_TAILSCALE: "true"

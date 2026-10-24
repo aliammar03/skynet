@@ -7,7 +7,8 @@
   cloudflared).
 - **Auth mode:** it *is* the auth. A caddy-apps site with `import authelia` asks it. Access rules
   are first-match; `default_policy: deny` plus a last catch-all deny, and each app's PR adds its rule
-  above that. Now: calibre and sillytavern for group `admins`, with a password (`one_factor`).
+  above that. Now: calibre, sillytavern and marinara for group `admins`, with a password
+  (`one_factor`).
 - **OIDC provider** (issuer `https://login.aliammar.net`), for aiostreams and aiometadata:
   - `oidc-clients.yml`: the clients (secrets as pbkdf2 digests), policy `apps` (a password from
     `admins` or `family`), and claims policy `apps` (`preferred_username`, `groups`, … in the ID

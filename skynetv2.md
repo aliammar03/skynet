@@ -866,7 +866,7 @@ Done 2026-10-24:
 | `paperless` (+ redis) | paperless | own | | `data`, `media`, `consume`, `export` | paperless-ngx |
 | `calibre` | calibre | forward | ✓ | `config` | calibre |
 | `sillytavern` | sillytavern | forward | | `config`, `data`, `plugins`, `extensions` | silly |
-| `marinara` | marinara | own (basic auth) | | `data` | marinara |
+| `marinara` | marinara | forward (its own login off) | | `data` | marinara |
 | `jikan` (+ mongo, redis, typesense) | – | – | | `mongo`, `typesense`, `redis` | aiometadata's `jikan_*` |
 | `aiometadata` (+ redis) | aiometadata | oidc | ✓ | `data`, `cold-store`, `redis` (`poster-cache` starts empty and refills, capped at 20 GB: `POSTER_CACHE_MAX_SIZE=20g`; v1 had 50g) | aiometadata |
 | `aiostreams` | aiostreams | oidc | ✓ | `data` | aiostreams |
