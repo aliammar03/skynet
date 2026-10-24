@@ -13,7 +13,7 @@ existing host (e.g. `hosts/docker-admin/`) is the template for each file.
 - **IP and VMID:** VMID = VLAN + two-digit last octet (10.10.50.40 → 5040). The IP is unused
   (ping, OPNsense ARP `api/diagnostics/interface/get_arp`, Technitium), and the VMID is free on both
   nodes (Proxmox API `nodes/<node>/qemu` and `/lxc`). The nodes aren't clustered, so check each.
-- **Room:** free RAM on the target node (`nodes/<node>/status`). VMs get `--balloon 0`.
+- **Room:** free RAM on the target node (`nodes/<node>/status`). Ballooning: Gotchas.
 - **MACs:** `BC:24:11:XX:YY:NN`, where XX:YY are the VMID's last four digits (5040 → `50:40`,
   7050 → `70:50`, 10010 → `00:10`) and NN numbers the NIC (`01`, `02`…). Pinned, so OPNsense's ARP
   entry stays valid across a rebuild. docker-admin's second NIC (`:60`) predates this rule.
@@ -157,5 +157,12 @@ on main's HEAD, and the Gatus row is green.
 ## Gotchas
 
 - VLAN 50 on the network node is untagged; everywhere else, tag.
-- `--balloon 0`. A NixOS host serving :53 needs `services.resolved.enable = false`.
+- **Ballooning:** `--memory` is the most a VM gets, `--balloon` the least. Proxmox keeps the minimum
+  guaranteed and reclaims the rest, mostly page cache, only once the node passes 80% use.
+  - Give a minimum of the working set plus headroom (`free -m`'s used, not its cache) to a guest
+    that is well under its memory: the Docker hosts and ops.
+  - `--balloon 0` (off) for PCI passthrough (OPNsense, Unraid), whose memory is pinned whole
+    anyway, and for small critical guests (the 1 GB DNS VMs).
+  - A changed setting applies at the VM's next start (`qm reboot <vmid>`).
+- A NixOS host serving :53 needs `services.resolved.enable = false`.
 - Run `nix fmt` with file arguments; with none it waits on stdin.
