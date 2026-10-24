@@ -1,0 +1,10 @@
+# Datastore `skynet`: Unraid's share `pbs` over NFS. Mounted on first use (the .automount), so a
+# boot before Unraid's doesn't leave it failed. Unraid's export grants 10.10.20.40 rw with
+# no_root_squash: PBS creates the datastore as root, then hands it to user backup.
+[Unit]
+Description=PBS datastore skynet (Unraid share pbs)
+
+[Mount]
+What=10.10.20.20:/mnt/user/pbs
+Where=/mnt/datastore/skynet
+Type=nfs

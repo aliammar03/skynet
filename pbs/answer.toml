@@ -1,0 +1,34 @@
+# Proxmox's automated installer: VM 2040's answers (README.md → Install).
+# `nix build .#installer-pbs` bakes this file into Proxmox's PBS ISO (installer.nix). Nothing here
+# is secret: the root password is a yescrypt hash (the password itself is in secret.sops.yaml, for
+# Ali), and the keys are public.
+[global]
+keyboard = "en-us"
+country = "pk"
+fqdn = "pbs.aliammar.net"
+mailto = "root@pbs.aliammar.net" # root's mail stays on the box: no relay
+timezone = "Asia/Karachi"
+root-password-hashed = '$y$j9T$WOEqLAOhjd6y3H5SEVS2X.$k3hKIDcSgip5yGtcolDAzE1liHxi60mAPTwf7Jpzas6'
+# The agent, from ops only (D11), and Ali.
+root-ssh-keys = [
+  'from="10.10.90.91" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAID5Iw9nu4WyT4v0D/5S2n3qs3QpSprx7HlIU9/sWA+++ skynet@ops',
+  'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMY3q277EOHizg5Ji/WUU7WvUi4X/ezbRPebk65lQVBJ aliammar@RK-W',
+]
+
+# The NIC with proxmox.sh's MAC, named `lan` as on the NixOS hosts.
+[network]
+source = "from-answer"
+cidr = "10.10.20.40/24"
+gateway = "10.10.20.1"
+dns = "10.10.70.51" # the installer takes one; etc/resolv.conf adds .50
+filter.ID_NET_NAME_MAC = "*bc2411204001"
+
+[network.interface-name-pinning]
+enabled = true
+
+[network.interface-name-pinning.mapping]
+"bc:24:11:20:40:01" = "lan"
+
+[disk-setup]
+filesystem = "ext4"
+disk-list = ["sda"]
