@@ -1232,7 +1232,7 @@ manager.
 
 **Open:**
 - Whether any Unraid shares need offsite too (not part of this phase).
-- PBS as a NixOS VM, its config in git. nixpkgs has only the client. A community package and
+- PBS as a NixOS VM, its config in git: shelved (Ali, 2026-10-24). nixpkgs has only the client. A community package and
   module (nixos-pbs, PBS 4.2.3, from source in an FHS wrapper) has had a few testers since
   2026-06, with its nixpkgs PR open. Once it lands, trial it beside the current PBS: a sync job
   into its own datastore, verify, a restore drill. Move only when that holds, by pointing it at
