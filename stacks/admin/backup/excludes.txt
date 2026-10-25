@@ -1,0 +1,6 @@
+# Not backed up: each stack's README classes these as cache or disposable (they rebuild), plus this
+# stack's own folder (the restic cache, the restore request). A restore leaves them alone too
+# (run.sh).
+/opt/appdata/backup
+/opt/appdata/caddy-admin
+/opt/appdata/gatus

@@ -25,7 +25,7 @@
 | P1 | docker-admin: admin door, identity, status | done (2026-10-22); 7 admin names move to .60 with P2's Technitium |
 | P2 | DNS (Technitium only) + remote access | done (2026-10-23); open: OPNsense rules 140/150/115 and CT 731 `onboot` (see P2 exit criteria) |
 | P3 | docker-dmz: apps + public path | done (2026-10-24): docker-dmz with v1's data (#48), its doors (#50) and all ten apps (#51–#61); the apps reach one another only through the door (#64); every image current (#67). Family accounts skipped for now; rule 150 can go now that 135 (ex-840) serves Gatus's `public` row |
-| P4 | Backups → Google Drive | in progress (2026-10-25): PBS greenfield done (VM 2040, `pbs/`; v1's PBS removed); PBS's datastore nightly to Drive by plain `rclone sync` (`stacks/admin/pbs-offsite/`; PVE already encrypts its chunks). Then restic in doco-cd jobs to Drive, and `skynet-restore` |
+| P4 | Backups → Google Drive | in progress (2026-10-25): PBS greenfield done (VM 2040, `pbs/`; v1's PBS removed); PBS's datastore nightly to Drive by plain `rclone sync` (`stacks/admin/pbs-offsite/`; PVE already encrypts its chunks); app backups nightly to Drive (`stacks/<host>/backup/`, `skynet-restore`). Next: the two restore drills |
 | P5 | Observability (agent eyes) | outline |
 | P6 | Agent autonomy | outline |
 | P7 | Retire v1 + disaster recovery | outline |
@@ -1133,28 +1133,38 @@ One stack per Docker host: three doco-cd `one_off` jobs on the pinned resticprof
 reading `profiles.yaml` from git.
 - **`backup`**, nightly at 04:30, after the guests' PBS backups:
   - `stop_services` (below) holds the host's stateful services stopped;
-  - then `resticprofile backup`, with retention right after it;
+  - then `resticprofile backup`, with retention (forget) right after it. Pruning waits for the
+    weekly check, so the stop stays short;
   - repository `rclone:gdrive:skynet/restic/<host>`, source `/opt/appdata`, 64 MiB packs;
   - keeps 7 daily, 4 weekly and 12 monthly snapshots.
-- **`check`**, Sundays: `restic check --read-data-subset 5%`, with nothing stopped.
+- **`check`**, Sundays at 10:00: prune, then `restic check --read-data-subset 5%`, with nothing
+  stopped.
 - **`restore`**, run only by `skynet-restore`: the same `stop_services`, then
-  `restic restore <snapshot> --target / --include /opt/appdata/<stack> --delete`.
+  `restic restore <snapshot>:/opt/appdata/<stack> --target /opt/appdata/<stack> --delete`. Only the
+  stack's folder is the target, so `--delete` can't reach anything else, and its cache folders
+  are excluded: neither restored nor deleted (tested on restic 0.19.1, 2026-10-25).
 
 **Stopped during `backup` and `restore`.** These are compose service names, the stacks whose
 READMEs class their data as `data`:
 - docker-dmz: `authelia/authelia`, `obsidian/obsidian`, `karakeep/karakeep`, `paperless/paperless`,
   `calibre/calibre`, `sillytavern/sillytavern`, `marinara/marinara`, `jikan/jikan`, `jikan/mongo`,
-  `aiometadata/aiometadata`, `aiostreams/aiostreams`, `librespeed/librespeed`;
-- docker-admin: `authelia/authelia`, `gatus/gatus`.
+  `aiometadata/aiometadata`, `aiostreams/aiostreams`, `librespeed/librespeed`. `jikan/jikan` has
+  no data of its own, but with mongo stopped it would turn unhealthy and trip reconciliation;
+- docker-admin: `authelia/authelia`. Gatus keeps running: its history is disposable, and it is the
+  monitor.
 
-**Not backed up**, because these are class `cache` and rebuild themselves:
-- `aiometadata/poster-cache` and `aiometadata/redis`;
+**Not backed up** (`excludes.txt`), because their READMEs class them `cache` (or disposable) and
+they rebuild themselves:
+- `aiometadata/cold-store`, `aiometadata/poster-cache` and `aiometadata/redis`;
 - `jikan/redis` and `jikan/typesense`;
 - `karakeep/meili`;
+- Gatus's history;
 - the doors' certificates.
 
 **Files:**
-- `compose.yaml` and `profiles.yaml`;
+- `compose.yaml`, `profiles.yaml`, `excludes.txt`, and `run.sh` (the jobs' entrypoint, the same on
+  both hosts);
+- `.doco-cd.yml`: reconciliation off, as for every stack of jobs only;
 - `secret.sops.env`: `RESTIC_PASSWORD` (agent-generated) and `HC_PING_URL`;
 - `rclone.sops.conf` (Ali's).
 
@@ -1162,23 +1172,30 @@ READMEs class their data as `data`:
 somewhere writable at start, since rclone saves refreshed tokens.
 
 **Notes:**
-- The first night uploads everything (docker-dmz has about 7 GB), so the apps stay stopped longer
+- The first night uploads everything (docker-dmz has about 6 GB), so the apps stay stopped longer
   that once.
-- To verify while building: a job scheduled `0 0 30 2 *` (there is no 30 February) must never fire
-  yet still run on `POST /v1/api/job/restore/run`. If not, the restore runs from `skynet-restore`
-  with doco-cd's reconciliation off for its minutes.
+- `restore`'s schedule is `@every 87600h`. Checked against doco-cd 0.129.1 (2026-10-25): a date that
+  never comes (`0 0 30 2 *`) fails the deploy, because gocron accepts only a schedule with a next
+  run. Ten years from doco-cd's last start never comes either: its scheduler computes the next run
+  afresh at every start and doesn't catch up missed ones, and every image update restarts it. The
+  run API (`POST /v1/api/job/<container>/run?stack=backup&wait=true`) runs a job synchronously and
+  answers 200, or 500 with the error. The job also refuses to run without a `restore.request` from
+  the last 10 minutes.
 
 ### Restores: `skynet-restore` (glue on both Docker hosts, from `modules/docker-host.nix`)
 
 - `skynet-restore <stack> [snapshot]` (default `latest`) does three things:
   - writes the request to `/opt/appdata/backup/restore.request`;
-  - triggers the `restore` job through doco-cd's API (`/v1/api/job/restore/run?stack=backup`) and
-    waits;
-  - prints the result.
+  - triggers the `restore` job through doco-cd's API
+    (`/v1/api/job/backup-restore/run?stack=backup&wait=true`; the API names a job by its container)
+    and waits;
+  - prints the run's log and the result.
 
   doco-cd stops the stateful services, restic puts `/opt/appdata/<stack>` back exactly as in the
   snapshot, and doco-cd starts the services again.
-- `skynet-restore --list [stack]`: the snapshots, and what changed between them.
+- `skynet-restore --list [stack]`: the snapshots, and how many entries each changed in the stack.
+  It and `--to` run the job's container definition directly (`docker run --volumes-from
+  backup-restore`: its image, secrets and mounts).
 - `skynet-restore <stack> [snapshot] --to <dir>`: into a scratch folder, with nothing stopped (for
   drills, or to fetch one file).
 - `skynet-restore --all [snapshot]`: every stack, for a rebuilt host (P7).
@@ -1320,7 +1337,8 @@ manager.
 3. **App backups PR:**
    - both `backup` stacks, `skynet-restore` and the Gatus rows;
    - the restic passwords, agent-generated;
-   - Ali adds `rclone.sops.conf` and the healthchecks.io URLs on the branch.
+   - Ali adds `rclone.sops.conf`, each stack's `HC_PING_URL` and Gatus's two badge URLs on the
+     branch.
 
    The first night runs long.
 4. **Drill:** `skynet-restore librespeed` in place, and karakeep `--to` a scratch folder. Evidence
@@ -1464,8 +1482,8 @@ in a drill.
 | `modules/dns.nix` + `modules/technitium-sync.sh` (settings + zone via the Technitium API, gratuitous ARP) | ~145 lines |
 | CI: flake check + `docker compose config` per stack + "every stack has a README and a Gatus row" check | ~60 lines |
 | `runbooks/dns-speed-test/dnsbench.py` (run by hand; nothing deploys it) | ~450 lines |
-| `stacks/<host>/backup/` job entrypoint (a writable `rclone.conf`, the restore request) (P4) | ~30 lines |
-| `skynet-restore` (P4) | ~60 lines |
+| `stacks/<host>/backup/run.sh` (the jobs' entrypoint: a writable `rclone.conf`, the restore request, the restore itself) (P4) | ~55 lines, the same on both hosts |
+| `skynet-restore` (P4) | ~65 lines |
 | `stacks/admin/pbs-offsite/run.sh` (the jobs' entrypoint: the empty-source guard, the sync and its pings, the check) (P4) | ~35 lines |
 | `pbs/installer.nix` (Proxmox's ISO with `answer.toml` built in) (P4) | ~30 lines |
 | `pbs/setup.sh` (PBS after its installer: repos, guest agent, datastore mount, `pbs/etc/`) (P4) | ~50 lines |

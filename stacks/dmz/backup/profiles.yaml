@@ -1,0 +1,29 @@
+# resticprofile: one profile, `appdata`, for every job; run.sh picks the command.
+# RESTIC_PASSWORD and HC_PING_URL come from secret.sops.env, Drive's login from rclone.sops.conf.
+version: "1"
+
+appdata:
+  repository: rclone:gdrive:skynet/restic/docker-dmz
+  pack-size: 64 # MiB: Drive creates about 2 files a second, so few large ones
+  cache-dir: /opt/appdata/backup/cache # kept between runs (backup/ is excluded)
+  backup:
+    source: [/opt/appdata]
+    exclude-file: [/etc/resticprofile/excludes.txt]
+    send-before:
+      - url: "{{ .Env.HC_PING_URL }}/start"
+    send-after:
+      - url: "{{ .Env.HC_PING_URL }}"
+    send-after-fail:
+      - url: "{{ .Env.HC_PING_URL }}/fail"
+        method: POST
+        body: "${ERROR}\n\n${ERROR_STDERR}"
+  # Right after each backup, while the apps are still stopped: forget only. The weekly check job
+  # prunes, so the nightly stop stays short.
+  retention:
+    after-backup: true
+    keep-daily: 7
+    keep-weekly: 4
+    keep-monthly: 12
+    prune: false
+  check:
+    read-data-subset: 5%

@@ -1,0 +1,10 @@
+# Not backed up: each stack's README classes these as cache (they rebuild), plus this stack's own
+# folder (the restic cache, the restore request). A restore leaves them alone too (run.sh).
+/opt/appdata/backup
+/opt/appdata/caddy-apps
+/opt/appdata/aiometadata/cold-store
+/opt/appdata/aiometadata/poster-cache
+/opt/appdata/aiometadata/redis
+/opt/appdata/jikan/redis
+/opt/appdata/jikan/typesense
+/opt/appdata/karakeep/meili

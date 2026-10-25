@@ -172,5 +172,76 @@ in
     networking.firewall.extraCommands = ''
       iptables -A nixos-fw -p tcp -s 10.10.90.91 --dport 8080 -j nixos-fw-accept
     '';
+
+    # `skynet-restore`: app data back from the nightly backup (stacks/<target>/backup/README.md). In
+    # place, the stack's `backup-restore` job does it, so doco-cd holds the stateful services
+    # stopped meanwhile. --list and --to run that job's container definition directly (its image,
+    # secrets and mounts), with nothing stopped.
+    environment.systemPackages = [
+      (pkgs.writeShellApplication {
+        name = "skynet-restore";
+        runtimeInputs = [
+          config.virtualisation.docker.package
+          pkgs.coreutils
+          pkgs.curl
+          pkgs.systemd
+        ];
+        text = ''
+          usage() {
+            echo "usage: skynet-restore <stack> [snapshot] [--to <dir>]   (snapshot: default latest)"
+            echo "       skynet-restore --all [snapshot]                  every stack, for a rebuilt host"
+            echo "       skynet-restore --list [stack]                    the snapshots"
+            exit 2
+          }
+          [ "$(id -u)" = 0 ] || { echo "skynet-restore: run it as root" >&2; exit 1; }
+          job=backup-restore # doco-cd keeps the job's container, created, between runs
+          inspect() { docker container inspect -f "$1" "$job"; }
+          image=$(inspect '{{.Config.Image}}') || { echo "skynet-restore: no $job; is stack backup deployed?" >&2; exit 1; }
+          direct() { # <extra docker run args…> -- <run.sh args…>
+            local opts=()
+            while [ "$1" != -- ]; do opts+=("$1"); shift; done
+            shift
+            docker run --rm --env-file <(inspect '{{range .Config.Env}}{{println .}}{{end}}') \
+              --volumes-from "$job" --tmpfs /resticprofile --hostname "$(inspect '{{.Config.Hostname}}')" \
+              "''${opts[@]}" --entrypoint /bin/sh "$image" /etc/resticprofile/run.sh "$@"
+          }
+          in_place() { # <stack|all> <snapshot>: the request, then the job, which consumes it
+            mkdir -p /opt/appdata/backup
+            printf '%s %s\n' "$1" "$2" >/opt/appdata/backup/restore.request
+            local start out
+            start=$(date +%s)
+            out=$(curl -sS -X POST -w '\n%{http_code}' -H @<(printf 'x-api-key: %s\n' "$(cat /run/doco-cd/api-secret)") \
+              "http://127.0.0.1:8080/v1/api/job/$job/run?stack=backup&wait=true")
+            journalctl --since "@$start" -o cat IMAGE_NAME="$image" | tail -n 30
+            echo "doco-cd: ''${out%$'\n'*}"
+            [ "''${out##*$'\n'}" = 200 ]
+          }
+          name() { [[ $1 =~ ^[a-z0-9][a-z0-9-]*$ ]] || { echo "skynet-restore: '$1' isn't a stack name" >&2; exit 2; }; }
+          case "''${1:-}" in
+          --list)
+            direct -- snapshots
+            if [ -n "''${2:-}" ]; then name "$2" && echo "entries changed in $2:" && direct -- diff "$2"; fi
+            ;;
+          --all) in_place all "''${2:-latest}" ;;
+          "" | -*) usage ;;
+          *)
+            name "$1"
+            stack=$1 snap=latest
+            shift
+            if [ -n "''${1:-}" ] && [ "$1" != --to ]; then snap=$1 && shift; fi
+            if [ "''${1:-}" = --to ]; then
+              [ -n "''${2:-}" ] || usage
+              dir=$(realpath -m "$2")
+              mkdir -p "$dir"
+              direct -v "$dir:$dir" -- restore-to "$stack" "$snap" "$dir"
+            else
+              [ -z "''${1:-}" ] || usage
+              in_place "$stack" "$snap"
+            fi
+            ;;
+          esac
+        '';
+      })
+    ];
   };
 }
