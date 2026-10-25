@@ -8,11 +8,12 @@ part of its `/etc` that git holds. ops compares that with the host every day.
 - **Datastore `skynet`:** Unraid's share `pbs` (`10.10.20.20:/mnt/user/pbs`), mounted over NFS at
   `/mnt/datastore/skynet` on first use. Namespaces `core` and `network`, one per node. PVE encrypts
   every chunk before it leaves the node: without PVE's keys (survival kit) the datastore, and its
-  copy on Drive, can't be read.
+  copy on Drive (`stacks/admin/pbs-offsite/`, nightly at 06:00), can't be read.
 - **Jobs** (`etc/proxmox-backup/`): prune per namespace (core 05:00, network 05:15; 14 daily,
   8 weekly, 12 monthly); verify daily at 00:00, skipping verified snapshots until they're 30 days
   old; GC Sundays 12:00, after the offsite copy. The backups themselves are PVE's jobs (network node
-  02:00, core 03:30); core's leaves out 2040, since PBS rebuilds from git.
+  02:00, core 03:30), with fleecing on `local-lvm`: a VM's writes during its backup wait on the
+  node's own disk, not on PBS. Core's leaves out 2040, since PBS rebuilds from git.
 - **Users:** `root@pam` (Ali in the UI; the agent over SSH) and `pve@pbs`. Its tokens `core` and
   `network` each hold `DatastoreBackup` on their own namespace, and `pve@pbs` holds it on both,
   because a token never gets more than its user. The tokens' secrets exist only in PVE's storage
@@ -96,3 +97,7 @@ they're PVE's.
 - `root@pam`'s mail stays on the box (no relay), so a failed job emails no one.
 - `user.cfg` brings the tokens without their secrets (those are in `token.shadow`, never in git).
   **Regenerate** gives each one a secret and keeps its ACLs.
+- The tokens back up but can't remove: a node's DELETE gets 403, so a compromised node can't wipe
+  its history. Removing backups is root's, in PBS's UI.
+- Unraid's New Permissions tool must leave share `pbs` out. It would hand every file to
+  `nobody:users`, and then PBS (uid 34) couldn't write its datastore, nor docker-admin read it.
