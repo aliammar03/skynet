@@ -20,15 +20,15 @@
         # 25 GB used at the move, 21.6 of it Docker's images; the weekly prune keeps a replaced
         # image for 7 days.
         root = {
-          size = "40G";
+          size = "64G";
           content = {
             type = "filesystem";
             format = "ext4";
             mountpoint = "/";
           };
         };
-        # No nofail: if this doesn't mount, the host stops at boot instead of starting the apps on
-        # an empty /opt/appdata.
+        # The rest of the 193 GiB disk (proxmox.sh): 128 GiB. No nofail: if this doesn't mount, the
+        # host stops at boot instead of starting the apps on an empty /opt/appdata.
         appdata = {
           size = "100%";
           content = {

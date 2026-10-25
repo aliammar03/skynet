@@ -246,8 +246,9 @@ in
         ];
       };
     };
-    # A fresh install holds doco-cd until its data is back (`skynet-restore … --all` removes the
-    # file), so no app starts on an empty /opt/appdata (runbooks/new-vm.md → Docker host).
+    # A fresh install holds doco-cd until its data is back (`skynet-restore … --all` or a hand
+    # release removes the file), so no app starts on an empty /opt/appdata (runbooks/new-vm.md,
+    # steps 5 and 6).
     systemd.services.docker-doco-cd.unitConfig.ConditionPathExists = "!/var/lib/skynet/hold-doco-cd";
     # The doco-cd API and MCP answer only to ops (OPNsense must allow it too).
     networking.firewall.extraCommands = ''

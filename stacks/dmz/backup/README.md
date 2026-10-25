@@ -38,5 +38,6 @@
 - **Gotchas:**
   - A new stack: a `cache` path joins `excludes.txt` (`runbooks/new-stack.md`); nothing else.
   - `create_host_path: false` on the source: with no snapshot yet, the job fails rather than back up
-    an empty folder. A fresh host gets its first snapshot from `skynet-restore … --all`.
+    an empty folder. A fresh host takes its first snapshot before doco-cd's release
+    (`runbooks/new-vm.md`, step 6, or `skynet-restore … --all`).
   - `run.sh` is the same in both Docker hosts' backup stacks.
