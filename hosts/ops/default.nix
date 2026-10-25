@@ -6,6 +6,7 @@
     ./disk.nix
     ../../modules/base.nix
     ../../modules/agent.nix
+    ../../modules/pbs-drift.nix
   ];
 
   networking.hostName = "ops";

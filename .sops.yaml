@@ -42,3 +42,8 @@ creation_rules:
       - age:
           - *aliammar
           - *docker-dmz
+  # PBS reads no sops files: these are for Ali alone (its root password).
+  - path_regex: ^pbs/.*\.sops\.[^/]+$
+    key_groups:
+      - age:
+          - *aliammar

@@ -3,7 +3,8 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
-    # Fast-moving agent tooling only (claude-code, mcp-nixos); hosts stay on the release.
+    # Fast-moving tooling only (claude-code, mcp-nixos, PBS's install assistant); hosts stay on the
+    # release.
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     disko = {
       url = "github:nix-community/disko";
@@ -52,6 +53,11 @@
         installer-technitium-network = mkInstaller "technitium-network";
         installer-technitium-core = mkInstaller "technitium-core";
         installer-docker-dmz = mkInstaller "docker-dmz";
+        # PBS isn't NixOS: Proxmox's own ISO, with pbs/answer.toml built in. The assistant comes from
+        # unstable to match the ISO's installer (9.2; 26.05 has 9.1).
+        installer-pbs = pkgs.callPackage ./pbs/installer.nix {
+          inherit (inputs.nixpkgs-unstable.legacyPackages.${system}) proxmox-auto-install-assistant;
+        };
       };
 
       devShells.${system}.default = pkgs.mkShell {
