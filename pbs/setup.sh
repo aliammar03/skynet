@@ -35,6 +35,12 @@ fi
 if ! proxmox-backup-manager datastore show skynet >/dev/null 2>&1; then
   reuse=false
   [ -d "$store/.chunks" ] && reuse=true
+  # Root makes a new datastore, then chowns it to `backup`: the export must not squash root.
+  if [ "$reuse" = false ] && ! (touch "$store/.probe" && chown backup "$store/.probe"); then
+    echo "setup: root can't chown on $store; Unraid's export needs no_root_squash" >&2
+    exit 1
+  fi
+  rm -f "$store/.probe"
   proxmox-backup-manager datastore create skynet "$store" --reuse-datastore "$reuse"
 fi
 for ns in core network; do
