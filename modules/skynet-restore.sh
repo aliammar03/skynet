@@ -19,18 +19,18 @@ die() {
 
 [ "$(id -u)" = 0 ] || die "run it as root (sudo)"
 appdata=/opt/appdata
-hold=/var/lib/skynet/hold-doco-cd
+# doco-cd starts only with this marker (modules/docker-host.nix): the host's data is in place.
+ready=$appdata/.data-ready
 tmp=$(mktemp -d)
 stopped=$tmp/stopped
 doco_paused=false
-release_hold=false
+release=false
 
 # Whatever happens, the stopped containers and doco-cd come back. A failed --all leaves a fresh host
-# held: its data isn't all there.
+# without the marker, so doco-cd stays held: its data isn't all there.
 cleanup() {
   if [ -s "$stopped" ]; then xargs docker start <"$stopped" >/dev/null || true; fi
-  if [ "$release_hold" = true ]; then rm -f "$hold"; fi
-  if [ "$doco_paused" = true ] || [ "$release_hold" = true ]; then
+  if [ "$doco_paused" = true ] || [ "$release" = true ]; then
     systemctl start docker-doco-cd || true
   fi
   rm -rf "$tmp"
@@ -158,8 +158,8 @@ if [ -n "$dir" ]; then
   exit 0
 fi
 
-# Undo point (docker-dmz): a snapshot of what is about to be replaced. A held host has nothing yet.
-if [ -n "$SNAPSHOTS" ] && [ ! -e "$hold" ]; then
+# Undo point (docker-dmz): a snapshot of what is about to be replaced. A fresh host has nothing yet.
+if [ -n "$SNAPSHOTS" ] && [ -e "$ready" ]; then
   systemctl start btrbk-appdata
   undo=$(readlink "$SNAPSHOTS/latest")
 fi
@@ -182,9 +182,10 @@ if [ -n "${undo:-}" ]; then
   echo "undo: skynet-restore local ${target} ${undo#@appdata.}"
 fi
 
-# A rebuilt host: its first snapshot, so the backup job finds `latest`; then doco-cd, released by
-# cleanup, deploys the stacks onto their data.
-if [ "$target" = --all ] && [ -e "$hold" ]; then
+# A fresh host, every stack back: its first snapshot, so the backup job finds `latest`; then the
+# marker, last, and doco-cd, started by cleanup, deploys the stacks onto their data.
+if [ "$target" = --all ] && [ ! -e "$ready" ]; then
   if [ -n "$SNAPSHOTS" ]; then systemctl start btrbk-appdata; fi
-  release_hold=true
+  touch "$ready"
+  release=true
 fi

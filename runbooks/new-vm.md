@@ -115,20 +115,20 @@ Once ops has applied the merge, its known_hosts pins the key
   the public half (D11).
 - The closure goes from ops over the LAN, with the flake's pinned nixos-anywhere. The VM reboots
   into NixOS from its disk (the ISO can stay attached). From now on there's no root login.
-- A Docker host also gets the doco-cd hold, so no app starts before its data is there: add
-  `--extra-files "$h"` to the line, after
-  `h=$(mktemp -d); mkdir -p "$h/var/lib/skynet"; touch "$h/var/lib/skynet/hold-doco-cd"`.
+- A Docker host's doco-cd starts only once `/opt/appdata/.data-ready` exists
+  (`modules/docker-host.nix`). A fresh install's `/opt/appdata` is empty, so no app starts before
+  its data is there (step 6). Nothing to add to the line.
 
 ## 6. Check (agent)
 
 `ssh skynet@<ip> 'systemctl --failed; journalctl -u comin -n 20 -o cat'`: nothing failed, comin is
 on main's HEAD, and the Gatus row is green.
 
-A Docker host waits with doco-cd held. `skynet-restore … --all` releases it once the data is back
-(Rebuild, step 4). Otherwise (a new host with no data, or data copied back from ops), as root, the
-agent where it has sudo, else Ali: with `skynet.docker.appdataSnapshots`,
-`systemctl start btrbk-appdata` first, so the backup job finds a snapshot; then
-`rm /var/lib/skynet/hold-doco-cd && systemctl start docker-doco-cd`.
+A Docker host waits with doco-cd held: `systemctl status docker-doco-cd` says its condition failed.
+`skynet-restore … --all` releases it once the data is back (Rebuild, step 4). Otherwise (a new host
+with no data, or data copied back from ops), as root, the agent where it has sudo, else Ali: with
+`skynet.docker.appdataSnapshots`, `systemctl start btrbk-appdata` first, so the backup job finds a
+snapshot; then `touch /opt/appdata/.data-ready && systemctl start docker-doco-cd`.
 
 ## Docker host (also in the PR)
 
@@ -164,13 +164,14 @@ agent where it has sudo, else Ali: with `skynet.docker.appdataSnapshots`,
    Then on ops, `/opt/appdata` into one tar, and the tar compared with it file by file:
    ```sh
    mkdir -p -m 700 ~/rebuild
-   ssh skynet@<ip> 'sudo tar -C /opt/appdata --exclude=./backup --numeric-owner -cf - .' > ~/rebuild/<h>-appdata.tar
+   ssh skynet@<ip> 'sudo tar -C /opt/appdata --exclude=./backup --exclude=./.data-ready --numeric-owner -cf - .' > ~/rebuild/<h>-appdata.tar
    ssh skynet@<ip> 'sudo tar -C /opt/appdata --numeric-owner -df -' < ~/rebuild/<h>-appdata.tar
    ```
    Both exit 0. The first warns only of sockets, which the apps make again; the second prints
-   nothing. `./backup` is restic's old cache, now on `/var/cache`. The stacks stay stopped. On a
-   host where the agent has no sudo (docker-admin), Ali runs these from the workstation with his
-   own user.
+   nothing. `./backup` is restic's old cache, now on `/var/cache`. The marker stays behind, so the
+   new host's doco-cd can't start on a half-copied folder: step 6 writes it once the copy checks
+   out. The stacks stay stopped. On a host where the agent has no sudo (docker-admin), Ali runs
+   these from the workstation with his own user.
 2. Ali takes a PBS backup of the VM (Backup now, storage `pbs`), the fallback. Then he stops and
    destroys it: `qm stop <vmid> && qm destroy <vmid>`. Destroying is his call, and `qm create`
    refuses an existing VMID. disko wipes the disk, so `/opt/appdata` comes back only from step 1's
@@ -181,7 +182,7 @@ agent where it has sudo, else Ali: with `skynet.docker.appdataSnapshots`,
    from its extension and doesn't know `.conf`, so the rclone configs (INI) need `--input-type`:
    `nix shell nixpkgs#sops -c sh -c 'for f in secrets/<h>.yaml stacks/<target>/*/*.sops.*; do case "$f" in *.conf) sops updatekeys -y --input-type ini "$f" ;; *) sops updatekeys -y "$f" ;; esac || echo "FAILED: $f"; done'`.
    `git status --short` then lists every one of them, and the agent checks each file's recipients
-   before the merge. Install with `--copy-host-keys` again, and on a Docker host the doco-cd hold.
+   before the merge. Install with `--copy-host-keys` again; a Docker host's doco-cd waits by itself.
 4. A Docker host's data, as root, while doco-cd is still held:
    - from step 1's copy, then compared again, as in step 1:
      ```sh
@@ -192,7 +193,8 @@ agent where it has sudo, else Ali: with `skynet.docker.appdataSnapshots`,
      can go;
    - from Drive, if the host was lost: `skynet-restore drive --all [<snapshot>]` (default
      `latest`). It puts every stack back, takes the first local snapshot (with
-     `appdataSnapshots`), then releases doco-cd, which deploys the stacks onto their data.
+     `appdataSnapshots`), writes the marker, then starts doco-cd, which deploys the stacks onto
+     their data. If any stack fails, it writes no marker and doco-cd stays held.
 
 ## Gotchas
 

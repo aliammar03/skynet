@@ -1254,8 +1254,7 @@ installer ISO is built from its branch.
    - Ali re-encrypts docker-dmz's 19 files for it (`rclone.sops.conf` with `--input-type ini`:
      sops doesn't know `.conf`), the agent checks each file's recipients, then Ali merges:
      `nix shell nixpkgs#sops -c sh -c 'for f in secrets/docker-dmz.yaml stacks/dmz/*/*.sops.*; do case "$f" in *.conf) sops updatekeys -y --input-type ini "$f" ;; *) sops updatekeys -y "$f" ;; esac || echo "FAILED: $f"; done'`;
-   - the install from `main`, with `--copy-host-keys` and the doco-cd hold (`--extra-files`,
-     Restores).
+   - the install from `main`, with `--copy-host-keys` and doco-cd held (Restores).
 5. **Agent**: the tar back into `/opt/appdata`, now on btrfs, and compared again; then the first
    local snapshot (`systemctl start btrbk-appdata`); then doco-cd released, which re-pulls the
    images (22 GB) and starts the stacks on their data.
@@ -1298,12 +1297,16 @@ so it reads `RESTIC_PASSWORD=` out of it.
   every stack, takes the first local snapshot (docker-dmz), then releases doco-cd, which deploys the
   stacks onto their data.
 - One restore runs at a time (a lock). Restoring one stack leaves the others running.
-- **Fresh installs hold doco-cd.** It starts only while `/var/lib/skynet/hold-doco-cd` is absent (a
-  systemd condition in `modules/docker-host.nix`). A Docker host's install puts that file in place
-  (`nixos-anywhere --extra-files`), so no app starts on an empty `/opt/appdata`: an empty CouchDB,
-  say, offered to Obsidian's sync. `skynet-restore … --all` removes it. On a brand-new host, or
-  after data copied back from ops, it goes by hand (`runbooks/new-vm.md`, step 6): on docker-dmz
-  after a first `systemctl start btrbk-appdata`, so the backup job finds `latest`.
+- **doco-cd waits for the data.** It starts only once `/opt/appdata/.data-ready` exists (a systemd
+  condition in `modules/docker-host.nix`, after `/opt/appdata`'s mount). A fresh install's
+  `/opt/appdata` is empty, and so is a wiped data disk's, so no app starts on nothing: an empty
+  CouchDB, say, offered to Obsidian's sync. A forgotten step leaves the apps stopped, not empty.
+  - The marker is written last, once the data is complete. `skynet-restore … --all` writes it after
+    every stack and the first local snapshot (docker-dmz); a failed `--all` writes none.
+  - The copy to ops leaves it out, so it can't arrive halfway through the copy back.
+  - On a brand-new host, or after data copied back from ops, it's written by hand
+    (`runbooks/new-vm.md`, step 6): on docker-dmz after a first `systemctl start btrbk-appdata`, so
+    the backup job finds `latest`.
 
 **Gotchas:**
 - A restored stack keeps its cache folders as they were. One whose search index is a cache
@@ -1581,7 +1584,7 @@ in a drill.
 | CI: flake check + `docker compose config` per stack + "every stack has a README and a Gatus row" check | ~60 lines |
 | `runbooks/dns-speed-test/dnsbench.py` (run by hand; nothing deploys it) | ~450 lines |
 | `stacks/<host>/backup/run.sh` (the jobs' entrypoint: a writable `rclone.conf`, the source checks) (P4) | ~25 lines, the same on both hosts |
-| `skynet-restore` (P4: two sources, the undo snapshot, doco-cd paused, the hold released) | ~110 lines |
+| `skynet-restore` (P4: two sources, the undo snapshot, doco-cd paused, the marker written) | ~110 lines |
 | btrbk's hooks on docker-dmz (the stamp, `latest`) (P4) | ~10 lines |
 | `stacks/admin/pbs-offsite/run.sh` (the jobs' entrypoint: the empty-source guard, the sync and its pings, the check) (P4) | ~35 lines |
 | `pbs/installer.nix` (Proxmox's ISO with `answer.toml` built in) (P4) | ~30 lines |
