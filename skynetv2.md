@@ -1251,8 +1251,9 @@ installer ISO is built from its branch.
    - its `proxmox.sh` creates VM 10010 with the 193 GiB disk;
    - the installer boots, and the agent records its new host key (`ssh_host.pub`, the `.sops.yaml`
      recipient, the agent's pin);
-   - Ali re-encrypts docker-dmz's 19 files for it, then pushes and merges:
-     `nix shell nixpkgs#sops -c sh -c 'for f in secrets/docker-dmz.yaml stacks/dmz/*/*.sops.*; do sops updatekeys -y "$f"; done'`;
+   - Ali re-encrypts docker-dmz's 19 files for it (`rclone.sops.conf` with `--input-type ini`:
+     sops doesn't know `.conf`), the agent checks each file's recipients, then Ali merges:
+     `nix shell nixpkgs#sops -c sh -c 'for f in secrets/docker-dmz.yaml stacks/dmz/*/*.sops.*; do case "$f" in *.conf) sops updatekeys -y --input-type ini "$f" ;; *) sops updatekeys -y "$f" ;; esac || echo "FAILED: $f"; done'`;
    - the install from `main`, with `--copy-host-keys` and the doco-cd hold (`--extra-files`,
      Restores).
 5. **Agent**: the tar back into `/opt/appdata`, now on btrfs, and compared again; then the first

@@ -177,9 +177,11 @@ agent where it has sudo, else Ali: with `skynet.docker.appdataSnapshots`,
    copy or from Drive.
 3. Steps 1–6 with the existing files. The fresh ISO boot has a new key, so the PR updates
    `ssh_host.pub`, the `.sops.yaml` recipient and the agent's pin (the old pin would refuse the new
-   key). Ali re-encrypts every file of the host's for it, then pushes:
-   `nix shell nixpkgs#sops -c sh -c 'for f in secrets/<h>.yaml stacks/<target>/*/*.sops.*; do sops updatekeys -y "$f"; done'`.
-   Install with `--copy-host-keys` again, and on a Docker host the doco-cd hold.
+   key). Ali re-encrypts every file of the host's for it, then pushes. sops takes a file's format
+   from its extension and doesn't know `.conf`, so the rclone configs (INI) need `--input-type`:
+   `nix shell nixpkgs#sops -c sh -c 'for f in secrets/<h>.yaml stacks/<target>/*/*.sops.*; do case "$f" in *.conf) sops updatekeys -y --input-type ini "$f" ;; *) sops updatekeys -y "$f" ;; esac || echo "FAILED: $f"; done'`.
+   `git status --short` then lists every one of them, and the agent checks each file's recipients
+   before the merge. Install with `--copy-host-keys` again, and on a Docker host the doco-cd hold.
 4. A Docker host's data, as root, while doco-cd is still held:
    - from step 1's copy, then compared again, as in step 1:
      ```sh
