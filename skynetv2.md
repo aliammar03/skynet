@@ -25,7 +25,7 @@
 | P1 | docker-admin: admin door, identity, status | done (2026-10-22); 7 admin names move to .60 with P2's Technitium |
 | P2 | DNS (Technitium only) + remote access | done (2026-10-23); open: OPNsense rules 140/150/115 and CT 731 `onboot` (see P2 exit criteria) |
 | P3 | docker-dmz: apps + public path | done (2026-10-24): docker-dmz with v1's data (#48), its doors (#50) and all ten apps (#51–#61); the apps reach one another only through the door (#64); every image current (#67). Family accounts skipped for now; rule 150 can go now that 135 (ex-840) serves Gatus's `public` row |
-| P4 | Backups → Google Drive | in progress (2026-10-25): PBS greenfield done (VM 2040, `pbs/`; v1's PBS removed); PBS's datastore nightly to Drive by plain `rclone sync` (`stacks/admin/pbs-offsite/`; PVE already encrypts its chunks); app backups nightly to Drive (`stacks/<host>/backup/`, `skynet-restore`). Next: the two restore drills |
+| P4 | Backups → Google Drive | in progress (2026-10-25): PBS greenfield done (VM 2040, `pbs/`; v1's PBS removed); PBS's datastore nightly to Drive by plain `rclone sync` (`stacks/admin/pbs-offsite/`; PVE already encrypts its chunks); app data nightly to Drive (`stacks/<host>/backup/`, `skynet-restore`), cold for now. Next: hot app backups from btrfs snapshots, with docker-dmz rebuilt onto its new disk layout; then the two restore drills |
 | P5 | Observability (agent eyes) | outline |
 | P6 | Agent autonomy | outline |
 | P7 | Retire v1 + disaster recovery | outline |
@@ -70,7 +70,7 @@ Nothing outside the lab pushes into it.
 | D13 | `aliammar-skynet` has **Write**. The `main` ruleset requires a PR and check `nix` and blocks force-push/deletion; no review is required (Ali's call, 2026-10-21) | Branches in one repo, no approval clicks. "Never merge" is a **soft wall**: AGENTS.md + Claude Code deny rules |
 | D12 | v1 archived; fresh repo; new ops VM built alongside the old one, which is then retired | Clean start without a blind spot |
 | D14 | Remote access = **Tailscale**, with `os-tailscale` on OPNsense as the subnet router and split DNS for `aliammar.net`; replaces the WireGuard plan | Nothing inbound to open; it keeps working when docker-admin or a node is down, so it can reach what needs fixing |
-| D15 | Backups = **restic** (run by resticprofile) in doco-cd `one_off` jobs that hold the apps stopped (`stop_services`), and PBS's datastore with **rclone** (PVE encrypts its chunks); both to Drive, nightly. PBS is rebuilt greenfield as VM 2040 from Proxmox's automated installer. Restores: `skynet-restore` | Battle-tested pieces. doco-cd already schedules jobs and is the one thing that can stop a stack without reconciliation restarting it. Cold copies need no dumps |
+| D15 | Backups = **restic** (run by resticprofile in doco-cd `one_off` jobs) copying `/opt/appdata` **hot**: on docker-dmz from a read-only **btrfs snapshot** taken by **btrbk** a moment before. PBS's datastore goes with **rclone** (PVE encrypts its chunks); both to Drive, nightly. PBS is rebuilt greenfield as VM 2040 from Proxmox's automated installer. Restores: `skynet-restore`, from a local snapshot or from Drive, with doco-cd paused | Battle-tested pieces. A snapshot holds every app's files at one instant, which databases restart from as after a power cut: no dumps, no stopped apps, no stop lists. Holding apps stopped through doco-cd (`stop_services`, the first design) relies on no poll redeploying them mid-job, and doco-cd 0.129.1's can (P4 → Prechecks) |
 
 ## Rules
 
@@ -152,8 +152,10 @@ skynet/
   folder gets that folder from the host config (`systemd.tmpfiles`, with its owner), in the stack's
   PR.
 - The README gives each path a backup class: data, or cache (rebuilds itself; not backed up).
-- Backups (P4) copy `/opt/appdata` cold: a doco-cd job holds the stateful services stopped while
-  restic runs, so databases need no dumps, and a restore is the files put back.
+- Backups (P4) copy `/opt/appdata` hot. docker-dmz's comes from a read-only btrfs snapshot taken a
+  moment before: every file at one instant, as after a power cut, which the apps' databases restart
+  from. docker-admin's is copied directly (one small SQLite file). Databases need no dumps, nothing
+  stops, and a restore is the files put back.
 
 **Networks**
 - Shared networks are created by the host's Nix config, not by stacks:
@@ -1051,12 +1053,13 @@ hold .33/.35), give 10015 its memory back, then `sudo systemctl enable --now doc
 
 **Goal**
 - Every night, each Docker host's app data (`/opt/appdata`) goes to Google Drive as an encrypted
-  restic snapshot. It is taken cold: doco-cd holds the apps stopped for the few minutes it takes.
+  restic snapshot. It is copied hot, on docker-dmz from a btrfs snapshot taken a moment before, so
+  no app stops.
 - PBS is rebuilt greenfield: VM 2040 from Proxmox's installer, its config in git (`pbs/etc/`), with
   none of v1's leftovers.
 - Every night, PBS's datastore (every guest's backups, already encrypted by PVE) is mirrored to
   Drive.
-- One command restores a stack's data from any snapshot: `skynet-restore <stack> [snapshot]`.
+- One command restores a stack's data, from a local snapshot or from Drive: `skynet-restore`.
 - A failed or missed night posts to `#alerts`, and Gatus shows each job.
 
 **Why now:** PBS already backs up every guest nightly, onto Unraid in the same house: 02:00 on the
@@ -1068,8 +1071,9 @@ Nothing is offsite, and app data restores only as a whole VM.
 | Need | Choice | Why | Passed over |
 |---|---|---|---|
 | Backup engine | restic 0.19 | client-side encryption, dedup, snapshots and retention; `restore --delete` puts a folder back exactly; its `rclone:` backend reaches Drive | Kopia (younger), Borg (no Drive), Duplicati (database corruption history), tarball tools such as offen/docker-volume-backup (no dedup: a full upload every night) |
-| Runner | resticprofile 0.33; its image ships restic, rclone and curl | one profile file in git holds backup, retention, check and the healthchecks.io pings (`send-before` / `send-after` / `send-after-fail`). Restores and every other restic command run through it | Backrest and NixOS `services.restic` (their schedulers can't hold doco-cd's stacks stopped), autorestic |
-| Schedule and quiet window | doco-cd `one_off` jobs with `cd.doco.job.stop_services` | doco-cd stops the listed services and waits; it runs the job, then starts them again after success or failure. The gap isn't drift, so reconciliation leaves it alone. Cold files are consistent: no database dumps, and no per-app import on restore | stopping by hand (reconciliation restarts it); `docker pause` (fails healthchecks, then reconciliation restarts it); per-app dumps |
+| Runner | resticprofile 0.33, in doco-cd `one_off` jobs; its image ships restic, rclone and curl | one profile file in git holds backup, retention, check and the healthchecks.io pings (`send-before` / `send-after` / `send-after-fail`) | Backrest, autorestic; NixOS `services.restic` (would fit now that nothing stops, but the job already carries the pings, retention and Gatus rows) |
+| Point-in-time copy | btrbk 0.32 (NixOS module `services.btrbk`): a read-only btrfs snapshot of docker-dmz's `/opt/appdata` at 04:20, which restic copies at 04:30 | a snapshot holds every file of every app at one instant. SQLite, CouchDB and MongoDB all restart from that state as from a power cut, so there are no dumps and nothing stops. btrbk is the standard btrfs snapshotter, with date-based retention, and its snapshots double as fast local restores | cold copies through doco-cd's `stop_services` (the first design: a poll can redeploy held services mid-job, Prechecks); a dump per database (code and an import step per app); snapper (built for OS rollback, keeps its snapshots inside the data); LVM-thin snapshots (more steps); a plain hot copy (MongoDB's files can't be copied live) |
+| Restores | `skynet-restore` (glue): rsync from a local snapshot, or restic 0.19 (nixpkgs-unstable) from Drive, with the backup stack's own sops files through sops-nix | one command for either source. It pauses doco-cd itself, so nothing restarts a stack mid-restore | restores through doco-cd's job (the same mid-job redeploy); httm (it browses file versions, but restores one file at a time) |
 | Drive | rclone with Ali's own OAuth client, scope `drive.file` (D9) | rclone sees only the files it created. rclone's shared client stops working during 2026 | a service account (no storage on a personal Drive) |
 | PBS offsite | `rclone sync` of the datastore | chunks are immutable files, so each night sends only new ones. PVE already encrypts them client-side; only guest IDs, names, sizes and dates show. Drive keeps deleted files in the trash for 30 days | a second PBS (remote sync); PBS 4's S3 datastores (Drive isn't S3); restic over the datastore (re-deduplicating PBS's chunks); an rclone `crypt` layer (a second key for nothing) |
 | PBS itself | a fresh VM from Proxmox's automated installer: ops builds the ISO (`nix build .#installer-pbs`; `proxmox-auto-install-assistant` is in nixpkgs) with the answer file from git | the official appliance and upgrade path, installed no-touch like the NixOS hosts, and rebuildable from git alone | PBS on NixOS (shelved, Open); cleaning CT 240 in place (it keeps v1's users and history); building the ISO on CT 240 (packages installed by hand, and a rebuild would need a running PBS) |
@@ -1096,8 +1100,9 @@ requests a second per client.
 - **Drive** (Ali, 2026-10-25, `rclone about gdrive:`): 1.48 TiB free of 2 TiB. The copies need
   about 0.2 TiB: twice the datastore (86.8 GiB) plus the app data (about 6 GB).
 - **The uplink** (2026-10-25, 00:05): about 207 Mbit/s up (1 GB from ops to Cloudflare over four
-  streams; 130–270 on one). So Drive's own pace sets the first sync's length: about 2 new files a
-  second, so 135k chunks take about 19 hours.
+  streams; 130–270 on one). So Drive's own pace sets the first sync's length: it ran at 0.8 new
+  files a second (about 1.8 MiB/s, 2026-10-25), so the datastore's 41,202 files take about 14
+  hours.
 - **Unraid** (Ali): a new share `pbs` for the new datastore, its own so v1's can be removed without
   touching it. Its NFS export: VM 2040 read-write with `no_root_squash` (PBS creates the
   datastore as root, then hands it to user `backup`), and docker-admin read-only for the offsite
@@ -1105,6 +1110,30 @@ requests a second per client.
   datastore's folders are `750`, `backup`'s own. CT 240 reads `pbs-backups` through the core node's
   mount (10.10.50.11), so its move to .39 needs no rule.
 - **Egress:** both Docker hosts reach Google's APIs on :443 (rule 810).
+- **docker-dmz's disk** (2026-10-25): 128 GB, one ext4 root, 34 GB used: `/opt` 8.9 GB, Docker
+  21.6 GB (23 images, all in use), the Nix store 3.3 GB, logs 0.1 GB. 25 GB stays on root once the
+  app data moves.
+- **Core's `local-lvm`** (2026-10-25): a 348 GiB thin pool, 73% used (94 GiB free), holding 682 GiB
+  of guest disks in all, 346 GiB of them v1's stopped guests, which P7 destroys. A disk takes pool
+  space only for what is written, and docker-dmz trims weekly.
+- **docker-dmz's `/opt/appdata`, for the copy to ops** (2026-10-25): 8.7 GB in 18,258 entries, with
+  no ACLs, extended attributes or hard links, so `tar` with numeric owners carries it whole. It
+  skips the 13 sockets, which the apps make again. ops has 38 GB free, and one ssh stream from
+  docker-dmz carries 110 MB/s: under 2 minutes each way.
+- **Re-pulling docker-dmz's images** after its rebuild: 10 of its 21 come from Docker Hub, well within
+  its 100 anonymous pulls per 6 hours; the rest from ghcr.io and lscr.io.
+- **doco-cd 0.129.1 and held services** (2026-10-25, the first `backup` run): a poll 4 seconds into
+  the stop found five held stacks stopped, took it for drift and redeployed them mid-backup (jikan
+  with its MongoDB, karakeep, librespeed, marinara). The next poll waited for the job, as designed.
+  Hence hot backups, and restores that pause doco-cd themselves.
+- **Checked for the hot design** (2026-10-25):
+  - PBS's freeze: QEMU's guest agent ignores `EBUSY` from a filesystem mounted twice, so btrfs's
+    top level and `@appdata` can both be mounted;
+  - btrbk's NixOS timer allows 10 minutes of slack by default (`AccuracySec`), and its service runs
+    as user `btrbk`, with sudo for `btrfs`;
+  - Docker binds the target of a relative `latest` symlink (tested on docker-dmz);
+  - sops-nix hands dotenv and INI secrets over whole: it ignores `key` for both;
+  - nixpkgs-unstable's restic is 0.19.1, the image's; 26.05 has 0.18.1.
 
 ### Drive access (Ali, once)
 
@@ -1129,29 +1158,26 @@ From rclone's "Making your own client_id":
 
 ### App data: `stacks/<host>/backup/` (docker-dmz and docker-admin)
 
-One stack per Docker host: three doco-cd `one_off` jobs on the pinned resticprofile image, all
-reading `profiles.yaml` from git.
+One stack per Docker host: two doco-cd `one_off` jobs on the pinned resticprofile image, both
+reading `profiles.yaml` from git. Nothing stops.
 - **`backup`**, nightly at 04:30, after the guests' PBS backups:
-  - `stop_services` (below) holds the host's stateful services stopped;
-  - then `resticprofile backup`, with retention (forget) right after it. Pruning waits for the
-    weekly check, so the stop stays short;
-  - repository `rclone:gdrive:skynet/restic/<host>`, source `/opt/appdata`, 64 MiB packs;
+  - its source is a read-only `/opt/appdata`. On docker-dmz that is the newest btrfs snapshot
+    (btrbk, 04:20; next section), mounted there so restic sees the live paths. On docker-admin it
+    is the folder itself, whose one database is Authelia's small SQLite file;
+  - `run.sh` refuses an empty source, and on docker-dmz a snapshot more than an hour old (from the
+    stamp `/opt/appdata/.snapshot-stamp`, written just before each snapshot). Either would become
+    the night's snapshot, and retention would age the real ones out;
+  - then `resticprofile backup`, with retention (forget) right after it;
+  - repository `rclone:gdrive:skynet/restic/<host>`, 64 MiB packs;
   - keeps 7 daily, 4 weekly and 12 monthly snapshots.
-- **`check`**, Sundays at 10:00: prune, then `restic check --read-data-subset 5%`, with nothing
-  stopped.
-- **`restore`**, run only by `skynet-restore`: the same `stop_services`, then
-  `restic restore <snapshot>:/opt/appdata/<stack> --target /opt/appdata/<stack> --delete`. Only the
-  stack's folder is the target, so `--delete` can't reach anything else, and its cache folders
-  are excluded: neither restored nor deleted (tested on restic 0.19.1, 2026-10-25).
+- **`check`**, Sundays at 10:00: prune, then `restic check --read-data-subset 5%`.
 
-**Stopped during `backup` and `restore`.** These are compose service names, the stacks whose
-READMEs class their data as `data`:
-- docker-dmz: `authelia/authelia`, `obsidian/obsidian`, `karakeep/karakeep`, `paperless/paperless`,
-  `calibre/calibre`, `sillytavern/sillytavern`, `marinara/marinara`, `jikan/jikan`, `jikan/mongo`,
-  `aiometadata/aiometadata`, `aiostreams/aiostreams`, `librespeed/librespeed`. `jikan/jikan` has
-  no data of its own, but with mongo stopped it would turn unhealthy and trip reconciliation;
-- docker-admin: `authelia/authelia`. Gatus keeps running: its history is disposable, and it is the
-  monitor.
+**Consistent without stopping.** A snapshot holds every app's files at one instant: the state a
+power cut leaves. SQLite (most apps) commits atomically, CouchDB (obsidian) only appends, and
+MongoDB (jikan) replays its journal, so each restarts from it cleanly. An app caught between two
+writes that no transaction ties together (karakeep saving a file, then its row) is no worse off
+than after a power cut. PBS's VM backup at 03:30 freezes the filesystems first: a second,
+independent copy.
 
 **Not backed up** (`excludes.txt`), because their READMEs class them `cache` (or disposable) and
 they rebuild themselves:
@@ -1163,46 +1189,127 @@ they rebuild themselves:
 
 **Files:**
 - `compose.yaml`, `profiles.yaml`, `excludes.txt`, and `run.sh` (the jobs' entrypoint, the same on
-  both hosts);
+  both hosts; `APPDATA_SNAPSHOT=true` on docker-dmz turns on the snapshot's age check);
 - `.doco-cd.yml`: reconciliation off, as for every stack of jobs only;
 - `secret.sops.env`: `RESTIC_PASSWORD` (agent-generated) and `HC_PING_URL`;
 - `rclone.sops.conf` (Ali's).
 
-**Mounts:** `/opt/appdata`, read-write because restores write. The job copies `rclone.conf`
-somewhere writable at start, since rclone saves refreshed tokens.
+`skynet-restore` reads the same two sops files on the host, through sops-nix.
+
+**Mounts:**
+- the source at `/opt/appdata`, read-only. On docker-dmz it is `/mnt/appdata-pool/@snapshots/latest`
+  with `create_host_path: false`, so a missing snapshot fails the job instead of handing it an
+  empty folder;
+- restic's cache on the host's ext4 (`/var/cache/restic-appdata`), outside the snapshots.
+
+The job copies `rclone.conf` somewhere writable at start, since rclone saves refreshed tokens.
 
 **Notes:**
-- The first night uploads everything (docker-dmz has about 6 GB), so the apps stay stopped longer
-  that once.
-- `restore`'s schedule is `@every 87600h`. Checked against doco-cd 0.129.1 (2026-10-25): a date that
-  never comes (`0 0 30 2 *`) fails the deploy, because gocron accepts only a schedule with a next
-  run. Ten years from doco-cd's last start never comes either: its scheduler computes the next run
-  afresh at every start and doesn't catch up missed ones, and every image update restarts it. The
-  run API (`POST /v1/api/job/<container>/run?stack=backup&wait=true`) runs a job synchronously and
-  answers 200, or 500 with the error. The job also refuses to run without a `restore.request` from
-  the last 10 minutes.
+- A new stack needs nothing here beyond its cache paths in `excludes.txt`.
+- restic sees the same paths every night, so it takes the night before as its parent and reads only
+  what changed.
+
+### docker-dmz: `/opt/appdata` on btrfs (`hosts/docker-dmz/disk.nix`)
+
+- **Layout** (disko; Ali's sizes, 2026-10-25). The VM's disk grows from 128 to 193 GiB
+  (`proxmox.sh`), thin on core's `local-lvm`:
+  - ESP, 512 MiB;
+  - root, ext4, **64 GiB**: NixOS, the Nix store, and Docker's images and containers (25 GB
+    today). Docker stays on ext4, where its usual storage driver belongs. Its images alone are
+    21.6 GB, and the weekly prune keeps a replaced image for 7 days, so a round of updates can
+    double them for a week;
+  - the rest, **128 GiB**, **btrfs** (label `appdata`, `noatime`): its top level at
+    `/mnt/appdata-pool` for btrbk, subvolume `@appdata` at `/opt/appdata`, and subvolume
+    `@snapshots`. No `nofail`: if the btrfs doesn't mount, the host stops at boot instead of
+    starting the apps on an empty folder.
+- **Snapshots** (btrbk, `services.btrbk.instances.appdata`, `snapshotOnly`):
+  - at 04:20, read-only `@snapshots/@appdata.<YYYYMMDDThhmm>`. The module's timer allows 10 minutes
+    of slack; here 1 minute, so the snapshot always comes before 04:30;
+  - every snapshot is kept for 2 days, then one a day for 7 (`snapshot_preserve_min 2d`,
+    `snapshot_preserve 7d`); btrbk always keeps the newest;
+  - before each run, the stamp; after it, `@snapshots/latest` pointing at the newest. Both run as
+    root (systemd's `+`), since btrbk itself runs as user `btrbk`.
+- **PBS** freezes `/` and `/opt/appdata` through the guest agent before the VM backup. The top level
+  mounted as well is fine: the agent ignores the second freeze's `EBUSY`.
+- **docker-admin** keeps its ext4 layout. Its data worth keeping is about 1 MB (Authelia), and a
+  direct copy at 04:30 serves.
+
+**The rebuild** (once; about 1½ hours of app downtime, in a window Ali picks). disko can't reshape a
+running disk and ext4 can't shrink while mounted, so docker-dmz is rebuilt from git with the new
+layout (`runbooks/new-vm.md` → Rebuild). Its data goes to ops and back (Ali, 2026-10-25): a cold
+copy, exact, caches included, and minutes each way. Restores from Drive are drilled per stack (PRs
+and order, step 6), and P7's drill rebuilds a Docker host from backup.
+
+Before: the hot backups PR (PRs and order, step 5) is ready with CI green, and docker-dmz's
+installer ISO is built from its branch.
+1. **Agent**, old docker-dmz: doco-cd and every stack stopped, then `/opt/appdata` copied to ops as
+   one tar (`~skynet/rebuild/docker-dmz-appdata.tar`) and compared with it file by file. The stacks
+   stay stopped.
+2. **Ali**: a PBS backup of VM 10010, the fallback.
+3. **Ali**: `qm stop 10010 && qm destroy 10010`.
+4. `runbooks/new-vm.md` steps 1–6 on the PR's branch:
+   - its `proxmox.sh` creates VM 10010 with the 193 GiB disk;
+   - the installer boots, and the agent records its new host key (`ssh_host.pub`, the `.sops.yaml`
+     recipient, the agent's pin);
+   - Ali re-encrypts docker-dmz's 19 files for it, then pushes and merges:
+     `nix shell nixpkgs#sops -c sh -c 'for f in secrets/docker-dmz.yaml stacks/dmz/*/*.sops.*; do sops updatekeys -y "$f"; done'`;
+   - the install from `main`, with `--copy-host-keys` and the doco-cd hold (`--extra-files`,
+     Restores).
+5. **Agent**: the tar back into `/opt/appdata`, now on btrfs, and compared again; then the first
+   local snapshot (`systemctl start btrbk-appdata`); then doco-cd released, which re-pulls the
+   images (22 GB) and starts the stacks on their data.
+6. **Agent**: `systemctl --failed` empty and Gatus green; a first hot backup, started by hand; then
+   the app-data drill (PRs and order, step 6). The copy on ops goes once Ali says so.
+
+Fallback: until step 3 nothing has changed. After it, Ali restores 10010 from step 2's backup
+**without starting it**, the merge is reverted on `main` (the old layout, and the old host key's
+recipients), then he starts it.
 
 ### Restores: `skynet-restore` (glue on both Docker hosts, from `modules/docker-host.nix`)
 
-- `skynet-restore <stack> [snapshot]` (default `latest`) does three things:
-  - writes the request to `/opt/appdata/backup/restore.request`;
-  - triggers the `restore` job through doco-cd's API
-    (`/v1/api/job/backup-restore/run?stack=backup&wait=true`; the API names a job by its container)
-    and waits;
-  - prints the run's log and the result.
+It runs as root on the host: `ssh -t <you>@<host> sudo skynet-restore …`. On docker-dmz the agent
+can run it too (D11). It needs neither doco-cd nor the jobs' containers. It uses rsync for local
+snapshots, and restic 0.19 (nixpkgs-unstable, the image's version) for Drive, with the backup
+stack's own sops files decrypted on the host by sops-nix. sops-nix hands a dotenv file over whole,
+so it reads `RESTIC_PASSWORD=` out of it.
+- `skynet-restore list [<stack>]`: the local snapshots (docker-dmz) and the Drive snapshots; with a
+  stack, how many entries each Drive snapshot changed in it.
+- `skynet-restore local <stack> <snapshot>`: from a local snapshot, on docker-dmz. It takes seconds,
+  with no download. The snapshot is always named, never "newest": after a restore, the newest is
+  the one taken just before it.
+- `skynet-restore drive <stack> [<snapshot>]`: from Drive, `latest` by default.
+- In place, from either source:
+  1. it checks that the stack's folder is in the snapshot;
+  2. on docker-dmz it takes a snapshot first (btrbk's unit), so the restore can be undone, and
+     prints `skynet-restore local <stack> <that snapshot>`;
+  3. it pauses doco-cd (`systemctl stop docker-doco-cd`), so no poll or reconciliation restarts
+     the stack mid-restore;
+  4. it stops the stack's containers: every container of its Compose project, caches included;
+  5. it puts `/opt/appdata/<stack>` back exactly as in the snapshot. From a local snapshot that is
+     `rsync --delete`, comparing contents; from Drive, `restic restore
+     <snapshot>:/opt/appdata/<stack> --target /opt/appdata/<stack> --delete`. Only the stack's
+     folder is the target, and its cache folders (`excludes.txt`) are neither restored nor deleted;
+  6. it starts the containers again, then doco-cd. If anything fails after step 3, it still
+     starts both, then exits non-zero.
+- `--to <dir>`, either source: into a scratch folder, with nothing stopped or paused (drills, or one
+  file).
+- `--all`, either source: every stack. On a rebuilt host doco-cd is still held (below): it restores
+  every stack, takes the first local snapshot (docker-dmz), then releases doco-cd, which deploys the
+  stacks onto their data.
+- One restore runs at a time (a lock). Restoring one stack leaves the others running.
+- **Fresh installs hold doco-cd.** It starts only while `/var/lib/skynet/hold-doco-cd` is absent (a
+  systemd condition in `modules/docker-host.nix`). A Docker host's install puts that file in place
+  (`nixos-anywhere --extra-files`), so no app starts on an empty `/opt/appdata`: an empty CouchDB,
+  say, offered to Obsidian's sync. `skynet-restore … --all` removes it. On a brand-new host, or
+  after data copied back from ops, it goes by hand (`runbooks/new-vm.md`, step 6): on docker-dmz
+  after a first `systemctl start btrbk-appdata`, so the backup job finds `latest`.
 
-  doco-cd stops the stateful services, restic puts `/opt/appdata/<stack>` back exactly as in the
-  snapshot, and doco-cd starts the services again.
-- `skynet-restore --list [stack]`: the snapshots, and how many entries each changed in the stack.
-  It and `--to` run the job's container definition directly (`docker run --volumes-from
-  backup-restore`: its image, secrets and mounts).
-- `skynet-restore <stack> [snapshot] --to <dir>`: into a scratch folder, with nothing stopped (for
-  drills, or to fetch one file).
-- `skynet-restore --all [snapshot]`: every stack, for a rebuilt host (P7).
-- It runs as root on the host: `ssh -t <you>@<host> sudo skynet-restore …`. On docker-dmz the agent
-  can run it too (D11).
-- A restore stops every stateful service on its host for those minutes, not just the one stack:
-  one job, one stop list.
+**Gotchas:**
+- A restored stack keeps its cache folders as they were. One whose search index is a cache
+  (karakeep's meilisearch) may need a reindex.
+- While doco-cd is paused, its jobs wait too, the heartbeat included: a long `--all` may page
+  healthchecks.io's heartbeat check once.
+- A Drive restore during Sunday's 10:00 prune fails on restic's lock; run it again after.
 
 ### PBS, greenfield: VM 2040 (`pbs/`)
 
@@ -1305,6 +1412,8 @@ PBS stays Proxmox's appliance (VM 2040, Debian), but its settings live in git, t
   failure; the rclone job pings with curl.
 - **Gatus:** one job row per check from its badge, as for the heartbeats.
 - **`#alerts`:** `notify_on: failure` on every job.
+- **btrbk:** a failed snapshot fails the next backup (the snapshot's age check), which alerts like
+  any failed night.
 
 ### Survival kit (Ali, outside the lab)
 
@@ -1320,51 +1429,42 @@ manager.
 
 ### PRs and order
 
-1. **Ali:**
-   - the Prechecks' answers (the uplink is measured);
-   - Drive access;
-   - the three healthchecks.io checks.
-2. **PBS greenfield PR:**
-   - `pbs/`: `proxmox.sh`, `answer.toml`, `installer.nix`, `setup.sh`, `etc/` and a README; ops'
-     drift timer;
-   - ops builds the ISO; Ali makes the Unraid share, frees .40 and creates VM 2040 from it; the
-     agent runs `setup.sh`;
-   - Ali does the cutover on both nodes, and stores the new encryption keys in the survival kit;
-     then v1's PBS goes (PBS, greenfield).
+1. **Ali:** the Prechecks' answers, Drive access, and the three healthchecks.io checks. Done
+   (2026-10-25).
+2. **PBS greenfield PR:** done (#75). VM 2040 runs from it, and v1's PBS is gone.
+3. **App backups PR:** done (#76): both `backup` stacks, `skynet-restore` and the Gatus rows, cold at
+   first (`stop_services`).
+4. **PBS offsite PR:** done (#78): the NFS mount, `pbs-offsite` and its Gatus row. The first sync
+   (from 2026-10-25 13:38) takes about 14 hours: the datastore held 41,202 files (86.8 GiB) after
+   its first full backups, and Drive takes about 0.8 new files a second.
+5. **Hot backups PR:**
+   - docker-dmz's 193 GiB disk and its disko layout, and btrbk with its stamp and `latest`;
+   - `skynet-restore` with both sources, its secrets through sops-nix, and the doco-cd hold;
+   - both `backup` stacks without stop lists or the `restore` job; `run.sh`'s source checks;
+   - `runbooks/new-vm.md` (the hold on Docker hosts, docker-dmz's layout, a rebuild's copy to ops),
+     `runbooks/new-stack.md` (no stop list), and the READMEs.
 
-   It merges once VM 2040 runs from it, with its host key pinned. The first night fills the new
-   datastore.
-3. **App backups PR:**
-   - both `backup` stacks, `skynet-restore` and the Gatus rows;
-   - the restic passwords, agent-generated;
-   - Ali adds `rclone.sops.conf`, each stack's `HC_PING_URL` and Gatus's two badge URLs on the
-     branch.
-
-   The first night runs long.
-4. **Drill:** `skynet-restore librespeed` in place, and karakeep `--to` a scratch folder. Evidence
-   goes in the PR.
-5. **PBS offsite PR:**
-   - the NFS mount, `pbs-offsite` and its Gatus row;
-   - Ali: docker-admin's rule on the `pbs` export (read-only, as uid 34: Prechecks), an OPNsense
-     rule for docker-admin → Unraid NFS (TCP 2049), and on the branch `rclone.sops.conf`,
-     `HC_PING_URL` and Gatus's `HC_BADGE_URL_PBS_OFFSITE`.
-
-   The first sync takes about 6 hours at Drive's pace: the new datastore held 41,202 files
-   (86.8 GiB) after its first full backups (2026-10-25). It can go before step 3: the two share
-   only Drive access.
-6. **Drill:** one small guest restored from the Drive copy.
+   It merges inside docker-dmz's rebuild (its step 4), once Ali has re-encrypted docker-dmz's files
+   for the new host key. docker-admin takes its part at the merge.
+6. **Drill:** on docker-dmz, `skynet-restore local librespeed <snapshot>` and
+   `skynet-restore drive librespeed`, both in place, and `skynet-restore drive karakeep --to` a
+   scratch folder, compared with the live one. Evidence goes in the PR.
+7. **Drill:** one small guest restored from the Drive copy.
 
 ### Exit criteria
 
-- Seven green nights in a row, for all three jobs and for VM 2040's backups. CT 240 is gone.
-- Both drills done, with evidence in their PRs.
+- Seven green nights in a row, for all three jobs, docker-dmz's snapshots and VM 2040's backups. CT
+  240 is gone.
+- Both drills done (app data from both sources, and a guest from Drive), with evidence in their PRs.
 - Ali confirms the survival kit is stored.
 - `pbs/etc/` matches PBS, and the drift check is quiet.
-- `runbooks/restore.md` covers five cases: an app, a host, a guest, PBS rebuilt from `pbs/etc/`, and
-  a restore from Drive with nothing else left.
+- `runbooks/restore.md` covers six cases: an app from a local snapshot, an app from Drive, a host, a
+  guest, PBS rebuilt from `pbs/etc/`, and a restore from Drive with nothing else left.
 
 **Open:**
 - Whether any Unraid shares need offsite too (not part of this phase).
+- doco-cd: report upstream that a poll can redeploy services a running job holds stopped (0.129.1,
+  Prechecks). With hot backups and restores that pause doco-cd, the lab no longer relies on it.
 - A failed guest backup reaches only PVE's built-in sendmail to root's address, and a failed
   verify or GC on PBS only root's local mailbox (no relay): nothing posts them to `#alerts`. A
   webhook target there on each (Ali pastes the URL; PBS's `notifications.cfg` then joins git)
@@ -1447,7 +1547,8 @@ are each fixed or PR'd, with no human step except merges.
 **What: DR**
 - Final survival kit.
 - DR runbooks:
-  - rebuild a host from git (`proxmox.sh` + nixos-anywhere + payload restore);
+  - rebuild a host from git (`proxmox.sh` + nixos-anywhere + payload restore). docker-dmz's rebuild
+    in P4 is the first, and the runbook comes from it;
   - restore OPNsense from the `skynet-opnsense` repo (os-git-backup, unchanged);
   - the recovery order after losing a node.
 - A quarterly kit check and restore drill, run as a scheduled agent task.
@@ -1482,8 +1583,9 @@ in a drill.
 | `modules/dns.nix` + `modules/technitium-sync.sh` (settings + zone via the Technitium API, gratuitous ARP) | ~145 lines |
 | CI: flake check + `docker compose config` per stack + "every stack has a README and a Gatus row" check | ~60 lines |
 | `runbooks/dns-speed-test/dnsbench.py` (run by hand; nothing deploys it) | ~450 lines |
-| `stacks/<host>/backup/run.sh` (the jobs' entrypoint: a writable `rclone.conf`, the restore request, the restore itself) (P4) | ~55 lines, the same on both hosts |
-| `skynet-restore` (P4) | ~65 lines |
+| `stacks/<host>/backup/run.sh` (the jobs' entrypoint: a writable `rclone.conf`, the source checks) (P4) | ~25 lines, the same on both hosts |
+| `skynet-restore` (P4: two sources, the undo snapshot, doco-cd paused, the hold released) | ~110 lines |
+| btrbk's hooks on docker-dmz (the stamp, `latest`) (P4) | ~10 lines |
 | `stacks/admin/pbs-offsite/run.sh` (the jobs' entrypoint: the empty-source guard, the sync and its pings, the check) (P4) | ~35 lines |
 | `pbs/installer.nix` (Proxmox's ISO with `answer.toml` built in) (P4) | ~30 lines |
 | `pbs/setup.sh` (PBS after its installer: repos, guest agent, datastore mount, `pbs/etc/`) (P4) | ~50 lines |
