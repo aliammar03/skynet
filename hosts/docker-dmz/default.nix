@@ -36,6 +36,8 @@ in
   # calibre has no login of its own: caddy-apps reaches it on a network only the two share.
   skynet.docker.doorNetworks = [ "door-calibre" ];
   skynet.docker.docoTarget = "dmz";
+  # /opt/appdata is btrfs (disk.nix): btrbk snapshots it for the backup and local restores.
+  skynet.docker.appdataSnapshots = true;
 
   # Redis (paperless, jikan, aiometadata) asks for it at every start: its background saves fork.
   boot.kernel.sysctl."vm.overcommit_memory" = 1;

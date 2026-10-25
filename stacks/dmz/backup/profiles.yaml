@@ -5,7 +5,7 @@ version: "1"
 appdata:
   repository: rclone:gdrive:skynet/restic/docker-dmz
   pack-size: 64 # MiB: Drive creates about 2 files a second, so few large ones
-  cache-dir: /opt/appdata/backup/cache # kept between runs (backup/ is excluded)
+  cache-dir: /cache # the host's /var/cache/restic-appdata, kept between runs
   backup:
     source: [/opt/appdata]
     exclude-file: [/etc/resticprofile/excludes.txt]

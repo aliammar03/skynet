@@ -113,8 +113,8 @@ container counts as missing and is redeployed, with an `#alerts` post, every pol
 Purpose · URL · auth mode · data paths + backup class · secret key *names* · upstream link · gotchas.
 
 The backup class takes effect in the host's backup stack (`stacks/<target>/backup/`, same PR):
-- `data`: the service writing it joins `x-stateful` in `compose.yaml`, so the nightly backup and
-  restores hold it stopped. Without that, its files are copied while it writes them;
+- `data`: nothing to do. The nightly backup copies a snapshot of `/opt/appdata`, every file at one
+  instant, so a database is caught as after a power cut, which it restarts from;
 - `cache`: the path joins `excludes.txt`. Everything else in `/opt/appdata` is backed up.
 
 ## 7. Check before the PR (agent)

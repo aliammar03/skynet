@@ -1,7 +1,7 @@
-# /opt/appdata to Google Drive every night (restic, run by resticprofile), its weekly check, and the
-# restore skynet-restore runs. Three doco-cd one_off jobs: each run is a fresh container from these
-# definitions. For backup and restore, doco-cd holds the stateful services stopped (every stack
-# whose README classes data as `data`), so the files are cold: no dumps.
+# /opt/appdata to Google Drive every night (restic, run by resticprofile), and its weekly check. Two
+# doco-cd one_off jobs: each run is a fresh container from these definitions. Hot: nothing stops.
+# The one database here is Authelia's small SQLite file, read in milliseconds at 04:30, when nobody
+# logs in. Restores are skynet-restore's, on the host.
 x-job: &job
   image: docker.io/creativeprojects/resticprofile:0.33.1@sha256:2422abfaec97a56e1d7937b512fa3676d8bad3801629358eabef19f8fe99321d
   entrypoint: ["/bin/sh", "/etc/resticprofile/run.sh"]
@@ -14,7 +14,8 @@ x-job: &job
     - ./profiles.yaml:/etc/resticprofile/profiles.yaml:ro
     - ./excludes.txt:/etc/resticprofile/excludes.txt:ro
     - ./rclone.sops.conf:/etc/rclone/rclone.conf:ro
-    - /opt/appdata:/opt/appdata # read-write: restores write
+    - /var/cache/restic-appdata:/cache # restic's cache, on the host
+    - /opt/appdata:/opt/appdata:ro
   tmpfs: [/resticprofile] # a volume in the image, unused: no anonymous volume per run
   # Only egress (Drive, healthchecks.io): its own default network, not `edge`.
 x-labels: &labels
@@ -22,8 +23,6 @@ x-labels: &labels
   cd.doco.job.execution_mode: one_off
   cd.doco.job.skip_running: "true"
   cd.doco.job.notify_on: failure
-# Gatus keeps running: its history is disposable (excludes.txt), and it is the lab's monitor.
-x-stateful: &stateful authelia/authelia
 
 services:
   backup:
@@ -33,7 +32,6 @@ services:
     labels:
       <<: *labels
       cd.doco.job.schedule: "30 4 * * *" # after both nodes' guest backups (02:00, 03:30)
-      cd.doco.job.stop_services: *stateful
   check:
     <<: *job
     container_name: backup-check
@@ -41,14 +39,3 @@ services:
     labels:
       <<: *labels
       cd.doco.job.schedule: "0 10 * * 0" # Sundays: prune, then read 5% of the data back
-  restore:
-    <<: *job
-    container_name: backup-restore
-    command: [restore]
-    labels:
-      <<: *labels
-      # Run only by skynet-restore. doco-cd needs a schedule and refuses one that never comes
-      # (30 February); ten years counted from doco-cd's last start never comes either, since every
-      # image update restarts it. The job also refuses to run without a fresh restore.request.
-      cd.doco.job.schedule: "@every 87600h"
-      cd.doco.job.stop_services: *stateful
