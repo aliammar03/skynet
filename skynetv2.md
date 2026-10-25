@@ -25,7 +25,7 @@
 | P1 | docker-admin: admin door, identity, status | done (2026-10-22); 7 admin names move to .60 with P2's Technitium |
 | P2 | DNS (Technitium only) + remote access | done (2026-10-23); open: OPNsense rules 140/150/115 and CT 731 `onboot` (see P2 exit criteria) |
 | P3 | docker-dmz: apps + public path | done (2026-10-24): docker-dmz with v1's data (#48), its doors (#50) and all ten apps (#51–#61); the apps reach one another only through the door (#64); every image current (#67). Family accounts skipped for now; rule 150 can go now that 135 (ex-840) serves Gatus's `public` row |
-| P4 | Backups → Google Drive | in progress (2026-10-25): PBS greenfield done (VM 2040, `pbs/`; v1's PBS removed); PBS's datastore nightly to Drive by plain `rclone sync` (`stacks/admin/pbs-offsite/`; PVE already encrypts its chunks); app data nightly to Drive (`stacks/<host>/backup/`, `skynet-restore`), cold for now. Next: hot app backups from btrfs snapshots, with docker-dmz rebuilt onto its new disk layout; then the two restore drills |
+| P4 | Backups → Google Drive | in progress (2026-10-25): PBS greenfield done (VM 2040, `pbs/`; v1's PBS removed); PBS's datastore nightly to Drive by plain `rclone sync` (`stacks/admin/pbs-offsite/`; PVE already encrypts its chunks); app data nightly to Drive, hot (`stacks/<host>/backup/`): docker-dmz rebuilt onto btrfs and backed up from btrbk snapshots (#81); `skynet-restore` drilled from a snapshot and from Drive. Next: the guest drill from Drive's copy once its first sync ends, `runbooks/restore.md`, seven green nights |
 | P5 | Observability (agent eyes) | outline |
 | P6 | Agent autonomy | outline |
 | P7 | Retire v1 + disaster recovery | outline |
@@ -1234,7 +1234,7 @@ The job copies `rclone.conf` somewhere writable at start, since rclone saves ref
 - **docker-admin** keeps its ext4 layout. Its data worth keeping is about 1 MB (Authelia), and a
   direct copy at 04:30 serves.
 
-**The rebuild** (once; about 1½ hours of app downtime, in a window Ali picks). disko can't reshape a
+**The rebuild** (done 2026-10-25; the apps were down from 17:37 to 19:23). disko can't reshape a
 running disk and ext4 can't shrink while mounted, so docker-dmz is rebuilt from git with the new
 layout (`runbooks/new-vm.md` → Rebuild). Its data goes to ops and back (Ali, 2026-10-25): a cold
 copy, exact, caches included, and minutes each way. Restores from Drive are drilled per stack (PRs
@@ -1438,18 +1438,14 @@ manager.
 4. **PBS offsite PR:** done (#78): the NFS mount, `pbs-offsite` and its Gatus row. The first sync
    (from 2026-10-25 13:38) takes about 14 hours: the datastore held 41,202 files (86.8 GiB) after
    its first full backups, and Drive takes about 0.8 new files a second.
-5. **Hot backups PR:**
-   - docker-dmz's 193 GiB disk and its disko layout, and btrbk with its stamp and `latest`;
-   - `skynet-restore` with both sources, its secrets through sops-nix, and the doco-cd hold;
-   - both `backup` stacks without stop lists or the `restore` job; `run.sh`'s source checks;
-   - `runbooks/new-vm.md` (the hold on Docker hosts, docker-dmz's layout, a rebuild's copy to ops),
-     `runbooks/new-stack.md` (no stop list), and the READMEs.
-
-   It merges inside docker-dmz's rebuild (its step 4), once Ali has re-encrypted docker-dmz's files
-   for the new host key. docker-admin takes its part at the merge.
-6. **Drill:** on docker-dmz, `skynet-restore local librespeed <snapshot>` and
-   `skynet-restore drive librespeed`, both in place, and `skynet-restore drive karakeep --to` a
-   scratch folder, compared with the live one. Evidence goes in the PR.
+5. **Hot backups PR:** done (#81), merged inside docker-dmz's rebuild (2026-10-25). The data went
+   to ops and back in under 3 minutes each way, copy and compare, with no difference either time.
+6. **Drill:** done (2026-10-25), on docker-dmz:
+   - `skynet-restore local librespeed <snapshot>` (8 s) and `skynet-restore drive librespeed`
+     (26 s), both in place. Each removed a marker file the snapshot lacked and left the folder
+     equal to the snapshot;
+   - `skynet-restore drive karakeep --to` a scratch folder (75 s): 1.79 GiB in 414 files, no
+     difference from the live folder.
 7. **Drill:** one small guest restored from the Drive copy.
 
 ### Exit criteria

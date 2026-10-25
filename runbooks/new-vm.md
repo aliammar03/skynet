@@ -205,4 +205,6 @@ agent where it has sudo, else Ali: with `skynet.docker.appdataSnapshots`,
     anyway, and for small critical guests (the 1 GB DNS VMs).
   - A changed setting applies at the VM's next start (`qm reboot <vmid>`).
 - A NixOS host serving :53 needs `services.resolved.enable = false`.
+- A Docker host's first deploy pulls every image at once (docker-dmz: 22 GB in about 5 minutes). A
+  registry timeout fails that run and posts to `#alerts`, and doco-cd's next pass deploys the rest.
 - Run `nix fmt` with file arguments; with none it waits on stdin.
