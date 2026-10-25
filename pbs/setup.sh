@@ -43,9 +43,10 @@ if ! proxmox-backup-manager datastore show skynet >/dev/null 2>&1; then
   rm -f "$store/.probe"
   proxmox-backup-manager datastore create skynet "$store" --reuse-datastore "$reuse"
 fi
+# Namespaces, through the API (JSON out: its text table panics on this call's result).
 for ns in core network; do
-  [ -d "$store/ns/$ns" ] ||
-    proxmox-backup-debug api create /admin/datastore/skynet/namespace --name "$ns"
+  [ -d "$store/ns/$ns" ] || proxmox-backup-debug api create \
+    /admin/datastore/skynet/namespace --name "$ns" --output-format json
 done
 
 # PBS's own config: jobs, users, ACLs. The tokens arrive without secrets; Ali regenerates them.
