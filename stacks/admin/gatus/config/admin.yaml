@@ -112,6 +112,13 @@ endpoints:
     conditions:
       - "[STATUS] == 200"
       - "[BODY].status == up"
+  - name: pbs-offsite
+    group: job
+    url: ${HC_BADGE_URL_PBS_OFFSITE}
+    interval: 5m
+    conditions:
+      - "[STATUS] == 200"
+      - "[BODY].status == up"
 
 suites:
   - name: technitium-network

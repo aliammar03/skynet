@@ -1,0 +1,39 @@
+# PBS's datastore to Google Drive every night, and a weekly check that Drive holds all of it. Two
+# doco-cd one_off jobs: each run is a fresh container from these definitions. PVE encrypted the
+# chunks before they reached PBS, so rclone copies them as they are.
+x-job: &job
+  # The backup stacks' image: it ships rclone and curl, so one pinned image covers P4's jobs.
+  image: docker.io/creativeprojects/resticprofile:0.33.1@sha256:2422abfaec97a56e1d7937b512fa3676d8bad3801629358eabef19f8fe99321d
+  entrypoint: ["/bin/sh", "/etc/pbs-offsite/run.sh"]
+  env_file: secret.sops.env # HC_PING_URL
+  environment:
+    TZ: Asia/Karachi
+  volumes:
+    - ./run.sh:/etc/pbs-offsite/run.sh:ro
+    - ./rclone.sops.conf:/etc/rclone/rclone.conf:ro
+    # docker-admin's automount of Unraid's `pbs` share (hosts/docker-admin). Binding it at the run's
+    # start mounts it, so every run gets the live NFS mount.
+    - /mnt/pbs-datastore:/mnt/pbs-datastore:ro
+  tmpfs: [/resticprofile] # a volume in the image, unused: no anonymous volume per run
+  # Only egress (Drive, healthchecks.io): its own default network, not `edge`.
+x-labels: &labels
+  cd.doco.job.enabled: "true"
+  cd.doco.job.execution_mode: one_off
+  cd.doco.job.skip_running: "true" # the first sync runs for most of a day
+  cd.doco.job.notify_on: failure
+
+services:
+  sync:
+    <<: *job
+    container_name: pbs-offsite
+    command: [sync]
+    labels:
+      <<: *labels
+      cd.doco.job.schedule: "0 6 * * *" # after both nodes' backups (02:00, 03:30) and the prune
+  check:
+    <<: *job
+    container_name: pbs-offsite-check
+    command: [check]
+    labels:
+      <<: *labels
+      cd.doco.job.schedule: "0 10 * * 3" # Wednesdays: clear of the nights and of Sunday's GC
