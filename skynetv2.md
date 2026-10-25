@@ -1330,8 +1330,9 @@ manager.
      rule for docker-admin → Unraid NFS (TCP 2049), and on the branch `rclone.sops.conf`,
      `HC_PING_URL` and Gatus's `HC_BADGE_URL_PBS_OFFSITE`.
 
-   The first sync takes about a day at Drive's pace (Prechecks). It can go before step 3: the two
-   share only Drive access.
+   The first sync takes about 6 hours at Drive's pace: the new datastore held 41,202 files
+   (86.8 GiB) after its first full backups (2026-10-25). It can go before step 3: the two share
+   only Drive access.
 6. **Drill:** one small guest restored from the Drive copy.
 
 ### Exit criteria

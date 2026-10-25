@@ -29,8 +29,9 @@
     folder, and syncing an empty folder would empty Drive's copy.
   - Unraid's export maps this host's reads to uid 34, PBS's `backup`: the datastore's folders are
     `750` and its own.
-  - Drive creates about 2 files a second, so the first sync of ~100k chunks runs most of a day
-    (`skip_running` keeps the next night's from starting beside it). A night that reaches
+  - Drive creates about 2 files a second, so the first sync runs for hours: about 6 for the
+    41,202 files (86.8 GiB) of 2026-10-25 (`skip_running` keeps the next night's from starting
+    beside it). Later nights send only new chunks. A night that reaches
     `--max-transfer 700G` (Drive takes 750 GiB a day) stops cleanly, counts as a success, and the
     next night carries on.
   - The image is the backup stacks' (resticprofile's), which ships rclone and curl.
