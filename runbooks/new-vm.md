@@ -32,7 +32,9 @@ On `p<N>/<h>`:
   - `--boot order=scsi0;ide2`, disk first, which step 5 relies on;
   - `local:iso/nixos-installer-<h>.iso` on `ide2`.
 - `hosts/<h>/default.nix`: hostName, NICs renamed by MAC (`systemd.network.links`), addresses from
-  `net.nix`, `base.nix` plus the role's module. `hosts/<h>/disk.nix`: disko, `/dev/sda`, ESP + ext4.
+  `net.nix`, `base.nix` plus the role's module. `hosts/<h>/disk.nix`: disko, `/dev/sda`, ESP + ext4
+  (docker-dmz's: ESP, a 64 GiB ext4 root and 128 GiB of btrfs for `/opt/appdata`, with
+  `skynet.docker.appdataSnapshots`).
 - `hosts/<h>/README.md`: VMID · IP · node · size, its NICs, install line, secrets, agent access.
 - `flake.nix`: `nixosConfigurations.<h> = mkHost "<h>";` and
   `packages.${system}.installer-<h> = mkInstaller "<h>";`
@@ -113,11 +115,20 @@ Once ops has applied the merge, its known_hosts pins the key
   the public half (D11).
 - The closure goes from ops over the LAN, with the flake's pinned nixos-anywhere. The VM reboots
   into NixOS from its disk (the ISO can stay attached). From now on there's no root login.
+- A Docker host also gets the doco-cd hold, so no app starts before its data is there: add
+  `--extra-files "$h"` to the line, after
+  `h=$(mktemp -d); mkdir -p "$h/var/lib/skynet"; touch "$h/var/lib/skynet/hold-doco-cd"`.
 
 ## 6. Check (agent)
 
 `ssh skynet@<ip> 'systemctl --failed; journalctl -u comin -n 20 -o cat'`: nothing failed, comin is
 on main's HEAD, and the Gatus row is green.
+
+A Docker host waits with doco-cd held. `skynet-restore … --all` releases it once the data is back
+(Rebuild, step 4). Otherwise (a new host with no data, or data copied back from ops), as root, the
+agent where it has sudo, else Ali: with `skynet.docker.appdataSnapshots`,
+`systemctl start btrbk-appdata` first, so the backup job finds a snapshot; then
+`rm /var/lib/skynet/hold-doco-cd && systemctl start docker-doco-cd`.
 
 ## Docker host (also in the PR)
 
@@ -146,13 +157,42 @@ on main's HEAD, and the Gatus row is green.
 
 ## Rebuild
 
-1. Ali stops and destroys the old VM: `qm stop <vmid> && qm destroy <vmid>`. Destroying is his call,
-   and `qm create` refuses an existing VMID. disko wipes the disk, so anything in `/opt/appdata`
-   comes back only from backup (P4).
-2. Steps 1–6 with the existing files. The fresh ISO boot has a new key, so the PR updates
+1. A Docker host that still runs copies its data to ops first, cold (skynetv2.md → P4 → The
+   rebuild). On the host, comin and doco-cd first, so nothing restarts what stops next (a comin
+   switch would start doco-cd again):
+   `sudo systemctl stop comin docker-doco-cd && sudo docker ps -q | xargs -r sudo docker stop`.
+   Then on ops, `/opt/appdata` into one tar, and the tar compared with it file by file:
+   ```sh
+   mkdir -p -m 700 ~/rebuild
+   ssh skynet@<ip> 'sudo tar -C /opt/appdata --exclude=./backup --numeric-owner -cf - .' > ~/rebuild/<h>-appdata.tar
+   ssh skynet@<ip> 'sudo tar -C /opt/appdata --numeric-owner -df -' < ~/rebuild/<h>-appdata.tar
+   ```
+   Both exit 0. The first warns only of sockets, which the apps make again; the second prints
+   nothing. `./backup` is restic's old cache, now on `/var/cache`. The stacks stay stopped. On a
+   host where the agent has no sudo (docker-admin), Ali runs these from the workstation with his
+   own user.
+2. Ali takes a PBS backup of the VM (Backup now, storage `pbs`), the fallback. Then he stops and
+   destroys it: `qm stop <vmid> && qm destroy <vmid>`. Destroying is his call, and `qm create`
+   refuses an existing VMID. disko wipes the disk, so `/opt/appdata` comes back only from step 1's
+   copy or from Drive.
+3. Steps 1–6 with the existing files. The fresh ISO boot has a new key, so the PR updates
    `ssh_host.pub`, the `.sops.yaml` recipient and the agent's pin (the old pin would refuse the new
-   key). Ali runs `nix shell nixpkgs#sops -c sops updatekeys <file>` for `secrets/<h>.yaml` and every
-   `stacks/<target>/**/*.sops.*`. Install with `--copy-host-keys` again.
+   key). Ali re-encrypts every file of the host's for it, then pushes. sops takes a file's format
+   from its extension and doesn't know `.conf`, so the rclone configs (INI) need `--input-type`:
+   `nix shell nixpkgs#sops -c sh -c 'for f in secrets/<h>.yaml stacks/<target>/*/*.sops.*; do case "$f" in *.conf) sops updatekeys -y --input-type ini "$f" ;; *) sops updatekeys -y "$f" ;; esac || echo "FAILED: $f"; done'`.
+   `git status --short` then lists every one of them, and the agent checks each file's recipients
+   before the merge. Install with `--copy-host-keys` again, and on a Docker host the doco-cd hold.
+4. A Docker host's data, as root, while doco-cd is still held:
+   - from step 1's copy, then compared again, as in step 1:
+     ```sh
+     ssh skynet@<ip> 'sudo tar -C /opt/appdata --numeric-owner -xf -' < ~/rebuild/<h>-appdata.tar
+     ssh skynet@<ip> 'sudo tar -C /opt/appdata --numeric-owner -df -' < ~/rebuild/<h>-appdata.tar
+     ```
+     then doco-cd's release, as for a new host (step 6). The copy stays on ops until Ali says it
+     can go;
+   - from Drive, if the host was lost: `skynet-restore drive --all [<snapshot>]` (default
+     `latest`). It puts every stack back, takes the first local snapshot (with
+     `appdataSnapshots`), then releases doco-cd, which deploys the stacks onto their data.
 
 ## Gotchas
 

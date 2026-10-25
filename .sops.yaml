@@ -5,7 +5,7 @@ keys:
   - &docker-admin age17tyjetvkv48rf2sacrpdtledjqvc4x3dvrwjrmx6sdl06cwdzpzq35fzzf  # ssh-keyscan -t ed25519 10.10.50.40 | ssh-to-age
   - &technitium-network age1syvpndflhm06y0wcsef57dq0kczjr3rjjhfqyvptx9yncp800ups2k8nrc  # ssh-to-age < hosts/technitium-network/ssh_host.pub
   - &technitium-core age1z04wgrdkynk2ez3hlqh67x65ayd2hq743z64wlrc8vvcfrcwqefsgu8ed2  # ssh-to-age < hosts/technitium-core/ssh_host.pub
-  - &docker-dmz age15aq599v7j3admfg59sclp06u2dl5s6x4320vfgkucyjg59hyffmqjz0f05  # ssh-to-age < hosts/docker-dmz/ssh_host.pub
+  - &docker-dmz age1tkp56dteeem3l4jc6vjjfy82aepghf6fe0dxtlqqmqrk5p90ryequsakza  # ssh-to-age < hosts/docker-dmz/ssh_host.pub
 creation_rules:
   - path_regex: ^secrets/ops\.yaml$
     key_groups:

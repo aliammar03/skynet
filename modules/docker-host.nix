@@ -5,14 +5,71 @@
   config,
   lib,
   pkgs,
+  inputs,
   ...
 }:
 let
-  inherit (config.skynet.docker) macvlan doorNetworks docoTarget;
+  inherit (config.skynet.docker)
+    macvlan
+    doorNetworks
+    docoTarget
+    appdataSnapshots
+    ;
   creds = "/run/doco-cd"; # what doco-cd may read: its age key, API secret, Apprise URL
   # Same path inside and out, so stacks' relative bind mounts resolve. Holds doco-cd's checkout, with
   # the files this host can decrypt decrypted (root-only, like /run/secrets).
   data = "/var/lib/doco-cd";
+  # docker-dmz's btrfs top level (hosts/docker-dmz/disk.nix): @appdata (/opt/appdata), @snapshots.
+  pool = "/mnt/appdata-pool";
+  unstable = inputs.nixpkgs-unstable.legacyPackages.${pkgs.stdenv.hostPlatform.system};
+
+  # btrbk-appdata's hooks, as root. The stamp tells the backup job how old the snapshot it mounts is;
+  # `latest` is the snapshot it mounts.
+  appdataStamp = pkgs.writeShellApplication {
+    name = "appdata-stamp";
+    runtimeInputs = [ pkgs.coreutils ];
+    text = "date +%s >/opt/appdata/.snapshot-stamp";
+  };
+  appdataLatest = pkgs.writeShellApplication {
+    name = "appdata-latest";
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.findutils
+    ];
+    text = ''
+      cd ${pool}/@snapshots
+      newest=$(find . -mindepth 1 -maxdepth 1 -name '@appdata.*' -printf '%f\n' | sort | tail -n 1)
+      [ -n "$newest" ] || { echo "appdata-latest: no snapshot" >&2; exit 1; }
+      # A real folder by that name (Docker makes one for a missing bind source) would swallow it.
+      if [ -e latest ] && [ ! -L latest ]; then echo "appdata-latest: latest isn't a link" >&2; exit 1; fi
+      ln -sfn "$newest" latest
+    '';
+  };
+
+  # Restores, from a local snapshot or from Drive (skynetv2.md → P4 → Restores).
+  skynetRestore = pkgs.writeShellApplication {
+    name = "skynet-restore";
+    runtimeInputs = [
+      config.virtualisation.docker.package
+      unstable.restic # the backup image's version (0.19)
+      pkgs.rclone
+      pkgs.rsync
+      pkgs.coreutils
+      pkgs.findutils
+      pkgs.gnugrep
+      pkgs.gnused
+      pkgs.util-linux # flock
+      pkgs.systemd
+    ];
+    runtimeEnv = {
+      REPO = "rclone:gdrive:skynet/restic/${config.networking.hostName}";
+      EXCLUDES = "${../stacks/${docoTarget}/backup/excludes.txt}";
+      SNAPSHOTS = lib.optionalString appdataSnapshots "${pool}/@snapshots";
+      ENV_FILE = config.sops.secrets.restic-appdata-env.path;
+      RCLONE_FILE = config.sops.secrets.restic-appdata-rclone.path;
+    };
+    text = builtins.readFile ./skynet-restore.sh;
+  };
 in
 {
   options.skynet.docker.macvlan = lib.mkOption {
@@ -34,6 +91,10 @@ in
     type = lib.types.str;
     description = "doco-cd poll target: reads `.doco-cd.<target>.yml` from the repo.";
   };
+
+  options.skynet.docker.appdataSnapshots = lib.mkEnableOption ''
+    btrbk's snapshots of /opt/appdata, a btrfs subvolume under ${pool}: the backup job copies the
+    newest, and skynet-restore restores from any'';
 
   config = {
     virtualisation.docker = {
@@ -113,8 +174,25 @@ in
             "doco-cd-credentials.service"
             "docker-doco-cd.service"
           ];
-        });
-    systemd.tmpfiles.rules = [ "d ${data} 0700 root root -" ];
+        })
+      // {
+        # The backup stack's own secrets, for skynet-restore on the host. sops-nix renders dotenv and
+        # INI files whole (it ignores `key`).
+        restic-appdata-env = {
+          sopsFile = ../stacks/${docoTarget}/backup/secret.sops.env;
+          format = "dotenv";
+        };
+        restic-appdata-rclone = {
+          sopsFile = ../stacks/${docoTarget}/backup/rclone.sops.conf;
+          format = "ini";
+        };
+      };
+    systemd.tmpfiles.rules = [
+      "d ${data} 0700 root root -"
+      # restic's caches, on ext4: the backup job's (its /cache) and skynet-restore's.
+      "d /var/cache/restic-appdata 0700 root root -"
+      "d /var/cache/skynet-restore 0700 root root -"
+    ];
 
     virtualisation.oci-containers.backend = "docker";
     # Stateless Apprise API; doco-cd posts to it on loopback.
@@ -168,80 +246,46 @@ in
         ];
       };
     };
+    # A fresh install holds doco-cd until its data is back (`skynet-restore … --all` or a hand
+    # release removes the file), so no app starts on an empty /opt/appdata (runbooks/new-vm.md,
+    # steps 5 and 6).
+    systemd.services.docker-doco-cd.unitConfig.ConditionPathExists = "!/var/lib/skynet/hold-doco-cd";
     # The doco-cd API and MCP answer only to ops (OPNsense must allow it too).
     networking.firewall.extraCommands = ''
       iptables -A nixos-fw -p tcp -s 10.10.90.91 --dport 8080 -j nixos-fw-accept
     '';
 
-    # `skynet-restore`: app data back from the nightly backup (stacks/<target>/backup/README.md). In
-    # place, the stack's `backup-restore` job does it, so doco-cd holds the stateful services
-    # stopped meanwhile. --list and --to run that job's container definition directly (its image,
-    # secrets and mounts), with nothing stopped.
-    environment.systemPackages = [
-      (pkgs.writeShellApplication {
-        name = "skynet-restore";
-        runtimeInputs = [
-          config.virtualisation.docker.package
-          pkgs.coreutils
-          pkgs.curl
-          pkgs.systemd
-        ];
-        text = ''
-          usage() {
-            echo "usage: skynet-restore <stack> [snapshot] [--to <dir>]   (snapshot: default latest)"
-            echo "       skynet-restore --all [snapshot]                  every stack, for a rebuilt host"
-            echo "       skynet-restore --list [stack]                    the snapshots"
-            exit 2
-          }
-          [ "$(id -u)" = 0 ] || { echo "skynet-restore: run it as root" >&2; exit 1; }
-          job=backup-restore # doco-cd keeps the job's container, created, between runs
-          inspect() { docker container inspect -f "$1" "$job"; }
-          image=$(inspect '{{.Config.Image}}') || { echo "skynet-restore: no $job; is stack backup deployed?" >&2; exit 1; }
-          direct() { # <extra docker run args…> -- <run.sh args…>
-            local opts=()
-            while [ "$1" != -- ]; do opts+=("$1"); shift; done
-            shift
-            docker run --rm --env-file <(inspect '{{range .Config.Env}}{{println .}}{{end}}') \
-              --volumes-from "$job" --tmpfs /resticprofile --hostname "$(inspect '{{.Config.Hostname}}')" \
-              "''${opts[@]}" --entrypoint /bin/sh "$image" /etc/resticprofile/run.sh "$@"
-          }
-          in_place() { # <stack|all> <snapshot>: the request, then the job, which consumes it
-            mkdir -p /opt/appdata/backup
-            printf '%s %s\n' "$1" "$2" >/opt/appdata/backup/restore.request
-            local start out
-            start=$(date +%s)
-            out=$(curl -sS -X POST -w '\n%{http_code}' -H @<(printf 'x-api-key: %s\n' "$(cat /run/doco-cd/api-secret)") \
-              "http://127.0.0.1:8080/v1/api/job/$job/run?stack=backup&wait=true")
-            journalctl --since "@$start" -o cat IMAGE_NAME="$image" | tail -n 30
-            echo "doco-cd: ''${out%$'\n'*}"
-            [ "''${out##*$'\n'}" = 200 ]
-          }
-          name() { [[ $1 =~ ^[a-z0-9][a-z0-9-]*$ ]] || { echo "skynet-restore: '$1' isn't a stack name" >&2; exit 2; }; }
-          case "''${1:-}" in
-          --list)
-            direct -- snapshots
-            if [ -n "''${2:-}" ]; then name "$2" && echo "entries changed in $2:" && direct -- diff "$2"; fi
-            ;;
-          --all) in_place all "''${2:-latest}" ;;
-          "" | -*) usage ;;
-          *)
-            name "$1"
-            stack=$1 snap=latest
-            shift
-            if [ -n "''${1:-}" ] && [ "$1" != --to ]; then snap=$1 && shift; fi
-            if [ "''${1:-}" = --to ]; then
-              [ -n "''${2:-}" ] || usage
-              dir=$(realpath -m "$2")
-              mkdir -p "$dir"
-              direct -v "$dir:$dir" -- restore-to "$stack" "$snap" "$dir"
-            else
-              [ -z "''${1:-}" ] || usage
-              in_place "$stack" "$snap"
-            fi
-            ;;
-          esac
-        '';
-      })
-    ];
+    # `skynet-restore`: a stack's data back from a local snapshot or from Drive, with doco-cd paused
+    # (stacks/<target>/backup/README.md).
+    environment.systemPackages = [ skynetRestore ];
+
+    # btrbk (appdataSnapshots): a read-only snapshot of @appdata at 04:20, which the backup job copies
+    # at 04:30. Every snapshot is kept for 2 days, then one a day for 7; btrbk always keeps the
+    # newest.
+    services.btrbk.instances = lib.mkIf appdataSnapshots {
+      appdata = {
+        onCalendar = "*-*-* 04:20:00";
+        snapshotOnly = true;
+        settings = {
+          snapshot_preserve_min = "2d";
+          snapshot_preserve = "7d";
+          volume.${pool} = {
+            snapshot_dir = "@snapshots";
+            subvolume."@appdata" = { };
+          };
+        };
+      };
+    };
+    # The module allows 10 minutes of slack; the snapshot must come before the backup.
+    systemd.timers.btrbk-appdata = lib.mkIf appdataSnapshots {
+      timerConfig.AccuracySec = lib.mkForce "1min";
+    };
+    # As root (`+`), since btrbk runs as user btrbk.
+    systemd.services.btrbk-appdata = lib.mkIf appdataSnapshots {
+      serviceConfig = {
+        ExecStartPre = "+${lib.getExe appdataStamp}";
+        ExecStartPost = "+${lib.getExe appdataLatest}";
+      };
+    };
   };
 }

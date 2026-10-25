@@ -1,5 +1,6 @@
-# Not backed up: each stack's README classes these as cache (they rebuild), plus this stack's own
-# folder (the restic cache, the restore request). A restore leaves them alone too (run.sh).
+# Not backed up: each stack's README classes these as cache (they rebuild), plus this stack's old
+# folder (restic's cache, now on the host's /var/cache). A restore leaves them alone too
+# (skynet-restore).
 /opt/appdata/backup
 /opt/appdata/caddy-apps
 /opt/appdata/aiometadata/cold-store
