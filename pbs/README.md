@@ -33,11 +33,18 @@ part of its `/etc` that git holds. ops compares that with the host every day.
 2. **Ali, Unraid** (first install only): a share `pbs`, on the same disks as `pbs-backups`, with
    NFS export Yes, security Private, rule `10.10.20.40(sec=sys,rw,no_root_squash)`. PBS creates the
    datastore as root, then hands it to user `backup`; with root squashed that fails.
-3. **Ali, core node** (first install only), outside 02:00–06:30: CT 240 frees .40.
+3. **Ali** (first install only), outside 02:00–06:30: CT 240 frees .40. On the core node:
    ```sh
    pct set 240 --net0 name=eth0,bridge=vmbr0,gw=10.10.20.1,hwaddr=BC:24:11:A7:AC:84,ip=10.10.20.39/24,tag=20,type=veth
    pct reboot 240
-   pvesm set pbs-unraid --server 10.10.20.39   # on both nodes
+   ```
+   In OPNsense, alias `HOST_PBS` gets 10.10.20.39 beside .40, so its rules reach both PBSes. On
+   both nodes, `pbs-unraid` follows CT 240 in the file: `pvesm set` refuses to change a PBS
+   storage's `server` (a fixed parameter), and `pvesm remove` + `add` would delete the storage's
+   stored password and encryption key.
+   ```sh
+   sed -i '/^pbs: pbs-unraid/,/^$/ s/server 10\.10\.20\.40/server 10.10.20.39/' /etc/pve/storage.cfg
+   pvesm status --storage pbs-unraid   # active
    ```
    CT 240 reads its datastore through the core node's mount, so it needs no NFS rule.
 4. **Ali:** the ISO from ops to the core node, from the workstation:

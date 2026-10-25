@@ -1224,12 +1224,13 @@ has proved itself.
     them (Prechecks).
 
   The first night writes full backups into the new datastore.
-- **Freeing .40 first** (Ali, PVE config): CT 240 moves to 10.10.20.39 (`pct set 240 --net0 …` with
-  the new IP, then a restart), and PVE's `pbs-unraid` storage entries follow it. Then VM 2040
-  installs at .40.
+- **Freeing .40 first** (Ali, PVE and OPNsense config): CT 240 moves to 10.10.20.39 (`pct set 240
+  --net0 …` with the new IP, then a restart), `HOST_PBS` holds both addresses, and each node's
+  `pbs-unraid` follows CT 240 in `/etc/pve/storage.cfg` (`pvesm set` can't change a PBS storage's
+  server). Then VM 2040 installs at .40.
 - **CT 240** stays at .39 for 30 days as the fallback with the history, its prune, verify and GC
-  off (the agent, after the cutover). Then P7 removes it and the `unraid` datastore with share
-  `pbs-backups` (Ali); VM 2040 replaces it for good.
+  off (the agent, after the cutover). Then P7 (Ali) removes it, both nodes' `pbs-unraid`, .39 from
+  `HOST_PBS`, and share `pbs-backups` with v1's datastore; VM 2040 replaces it for good.
 
 ### PBS offsite: `stacks/admin/pbs-offsite/` (docker-admin)
 
@@ -1412,7 +1413,8 @@ are each fixed or PR'd, with no human step except merges.
 - Proxmox `svc-ops` tokens; the Technitium, Cloudflare and Authentik tokens.
 - OPNsense `svc-skynet-recon`; Omada viewer; the v1 GitHub PAT; v1 healthchecks; the v1 rclone client.
 
-**What: Ali destroys** 9090, 10015, 635, 837, 730, 731, 750, 751 and template 9000.
+**What: Ali destroys** 9090, 10015, 635, 837, 730, 731, 750, 751, template 9000, and CT 240 with
+what it leaves (P4 → PBS, greenfield).
 
 **What: DR**
 - Final survival kit.
