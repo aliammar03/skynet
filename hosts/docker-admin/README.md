@@ -15,6 +15,10 @@ VMID 5040 · 10.10.50.40 · server-proxmox-network · 2 vCPU / 4 GB / 32 GB.
 - **doco-cd** (`modules/docker-host.nix`): polls `main` every 60 s, target `admin` →
   `.doco-cd.admin.yml` → every folder in `stacks/admin/`. API, `/mcp` and `/v1/health` on :8080 are
   for ops only. Deploy notices go to `#alerts` via Apprise (loopback :8000).
+- **PBS's datastore:** `/mnt/pbs-datastore`, Unraid's share `pbs` over NFS 4.2, read-only and
+  mounted on first access (`default.nix`), for `stacks/admin/pbs-offsite/`. Unraid's export maps
+  this host to uid 34 (PBS's `backup`, the datastore's owner); OPNsense lets it reach Unraid on
+  TCP 2049.
 - **Secrets** (`secrets/docker-admin.yaml`): `doco_api_secret`, `discord_alerts_webhook`.
 - **Agent access:** user `skynet`, the agent's key from 10.10.90.91 only, group `systemd-journal`
   (reads all logs, e.g. `journalctl CONTAINER_NAME=doco-cd`); no sudo, no Docker socket. Its host key

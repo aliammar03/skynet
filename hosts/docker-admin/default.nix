@@ -35,6 +35,23 @@ in
     linkConfig.RequiredForOnline = "no";
   };
 
+  # PBS's datastore (Unraid share `pbs`), read-only, for pbs-offsite; mounted on first access, so a
+  # down Unraid only fails that night's copy. Unraid maps every read from here to uid 34, PBS's
+  # `backup`, which owns the datastore. soft: a lost server fails the read instead of hanging it.
+  fileSystems."/mnt/pbs-datastore" = {
+    device = "10.10.20.20:/mnt/user/pbs";
+    fsType = "nfs";
+    options = [
+      "ro"
+      "nfsvers=4.2"
+      "soft"
+      "noauto"
+      "x-systemd.automount"
+      "x-systemd.idle-timeout=15min"
+      "x-systemd.mount-timeout=30s"
+    ];
+  };
+
   skynet.docker.macvlan = {
     name = "adm60";
     parent = "adm60";

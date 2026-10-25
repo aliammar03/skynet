@@ -25,7 +25,7 @@
 | P1 | docker-admin: admin door, identity, status | done (2026-10-22); 7 admin names move to .60 with P2's Technitium |
 | P2 | DNS (Technitium only) + remote access | done (2026-10-23); open: OPNsense rules 140/150/115 and CT 731 `onboot` (see P2 exit criteria) |
 | P3 | docker-dmz: apps + public path | done (2026-10-24): docker-dmz with v1's data (#48), its doors (#50) and all ten apps (#51–#61); the apps reach one another only through the door (#64); every image current (#67). Family accounts skipped for now; rule 150 can go now that 135 (ex-840) serves Gatus's `public` row |
-| P4 | Backups → Google Drive | in progress (2026-10-25): PBS greenfield done (VM 2040, `pbs/`; v1's PBS removed); app backups nightly to Drive (`stacks/<host>/backup/`, `skynet-restore`). Next: the restore drill, then PBS's datastore to Drive by plain `rclone sync` (PVE already encrypts its chunks) |
+| P4 | Backups → Google Drive | in progress (2026-10-25): PBS greenfield done (VM 2040, `pbs/`; v1's PBS removed); PBS's datastore nightly to Drive by plain `rclone sync` (`stacks/admin/pbs-offsite/`; PVE already encrypts its chunks); app backups nightly to Drive (`stacks/<host>/backup/`, `skynet-restore`). Next: the two restore drills |
 | P5 | Observability (agent eyes) | outline |
 | P6 | Agent autonomy | outline |
 | P7 | Retire v1 + disaster recovery | outline |
@@ -1071,7 +1071,7 @@ Nothing is offsite, and app data restores only as a whole VM.
 | Runner | resticprofile 0.33; its image ships restic, rclone and curl | one profile file in git holds backup, retention, check and the healthchecks.io pings (`send-before` / `send-after` / `send-after-fail`). Restores and every other restic command run through it | Backrest and NixOS `services.restic` (their schedulers can't hold doco-cd's stacks stopped), autorestic |
 | Schedule and quiet window | doco-cd `one_off` jobs with `cd.doco.job.stop_services` | doco-cd stops the listed services and waits; it runs the job, then starts them again after success or failure. The gap isn't drift, so reconciliation leaves it alone. Cold files are consistent: no database dumps, and no per-app import on restore | stopping by hand (reconciliation restarts it); `docker pause` (fails healthchecks, then reconciliation restarts it); per-app dumps |
 | Drive | rclone with Ali's own OAuth client, scope `drive.file` (D9) | rclone sees only the files it created. rclone's shared client stops working during 2026 | a service account (no storage on a personal Drive) |
-| PBS offsite | `rclone sync` of the datastore | chunks are immutable files, so each night sends only new ones. PVE already encrypts them client-side; only guest IDs and dates show. Drive keeps deleted files in the trash for 30 days | a second PBS (remote sync); PBS 4's S3 datastores (Drive isn't S3); restic over the datastore (re-deduplicating PBS's chunks); an rclone `crypt` layer (a second key for nothing) |
+| PBS offsite | `rclone sync` of the datastore | chunks are immutable files, so each night sends only new ones. PVE already encrypts them client-side; only guest IDs, names, sizes and dates show. Drive keeps deleted files in the trash for 30 days | a second PBS (remote sync); PBS 4's S3 datastores (Drive isn't S3); restic over the datastore (re-deduplicating PBS's chunks); an rclone `crypt` layer (a second key for nothing) |
 | PBS itself | a fresh VM from Proxmox's automated installer: ops builds the ISO (`nix build .#installer-pbs`; `proxmox-auto-install-assistant` is in nixpkgs) with the answer file from git | the official appliance and upgrade path, installed no-touch like the NixOS hosts, and rebuildable from git alone | PBS on NixOS (shelved, Open); cleaning CT 240 in place (it keeps v1's users and history); building the ISO on CT 240 (packages installed by hand, and a rebuild would need a running PBS) |
 
 **Drive's limits** (rclone's docs): 750 GiB uploaded a day, about 2 new files a second, and 10
@@ -1093,15 +1093,17 @@ requests a second per client.
 - **PVE** (2026-10-24): the backup jobs leave out the retired guests (core: 10015, 9000, 9090, 731,
   751; network: 635, 730, 750, 837), and core's also Unraid and CT 240. Both nodes' `pbs-unraid`
   entries use one encryption key, stored in Ali's password manager.
-- **Drive** (Ali): free space of at least twice datastore plus app data (about 0.3 TB now).
+- **Drive** (Ali, 2026-10-25, `rclone about gdrive:`): 1.48 TiB free of 2 TiB. The copies need
+  about 0.2 TiB: twice the datastore (86.8 GiB) plus the app data (about 6 GB).
 - **The uplink** (2026-10-25, 00:05): about 207 Mbit/s up (1 GB from ops to Cloudflare over four
   streams; 130–270 on one). So Drive's own pace sets the first sync's length: about 2 new files a
   second, so 135k chunks take about 19 hours.
 - **Unraid** (Ali): a new share `pbs` for the new datastore, its own so v1's can be removed without
   touching it. Its NFS export: VM 2040 read-write with `no_root_squash` (PBS creates the
   datastore as root, then hands it to user `backup`), and docker-admin read-only for the offsite
-  copy. CT 240 reads `pbs-backups` through the core node's mount (10.10.50.11), so its move to .39
-  needs no rule.
+  copy, every read as uid 34 (`10.10.50.40(sec=sys,ro,all_squash,anonuid=34,anongid=34)`): the
+  datastore's folders are `750`, `backup`'s own. CT 240 reads `pbs-backups` through the core node's
+  mount (10.10.50.11), so its move to .39 needs no rule.
 - **Egress:** both Docker hosts reach Google's APIs on :443 (rule 810).
 
 ### Drive access (Ali, once)
@@ -1248,15 +1250,24 @@ once both nodes back up to the new one (Ali, 2026-10-25: they aren't needed).
 
 ### PBS offsite: `stacks/admin/pbs-offsite/` (docker-admin)
 
-- **Mount** (docker-admin's Nix config): the datastore's share (`/mnt/user/pbs`) over NFS,
-  read-only and automounted, at `/mnt/pbs-datastore`.
-- **Job** (`one_off`, daily at 06:00): after both nodes' backups and the prune, and outside GC
-  (Sundays 12:00) and verify.
+- **Mount** (`hosts/docker-admin`): the datastore's share (`/mnt/user/pbs`) over NFS 4.2,
+  read-only, soft and automounted, at `/mnt/pbs-datastore`. Binding it at a job's start mounts it
+  (tested 2026-10-25). Unraid's export maps docker-admin to uid 34, PBS's `backup`, which owns the
+  datastore's `750` folders.
+- **Job `sync`** (`one_off`, daily at 06:00): after both nodes' backups and the prune, and outside
+  GC (Sundays 12:00) and verify.
   - It runs `rclone sync /mnt/pbs-datastore gdrive:skynet/pbs`. The chunks are already encrypted, by
     PVE's keys.
   - Flags: `--transfers 4 --tpslimit 8 --drive-chunk-size 64M --max-transfer 700G --cutoff-mode soft`.
-  - It leaves out the datastore's lock and GC-status files.
-- **Weekly:** `rclone check --one-way` against the datastore.
+    Exit 8 (the transfer limit reached) counts as a success: the next night carries on.
+  - It leaves out the datastore's lock and GC-status files, and the temporary files PBS renames into
+    place (`*.tmp`, `*.tmp_*`).
+  - It refuses to run unless the source holds `.chunks/0000`: an unmounted share is an empty folder,
+    and syncing one would empty Drive's copy.
+- **Job `check`** (Wednesdays 10:00): `rclone check --one-way` against the datastore, by hash.
+- **What Drive sees:** PVE encrypts each guest's disks, config and log. Each snapshot's manifest is
+  only signed, so the guests' IDs, names (the notes), sizes and times, and the keys' fingerprints
+  show. Files the datastore drops sit in Drive's trash for 30 days.
 - **A guest from Drive** (site loss, or the drill): copy the datastore back into a scratch
   datastore (`rclone copy gdrive:skynet/pbs <dir>`), verify it on PBS, then restore the guest from
   PVE with its node's key. Try `rclone mount` with `--vfs-cache-mode full` first: it fetches only
@@ -1333,11 +1344,14 @@ manager.
 4. **Drill:** `skynet-restore librespeed` in place, and karakeep `--to` a scratch folder. Evidence
    goes in the PR.
 5. **PBS offsite PR:**
-   - the NFS mount and `pbs-offsite`;
-   - Ali: docker-admin's read-only rule on the `pbs` export, and an OPNsense rule for
-     docker-admin → Unraid NFS (2049).
+   - the NFS mount, `pbs-offsite` and its Gatus row;
+   - Ali: docker-admin's rule on the `pbs` export (read-only, as uid 34: Prechecks), an OPNsense
+     rule for docker-admin → Unraid NFS (TCP 2049), and on the branch `rclone.sops.conf`,
+     `HC_PING_URL` and Gatus's `HC_BADGE_URL_PBS_OFFSITE`.
 
-   The first sync takes about a day at Drive's pace (Prechecks).
+   The first sync takes about 6 hours at Drive's pace: the new datastore held 41,202 files
+   (86.8 GiB) after its first full backups (2026-10-25). It can go before step 3: the two share
+   only Drive access.
 6. **Drill:** one small guest restored from the Drive copy.
 
 ### Exit criteria
@@ -1470,7 +1484,7 @@ in a drill.
 | `runbooks/dns-speed-test/dnsbench.py` (run by hand; nothing deploys it) | ~450 lines |
 | `stacks/<host>/backup/run.sh` (the jobs' entrypoint: a writable `rclone.conf`, the restore request, the restore itself) (P4) | ~55 lines, the same on both hosts |
 | `skynet-restore` (P4) | ~65 lines |
-| `stacks/admin/pbs-offsite/` job script (P4) | ~20 lines |
+| `stacks/admin/pbs-offsite/run.sh` (the jobs' entrypoint: the empty-source guard, the sync and its pings, the check) (P4) | ~35 lines |
 | `pbs/installer.nix` (Proxmox's ISO with `answer.toml` built in) (P4) | ~30 lines |
 | `pbs/setup.sh` (PBS after its installer: repos, guest agent, datastore mount, `pbs/etc/`) (P4) | ~50 lines |
 | `modules/pbs-drift.nix` (ops: PBS's config against `main`) (P4) | ~80 lines: a 25-line script, its allowlist and unit |

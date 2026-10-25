@@ -12,7 +12,8 @@
   `skynet` → Badges, 2-state, the `docker-admin` row's JSON URL; it answers
   `{"status": "up", ...}`); `HC_BADGE_URL_DMZ` (the same for the `docker-dmz` row);
   `HC_BADGE_URL_BACKUP_ADMIN` and `HC_BADGE_URL_BACKUP_DMZ` (the same for checks
-  `backup docker-admin` and `backup docker-dmz`).
+  `backup docker-admin` and `backup docker-dmz`); `HC_BADGE_URL_PBS_OFFSITE` (the same for check
+  `pbs-offsite`).
 - **Upstream:** [Gatus](https://github.com/TwiN/gatus#configuration)
 
 **Checks** (`config/*.yaml`, merged; endpoint lists append), one row per thing, every 60 s unless noted
@@ -25,7 +26,7 @@
 | `service` | each admin UI's IP:port (Technitium's are in its suite) | TCP connect |
 | `app` | each app on docker-dmz by its name, through caddy-apps (jikan through aiometadata's) | `200`; `302` to the login for an app behind the apps' Authelia (calibre, sillytavern, marinara; asked with `Accept: text/html`, or Authelia answers 401), whose own health its container's healthcheck covers |
 | `dns` | one **suite** (row) per Technitium server (.50, .51); its steps, each alerting on its own as `<server> <step>`: `ui` (:5380), `zone` (`auth.aliammar.net` A), `AAAA` (same name), `forwarding` (`google.com`), `blocking` (`googlesyndication.com`) | connect; 10.10.60.60; `NOERROR` (no record, not NXDOMAIN); `NOERROR`; `NXDOMAIN` (HaGeZi Pro) |
-| `job` | each Docker host's heartbeat badge (`HC_BADGE_URL_ADMIN`, `HC_BADGE_URL_DMZ`) and nightly backup's (`HC_BADGE_URL_BACKUP_ADMIN`, `HC_BADGE_URL_BACKUP_DMZ`), every 5 min, no alert (healthchecks.io alerts) | `status` is `up` |
+| `job` | each Docker host's heartbeat badge (`HC_BADGE_URL_ADMIN`, `HC_BADGE_URL_DMZ`), nightly backup's (`HC_BADGE_URL_BACKUP_ADMIN`, `HC_BADGE_URL_BACKUP_DMZ`) and PBS's offsite copy's (`HC_BADGE_URL_PBS_OFFSITE`), every 5 min, no alert (healthchecks.io alerts) | `status` is `up` |
 
 **Gotchas**
 - `GATUS_LOG_LEVEL=WARN`: otherwise every check is an INFO line, passed or failed. The history is
