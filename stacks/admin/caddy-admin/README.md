@@ -24,7 +24,7 @@
 |---|---|---|
 | opnsense | https://10.10.50.1 | pinned self-signed `certs/opnsense.pem`, name `OPNsense.internal` |
 | proxmox-core / -network | https://10.10.50.11:8006 / .10:8006 | each node's `pve-root-ca.pem` |
-| pbs | https://10.10.20.40:8007 | pinned self-signed `certs/pbs.pem`, name `lxc-proxmox-backup-server` |
+| pbs | https://10.10.20.40:8007 | pinned self-signed `certs/pbs.pem`, name `pbs.aliammar.net` |
 | omada | https://10.10.50.25:8043 | pinned self-signed `certs/omada.pem`, name `Omada` |
 | technitium-core / -network | http://10.10.70.51:5380 / .50:5380 | none |
 | unraid | http://10.10.20.20 | none |

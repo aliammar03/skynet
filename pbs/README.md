@@ -46,7 +46,7 @@ part of its `/etc` that git holds. ops compares that with the host every day.
 4. **Agent:** scan the host key, run `setup.sh`, reboot, check. The scanned key is new, so ssh
    can't ask about it:
    ```sh
-   kh=$(mktemp); ssh-keyscan -t ed25519 10.10.20.40 2>/dev/null > "$kh"; cut -d' ' -f2- "$kh" > pbs/ssh_host.pub
+   kh=$(mktemp); ssh-keyscan -q -t ed25519 10.10.20.40 > "$kh"; cut -d' ' -f2- "$kh" > pbs/ssh_host.pub
    tar -C pbs -c setup.sh etc | ssh -o UserKnownHostsFile="$kh" -o GlobalKnownHostsFile=/dev/null root@10.10.20.40 \
      'rm -rf /root/pbs && mkdir /root/pbs && tar -C /root/pbs -x && sh /root/pbs/setup.sh; s=$?; rm -r /root/pbs; exit $s'
    ```
