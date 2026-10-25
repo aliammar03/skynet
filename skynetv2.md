@@ -1100,8 +1100,9 @@ requests a second per client.
 - **Drive** (Ali, 2026-10-25, `rclone about gdrive:`): 1.48 TiB free of 2 TiB. The copies need
   about 0.2 TiB: twice the datastore (86.8 GiB) plus the app data (about 6 GB).
 - **The uplink** (2026-10-25, 00:05): about 207 Mbit/s up (1 GB from ops to Cloudflare over four
-  streams; 130–270 on one). So Drive's own pace sets the first sync's length: about 2 new files a
-  second, so 135k chunks take about 19 hours.
+  streams; 130–270 on one). So Drive's own pace sets the first sync's length: it ran at 0.8 new
+  files a second (about 1.8 MiB/s, 2026-10-25), so the datastore's 41,202 files take about 14
+  hours.
 - **Unraid** (Ali): a new share `pbs` for the new datastore, its own so v1's can be removed without
   touching it. Its NFS export: VM 2040 read-write with `no_root_squash` (PBS creates the
   datastore as root, then hands it to user `backup`), and docker-admin read-only for the offsite
@@ -1112,6 +1113,13 @@ requests a second per client.
 - **docker-dmz's disk** (2026-10-25): 128 GB, one ext4 root, 34 GB used: `/opt` 8.9 GB, Docker
   21.6 GB (23 images, all in use), the Nix store 3.3 GB, logs 0.1 GB. 25 GB stays on root once the
   app data moves.
+- **Core's `local-lvm`** (2026-10-25): a 348 GiB thin pool, 73% used (94 GiB free), holding 682 GiB
+  of guest disks in all, 346 GiB of them v1's stopped guests, which P7 destroys. A disk takes pool
+  space only for what is written, and docker-dmz trims weekly.
+- **docker-dmz's `/opt/appdata`, for the copy to ops** (2026-10-25): 8.7 GB in 18,258 entries, with
+  no ACLs, extended attributes or hard links, so `tar` with numeric owners carries it whole. It
+  skips the 13 sockets, which the apps make again. ops has 38 GB free, and one ssh stream from
+  docker-dmz carries 110 MB/s: under 2 minutes each way.
 - **Re-pulling docker-dmz's images** after its rebuild: 10 of its 21 come from Docker Hub, well within
   its 100 anonymous pulls per 6 hours; the rest from ghcr.io and lscr.io.
 - **doco-cd 0.129.1 and held services** (2026-10-25, the first `backup` run): a poll 4 seconds into
@@ -1203,13 +1211,14 @@ The job copies `rclone.conf` somewhere writable at start, since rclone saves ref
 
 ### docker-dmz: `/opt/appdata` on btrfs (`hosts/docker-dmz/disk.nix`)
 
-- **Layout** (disko, the 128 GB disk):
+- **Layout** (disko; Ali's sizes, 2026-10-25). The VM's disk grows from 128 to 193 GiB
+  (`proxmox.sh`), thin on core's `local-lvm`:
   - ESP, 512 MiB;
-  - root, ext4, **40 GiB**: NixOS, the Nix store, and Docker's images and containers (25 GB
-    today). Docker stays on ext4, where its usual storage driver belongs. Not 32: Docker's images
-    alone are 21.6 GB, and the weekly prune keeps a replaced image for 7 days, so 32 would start
-    78% full;
-  - the rest, about 87 GiB, **btrfs** (label `appdata`, `noatime`): its top level at
+  - root, ext4, **64 GiB**: NixOS, the Nix store, and Docker's images and containers (25 GB
+    today). Docker stays on ext4, where its usual storage driver belongs. Its images alone are
+    21.6 GB, and the weekly prune keeps a replaced image for 7 days, so a round of updates can
+    double them for a week;
+  - the rest, **128 GiB**, **btrfs** (label `appdata`, `noatime`): its top level at
     `/mnt/appdata-pool` for btrbk, subvolume `@appdata` at `/opt/appdata`, and subvolume
     `@snapshots`. No `nofail`: if the btrfs doesn't mount, the host stops at boot instead of
     starting the apps on an empty folder.
@@ -1227,27 +1236,30 @@ The job copies `rclone.conf` somewhere writable at start, since rclone saves ref
 
 **The rebuild** (once; about 1½ hours of app downtime, in a window Ali picks). disko can't reshape a
 running disk and ext4 can't shrink while mounted, so docker-dmz is rebuilt from git with the new
-layout (`runbooks/new-vm.md` → Rebuild), and its data comes back from Drive. That is P7's "a
-Docker host rebuilt from git plus backup", for real.
+layout (`runbooks/new-vm.md` → Rebuild). Its data goes to ops and back (Ali, 2026-10-25): a cold
+copy, exact, caches included, and minutes each way. Restores from Drive are drilled per stack (PRs
+and order, step 6), and P7's drill rebuilds a Docker host from backup.
 
 Before: the hot backups PR (PRs and order, step 5) is ready with CI green, and docker-dmz's
 installer ISO is built from its branch.
-1. **Agent**, old docker-dmz: a last backup, cold. doco-cd and every stack stopped, the `backup` job
-   run directly; its snapshot ID noted. The stacks stay stopped.
+1. **Agent**, old docker-dmz: doco-cd and every stack stopped, then `/opt/appdata` copied to ops as
+   one tar (`~skynet/rebuild/docker-dmz-appdata.tar`) and compared with it file by file. The stacks
+   stay stopped.
 2. **Ali**: a PBS backup of VM 10010, the fallback.
 3. **Ali**: `qm stop 10010 && qm destroy 10010`.
 4. `runbooks/new-vm.md` steps 1–6 on the PR's branch:
+   - its `proxmox.sh` creates VM 10010 with the 193 GiB disk;
    - the installer boots, and the agent records its new host key (`ssh_host.pub`, the `.sops.yaml`
      recipient, the agent's pin);
    - Ali re-encrypts docker-dmz's 19 files for it, then pushes and merges:
      `nix shell nixpkgs#sops -c sh -c 'for f in secrets/docker-dmz.yaml stacks/dmz/*/*.sops.*; do sops updatekeys -y "$f"; done'`;
    - the install from `main`, with `--copy-host-keys` and the doco-cd hold (`--extra-files`,
      Restores).
-5. **Agent**: `skynet-restore drive --all <step 1's snapshot>`: every stack back, now on btrfs, then
-   the first local snapshot, then doco-cd, which re-pulls the images (22 GB) and starts the stacks on
-   their data.
+5. **Agent**: the tar back into `/opt/appdata`, now on btrfs, and compared again; then the first
+   local snapshot (`systemctl start btrbk-appdata`); then doco-cd released, which re-pulls the
+   images (22 GB) and starts the stacks on their data.
 6. **Agent**: `systemctl --failed` empty and Gatus green; a first hot backup, started by hand; then
-   the app-data drill (PRs and order, step 6).
+   the app-data drill (PRs and order, step 6). The copy on ops goes once Ali says so.
 
 Fallback: until step 3 nothing has changed. After it, Ali restores 10010 from step 2's backup
 **without starting it**, the merge is reverted on `main` (the old layout, and the old host key's
@@ -1288,9 +1300,9 @@ so it reads `RESTIC_PASSWORD=` out of it.
 - **Fresh installs hold doco-cd.** It starts only while `/var/lib/skynet/hold-doco-cd` is absent (a
   systemd condition in `modules/docker-host.nix`). A Docker host's install puts that file in place
   (`nixos-anywhere --extra-files`), so no app starts on an empty `/opt/appdata`: an empty CouchDB,
-  say, offered to Obsidian's sync. `skynet-restore … --all` removes it. On a brand-new host with
-  no data, Ali removes it by hand (on docker-dmz after a first `systemctl start btrbk-appdata`, so
-  the backup job finds `latest`).
+  say, offered to Obsidian's sync. `skynet-restore … --all` removes it. On a brand-new host, or
+  after data copied back from ops, it goes by hand (`runbooks/new-vm.md`, step 6): on docker-dmz
+  after a first `systemctl start btrbk-appdata`, so the backup job finds `latest`.
 
 **Gotchas:**
 - A restored stack keeps its cache folders as they were. One whose search index is a cache
@@ -1423,19 +1435,20 @@ manager.
 3. **App backups PR:** done (#76): both `backup` stacks, `skynet-restore` and the Gatus rows, cold at
    first (`stop_services`).
 4. **PBS offsite PR:** done (#78): the NFS mount, `pbs-offsite` and its Gatus row. The first sync
-   takes about 6 hours: the datastore held 41,202 files (86.8 GiB) after its first full backups
-   (2026-10-25).
+   (from 2026-10-25 13:38) takes about 14 hours: the datastore held 41,202 files (86.8 GiB) after
+   its first full backups, and Drive takes about 0.8 new files a second.
 5. **Hot backups PR:**
-   - docker-dmz's disko layout, and btrbk with its stamp and `latest`;
+   - docker-dmz's 193 GiB disk and its disko layout, and btrbk with its stamp and `latest`;
    - `skynet-restore` with both sources, its secrets through sops-nix, and the doco-cd hold;
    - both `backup` stacks without stop lists or the `restore` job; `run.sh`'s source checks;
-   - `runbooks/new-vm.md` (the hold on Docker hosts, docker-dmz's layout), `runbooks/new-stack.md`
-     (no stop list), and the READMEs.
+   - `runbooks/new-vm.md` (the hold on Docker hosts, docker-dmz's layout, a rebuild's copy to ops),
+     `runbooks/new-stack.md` (no stop list), and the READMEs.
 
    It merges inside docker-dmz's rebuild (its step 4), once Ali has re-encrypted docker-dmz's files
    for the new host key. docker-admin takes its part at the merge.
-6. **Drill:** on docker-dmz, `skynet-restore local librespeed <snapshot>` in place, and
-   `skynet-restore drive karakeep --to` a scratch folder. Evidence goes in the PR.
+6. **Drill:** on docker-dmz, `skynet-restore local librespeed <snapshot>` and
+   `skynet-restore drive librespeed`, both in place, and `skynet-restore drive karakeep --to` a
+   scratch folder, compared with the live one. Evidence goes in the PR.
 7. **Drill:** one small guest restored from the Drive copy.
 
 ### Exit criteria
