@@ -38,6 +38,9 @@ Claude app. VMID 9091 · 10.10.90.91 · VLAN 90 · server-proxmox-core · 4 vCPU
   (D11) it allows `control_project`, `control_stack`, `trigger_scheduled_job` and `compact_mirrors`,
   and asks Ali before `destroy_project` and `remove_stack`. A session picks up `.mcp.json` and these
   rules when it starts.
+- **PBS drift check:** `pbs-drift` (daily 07:00, `modules/pbs-drift.nix`) reads PBS's config over
+  the agent's SSH key and compares it with `pbs/etc/` as deployed here. A difference, or a failed
+  read, goes to `#alerts` (`discord_alerts_webhook`, passed as a systemd credential).
 - **LAN Nix cache:** harmonia on :5000 (`modules/nix-cache.nix`) serves ops's store to every other host
   (they're clients via `base.nix`). ops admits 10.10.0.0/16, and the OPNsense alias
   `ROLE_NIX_CACHE_CLIENTS` decides which hosts get through: a new host needs adding there. `nix-cache-key` generates the signing key once

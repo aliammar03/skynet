@@ -1,0 +1,8 @@
+[Unit]
+Description=Mount PBS datastore skynet on first use
+
+[Automount]
+Where=/mnt/datastore/skynet
+
+[Install]
+WantedBy=remote-fs.target
