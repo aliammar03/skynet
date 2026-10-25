@@ -158,9 +158,10 @@ agent where it has sudo, else Ali: with `skynet.docker.appdataSnapshots`,
 ## Rebuild
 
 1. A Docker host that still runs copies its data to ops first, cold (skynetv2.md → P4 → The
-   rebuild). On the host, doco-cd first, so nothing restarts what stops next:
-   `sudo systemctl stop docker-doco-cd && sudo docker ps -q | xargs -r sudo docker stop`. Then on
-   ops, `/opt/appdata` into one tar, and the tar compared with it file by file:
+   rebuild). On the host, comin and doco-cd first, so nothing restarts what stops next (a comin
+   switch would start doco-cd again):
+   `sudo systemctl stop comin docker-doco-cd && sudo docker ps -q | xargs -r sudo docker stop`.
+   Then on ops, `/opt/appdata` into one tar, and the tar compared with it file by file:
    ```sh
    mkdir -p -m 700 ~/rebuild
    ssh skynet@<ip> 'sudo tar -C /opt/appdata --exclude=./backup --numeric-owner -cf - .' > ~/rebuild/<h>-appdata.tar

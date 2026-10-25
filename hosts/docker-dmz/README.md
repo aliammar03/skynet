@@ -48,8 +48,8 @@ lists it), `ssh -A aliammar@10.10.100.15`, where `ssh-add -l` lists it too. Then
    sudo install -d -m 700 /root/.ssh
    curl -fsSL https://raw.githubusercontent.com/aliammar03/skynet/main/hosts/docker-dmz/ssh_host.pub | sed 's/^/10.10.100.10 /' | sudo tee -a /root/.ssh/known_hosts
    ```
-   The last line prints `10.10.100.10 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPYe7/5kzdaippYiP01MB+bleeBIQITJESEMrAU1/HWb`
-   (fingerprint `SHA256:KAmUg2H0OdSThbxu8LErVg762NQwe9voi5KQocXfmYg`): root's ssh now trusts
+   The last line prints `10.10.100.10 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA7+Jlz69R5mMhPxm1DzT2kpjcU1+V7+a57yQQvwgOw4`
+   (fingerprint `SHA256:uJ13zXKNGT6H9BxWnVLgiTin7I8ajR3EjW3Kh5EKflA`): root's ssh now trusts
    docker-dmz's key from the repo, so the copy never stops to ask.
 2. The copy, pasted as one block. `--preserve-env=SSH_AUTH_SOCK` lets root's ssh use your forwarded
    key.
