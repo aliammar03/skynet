@@ -1093,7 +1093,8 @@ requests a second per client.
 - **PVE** (2026-10-24): the backup jobs leave out the retired guests (core: 10015, 9000, 9090, 731,
   751; network: 635, 730, 750, 837), and core's also Unraid and CT 240. Both nodes' `pbs-unraid`
   entries use one encryption key, stored in Ali's password manager.
-- **Drive** (Ali): free space of at least twice datastore plus app data (about 0.3 TB now).
+- **Drive** (Ali, 2026-10-25, `rclone about gdrive:`): 1.48 TiB free of 2 TiB. The copies need
+  about 0.2 TiB: twice the datastore (86.8 GiB) plus the app data (about 6 GB).
 - **The uplink** (2026-10-25, 00:05): about 207 Mbit/s up (1 GB from ops to Cloudflare over four
   streams; 130–270 on one). So Drive's own pace sets the first sync's length: about 2 new files a
   second, so 135k chunks take about 19 hours.
