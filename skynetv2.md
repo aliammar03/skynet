@@ -66,7 +66,7 @@ Nothing outside the lab pushes into it.
 | D8 | All alerts go to Discord `#alerts` (doco-cd via Apprise, Gatus, healthchecks.io, comin hook) | One place to look |
 | D9 | Offsite = **Google Drive** via rclone with Ali's own OAuth client, scope `drive.file`, **published to production** | Drive is what Ali has; "Testing" mode tokens expire every 7 days; `drive.file` lets rclone see only what it created |
 | D10 | No OpenTofu. VMs come from versioned `hosts/<h>/proxmox.sh`; internal DNS records live in `dns/aliammar.net.zone`; the Cloudflare wildcard CNAME is set once by hand | Guests change rarely |
-| D11 | The agent never merges. It is **root on docker-dmz and on PBS** (VM 2040; CT 240 until VM 2040 takes over). On docker-dmz: passwordless sudo, every command in that host's journal, which also gives it that host's Docker socket, host key and secrets. On PBS: root over SSH from ops. It never prints a secret value or decrypts one on purpose. On docker-dmz's doco-cd MCP it may restart and run jobs. Destroying a project or stack, or on PBS removing a backup, namespace or datastore, asks Ali each time. Everywhere else: no sudo, no Docker socket, no private age key. While it installs a host it is root on the installer, which holds the new host key that `--copy-host-keys` keeps (`runbooks/new-vm.md`); it reads only the public half | The apps host is where operate work happens, and it needs hands; PBS is where P4's offsite copy and its drills happen (both Ali's call, 2026-10-24). docker-admin (admin portal, Gatus, admin secrets) and the DNS servers stay diagnose-only, so GitHub and missing credentials still leash the rest. The install window was already root-equivalent (the agent installs the OS), and it buys a one-PR install |
+| D11 | The agent never merges. It is **root on docker-dmz and on PBS** (VM 2040). On docker-dmz: passwordless sudo, every command in that host's journal, which also gives it that host's Docker socket, host key and secrets. On PBS: root over SSH from ops. It never prints a secret value or decrypts one on purpose. On docker-dmz's doco-cd MCP it may restart and run jobs. Destroying a project or stack, or on PBS removing a backup, namespace or datastore, asks Ali each time. Everywhere else: no sudo, no Docker socket, no private age key. While it installs a host it is root on the installer, which holds the new host key that `--copy-host-keys` keeps (`runbooks/new-vm.md`); it reads only the public half | The apps host is where operate work happens, and it needs hands; PBS is where P4's offsite copy and its drills happen (both Ali's call, 2026-10-24). docker-admin (admin portal, Gatus, admin secrets) and the DNS servers stay diagnose-only, so GitHub and missing credentials still leash the rest. The install window was already root-equivalent (the agent installs the OS), and it buys a one-PR install |
 | D13 | `aliammar-skynet` has **Write**. The `main` ruleset requires a PR and check `nix` and blocks force-push/deletion; no review is required (Ali's call, 2026-10-21) | Branches in one repo, no approval clicks. "Never merge" is a **soft wall**: AGENTS.md + Claude Code deny rules |
 | D12 | v1 archived; fresh repo; new ops VM built alongside the old one, which is then retired | Clean start without a blind spot |
 | D14 | Remote access = **Tailscale**, with `os-tailscale` on OPNsense as the subnet router and split DNS for `aliammar.net`; replaces the WireGuard plan | Nothing inbound to open; it keeps working when docker-admin or a node is down, so it can reach what needs fixing |
@@ -1098,7 +1098,7 @@ requests a second per client.
   streams; 130–270 on one). So Drive's own pace sets the first sync's length: about 2 new files a
   second, so 135k chunks take about 19 hours.
 - **Unraid** (Ali): a new share `pbs` for the new datastore, its own so v1's can be removed without
-  touching it (P7). Its NFS export: VM 2040 read-write with `no_root_squash` (PBS creates the
+  touching it. Its NFS export: VM 2040 read-write with `no_root_squash` (PBS creates the
   datastore as root, then hands it to user `backup`), and docker-admin read-only for the offsite
   copy. CT 240 reads `pbs-backups` through the core node's mount (10.10.50.11), so its move to .39
   needs no rule.
@@ -1188,8 +1188,8 @@ somewhere writable at start, since rclone saves refreshed tokens.
 ### PBS, greenfield: VM 2040 (`pbs/`)
 
 CT 240 carries v1: its users, its retired guests' history, and PBS backing itself up. A new PBS
-starts clean beside it, with its config in git from the first day. CT 240 retires once the new one
-has proved itself.
+starts clean beside it, with its config in git from the first day. CT 240 goes with v1's backups
+once both nodes back up to the new one (Ali, 2026-10-25: they aren't needed).
 - **VM 2040** on the core node, at 10.10.20.40 (VLAN 20), CT 240's address, so `HOST_PBS`, its
   firewall rules and the Gatus row carry over: 2 vCPU, 4 GB with 2 GB guaranteed (ballooning:
   verify, GC and backups use the rest), and a 32 GB OS disk on `local-lvm`. `pbs/proxmox.sh` is the
@@ -1224,13 +1224,10 @@ has proved itself.
     them (Prechecks).
 
   The first night writes full backups into the new datastore.
-- **Freeing .40 first** (Ali, PVE and OPNsense config): CT 240 moves to 10.10.20.39 (`pct set 240
-  --net0 …` with the new IP, then a restart), `HOST_PBS` holds both addresses, and each node's
-  `pbs-unraid` follows CT 240 in `/etc/pve/storage.cfg` (`pvesm set` can't change a PBS storage's
-  server). Then VM 2040 installs at .40.
-- **CT 240** stays at .39 for 30 days as the fallback with the history, its prune, verify and GC
-  off (the agent, after the cutover). Then P7 (Ali) removes it, both nodes' `pbs-unraid`, .39 from
-  `HOST_PBS`, and share `pbs-backups` with v1's datastore; VM 2040 replaces it for good.
+- **v1's PBS** (Ali): CT 240 moved to 10.10.20.39 to free .40 for VM 2040, and `HOST_PBS` holds
+  both addresses meanwhile. Once both backup jobs write to `pbs`, it all goes: each node's
+  `pbs-unraid` storage, CT 240, the core node's NFS mount of `pbs-backups` (`/mnt/pbs-unraid`,
+  CT 240's `mp0`), .39 from `HOST_PBS`, and the share with v1's datastore.
 
 ### PBS offsite: `stacks/admin/pbs-offsite/` (docker-admin)
 
@@ -1285,8 +1282,7 @@ PBS stays Proxmox's appliance (VM 2040, Debian), but its settings live in git, t
 
 - the restic passwords, one per host;
 - PVE's PBS encryption keys, one per node (Datacenter → Storage → `pbs` → Encryption: download).
-  Without them every copy, on Unraid or on Drive, is unreadable. Until P7 also CT 240's single key
-  (both nodes' `pbs-unraid`; stored 2026-10-24);
+  Without them every copy, on Unraid or on Drive, is unreadable;
 - the OAuth client's ID and secret (logging in again gives a new token);
 - PBS's root password (`pbs/secret.sops.yaml`);
 - the age master key.
@@ -1305,7 +1301,8 @@ manager.
      drift timer;
    - ops builds the ISO; Ali makes the Unraid share, frees .40 and creates VM 2040 from it; the
      agent runs `setup.sh`;
-   - Ali does the cutover on both nodes, and stores the new encryption keys in the survival kit.
+   - Ali does the cutover on both nodes, and stores the new encryption keys in the survival kit;
+     then v1's PBS goes (PBS, greenfield).
 
    It merges once VM 2040 runs from it, with its host key pinned. The first night fills the new
    datastore.
@@ -1327,7 +1324,7 @@ manager.
 
 ### Exit criteria
 
-- Seven green nights in a row, for all three jobs and for VM 2040's backups. CT 240's jobs are off.
+- Seven green nights in a row, for all three jobs and for VM 2040's backups. CT 240 is gone.
 - Both drills done, with evidence in their PRs.
 - Ali confirms the survival kit is stored.
 - `pbs/etc/` matches PBS, and the drift check is quiet.
@@ -1413,8 +1410,7 @@ are each fixed or PR'd, with no human step except merges.
 - Proxmox `svc-ops` tokens; the Technitium, Cloudflare and Authentik tokens.
 - OPNsense `svc-skynet-recon`; Omada viewer; the v1 GitHub PAT; v1 healthchecks; the v1 rclone client.
 
-**What: Ali destroys** 9090, 10015, 635, 837, 730, 731, 750, 751, template 9000, and CT 240 with
-what it leaves (P4 → PBS, greenfield).
+**What: Ali destroys** 9090, 10015, 635, 837, 730, 731, 750, 751 and template 9000.
 
 **What: DR**
 - Final survival kit.
@@ -1435,10 +1431,10 @@ in a drill.
 
 | Thing | Value |
 |---|---|
-| Nodes | server-proxmox-core (12 cpu, 31 GB) · server-proxmox-network (8 cpu, 15 GB) · mgmt IPs 10.10.50.11 (core) / 10.10.50.10 (network) · storage `local` (ISO), `local-lvm` (disks), `pbs` (VM 2040), `pbs-unraid` (CT 240's history, until P7) |
+| Nodes | server-proxmox-core (12 cpu, 31 GB) · server-proxmox-network (8 cpu, 15 GB) · mgmt IPs 10.10.50.11 (core) / 10.10.50.10 (network) · storage `local` (ISO), `local-lvm` (disks), `pbs` (VM 2040) |
 | VLANs | 10 Trusted · 20 Servers · 30 IoT · 50 Mgmt · 60 Admin access · 70 Net services · 80 Identity · 90 Ops · 100 DMZ · 300 ISP L2 passthrough (not routed). `10.10.<vlan>.0/24`, gateway `.1` |
 | Keep | OPNsense VM 5001 (config → `skynet-opnsense` via os-git-backup) · Omada CT 525 (10.10.50.25) · PBS VM 2040 (10.10.20.40; `pbs/`) · Unraid VM 2020 · HAOS VM 3050 (10.10.30.50) · athena CT 10030 (10.10.100.30) |
-| Retire | ops VM 9090 (P1) · Management Caddy CT 635 (P1) · AdGuard 730/731 and Technitium CTs 750/751 (P2) · docker-dmz VM 10015 + Arcane, Authentik CT 837 (P3) · PBS CT 240 (P4: at 10.10.20.39 with its history, jobs off, 30 days) · template 9000 (P7) |
+| Retire | ops VM 9090 (P1) · Management Caddy CT 635 (P1) · AdGuard 730/731 and Technitium CTs 750/751 (P2) · docker-dmz VM 10015 + Arcane, Authentik CT 837 (P3) · PBS CT 240 with v1's backups (P4, at the cutover) · template 9000 (P7) |
 | Domain | `aliammar.net`: public DNS at Cloudflare (tunnel CNAMEs); split-horizon internal zone in Technitium (`dns/aliammar.net.zone`) |
 | Gotchas | ballooning per VM (`runbooks/new-vm.md`): a minimum for the Docker hosts and ops, off for passthrough guests and the DNS VMs · a NixOS host serving :53 needs `services.resolved.enable = false` (its stub holds :53) · recreating a guest on the same IP poisons OPNsense's ARP, so pin MACs |
 

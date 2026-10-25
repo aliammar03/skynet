@@ -30,34 +30,20 @@ part of its `/etc` that git holds. ops compares that with the host every day.
 
 1. **Agent:** `nix build .#installer-pbs --print-out-paths` on ops: Proxmox's PBS 4.2-1 ISO with
    `answer.toml` built in (`installer.nix`).
-2. **Ali, Unraid** (first install only): a share `pbs`, on the same disks as `pbs-backups`, with
-   NFS export Yes, security Private, rule `10.10.20.40(sec=sys,rw,no_root_squash)`. PBS creates the
-   datastore as root, then hands it to user `backup`; with root squashed that fails.
-3. **Ali** (first install only), outside 02:00–06:30: CT 240 frees .40. On the core node:
-   ```sh
-   pct set 240 --net0 name=eth0,bridge=vmbr0,gw=10.10.20.1,hwaddr=BC:24:11:A7:AC:84,ip=10.10.20.39/24,tag=20,type=veth
-   pct reboot 240
-   ```
-   In OPNsense, alias `HOST_PBS` gets 10.10.20.39 beside .40, so its rules reach both PBSes. On
-   both nodes, `pbs-unraid` follows CT 240 in the file: `pvesm set` refuses to change a PBS
-   storage's `server` (a fixed parameter), and `pvesm remove` + `add` would delete the storage's
-   stored password and encryption key.
-   ```sh
-   sed -i '/^pbs: pbs-unraid/,/^$/ s/server 10\.10\.20\.40/server 10.10.20.39/' /etc/pve/storage.cfg
-   pvesm status --storage pbs-unraid   # active
-   ```
-   CT 240 reads its datastore through the core node's mount, so it needs no NFS rule.
-4. **Ali:** the ISO from ops to the core node, from the workstation:
+2. **Ali, Unraid** (first install only): a share `pbs` with NFS export Yes, security Private, rule
+   `10.10.20.40(sec=sys,rw,no_root_squash)`. PBS creates the datastore as root, then hands it to
+   user `backup`; with root squashed that fails (`setup.sh` checks before it tries).
+3. **Ali:** the ISO from ops to the core node, from the workstation:
    `scp -3 aliammar@10.10.90.91:<store path> root@10.10.50.11:/var/lib/vz/template/iso/pbs-installer.iso`.
-   Then on the node: fetch `proxmox.sh` from the branch, read it, run it, and leave 2040 out of the
-   core node's backup job:
+   Then on the node: fetch `proxmox.sh` from the branch, read it, run it, and (first install only)
+   leave 2040 out of the core node's backup job:
    ```sh
    curl -fsSL https://raw.githubusercontent.com/aliammar03/skynet/refs/heads/<branch>/pbs/proxmox.sh -o /root/proxmox-pbs.sh
    sh /root/proxmox-pbs.sh
    pvesh set /cluster/backup/backup-c59694d0-3593 --exclude 2020,240,731,751,9000,9090,10015,2040
    ```
    The VM installs itself in a few minutes and reboots into PBS.
-5. **Agent:** scan the host key, run `setup.sh`, reboot, check. The scanned key is new, so ssh
+4. **Agent:** scan the host key, run `setup.sh`, reboot, check. The scanned key is new, so ssh
    can't ask about it:
    ```sh
    kh=$(mktemp); ssh-keyscan -t ed25519 10.10.20.40 2>/dev/null > "$kh"; cut -d' ' -f2- "$kh" > pbs/ssh_host.pub
@@ -66,7 +52,7 @@ part of its `/etc` that git holds. ops compares that with the host every day.
    ```
    `setup.sh` prints each file's diff as it installs it. A difference worth keeping (something the
    installer wrote) goes into `etc/`.
-6. **Ali:**
+5. **Ali:**
    - on the core node, `qm guest exec 2040 -- ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`
      shows the fingerprint the PR names;
    - PBS's UI at https://10.10.20.40:8007, as root (`nix shell nixpkgs#sops -c sops -d --extract '["root_password"]' pbs/secret.sops.yaml`):
@@ -79,23 +65,22 @@ part of its `/etc` that git holds. ops compares that with the host every day.
      "Auto-generate a client encryption key". Store the key it offers in the password manager
      (survival kit). Then Datacenter → Backup → the job → storage `pbs`;
    - the same on the network node with token `network` and namespace `network`.
-7. **Agent:** the PR's last commit: `ssh_host.pub` and its pin in `modules/agent.nix` (CT 240's
-   moves to .39), caddy-admin's pinned cert (`stacks/admin/caddy-admin/certs/pbs.pem`) and
-   `tls_server_name`, and `etc/` equal to the host. After the cutover, CT 240's prune, verify and
-   GC are switched off; its history stays readable through `pbs-unraid`.
+6. **Agent:** the PR's last commit: `ssh_host.pub` and its pin in `modules/agent.nix`, caddy-admin's
+   pinned cert (`stacks/admin/caddy-admin/certs/pbs.pem`) and `tls_server_name`, and `etc/` equal
+   to the host.
 
 The first night writes full backups into `skynet`.
 
 ## Change
 
-Edit `etc/` in a PR. Once it's merged, the agent runs `setup.sh` again (step 5's line, with the
+Edit `etc/` in a PR. Once it's merged, the agent runs `setup.sh` again (step 4's line, with the
 pinned key), which shows and applies the difference. A change made on PBS first (in its UI, or by
 the agent as root) gets its PR the same day; the drift check reports it every morning until `main`
 matches.
 
 ## Rebuild
 
-Steps 1 and 4–7: a fresh VM from `answer.toml`, then `setup.sh`, which reuses the datastore on
+Steps 1 and 3–6: a fresh VM from `answer.toml`, then `setup.sh`, which reuses the datastore on
 Unraid as it is. The ISO boot makes a new host key and a new self-signed cert, so the PR updates
 `ssh_host.pub`, the agent's pin and caddy-admin's cert. Ali regenerates both tokens' secrets and
 gives each node's `pbs` storage the new fingerprint and its token. The encryption keys don't change:
@@ -104,9 +89,6 @@ they're PVE's.
 ## Gotchas
 
 - The disk boots first (`proxmox.sh`), so a reboot never reinstalls, even with the ISO attached.
-- .40 changes MAC when VM 2040 takes it from CT 240. OPNsense learns the new one from VM 2040's
-  first ARP for its gateway (NTP and DNS at boot); if other VLANs still can't reach .40, flush its
-  entry in OPNsense (Interfaces → Diagnostics → ARP Table).
 - The NFS mount is hard: while Unraid is down, jobs wait for it. PBS never writes the datastore to
   the local disk, which has no `.chunks`.
 - caddy-admin pins PBS's self-signed cert. A new one (a rebuild, or `proxmox-backup-manager cert
