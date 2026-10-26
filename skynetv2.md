@@ -26,8 +26,8 @@
 | P2 | DNS (Technitium only) + remote access | done (2026-10-23); open: OPNsense rules 140/150/115 and CT 731 `onboot` (see P2 exit criteria) |
 | P3 | docker-dmz: apps + public path | done (2026-10-24): docker-dmz with v1's data (#48), its doors (#50) and all ten apps (#51–#61); the apps reach one another only through the door (#64); every image current (#67). Family accounts skipped for now; rule 150 can go now that 135 (ex-840) serves Gatus's `public` row |
 | P4 | Backups → Google Drive | in progress (2026-10-25): PBS greenfield done (VM 2040, `pbs/`; v1's PBS removed); PBS's datastore nightly to Drive by plain `rclone sync` (`stacks/admin/pbs-offsite/`; PVE already encrypts its chunks); app data nightly to Drive, hot (`stacks/<host>/backup/`): docker-dmz rebuilt onto btrfs and backed up from btrbk snapshots (#81); `skynet-restore` drilled from a snapshot and from Drive. Next: the guest drill from Drive's copy once its first sync ends, `runbooks/restore.md`, seven green nights |
-| P5 | Observability (agent eyes) | outline |
-| P6 | Agent autonomy | outline |
+| P5 | Observability (agent eyes) | planned (2026-10-26): VictoriaMetrics, VictoriaLogs, vmalert, Alertmanager and Grafana on docker-admin; it can start while P4 counts its seven nights |
+| P6 | Agent autonomy | planned (2026-10-26): the leash first (comin's testing branches off, with the plan), then tiered merges with verify and rollback, the incident loop, the rekey workflow, OpenTofu for our VMs and the OPNsense aliases; after P5 |
 | P7 | Retire v1 + disaster recovery | outline |
 
 ## Target state
@@ -98,16 +98,18 @@ skynet/
 ├ AGENTS.md  CLAUDE.md (@AGENTS.md)  README.md  skynetv2.md
 ├ flake.nix  flake.lock
 ├ modules/            base.nix (all hosts) · agent.nix (ops) · docker-host.nix (docker-*)
-├ hosts/<host>/       default.nix · net.nix · disk.nix · hardware.nix · proxmox.sh · ssh_host.pub · README.md
-├ secrets/<host>.yaml host-level secrets (sops-nix)
+├ hosts/<host>/       default.nix · net.nix · disk.nix · hardware.nix · vm.nix (P6; proxmox.sh until then) · ssh_host.pub · README.md
+├ secrets/<host>.yaml host-level secrets (sops-nix); secrets/shared/ a value two hosts share (P6)
 ├ dns/                aliammar.net.zone · settings.json (Technitium, P2)
-├ pbs/                PBS, VM 2040: proxmox.sh · answer.toml · installer.nix · setup.sh · etc/ (P4)
+├ pbs/                PBS, VM 2040: vm.nix (P6) · answer.toml · installer.nix · setup.sh · etc/ (P4)
+├ infra/proxmox/      OpenTofu: our VMs, from each host's vm.nix (P6)
+├ opnsense/           aliases.yaml, synced to OPNsense (P6)
 ├ .doco-cd.admin.yml  .doco-cd.dmz.yml
 ├ stacks/admin/<stack>/      (P1+)
 ├ stacks/dmz/<app>/          (P3+)
-├ runbooks/                  new-vm · new-stack · dns-speed-test (P2); more in P6
+├ runbooks/                  new-vm · new-stack · dns-speed-test (P2); restore (P4); incident · window (P6)
 ├ .claude/settings.json  .mcp.json  .sops.yaml  renovate.json  .gitignore
-└ .github/workflows/check.yml  .github/CODEOWNERS
+└ .github/workflows/check.yml · rekey.yml (P6)  .github/CODEOWNERS
 ```
 
 ## Conventions
@@ -197,7 +199,7 @@ skynet/
 | docker-admin host key | `secrets/docker-admin.yaml`, `stacks/admin/**` | that host | P1 |
 | caddy-admin / caddy-apps | Cloudflare token `Zone.DNS:Edit` on `aliammar.net` | DNS-01 | P1 / P3 |
 | doco-cd API keys | REST/MCP per Docker host | held by ops (diagnose tools only until P6) | P1 / P3 |
-| `#alerts` webhook | post only | Gatus, Apprise, comin, healthchecks.io | P1 |
+| `#alerts` webhook | post only | Gatus, Apprise, comin, healthchecks.io; Alertmanager (P5) | P1 |
 | technitium-network / technitium-core host keys | `secrets/technitium-<node>.yaml`: Technitium `admin` password (agent-generated) | that host | P2 |
 | Tailscale | Ali's account; OPNsense holds the node key | subnet routes 10.10.50.0/24, 10.10.60.60, 10.10.70.50–51 | P2 |
 | docker-dmz host key, tunnel credentials | `stacks/dmz/**`, cloudflared | that host | P3 |
@@ -206,7 +208,11 @@ skynet/
 | PBS `pve@pbs` tokens | `core`, `network`: `DatastoreBackup` on their namespace | PVE's backup jobs | P4 |
 | PBS root password | VM 2040's `root@pam` (UI, console); agent-generated into `pbs/secret.sops.yaml`, Ali only | that host | P4 |
 | PVE's PBS encryption keys | one per node (PVE-generated); copies in the survival kit | every backup's chunks | P4 |
-| `skynet@pve` tokens | `read` = PVEAuditor on `/`, one per node (the nodes aren't clustered); `operate` = VM.PowerMgmt on pool `skynet` | Proxmox | P1 / P6 |
+| `skynet@pve` tokens | `read` = PVEAuditor on `/`, one per node (the nodes aren't clustered); `metrics` = the same, for docker-admin's pve-exporter; `operate` = VM.PowerMgmt on pool `skynet`; `provision` = create, change and restore VMs in pool `skynet`, with their ISOs on `local` and disks on `local-lvm` (OpenTofu) | Proxmox | P1 / P5 / P6 |
+| PBS `metrics@pbs` | token `exporter`: audit on the datastore and the host | pbs-exporter, read-only | P5 |
+| rekey key | an age key in GitHub environment `rekey`, which only `main`'s workflows can use | recipient of every sops file: re-encrypts once Ali approves a recipient change (P6 → Toil) | P6 |
+| OPNsense `skynet-alias` | API key: Firewall: Aliases, with config writes | ops's alias sync, for aliases merged in `opnsense/` | P6 |
+| alert webhook | token (agent-generated) | Alertmanager → `skynet-incident` on ops | P6 |
 | OPNsense `skynet-read` | API key | Diagnostics: ARP Table · Diagnostics: Logs: Firewall: Live View · Diagnostics: PF Table IP addresses · Diagnostics: Routing tables · Firewall: Aliases · Firewall: Rules [new] · Lobby: Dashboard · System: Gateways · Tailscale · System: Deny config write. Config writes stay denied; PF tables and Tailscale's service could change at runtime, and the agent leaves them to Ali (rule 5) | P1 / P4 |
 | Technitium | read-only user | diagnose | P5 / P6 |
 
@@ -1472,66 +1478,475 @@ manager.
   into its own datastore, verify, a restore drill. Move only when that holds, by pointing it at
   the existing Unraid datastore; PVE's storage entry then changes (Ali).
 
-## P5 — Observability `[outline]`
+## P5 — Observability `[detailed]`
 
-**What** (all on docker-admin)
-- **VictoriaMetrics** scrapes:
-  - node-exporter on the NixOS hosts and container metrics;
-  - pve-exporter (`skynet@pve!read`) and PBS;
-  - comin (:4243), doco-cd (:9120) and Gatus.
-- **VictoriaLogs:** hosts ship journald via `systemd-journal-upload`. Docker logs are already in
-  journald.
-- **Grafana:** an Authelia OIDC client, with dashboards provisioned from git.
-- **Alerting:** vmalert → Alertmanager → Discord for disk, memory, backup age and cert expiry.
-- **Homepage** dashboard.
-- **Sizing:** grow docker-admin to 6 GB once Authentik is gone.
-- **Agent eyes:** ops `.mcp.json` gets `mcp-victoriametrics` and `mcp-victorialogs`.
+**Goal**
+- VictoriaMetrics on docker-admin collects metrics from every host, container, backup job and
+  deploy tool. VictoriaLogs collects every host's journal, the containers' logs included.
+- Rules in git turn both into alerts in `#alerts`, through Alertmanager. A watchdog alerts from
+  outside when the alerting itself stops.
+- Grafana shows it all behind the admin login, its dashboards from git.
+- The agent reads both through their official MCP servers, so "why is X slow?" and "what happened
+  at 03:00?" are queries, not guesses.
 
-**Why:** the agent diagnoses from live metrics and logs. This replaces v1's collectors and renderers.
+**Why now:** P6 verifies its changes and rolls them back on these numbers. P5 also closes P4's gap:
+today a failed, missed or disabled guest backup posts nothing (P4 → Open).
 
-**Exit**
-- The agent answers "why is X slow?" and "what happened at 03:00?" from data.
-- A disk-fill test alerts.
+### Tools (researched 2026-10-26)
 
-**Open:** retention vs disk; exporters for OPNsense and Omada.
+| Need | Choice | Why | Passed over |
+|---|---|---|---|
+| Metrics | VictoriaMetrics 1.154, single-node | one binary; Prometheus' scrape config, and PromQL queries work unchanged; a fraction of Prometheus' memory and disk; retention is one flag; a query UI built in | Prometheus (more memory and disk for the same series); Mimir, Thanos (clusters) |
+| Logs | VictoriaLogs 1.53 | takes `systemd-journal-upload` natively (`/insert/journald`), so hosts run no shipper of their own; retention by age and by disk space | Loki (needs a shipper: Promtail is retired, Alloy is heavy); Elasticsearch, OpenSearch (gigabytes of memory) |
+| Shipping | `systemd-journal-upload` (NixOS `services.journald.upload`; on PBS, Debian's `systemd-journal-remote`) | part of systemd. It keeps a cursor, so after an outage it resumes where it stopped: the journal is the buffer | Vector, Fluent Bit, Alloy (one more daemon per host) |
+| The way in for logs | vlagent, VictoriaLogs' own agent, on docker-admin :9429 | it takes the same protocols and has no query API at all, so a host that ships its logs can read no one's; it buffers on disk while VictoriaLogs restarts | VictoriaLogs' own port (it answers queries too); a proxy's path rule (vmauth: one more rule to get right); pulling with `systemd-journal-remote` (no cursor across restarts) |
+| Host metrics | node-exporter (NixOS module; Debian's package on PBS) | the standard; its textfile collector carries job results | — |
+| Container metrics | cAdvisor (NixOS `services.cadvisor`) | the standard: CPU, memory, network and restarts per container | Docker's own metrics (the daemon's, not per container) |
+| Proxmox | prometheus-pve-exporter | the standard, read-only with a token per node | the nodes' metric-server push (InfluxDB; config on the nodes) |
+| PBS | pbs-exporter (natrontech) 0.6 | each guest's newest backup and its verify state, per namespace; read-only. A small project (67 stars), so its own target-down alert says when it breaks | PBS's metric-server push (host and datastore only, nothing per guest) |
+| Rules and routing | vmalert, one for metrics and one for logs (as VictoriaMetrics advises) → Alertmanager | Prometheus-format rules in git; Alertmanager's Discord receiver, grouping, inhibition and silences | Grafana's alerting (rules in its database); Gatus for all of it (it checks endpoints, not trends) |
+| Dashboards | Grafana, OIDC through admin Authelia | data sources and dashboards provisioned from git | the stores' own UIs alone (kept, for ad-hoc queries) |
+| Agent eyes | `mcp-victoriametrics`, `mcp-victorialogs` (VictoriaMetrics' own; images with an HTTP mode) | read-only query tools for Claude Code | — |
 
-## P6 — Agent autonomy `[outline]`
+### Prechecks (agent, read-only; done 2026-10-26)
 
-**What: the operate lane**
-- Already granted in P3 (D11): root on docker-dmz, and docker-dmz's doco-cd MCP tools
-  (`control_project`, `control_stack`, `trigger_scheduled_job`, `compact_mirrors`; destroy and
-  remove ask Ali). P6 decides the rest.
-- doco-cd MCP: `control_project` (restart/start/stop) and `trigger_scheduled_job`, for docker-admin.
-- Proxmox `skynet@pve!operate`: a custom role with `VM.PowerMgmt` on pool `skynet` (5040, 10010).
-- SSH as `svc-ops` on the Docker hosts, with Nix-declared sudo for `systemctl restart docker` and
-  `journalctl`.
-- Time-boxed SSH-CA root grants for deep work (the CA stays on Ali's workstation).
-- Optional hard wall: a ~40-line MCP filter proxy in front of doco-cd, so destructive tools are
-  impossible rather than just denied.
+- **docker-admin:** 0.8 GB of memory in use (the guest holds 3.5 of its 4 GB just now); `/` has 25
+  of 31 GB free.
+- **The network node:** 11.6 of 14.5 GiB used: OPNsense 4 GiB (pinned), Omada up to 3, docker-admin
+  up to 4, technitium-network 1. The outline's 6 GB docker-admin doesn't fit.
+- **Ports:** comin's exporter (:4243, every NixOS host) and doco-cd's metrics (:9120, both Docker
+  hosts) already listen, closed by the host firewalls. :9100 is free everywhere; cAdvisor's default
+  :8080 is doco-cd's on the Docker hosts.
+- **systemd:** 260 on the NixOS hosts, 257 on PBS. Both upload to VictoriaLogs; 258's compression
+  and headers aren't needed.
+- **PBS:** Debian 13 has `prometheus-node-exporter` 1.9.0 and `systemd-journal-remote` 257.
+- **Reachability:** docker-admin shares VLAN 50 with both nodes (:8006) and already reaches PBS's
+  :8007 (rule 235, for Gatus).
 
-**What: the alert loop**
-1. Gatus, Alertmanager or doco-cd fires.
-2. `services.webhook` on ops (LAN-only, token-protected) receives it.
-3. `claude -p` investigates using the runbooks and posts findings to `#alerts`.
-4. It then applies an operate fix or opens a PR.
+### Where it runs (docker-admin)
 
-**What: runbooks** for crashloop, disk-full, dns-failure, cert-expired, backup-missed and
-deploy-failed (which leads to a revert PR).
+Four stacks in `stacks/admin/`, each with its site, DNS name, Gatus row and README
+(`runbooks/new-stack.md`):
 
-**What: Renovate automerge**
-- Scope: digests and patches under `stacks/dmz/**`.
-- Gates: `minimumReleaseAge: 3 days`, green CI.
-- CODEOWNERS keeps `hosts/`, `modules/`, `stacks/admin/`, `.github/`, `.claude/` and `AGENTS.md`
-  Ali-reviewed.
+| Stack | Containers | Name | `/opt/appdata/<stack>/` |
+|---|---|---|---|
+| `metrics` | victoriametrics, vmalert, pve-exporter, pbs-exporter, mcp-victoriametrics | `metrics` | `data`: cache (history, not backed up) |
+| `logs` | victorialogs, vlagent, vmalert-logs, mcp-victorialogs | `logs` | `data`, `buffer`: cache |
+| `alertmanager` | alertmanager | `alerts` | `data` (silences): data |
+| `grafana` | grafana | `grafana` | `data`: cache (all of it comes from git or the login) |
 
-**What: weekly report.** A "State of the Lab" written by `claude -p` from metrics, posted to Discord.
+- **Access:** every name is behind admin Authelia (two factor, Ali). Ops (10.10.90.91) bypasses it,
+  as for Gatus's API, only on the query APIs and `/mcp` of `metrics` and `logs`, and on `alerts`'
+  silences API.
+- **Memory:** about 1 GB for all of it, so docker-admin goes from 0.8 to about 2 GB in use. It keeps
+  its 4 GiB; the part guaranteed rises from 2 to 3 GiB (`proxmox.sh`; Ali:
+  `qm set 5040 --balloon 3072`).
+- **Disk:** about 15,000 series every 30 s comes to 30–45 MB a day, so 13 months of metrics is
+  12–18 GB, reached over the year. Logs keep 30 days and never more than 4 GiB
+  (`-retention.maxDiskSpaceUsageBytes`). The 25 GB free holds the first months, and docker-admin's
+  rebuild in P6 grows its disk to 64 GiB. The first week's growth (`vm_data_size_bytes`) checks the
+  estimate.
 
-**Why:** hands-off operation. The agent fixes what's safe and proposes the rest.
+### Metrics
 
-**Exit:** a game day passes. A bad env var, a killed container, a full disk and a failed image update
-are each fixed or PR'd, with no human step except merges.
+VictoriaMetrics scrapes every 30 s. Its targets are in `stacks/admin/metrics/scrape.yaml`
+(Prometheus' format):
 
-**Open:** which operate verbs ship on day one (start with restart/reconcile; add reboots later).
+| Target | Runs on | Notes |
+|---|---|---|
+| node-exporter :9100 | every NixOS host (`base.nix`); PBS (`pbs/setup.sh`) | the systemd collector (failed units) and the textfile collector (job results) |
+| cAdvisor | both Docker hosts (`docker-host.nix`), off :8080 | Docker's containers only, without their labels (fewer series) |
+| comin :4243 | every NixOS host | fetch, build and deploy failures; `comin_need_to_reboot` |
+| doco-cd :9120 | both Docker hosts | its deploys and reconciliations |
+| Gatus | docker-admin (`metrics: true`) | each row's result, response time and certificate expiry |
+| pve-exporter | `metrics` | both nodes, each with its own token |
+| pbs-exporter | `metrics` | PBS, one token |
+| the stack itself | docker-admin | VictoriaMetrics, VictoriaLogs, vlagent, both vmalerts, Alertmanager, Grafana |
+
+- **Host firewalls:** each host's exporters admit only docker-admin. On docker-admin, its own
+  containers reach them from their bridge.
+- **Job results** land in node-exporter's textfile folder (`/var/lib/node-exporter`), which the jobs
+  that write there mount:
+  - restic: resticprofile's own metrics file (`prometheus-save-to-file`: status, duration, bytes
+    added), so config only;
+  - the PBS offsite sync: `run.sh` writes its end time and rclone's exit code;
+  - btrbk: its hook writes the newest snapshot's time beside the stamp.
+- **Tokens (Ali, once):**
+  - PVE: `skynet@pve!metrics` on each node, PVEAuditor on `/` (like `read`, but held by
+    docker-admin), into `stacks/admin/metrics/secret.sops.env`;
+  - PBS: user `metrics@pbs` with audit rights on the datastore and the host, in `pbs/etc/` (git,
+    applied by `setup.sh`). Ali regenerates its token's secret into the same sops file
+    (`pbs/README.md`).
+
+### Logs
+
+- **Every host ships its journal** to vlagent at `http://10.10.50.40:9429/insert/journald`: the
+  NixOS hosts from `base.nix` (`services.journald.upload`), PBS from `pbs/etc/`. vlagent forwards to
+  VictoriaLogs, which listens only inside docker-admin, for its containers and the door.
+- **Container logs** are already in each host's journal (Docker's journald driver), each line with
+  its `CONTAINER_NAME`. That field joins the host and unit as a stream field, so each container is
+  a stream of its own.
+- **docker-dmz** reaching vlagent is the one opening from the DMZ into the management VLAN: one
+  port, from one address, write-only by construction. Ali's call (Firewall and DNS).
+- **Retention:** 30 days in VictoriaLogs, capped at 4 GiB; each host keeps its own 2 weeks
+  (journald).
+
+### Alerts
+
+- **Rules** live in `stacks/admin/metrics/rules/` and `stacks/admin/logs/rules/`. They start from
+  awesome-prometheus-alerts and node-exporter's own mixin, trimmed to this lab. CI checks them
+  (`vmalert -dryRun`), and Alertmanager's config (`amtool check-config`).
+- **The first set:**
+
+| Alert | Fires when |
+|---|---|
+| Target down | a scrape target unreachable for 5 min |
+| Disk | under 10% free, or full within 24 h at the last 6 hours' rate |
+| Memory | under 10% available for 10 min; an OOM kill in any kernel log |
+| Failed unit | a systemd unit failed for 5 min |
+| Crash loop | a container started 3 times in 15 min. doco-cd still restarts an unhealthy one by itself and posts, as now |
+| Guest backup | a guest's newest PBS backup older than 26 h, or its last verify failed |
+| Storage | a thin pool or PBS's datastore over 80% |
+| Deploys | comin failing to fetch, build or deploy for an hour; doco-cd deploy errors |
+| Certificates | a certificate Gatus checks expires within 14 days |
+| Filesystem errors | ext4, btrfs or I/O errors in a kernel log |
+| The stack | vmalert failing to evaluate, Alertmanager failing to send, a store's disk nearly full |
+
+- **Alertmanager:**
+  - posts to `#alerts` with its Discord receiver; the webhook URL is in its `secret.sops.env` (Ali
+    copies it, as for Gatus);
+  - groups by alert and host, and a host that's down mutes its own other alerts (inhibition);
+  - `Watchdog` always fires and pings healthchecks.io's check `alertmanager` every minute. If
+    vmalert, Alertmanager or docker-admin stops, healthchecks.io posts within 10 minutes.
+- **Gatus** stays the reachability check and posts its own alerts, as now. Its results feed metrics
+  for the dashboards and the agent, not more alerts, so nothing posts twice. D8 gains Alertmanager.
+- **Silences:** in Alertmanager's UI (`alerts`) or its API. The agent sets one when its own planned
+  work would trip an alert: ending within 4 hours, its comment naming the work. It's a new operate
+  verb (Rule 4, `AGENTS.md`), granted with the alerts PR.
+- **P4's gap closes:** a failed, missed or disabled guest backup shows as a stale guest within a
+  day.
+
+### Grafana
+
+- **`grafana.aliammar.net`, OIDC through admin Authelia,** as P3 did for the apps:
+  - admin Authelia gets its OIDC provider: an HMAC secret and a signing key, agent-generated into
+    `stacks/admin/authelia/oidc.sops.yml`;
+  - Grafana's client: its secret agent-generated into `stacks/admin/grafana/oidc.sops.env`, the
+    digest in `oidc-clients.yml`;
+  - Ali's account is Grafana's admin, and nobody else gets in. A local admin, its password
+    agent-generated, is the break-glass.
+- **Provisioned from git:**
+  - two data sources: VictoriaMetrics (as Prometheus) and VictoriaLogs (its plugin, version pinned);
+  - dashboards as JSON: Node Exporter Full, cAdvisor, Proxmox, VictoriaMetrics, VictoriaLogs,
+    vmalert, Alertmanager, and a Backups board of our own (each guest's newest backup and verify,
+    restic per host, the offsite sync, btrbk).
+
+### Agent eyes
+
+- The two MCP servers run in their stacks (HTTP mode, read-only tools) and answer at
+  `https://metrics.aliammar.net/mcp` and `https://logs.aliammar.net/mcp`.
+- `.mcp.json` gets both; `.claude/settings.json` allows their tools.
+- P6's scripts read the same data through the plain query APIs.
+
+### Homepage (at Ali's call)
+
+`home.aliammar.net` behind admin Authelia: links to every admin UI and app, with Gatus's status,
+its config in git. Widgets that need tokens wait.
+
+### Firewall and DNS (agent drafts, Ali applies)
+
+- `HOST_DOCKER_ADMIN` → `ROLE_METRICS_TARGETS` (ops, docker-dmz, both Technitium VMs, PBS) on
+  `PORT_METRICS` (node-exporter, cAdvisor, comin, doco-cd).
+- `ROLE_LOG_SHIPPERS` (the same hosts) → `HOST_DOCKER_ADMIN` :9429. For docker-dmz this is the
+  DMZ's one opening into the management VLAN (Logs).
+- DNS: `metrics`, `logs`, `alerts`, `grafana` (and `home`) → 10.10.60.60.
+
+### PRs and order
+
+1. **Ali:** the PVE and PBS tokens; healthchecks.io's check `alertmanager` (period 1 min, grace 10
+   min); docker-admin's balloon.
+2. **Metrics and logs PR:** the `metrics` and `logs` stacks with their sites, DNS and Gatus rows;
+   every host's exporters and journal upload (`base.nix`, `docker-host.nix`, `pbs/`); the job
+   metrics. Ali applies the firewall rules.
+3. **Alerts PR:** both vmalerts and their rules, Alertmanager, the CI checks, the silences verb.
+   Then the tests (Exit criteria).
+4. **Grafana and agent eyes PR:** admin Authelia's OIDC provider, Grafana and its dashboards; the
+   MCP servers and `.mcp.json`. Two real questions answered from the data, in the PR.
+5. **Homepage**, at Ali's call.
+
+### Exit criteria
+
+- Every scrape target is up, and every host's journal reaches VictoriaLogs, docker-dmz's through
+  vlagent.
+- The agent answers "why is X slow?" and "what happened at 03:00?" from the data (PRs and order,
+  step 4).
+- Each test fires in `#alerts` and clears: docker-dmz's disk filled (`fallocate`, then removed); an
+  exporter stopped; Alertmanager stopped, so healthchecks.io posts.
+- Grafana opens behind the admin login, with data sources and dashboards from git alone.
+- After a week, docker-admin's memory and disk growth match the sizing, or this section says what
+  they are.
+
+**Open:** exporters for OPNsense (its `os-node_exporter` plugin, and its syslog), Omada, Unraid and
+HAOS; Technitium's query stats.
+
+## P6 — Agent autonomy `[detailed]`
+
+**Goal**
+- Ali says "deploy X" or "restore Y to how it was yesterday" in Discord or the Claude app. The agent
+  does the rest and reports.
+- Updates land by themselves when nothing looks wrong: reviewed, merged in a nightly window just
+  after the snapshots, verified, and rolled back, code and data, if they break. A major or breaking
+  one reaches Ali as research, a proposal and a ready PR.
+- An alert is investigated before Ali hears of it. A known fix is applied, verified and reported;
+  anything else arrives as research, a proposal and a PR.
+- The toil goes: re-encrypting for a new host, ISOs and `proxmox.sh`, editing aliases.
+- The agent's own powers stay Ali's, behind GitHub's walls rather than promises.
+
+**Why now:** P5 gives the agent numbers to verify and roll back by. Without them, autonomy is
+guessing.
+
+### What Ali still does
+
+| Ali | The agent |
+|---|---|
+| Approves majors and breaking changes, from the agent's research and a ready PR | Digests, patches and minors: reviewed, merged in the window, verified, rolled back if bad |
+| Approves a new host's identity: one tap | Re-encryption (the rekey workflow), the VM, its ISO, the install |
+| Mints third-party tokens (Google, Cloudflare, healthchecks.io…) and pastes each with `nix run .#secret` | Every secret it can generate, written whole into the files that need it |
+| Approves anything destructive: deleting data, backups or VMs, replacing a VM | "Deploy X", "restore Y to yesterday", incident fixes within its lane |
+| Reviews the leash (the files that set the agent's powers) and the firewall's aliases | Proposes changes to them |
+| Upgrades PVE, OPNsense and Unraid; physical and account work | Their changelogs and exact steps, in the weekly report |
+
+### Decisions and rules this phase changes
+
+Each lands in Decisions, Rules and `AGENTS.md` with the PR that makes it true (PRs and order).
+
+| Now | From P6 |
+|---|---|
+| D13, Rule 1: Ali merges every PR; Renovate's automerge was to be the one exception | The agent merges by tier (Merges). Renovate never merges by itself, so every update gets the same review, verify and rollback. GitHub's code-owner rule keeps the leash Ali's |
+| D11: root on docker-dmz and PBS | also on docker-admin, which includes admin Authelia's secrets, caddy-admin's Cloudflare token and the offsite job's Drive token (read by nobody, Rule 3) |
+| D10: no OpenTofu | OpenTofu creates and changes our VMs (Provisioning) |
+| Rules 3, 5: Ali re-encrypts, and types every secret | the rekey workflow re-encrypts once he approves a new identity; he types only third-party tokens |
+| Rule 4: OPNsense and PVE config are never | aliases Ali approved reach OPNsense through an alias-only key, and PVE tokens are scoped to pool `skynet`. OPNsense's rules, the nodes, and PVE's users, tokens and storage stay never |
+
+### The leash (first, before any new power)
+
+- **comin deploys only `main`** (done with this plan): its testing branches are off (`base.nix`).
+  Otherwise comin deploys any `testing-<host>` branch on top of `main` as root, with no PR or merge,
+  and the bot can push branches.
+- **Code owners.** `.github/CODEOWNERS` names Ali, instead of `*`, for what sets the agent's powers
+  and the deploy path:
+  - the contract: `AGENTS.md`, `CLAUDE.md`, `skynetv2.md`, `.claude/`, `.mcp.json`,
+    `runbooks/incident.md` (the fixes it may apply alone);
+  - the pipeline: `.github/`, `renovate.json`, `flake.nix`, and the two deployers' pins (comin's
+    input, pinned to a release tag in `flake.nix`; doco-cd's image, in a file of its own);
+  - access: `modules/base.nix` (users, SSH, sudo, comin), `modules/agent.nix`, `.sops.yaml`,
+    `infra/` (OpenTofu's code, not the VM specs), `opnsense/` (the aliases).
+- **The ruleset** (Ali): "Require review from Code Owners", and check `build` required beside `nix`;
+  stale approvals dismissed on new commits, so nothing changes after his tap. The agent then proves
+  it both ways: a PR touching `AGENTS.md` can't merge without Ali, and a stack's PR can.
+- **No other file grants more:** `base.nix` asserts each host's agent groups (wheel only where D11
+  says, `docker` nowhere) and root's SSH login off, so a host file that adds either fails CI.
+- **One scoped token per capability** (Credentials ledger): PVE `read`, `operate` (power) and
+  `provision` (OpenTofu, restores); OPNsense `skynet-alias`; the rekey key.
+- **Limits:** one change at a time, an undo point before each, and a daily budget of headless runs
+  (they share Ali's Claude plan).
+- Tiers are the agent's rule, checked by `skynet-merge` (soft); the leash is GitHub's (hard). The
+  agent can change the lab, never its own powers. The outline's MCP filter proxy goes: as root on
+  both Docker hosts, the agent could walk around it.
+
+### Merges
+
+| Change | Gate | Merged by |
+|---|---|---|
+| **A:** an image's digest or patch | CI; 3 days since release; the agent's review; in the window | agent |
+| **B:** a minor (1.x and up); the weekly `flake.lock` (nixpkgs within its release) | as A, 7 days; for `flake.lock`, every host built, the DNS test, docker-dmz first (Verify and roll back) | agent |
+| **C:** a major; a 0.x minor; notes that say breaking, migration or a manual step; a database engine; doco-cd; comin; a NixOS release | the agent's research and a ready PR | Ali |
+| What Ali asked for in chat ("deploy X", "a VM for Y") | CI; his message, linked in the PR, is the approval; for a VM, a plan with no destroy or replace | agent |
+| A revert of a merge that broke something | CI | agent |
+| A rekey PR from the workflow | CI; each file's recipients checked against `.sops.yaml` | agent |
+| The leash; a plan that destroys or replaces; whatever the agent starts on its own | code-owner review, or Ali | Ali |
+
+- **Doors and Authelia** take tiers A and B like any image: a broken door shows within minutes, and
+  its revert deploys. doco-cd and comin are always C: broken, they can't deploy their own revert.
+- **Renovate** labels each PR with its tier (`renovate.json`) and waits out the release age
+  (`minimumReleaseAge`). The agent may raise a tier, never lower one.
+- **The review**, written on the PR: the release notes between the two versions; upstream issues
+  opened since the release; the new image started once on its host (as for #77–#84), and pre-pulled.
+  For C, the research and a proposal, in the morning digest.
+- **The window**, nightly 05:00–06:00: after PVE's backups, btrbk's 04:20 snapshot and the 04:30
+  restic runs, so every change has an undo point minutes old. One merge at a time: merge, deploy,
+  verify. The first failure ends the night. What Ali asks for goes out at once, after a fresh
+  snapshot.
+- **`skynet-merge <pr>`** (ops) is the agent's only way to merge (`gh pr merge` stays denied): it
+  checks the tier, the window and CI, merges, and posts what and why to `#alerts`.
+
+### Verify and roll back
+
+- **`skynet-verify`** (ops; deterministic, so the agent doesn't grade its own work):
+  - a stack: doco-cd's run for it succeeded; every container healthy (or running, where it has no
+    healthcheck) for 5 minutes, with no restarts; its Gatus rows green; its error lines in
+    VictoriaLogs not well above the same time the day before;
+  - a host: comin reports `main`'s commit; no failed units; every scrape target up; Gatus green.
+
+  It prints its evidence for the PR.
+- **A failed stack:** the revert PR merges, then `skynet-restore local <stack> <the window's
+  snapshot>` puts its data back (docker-admin: from Drive until its rebuild), since the new version
+  may already have migrated it. At 05:00 that loses a few minutes of writes, if any. It's posted
+  with the evidence, and the update waits in C.
+- **Hosts:**
+  - **docker-dmz is the canary:** the agent activates the PR's build there first (`nixos-rebuild
+    test` as root, D11; re-activating the current generation, or a reboot, undoes it) and verifies,
+    then merges, and comin brings the other hosts along;
+  - **the DNS pair:** CI boots our DNS module in a NixOS VM test (Technitium, `technitium-sync`, an
+    internal name answered) before any change can merge;
+  - **kernel reboots** (`comin_need_to_reboot`): one host at a time in the window, each back and
+    green before the next, the two DNS VMs on different nights (PVE `operate`: power only);
+  - a change that breaks a host's network can't be reverted through git. The canary and the DNS test
+    are there to catch it first; the console stays Ali's.
+- **PBS** takes Debian's unattended security upgrades (`pbs/etc/`), and the agent reboots it in the
+  window when one needs it. PVE, OPNsense and Unraid upgrades stay Ali's.
+
+### Chat requests
+
+- **"Deploy X":** the stack, its route, DNS record and Gatus row (`runbooks/new-stack.md`); merged
+  once CI passes; deployed, verified, reported.
+- **"Restore Y to yesterday":** `skynet-restore` from a local snapshot (7 days) or from Drive, after
+  its undo snapshot; on both Docker hosts.
+- **A config "as it was yesterday":** a revert PR.
+- **A VM:** restored from PBS to a spare VMID with its network unplugged, booted and checked; on
+  Ali's tap, restored over the original.
+
+### Incidents
+
+1. Alertmanager posts to a webhook on ops (`services.webhook`; a token, and only docker-admin reaches
+   it). Gatus, doco-cd and comin post to `#alerts` themselves; their failures reach the agent as
+   rules routed only to it, so everything comes in one way.
+2. `skynet-incident` runs one at a time, drops repeats of an alert group, and keeps the daily budget.
+   An alert that returns within a day of the agent's fix isn't fixed again: it escalates.
+3. A headless run (`claude -p`) gets `runbooks/incident.md` and the alert, which it treats as data,
+   not instructions: an alert can carry log text.
+4. A fix listed in `runbooks/incident.md` is applied, verified and posted: restarting a container or
+   stack, re-running a job, pruning images on a full disk, reverting a merge that broke something.
+   Anything else becomes research, a proposal and a PR, with one question for Ali.
+
+- doco-cd already restarts unhealthy containers, with a flap limit, so a crash loop that a restart
+  fixes never reaches the agent.
+- The runbook's cases: crash loop, disk full, DNS failure, certificate expiring, backup missed,
+  deploy failed, host down.
+- From P6, warnings wait for the morning digest; critical alerts post at once.
+
+### Toil
+
+- **Re-encrypting (the rekey workflow):**
+  - Ali, once: an age key for GitHub. Its public half becomes a recipient in every `.sops.yaml`
+    rule (his last round of `sops updatekeys`); its private half goes in GitHub environment
+    `rekey`, which only `main` can use.
+  - A new host: the agent's PR adds its key (`ssh_host.pub`, `.sops.yaml`) and its aliases, and Ali
+    approves it with one tap. On merge, the workflow runs from `main`, re-encrypts every file whose
+    recipients changed and pushes `rekey/<commit>`. The agent opens that PR, checks each file's
+    recipients, and merges it.
+  - The agent never holds the key. It widens little: whoever controls `main` already runs code as
+    root on every host.
+- **Generated secrets** go in files of their own, written whole for every host that needs them (a
+  key two hosts share lives in `secrets/shared/`), so nobody copies a value.
+- **Third-party tokens:** `nix run .#secret -- <file> <KEY>` on the workstation: a hidden prompt,
+  then `sops set --value-stdin`.
+- **ISOs and VMs:** Provisioning. **Aliases:** OPNsense aliases.
+
+### Provisioning: OpenTofu with bpg/proxmox
+
+- **One source:** each host's `vm.nix` replaces `proxmox.sh`: VMID, node, cores, memory, balloon,
+  disks, and NICs with the MACs from `net.nix`. Nix exports them as JSON for `infra/proxmox/`: one
+  module with our VM conventions (q35, OVMF, virtio-scsi, serial, guest agent, disk first), one
+  provider per node (they aren't clustered), and pool `skynet`.
+- **The flow:**
+  1. A PR changes a spec. CI checks format and validity (GitHub's runners can't reach the lab).
+  2. The agent runs `tofu plan` on ops and posts it on the PR.
+  3. The tier rule decides (Merges). Every VM also has `prevent_destroy`, so a plan that destroys
+     one fails until that line changes, in a PR.
+  4. After the merge, the agent applies the same plan from `main`; a change that needs a reboot
+     applies in the window.
+  5. A daily plan alerts on drift: anything changed by hand in PVE.
+- **A new VM:** the apply uploads its installer ISO (built on ops), creates and boots it; the agent
+  records its host key; Ali's identity tap; the rekey; the install. A rebuild is a replace: Ali's.
+- **What it manages:** our NixOS VMs and PBS (2040). **What it doesn't:**
+  - the passthrough and appliance guests: Unraid, OPNsense, HAOS, Omada, athena;
+  - PVE's users, roles and tokens: a tool that grants could grant itself;
+  - storage entries (PBS's holds the encryption key), the nodes' networks, upgrades;
+  - the backup jobs: managing them takes `Sys.Modify` on `/`, which would let the token change the
+    nodes. P5's stale-backup alert watches their outcome.
+- **The token:** `skynet@pve!provision` on each node (Credentials ledger); Ali mints it once into
+  `secrets/ops.yaml`.
+- **State** stays on ops, backed up with it, and holds no secrets. If it's lost, `tofu import`
+  rebuilds it from the live VMs.
+- **The import:** `import {}` blocks for the six VMs. The migration is done when `plan` shows no
+  changes.
+- **Safety:** a plan runs provider code with the token. So the agent plans only its own branches and
+  Renovate's, and CI rejects `local-exec`, `external` and provisioners in `infra/`. The provider is
+  pinned in the lock file and updated like any dependency.
+
+### OPNsense aliases
+
+- `opnsense/aliases.yaml` holds every alias the lab uses, imported from OPNsense (`skynet-read`), so
+  the first sync changes nothing.
+- On merge, `opnsense-alias-sync` (ops, the `technitium-sync` pattern) applies them with the
+  alias-only key, reloads, reads them back, and fails loudly on any difference. Aliases not in the
+  file are left alone. Rules stay Ali's, and os-git-backup keeps OPNsense's history.
+- The file is code-owned, since an alias is firewall policy. A new host's aliases ride in its
+  identity PR, so that's still one tap.
+- **OPNsense on OpenTofu waits:** browningluke/opnsense (v0.26, July 2026) says it isn't for
+  production and has no Tailscale coverage, and a bad apply could lock everyone out at once.
+  Revisit at its v1.
+
+### Reports
+
+- **Morning digest** (08:00): the night's merges and rollbacks, incidents, backups, and the C
+  proposals waiting.
+- **Weekly report** (Mondays): trends and capacity, majors coming, upstream end-of-life, and PVE,
+  OPNsense and Unraid upgrades with their steps.
+
+### PRs and order
+
+1. **With this plan:** comin's testing branches off.
+2. **Leash PR:** CODEOWNERS, the `base.nix` assertion, the deployers' pins. Ali turns on the
+   ruleset; the agent proves it both ways.
+3. **CI PR:** every host built (`build`), the DNS VM test, OpenTofu's checks.
+4. **Operate PR:** root on docker-admin (D11) and its doco-cd MCP tools; PVE `operate` (Ali mints)
+   and kernel reboots; PBS's security upgrades; the incident loop, investigating and posting only;
+   the digest and the weekly report.
+5. **Shadow mode, 2–3 weeks:** the agent reviews every Renovate PR (its tier and evidence, as a
+   comment), runs the window as a dry run, and investigates every incident without fixing. Ali
+   merges, as now, and his calls are tallied against the agent's.
+6. **Merges PR,** on Ali's call from the tally: `skynet-merge`, `skynet-verify`, rollback, the
+   window, `renovate.json`'s tiers, and the incident fixes; D13, Rule 1 and `AGENTS.md`.
+7. **Rekey PR:** the key (Ali, Toil), the workflow, `nix run .#secret`; Rules 3 and 5.
+8. **Provisioning PR:** `vm.nix`, `infra/proxmox/`, the `provision` token (Ali), the import with no
+   changes, the drift check; the `proxmox.sh` files go; D10.
+9. **Aliases PR:** `opnsense/aliases.yaml`, the alias key (Ali), the sync.
+10. **docker-admin rebuilt the new way** (Ali taps the replace and the identity): VM 5040 on
+    docker-dmz's layout (btrfs `/opt/appdata` with snapshots) and a 64 GiB disk; the rekey; then
+    `skynet-restore --all` from Drive.
+11. **Game day.**
+
+Steps 7–9 can start during shadow mode; until step 6, Ali merges their PRs too.
+
+### Exit criteria
+
+- The leash holds: a PR touching it can't merge without Ali, and each host's agent groups are
+  `base.nix`'s list.
+- Two weeks of windows: every merge verified, each failure rolled back and reported, nothing for
+  Ali but tier C.
+- From chat, end to end: a stack deployed, and an app's data put back to yesterday's.
+- docker-admin rebuilt with Ali's two taps: the replace, and its new identity.
+- A game day passes: a bad image update (rolled back with its data), a killed container, a full
+  disk, a bad host change (stopped at the canary) and a failed backup (re-run), each fixed or PR'd
+  with no step from Ali.
+
+**Open:**
+- Root on ops and the DNS VMs for deep work: time-boxed SSH-CA certificates (the CA stays on Ali's
+  workstation), if diagnose-only there ever gets in the way.
+- PVE's and PBS's own notifications (P4 → Open): P5's alerts watch the outcome, and a direct
+  webhook would be faster.
 
 ## P7 — Retire v1 + disaster recovery `[outline]`
 
@@ -1587,7 +2002,17 @@ in a drill.
 | `pbs/installer.nix` (Proxmox's ISO with `answer.toml` built in) (P4) | ~30 lines |
 | `pbs/setup.sh` (PBS after its installer: repos, guest agent, datastore mount, `pbs/etc/`) (P4) | ~50 lines |
 | `modules/pbs-drift.nix` (ops: PBS's config against `main`) (P4) | ~80 lines: a 25-line script, its allowlist and unit |
-| alert webhook → `claude -p` (P6) | ~40 lines |
-| doco-cd MCP filter proxy (P6, optional) | ~40 lines |
+| job metrics: the offsite sync's end time (`run.sh`), btrbk's newest snapshot (its hook) (P5) | ~5 lines |
+| CI: vmalert's rules and Alertmanager's config checked (P5) | ~10 lines |
+| `skynet-incident` (P6: alert webhook → `claude -p`; one at a time, repeats dropped, the budget, escalation) | ~40 lines |
+| `skynet-merge` (P6: tier, window and CI checked; the merge; the post) | ~40 lines |
+| `skynet-verify` (P6: a stack's or a host's checks from doco-cd, Gatus, VictoriaMetrics and VictoriaLogs) | ~80 lines |
+| the window, digest and report runs (P6: timers around `claude -p`; what they do is in `runbooks/`) | ~30 lines |
+| CI: every host built, the DNS VM test, OpenTofu's checks (P6) | ~60 lines |
+| `base.nix`'s leash assertion (P6: the agent's groups, root's SSH login) | ~10 lines |
+| the rekey workflow (P6) | ~40 lines |
+| `nix run .#secret` (P6: a hidden prompt into `sops set`) | ~15 lines |
+| `skynet-tofu` (P6: the VM specs from Nix; plan, apply, drift) | ~40 lines; `infra/proxmox/` itself is config |
+| `opnsense-alias-sync` (P6: aliases through the API, read back) | ~80 lines |
 
 Anything bigger needs a new row in Decisions.
