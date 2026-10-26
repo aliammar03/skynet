@@ -12,6 +12,8 @@ services:
       - -retentionPeriod=30d
       - -retention.maxDiskSpaceUsageBytes=4GiB # the oldest days go first
       - -memory.allowedBytes=256MiB # its caches would take 60% of the host's memory otherwise
+      # vmalert-logs' rules and alerts at /select/vmalert/ (the door's logs.aliammar.net).
+      - -vmalert.proxyURL=http://vmalert-logs:8880/
     environment:
       TZ: Asia/Karachi
     volumes:
@@ -56,6 +58,8 @@ services:
       - -remoteWrite.url=http://victoriametrics:8428
       - -remoteRead.url=http://victoriametrics:8428
       - -notifier.url=http://alertmanager:9093
+      # Each alert's link back to its rule, through VictoriaLogs' /select/vmalert/ proxy.
+      - -external.url=https://logs.aliammar.net/select
     environment:
       TZ: Asia/Karachi
     volumes:

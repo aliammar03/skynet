@@ -34,6 +34,71 @@ tests:
             exp_annotations:
               summary: "doco-cd on stopped hasn't polled main successfully for 30 minutes (no poll ran, or each failed: its log says why)."
 
+  # The delivery heartbeat fires only while the webhook exists and no Discord post failed lately.
+  - name: delivery heartbeat, Discord working
+    interval: 1m
+    input_series:
+      - series: 'alertmanager_notifications_failed_total{instance="alertmanager",integration="discord",job="alertmanager",reason="other"}'
+        values: "0x60"
+      - series: 'gatus_results_endpoint_success{group="job",instance="gatus",job="gatus",key="job_discord-webhook",name="discord webhook",type="HTTP"}'
+        values: "1x60"
+    alert_rule_test:
+      - eval_time: 20m
+        groupname: alerting
+        alertname: DeliveryWatchdog
+        exp_alerts:
+          - exp_labels: { severity: none }
+            exp_annotations:
+              summary: "Firing while Discord takes #alerts' posts: the delivery heartbeat to healthchecks.io."
+  - name: delivery heartbeat, posts failing
+    interval: 1m
+    input_series:
+      - series: 'alertmanager_notifications_failed_total{instance="alertmanager",integration="discord",job="alertmanager",reason="other"}'
+        values: "0x20 1+1x40"
+      - series: 'gatus_results_endpoint_success{group="job",instance="gatus",job="gatus",key="job_discord-webhook",name="discord webhook",type="HTTP"}'
+        values: "1x60"
+    alert_rule_test:
+      - eval_time: 30m
+        groupname: alerting
+        alertname: DeliveryWatchdog
+        exp_alerts: []
+  - name: delivery heartbeat, webhook gone
+    interval: 1m
+    input_series:
+      - series: 'alertmanager_notifications_failed_total{instance="alertmanager",integration="discord",job="alertmanager",reason="other"}'
+        values: "0x60"
+      - series: 'gatus_results_endpoint_success{group="job",instance="gatus",job="gatus",key="job_discord-webhook",name="discord webhook",type="HTTP"}'
+        values: "0x60"
+    alert_rule_test:
+      - eval_time: 20m
+        groupname: alerting
+        alertname: DeliveryWatchdog
+        exp_alerts: []
+
+  # vlagent's buffer growing, and its dropped bytes.
+  - name: log path
+    interval: 1m
+    input_series:
+      - series: 'vlagent_remotewrite_pending_data_bytes{instance="vlagent",job="vlagent"}'
+        values: "0x5 20971520x30"
+      - series: 'vm_persistentqueue_bytes_dropped_total{instance="vlagent",job="vlagent",path="/buffer"}'
+        values: "0x20 4096x20"
+    alert_rule_test:
+      - eval_time: 25m
+        groupname: log path
+        alertname: LogForwardingStuck
+        exp_alerts:
+          - exp_labels: { instance: vlagent, job: vlagent, severity: warning }
+            exp_annotations:
+              summary: "vlagent holds 20MiB of logs that VictoriaLogs hasn't taken for 15 minutes."
+      - eval_time: 25m
+        groupname: log path
+        alertname: LogsLost
+        exp_alerts:
+          - exp_labels: { instance: vlagent, job: vlagent, path: /buffer, severity: warning }
+            exp_annotations:
+              summary: "vlagent dropped logs in the last hour: its buffer filled or VictoriaLogs refused them."
+
   # PVE's guests against PBS's backup groups: only a guest that has none, isn't excluded or a
   # template, and only while PBS answers.
   - name: guests never backed up

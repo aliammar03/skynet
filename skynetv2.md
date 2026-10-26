@@ -1607,8 +1607,13 @@ those scrapes is several API calls. Its targets are in `stacks/admin/metrics/scr
   (journald).
 - **Floods:** journald on every host drops what one service logs past about 100 lines a second
   (`observability.nix`, PBS's `etc/`) and logs how many it dropped, so a loop can't fill a disk or
-  push the oldest days out; containers share dockerd's. `LogFlood` alerts at 50 a second. Admin
-  Authelia logs at `warn`, as the apps' does: an anonymous request is no log line.
+  push the oldest days out. Containers share dockerd's allowance: journald keys its limit on the
+  sending unit, and every container's lines come from dockerd, so there's no per-container cap.
+  `LogFlood` names the container at 50 a second, and `LogsDropped` counts what neighbours lost.
+  Admin Authelia logs at `warn`, as the apps' does: an anonymous request is no log line.
+- **Freshness:** every host logs a heartbeat line every 5 minutes (`log-heartbeat`), so a host
+  whose lines stop arriving shows (`LogsNotArriving`), as does vlagent holding logs back
+  (`LogForwardingStuck`) or dropping them (`LogsLost`).
 
 ### Alerts
 
@@ -1634,15 +1639,22 @@ those scrapes is several API calls. Its targets are in `stacks/admin/metrics/scr
 | `CominFailing`, `DocoCdNotPolling` | comin failing to fetch, evaluate or build main for an hour; doco-cd without a successful poll for 30 min (none ran, or each failed: doco-cd counts both in `polls_total`). A failed deploy is the deployer's own post, as now |
 | `CertificateExpiring` | a certificate Gatus checks expires within 14 days (Gatus itself alerts at 7) |
 | `FilesystemErrors` | ext4, btrfs, I/O or medium errors in a kernel log (every 5 min) |
-| `LogFlood` | one container or unit logging over 50 lines a second for 10 min: a loop (journald drops what passes 100) |
-| `RuleFailing`, `AlertmanagerSendFailing` | a rule failing to evaluate; Alertmanager failing to post to Discord |
+| `LogFlood`, `LogsDropped` | one container or unit logging over 50 lines a second for 10 min: a loop (journald drops what passes 100); journald reporting lines it dropped |
+| `LogsNotArriving`, `LogForwardingStuck`, `LogsLost` | a host seen this week with no heartbeat line in VictoriaLogs for 15 min; over 10 MiB waiting in vlagent for 15 min; vlagent dropping logs |
+| `RuleFailing`, `AlertmanagerSendFailing` | a rule failing to evaluate; Alertmanager failing to post to Discord (which can't reach a broken Discord: see `DeliveryWatchdog`) |
 
 - **Alertmanager** (`stacks/admin/alertmanager`, `alerts.aliammar.net`):
   - posts to `#alerts` with its Discord receiver, "Firing: <alert> on <host>" and one line per
     alert; the webhook URL is in its `secret.sops.env` (Ali copies it, as for Gatus);
   - groups by alert and host, and a host that's down mutes its own other alerts (inhibition);
   - `Watchdog` always fires and pings healthchecks.io's check `alertmanager` every minute. If
-    vmalert, Alertmanager or docker-admin stops, healthchecks.io posts within 10 minutes.
+    vmalert, Alertmanager or docker-admin stops, healthchecks.io posts within 10 minutes;
+  - `DeliveryWatchdog` fires only while Discord takes the posts (Gatus's `discord webhook` row
+    sees the webhook, and no post failed in 15 minutes) and pings check `alerts-delivery`: a
+    deleted webhook or failing posts make healthchecks.io post through its own integrations,
+    which don't use the lab's webhook (with email on, it reaches Ali even when Discord is down);
+  - the vmalerts' rules and pending alerts: `metrics.aliammar.net/vmalert/` and
+    `logs.aliammar.net/select/vmalert/` (each store proxies its vmalert).
 - **Not alerted here:** the app-data backups and the offsite copy (healthchecks.io does, as in P4),
   and each failed deploy (comin's and doco-cd's own posts).
 - **Gatus** stays the reachability check and posts its own alerts, as now. Its results feed metrics

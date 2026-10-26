@@ -29,6 +29,7 @@
 | `app` | each app on docker-dmz by its name, through caddy-apps (jikan through aiometadata's) | `200`; `302` to the login for an app behind the apps' Authelia (calibre, sillytavern, marinara; asked with `Accept: text/html`, or Authelia answers 401), whose own health its container's healthcheck covers |
 | `dns` | one **suite** (row) per Technitium server (.50, .51); its steps, each alerting on its own as `<server> <step>`: `ui` (:5380), `zone` (`auth.aliammar.net` A), `AAAA` (same name), `forwarding` (`google.com`), `blocking` (`googlesyndication.com`) | connect; 10.10.60.60; `NOERROR` (no record, not NXDOMAIN); `NOERROR`; `NXDOMAIN` (HaGeZi Pro) |
 | `job` | each Docker host's heartbeat badge (`HC_BADGE_URL_ADMIN`, `HC_BADGE_URL_DMZ`), nightly backup's (`HC_BADGE_URL_BACKUP_ADMIN`, `HC_BADGE_URL_BACKUP_DMZ`) and PBS's offsite copy's (`HC_BADGE_URL_PBS_OFFSITE`), every 5 min, no alert (healthchecks.io alerts) | `status` is `up` |
+| `job` | `discord webhook`: a GET of `#alerts`' webhook every 5 min, its URL and errors hidden; no alert (a dead webhook can't post): it feeds `DeliveryWatchdog` (`stacks/admin/alertmanager`) | `200` |
 
 **Gotchas**
 - `GATUS_LOG_LEVEL=WARN`: otherwise every check is an INFO line, passed or failed. The history is

@@ -47,6 +47,15 @@ in
     services.journald.rateLimitInterval = "30s";
     services.journald.rateLimitBurst = 800;
 
+    # A line every 5 minutes, so VictoriaLogs can tell this host's lines still arrive
+    # (LogsNotArriving, stacks/admin/logs/rules).
+    systemd.services.log-heartbeat = {
+      description = "Log a heartbeat line for VictoriaLogs";
+      serviceConfig.Type = "oneshot";
+      script = "echo log heartbeat";
+      startAt = "*:0/5";
+    };
+
     networking.firewall.extraCommands = ''
       iptables -A nixos-fw -p tcp -s ${dockerAdmin} -m multiport --dports ${ports} -j nixos-fw-accept
     '';

@@ -39,10 +39,43 @@ groups:
         annotations:
           summary: '{{ index $labels "_HOSTNAME" }}: {{ $value }} filesystem or disk errors in its kernel log in the last 5 minutes.'
 
+  - name: freshness
+    type: vlogs
+    interval: 5m
+    rules:
+      # Every host logs a heartbeat line every 5 minutes (log-heartbeat, modules/observability.nix;
+      # PBS's pbs/etc/). A host seen this week with none in 15 minutes: its lines stopped arriving
+      # (its upload, vlagent or VictoriaLogs), and every log rule is blind to it.
+      - alert: LogsNotArriving
+        expr: >-
+          _time:7d {_SYSTEMD_UNIT="log-heartbeat.service"}
+          | stats by (_HOSTNAME) count() if (_time:15m) as recent
+          | filter recent:=0
+        labels:
+          severity: warning
+          instance: '{{ index $labels "_HOSTNAME" }}'
+        annotations:
+          summary: '{{ index $labels "_HOSTNAME" }}: no log lines have reached VictoriaLogs for 15 minutes (its journal upload, vlagent or VictoriaLogs).'
+
   - name: volume
     type: vlogs
     interval: 5m
     rules:
+      # journald's own count of what it dropped past the cap (modules/observability.nix). Containers
+      # share docker.service's allowance, so one container's flood also drops its neighbours' lines:
+      # this says how many, LogFlood says who.
+      - alert: LogsDropped
+        expr: >-
+          MESSAGE_ID:=a596d6fe7bfa4994828e72309e95d61e
+          | extract "Suppressed <dropped> messages from <unit>"
+          | stats by (_HOSTNAME, unit) sum(dropped) as dropped
+          | filter dropped:>0
+        labels:
+          severity: warning
+          instance: '{{ index $labels "_HOSTNAME" }}'
+        annotations:
+          summary: '{{ index $labels "_HOSTNAME" }}: journald dropped {{ $value }} lines from {{ $labels.unit }} in 5 minutes (over its cap).'
+
       # A loop that logs (a client retrying a request hundreds of times a second) would push the
       # oldest days out. The lab logs about 0.5 lines a second in all, and journald drops what one
       # service logs past about 100 a second (modules/observability.nix); 50 a second from one

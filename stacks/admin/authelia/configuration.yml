@@ -37,15 +37,19 @@ access_control:
       resources: ['^/api/']
       networks: [10.10.90.91/32]
       policy: bypass
-    # And the stores' query APIs: read paths only. VictoriaMetrics' writes and deletes are under
-    # /api/v1/ too (import, write, admin/tsdb/delete_series), so its paths are listed one by one.
+    # And the stores' query APIs and both vmalerts' rules and alerts: read paths only.
+    # VictoriaMetrics' writes and deletes are under /api/v1/ too (import, write,
+    # admin/tsdb/delete_series), so its paths are listed one by one.
     - domain: metrics.aliammar.net
       resources:
         - '^/api/v1/(query|query_range|series|labels|label/[^/]+/values|metadata|targets|status/[a-z_]+|export)([/?]|$)'
+        - '^/vmalert/api/v1/(rules|alerts)([?]|$)'
       networks: [10.10.90.91/32]
       policy: bypass
     - domain: logs.aliammar.net
-      resources: ['^/select/logsql/']
+      resources:
+        - '^/select/logsql/'
+        - '^/select/vmalert/api/v1/(rules|alerts)([?]|$)'
       networks: [10.10.90.91/32]
       policy: bypass
     # And Alertmanager: reading alerts and silences; setting a silence and expiring one (the agent's

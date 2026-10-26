@@ -16,6 +16,14 @@ route:
       group_wait: 0s
       group_interval: 1m
       repeat_interval: 1m
+    # Firing only while Discord takes our posts: each minute it pings check `alerts-delivery`,
+    # which posts through healthchecks.io's own integrations when it stops (a deleted webhook,
+    # failed posts). The Watchdog alone can't see Discord.
+    - receiver: delivery
+      matchers: [alertname = DeliveryWatchdog]
+      group_wait: 0s
+      group_interval: 1m
+      repeat_interval: 1m
 
 receivers:
   - name: discord
@@ -30,6 +38,10 @@ receivers:
   - name: watchdog
     webhook_configs:
       - url_file: /run/alertmanager/watchdog
+        send_resolved: false
+  - name: delivery
+    webhook_configs:
+      - url_file: /run/alertmanager/delivery
         send_resolved: false
 
 inhibit_rules:

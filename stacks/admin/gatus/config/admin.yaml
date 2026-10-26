@@ -143,6 +143,16 @@ endpoints:
     conditions:
       - "[STATUS] == 200"
       - "[BODY].status == up"
+  # Discord still takes #alerts' webhook: a GET answers 200 while it exists. No alert here, since a
+  # dead webhook can't post. Its result feeds DeliveryWatchdog (stacks/admin/metrics/rules), which
+  # healthchecks.io watches. The URL is the secret, so the results show neither it nor errors.
+  - name: discord webhook
+    group: job
+    url: ${DISCORD_ALERTS_WEBHOOK}
+    interval: 5m
+    conditions:
+      - "[STATUS] == 200"
+    ui: { hide-url: true, hide-hostname: true, hide-errors: true }
 
 suites:
   - name: technitium-network

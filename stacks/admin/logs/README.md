@@ -8,7 +8,11 @@
   query without its own) and sends what fires to Alertmanager; `logs.yml` has `CrashLoop`,
   `FilesystemErrors` and `LogFlood`. The agent's MCP server joins this stack in a later P5 PR.
 - **URL:** https://logs.aliammar.net (caddy-admin → `victorialogs:9428`): the query UI at
-  `/select/vmui`.
+  `/select/vmui`; vmalert-logs' rules and pending alerts at `/select/vmalert/` (VictoriaLogs
+  proxies it).
+- **Rules** (`rules/logs.yml`, LogsQL): `CrashLoop` (systemd's line for each container start),
+  `LogsNotArriving` (each host's `log-heartbeat` line, every 5 minutes, missing for 15),
+  `FilesystemErrors`, `LogFlood` and `LogsDropped` (journald's own count of what it dropped).
 - **Auth mode:** `forward` (Authelia). Ops (10.10.90.91) reads `/select/logsql/` without a login:
   `curl -s https://logs.aliammar.net/select/logsql/query --data-urlencode 'query=_time:1h CONTAINER_NAME:doco-cd'`.
   Deletes are off in VictoriaLogs itself.
@@ -30,9 +34,12 @@
 **Gotchas**
 - A new host's first upload sends its whole journal (up to 2 weeks); older than 30 days is dropped.
 - Floods: journald on each host drops what one service logs past about 100 lines a second
-  (`modules/observability.nix`), and `LogFlood` alerts at 50. A host that sends past journald (a
-  compromised one) could still fill the store: past 4 GiB the oldest days go, and each host's own
-  journal still holds its two weeks.
+  (`modules/observability.nix`), and `LogFlood` alerts at 50. Every container's lines come from
+  dockerd, so containers share one allowance and a flooding one costs its neighbours lines too:
+  `LogsDropped` reports them. A host that sends past journald (a compromised one) could still fill
+  the store: past 4 GiB the oldest days go, and each host's own journal still holds its two weeks.
+- `LogsNotArriving` knows a host from its heartbeats this week: a new host counts from its first
+  heartbeat, and one silent for a week drops out of the rule (HostDown has it by then).
 - vlagent's port also serves `/metrics` and the usual `/debug/pprof` to the hosts that ship; its
   flags hold no secret.
 - No healthcheck in VictoriaLogs or vlagent (the images are only the binary): Gatus checks both
