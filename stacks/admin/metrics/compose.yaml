@@ -1,0 +1,80 @@
+# VictoriaMetrics: the lab's metrics, scraped from scrape.yaml and kept 13 months, with the two
+# exporters that read Proxmox's and PBS's APIs (read-only tokens). vmalert (the alerts PR) and the
+# MCP server (agent eyes) join this stack later (skynetv2.md → P5).
+services:
+  victoriametrics:
+    container_name: victoriametrics
+    image: docker.io/victoriametrics/victoria-metrics:v1.154.1@sha256:c7884f32920dd45a9d86542a717227e63af03e060e53bbf8031e6e6fd0e1e05d
+    restart: unless-stopped
+    command:
+      - -storageDataPath=/storage
+      - -retentionPeriod=13M
+      - -promscrape.config=/etc/victoriametrics/scrape.yaml
+      # A target's last error is on /targets and in its `up` series; a log line per failed scrape
+      # is noise.
+      - -promscrape.suppressScrapeErrors
+      # Its caches would take 60% of the host's memory otherwise.
+      - -memory.allowedBytes=512MiB
+    environment:
+      TZ: Asia/Karachi
+    volumes:
+      - ./scrape.yaml:/etc/victoriametrics/scrape.yaml:ro
+      - /opt/appdata/metrics/data:/storage # history; cache (not backed up)
+    # edge: the door, Gatus and the targets on other hosts. backend: the exporters.
+    networks: [edge, backend]
+    healthcheck:
+      test: [CMD, wget, -qO, /dev/null, http://127.0.0.1:8428/health]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Both Proxmox nodes, one module each (pve.sops.yml): they aren't clustered, so each has its own
+  # token. TLS is checked against the nodes' CAs, caddy-admin's pins.
+  pve-exporter:
+    container_name: pve-exporter
+    image: docker.io/prompve/prometheus-pve-exporter:3.10.1@sha256:5678b230735a80816755dc8b5e0fb139a6595e1d4271ace2d22ff82983d1bdf1
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/pve.yml
+      - --web.listen-address=0.0.0.0:9221
+      # Each guest's config is one more API call per scrape; nothing here replicates.
+      - --no-collector.config
+      - --no-collector.replication
+    volumes:
+      - ./pve.sops.yml:/etc/prometheus/pve.yml:ro
+      - ../caddy-admin/certs:/etc/skynet-certs:ro
+    networks: [backend]
+    healthcheck:
+      test: [CMD, wget, -qO, /dev/null, http://127.0.0.1:9221/]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # PBS: each guest's newest backup and its verify state, per namespace. TLS is checked against PBS's
+  # self-signed cert (caddy-admin's pin), whose names are pbs and pbs.aliammar.net, not the IP.
+  pbs-exporter:
+    container_name: pbs-exporter
+    image: ghcr.io/natrontech/pbs-exporter:v0.9.4@sha256:5ec5ff8b6e4fcbba0c99c78bf2bdab7062ef136a768f1ec3f834b8c2dadff7ac
+    restart: unless-stopped
+    env_file: secret.sops.env # PBS_API_TOKEN
+    environment:
+      PBS_ENDPOINT: https://pbs:8007
+      PBS_USERNAME: metrics@pbs
+      PBS_API_TOKEN_NAME: exporter
+      SSL_CERT_FILE: /etc/skynet-certs/pbs.pem
+    extra_hosts: ["pbs:10.10.20.40"]
+    volumes:
+      - ../caddy-admin/certs:/etc/skynet-certs:ro
+    labels:
+      # Go reads SSL_CERT_FILE once, at start. pbs.pem's fingerprint here means a re-pinned cert
+      # changes this file, so doco-cd recreates the container and it loads the new one.
+      skynet.pinned-cert: "12:56:6E:42:12:42:CF:17:1C:94:79:75:E2:07:DE:7B:2C:B1:2C:62:32:1B:DA:EB:8E:8B:6A:20:39:4F:3E:B7"
+    networks: [backend]
+    # No healthcheck: the image is only the binary. VictoriaMetrics' `up` and `pbs_up` cover it.
+
+networks:
+  edge:
+    external: true
+  # This stack's own: VictoriaMetrics and the exporters. Not internal, since the exporters reach the
+  # Proxmox nodes and PBS.
+  backend: {}

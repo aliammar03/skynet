@@ -53,8 +53,9 @@ On `p<N>/<h>`:
    read it, then `sh /root/proxmox-<h>.sh`. The VM boots the ISO.
 3. OPNsense:
    - a `HOST_<NAME>` alias with the IP. Nest it, not the IP, in `ROLE_NIX_CACHE_CLIENTS` (ops's
-     LAN Nix cache, :5000) and in the role aliases the host's job needs, then add its rules. A later
-     IP change then edits only the `HOST_` alias;
+     LAN Nix cache, :5000), `ROLE_METRICS_TARGETS` and `ROLE_LOG_SHIPPERS` (docker-admin scrapes
+     it and takes its journal, rules 236 and 237), and in the role aliases the host's job needs, then
+     add its rules. A later IP change then edits only the `HOST_` alias;
    - check that its VLAN is in `NET_WEB_EGRESS` (20, 50, 60, 70, 80, 90, 100). comin, the caches and
      the registries need :443. If it isn't, add an egress rule.
 
@@ -83,7 +84,10 @@ values.
    agent's log access; `base.nix` already creates user `skynet` there (agent key from ops only,
    journal only).
 4. The Gatus row for what the host serves (`stacks/admin/gatus/config/admin.yaml`). It alerts until
-   step 5 finishes, so expect one DOWN and one RESOLVED.
+   step 5 finishes, so expect one DOWN and one RESOLVED. Its metrics and logs: its `node` and
+   `comin` targets in `stacks/admin/metrics/scrape.yaml` (and `cadvisor`, `doco-cd` for a Docker
+   host), and its IP in docker-admin's list of log shippers (`hosts/docker-admin/default.nix`).
+   `base.nix` already runs its exporters and ships its journal.
 5. **All** random secrets in one command, before Ali adds his. The agent can't decrypt, so it can
    only create the file whole, never add to it:
    `printf 'one: %s\ntwo: %s\n' "$(python3 -c 'import secrets; print(secrets.token_hex(32))')" "$(python3 -c 'import secrets; print(secrets.token_hex(32))')" | sops encrypt --filename-override secrets/<h>.yaml --input-type yaml --output-type yaml /dev/stdin > secrets/<h>.yaml`

@@ -1,0 +1,73 @@
+# VictoriaMetrics' targets, in Prometheus' format (skynetv2.md → P5 → Metrics). `instance` names
+# each host. The hosts' firewalls admit only docker-admin (modules/observability.nix), and OPNsense's
+# ROLE_METRICS_TARGETS lets it through to the other VLANs. CI checks this file with the image's own
+# -dryRun (.github/workflows/check.yml).
+global:
+  scrape_interval: 30s
+  scrape_timeout: 10s
+
+scrape_configs:
+  # Every host (modules/observability.nix; PBS from pbs/etc/).
+  - job_name: node
+    static_configs:
+      - { targets: [10.10.50.40:9100], labels: { instance: docker-admin } }
+      - { targets: [10.10.100.10:9100], labels: { instance: docker-dmz } }
+      - { targets: [10.10.70.50:9100], labels: { instance: technitium-network } }
+      - { targets: [10.10.70.51:9100], labels: { instance: technitium-core } }
+      - { targets: [10.10.90.91:9100], labels: { instance: ops } }
+      - { targets: [10.10.20.40:9100], labels: { instance: pbs } }
+
+  # comin on every NixOS host: fetch, build and deploy failures, and a pending reboot.
+  - job_name: comin
+    static_configs:
+      - { targets: [10.10.50.40:4243], labels: { instance: docker-admin } }
+      - { targets: [10.10.100.10:4243], labels: { instance: docker-dmz } }
+      - { targets: [10.10.70.50:4243], labels: { instance: technitium-network } }
+      - { targets: [10.10.70.51:4243], labels: { instance: technitium-core } }
+      - { targets: [10.10.90.91:4243], labels: { instance: ops } }
+
+  # The Docker hosts (modules/docker-host.nix): each container, and doco-cd's deploys.
+  - job_name: cadvisor
+    static_configs:
+      - { targets: [10.10.50.40:9338], labels: { instance: docker-admin } }
+      - { targets: [10.10.100.10:9338], labels: { instance: docker-dmz } }
+  - job_name: doco-cd
+    static_configs:
+      - { targets: [10.10.50.40:9120], labels: { instance: docker-admin } }
+      - { targets: [10.10.100.10:9120], labels: { instance: docker-dmz } }
+
+  # Each Gatus row's result, response time and certificate expiry.
+  - job_name: gatus
+    static_configs:
+      - { targets: [gatus:8080], labels: { instance: gatus } }
+
+  # Proxmox, through pve-exporter: `module` picks the node's token (pve.sops.yml). Once a minute:
+  # each scrape is several API calls per node.
+  - job_name: pve
+    scrape_interval: 1m
+    metrics_path: /pve
+    static_configs:
+      - { targets: [10.10.50.11], labels: { instance: proxmox-core, __param_module: core } }
+      - { targets: [10.10.50.10], labels: { instance: proxmox-network, __param_module: network } }
+    relabel_configs:
+      - { source_labels: [__address__], target_label: __param_target }
+      - { target_label: __address__, replacement: pve-exporter:9221 }
+
+  # PBS, through pbs-exporter. Every 5 minutes: it lists every snapshot, and a backup's age is
+  # counted in hours.
+  - job_name: pbs
+    scrape_interval: 5m
+    scrape_timeout: 1m
+    static_configs:
+      - { targets: [pbs-exporter:10019], labels: { instance: pbs } }
+
+  # The stack itself. vlagent runs on the host's network, so it's reached at the host's address.
+  - job_name: victoriametrics
+    static_configs:
+      - { targets: [127.0.0.1:8428], labels: { instance: victoriametrics } }
+  - job_name: victorialogs
+    static_configs:
+      - { targets: [victorialogs:9428], labels: { instance: victorialogs } }
+  - job_name: vlagent
+    static_configs:
+      - { targets: [10.10.50.40:9429], labels: { instance: vlagent } }

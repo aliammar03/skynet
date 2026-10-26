@@ -14,3 +14,9 @@ jobs:
       # Evaluate every host and output; building happens on the host (comin keeps the current
       # generation if a build fails), so a full build here would only cost time.
       - run: nix flake check --no-build
+      # The metrics stack's scrape targets, checked by the image that runs them (from compose.yaml,
+      # so a Renovate bump checks with the new version). Unknown fields fail too.
+      - run: |
+          img=$(yq '.services.victoriametrics.image' stacks/admin/metrics/compose.yaml)
+          docker run --rm -v "$PWD/stacks/admin/metrics/scrape.yaml:/scrape.yaml:ro" "$img" \
+            -dryRun -promscrape.config=/scrape.yaml

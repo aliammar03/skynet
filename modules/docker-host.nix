@@ -1,6 +1,6 @@
 # Docker hosts (docker-admin, docker-dmz): Docker, the networks stacks join (stacks never create
-# networks; skynetv2.md → Conventions → Networks), and doco-cd, which deploys `stacks/<target>/` from
-# `main`, with Apprise for its Discord notices.
+# networks; skynetv2.md → Conventions → Networks), doco-cd, which deploys `stacks/<target>/` from
+# `main`, with Apprise for its Discord notices, and cAdvisor (P5).
 {
   config,
   lib,
@@ -24,7 +24,8 @@ let
   unstable = inputs.nixpkgs-unstable.legacyPackages.${pkgs.stdenv.hostPlatform.system};
 
   # btrbk-appdata's hooks, as root. The stamp tells the backup job how old the snapshot it mounts is;
-  # `latest` is the snapshot it mounts.
+  # `latest` is the snapshot it mounts. The metric is the stamp of the newest good snapshot, for
+  # node-exporter's textfile collector (modules/observability.nix).
   appdataStamp = pkgs.writeShellApplication {
     name = "appdata-stamp";
     runtimeInputs = [ pkgs.coreutils ];
@@ -43,6 +44,13 @@ let
       # A real folder by that name (Docker makes one for a missing bind source) would swallow it.
       if [ -e latest ] && [ ! -L latest ]; then echo "appdata-latest: latest isn't a link" >&2; exit 1; fi
       ln -sfn "$newest" latest
+      umask 022
+      prom=/var/lib/node-exporter/appdata-snapshot.prom
+      printf '%s\n' \
+        '# HELP skynet_appdata_snapshot_timestamp_seconds When btrbk took the newest snapshot of /opt/appdata.' \
+        '# TYPE skynet_appdata_snapshot_timestamp_seconds gauge' \
+        "skynet_appdata_snapshot_timestamp_seconds $(cat /opt/appdata/.snapshot-stamp)" >"$prom.tmp"
+      mv "$prom.tmp" "$prom"
     '';
   };
 
@@ -254,6 +262,29 @@ in
     networking.firewall.extraCommands = ''
       iptables -A nixos-fw -p tcp -s 10.10.90.91 --dport 8080 -j nixos-fw-accept
     '';
+
+    # cAdvisor: CPU, memory, network and disk I/O per container, for docker-admin's VictoriaMetrics.
+    # On the host, not in a stack: it reads every cgroup and Docker's containerd as root. Docker 29
+    # keeps images in containerd's snapshotter, which cAdvisor reads through Docker's own containerd
+    # (its default socket is a standalone containerd's, and without it no container has a name).
+    services.cadvisor = {
+      enable = true;
+      listenAddress = "0.0.0.0"; # the firewall admits only docker-admin (observability.nix)
+      port = 9338; # 8080 is doco-cd's
+      extraOptions = [
+        "-containerd=/run/docker/containerd/containerd.sock"
+        "-docker_only=true"
+        # The compose project as the one label, not every container label (fewer series).
+        "-store_container_labels=false"
+        "-whitelisted_container_labels=com.docker.compose.project"
+        "-enable_metrics=cpu,memory,network,diskIO,oom_event"
+        "-housekeeping_interval=15s"
+      ];
+    };
+    skynet.metricsPorts = [
+      9338 # cAdvisor
+      9120 # doco-cd's metrics
+    ];
 
     # `skynet-restore`: a stack's data back from a local snapshot or from Drive, with doco-cd paused
     # (stacks/<target>/backup/README.md).

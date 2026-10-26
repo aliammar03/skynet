@@ -1,0 +1,34 @@
+core:
+    user: skynet@pve
+    token_name: metrics
+    token_value: ENC[AES256_GCM,data:jQhFfSLA3gpMVjGaYZhpFPNUMBhtJj/ia9MgSAA0zSt1VxUQFXgXvS7iPfbN2rE/SJcAcaqoeMJ0YmPxDxo=,iv:h1FjZA7nY2HCWJ15cev61rxHkJFSUXPLhv71Zp1CiOk=,tag:iLErMpod5v9vPdqWBsRF5Q==,type:str]
+    verify_ssl: /etc/skynet-certs/proxmox-core.pem
+network:
+    user: skynet@pve
+    token_name: metrics
+    token_value: ENC[AES256_GCM,data:HiglB3nWYT6+NwPUctCh6hH/1OkMZEdKgruscP/OwbntdgtlS+x5c+OLOpjPzZO09BM0LaM8M8yRV9FWVP1pVGM=,iv:YWpG+EnuvTAHF+4ATMrsCtL07HUlQDumABBHDIl20rY=,tag:pVIekkfYuK+51iD02MF4nw==,type:str]
+    verify_ssl: /etc/skynet-certs/proxmox-network.pem
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSAxQTFjcFNRNFBzZGJhUUkx
+            Rk0rNkdFSm5ST3Y4aWd3R0tNQW1jb1NqbmdNCmdQd25vd0Y3bTJSaWlPNGhYRjhW
+            MVNiMFluNlBkQklTZDdhdlBnYUlHYjgKLS0tIDJacjZJL1FNY2ZaNkdUd3hXUWtu
+            cnMxYTNoejdpdDB4UzZBTTBDc3JMZWsKve1Uhoizh9CLHXMoenXMdwukBsngfbqq
+            nFi7Dj1v7ZXICXaxp4hPO7YgfZofih+Hp93QQmh4OsQP8GuuodZ/Zw==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1wl4edsa2pvac5nt0vvyagnmk3q756ee7lcy4gs6eenasjsl8eeaq8savt2
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBSckY5RjZ1dUFYQVBhcHI3
+            ZnlkS1gyazZra0RqYnFSZEpxdElnNUN4RGpJCjhhNldqTm41WGFoSHZGYzNyeWJH
+            bUxnVERyeXhRNnNEM1E3bzJ4eDJhMmsKLS0tIHFMUGJ4M2NPdFN4Z2pEcy85dGZG
+            TkRKTGtNVGtJTm9lTWRPQ1IwU3RMTTgK8ThYrA+3Kw68ODi0hBSTXfyy9AultHmw
+            iDPJlxbQtZrTFDjNo+t8fqt3HDVGidkGEbcUS+sMqcnnOXKIhXDahw==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age17tyjetvkv48rf2sacrpdtledjqvc4x3dvrwjrmx6sdl06cwdzpzq35fzzf
+    encrypted_regex: ^token_value$
+    lastmodified: "2026-10-26T05:31:06Z"
+    mac: ENC[AES256_GCM,data:Oj9SPE1aRCqlpqEAixzNyMIrcu65dV0PJ8CA12HZ6M7ZAJau1TMry8vKQUl7nQPCalRMGy61StQkSe6FpX9zJSSUy16cKnLPWnl1H/hAnRSO7+KgazJKmCnr9bypLGX36Wa88JL8i3zW6L4wPnIoTcAvl/lQp/1E7b+L3I06ld8=,iv:S19bUjQCqYcu4dJEcx9KrvJWZI4SldCnt5HW89rPFV8=,tag:wPFx+SUjtmNSow2PxxN7YA==,type:str]
+    version: 3.13.3

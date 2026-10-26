@@ -21,6 +21,9 @@
   its node's key (`skynetv2.md` → P4 → PBS offsite).
 - **Alerts:** healthchecks.io (start, success and failure pings, and a missed night) and doco-cd's
   `notify_on: failure` on both jobs, to `#alerts`. Gatus row `pbs-offsite` from the check's badge.
+- **Metrics:** each sync ends by writing `skynet_pbs_offsite_end_timestamp_seconds` and
+  `skynet_pbs_offsite_exit_code` to the host's `/var/lib/node-exporter/pbs-offsite.prom`
+  (`stacks/admin/metrics`).
 - **Upstream:** [rclone sync](https://rclone.org/commands/rclone_sync/) ·
   [rclone's Drive backend](https://rclone.org/drive/) ·
   [doco-cd job scheduling](https://doco.cd/latest/Advanced/Job-Scheduling/)
