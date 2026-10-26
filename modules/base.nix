@@ -123,6 +123,9 @@ in
         name = "origin";
         url = "https://github.com/aliammar03/skynet.git";
         branches.main.name = "main";
+        # Off: comin would also deploy any `testing-<host>` branch on top of main, as root, with no
+        # PR or merge. Only `main` reaches a host.
+        branches.testing.name = "";
         poller.period = 60;
       }
     ];
