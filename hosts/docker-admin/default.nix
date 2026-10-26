@@ -1,5 +1,5 @@
 # docker-admin — admin Docker host. VMID 5040 · 10.10.50.40 · VLAN 50 (+60) · proxmox-network.
-{ ... }:
+{ config, lib, ... }:
 let
   net = import ./net.nix;
 in
@@ -59,4 +59,26 @@ in
     gateway = "10.10.60.1";
   };
   skynet.docker.docoTarget = "admin";
+
+  # P5 (stacks/admin/metrics, stacks/admin/logs). This host's own containers reach its exporters and
+  # vlagent from a Docker bridge, not from 10.10.50.40. vlagent runs on the host's network, so this
+  # firewall, not a published port, decides who may send it logs: the hosts that ship their journal
+  # (modules/observability.nix; PBS from pbs/etc/), as OPNsense's ROLE_LOG_SHIPPERS does.
+  networking.firewall.extraCommands =
+    let
+      ports = lib.concatMapStringsSep "," toString (config.skynet.metricsPorts ++ [ 9429 ]);
+      shippers = [
+        "10.10.90.91" # ops
+        "10.10.100.10" # docker-dmz
+        "10.10.70.50" # technitium-network
+        "10.10.70.51" # technitium-core
+        "10.10.20.40" # PBS
+      ];
+    in
+    ''
+      iptables -A nixos-fw -i br-+ -p tcp -m multiport --dports ${ports} -j nixos-fw-accept
+    ''
+    + lib.concatMapStrings (ip: ''
+      iptables -A nixos-fw -p tcp -s ${ip} --dport 9429 -j nixos-fw-accept
+    '') shippers;
 }

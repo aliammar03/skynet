@@ -26,7 +26,7 @@
 | P2 | DNS (Technitium only) + remote access | done (2026-10-23); open: OPNsense rules 140/150/115 and CT 731 `onboot` (see P2 exit criteria) |
 | P3 | docker-dmz: apps + public path | done (2026-10-24): docker-dmz with v1's data (#48), its doors (#50) and all ten apps (#51–#61); the apps reach one another only through the door (#64); every image current (#67). Family accounts skipped for now; rule 150 can go now that 135 (ex-840) serves Gatus's `public` row |
 | P4 | Backups → Google Drive | in progress (2026-10-25): PBS greenfield done (VM 2040, `pbs/`; v1's PBS removed); PBS's datastore nightly to Drive by plain `rclone sync` (`stacks/admin/pbs-offsite/`; PVE already encrypts its chunks); app data nightly to Drive, hot (`stacks/<host>/backup/`): docker-dmz rebuilt onto btrfs and backed up from btrbk snapshots (#81); `skynet-restore` drilled from a snapshot and from Drive. Next: the guest drill from Drive's copy once its first sync ends, `runbooks/restore.md`, seven green nights |
-| P5 | Observability (agent eyes) | planned (2026-10-26): VictoriaMetrics, VictoriaLogs, vmalert, Alertmanager and Grafana on docker-admin; it can start while P4 counts its seven nights |
+| P5 | Observability (agent eyes) | in progress (2026-10-26): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics. Next: the alerts PR |
 | P6 | Agent autonomy | planned (2026-10-26): the leash first (comin's testing branches off, with the plan), then tiered merges with verify and rollback, the incident loop, the rekey workflow, OpenTofu for our VMs and the OPNsense aliases; after P5 |
 | P7 | Retire v1 + disaster recovery | outline |
 
@@ -97,7 +97,7 @@ Nothing outside the lab pushes into it.
 skynet/
 ├ AGENTS.md  CLAUDE.md (@AGENTS.md)  README.md  skynetv2.md
 ├ flake.nix  flake.lock
-├ modules/            base.nix (all hosts) · agent.nix (ops) · docker-host.nix (docker-*)
+├ modules/            base.nix + observability.nix (all hosts) · agent.nix (ops) · docker-host.nix (docker-*)
 ├ hosts/<host>/       default.nix · net.nix · disk.nix · hardware.nix · vm.nix (P6; proxmox.sh until then) · ssh_host.pub · README.md
 ├ secrets/<host>.yaml host-level secrets (sops-nix); secrets/shared/ a value two hosts share (P6)
 ├ dns/                aliammar.net.zone · settings.json (Technitium, P2)
@@ -1499,11 +1499,11 @@ today a failed, missed or disabled guest backup posts nothing (P4 → Open).
 | Metrics | VictoriaMetrics 1.154, single-node | one binary; Prometheus' scrape config, and PromQL queries work unchanged; a fraction of Prometheus' memory and disk; retention is one flag; a query UI built in | Prometheus (more memory and disk for the same series); Mimir, Thanos (clusters) |
 | Logs | VictoriaLogs 1.53 | takes `systemd-journal-upload` natively (`/insert/journald`), so hosts run no shipper of their own; retention by age and by disk space | Loki (needs a shipper: Promtail is retired, Alloy is heavy); Elasticsearch, OpenSearch (gigabytes of memory) |
 | Shipping | `systemd-journal-upload` (NixOS `services.journald.upload`; on PBS, Debian's `systemd-journal-remote`) | part of systemd. It keeps a cursor, so after an outage it resumes where it stopped: the journal is the buffer | Vector, Fluent Bit, Alloy (one more daemon per host) |
-| The way in for logs | vlagent, VictoriaLogs' own agent, on docker-admin :9429 | it takes the same protocols and has no query API at all, so a host that ships its logs can read no one's; it buffers on disk while VictoriaLogs restarts | VictoriaLogs' own port (it answers queries too); a proxy's path rule (vmauth: one more rule to get right); pulling with `systemd-journal-remote` (no cursor across restarts) |
+| The way in for logs | vlagent, VictoriaLogs' own agent, on docker-admin :9429, on the host's network (so the host firewall decides who sends) | it takes the same protocols and has no query API at all, so a host that ships its logs can read no one's; it buffers on disk while VictoriaLogs restarts | VictoriaLogs' own port (it answers queries too); a proxy's path rule (vmauth: one more rule to get right); pulling with `systemd-journal-remote` (no cursor across restarts) |
 | Host metrics | node-exporter (NixOS module; Debian's package on PBS) | the standard; its textfile collector carries job results | — |
-| Container metrics | cAdvisor (NixOS `services.cadvisor`) | the standard: CPU, memory, network and restarts per container | Docker's own metrics (the daemon's, not per container) |
+| Container metrics | cAdvisor 0.56 (NixOS `services.cadvisor`) | the standard: CPU, memory, network and restarts per container; on the host because it reads every cgroup as root | Docker's own metrics (the daemon's, not per container); cAdvisor as a container (privileged, with the host's root mounted) |
 | Proxmox | prometheus-pve-exporter | the standard, read-only with a token per node | the nodes' metric-server push (InfluxDB; config on the nodes) |
-| PBS | pbs-exporter (natrontech) 0.6 | each guest's newest backup and its verify state, per namespace; read-only. A small project (67 stars), so its own target-down alert says when it breaks | PBS's metric-server push (host and datastore only, nothing per guest) |
+| PBS | pbs-exporter (natrontech) 0.9 | each guest's newest backup and its verify state, per namespace; read-only. A small project (67 stars), so its own target-down alert says when it breaks | PBS's metric-server push (host and datastore only, nothing per guest) |
 | Rules and routing | vmalert, one for metrics and one for logs (as VictoriaMetrics advises) → Alertmanager | Prometheus-format rules in git; Alertmanager's Discord receiver, grouping, inhibition and silences | Grafana's alerting (rules in its database); Gatus for all of it (it checks endpoints, not trends) |
 | Dashboards | Grafana, OIDC through admin Authelia | data sources and dashboards provisioned from git | the stores' own UIs alone (kept, for ad-hoc queries) |
 | Agent eyes | `mcp-victoriametrics`, `mcp-victorialogs` (VictoriaMetrics' own; images with an HTTP mode) | read-only query tools for Claude Code | — |
@@ -1519,9 +1519,17 @@ today a failed, missed or disabled guest backup posts nothing (P4 → Open).
   :8080 is doco-cd's on the Docker hosts.
 - **systemd:** 260 on the NixOS hosts, 257 on PBS. Both upload to VictoriaLogs; 258's compression
   and headers aren't needed.
-- **PBS:** Debian 13 has `prometheus-node-exporter` 1.9.0 and `systemd-journal-remote` 257.
+- **PBS:** Debian 13 has `prometheus-node-exporter` 1.9.0 and `systemd-journal-remote` 257. The
+  latter enables nothing on install (its listening sockets stay off); `dbus`, which the systemd
+  collector needs, is there.
 - **Reachability:** docker-admin shares VLAN 50 with both nodes (:8006) and already reaches PBS's
   :8007 (rule 235, for Gatus).
+- **cAdvisor and Docker 29:** Docker keeps images in containerd's snapshotter. cAdvisor 0.56.2 (the
+  hosts' nixpkgs) names containers only through Docker's own containerd socket
+  (`-containerd=/run/docker/containerd/containerd.sock`). Tested on docker-dmz: 23 containers by
+  name and compose project, about 1,200 series.
+- **Journals:** 2–21 MB a day per host in journald's export format (docker-dmz the most), about
+  40 MB a day for the lab before VictoriaLogs compresses it.
 
 ### Where it runs (docker-admin)
 
@@ -1549,13 +1557,14 @@ Four stacks in `stacks/admin/`, each with its site, DNS name, Gatus row and READ
 
 ### Metrics
 
-VictoriaMetrics scrapes every 30 s. Its targets are in `stacks/admin/metrics/scrape.yaml`
-(Prometheus' format):
+VictoriaMetrics scrapes every 30 s; Proxmox once a minute and PBS every 5 minutes, since each of
+those scrapes is several API calls. Its targets are in `stacks/admin/metrics/scrape.yaml`
+(Prometheus' format), which CI checks with the pinned image's `-dryRun`:
 
 | Target | Runs on | Notes |
 |---|---|---|
-| node-exporter :9100 | every NixOS host (`base.nix`); PBS (`pbs/setup.sh`) | the systemd collector (failed units) and the textfile collector (job results) |
-| cAdvisor | both Docker hosts (`docker-host.nix`), off :8080 | Docker's containers only, without their labels (fewer series) |
+| node-exporter :9100 | every NixOS host (`observability.nix`); PBS (`pbs/setup.sh`) | the systemd collector (failed units) and the textfile collector (job results) |
+| cAdvisor :9338 | both Docker hosts (`docker-host.nix`); 8080 is doco-cd's | Docker's containers only, with the compose project as their one label (fewer series) |
 | comin :4243 | every NixOS host | fetch, build and deploy failures; `comin_need_to_reboot` |
 | doco-cd :9120 | both Docker hosts | its deploys and reconciliations |
 | Gatus | docker-admin (`metrics: true`) | each row's result, response time and certificate expiry |
@@ -1573,16 +1582,21 @@ VictoriaMetrics scrapes every 30 s. Its targets are in `stacks/admin/metrics/scr
   - btrbk: its hook writes the newest snapshot's time beside the stamp.
 - **Tokens (Ali, once):**
   - PVE: `skynet@pve!metrics` on each node, PVEAuditor on `/` (like `read`, but held by
-    docker-admin), into `stacks/admin/metrics/secret.sops.env`;
-  - PBS: user `metrics@pbs` with audit rights on the datastore and the host, in `pbs/etc/` (git,
-    applied by `setup.sh`). Ali regenerates its token's secret into the same sops file
+    docker-admin), into `stacks/admin/metrics/pve.sops.yml`: one module per node, only the token
+    values encrypted;
+  - PBS: user `metrics@pbs` with `DatastoreAudit` on the datastore and `Audit` on `/system`, in
+    `pbs/etc/` (git, applied by `setup.sh`). Ali generates its token `exporter`, with the same
+    rights, into `stacks/admin/metrics/secret.sops.env`; a rebuild regenerates it
     (`pbs/README.md`).
+- **TLS:** the exporters check the nodes and PBS against caddy-admin's pinned certs.
 
 ### Logs
 
 - **Every host ships its journal** to vlagent at `http://10.10.50.40:9429/insert/journald`: the
-  NixOS hosts from `base.nix` (`services.journald.upload`), PBS from `pbs/etc/`. vlagent forwards to
-  VictoriaLogs, which listens only inside docker-admin, for its containers and the door.
+  NixOS hosts from `observability.nix` (`services.journald.upload`), PBS from `pbs/etc/`. vlagent
+  runs on the host's network, so docker-admin's firewall admits only the hosts that ship. It
+  forwards to VictoriaLogs on loopback; VictoriaLogs answers only inside docker-admin, to its
+  containers and the door.
 - **Container logs** are already in each host's journal (Docker's journald driver), each line with
   its `CONTAINER_NAME`. That field joins the host and unit as a stream field, so each container is
   a stream of its own.
@@ -1655,19 +1669,23 @@ its config in git. Widgets that need tokens wait.
 
 ### Firewall and DNS (agent drafts, Ali applies)
 
-- `HOST_DOCKER_ADMIN` → `ROLE_METRICS_TARGETS` (ops, docker-dmz, both Technitium VMs, PBS) on
-  `PORT_METRICS` (node-exporter, cAdvisor, comin, doco-cd).
-- `ROLE_LOG_SHIPPERS` (the same hosts) → `HOST_DOCKER_ADMIN` :9429. For docker-dmz this is the
-  DMZ's one opening into the management VLAN (Logs).
-- DNS: `metrics`, `logs`, `alerts`, `grafana` (and `home`) → 10.10.60.60.
+- **Aliases:** `ROLE_METRICS_TARGETS` and `ROLE_LOG_SHIPPERS`, each `HOST_SKYNET_OPS`,
+  `HOST_DOCKER_DMZ`, `HOST_TECHNITIUM_NETWORK`, `HOST_TECHNITIUM_CORE`, `HOST_PBS`; `PORT_METRICS`
+  = 9100, 9338, 4243, 9120 (node-exporter, cAdvisor, comin, doco-cd).
+- **Rule 236:** pass TCP `HOST_DOCKER_ADMIN` → `ROLE_METRICS_TARGETS` : `PORT_METRICS`, unlogged
+  (a scrape every 30 s per target).
+- **Rule 237:** pass TCP `ROLE_LOG_SHIPPERS` → `HOST_DOCKER_ADMIN` : 9429, unlogged. For docker-dmz
+  this is the DMZ's one opening into the management VLAN (Logs).
+- The Proxmox nodes share docker-admin's VLAN, and rule 235 already covers PBS's :8007.
+- DNS: `metrics`, `logs`, `alerts`, `grafana` (and `home`) → 10.10.60.60, each with its PR.
 
 ### PRs and order
 
 1. **Ali:** the PVE and PBS tokens; healthchecks.io's check `alertmanager` (period 1 min, grace 10
    min); docker-admin's balloon.
 2. **Metrics and logs PR:** the `metrics` and `logs` stacks with their sites, DNS and Gatus rows;
-   every host's exporters and journal upload (`base.nix`, `docker-host.nix`, `pbs/`); the job
-   metrics. Ali applies the firewall rules.
+   every host's exporters and journal upload (`observability.nix`, `docker-host.nix`, `pbs/`); the
+   job metrics. Ali applies the firewall rules.
 3. **Alerts PR:** both vmalerts and their rules, Alertmanager, the CI checks, the silences verb.
    Then the tests (Exit criteria).
 4. **Grafana and agent eyes PR:** admin Authelia's OIDC provider, Grafana and its dashboards; the
@@ -2002,8 +2020,8 @@ in a drill.
 | `pbs/installer.nix` (Proxmox's ISO with `answer.toml` built in) (P4) | ~30 lines |
 | `pbs/setup.sh` (PBS after its installer: repos, guest agent, datastore mount, `pbs/etc/`) (P4) | ~50 lines |
 | `modules/pbs-drift.nix` (ops: PBS's config against `main`) (P4) | ~80 lines: a 25-line script, its allowlist and unit |
-| job metrics: the offsite sync's end time (`run.sh`), btrbk's newest snapshot (its hook) (P5) | ~5 lines |
-| CI: vmalert's rules and Alertmanager's config checked (P5) | ~10 lines |
+| job metrics: the offsite sync's end time and exit code (`run.sh`), btrbk's newest snapshot (its hook) (P5) | ~20 lines |
+| CI: the scrape config, vmalert's rules and Alertmanager's config, each checked by its own pinned image (P5) | ~15 lines |
 | `skynet-incident` (P6: alert webhook → `claude -p`; one at a time, repeats dropped, the budget, escalation) | ~40 lines |
 | `skynet-merge` (P6: tier, window and CI checked; the merge; the post) | ~40 lines |
 | `skynet-verify` (P6: a stack's or a host's checks from doco-cd, Gatus, VictoriaMetrics and VictoriaLogs) | ~80 lines |

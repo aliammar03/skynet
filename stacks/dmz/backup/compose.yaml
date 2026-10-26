@@ -16,6 +16,7 @@ x-job: &job
     - ./excludes.txt:/etc/resticprofile/excludes.txt:ro
     - ./rclone.sops.conf:/etc/rclone/rclone.conf:ro
     - /var/cache/restic-appdata:/cache # restic's cache, on the host's ext4
+    - /var/lib/node-exporter:/var/lib/node-exporter # the backup's metrics, for node-exporter
     # The newest snapshot, where the live data sits, so restic's paths stay /opt/appdata. Without
     # one, the job fails here instead of backing up an empty folder.
     - type: bind

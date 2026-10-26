@@ -32,6 +32,13 @@ creation_rules:
       - age:
           - *aliammar
           - *docker-dmz
+  # pve-exporter's modules: only the token values are secret, so the rest reads in git.
+  - path_regex: ^stacks/admin/metrics/pve\.sops\.yml$
+    encrypted_regex: ^token_value$
+    key_groups:
+      - age:
+          - *aliammar
+          - *docker-admin
   - path_regex: ^stacks/admin/.*\.sops\.[^/]+$
     key_groups:
       - age:

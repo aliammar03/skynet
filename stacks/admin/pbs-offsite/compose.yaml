@@ -14,6 +14,7 @@ x-job: &job
     # docker-admin's automount of Unraid's `pbs` share (hosts/docker-admin). Binding it at the run's
     # start mounts it, so every run gets the live NFS mount.
     - /mnt/pbs-datastore:/mnt/pbs-datastore:ro
+    - /var/lib/node-exporter:/var/lib/node-exporter # the sync's metrics, for node-exporter
   tmpfs: [/resticprofile] # a volume in the image, unused: no anonymous volume per run
   # Only egress (Drive, healthchecks.io): its own default network, not `edge`.
 x-labels: &labels

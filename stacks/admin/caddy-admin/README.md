@@ -13,7 +13,8 @@
 - **Files:** `conf/` is mounted at `/etc/caddy` (no secrets in it): `Caddyfile` and
   `sites/<name>.conf` (one per name). A route edit reloads in place (`recreate.ignore` + `--watch`).
   `certs/` (the upstreams' public certs) is mounted at `/etc/caddy-certs`; a change there
-  recreates the container, because `--watch` only reacts to config changes.
+  recreates the container, because `--watch` only reacts to config changes. The metrics stack's
+  exporters check the Proxmox nodes and PBS against the same files (`stacks/admin/metrics`).
 - **Data:** `/opt/appdata/caddy-admin/{data,config}`: certs and ACME account. Re-issuable; no backup
   needed.
 - **Secrets** (`secret.sops.env`): `CLOUDFLARE_API_TOKEN` (Zone → DNS → Edit, `aliammar.net` only).
@@ -29,11 +30,14 @@
 | technitium-core / -network | http://10.10.70.51:5380 / .50:5380 | none |
 | unraid | http://10.10.20.20 | none |
 | auth / status | authelia:9091 / gatus:8080 (`edge`) | none |
+| metrics / logs | victoriametrics:8428 / victorialogs:9428 (`edge`) | none |
 
 **Gotchas**
 - A regenerated appliance cert (OPNsense, PBS or Omada after a reset or an update) breaks its site
   with a TLS error in the log. Re-pin with
-  `openssl s_client -connect <ip:port> </dev/null | openssl x509 > certs/<name>.pem` (PR).
+  `openssl s_client -connect <ip:port> </dev/null | openssl x509 > certs/<name>.pem` (PR). A new
+  `pbs.pem` also changes pbs-exporter's `skynet.pinned-cert` label in that PR
+  (`stacks/admin/metrics/compose.yaml`).
 - OPNsense rejects proxied logins unless System → Settings → Administration → Alternate Hostnames
   lists `opnsense.aliammar.net`.
 - Unraid redirects to absolute `http://` URLs; `header_down Location` rewrites them to https.

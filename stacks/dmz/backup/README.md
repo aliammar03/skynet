@@ -31,6 +31,10 @@
 - **Alerts:** healthchecks.io (start, success and failure pings, and a missed night) and doco-cd's
   `notify_on: failure` on each job, both to `#alerts`. Gatus row `docker-dmz backup` from the
   check's badge. A failed snapshot shows as a failed backup (the snapshot's age).
+- **Metrics:** each backup writes resticprofile's `resticprofile_backup_*` (status, time,
+  duration, bytes added) to the host's `/var/lib/node-exporter/restic-appdata.prom`; btrbk's hook
+  writes the newest snapshot's time (`appdata-snapshot.prom`). VictoriaMetrics scrapes both through
+  node-exporter (`stacks/admin/metrics`).
 - **Upstream:** [restic](https://restic.readthedocs.io/) ·
   [resticprofile](https://creativeprojects.github.io/resticprofile/) ·
   [btrbk](https://digint.ch/btrbk/) ·

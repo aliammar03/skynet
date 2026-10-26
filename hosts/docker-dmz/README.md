@@ -24,6 +24,9 @@ VMID 10010 · 10.10.100.10 · server-proxmox-core · 6 vCPU / 10 GB / 193 GB.
 - **doco-cd** (`modules/docker-host.nix`): polls `main` every 60 s, target `dmz` → `.doco-cd.dmz.yml`
   → every folder in `stacks/dmz/`. API, `/mcp` and `/v1/health` on :8080 are for ops only (MCP
   `doco-dmz`). Deploy notices go to `#alerts` via Apprise (loopback :8000).
+- **Observability** (P5): node-exporter :9100, cAdvisor :9338, comin :4243 and doco-cd's :9120,
+  for docker-admin only (`modules/observability.nix`). The journal goes to docker-admin's vlagent
+  (:9429): the DMZ's one opening into the management VLAN, write-only.
 - **Secrets** (`secrets/docker-dmz.yaml`): `doco_api_secret`, `discord_alerts_webhook`.
 - **Agent access:** user `skynet`, the agent's key from 10.10.90.91 only, groups `systemd-journal`
   and `wheel`: **root via passwordless sudo** (D11), Docker included (`sudo docker …`). Every sudo
