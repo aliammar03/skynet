@@ -13,7 +13,8 @@
   and its two heartbeats to healthchecks.io).
   Containers' crash loops are LogsQL (`stacks/admin/logs`). Each alert's `instance` is its host,
   so Alertmanager groups and inhibits by it. A rule's state lives in VictoriaMetrics, so a restart
-  keeps each `for` timer. `rules.test.yml` holds unit tests with synthetic series (CI,
+  keeps each `for` timer; vmalert reads it back on its first evaluation only, so its entrypoint
+  waits until VictoriaMetrics answers. `rules.test.yml` holds unit tests with synthetic series (CI,
   `vmalert-tool`); locally: `vmalert-tool unittest --files=rules.test.yml` from this folder.
 - **Auth mode:** `forward` (Authelia). Ops (10.10.90.91) reads the query API without a login, only
   its read paths (`/api/v1/query`, `query_range`, `series`, `labels`, `label/…/values`, `metadata`,

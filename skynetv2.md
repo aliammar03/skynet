@@ -1620,10 +1620,11 @@ those scrapes is several API calls. Its targets are in `stacks/admin/metrics/scr
 - **Rules** live in `stacks/admin/metrics/rules/` (PromQL, `vmalert`) and `stacks/admin/logs/rules/`
   (LogsQL, `vmalert-logs`: one datasource per vmalert, as VictoriaMetrics advises), trimmed to this
   lab. Each alert's `instance` is its host. Both keep their alerts' state in VictoriaMetrics, so a
-  restart doesn't reset a `for` timer. CI checks the rules (`vmalert -dryRun`) and Alertmanager's
-  config (`amtool check-config`), each with its pinned image, and runs the unit tests in
-  `stacks/admin/metrics/rules.test.yml` (`vmalert-tool`): synthetic series for the rules whose
-  meaning hangs on how an exporter counts.
+  restart doesn't reset a `for` timer. They read it back on their first evaluation only, so each
+  starts once its stores answer: a reboot starts containers in no order. CI checks the rules
+  (`vmalert -dryRun`) and Alertmanager's config (`amtool check-config`), each with its pinned image,
+  and runs the unit tests in `stacks/admin/metrics/rules.test.yml` (`vmalert-tool`): synthetic
+  series for the rules whose meaning hangs on how an exporter counts.
 - **The first set:**
 
 | Alert | Fires when |
@@ -1633,8 +1634,8 @@ those scrapes is several API calls. Its targets are in `stacks/admin/metrics/scr
 | `MemoryLow`, `OOMKill` | under 10% available for 10 min; any OOM kill (the kernel's counter, containers' included) |
 | `UnitFailed` | a service, socket or timer failed for 5 min |
 | `CrashLoop` | a container started 5 times in 15 min, counted from systemd's log of each container start (LogsQL; cAdvisor's start time is the creation, which a restart keeps). The heartbeat jobs start 3 times. doco-cd still restarts an unhealthy one by itself and posts, as now |
-| `GuestBackupStale`, `GuestBackupUnverified` | a guest's newest PBS backup older than 26 h; or without a passed verify 5 h on (PBS verifies at 04:30, after both nodes' jobs) |
-| `GuestNeverBackedUp`, `PbsApiDown` | a guest PVE runs with no backup on PBS at all for 26 h (Unraid and PBS left out, as in the jobs); pbs-exporter unable to read PBS's API for 10 min, which otherwise leaves the backup alerts quiet |
+| `GuestBackupStale`, `GuestBackupUnverified` | the newest backup of a guest PVE has now, in its node's namespace, older than 26 h (a retired or moved guest's kept backups don't count); or any guest's newest without a passed verify 5 h on (PBS verifies at 04:30, after both nodes' jobs) |
+| `GuestNeverBackedUp`, `PbsApiDown` | a guest PVE runs with no backup in its node's namespace for 26 h (Unraid and PBS left out, as in the jobs); pbs-exporter unable to read PBS's API for 10 min, which otherwise leaves the backup alerts quiet |
 | `StorageFull`, `DatastoreFull` | a PVE storage or PBS's datastore over 80% |
 | `CominFailing`, `DocoCdNotPolling` | comin failing to fetch, evaluate or build main for an hour; doco-cd without a successful poll for 30 min (none ran, or each failed: doco-cd counts both in `polls_total`). A failed deploy is the deployer's own post, as now |
 | `CertificateExpiring` | a certificate Gatus checks expires within 14 days (Gatus itself alerts at 7) |
@@ -2048,7 +2049,8 @@ in a drill.
 | `modules/pbs-drift.nix` (ops: PBS's config against `main`) (P4) | ~80 lines: a 25-line script, its allowlist and unit |
 | job metrics: the offsite sync's end time and exit code (`run.sh`), btrbk's newest snapshot (its hook) (P5) | ~20 lines |
 | CI: the scrape config, vmalert's rules (and their unit tests) and Alertmanager's config, each checked by its own pinned image (P5) | ~20 lines |
-| Alertmanager's entrypoint: its two URLs from the environment into files (P5) | ~3 lines |
+| Alertmanager's entrypoint: its three URLs from the environment into files (P5) | ~4 lines |
+| both vmalerts' entrypoints: wait until their stores answer, since vmalert restores its alerts' state on its first evaluation only (P5) | ~2 lines each |
 | `skynet-incident` (P6: alert webhook → `claude -p`; one at a time, repeats dropped, the budget, escalation) | ~40 lines |
 | `skynet-merge` (P6: tier, window and CI checked; the merge; the post) | ~40 lines |
 | `skynet-verify` (P6: a stack's or a host's checks from doco-cd, Gatus, VictoriaMetrics and VictoriaLogs) | ~80 lines |

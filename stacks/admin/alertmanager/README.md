@@ -3,8 +3,8 @@
 - **Purpose:** posts vmalert's alerts to Discord `#alerts` (`skynetv2.md` → P5 → Alerts): the
   rules are in `stacks/admin/metrics/rules/` and `stacks/admin/logs/rules/`. One post per alert and
   host ("Firing: DiskFull on docker-dmz", one line per alert), the same again when it resolves, and
-  a reminder every 12 hours while it fires. A host that's down (`HostDown`) mutes its own other
-  alerts.
+  a reminder every 12 hours while it fires. In a post that's still firing, the line of an alert
+  that has cleared starts "Resolved:". A host that's down (`HostDown`) mutes its own other alerts.
 - **Watchdog:** always firing; every minute it goes to healthchecks.io's check `alertmanager`
   (period 1 min, grace 10 min), which posts to `#alerts` when the pings stop: vmalert, Alertmanager,
   docker-admin or its egress down.

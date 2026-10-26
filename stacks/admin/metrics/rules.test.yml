@@ -99,8 +99,8 @@ tests:
             exp_annotations:
               summary: "vlagent dropped logs in the last hour: its buffer filled or VictoriaLogs refused them."
 
-  # PVE's guests against PBS's backup groups: only a guest that has none, isn't excluded or a
-  # template, and only while PBS answers.
+  # PVE's guests against PBS's backup groups: only a guest with none in its node's namespace, not
+  # excluded or a template, and only while PBS answers.
   - name: guests never backed up
     interval: 1m
     input_series:
@@ -112,7 +112,12 @@ tests:
         values: "1x1700"
       - series: 'pve_guest_info{id="lxc/9999",instance="proxmox-core",job="pve",name="new-guest",node="server-proxmox-core",template="0",type="lxc"}'
         values: "1x1700"
+      # moved to the core node, its backups still only in the network node's namespace
+      - series: 'pve_guest_info{id="qemu/10010",instance="proxmox-core",job="pve",name="docker-dmz",node="server-proxmox-core",template="0",type="qemu"}'
+        values: "1x1700"
       - series: 'pbs_snapshot_vm_last_timestamp{datastore="skynet",instance="pbs",job="pbs",namespace="network",vm_id="5040",vm_name="docker-admin"}'
+        values: "0x1700"
+      - series: 'pbs_snapshot_vm_last_timestamp{datastore="skynet",instance="pbs",job="pbs",namespace="network",vm_id="10010",vm_name="docker-dmz"}'
         values: "0x1700"
       - series: 'pbs_up{instance="pbs",job="pbs"}'
         values: "1x1700"
@@ -125,9 +130,50 @@ tests:
         groupname: backups
         alertname: GuestNeverBackedUp
         exp_alerts:
-          - exp_labels: { id: lxc/9999, instance: proxmox-core, job: pve, name: new-guest, node: server-proxmox-core, template: "0", type: lxc, vm_id: "9999", severity: critical }
+          - exp_labels: { id: lxc/9999, instance: proxmox-core, job: pve, name: new-guest, namespace: core, node: server-proxmox-core, template: "0", type: lxc, vm_id: "9999", severity: critical }
             exp_annotations:
-              summary: "new-guest (9999, server-proxmox-core): PBS has no backup of it at all."
+              summary: "new-guest (9999, core): PBS has no backup of it in that namespace."
+          - exp_labels: { id: qemu/10010, instance: proxmox-core, job: pve, name: docker-dmz, namespace: core, node: server-proxmox-core, template: "0", type: qemu, vm_id: "10010", severity: critical }
+            exp_annotations:
+              summary: "docker-dmz (10010, core): PBS has no backup of it in that namespace."
+
+  # Backups past 26 hours, only of the guests PVE has now and in their node's namespace. The test's
+  # clock starts at 2000-01-01 (946684800), so a value of 946684800+60 is a backup every minute.
+  - name: stale backups
+    interval: 1m
+    input_series:
+      # last backed up at the start
+      - series: 'pve_guest_info{id="qemu/5040",instance="proxmox-network",job="pve",name="docker-admin",node="server-proxmox-network",template="0",type="qemu"}'
+        values: "1x1700"
+      - series: 'pbs_snapshot_vm_last_timestamp{datastore="skynet",instance="pbs",job="pbs",namespace="network",vm_id="5040",vm_name="docker-admin"}'
+        values: "946684800x1700"
+      # backed up all along
+      - series: 'pve_guest_info{id="qemu/7051",instance="proxmox-core",job="pve",name="technitium-core",node="server-proxmox-core",template="0",type="qemu"}'
+        values: "1x1700"
+      - series: 'pbs_snapshot_vm_last_timestamp{datastore="skynet",instance="pbs",job="pbs",namespace="core",vm_id="7051",vm_name="technitium-core"}'
+        values: "946684800+60x1700"
+      # moved to the core node and backed up there; its old network backups stay behind
+      - series: 'pve_guest_info{id="qemu/10010",instance="proxmox-core",job="pve",name="docker-dmz",node="server-proxmox-core",template="0",type="qemu"}'
+        values: "1x1700"
+      - series: 'pbs_snapshot_vm_last_timestamp{datastore="skynet",instance="pbs",job="pbs",namespace="core",vm_id="10010",vm_name="docker-dmz"}'
+        values: "946684800+60x1700"
+      - series: 'pbs_snapshot_vm_last_timestamp{datastore="skynet",instance="pbs",job="pbs",namespace="network",vm_id="10010",vm_name="docker-dmz"}'
+        values: "946684800x1700"
+      # retired: PVE has no such guest, PBS keeps its backups
+      - series: 'pbs_snapshot_vm_last_timestamp{datastore="skynet",instance="pbs",job="pbs",namespace="core",vm_id="10020",vm_name="retired"}'
+        values: "946684800x1700"
+    alert_rule_test:
+      - eval_time: 25h
+        groupname: backups
+        alertname: GuestBackupStale
+        exp_alerts: []
+      - eval_time: 27h
+        groupname: backups
+        alertname: GuestBackupStale
+        exp_alerts:
+          - exp_labels: { datastore: skynet, instance: pbs, job: pbs, namespace: network, vm_id: "5040", vm_name: docker-admin, severity: critical }
+            exp_annotations:
+              summary: "docker-admin (5040, network): its newest backup is 1d 3h 0m 0s old."
 
   # PBS's API down: pbs_up 0 alerts, and with PBS's metrics gone no guest reads as never backed up.
   - name: PBS API down

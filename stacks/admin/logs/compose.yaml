@@ -46,11 +46,21 @@ services:
     # No healthcheck: the image is only the binary. Gatus checks /health.
 
   # vmalert for LogsQL rules (one datasource per vmalert, as VictoriaMetrics advises). Its alerts'
-  # state goes to VictoriaMetrics, beside the metrics vmalert's.
+  # state goes to VictoriaMetrics, beside the metrics vmalert's, and comes back on its first
+  # evaluation only: like that one, it starts once both stores answer.
   vmalert-logs:
     container_name: vmalert-logs
     image: docker.io/victoriametrics/vmalert:v1.154.1@sha256:aafb962b5a5713c71f0d697d629416f9cccf23aecb74f0ec5e829ddbf3f221f2
     restart: unless-stopped
+    # $$: the container's shell reads it, not compose.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >-
+        until wget -q -T 5 -O /dev/null http://victorialogs:9428/health &&
+        wget -q -T 5 -O /dev/null http://victoriametrics:8428/health; do sleep 2; done;
+        exec /vmalert-prod "$$@"
+      - vmalert-logs
     command:
       - -rule=/etc/vmalert/rules/*.yml
       - -rule.defaultRuleType=vlogs

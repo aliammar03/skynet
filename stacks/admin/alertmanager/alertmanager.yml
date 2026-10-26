@@ -31,9 +31,11 @@ receivers:
       - webhook_url_file: /run/alertmanager/discord
         title: >-
           {{ if eq .Status "firing" }}Firing{{ else }}Resolved{{ end }}: {{ .CommonLabels.alertname }}{{ with .CommonLabels.instance }} on {{ . }}{{ end }}
-        # One line per alert in the group (a literal block keeps the newlines).
+        # One line per alert in the group (a literal block keeps the newlines). A group is firing
+        # while any of its alerts is, so there a line whose alert has cleared starts "Resolved:".
         message: |-
-          {{ range .Alerts }}{{ .Annotations.summary }}
+          {{ range .Alerts.Firing }}{{ .Annotations.summary }}
+          {{ end }}{{ range .Alerts.Resolved }}{{ if eq $.Status "firing" }}Resolved: {{ end }}{{ .Annotations.summary }}
           {{ end }}
   - name: watchdog
     webhook_configs:
