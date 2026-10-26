@@ -1,12 +1,12 @@
 core:
     user: skynet@pve
     token_name: metrics
-    token_value: ENC[AES256_GCM,data:jQhFfSLA3gpMVjGaYZhpFPNUMBhtJj/ia9MgSAA0zSt1VxUQFXgXvS7iPfbN2rE/SJcAcaqoeMJ0YmPxDxo=,iv:h1FjZA7nY2HCWJ15cev61rxHkJFSUXPLhv71Zp1CiOk=,tag:iLErMpod5v9vPdqWBsRF5Q==,type:str]
+    token_value: ENC[AES256_GCM,data:KdaiiXElNWEdzkvymlJFc9i85uflJeIBrx0UsScyxodZ1yjm,iv:gpQBKARhaV2x0QOypvU0YI1uDqvkAx89dAncIjq7V9o=,tag:DDD0RupLDHVPOhv1LIIluA==,type:str]
     verify_ssl: /etc/skynet-certs/proxmox-core.pem
 network:
     user: skynet@pve
     token_name: metrics
-    token_value: ENC[AES256_GCM,data:HiglB3nWYT6+NwPUctCh6hH/1OkMZEdKgruscP/OwbntdgtlS+x5c+OLOpjPzZO09BM0LaM8M8yRV9FWVP1pVGM=,iv:YWpG+EnuvTAHF+4ATMrsCtL07HUlQDumABBHDIl20rY=,tag:pVIekkfYuK+51iD02MF4nw==,type:str]
+    token_value: ENC[AES256_GCM,data:aQOTMWemxhngp2dioPISCqdRtzFjj7u+/jTkhVw+zNPEdiiP,iv:FYUFyPt+mWd3N9BpwK1o9yRPC8C8OJMjGB8wrLOnezk=,tag:xzr/5MG0+6AxOST2NsZXOQ==,type:str]
     verify_ssl: /etc/skynet-certs/proxmox-network.pem
 sops:
     age:
@@ -29,6 +29,6 @@ sops:
             -----END AGE ENCRYPTED FILE-----
           recipient: age17tyjetvkv48rf2sacrpdtledjqvc4x3dvrwjrmx6sdl06cwdzpzq35fzzf
     encrypted_regex: ^token_value$
-    lastmodified: "2026-10-26T05:31:06Z"
-    mac: ENC[AES256_GCM,data:Oj9SPE1aRCqlpqEAixzNyMIrcu65dV0PJ8CA12HZ6M7ZAJau1TMry8vKQUl7nQPCalRMGy61StQkSe6FpX9zJSSUy16cKnLPWnl1H/hAnRSO7+KgazJKmCnr9bypLGX36Wa88JL8i3zW6L4wPnIoTcAvl/lQp/1E7b+L3I06ld8=,iv:S19bUjQCqYcu4dJEcx9KrvJWZI4SldCnt5HW89rPFV8=,tag:wPFx+SUjtmNSow2PxxN7YA==,type:str]
+    lastmodified: "2026-10-26T05:55:19Z"
+    mac: ENC[AES256_GCM,data:HDt1IdGlKDSGsnJLCwmo4eyEeDvzqATDQ9OHD+MNaW/KoonAT9ftZvNFU+paiw2Y7rXLkwyDanJvcpYVi3svjFgiLH6e9Sj+CMfKW2x7/uUwS/mBnCJKUgJJYUfeN2tFAJ8t1vzh8MeSpaUfbQrGGSxG42n0Mib9NjGaD7AqQ/I=,iv:yLQTRXkgozRBlg+j3QX4jbALmf9YCNq3h23hW3kJzrw=,tag:VO35Goyp1JQgHKtxNN2AMQ==,type:str]
     version: 3.13.3
