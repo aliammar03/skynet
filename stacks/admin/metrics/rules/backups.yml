@@ -3,6 +3,29 @@
 groups:
   - name: backups
     rules:
+      # pbs-exporter answers 200 even when PBS's API fails, with pbs_up 0 and no snapshot metrics:
+      # TargetDown doesn't see it, and the alerts below go quiet. This one says the watch is blind.
+      - alert: PbsApiDown
+        expr: pbs_up == 0
+        for: 10m
+        labels: { severity: critical }
+        annotations:
+          summary: "pbs-exporter can't read PBS's API, so no guest's backup is watched."
+
+      # A guest PVE runs but PBS holds no backup of at all (new, left out of a job, or its first
+      # backup failed): GuestBackupStale has nothing to measure. PBS's own metrics are needed to
+      # say so (pbs_up). Unraid (2020) and PBS (2040) aren't backed up by design: the core node's
+      # job excludes them (pbs/README.md).
+      - alert: GuestNeverBackedUp
+        expr: |
+          label_replace(pve_guest_info{template="0",id!~".+/(2020|2040)"}, "vm_id", "$1", "id", ".+/(.+)")
+            unless on (vm_id) pbs_snapshot_vm_last_timestamp
+            and on () (pbs_up == 1)
+        for: 26h
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.name }} ({{ $labels.vm_id }}, {{ $labels.node }}): PBS has no backup of it at all."
+
       # The nodes back up nightly (02:00, 03:30), so a guest past 26 hours missed a night: a failed
       # or disabled job, or a guest left out.
       - alert: GuestBackupStale

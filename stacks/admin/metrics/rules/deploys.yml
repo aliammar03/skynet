@@ -13,12 +13,16 @@ groups:
         annotations:
           summary: "comin on {{ $labels.instance }} has failed to fetch, evaluate or build main for an hour."
 
-      # A successful poll counts; none in 30 minutes means main isn't reaching the host.
+      # doco-cd counts every poll in polls_total, failed or not, and a failed one in
+      # poll_errors_total too (the latter appears with the first failure). No poll at all, or only
+      # failed ones, for 30 minutes: main isn't reaching the host.
       - alert: DocoCdNotPolling
-        expr: increase(doco_cd_polls_total[30m]) == 0
+        expr: |
+          increase(doco_cd_polls_total[30m]) == 0
+            or increase(doco_cd_poll_errors_total[30m]) >= increase(doco_cd_polls_total[30m])
         labels: { severity: warning }
         annotations:
-          summary: "doco-cd on {{ $labels.instance }} hasn't polled main successfully for 30 minutes."
+          summary: "doco-cd on {{ $labels.instance }} hasn't polled main successfully for 30 minutes (no poll ran, or each failed: its log says why)."
 
   - name: certificates
     rules:

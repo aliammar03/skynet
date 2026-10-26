@@ -1,0 +1,86 @@
+# Unit tests for rules/ (vmalert-tool, in CI): the rules whose meaning depends on how the exporters
+# count, with synthetic series. Outside rules/, so vmalert doesn't load it as a rule file.
+rule_files:
+  - rules/backups.yml
+  - rules/deploys.yml
+evaluation_interval: 1m
+tests:
+  # doco-cd counts every poll in polls_total and the failed ones in poll_errors_total too.
+  - name: doco-cd polls
+    interval: 1m
+    input_series:
+      # healthy: polls every minute, three old failures
+      - series: 'doco_cd_polls_total{instance="healthy",job="doco-cd",repository="r"}'
+        values: "0+1x60"
+      - series: 'doco_cd_poll_errors_total{instance="healthy",job="doco-cd",repository="r"}'
+        values: "3x60"
+      # failing: still polls every minute, but each poll fails from minute 10 on
+      - series: 'doco_cd_polls_total{instance="failing",job="doco-cd",repository="r"}'
+        values: "0+1x60"
+      - series: 'doco_cd_poll_errors_total{instance="failing",job="doco-cd",repository="r"}'
+        values: "_x9 1+1x50"
+      # stopped: the counter stands still
+      - series: 'doco_cd_polls_total{instance="stopped",job="doco-cd",repository="r"}'
+        values: "5x60"
+    alert_rule_test:
+      - eval_time: 45m
+        groupname: deploys
+        alertname: DocoCdNotPolling
+        exp_alerts:
+          - exp_labels: { instance: failing, job: doco-cd, repository: r, severity: warning }
+            exp_annotations:
+              summary: "doco-cd on failing hasn't polled main successfully for 30 minutes (no poll ran, or each failed: its log says why)."
+          - exp_labels: { instance: stopped, job: doco-cd, repository: r, severity: warning }
+            exp_annotations:
+              summary: "doco-cd on stopped hasn't polled main successfully for 30 minutes (no poll ran, or each failed: its log says why)."
+
+  # PVE's guests against PBS's backup groups: only a guest that has none, isn't excluded or a
+  # template, and only while PBS answers.
+  - name: guests never backed up
+    interval: 1m
+    input_series:
+      - series: 'pve_guest_info{id="qemu/5040",instance="proxmox-network",job="pve",name="docker-admin",node="server-proxmox-network",template="0",type="qemu"}'
+        values: "1x1700"
+      - series: 'pve_guest_info{id="qemu/2020",instance="proxmox-core",job="pve",name="vm-unraid",node="server-proxmox-core",template="0",type="qemu"}'
+        values: "1x1700"
+      - series: 'pve_guest_info{id="qemu/9000",instance="proxmox-core",job="pve",name="template",node="server-proxmox-core",template="1",type="qemu"}'
+        values: "1x1700"
+      - series: 'pve_guest_info{id="lxc/9999",instance="proxmox-core",job="pve",name="new-guest",node="server-proxmox-core",template="0",type="lxc"}'
+        values: "1x1700"
+      - series: 'pbs_snapshot_vm_last_timestamp{datastore="skynet",instance="pbs",job="pbs",namespace="network",vm_id="5040",vm_name="docker-admin"}'
+        values: "0x1700"
+      - series: 'pbs_up{instance="pbs",job="pbs"}'
+        values: "1x1700"
+    alert_rule_test:
+      - eval_time: 25h
+        groupname: backups
+        alertname: GuestNeverBackedUp
+        exp_alerts: []
+      - eval_time: 27h
+        groupname: backups
+        alertname: GuestNeverBackedUp
+        exp_alerts:
+          - exp_labels: { id: lxc/9999, instance: proxmox-core, job: pve, name: new-guest, node: server-proxmox-core, template: "0", type: lxc, vm_id: "9999", severity: critical }
+            exp_annotations:
+              summary: "new-guest (9999, server-proxmox-core): PBS has no backup of it at all."
+
+  # PBS's API down: pbs_up 0 alerts, and with PBS's metrics gone no guest reads as never backed up.
+  - name: PBS API down
+    interval: 1m
+    input_series:
+      - series: 'pve_guest_info{id="qemu/5040",instance="proxmox-network",job="pve",name="docker-admin",node="server-proxmox-network",template="0",type="qemu"}'
+        values: "1x1700"
+      - series: 'pbs_up{instance="pbs",job="pbs"}'
+        values: "0x1700"
+    alert_rule_test:
+      - eval_time: 15m
+        groupname: backups
+        alertname: PbsApiDown
+        exp_alerts:
+          - exp_labels: { instance: pbs, job: pbs, severity: critical }
+            exp_annotations:
+              summary: "pbs-exporter can't read PBS's API, so no guest's backup is watched."
+      - eval_time: 27h
+        groupname: backups
+        alertname: GuestNeverBackedUp
+        exp_alerts: []

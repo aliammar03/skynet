@@ -1,7 +1,30 @@
-# LogsQL rules (vmalert-logs; vmalert adds `_time:<interval>` to each query). A rule's labels come
-# from its `stats by (...)` fields; `instance` is set from the host so Alertmanager groups and
-# inhibits it like the metrics rules.
+# LogsQL rules (vmalert-logs; vmalert adds `_time:<interval>` to a query that sets no `_time` of
+# its own). A rule's labels come from its `stats by (...)` fields; `instance` is set from the host
+# so Alertmanager groups and inhibits it like the metrics rules.
 groups:
+  - name: containers
+    type: vlogs
+    interval: 5m
+    rules:
+      # Each container start is a systemd scope (Docker's systemd cgroup driver), which systemd
+      # logs: "Started libcontainer container <id>". A restart logs it again, unlike cAdvisor's
+      # start time (the container's creation). Docker backs a crash loop off to one start a minute,
+      # and the heartbeat jobs start every 5 minutes (3 in 15), so 5 in 15 minutes is a loop. The
+      # name comes from the container's own lines in the last hour; one that logged nothing shows
+      # its ID.
+      - alert: CrashLoop
+        expr: >-
+          _time:15m _SYSTEMD_UNIT:=init.scope "Started libcontainer container"
+          | extract "Started libcontainer container <CONTAINER_ID_FULL>."
+          | join by (CONTAINER_ID_FULL) (_time:1h CONTAINER_ID_FULL:* | uniq by (CONTAINER_ID_FULL, CONTAINER_NAME))
+          | stats by (_HOSTNAME, CONTAINER_ID_FULL, CONTAINER_NAME) count() as starts
+          | filter starts:>=5
+        labels:
+          severity: warning
+          instance: '{{ index $labels "_HOSTNAME" }}'
+        annotations:
+          summary: '{{ index $labels "_HOSTNAME" }}: {{ with index $labels "CONTAINER_NAME" }}{{ . }}{{ else }}container {{ slice (index $labels "CONTAINER_ID_FULL") 0 12 }}{{ end }} started {{ $value }} times in 15 minutes.'
+
   - name: kernel
     type: vlogs
     interval: 5m

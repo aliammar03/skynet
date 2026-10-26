@@ -4,9 +4,9 @@
   journald driver), kept 30 days and never more than 4 GiB. Each host ships with
   `systemd-journal-upload` (`modules/observability.nix`; PBS from `pbs/etc/`), which keeps a cursor:
   after an outage it resumes where it stopped, and until then the host's own journal (2 weeks) holds
-  the logs. **vmalert-logs** runs `rules/*.yml` (LogsQL; vmalert adds `_time:<interval>` to each)
-  and sends what fires to Alertmanager; `logs.yml` has `FilesystemErrors` and `LogFlood`. The
-  agent's MCP server joins this stack in a later P5 PR.
+  the logs. **vmalert-logs** runs `rules/*.yml` (LogsQL; vmalert adds `_time:<interval>` to a
+  query without its own) and sends what fires to Alertmanager; `logs.yml` has `CrashLoop`,
+  `FilesystemErrors` and `LogFlood`. The agent's MCP server joins this stack in a later P5 PR.
 - **URL:** https://logs.aliammar.net (caddy-admin → `victorialogs:9428`): the query UI at
   `/select/vmui`.
 - **Auth mode:** `forward` (Authelia). Ops (10.10.90.91) reads `/select/logsql/` without a login:

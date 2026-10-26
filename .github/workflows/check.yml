@@ -23,6 +23,9 @@ jobs:
             -dryRun -promscrape.config=/scrape.yaml
           docker run --rm -v "$PWD/stacks/admin/metrics/rules:/rules:ro" "$(img metrics vmalert)" \
             -dryRun -rule='/rules/*.yml'
+          # The rules' unit tests, with vmalert-tool at vmalert's own version.
+          tool=$(img metrics vmalert | sed -E 's#/vmalert:([^@]+)@.*#/vmalert-tool:\1#')
+          docker run --rm -v "$PWD/stacks/admin/metrics:/m:ro" -w /m "$tool" unittest --files=rules.test.yml
           docker run --rm -v "$PWD/stacks/admin/logs/rules:/rules:ro" "$(img logs vmalert-logs)" \
             -dryRun -rule.defaultRuleType=vlogs -rule='/rules/*.yml'
           docker run --rm --entrypoint /bin/amtool -v "$PWD/stacks/admin/alertmanager/alertmanager.yml:/am.yml:ro" \

@@ -274,10 +274,9 @@ in
       extraOptions = [
         "-containerd=/run/docker/containerd/containerd.sock"
         "-docker_only=true"
-        # Two labels, not every container label (fewer series): the compose project, and whether
-        # doco-cd starts it on a schedule (CrashLoop leaves those out).
+        # The compose project as the one label, not every container label (fewer series).
         "-store_container_labels=false"
-        "-whitelisted_container_labels=com.docker.compose.project,cd.doco.job.enabled"
+        "-whitelisted_container_labels=com.docker.compose.project"
         "-enable_metrics=cpu,memory,network,diskIO,oom_event"
         "-housekeeping_interval=15s"
       ];

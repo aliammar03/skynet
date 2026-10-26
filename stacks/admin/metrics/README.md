@@ -8,10 +8,12 @@
 - **URL:** https://metrics.aliammar.net (caddy-admin → `victoriametrics:8428`): the query UI at
   `/vmui`, the scrape targets at `/targets`, vmalert's rules and alerts at `/vmalert/` (proxied).
 - **Rules** (`rules/`, PromQL; the table in `skynetv2.md` → P5 → Alerts): `hosts.yml` (hosts,
-  disks, memory, units, containers), `backups.yml` (each guest's PBS backup, storage),
-  `deploys.yml` (comin, doco-cd, certificates, the alert path and its Watchdog). Each alert's
-  `instance` is its host, so Alertmanager groups and inhibits by it. A rule's state lives in
-  VictoriaMetrics, so a restart keeps each `for` timer.
+  disks, memory, units), `backups.yml` (each guest's PBS backup against PVE's guests, PBS's API,
+  storage), `deploys.yml` (comin, doco-cd, certificates, the alert path and its Watchdog).
+  Containers' crash loops are LogsQL (`stacks/admin/logs`). Each alert's `instance` is its host,
+  so Alertmanager groups and inhibits by it. A rule's state lives in VictoriaMetrics, so a restart
+  keeps each `for` timer. `rules.test.yml` holds unit tests with synthetic series (CI,
+  `vmalert-tool`); locally: `vmalert-tool unittest --files=rules.test.yml` from this folder.
 - **Auth mode:** `forward` (Authelia). Ops (10.10.90.91) reads the query API without a login, only
   its read paths (`/api/v1/query`, `query_range`, `series`, `labels`, `label/…/values`, `metadata`,
   `targets`, `status/…`, `export`): `curl -s 'https://metrics.aliammar.net/api/v1/query?query=up'`.
