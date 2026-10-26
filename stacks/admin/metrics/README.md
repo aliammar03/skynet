@@ -2,10 +2,16 @@
 
 - **Purpose:** VictoriaMetrics, the lab's metrics: every host, container, backup job and deploy
   tool, scraped every 30 s from `scrape.yaml` and kept 13 months. Proxmox (once a minute) and PBS
-  (every 5 minutes) come through their exporters. Alerts and the agent's MCP server join this stack
-  in later P5 PRs (`skynetv2.md` → P5).
+  (every 5 minutes) come through their exporters. **vmalert** evaluates `rules/*.yml` every minute
+  and sends what fires to Alertmanager (`stacks/admin/alertmanager`). The agent's MCP server joins
+  this stack in a later P5 PR (`skynetv2.md` → P5).
 - **URL:** https://metrics.aliammar.net (caddy-admin → `victoriametrics:8428`): the query UI at
-  `/vmui`, the scrape targets at `/targets`.
+  `/vmui`, the scrape targets at `/targets`, vmalert's rules and alerts at `/vmalert/` (proxied).
+- **Rules** (`rules/`, PromQL; the table in `skynetv2.md` → P5 → Alerts): `hosts.yml` (hosts,
+  disks, memory, units, containers), `backups.yml` (each guest's PBS backup, storage),
+  `deploys.yml` (comin, doco-cd, certificates, the alert path and its Watchdog). Each alert's
+  `instance` is its host, so Alertmanager groups and inhibits by it. A rule's state lives in
+  VictoriaMetrics, so a restart keeps each `for` timer.
 - **Auth mode:** `forward` (Authelia). Ops (10.10.90.91) reads the query API without a login, only
   its read paths (`/api/v1/query`, `query_range`, `series`, `labels`, `label/…/values`, `metadata`,
   `targets`, `status/…`, `export`): `curl -s 'https://metrics.aliammar.net/api/v1/query?query=up'`.
@@ -27,7 +33,7 @@
   | `gatus` | `gatus:8080` | each row's result, response time and certificate expiry |
   | `pve` | `pve-exporter:9221`, one module per node | guests, storage, backups-job coverage |
   | `pbs` | `pbs-exporter:10019` | each guest's newest backup and its verify (`pbs_snapshot_vm_last_timestamp`, `pbs_snapshot_vm_last_verify`), the datastore's size |
-  | `victoriametrics`, `victorialogs`, `vlagent` | this host | the stack itself |
+  | `victoriametrics`, `victorialogs`, `vlagent`, `vmalert` (both), `alertmanager` | this host | the stack itself |
 
 - **Job results** (node-exporter's textfile collector): `resticprofile_backup_*` from each Docker
   host's nightly backup (`restic-appdata.prom`), `skynet_pbs_offsite_*` from the offsite sync
@@ -37,8 +43,9 @@
   [pbs-exporter](https://github.com/natrontech/pbs-exporter)
 
 **Gotchas**
-- A scrape config change recreates VictoriaMetrics (a few seconds without scrapes). CI checks the
-  file first with the pinned image's `-dryRun`, which also rejects unknown fields.
+- A scrape config change recreates VictoriaMetrics (a few seconds without scrapes), and a rule
+  change recreates vmalert. CI checks both first with their pinned images' `-dryRun` (unknown
+  scrape fields and bad expressions or templates fail).
 - The exporters check TLS against caddy-admin's pins (`../caddy-admin/certs`, mounted whole): the
   nodes' CAs (pve-exporter reads them on every scrape) and PBS's self-signed cert, by its name
   `pbs` (`extra_hosts`). Go reads PBS's only at start, so the `skynet.pinned-cert` label carries its

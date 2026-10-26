@@ -46,6 +46,23 @@ access_control:
       resources: ['^/select/logsql/']
       networks: [10.10.90.91/32]
       policy: bypass
+    # And Alertmanager: reading alerts and silences; setting a silence and expiring one (the agent's
+    # silences verb, AGENTS.md). Nothing else writes: POST /api/v2/alerts needs the login.
+    - domain: alerts.aliammar.net
+      resources: ['^/api/v2/(alerts|alerts/groups|silences|silence/[^/?]+|status)([?]|$)']
+      methods: [GET, HEAD]
+      networks: [10.10.90.91/32]
+      policy: bypass
+    - domain: alerts.aliammar.net
+      resources: ['^/api/v2/silences$']
+      methods: [POST]
+      networks: [10.10.90.91/32]
+      policy: bypass
+    - domain: alerts.aliammar.net
+      resources: ['^/api/v2/silence/[^/?]+$']
+      methods: [DELETE]
+      networks: [10.10.90.91/32]
+      policy: bypass
     - domain: '*.aliammar.net'
       policy: two_factor
 

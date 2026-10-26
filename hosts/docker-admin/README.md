@@ -19,11 +19,11 @@ VMID 5040 · 10.10.50.40 · server-proxmox-network · 2 vCPU / 4 GB / 32 GB.
   mounted on first access (`default.nix`), for `stacks/admin/pbs-offsite/`. Unraid's export maps
   this host to uid 34 (PBS's `backup`, the datastore's owner); OPNsense lets it reach Unraid on
   TCP 2049.
-- **Observability** (P5): the `metrics` and `logs` stacks. Two firewall rules in `default.nix`: its
-  own containers reach this host's exporters and vlagent from a Docker bridge, and vlagent (:9429,
-  on the host's network) admits the hosts that ship their journal. Like every host, it runs
-  node-exporter and the journal upload (`modules/observability.nix`), and cAdvisor on :9338
-  (`modules/docker-host.nix`).
+- **Observability** (P5): the `metrics`, `logs` and `alertmanager` stacks. Two firewall rules in
+  `default.nix`: its own containers reach this host's exporters and vlagent from a Docker bridge,
+  and vlagent (:9429, on the host's network) admits the hosts that ship their journal; a tmpfiles
+  rule gives Alertmanager (`nobody`) its folder. Like every host, it runs node-exporter and the
+  journal upload (`modules/observability.nix`), and cAdvisor on :9338 (`modules/docker-host.nix`).
 - **Secrets** (`secrets/docker-admin.yaml`): `doco_api_secret`, `discord_alerts_webhook`.
 - **Agent access:** user `skynet`, the agent's key from 10.10.90.91 only, group `systemd-journal`
   (reads all logs, e.g. `journalctl CONTAINER_NAME=doco-cd`); no sudo, no Docker socket. Its host key

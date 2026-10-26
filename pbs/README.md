@@ -10,8 +10,9 @@ part of its `/etc` that git holds. ops compares that with the host every day.
   every chunk before it leaves the node: without PVE's keys (survival kit) the datastore, and its
   copy on Drive (`stacks/admin/pbs-offsite/`, nightly at 06:00), can't be read.
 - **Jobs** (`etc/proxmox-backup/`): prune per namespace (core 05:00, network 05:15; 14 daily,
-  8 weekly, 12 monthly); verify daily at 00:00, skipping verified snapshots until they're 30 days
-  old; GC Sundays 12:00, after the offsite copy. The backups themselves are PVE's jobs (network node
+  8 weekly, 12 monthly); verify daily at 04:30, after both nodes' backups, so each guest's newest
+  backup is verified the same night (P5's `GuestBackupUnverified` relies on it), skipping verified
+  snapshots until they're 30 days old; GC Sundays 12:00, after the offsite copy. The backups themselves are PVE's jobs (network node
   02:00, core 03:30), with fleecing on `local-lvm`: a VM's writes during its backup wait on the
   node's own disk, not on PBS. Core's leaves out 2040, since PBS rebuilds from git.
 - **Users:** `root@pam` (Ali in the UI; the agent over SSH) and `pve@pbs`. Its tokens `core` and
@@ -21,8 +22,9 @@ part of its `/etc` that git holds. ops compares that with the host every day.
   on `/system`, for docker-admin's pbs-exporter (its secret: `stacks/admin/metrics/secret.sops.env`).
 - **Observed** (`skynetv2.md` → P5): Debian's node-exporter on :9100 (with the systemd collector,
   `etc/systemd/system/prometheus-node-exporter.service.d/`), and `systemd-journal-upload` sending
-  the journal to docker-admin's vlagent (`etc/systemd/journal-upload.conf.d/`). PBS has no firewall
-  of its own: OPNsense admits only docker-admin to :9100.
+  the journal to docker-admin's vlagent (`etc/systemd/journal-upload.conf.d/`; its unit retries
+  forever, `etc/systemd/system/systemd-journal-upload.service.d/`). PBS has no firewall of its
+  own: OPNsense admits only docker-admin to :9100.
 - **Secrets:** `secret.sops.yaml` (Ali only): `root_password`, for the UI and the console.
 - **Agent:** root over SSH from ops only (`from=` in `answer.toml`, D11). ops pins the host key
   (`ssh_host.pub`, `modules/agent.nix`).

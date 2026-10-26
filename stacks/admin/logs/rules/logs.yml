@@ -1,0 +1,36 @@
+# LogsQL rules (vmalert-logs; vmalert adds `_time:<interval>` to each query). A rule's labels come
+# from its `stats by (...)` fields; `instance` is set from the host so Alertmanager groups and
+# inhibits it like the metrics rules.
+groups:
+  - name: kernel
+    type: vlogs
+    interval: 5m
+    rules:
+      - alert: FilesystemErrors
+        expr: >-
+          _TRANSPORT:=kernel ("EXT4-fs error" OR "BTRFS error" OR "BTRFS critical" OR "I/O error" OR "critical medium error")
+          | stats by (_HOSTNAME) count() as errors
+        labels:
+          severity: critical
+          instance: '{{ index $labels "_HOSTNAME" }}'
+        annotations:
+          summary: '{{ index $labels "_HOSTNAME" }}: {{ $value }} filesystem or disk errors in its kernel log in the last 5 minutes.'
+
+  - name: volume
+    type: vlogs
+    interval: 5m
+    rules:
+      # A loop that logs (a client retrying a request hundreds of times a second) fills the store
+      # and pushes the oldest days out. The lab logs about 0.5 lines a second in all; 100 a second
+      # from one container or unit for 10 minutes is a loop. Counted by each line's own time, so a
+      # host's first upload of its old journal doesn't count.
+      - alert: LogFlood
+        expr: >-
+          * | stats by (_HOSTNAME, _SYSTEMD_UNIT, CONTAINER_NAME) count() as lines
+          | filter lines:>30000
+        for: 10m
+        labels:
+          severity: warning
+          instance: '{{ index $labels "_HOSTNAME" }}'
+        annotations:
+          summary: '{{ index $labels "_HOSTNAME" }}: {{ or (index $labels "CONTAINER_NAME") (index $labels "_SYSTEMD_UNIT") }} logged {{ $value }} lines in 5 minutes; its log shows what repeats.'

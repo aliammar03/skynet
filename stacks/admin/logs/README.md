@@ -4,7 +4,9 @@
   journald driver), kept 30 days and never more than 4 GiB. Each host ships with
   `systemd-journal-upload` (`modules/observability.nix`; PBS from `pbs/etc/`), which keeps a cursor:
   after an outage it resumes where it stopped, and until then the host's own journal (2 weeks) holds
-  the logs. Alerts on logs and the agent's MCP server join this stack in later P5 PRs.
+  the logs. **vmalert-logs** runs `rules/*.yml` (LogsQL; vmalert adds `_time:<interval>` to each)
+  and sends what fires to Alertmanager; `logs.yml` has `FilesystemErrors` and `LogFlood`. The
+  agent's MCP server joins this stack in a later P5 PR.
 - **URL:** https://logs.aliammar.net (caddy-admin → `victorialogs:9428`): the query UI at
   `/select/vmui`.
 - **Auth mode:** `forward` (Authelia). Ops (10.10.90.91) reads `/select/logsql/` without a login:
@@ -31,5 +33,8 @@
   holds its two weeks.
 - vlagent's port also serves `/metrics` and the usual `/debug/pprof` to the hosts that ship; its
   flags hold no secret.
-- No healthcheck in either container (the images are only the binary): Gatus checks both
-  `/health` endpoints, and VictoriaMetrics scrapes both.
+- No healthcheck in VictoriaLogs or vlagent (the images are only the binary): Gatus checks both
+  `/health` endpoints, and VictoriaMetrics scrapes both. vmalert-logs has one.
+- A LogsQL rule's labels are its `stats by (...)` fields; each rule sets `instance` from
+  `_HOSTNAME`, so Alertmanager groups and inhibits it like a metrics rule. CI checks `rules/` with
+  the pinned vmalert's `-dryRun`.

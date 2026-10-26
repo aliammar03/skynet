@@ -30,7 +30,7 @@
 | technitium-core / -network | http://10.10.70.51:5380 / .50:5380 | none |
 | unraid | http://10.10.20.20 | none |
 | auth / status | authelia:9091 / gatus:8080 (`edge`) | none |
-| metrics / logs | victoriametrics:8428 / victorialogs:9428 (`edge`) | none |
+| metrics / logs / alerts | victoriametrics:8428 / victorialogs:9428 / alertmanager:9093 (`edge`) | none |
 
 **Gotchas**
 - A regenerated appliance cert (OPNsense, PBS or Omada after a reset or an update) breaks its site

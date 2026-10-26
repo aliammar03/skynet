@@ -1,0 +1,33 @@
+# Alertmanager: vmalert's alerts to Discord #alerts, grouped per alert and host, a downed host
+# muting its own other alerts, and silences (skynetv2.md → P5 → Alerts).
+services:
+  alertmanager:
+    container_name: alertmanager
+    image: quay.io/prometheus/alertmanager:v0.34.1@sha256:e9733bafb1bdef9b00e25a21f8f99dc26a22224bf16641ad754d1649f4c3357a
+    restart: unless-stopped
+    env_file: secret.sops.env # DISCORD_ALERTS_WEBHOOK, HC_PING_URL
+    environment:
+      TZ: Asia/Karachi
+    # Alertmanager reads secrets only from files: the entrypoint writes the two URLs onto a tmpfs
+    # first. $$: the container's shell reads them, not compose.
+    entrypoint: [/bin/sh, -c]
+    command:
+      - >-
+        umask 077 &&
+        printf %s "$$DISCORD_ALERTS_WEBHOOK" >/run/alertmanager/discord &&
+        printf %s "$$HC_PING_URL" >/run/alertmanager/watchdog &&
+        exec /bin/alertmanager --config.file=/etc/alertmanager/alertmanager.yml
+        --storage.path=/alertmanager --web.external-url=https://alerts.aliammar.net
+    tmpfs: [/run/alertmanager]
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - /opt/appdata/alertmanager/data:/alertmanager # silences, notification log; data
+    networks: [edge]
+    healthcheck:
+      test: [CMD, wget, -qO, /dev/null, http://127.0.0.1:9093/-/healthy]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+networks:
+  edge:
+    external: true
