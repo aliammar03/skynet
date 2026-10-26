@@ -39,6 +39,14 @@ in
       settings.Upload.URL = "http://${dockerAdmin}:9429/insert/journald";
     };
 
+    # So a loop can't fill the disk or the log store, journald drops what one service logs past
+    # about 100 lines a second at each priority, and logs how many it dropped. It scales this burst
+    # by the journal's free space (about ×3.5–4 here, so 800 comes to ~3,000 per 30 s); its default
+    # of 10,000 lets hundreds a second through. Every container's lines come through dockerd, so
+    # containers share docker.service's; the busiest normal 30 s held under 350.
+    services.journald.rateLimitInterval = "30s";
+    services.journald.rateLimitBurst = 800;
+
     networking.firewall.extraCommands = ''
       iptables -A nixos-fw -p tcp -s ${dockerAdmin} -m multiport --dports ${ports} -j nixos-fw-accept
     '';

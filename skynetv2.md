@@ -1605,6 +1605,10 @@ those scrapes is several API calls. Its targets are in `stacks/admin/metrics/scr
   port, from one address, write-only by construction. Ali's call (Firewall and DNS).
 - **Retention:** 30 days in VictoriaLogs, capped at 4 GiB; each host keeps its own 2 weeks
   (journald).
+- **Floods:** journald on every host drops what one service logs past about 100 lines a second
+  (`observability.nix`, PBS's `etc/`) and logs how many it dropped, so a loop can't fill a disk or
+  push the oldest days out; containers share dockerd's. `LogFlood` alerts at 50 a second. Admin
+  Authelia logs at `warn`, as the apps' does: an anonymous request is no log line.
 
 ### Alerts
 
@@ -1627,7 +1631,7 @@ those scrapes is several API calls. Its targets are in `stacks/admin/metrics/scr
 | `CominFailing`, `DocoCdNotPolling` | comin failing to fetch, evaluate or build main for an hour; doco-cd without a successful poll for 30 min. A failed deploy is the deployer's own post, as now |
 | `CertificateExpiring` | a certificate Gatus checks expires within 14 days (Gatus itself alerts at 7) |
 | `FilesystemErrors` | ext4, btrfs, I/O or medium errors in a kernel log (every 5 min) |
-| `LogFlood` | one container or unit logging over 100 lines a second for 10 min: a loop, which would push the oldest days out of the 4 GiB |
+| `LogFlood` | one container or unit logging over 50 lines a second for 10 min: a loop (journald drops what passes 100) |
 | `RuleFailing`, `AlertmanagerSendFailing` | a rule failing to evaluate; Alertmanager failing to post to Discord |
 
 - **Alertmanager** (`stacks/admin/alertmanager`, `alerts.aliammar.net`):

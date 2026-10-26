@@ -9,7 +9,9 @@ server:
         implementation: ForwardAuth
 
 log:
-  level: info
+  # As the apps' Authelia: each anonymous request is an info line, so a client retrying one in a
+  # loop floods the journal. Warnings and errors (failed logins among them) stay.
+  level: warn
 
 authentication_backend:
   password_reset:

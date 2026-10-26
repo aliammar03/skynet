@@ -23,8 +23,9 @@ part of its `/etc` that git holds. ops compares that with the host every day.
 - **Observed** (`skynetv2.md` → P5): Debian's node-exporter on :9100 (with the systemd collector,
   `etc/systemd/system/prometheus-node-exporter.service.d/`), and `systemd-journal-upload` sending
   the journal to docker-admin's vlagent (`etc/systemd/journal-upload.conf.d/`; its unit retries
-  forever, `etc/systemd/system/systemd-journal-upload.service.d/`). PBS has no firewall of its
-  own: OPNsense admits only docker-admin to :9100.
+  forever, `etc/systemd/system/systemd-journal-upload.service.d/`). journald drops what one service
+  logs past about 100 lines a second (`etc/systemd/journald.conf.d/`), as on the NixOS hosts. PBS
+  has no firewall of its own: OPNsense admits only docker-admin to :9100.
 - **Secrets:** `secret.sops.yaml` (Ali only): `root_password`, for the UI and the console.
 - **Agent:** root over SSH from ops only (`from=` in `answer.toml`, D11). ops pins the host key
   (`ssh_host.pub`, `modules/agent.nix`).

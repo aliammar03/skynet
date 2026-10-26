@@ -20,14 +20,15 @@ groups:
     type: vlogs
     interval: 5m
     rules:
-      # A loop that logs (a client retrying a request hundreds of times a second) fills the store
-      # and pushes the oldest days out. The lab logs about 0.5 lines a second in all; 100 a second
-      # from one container or unit for 10 minutes is a loop. Counted by each line's own time, so a
-      # host's first upload of its old journal doesn't count.
+      # A loop that logs (a client retrying a request hundreds of times a second) would push the
+      # oldest days out. The lab logs about 0.5 lines a second in all, and journald drops what one
+      # service logs past about 100 a second (modules/observability.nix); 50 a second from one
+      # container or unit for 10 minutes is a loop. Counted by each line's own time, so a host's
+      # first upload of its old journal doesn't count.
       - alert: LogFlood
         expr: >-
           * | stats by (_HOSTNAME, _SYSTEMD_UNIT, CONTAINER_NAME) count() as lines
-          | filter lines:>30000
+          | filter lines:>15000
         for: 10m
         labels:
           severity: warning

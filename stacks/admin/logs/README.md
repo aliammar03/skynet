@@ -29,8 +29,10 @@
 
 **Gotchas**
 - A new host's first upload sends its whole journal (up to 2 weeks); older than 30 days is dropped.
-- A host that ships can still flood: past 4 GiB the oldest days go. Each host's own journal still
-  holds its two weeks.
+- Floods: journald on each host drops what one service logs past about 100 lines a second
+  (`modules/observability.nix`), and `LogFlood` alerts at 50. A host that sends past journald (a
+  compromised one) could still fill the store: past 4 GiB the oldest days go, and each host's own
+  journal still holds its two weeks.
 - vlagent's port also serves `/metrics` and the usual `/debug/pprof` to the hosts that ship; its
   flags hold no secret.
 - No healthcheck in VictoriaLogs or vlagent (the images are only the binary): Gatus checks both
