@@ -8,7 +8,7 @@
 - **Repository:** `rclone:gdrive:skynet/restic/docker-admin`, 64 MiB packs. Keeps 7 daily, 4 weekly
   and 12 monthly snapshots; snapshot host `docker-admin`.
 - **Backed up:** all of `/opt/appdata` except `excludes.txt`: the paths the stacks' READMEs class as
-  cache or disposable (Gatus's history), and the door's certificates.
+  cache or disposable (Gatus's history, the metrics and logs stores), and the door's certificates.
 - **Source:** `/opt/appdata`, read-only. `run.sh` refuses it empty. This host keeps ext4: no
   snapshots, so no local restores (docker-dmz has both).
 - **Data:** none of its own. restic's cache is the host's `/var/cache/restic-appdata`.
@@ -28,6 +28,9 @@
 - **Alerts:** healthchecks.io (start, success and failure pings, and a missed night) and doco-cd's
   `notify_on: failure` on each job, both to `#alerts`. Gatus row `docker-admin backup` from the
   check's badge.
+- **Metrics:** each backup writes resticprofile's `resticprofile_backup_*` (status, time,
+  duration, bytes added) to the host's `/var/lib/node-exporter/restic-appdata.prom`, which
+  VictoriaMetrics scrapes through node-exporter (`stacks/admin/metrics`).
 - **Upstream:** [restic](https://restic.readthedocs.io/) ·
   [resticprofile](https://creativeprojects.github.io/resticprofile/) ·
   [doco-cd job scheduling](https://doco.cd/latest/Advanced/Job-Scheduling/)

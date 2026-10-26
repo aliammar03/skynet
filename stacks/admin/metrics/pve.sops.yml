@@ -1,0 +1,34 @@
+core:
+    user: skynet@pve
+    token_name: metrics
+    token_value: ENC[AES256_GCM,data:KdaiiXElNWEdzkvymlJFc9i85uflJeIBrx0UsScyxodZ1yjm,iv:gpQBKARhaV2x0QOypvU0YI1uDqvkAx89dAncIjq7V9o=,tag:DDD0RupLDHVPOhv1LIIluA==,type:str]
+    verify_ssl: /etc/skynet-certs/proxmox-core.pem
+network:
+    user: skynet@pve
+    token_name: metrics
+    token_value: ENC[AES256_GCM,data:aQOTMWemxhngp2dioPISCqdRtzFjj7u+/jTkhVw+zNPEdiiP,iv:FYUFyPt+mWd3N9BpwK1o9yRPC8C8OJMjGB8wrLOnezk=,tag:xzr/5MG0+6AxOST2NsZXOQ==,type:str]
+    verify_ssl: /etc/skynet-certs/proxmox-network.pem
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSAxQTFjcFNRNFBzZGJhUUkx
+            Rk0rNkdFSm5ST3Y4aWd3R0tNQW1jb1NqbmdNCmdQd25vd0Y3bTJSaWlPNGhYRjhW
+            MVNiMFluNlBkQklTZDdhdlBnYUlHYjgKLS0tIDJacjZJL1FNY2ZaNkdUd3hXUWtu
+            cnMxYTNoejdpdDB4UzZBTTBDc3JMZWsKve1Uhoizh9CLHXMoenXMdwukBsngfbqq
+            nFi7Dj1v7ZXICXaxp4hPO7YgfZofih+Hp93QQmh4OsQP8GuuodZ/Zw==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1wl4edsa2pvac5nt0vvyagnmk3q756ee7lcy4gs6eenasjsl8eeaq8savt2
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBSckY5RjZ1dUFYQVBhcHI3
+            ZnlkS1gyazZra0RqYnFSZEpxdElnNUN4RGpJCjhhNldqTm41WGFoSHZGYzNyeWJH
+            bUxnVERyeXhRNnNEM1E3bzJ4eDJhMmsKLS0tIHFMUGJ4M2NPdFN4Z2pEcy85dGZG
+            TkRKTGtNVGtJTm9lTWRPQ1IwU3RMTTgK8ThYrA+3Kw68ODi0hBSTXfyy9AultHmw
+            iDPJlxbQtZrTFDjNo+t8fqt3HDVGidkGEbcUS+sMqcnnOXKIhXDahw==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age17tyjetvkv48rf2sacrpdtledjqvc4x3dvrwjrmx6sdl06cwdzpzq35fzzf
+    encrypted_regex: ^token_value$
+    lastmodified: "2026-10-26T05:55:19Z"
+    mac: ENC[AES256_GCM,data:HDt1IdGlKDSGsnJLCwmo4eyEeDvzqATDQ9OHD+MNaW/KoonAT9ftZvNFU+paiw2Y7rXLkwyDanJvcpYVi3svjFgiLH6e9Sj+CMfKW2x7/uUwS/mBnCJKUgJJYUfeN2tFAJ8t1vzh8MeSpaUfbQrGGSxG42n0Mib9NjGaD7AqQ/I=,iv:yLQTRXkgozRBlg+j3QX4jbALmf9YCNq3h23hW3kJzrw=,tag:VO35Goyp1JQgHKtxNN2AMQ==,type:str]
+    version: 3.13.3

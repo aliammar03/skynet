@@ -33,6 +33,12 @@
       "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)\\.(?<build>\\d+)-r(?<revision>\\d+)$"
     },
     {
+      "description": "VictoriaLogs and vlagent are one release (one repository, one version): one PR, so vlagent never runs ahead of the store it writes to",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["docker.io/victoriametrics/victoria-logs", "docker.io/victoriametrics/vlagent"],
+      "groupName": "VictoriaLogs"
+    },
+    {
       "description": "Meilisearch follows karakeep's own pin (its docker/docker-compose.yml): a newer one can't open the index without a migration",
       "matchPackageNames": ["docker.io/getmeili/meilisearch"],
       "enabled": false

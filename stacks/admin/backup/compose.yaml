@@ -15,6 +15,7 @@ x-job: &job
     - ./excludes.txt:/etc/resticprofile/excludes.txt:ro
     - ./rclone.sops.conf:/etc/rclone/rclone.conf:ro
     - /var/cache/restic-appdata:/cache # restic's cache, on the host
+    - /var/lib/node-exporter:/var/lib/node-exporter # the backup's metrics, for node-exporter
     - /opt/appdata:/opt/appdata:ro
   tmpfs: [/resticprofile] # a volume in the image, unused: no anonymous volume per run
   # Only egress (Drive, healthchecks.io): its own default network, not `edge`.

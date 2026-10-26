@@ -1,4 +1,5 @@
-# Every host: Nix, users, SSH, secrets, and comin (pulls `main` and switches).
+# Every host: Nix, users, SSH, secrets, comin (pulls `main` and switches), and what P5 observes
+# (observability.nix).
 {
   config,
   lib,
@@ -31,6 +32,7 @@ in
     inputs.sops-nix.nixosModules.sops
     inputs.comin.nixosModules.comin
     ./nix-cache.nix
+    ./observability.nix
   ];
 
   nix.settings = {
@@ -123,6 +125,9 @@ in
         name = "origin";
         url = "https://github.com/aliammar03/skynet.git";
         branches.main.name = "main";
+        # Off: comin would also deploy any `testing-<host>` branch on top of main, as root, with no
+        # PR or merge. Only `main` reaches a host.
+        branches.testing.name = "";
         poller.period = 60;
       }
     ];

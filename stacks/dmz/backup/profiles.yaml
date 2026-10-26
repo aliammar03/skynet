@@ -6,6 +6,9 @@ appdata:
   repository: rclone:gdrive:skynet/restic/docker-dmz
   pack-size: 64 # MiB: Drive creates about 2 files a second, so few large ones
   cache-dir: /cache # the host's /var/cache/restic-appdata, kept between runs
+  # After each backup: its status, time, duration and bytes added, for node-exporter on the host
+  # (modules/observability.nix).
+  prometheus-save-to-file: /var/lib/node-exporter/restic-appdata.prom
   backup:
     source: [/opt/appdata]
     exclude-file: [/etc/resticprofile/excludes.txt]

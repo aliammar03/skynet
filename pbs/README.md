@@ -17,12 +17,17 @@ part of its `/etc` that git holds. ops compares that with the host every day.
 - **Users:** `root@pam` (Ali in the UI; the agent over SSH) and `pve@pbs`. Its tokens `core` and
   `network` each hold `DatastoreBackup` on their own namespace, and `pve@pbs` holds it on both,
   because a token never gets more than its user. The tokens' secrets exist only in PVE's storage
-  config.
+  config. `metrics@pbs` and its token `exporter` hold `DatastoreAudit` on the datastore and `Audit`
+  on `/system`, for docker-admin's pbs-exporter (its secret: `stacks/admin/metrics/secret.sops.env`).
+- **Observed** (`skynetv2.md` → P5): Debian's node-exporter on :9100 (with the systemd collector,
+  `etc/systemd/system/prometheus-node-exporter.service.d/`), and `systemd-journal-upload` sending
+  the journal to docker-admin's vlagent (`etc/systemd/journal-upload.conf.d/`). PBS has no firewall
+  of its own: OPNsense admits only docker-admin to :9100.
 - **Secrets:** `secret.sops.yaml` (Ali only): `root_password`, for the UI and the console.
 - **Agent:** root over SSH from ops only (`from=` in `answer.toml`, D11). ops pins the host key
   (`ssh_host.pub`, `modules/agent.nix`).
 - **`etc/`:** `proxmox-backup/`'s config files that hold no secret, the datastore's mount units,
-  the apt sources (no subscription) and `resolv.conf`. `modules/pbs-drift.nix` on ops compares them
+  node-exporter's and the upload's drop-ins, the apt sources (no subscription) and `resolv.conf`. `modules/pbs-drift.nix` on ops compares them
   with PBS at 07:00, and every allowlisted name too, so a file that appears on PBS (a sync job added
   in the UI) counts. A difference, or a failed check, goes to `#alerts`.
 - **Updates:** `apt full-upgrade` (setup runs one). Proxmox's no-subscription repository.
@@ -83,9 +88,11 @@ matches.
 
 Steps 1 and 3–6: a fresh VM from `answer.toml`, then `setup.sh`, which reuses the datastore on
 Unraid as it is. The ISO boot makes a new host key and a new self-signed cert, so the PR updates
-`ssh_host.pub`, the agent's pin and caddy-admin's cert. Ali regenerates both tokens' secrets and
-gives each node's `pbs` storage the new fingerprint and its token. The encryption keys don't change:
-they're PVE's.
+`ssh_host.pub`, the agent's pin, caddy-admin's cert and pbs-exporter's `skynet.pinned-cert` label
+(`stacks/admin/metrics/compose.yaml`). Ali regenerates the three tokens' secrets: `pve@pbs`'s two
+go to each node's `pbs` storage with the new fingerprint, and `metrics@pbs!exporter`'s into
+`stacks/admin/metrics/secret.sops.env` in the same PR. The encryption keys don't change: they're
+PVE's.
 
 ## Gotchas
 

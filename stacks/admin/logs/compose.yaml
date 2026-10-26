@@ -1,0 +1,48 @@
+# VictoriaLogs: every host's journal, containers' logs included, kept 30 days and never more than
+# 4 GiB. Hosts send to vlagent, which only takes logs in: it has no query API, so a host that ships
+# its journal can read no one's. vmalert for logs (the alerts PR) and the MCP server (agent eyes)
+# join this stack later (skynetv2.md → P5).
+services:
+  victorialogs:
+    container_name: victorialogs
+    image: docker.io/victoriametrics/victoria-logs:v1.53.0@sha256:251121fa882af99b95ba0c230a4a2f412ea602d2698c64a96c58dc9842bb755d
+    restart: unless-stopped
+    command:
+      - -storageDataPath=/storage
+      - -retentionPeriod=30d
+      - -retention.maxDiskSpaceUsageBytes=4GiB # the oldest days go first
+      - -memory.allowedBytes=256MiB # its caches would take 60% of the host's memory otherwise
+    environment:
+      TZ: Asia/Karachi
+    volumes:
+      - /opt/appdata/logs/data:/storage # cache (not backed up)
+    # For vlagent, on the host's network. Loopback only, so nothing off this host reaches it; the
+    # door and Gatus use `edge`.
+    ports: ["127.0.0.1:9428:9428"]
+    networks: [edge]
+    # No healthcheck: the image is only the binary. Gatus checks /health.
+
+  vlagent:
+    container_name: vlagent
+    image: docker.io/victoriametrics/vlagent:v1.53.0@sha256:a82f93ffecc153fb068606903e512368b070272739d823abe99fad0eff6e1849
+    restart: unless-stopped
+    command:
+      - -httpListenAddr=:9429
+      - -remoteWrite.url=http://127.0.0.1:9428/insert/native
+      # While VictoriaLogs is down, what arrives waits on disk (the oldest is dropped past 1 GiB).
+      - -remoteWrite.tmpDataPath=/buffer
+      - -remoteWrite.maxDiskUsagePerURL=1GiB
+      # Each container is a stream of its own, beside each host and unit.
+      - -journald.streamFields=_MACHINE_ID,_HOSTNAME,_SYSTEMD_UNIT,CONTAINER_NAME
+    environment:
+      TZ: Asia/Karachi
+    volumes:
+      - /opt/appdata/logs/buffer:/buffer # cache (not backed up)
+    # The host's network, so the host firewall decides which hosts may send
+    # (hosts/docker-admin/default.nix): a published port would bypass it.
+    network_mode: host
+    # No healthcheck: the image is only the binary. Gatus checks /health.
+
+networks:
+  edge:
+    external: true
