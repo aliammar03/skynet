@@ -57,14 +57,14 @@ groups:
         annotations:
           summary: '{{ index $labels "_HOSTNAME" }}: no log lines have reached VictoriaLogs for 15 minutes (its journal upload, vlagent or VictoriaLogs).'
 
-      # Appliances log by syslog to vlagent (skynetv2.md → P5 → Wider eyes) and run no heartbeat.
-      # OPNsense's firewall log alone brings about 8 lines a second, so 15 minutes without any of its
-      # lines means its remote logging, the path or vlagent stopped. Its hostname is a stream field,
-      # so the week's count reads only its own stream.
+      # Appliances log by syslog to vlagent (skynetv2.md → P5 → Wider eyes) and run no heartbeat;
+      # each listener stamps its lines with `source`. OPNsense's firewall log alone brings about 8
+      # lines a second, so 15 minutes without any of its lines means its remote logging, the path or
+      # vlagent stopped.
       - alert: SyslogNotArriving
         expr: >-
-          _time:7d {hostname=~"opnsense.*"}
-          | stats by (hostname) count() if (_time:15m) as recent
+          _time:7d source:=opnsense
+          | stats by (source) count() if (_time:15m) as recent
           | filter recent:=0
         labels:
           severity: warning

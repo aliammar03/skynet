@@ -28,10 +28,10 @@
 - **Streams:** `_HOSTNAME`, `_SYSTEMD_UNIT` and `CONTAINER_NAME` (with `_MACHINE_ID`), so each
   container is a stream of its own. Every other journal field is kept as a field (`PRIORITY` also
   becomes `level`).
-- **Syslog** (vlagent's listeners, on the host's network): TCP 5514, OPNsense's (System → Settings
-  → Logging → Remote, RFC 5424), admitted from 10.10.50.1 only. Its lines carry `hostname`,
-  `app_name` (the stream, with `proc_id`), `format`, `severity` (also as `level`) and their own
-  time. The firewall log (`app_name:=filterlog`) is OPNsense's CSV; what got blocked, and where:
+- **Syslog** (vlagent's listeners, on the host's network), one port per appliance, each admitted
+  from that appliance only, its lines stamped with `source`: TCP 5514, OPNsense's (System →
+  Settings → Logging → Remote, RFC 5424; `source:=opnsense`). A line carries `hostname`, `app_name`
+  (the stream, with `proc_id`), `format`, `severity` (also as `level`) and its own time. The firewall log (`app_name:=filterlog`) is OPNsense's CSV; what got blocked, and where:
   ```
   _time:1h app_name:=filterlog ",block," | extract_regexp "^(?P<rule>[^,]*),[^,]*,[^,]*,(?P<rid>[^,]*),(?P<iface>[^,]*),[^,]*,(?P<action>[^,]*),(?P<dir>[^,]*),4,(?:[^,]*,){7}(?P<proto>[^,]*),[^,]*,(?P<src>[^,]*),(?P<dst>[^,]*),(?P<sport>[^,]*),(?P<dport>[^,]*)" | stats by (iface, src, dst, dport) count() as blocks | sort by (blocks desc) | limit 20
   ```
