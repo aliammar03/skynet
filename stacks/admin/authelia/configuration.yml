@@ -52,6 +52,13 @@ access_control:
         - '^/select/vmalert/api/v1/(rules|alerts)([?]|$)'
       networks: [10.10.90.91/32]
       policy: bypass
+    # And both MCP servers, the agent's eyes: read-only query tools over streamable HTTP (a POST per
+    # call, a GET for the event stream, a DELETE to end a session).
+    - domain: [metrics.aliammar.net, logs.aliammar.net]
+      resources: ['^/mcp([/?]|$)']
+      methods: [GET, POST, DELETE]
+      networks: [10.10.90.91/32]
+      policy: bypass
     # And Alertmanager: reading alerts and silences; setting a silence and expiring one (the agent's
     # silences verb, AGENTS.md). Nothing else writes: POST /api/v2/alerts needs the login.
     - domain: alerts.aliammar.net

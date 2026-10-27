@@ -1,0 +1,12 @@
+# The boards in dashboards/, one Grafana folder per subfolder: `lab` (ours) and `upstream`
+# (grafana.com's, fetched by fetch.sh). Read-only in the UI: a change is a PR.
+apiVersion: 1
+providers:
+  - name: skynet
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    updateIntervalSeconds: 60
+    options:
+      path: /etc/grafana/dashboards
+      foldersFromFilesStructure: true

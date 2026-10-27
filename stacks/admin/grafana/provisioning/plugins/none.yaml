@@ -1,0 +1,4 @@
+# No app plugins to configure. Grafana reads this folder at every start and logs an error when it's
+# missing. The data source plugins come from GF_PLUGINS_PREINSTALL_SYNC (compose.yaml).
+apiVersion: 1
+apps: []

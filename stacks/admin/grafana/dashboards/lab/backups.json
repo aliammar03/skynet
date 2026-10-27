@@ -1,0 +1,246 @@
+{
+  "uid": "skynet-backups",
+  "title": "Backups",
+  "description": "Every backup the lab makes: PBS's guest backups (nightly, verified at 04:30), the app backups to Drive (restic, 04:30), PBS's copy to Drive (06:00), and docker-dmz's snapshots (btrbk). A job that hasn't run since VictoriaMetrics' store started shows no data until its next run.",
+  "tags": ["skynet"],
+  "timezone": "browser",
+  "editable": false,
+  "graphTooltip": 1,
+  "refresh": "1m",
+  "time": { "from": "now-7d", "to": "now" },
+  "schemaVersion": 41,
+  "panels": [
+    {
+      "id": 1,
+      "type": "table",
+      "title": "Guests on PBS",
+      "description": "Each guest's newest backup in its node's namespace, whether PBS verified it, and how many it keeps.",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 10 },
+      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "targets": [
+        { "refId": "A", "expr": "time() - pbs_snapshot_vm_last_timestamp", "instant": true, "format": "table" },
+        { "refId": "B", "expr": "pbs_snapshot_vm_last_verify", "instant": true, "format": "table" },
+        { "refId": "C", "expr": "pbs_snapshot_vm_count", "instant": true, "format": "table" }
+      ],
+      "transformations": [
+        { "id": "merge", "options": {} },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "datastore": true, "instance": true, "job": true },
+            "indexByName": { "vm_name": 0, "vm_id": 1, "namespace": 2, "Value #A": 3, "Value #B": 4, "Value #C": 5 },
+            "renameByName": { "vm_name": "Guest", "vm_id": "ID", "namespace": "Node", "Value #A": "Newest backup", "Value #B": "Verified", "Value #C": "Kept" }
+          }
+        },
+        { "id": "sortBy", "options": { "sort": [{ "field": "Newest backup", "desc": true }] } }
+      ],
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Newest backup" },
+            "properties": [
+              { "id": "unit", "value": "dtdurations" },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 93600 }] } },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Verified" },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  { "type": "value", "options": { "1": { "text": "yes", "color": "green", "index": 0 }, "0": { "text": "not yet", "color": "orange", "index": 1 } } }
+                ]
+              },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+            ]
+          }
+        ]
+      },
+      "options": { "showHeader": true, "cellHeight": "sm" }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Age of each guest's newest backup",
+      "description": "A sawtooth: it climbs all day and drops at each night's backup. GuestBackupStale fires past 26 hours.",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 10 },
+      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "targets": [{ "refId": "A", "expr": "(time() - pbs_snapshot_vm_last_timestamp) / 3600", "legendFormat": "{{vm_name}}" }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "min": 0,
+          "custom": { "lineWidth": 1, "fillOpacity": 0, "thresholdsStyle": { "mode": "line" } },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "transparent", "value": null }, { "color": "red", "value": 26 }] }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 3,
+      "type": "gauge",
+      "title": "PBS datastore used",
+      "gridPos": { "x": 0, "y": 10, "w": 4, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "targets": [{ "refId": "A", "expr": "pbs_used / pbs_size", "instant": true }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 0.8 }, { "color": "red", "value": 0.9 }] }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "PBS datastore over time",
+      "description": "Used and free space on Unraid's share. Garbage collection (Sundays 12:00) frees what prune let go.",
+      "gridPos": { "x": 4, "y": 10, "w": 8, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "targets": [
+        { "refId": "A", "expr": "pbs_used", "legendFormat": "used" },
+        { "refId": "B", "expr": "pbs_available", "legendFormat": "free" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes", "min": 0, "custom": { "lineWidth": 2, "fillOpacity": 10 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "PBS's copy to Drive",
+      "description": "The 06:00 sync: how long ago it ended and its exit code (0 or 8 is good; 8 means it reached the day's transfer limit and the next night carries on).",
+      "gridPos": { "x": 12, "y": 10, "w": 6, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "targets": [
+        { "refId": "A", "expr": "time() - skynet_pbs_offsite_end_timestamp_seconds", "instant": true, "legendFormat": "ended" },
+        { "refId": "B", "expr": "skynet_pbs_offsite_exit_code", "instant": true, "legendFormat": "exit code" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "none" },
+        "overrides": [
+          {
+            "matcher": { "id": "byFrameRefID", "options": "A" },
+            "properties": [
+              { "id": "unit", "value": "dtdurations" },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 108000 }] } }
+            ]
+          },
+          {
+            "matcher": { "id": "byFrameRefID", "options": "B" },
+            "properties": [
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }, { "color": "green", "value": 8 }, { "color": "red", "value": 9 }] } }
+            ]
+          }
+        ]
+      },
+      "options": { "colorMode": "value", "graphMode": "none", "textMode": "value_and_name", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "docker-dmz's newest snapshot",
+      "description": "btrbk's snapshot of /opt/appdata, which the night's app backup reads. A failed snapshot fails the next backup.",
+      "gridPos": { "x": 18, "y": 10, "w": 6, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "targets": [{ "refId": "A", "expr": "time() - skynet_appdata_snapshot_timestamp_seconds", "instant": true }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dtdurations",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 108000 }] }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "App backups to Drive (restic)",
+      "description": "Each Docker host's nightly backup of /opt/appdata (04:30): when it ran, how it ended, and what it read and added.",
+      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "targets": [
+        { "refId": "A", "expr": "time() - resticprofile_backup_time_seconds", "instant": true, "format": "table" },
+        { "refId": "B", "expr": "resticprofile_backup_status", "instant": true, "format": "table" },
+        { "refId": "C", "expr": "resticprofile_backup_duration_seconds", "instant": true, "format": "table" },
+        { "refId": "D", "expr": "resticprofile_backup_processed_bytes", "instant": true, "format": "table" },
+        { "refId": "E", "expr": "resticprofile_backup_added_bytes", "instant": true, "format": "table" },
+        { "refId": "F", "expr": "resticprofile_backup_files_new + resticprofile_backup_files_changed", "instant": true, "format": "table" }
+      ],
+      "transformations": [
+        { "id": "merge", "options": {} },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "job": true, "profile": true },
+            "indexByName": { "instance": 0, "Value #A": 1, "Value #B": 2, "Value #C": 3, "Value #D": 4, "Value #E": 5, "Value #F": 6 },
+            "renameByName": {
+              "instance": "Host",
+              "Value #A": "Ran",
+              "Value #B": "Result",
+              "Value #C": "Took",
+              "Value #D": "Read",
+              "Value #E": "Added",
+              "Value #F": "Files new or changed"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Ran" }, "properties": [{ "id": "unit", "value": "dtdurations" }] },
+          { "matcher": { "id": "byName", "options": "Took" }, "properties": [{ "id": "unit", "value": "s" }] },
+          { "matcher": { "id": "byName", "options": "Read" }, "properties": [{ "id": "unit", "value": "bytes" }] },
+          { "matcher": { "id": "byName", "options": "Added" }, "properties": [{ "id": "unit", "value": "bytes" }] },
+          {
+            "matcher": { "id": "byName", "options": "Result" },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "2": { "text": "success", "color": "green", "index": 0 },
+                      "1": { "text": "warning", "color": "orange", "index": 1 },
+                      "0": { "text": "failed", "color": "red", "index": 2 }
+                    }
+                  }
+                ]
+              },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+            ]
+          }
+        ]
+      },
+      "options": { "showHeader": true, "cellHeight": "sm" }
+    },
+    {
+      "id": 8,
+      "type": "logs",
+      "title": "Backup jobs' errors and warnings",
+      "description": "The app backups, PBS's copy to Drive, and btrbk, from every host's journal.",
+      "gridPos": { "x": 0, "y": 22, "w": 24, "h": 10 },
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "instant",
+          "editorMode": "code",
+          "expr": "(CONTAINER_NAME:~\"backup|pbs-offsite\" or _SYSTEMD_UNIT:~\"btrbk\") level:in(error, critical, warning)",
+          "maxLines": 200
+        }
+      ],
+      "options": { "showTime": true, "wrapLogMessage": true, "sortOrder": "Descending", "enableLogDetails": true, "dedupStrategy": "none" }
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+# Alerts are vmalert's and Alertmanager's (stacks/admin/metrics, logs, alertmanager), so nothing
+# here. Grafana reads this folder at every start and logs an error when it's missing.
+apiVersion: 1

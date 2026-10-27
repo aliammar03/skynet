@@ -94,6 +94,9 @@ endpoints:
   - { <<: *service, name: vmalert, url: http://vmalert:8880/health, conditions: ["[STATUS] == 200"] }
   - { <<: *service, name: vmalert-logs, url: http://vmalert-logs:8880/health, conditions: ["[STATUS] == 200"] }
   - { <<: *service, name: alertmanager, url: http://alertmanager:9093/-/healthy, conditions: ["[STATUS] == 200"] }
+  - { <<: *service, name: grafana, url: http://grafana:3000/api/health, conditions: ["[STATUS] == 200"] }
+  - { <<: *service, name: mcp-victoriametrics, url: http://mcp-victoriametrics:8080/health/readiness, conditions: ["[STATUS] == 200"] }
+  - { <<: *service, name: mcp-victorialogs, url: http://mcp-victorialogs:8081/health/readiness, conditions: ["[STATUS] == 200"] }
 
   - { <<: *app, name: librespeed, url: https://speed.aliammar.net/, conditions: ["[STATUS] == 200"] }
   # /_up is CouchDB's only path without a login.

@@ -5,6 +5,16 @@
   (`two_factor`). Everything not listed in `access_control` is denied.
 - **URL:** https://auth.aliammar.net (caddy-admin → `authelia:9091` on `edge`).
 - **Auth mode:** it *is* the auth.
+- **OIDC provider** (issuer `https://auth.aliammar.net`), for Grafana:
+  - `oidc-clients.yml`: the client `grafana` (its secret as a pbkdf2 digest), policy `admin` (you
+    alone, both factors) and claims policy `grafana` (`preferred_username`, `groups`, … in the ID
+    token too);
+  - `oidc.sops.yml`: the provider's HMAC secret and RS256 signing key (agent-generated);
+  - the client's plaintext secret: `stacks/admin/grafana/oidc.sops.env` (agent-generated).
+
+  `X_AUTHELIA_CONFIG` merges the three files. The client list lives in one file only: a second
+  file's `clients` would replace it, not add to it. Containers on `edge` reach this portal by
+  caddy-admin's alias `auth.aliammar.net`, as Grafana does for tokens and keys.
 - **Data:** `/opt/appdata/authelia`: `db.sqlite3` (passkeys, TOTP, consent; backup class: app data)
   and `notification.txt` (the one-time codes, since there is no mail server yet).
 - **Secrets:** `secret.sops.env`: `AUTHELIA_SESSION_SECRET`, `AUTHELIA_STORAGE_ENCRYPTION_KEY`,
