@@ -1,0 +1,53 @@
+# Alertmanager: vmalert's alerts (stacks/admin/metrics/rules, stacks/admin/logs/rules) to #alerts.
+# The two URLs are files the entrypoint writes from secret.sops.env (compose.yaml). CI checks this
+# file with the pinned image's amtool.
+route:
+  receiver: discord
+  # One post per alert and host; a later alert of the same kind joins it within 5 minutes.
+  group_by: [alertname, instance]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 12h
+  routes:
+    # Always firing: each minute it pings healthchecks.io's check `alertmanager`, which posts when
+    # the pings stop (vmalert, Alertmanager, docker-admin or its egress down).
+    - receiver: watchdog
+      matchers: [alertname = Watchdog]
+      group_wait: 0s
+      group_interval: 1m
+      repeat_interval: 1m
+    # Firing only while Discord takes our posts: each minute it pings check `alerts-delivery`,
+    # which posts through healthchecks.io's own integrations when it stops (a deleted webhook,
+    # failed posts). The Watchdog alone can't see Discord.
+    - receiver: delivery
+      matchers: [alertname = DeliveryWatchdog]
+      group_wait: 0s
+      group_interval: 1m
+      repeat_interval: 1m
+
+receivers:
+  - name: discord
+    discord_configs:
+      - webhook_url_file: /run/alertmanager/discord
+        title: >-
+          {{ if eq .Status "firing" }}Firing{{ else }}Resolved{{ end }}: {{ .CommonLabels.alertname }}{{ with .CommonLabels.instance }} on {{ . }}{{ end }}
+        # One line per alert in the group (a literal block keeps the newlines). A group is firing
+        # while any of its alerts is, so there a line whose alert has cleared starts "Resolved:".
+        message: |-
+          {{ range .Alerts.Firing }}{{ .Annotations.summary }}
+          {{ end }}{{ range .Alerts.Resolved }}{{ if eq $.Status "firing" }}Resolved: {{ end }}{{ .Annotations.summary }}
+          {{ end }}
+  - name: watchdog
+    webhook_configs:
+      - url_file: /run/alertmanager/watchdog
+        send_resolved: false
+  - name: delivery
+    webhook_configs:
+      - url_file: /run/alertmanager/delivery
+        send_resolved: false
+
+inhibit_rules:
+  # A host that's down mutes its own other alerts (its targets, its disks, its units).
+  - source_matchers: [alertname = HostDown]
+    target_matchers: [alertname != HostDown]
+    equal: [instance]

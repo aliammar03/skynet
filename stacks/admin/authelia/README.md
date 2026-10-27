@@ -19,3 +19,5 @@
 - Changing a password = a new hash in `users.sops.yml` (PR); reset by mail is off.
 - The code to register a passkey: `sudo cat /opt/appdata/authelia/notification.txt` on docker-admin.
 - Break-glass: every admin UI still answers on its own IP.
+- Logs at `warn`, as the apps' Authelia: an anonymous request (each one an info line) isn't
+  logged; failed logins and errors are.

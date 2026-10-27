@@ -4,12 +4,22 @@
   journald driver), kept 30 days and never more than 4 GiB. Each host ships with
   `systemd-journal-upload` (`modules/observability.nix`; PBS from `pbs/etc/`), which keeps a cursor:
   after an outage it resumes where it stopped, and until then the host's own journal (2 weeks) holds
-  the logs. Alerts on logs and the agent's MCP server join this stack in later P5 PRs.
+  the logs. **vmalert-logs** runs `rules/*.yml` (LogsQL; vmalert adds `_time:<interval>` to a
+  query without its own) and sends what fires to Alertmanager. Its alerts' state lives in
+  VictoriaMetrics and comes back on its first evaluation only, so it starts once both stores
+  answer. The agent's MCP server joins this stack in a later P5 PR.
 - **URL:** https://logs.aliammar.net (caddy-admin → `victorialogs:9428`): the query UI at
-  `/select/vmui`.
+  `/select/vmui`; vmalert-logs' rules and pending alerts at `/select/vmalert/` (VictoriaLogs
+  proxies it).
+- **Rules** (`rules/logs.yml`, LogsQL): `CrashLoop` (systemd's line for each container start),
+  `LogsNotArriving` (each host's `log-heartbeat` line, every 5 minutes, missing for 15),
+  `FilesystemErrors`, `LogFlood` and `LogsDropped` (journald's own count of what it dropped).
 - **Auth mode:** `forward` (Authelia). Ops (10.10.90.91) reads `/select/logsql/` without a login:
   `curl -s https://logs.aliammar.net/select/logsql/query --data-urlencode 'query=_time:1h CONTAINER_NAME:doco-cd'`.
-  Deletes are off in VictoriaLogs itself.
+- **Deletes:** on for one cleanup, off again in the next PR (`-delete.enable`). From docker-admin's
+  shell, `curl -sS -X POST -G http://127.0.0.1:9428/delete/run_task --data-urlencode 'filter=<LogsQL>'`
+  starts a task, and `/delete/active_tasks` lists those still running. Anyone on docker-admin
+  reaches it; through the door, only Ali's login does.
 - **The way in:** `vlagent` on :9429, on the host's network, so docker-admin's firewall admits only
   the hosts that ship (`hosts/docker-admin/default.nix`), after OPNsense's `ROLE_LOG_SHIPPERS`.
   It forwards to VictoriaLogs on `127.0.0.1:9428`, which nothing off this host reaches. vlagent has
@@ -27,9 +37,17 @@
 
 **Gotchas**
 - A new host's first upload sends its whole journal (up to 2 weeks); older than 30 days is dropped.
-- A host that ships can still flood: past 4 GiB the oldest days go. Each host's own journal still
-  holds its two weeks.
+- Floods: journald on each host drops what one service logs past about 100 lines a second
+  (`modules/observability.nix`), and `LogFlood` alerts at 50. Every container's lines come from
+  dockerd, so containers share one allowance and a flooding one costs its neighbours lines too:
+  `LogsDropped` reports them. A host that sends past journald (a compromised one) could still fill
+  the store: past 4 GiB the oldest days go, and each host's own journal still holds its two weeks.
+- `LogsNotArriving` knows a host from its heartbeats this week: a new host counts from its first
+  heartbeat, and one silent for a week drops out of the rule (HostDown has it by then).
 - vlagent's port also serves `/metrics` and the usual `/debug/pprof` to the hosts that ship; its
   flags hold no secret.
-- No healthcheck in either container (the images are only the binary): Gatus checks both
-  `/health` endpoints, and VictoriaMetrics scrapes both.
+- No healthcheck in VictoriaLogs or vlagent (the images are only the binary): Gatus checks both
+  `/health` endpoints, and VictoriaMetrics scrapes both. vmalert-logs has one.
+- A LogsQL rule's labels are its `stats by (...)` fields; each rule sets `instance` from
+  `_HOSTNAME`, so Alertmanager groups and inhibits it like a metrics rule. CI checks `rules/` with
+  the pinned vmalert's `-dryRun`.

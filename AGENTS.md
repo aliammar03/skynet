@@ -14,10 +14,11 @@ phase are in [`skynetv2.md`](skynetv2.md) — read its Status first.
    docker-dmz you could); Ali types credentials into `sops`. You may create encrypted files from
    values you generate (random passwords) using public keys.
 4. **Lanes:** diagnose (read anything except secrets) · operate (only the verbs granted in
-   `skynetv2.md`: root on docker-dmz and PBS, and docker-dmz's doco-cd MCP restart and job tools, D11)
-   · change (PR) · never (merge, private keys or a Docker socket outside those two hosts, OPNsense /
-   Proxmox host / Unraid config, deleting data). Root changes nothing about rule 2: a fix by hand is followed by its PR, or
-   undone.
+   `skynetv2.md`: root on docker-dmz and PBS, and docker-dmz's doco-cd MCP restart and job tools, D11;
+   an Alertmanager silence for your own planned work, ending within 4 hours, its comment naming the
+   work) · change (PR) · never (merge, private keys or a Docker socket outside those two hosts,
+   OPNsense / Proxmox host / Unraid config, deleting data). Root changes nothing about rule 2: a fix
+   by hand is followed by its PR, or undone.
 5. **Hard checkpoints — stop and ask Ali:** credentials, destroying anything, OPNsense / Proxmox host /
    Unraid / Cloudflare / Google account changes, leaving the current phase's scope.
 6. **Mature tools first.** Custom glue stays inside the plan's Glue budget.

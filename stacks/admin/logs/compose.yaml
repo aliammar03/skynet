@@ -1,7 +1,7 @@
 # VictoriaLogs: every host's journal, containers' logs included, kept 30 days and never more than
 # 4 GiB. Hosts send to vlagent, which only takes logs in: it has no query API, so a host that ships
-# its journal can read no one's. vmalert for logs (the alerts PR) and the MCP server (agent eyes)
-# join this stack later (skynetv2.md → P5).
+# its journal can read no one's. vmalert-logs turns rules/ (LogsQL) into alerts. The MCP server
+# (agent eyes) joins later (skynetv2.md → P5).
 services:
   victorialogs:
     container_name: victorialogs
@@ -12,6 +12,11 @@ services:
       - -retentionPeriod=30d
       - -retention.maxDiskSpaceUsageBytes=4GiB # the oldest days go first
       - -memory.allowedBytes=256MiB # its caches would take 60% of the host's memory otherwise
+      # vmalert-logs' rules and alerts at /select/vmalert/ (the door's logs.aliammar.net).
+      - -vmalert.proxyURL=http://vmalert-logs:8880/
+      # Deletes by filter (POST /delete/run_task), for one cleanup: off again in the next PR. Anyone
+      # on docker-admin reaches them; through the door, only Ali's login (ops reads /select/logsql/).
+      - -delete.enable
     environment:
       TZ: Asia/Karachi
     volumes:
@@ -42,6 +47,42 @@ services:
     # (hosts/docker-admin/default.nix): a published port would bypass it.
     network_mode: host
     # No healthcheck: the image is only the binary. Gatus checks /health.
+
+  # vmalert for LogsQL rules (one datasource per vmalert, as VictoriaMetrics advises). Its alerts'
+  # state goes to VictoriaMetrics, beside the metrics vmalert's, and comes back on its first
+  # evaluation only: like that one, it starts once both stores answer.
+  vmalert-logs:
+    container_name: vmalert-logs
+    image: docker.io/victoriametrics/vmalert:v1.154.1@sha256:aafb962b5a5713c71f0d697d629416f9cccf23aecb74f0ec5e829ddbf3f221f2
+    restart: unless-stopped
+    # $$: the container's shell reads it, not compose.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >-
+        until wget -q -T 5 -O /dev/null http://victorialogs:9428/health &&
+        wget -q -T 5 -O /dev/null http://victoriametrics:8428/health; do sleep 2; done;
+        exec /vmalert-prod "$$@"
+      - vmalert-logs
+    command:
+      - -rule=/etc/vmalert/rules/*.yml
+      - -rule.defaultRuleType=vlogs
+      - -datasource.url=http://victorialogs:9428
+      - -remoteWrite.url=http://victoriametrics:8428
+      - -remoteRead.url=http://victoriametrics:8428
+      - -notifier.url=http://alertmanager:9093
+      # Each alert's link back to its rule, through VictoriaLogs' /select/vmalert/ proxy.
+      - -external.url=https://logs.aliammar.net/select
+    environment:
+      TZ: Asia/Karachi
+    volumes:
+      - ./rules:/etc/vmalert/rules:ro # a folder without sops files
+    networks: [edge]
+    healthcheck:
+      test: [CMD, wget, -qO, /dev/null, http://127.0.0.1:8880/health]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 networks:
   edge:

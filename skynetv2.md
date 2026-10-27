@@ -26,7 +26,7 @@
 | P2 | DNS (Technitium only) + remote access | done (2026-10-23); open: OPNsense rules 140/150/115 and CT 731 `onboot` (see P2 exit criteria) |
 | P3 | docker-dmz: apps + public path | done (2026-10-24): docker-dmz with v1's data (#48), its doors (#50) and all ten apps (#51–#61); the apps reach one another only through the door (#64); every image current (#67). Family accounts skipped for now; rule 150 can go now that 135 (ex-840) serves Gatus's `public` row |
 | P4 | Backups → Google Drive | in progress (2026-10-25): PBS greenfield done (VM 2040, `pbs/`; v1's PBS removed); PBS's datastore nightly to Drive by plain `rclone sync` (`stacks/admin/pbs-offsite/`; PVE already encrypts its chunks); app data nightly to Drive, hot (`stacks/<host>/backup/`): docker-dmz rebuilt onto btrfs and backed up from btrbk snapshots (#81); `skynet-restore` drilled from a snapshot and from Drive. Next: the guest drill from Drive's copy once its first sync ends, `runbooks/restore.md`, seven green nights |
-| P5 | Observability (agent eyes) | in progress (2026-10-26): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics. Next: the alerts PR |
+| P5 | Observability (agent eyes) | in progress (2026-10-26): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`, #88); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics; alerts: two vmalerts and Alertmanager to `#alerts`, its Watchdog to healthchecks.io. Next: the alert tests, then Grafana and the agent's MCP servers |
 | P6 | Agent autonomy | planned (2026-10-26): the leash first (comin's testing branches off, with the plan), then tiered merges with verify and rollback, the incident loop, the rekey workflow, OpenTofu for our VMs and the OPNsense aliases; after P5 |
 | P7 | Retire v1 + disaster recovery | outline |
 
@@ -63,7 +63,7 @@ Nothing outside the lab pushes into it.
 | D5 | **Technitium** is the only DNS: two equal NixOS VMs (technitium-network .50, technitium-core .51), each loading the zone and its settings from `dns/` in git. Ad-blocking with HaGeZi Pro; forwarding over plain UDP to PTCL + OpenDNS + Google, all three raced; AdGuard retired | One product; records and settings are reviewed in PRs and a rebuilt VM comes back complete. PTCL's resolver answers known names in ~5 ms, OpenDNS is fastest on unknown ones, Google is a second fallback, and all three hand out the in-ISP CDN caches; PTCL's REFUSED for blocked sites falls through to the others (`runbooks/dns-speed-test/`, 2026-10-24) |
 | D6 | Two Docker hosts: **docker-dmz** (apps, core node), **docker-admin** (admin, identity, monitoring; network node) | Segmentation; monitoring survives losing the core node |
 | D7 | Agent = **Claude Code** on the ops VM; chat via **Discord** (Channels) + the Claude app (Remote Control) | Telegram is blocked; no custom UI to build |
-| D8 | All alerts go to Discord `#alerts` (doco-cd via Apprise, Gatus, healthchecks.io, comin hook) | One place to look |
+| D8 | All alerts go to Discord `#alerts` (doco-cd via Apprise, Gatus, healthchecks.io, comin hook, Alertmanager) | One place to look |
 | D9 | Offsite = **Google Drive** via rclone with Ali's own OAuth client, scope `drive.file`, **published to production** | Drive is what Ali has; "Testing" mode tokens expire every 7 days; `drive.file` lets rclone see only what it created |
 | D10 | No OpenTofu. VMs come from versioned `hosts/<h>/proxmox.sh`; internal DNS records live in `dns/aliammar.net.zone`; the Cloudflare wildcard CNAME is set once by hand | Guests change rarely |
 | D11 | The agent never merges. It is **root on docker-dmz and on PBS** (VM 2040). On docker-dmz: passwordless sudo, every command in that host's journal, which also gives it that host's Docker socket, host key and secrets. On PBS: root over SSH from ops. It never prints a secret value or decrypts one on purpose. On docker-dmz's doco-cd MCP it may restart and run jobs. Destroying a project or stack, or on PBS removing a backup, namespace or datastore, asks Ali each time. Everywhere else: no sudo, no Docker socket, no private age key. While it installs a host it is root on the installer, which holds the new host key that `--copy-host-keys` keeps (`runbooks/new-vm.md`); it reads only the public half | The apps host is where operate work happens, and it needs hands; PBS is where P4's offsite copy and its drills happen (both Ali's call, 2026-10-24). docker-admin (admin portal, Gatus, admin secrets) and the DNS servers stay diagnose-only, so GitHub and missing credentials still leash the rest. The install window was already root-equivalent (the agent installs the OS), and it buys a one-PR install |
@@ -81,8 +81,9 @@ Nothing outside the lab pushes into it.
    needs it. No plaintext in git, chat or logs.
 4. **The agent works in four lanes:**
    - **diagnose:** read anything except secrets;
-   - **operate:** granted verbs: root on docker-dmz and PBS, and docker-dmz's doco-cd MCP restart
-     and job tools (D11); the rest in P6;
+   - **operate:** granted verbs: root on docker-dmz and PBS, docker-dmz's doco-cd MCP restart and
+     job tools (D11), and an Alertmanager silence for its own planned work, ending within 4 hours,
+     its comment naming the work (P5); the rest in P6;
    - **change:** via PR;
    - **never:** merge, private keys or a Docker socket outside docker-dmz and PBS,
      OPNsense/Unraid/PVE host config, deleting data.
@@ -1604,39 +1605,65 @@ those scrapes is several API calls. Its targets are in `stacks/admin/metrics/scr
   port, from one address, write-only by construction. Ali's call (Firewall and DNS).
 - **Retention:** 30 days in VictoriaLogs, capped at 4 GiB; each host keeps its own 2 weeks
   (journald).
+- **Floods:** journald on every host drops what one service logs past about 100 lines a second
+  (`observability.nix`, PBS's `etc/`) and logs how many it dropped, so a loop can't fill a disk or
+  push the oldest days out. Containers share dockerd's allowance: journald keys its limit on the
+  sending unit, and every container's lines come from dockerd, so there's no per-container cap.
+  `LogFlood` names the container at 50 a second, and `LogsDropped` counts what neighbours lost.
+  Admin Authelia logs at `warn`, as the apps' does: an anonymous request is no log line.
+- **Freshness:** every host logs a heartbeat line every 5 minutes (`log-heartbeat`), so a host
+  whose lines stop arriving shows (`LogsNotArriving`), as does vlagent holding logs back
+  (`LogForwardingStuck`) or dropping them (`LogsLost`).
 
 ### Alerts
 
-- **Rules** live in `stacks/admin/metrics/rules/` and `stacks/admin/logs/rules/`. They start from
-  awesome-prometheus-alerts and node-exporter's own mixin, trimmed to this lab. CI checks them
-  (`vmalert -dryRun`), and Alertmanager's config (`amtool check-config`).
+- **Rules** live in `stacks/admin/metrics/rules/` (PromQL, `vmalert`) and `stacks/admin/logs/rules/`
+  (LogsQL, `vmalert-logs`: one datasource per vmalert, as VictoriaMetrics advises), trimmed to this
+  lab. Each alert's `instance` is its host. Both keep their alerts' state in VictoriaMetrics, so a
+  restart doesn't reset a `for` timer. They read it back on their first evaluation only, so each
+  starts once its stores answer: a reboot starts containers in no order. CI checks the rules
+  (`vmalert -dryRun`) and Alertmanager's config (`amtool check-config`), each with its pinned image,
+  and runs the unit tests in `stacks/admin/metrics/rules.test.yml` (`vmalert-tool`): synthetic
+  series for the rules whose meaning hangs on how an exporter counts.
 - **The first set:**
 
 | Alert | Fires when |
 |---|---|
-| Target down | a scrape target unreachable for 5 min |
-| Disk | under 10% free, or full within 24 h at the last 6 hours' rate |
-| Memory | under 10% available for 10 min; an OOM kill in any kernel log |
-| Failed unit | a systemd unit failed for 5 min |
-| Crash loop | a container started 3 times in 15 min. doco-cd still restarts an unhealthy one by itself and posts, as now |
-| Guest backup | a guest's newest PBS backup older than 26 h, or its last verify failed |
-| Storage | a thin pool or PBS's datastore over 80% |
-| Deploys | comin failing to fetch, build or deploy for an hour; doco-cd deploy errors |
-| Certificates | a certificate Gatus checks expires within 14 days |
-| Filesystem errors | ext4, btrfs or I/O errors in a kernel log |
-| The stack | vmalert failing to evaluate, Alertmanager failing to send, a store's disk nearly full |
+| `HostDown`, `TargetDown` | a host's node-exporter, or any other target, unreachable for 5 min |
+| `DiskFull`, `DiskFillsWithinADay` | under 10% free for 5 min; or, under 25% free, full within a day at the last 6 hours' rate |
+| `MemoryLow`, `OOMKill` | under 10% available for 10 min; any OOM kill (the kernel's counter, containers' included) |
+| `UnitFailed` | a service, socket or timer failed for 5 min |
+| `CrashLoop` | a container started 5 times in 15 min, counted from systemd's log of each container start (LogsQL; cAdvisor's start time is the creation, which a restart keeps). The heartbeat jobs start 3 times. doco-cd still restarts an unhealthy one by itself and posts, as now |
+| `GuestBackupStale`, `GuestBackupUnverified` | the newest backup of a guest PVE has now, in its node's namespace, older than 26 h (a retired or moved guest's kept backups don't count); or any guest's newest without a passed verify 5 h on (PBS verifies at 04:30, after both nodes' jobs) |
+| `GuestNeverBackedUp`, `PbsApiDown` | a guest PVE runs with no backup in its node's namespace for 26 h (Unraid and PBS left out, as in the jobs); pbs-exporter unable to read PBS's API for 10 min, which otherwise leaves the backup alerts quiet |
+| `StorageFull`, `DatastoreFull` | a PVE storage or PBS's datastore over 80% |
+| `CominFailing`, `DocoCdNotPolling` | comin failing to fetch, evaluate or build main for an hour; doco-cd without a successful poll for 30 min (none ran, or each failed: doco-cd counts both in `polls_total`). A failed deploy is the deployer's own post, as now |
+| `CertificateExpiring` | a certificate Gatus checks expires within 14 days (Gatus itself alerts at 7) |
+| `FilesystemErrors` | ext4, btrfs, I/O or medium errors in a kernel log (every 5 min) |
+| `LogFlood`, `LogsDropped` | one container or unit logging over 50 lines a second for 10 min: a loop (journald drops what passes 100); journald reporting lines it dropped |
+| `LogsNotArriving`, `LogForwardingStuck`, `LogsLost` | a host seen this week with no heartbeat line in VictoriaLogs for 15 min; over 10 MiB waiting in vlagent for 15 min; vlagent dropping logs |
+| `RuleFailing`, `AlertmanagerSendFailing` | a rule failing to evaluate; Alertmanager failing to post to Discord (which can't reach a broken Discord: see `DeliveryWatchdog`) |
 
-- **Alertmanager:**
-  - posts to `#alerts` with its Discord receiver; the webhook URL is in its `secret.sops.env` (Ali
-    copies it, as for Gatus);
+- **Alertmanager** (`stacks/admin/alertmanager`, `alerts.aliammar.net`):
+  - posts to `#alerts` with its Discord receiver, "Firing: <alert> on <host>" and one line per
+    alert; the webhook URL is in its `secret.sops.env` (Ali copies it, as for Gatus);
   - groups by alert and host, and a host that's down mutes its own other alerts (inhibition);
   - `Watchdog` always fires and pings healthchecks.io's check `alertmanager` every minute. If
-    vmalert, Alertmanager or docker-admin stops, healthchecks.io posts within 10 minutes.
+    vmalert, Alertmanager or docker-admin stops, healthchecks.io posts within 10 minutes;
+  - `DeliveryWatchdog` fires only while Discord takes the posts (Gatus's `discord webhook` row
+    sees the webhook, and no post failed in 15 minutes) and pings check `alerts-delivery`: a
+    deleted webhook or failing posts make healthchecks.io post through its own integrations,
+    which don't use the lab's webhook (with email on, it reaches Ali even when Discord is down);
+  - the vmalerts' rules and pending alerts: `metrics.aliammar.net/vmalert/` and
+    `logs.aliammar.net/select/vmalert/` (each store proxies its vmalert).
+- **Not alerted here:** the app-data backups and the offsite copy (healthchecks.io does, as in P4),
+  and each failed deploy (comin's and doco-cd's own posts).
 - **Gatus** stays the reachability check and posts its own alerts, as now. Its results feed metrics
   for the dashboards and the agent, not more alerts, so nothing posts twice. D8 gains Alertmanager.
 - **Silences:** in Alertmanager's UI (`alerts`) or its API. The agent sets one when its own planned
-  work would trip an alert: ending within 4 hours, its comment naming the work. It's a new operate
-  verb (Rule 4, `AGENTS.md`), granted with the alerts PR.
+  work would trip an alert: ending within 4 hours, its comment naming the work (an operate verb,
+  Rule 4, `AGENTS.md`). Ops reaches the API without a login only to read, set a silence and expire
+  one.
 - **P4's gap closes:** a failed, missed or disabled guest backup shows as a stale guest within a
   day.
 
@@ -2021,7 +2048,9 @@ in a drill.
 | `pbs/setup.sh` (PBS after its installer: repos, guest agent, datastore mount, `pbs/etc/`) (P4) | ~50 lines |
 | `modules/pbs-drift.nix` (ops: PBS's config against `main`) (P4) | ~80 lines: a 25-line script, its allowlist and unit |
 | job metrics: the offsite sync's end time and exit code (`run.sh`), btrbk's newest snapshot (its hook) (P5) | ~20 lines |
-| CI: the scrape config, vmalert's rules and Alertmanager's config, each checked by its own pinned image (P5) | ~15 lines |
+| CI: the scrape config, vmalert's rules (and their unit tests) and Alertmanager's config, each checked by its own pinned image (P5) | ~20 lines |
+| Alertmanager's entrypoint: its three URLs from the environment into files (P5) | ~4 lines |
+| both vmalerts' entrypoints: wait until their stores answer, since vmalert restores its alerts' state on its first evaluation only (P5) | ~2 lines each |
 | `skynet-incident` (P6: alert webhook → `claude -p`; one at a time, repeats dropped, the budget, escalation) | ~40 lines |
 | `skynet-merge` (P6: tier, window and CI checked; the merge; the post) | ~40 lines |
 | `skynet-verify` (P6: a stack's or a host's checks from doco-cd, Gatus, VictoriaMetrics and VictoriaLogs) | ~80 lines |

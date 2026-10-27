@@ -1,0 +1,72 @@
+# Guests' backups on PBS (pbs-exporter) and the storage under them. The app-data backups and the
+# offsite copy alert through healthchecks.io already; their metrics feed dashboards, not alerts.
+groups:
+  - name: backups
+    rules:
+      # pbs-exporter answers 200 even when PBS's API fails, with pbs_up 0 and no snapshot metrics:
+      # TargetDown doesn't see it, and the alerts below go quiet. This one says the watch is blind.
+      - alert: PbsApiDown
+        expr: pbs_up == 0
+        for: 10m
+        labels: { severity: critical }
+        annotations:
+          summary: "pbs-exporter can't read PBS's API, so no guest's backup is watched."
+
+      # The next two watch the guests PVE has now (pve_guest_info), but templates, Unraid (2020) and
+      # PBS (2040), which the core node's job leaves out by design (pbs/README.md). Each is matched
+      # to its backups by vm_id and namespace (one per node, named after it), so a retired guest's
+      # kept backups, or those a guest left on its old node, don't alert. They go quiet while
+      # pve-exporter fails, which TargetDown reports: pve-exporter answers 500 when PVE's API fails.
+
+      # A guest with no backup in its node's namespace (new, left out of a job, its first backup
+      # failed, or moved to the other node): GuestBackupStale has nothing to measure. PBS's own
+      # metrics are needed to say so (pbs_up).
+      - alert: GuestNeverBackedUp
+        expr: |
+          label_replace(label_replace(pve_guest_info{template="0",id!~".+/(2020|2040)"},
+              "vm_id", "$1", "id", ".+/(.+)"), "namespace", "$1", "node", "server-proxmox-(.+)")
+            unless on (vm_id, namespace) pbs_snapshot_vm_last_timestamp
+            and on () (pbs_up == 1)
+        for: 26h
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.name }} ({{ $labels.vm_id }}, {{ $labels.namespace }}): PBS has no backup of it in that namespace."
+
+      # The nodes back up nightly (02:00, 03:30), so a guest past 26 hours missed a night: a failed
+      # or disabled job, or a guest left out.
+      - alert: GuestBackupStale
+        expr: |
+          (time() - pbs_snapshot_vm_last_timestamp > 26 * 3600)
+            and on (vm_id, namespace)
+            label_replace(label_replace(pve_guest_info{template="0",id!~".+/(2020|2040)"},
+              "vm_id", "$1", "id", ".+/(.+)"), "namespace", "$1", "node", "server-proxmox-(.+)")
+        for: 15m
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ with $labels.vm_name }}{{ . }} {{ end }}({{ $labels.vm_id }}, {{ $labels.namespace }}): its newest backup is {{ $value | humanizeDuration }} old."
+
+      # PBS verifies new backups at 04:30 (pbs/README.md), after both nodes' jobs, so the newest is
+      # unverified for about 3 hours on a normal night. Still unverified, or failed, 5 hours on: alert.
+      # Every group counts, a retired guest's too: PBS verifies kept backups again every 30 days.
+      - alert: GuestBackupUnverified
+        expr: pbs_snapshot_vm_last_verify == 0
+        for: 5h
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ with $labels.vm_name }}{{ . }} {{ end }}({{ $labels.vm_id }}, {{ $labels.namespace }}): its newest backup has no passed verify 5 hours on."
+
+  - name: storage
+    rules:
+      - alert: StorageFull
+        expr: pve_disk_usage_bytes{id=~"storage/.+"} / pve_disk_size_bytes > 0.80
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.id }} is {{ $value | humanizePercentage }} full."
+
+      - alert: DatastoreFull
+        expr: pbs_used / pbs_size > 0.80
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "PBS's datastore {{ $labels.datastore }} is {{ $value | humanizePercentage }} full."

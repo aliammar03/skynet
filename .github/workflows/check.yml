@@ -14,9 +14,19 @@ jobs:
       # Evaluate every host and output; building happens on the host (comin keeps the current
       # generation if a build fails), so a full build here would only cost time.
       - run: nix flake check --no-build
-      # The metrics stack's scrape targets, checked by the image that runs them (from compose.yaml,
-      # so a Renovate bump checks with the new version). Unknown fields fail too.
+      # P5's configs, each checked by the image that runs it (taken from its compose.yaml, so a
+      # Renovate bump checks with the new version): the scrape targets (unknown fields fail too),
+      # both vmalerts' rules, and Alertmanager's config.
       - run: |
-          img=$(yq '.services.victoriametrics.image' stacks/admin/metrics/compose.yaml)
-          docker run --rm -v "$PWD/stacks/admin/metrics/scrape.yaml:/scrape.yaml:ro" "$img" \
+          img() { yq ".services.\"$2\".image" "stacks/admin/$1/compose.yaml"; }
+          docker run --rm -v "$PWD/stacks/admin/metrics/scrape.yaml:/scrape.yaml:ro" "$(img metrics victoriametrics)" \
             -dryRun -promscrape.config=/scrape.yaml
+          docker run --rm -v "$PWD/stacks/admin/metrics/rules:/rules:ro" "$(img metrics vmalert)" \
+            -dryRun -rule='/rules/*.yml'
+          # The rules' unit tests, with vmalert-tool at vmalert's own version.
+          tool=$(img metrics vmalert | sed -E 's#/vmalert:([^@]+)@.*#/vmalert-tool:\1#')
+          docker run --rm -v "$PWD/stacks/admin/metrics:/m:ro" -w /m "$tool" unittest --files=rules.test.yml
+          docker run --rm -v "$PWD/stacks/admin/logs/rules:/rules:ro" "$(img logs vmalert-logs)" \
+            -dryRun -rule.defaultRuleType=vlogs -rule='/rules/*.yml'
+          docker run --rm --entrypoint /bin/amtool -v "$PWD/stacks/admin/alertmanager/alertmanager.yml:/am.yml:ro" \
+            "$(img alertmanager alertmanager)" check-config /am.yml

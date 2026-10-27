@@ -89,6 +89,9 @@ endpoints:
   - { <<: *service, name: victoriametrics, url: http://victoriametrics:8428/health, conditions: ["[STATUS] == 200"] }
   - { <<: *service, name: victorialogs, url: http://victorialogs:9428/health, conditions: ["[STATUS] == 200"] }
   - { <<: *service, name: vlagent, url: http://10.10.50.40:9429/health, conditions: ["[STATUS] == 200"] }
+  - { <<: *service, name: vmalert, url: http://vmalert:8880/health, conditions: ["[STATUS] == 200"] }
+  - { <<: *service, name: vmalert-logs, url: http://vmalert-logs:8880/health, conditions: ["[STATUS] == 200"] }
+  - { <<: *service, name: alertmanager, url: http://alertmanager:9093/-/healthy, conditions: ["[STATUS] == 200"] }
 
   - { <<: *app, name: librespeed, url: https://speed.aliammar.net/, conditions: ["[STATUS] == 200"] }
   # /_up is CouchDB's only path without a login.
@@ -140,6 +143,16 @@ endpoints:
     conditions:
       - "[STATUS] == 200"
       - "[BODY].status == up"
+  # Discord still takes #alerts' webhook: a GET answers 200 while it exists. No alert here, since a
+  # dead webhook can't post. Its result feeds DeliveryWatchdog (stacks/admin/metrics/rules), which
+  # healthchecks.io watches. The URL is the secret, so the results show neither it nor errors.
+  - name: discord webhook
+    group: job
+    url: ${DISCORD_ALERTS_WEBHOOK}
+    interval: 5m
+    conditions:
+      - "[STATUS] == 200"
+    ui: { hide-url: true, hide-hostname: true, hide-errors: true }
 
 suites:
   - name: technitium-network

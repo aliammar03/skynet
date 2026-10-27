@@ -1,0 +1,197 @@
+# Unit tests for rules/ (vmalert-tool, in CI): the rules whose meaning depends on how the exporters
+# count, with synthetic series. Outside rules/, so vmalert doesn't load it as a rule file.
+rule_files:
+  - rules/backups.yml
+  - rules/deploys.yml
+evaluation_interval: 1m
+tests:
+  # doco-cd counts every poll in polls_total and the failed ones in poll_errors_total too.
+  - name: doco-cd polls
+    interval: 1m
+    input_series:
+      # healthy: polls every minute, three old failures
+      - series: 'doco_cd_polls_total{instance="healthy",job="doco-cd",repository="r"}'
+        values: "0+1x60"
+      - series: 'doco_cd_poll_errors_total{instance="healthy",job="doco-cd",repository="r"}'
+        values: "3x60"
+      # failing: still polls every minute, but each poll fails from minute 10 on
+      - series: 'doco_cd_polls_total{instance="failing",job="doco-cd",repository="r"}'
+        values: "0+1x60"
+      - series: 'doco_cd_poll_errors_total{instance="failing",job="doco-cd",repository="r"}'
+        values: "_x9 1+1x50"
+      # stopped: the counter stands still
+      - series: 'doco_cd_polls_total{instance="stopped",job="doco-cd",repository="r"}'
+        values: "5x60"
+    alert_rule_test:
+      - eval_time: 45m
+        groupname: deploys
+        alertname: DocoCdNotPolling
+        exp_alerts:
+          - exp_labels: { instance: failing, job: doco-cd, repository: r, severity: warning }
+            exp_annotations:
+              summary: "doco-cd on failing hasn't polled main successfully for 30 minutes (no poll ran, or each failed: its log says why)."
+          - exp_labels: { instance: stopped, job: doco-cd, repository: r, severity: warning }
+            exp_annotations:
+              summary: "doco-cd on stopped hasn't polled main successfully for 30 minutes (no poll ran, or each failed: its log says why)."
+
+  # The delivery heartbeat fires only while the webhook exists and no Discord post failed lately.
+  - name: delivery heartbeat, Discord working
+    interval: 1m
+    input_series:
+      - series: 'alertmanager_notifications_failed_total{instance="alertmanager",integration="discord",job="alertmanager",reason="other"}'
+        values: "0x60"
+      - series: 'gatus_results_endpoint_success{group="job",instance="gatus",job="gatus",key="job_discord-webhook",name="discord webhook",type="HTTP"}'
+        values: "1x60"
+    alert_rule_test:
+      - eval_time: 20m
+        groupname: alerting
+        alertname: DeliveryWatchdog
+        exp_alerts:
+          - exp_labels: { severity: none }
+            exp_annotations:
+              summary: "Firing while Discord takes #alerts' posts: the delivery heartbeat to healthchecks.io."
+  - name: delivery heartbeat, posts failing
+    interval: 1m
+    input_series:
+      - series: 'alertmanager_notifications_failed_total{instance="alertmanager",integration="discord",job="alertmanager",reason="other"}'
+        values: "0x20 1+1x40"
+      - series: 'gatus_results_endpoint_success{group="job",instance="gatus",job="gatus",key="job_discord-webhook",name="discord webhook",type="HTTP"}'
+        values: "1x60"
+    alert_rule_test:
+      - eval_time: 30m
+        groupname: alerting
+        alertname: DeliveryWatchdog
+        exp_alerts: []
+  - name: delivery heartbeat, webhook gone
+    interval: 1m
+    input_series:
+      - series: 'alertmanager_notifications_failed_total{instance="alertmanager",integration="discord",job="alertmanager",reason="other"}'
+        values: "0x60"
+      - series: 'gatus_results_endpoint_success{group="job",instance="gatus",job="gatus",key="job_discord-webhook",name="discord webhook",type="HTTP"}'
+        values: "0x60"
+    alert_rule_test:
+      - eval_time: 20m
+        groupname: alerting
+        alertname: DeliveryWatchdog
+        exp_alerts: []
+
+  # vlagent's buffer growing, and its dropped bytes.
+  - name: log path
+    interval: 1m
+    input_series:
+      - series: 'vlagent_remotewrite_pending_data_bytes{instance="vlagent",job="vlagent"}'
+        values: "0x5 20971520x30"
+      - series: 'vm_persistentqueue_bytes_dropped_total{instance="vlagent",job="vlagent",path="/buffer"}'
+        values: "0x20 4096x20"
+    alert_rule_test:
+      - eval_time: 25m
+        groupname: log path
+        alertname: LogForwardingStuck
+        exp_alerts:
+          - exp_labels: { instance: vlagent, job: vlagent, severity: warning }
+            exp_annotations:
+              summary: "vlagent holds 20MiB of logs that VictoriaLogs hasn't taken for 15 minutes."
+      - eval_time: 25m
+        groupname: log path
+        alertname: LogsLost
+        exp_alerts:
+          - exp_labels: { instance: vlagent, job: vlagent, path: /buffer, severity: warning }
+            exp_annotations:
+              summary: "vlagent dropped logs in the last hour: its buffer filled or VictoriaLogs refused them."
+
+  # PVE's guests against PBS's backup groups: only a guest with none in its node's namespace, not
+  # excluded or a template, and only while PBS answers.
+  - name: guests never backed up
+    interval: 1m
+    input_series:
+      - series: 'pve_guest_info{id="qemu/5040",instance="proxmox-network",job="pve",name="docker-admin",node="server-proxmox-network",template="0",type="qemu"}'
+        values: "1x1700"
+      - series: 'pve_guest_info{id="qemu/2020",instance="proxmox-core",job="pve",name="vm-unraid",node="server-proxmox-core",template="0",type="qemu"}'
+        values: "1x1700"
+      - series: 'pve_guest_info{id="qemu/9000",instance="proxmox-core",job="pve",name="template",node="server-proxmox-core",template="1",type="qemu"}'
+        values: "1x1700"
+      - series: 'pve_guest_info{id="lxc/9999",instance="proxmox-core",job="pve",name="new-guest",node="server-proxmox-core",template="0",type="lxc"}'
+        values: "1x1700"
+      # moved to the core node, its backups still only in the network node's namespace
+      - series: 'pve_guest_info{id="qemu/10010",instance="proxmox-core",job="pve",name="docker-dmz",node="server-proxmox-core",template="0",type="qemu"}'
+        values: "1x1700"
+      - series: 'pbs_snapshot_vm_last_timestamp{datastore="skynet",instance="pbs",job="pbs",namespace="network",vm_id="5040",vm_name="docker-admin"}'
+        values: "0x1700"
+      - series: 'pbs_snapshot_vm_last_timestamp{datastore="skynet",instance="pbs",job="pbs",namespace="network",vm_id="10010",vm_name="docker-dmz"}'
+        values: "0x1700"
+      - series: 'pbs_up{instance="pbs",job="pbs"}'
+        values: "1x1700"
+    alert_rule_test:
+      - eval_time: 25h
+        groupname: backups
+        alertname: GuestNeverBackedUp
+        exp_alerts: []
+      - eval_time: 27h
+        groupname: backups
+        alertname: GuestNeverBackedUp
+        exp_alerts:
+          - exp_labels: { id: lxc/9999, instance: proxmox-core, job: pve, name: new-guest, namespace: core, node: server-proxmox-core, template: "0", type: lxc, vm_id: "9999", severity: critical }
+            exp_annotations:
+              summary: "new-guest (9999, core): PBS has no backup of it in that namespace."
+          - exp_labels: { id: qemu/10010, instance: proxmox-core, job: pve, name: docker-dmz, namespace: core, node: server-proxmox-core, template: "0", type: qemu, vm_id: "10010", severity: critical }
+            exp_annotations:
+              summary: "docker-dmz (10010, core): PBS has no backup of it in that namespace."
+
+  # Backups past 26 hours, only of the guests PVE has now and in their node's namespace. The test's
+  # clock starts at 2000-01-01 (946684800), so a value of 946684800+60 is a backup every minute.
+  - name: stale backups
+    interval: 1m
+    input_series:
+      # last backed up at the start
+      - series: 'pve_guest_info{id="qemu/5040",instance="proxmox-network",job="pve",name="docker-admin",node="server-proxmox-network",template="0",type="qemu"}'
+        values: "1x1700"
+      - series: 'pbs_snapshot_vm_last_timestamp{datastore="skynet",instance="pbs",job="pbs",namespace="network",vm_id="5040",vm_name="docker-admin"}'
+        values: "946684800x1700"
+      # backed up all along
+      - series: 'pve_guest_info{id="qemu/7051",instance="proxmox-core",job="pve",name="technitium-core",node="server-proxmox-core",template="0",type="qemu"}'
+        values: "1x1700"
+      - series: 'pbs_snapshot_vm_last_timestamp{datastore="skynet",instance="pbs",job="pbs",namespace="core",vm_id="7051",vm_name="technitium-core"}'
+        values: "946684800+60x1700"
+      # moved to the core node and backed up there; its old network backups stay behind
+      - series: 'pve_guest_info{id="qemu/10010",instance="proxmox-core",job="pve",name="docker-dmz",node="server-proxmox-core",template="0",type="qemu"}'
+        values: "1x1700"
+      - series: 'pbs_snapshot_vm_last_timestamp{datastore="skynet",instance="pbs",job="pbs",namespace="core",vm_id="10010",vm_name="docker-dmz"}'
+        values: "946684800+60x1700"
+      - series: 'pbs_snapshot_vm_last_timestamp{datastore="skynet",instance="pbs",job="pbs",namespace="network",vm_id="10010",vm_name="docker-dmz"}'
+        values: "946684800x1700"
+      # retired: PVE has no such guest, PBS keeps its backups
+      - series: 'pbs_snapshot_vm_last_timestamp{datastore="skynet",instance="pbs",job="pbs",namespace="core",vm_id="10020",vm_name="retired"}'
+        values: "946684800x1700"
+    alert_rule_test:
+      - eval_time: 25h
+        groupname: backups
+        alertname: GuestBackupStale
+        exp_alerts: []
+      - eval_time: 27h
+        groupname: backups
+        alertname: GuestBackupStale
+        exp_alerts:
+          - exp_labels: { datastore: skynet, instance: pbs, job: pbs, namespace: network, vm_id: "5040", vm_name: docker-admin, severity: critical }
+            exp_annotations:
+              summary: "docker-admin (5040, network): its newest backup is 1d 3h 0m 0s old."
+
+  # PBS's API down: pbs_up 0 alerts, and with PBS's metrics gone no guest reads as never backed up.
+  - name: PBS API down
+    interval: 1m
+    input_series:
+      - series: 'pve_guest_info{id="qemu/5040",instance="proxmox-network",job="pve",name="docker-admin",node="server-proxmox-network",template="0",type="qemu"}'
+        values: "1x1700"
+      - series: 'pbs_up{instance="pbs",job="pbs"}'
+        values: "0x1700"
+    alert_rule_test:
+      - eval_time: 15m
+        groupname: backups
+        alertname: PbsApiDown
+        exp_alerts:
+          - exp_labels: { instance: pbs, job: pbs, severity: critical }
+            exp_annotations:
+              summary: "pbs-exporter can't read PBS's API, so no guest's backup is watched."
+      - eval_time: 27h
+        groupname: backups
+        alertname: GuestNeverBackedUp
+        exp_alerts: []

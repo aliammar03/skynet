@@ -1,6 +1,6 @@
-# VictoriaMetrics: the lab's metrics, scraped from scrape.yaml and kept 13 months, with the two
-# exporters that read Proxmox's and PBS's APIs (read-only tokens). vmalert (the alerts PR) and the
-# MCP server (agent eyes) join this stack later (skynetv2.md → P5).
+# VictoriaMetrics: the lab's metrics, scraped from scrape.yaml and kept 13 months; vmalert, which
+# turns rules/ into alerts for Alertmanager; and the two exporters that read Proxmox's and PBS's
+# APIs (read-only tokens). The MCP server (agent eyes) joins later (skynetv2.md → P5).
 services:
   victoriametrics:
     container_name: victoriametrics
@@ -15,6 +15,8 @@ services:
       - -promscrape.suppressScrapeErrors
       # Its caches would take 60% of the host's memory otherwise.
       - -memory.allowedBytes=512MiB
+      # vmalert's rules and alerts at /vmalert/ (the door's metrics.aliammar.net/vmalert/).
+      - -vmalert.proxyURL=http://vmalert:8880
     environment:
       TZ: Asia/Karachi
     volumes:
@@ -24,6 +26,39 @@ services:
     networks: [edge, backend]
     healthcheck:
       test: [CMD, wget, -qO, /dev/null, http://127.0.0.1:8428/health]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Evaluates rules/*.yml every minute and sends what fires to Alertmanager. Each alert's state goes
+  # to VictoriaMetrics and comes back on a restart, so a restart doesn't reset its `for` timer.
+  # vmalert reads it back on its first evaluation only, so it starts once VictoriaMetrics answers:
+  # after a reboot Docker starts containers in no order, and depends_on orders only a deploy.
+  vmalert:
+    container_name: vmalert
+    image: docker.io/victoriametrics/vmalert:v1.154.1@sha256:aafb962b5a5713c71f0d697d629416f9cccf23aecb74f0ec5e829ddbf3f221f2
+    restart: unless-stopped
+    # $$: the container's shell reads it, not compose.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - 'until wget -q -T 5 -O /dev/null http://victoriametrics:8428/health; do sleep 2; done; exec /vmalert-prod "$$@"'
+      - vmalert
+    command:
+      - -rule=/etc/vmalert/rules/*.yml
+      - -datasource.url=http://victoriametrics:8428
+      - -remoteWrite.url=http://victoriametrics:8428
+      - -remoteRead.url=http://victoriametrics:8428
+      - -notifier.url=http://alertmanager:9093
+      # Each alert's link back to its rule, through VictoriaMetrics' /vmalert/ proxy.
+      - -external.url=https://metrics.aliammar.net
+    environment:
+      TZ: Asia/Karachi
+    volumes:
+      - ./rules:/etc/vmalert/rules:ro # a folder without sops files
+    networks: [edge]
+    healthcheck:
+      test: [CMD, wget, -qO, /dev/null, http://127.0.0.1:8880/health]
       interval: 30s
       timeout: 5s
       retries: 3

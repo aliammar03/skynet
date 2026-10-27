@@ -1,0 +1,93 @@
+# LogsQL rules (vmalert-logs; vmalert adds `_time:<interval>` to a query that sets no `_time` of
+# its own). A rule's labels come from its `stats by (...)` fields; `instance` is set from the host
+# so Alertmanager groups and inhibits it like the metrics rules.
+groups:
+  - name: containers
+    type: vlogs
+    interval: 5m
+    rules:
+      # Each container start is a systemd scope (Docker's systemd cgroup driver), which systemd
+      # logs: "Started libcontainer container <id>". A restart logs it again, unlike cAdvisor's
+      # start time (the container's creation). Docker backs a crash loop off to one start a minute,
+      # and the heartbeat jobs start every 5 minutes (3 in 15), so 5 in 15 minutes is a loop. The
+      # name comes from the container's own lines in the last hour; one that logged nothing shows
+      # its ID.
+      - alert: CrashLoop
+        expr: >-
+          _time:15m _SYSTEMD_UNIT:=init.scope "Started libcontainer container"
+          | extract "Started libcontainer container <CONTAINER_ID_FULL>."
+          | join by (CONTAINER_ID_FULL) (_time:1h CONTAINER_ID_FULL:* | uniq by (CONTAINER_ID_FULL, CONTAINER_NAME))
+          | stats by (_HOSTNAME, CONTAINER_ID_FULL, CONTAINER_NAME) count() as starts
+          | filter starts:>=5
+        labels:
+          severity: warning
+          instance: '{{ index $labels "_HOSTNAME" }}'
+        annotations:
+          summary: '{{ index $labels "_HOSTNAME" }}: {{ with index $labels "CONTAINER_NAME" }}{{ . }}{{ else }}container {{ slice (index $labels "CONTAINER_ID_FULL") 0 12 }}{{ end }} started {{ $value }} times in 15 minutes.'
+
+  - name: kernel
+    type: vlogs
+    interval: 5m
+    rules:
+      - alert: FilesystemErrors
+        expr: >-
+          _TRANSPORT:=kernel ("EXT4-fs error" OR "BTRFS error" OR "BTRFS critical" OR "I/O error" OR "critical medium error")
+          | stats by (_HOSTNAME) count() as errors
+        labels:
+          severity: critical
+          instance: '{{ index $labels "_HOSTNAME" }}'
+        annotations:
+          summary: '{{ index $labels "_HOSTNAME" }}: {{ $value }} filesystem or disk errors in its kernel log in the last 5 minutes.'
+
+  - name: freshness
+    type: vlogs
+    interval: 5m
+    rules:
+      # Every host logs a heartbeat line every 5 minutes (log-heartbeat, modules/observability.nix;
+      # PBS's pbs/etc/). A host seen this week with none in 15 minutes: its lines stopped arriving
+      # (its upload, vlagent or VictoriaLogs), and every log rule is blind to it.
+      - alert: LogsNotArriving
+        expr: >-
+          _time:7d {_SYSTEMD_UNIT="log-heartbeat.service"}
+          | stats by (_HOSTNAME) count() if (_time:15m) as recent
+          | filter recent:=0
+        labels:
+          severity: warning
+          instance: '{{ index $labels "_HOSTNAME" }}'
+        annotations:
+          summary: '{{ index $labels "_HOSTNAME" }}: no log lines have reached VictoriaLogs for 15 minutes (its journal upload, vlagent or VictoriaLogs).'
+
+  - name: volume
+    type: vlogs
+    interval: 5m
+    rules:
+      # journald's own count of what it dropped past the cap (modules/observability.nix). Containers
+      # share docker.service's allowance, so one container's flood also drops its neighbours' lines:
+      # this says how many, LogFlood says who.
+      - alert: LogsDropped
+        expr: >-
+          MESSAGE_ID:=a596d6fe7bfa4994828e72309e95d61e
+          | extract "Suppressed <dropped> messages from <unit>"
+          | stats by (_HOSTNAME, unit) sum(dropped) as dropped
+          | filter dropped:>0
+        labels:
+          severity: warning
+          instance: '{{ index $labels "_HOSTNAME" }}'
+        annotations:
+          summary: '{{ index $labels "_HOSTNAME" }}: journald dropped {{ $value }} lines from {{ $labels.unit }} in 5 minutes (over its cap).'
+
+      # A loop that logs (a client retrying a request hundreds of times a second) would push the
+      # oldest days out. The lab logs about 0.5 lines a second in all, and journald drops what one
+      # service logs past about 100 a second (modules/observability.nix); 50 a second from one
+      # container or unit for 10 minutes is a loop. Counted by each line's own time, so a host's
+      # first upload of its old journal doesn't count.
+      - alert: LogFlood
+        expr: >-
+          * | stats by (_HOSTNAME, _SYSTEMD_UNIT, CONTAINER_NAME) count() as lines
+          | filter lines:>15000
+        for: 10m
+        labels:
+          severity: warning
+          instance: '{{ index $labels "_HOSTNAME" }}'
+        annotations:
+          summary: '{{ index $labels "_HOSTNAME" }}: {{ or (index $labels "CONTAINER_NAME") (index $labels "_SYSTEMD_UNIT") }} logged {{ $value }} lines in 5 minutes; its log shows what repeats.'

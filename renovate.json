@@ -33,6 +33,12 @@
       "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)\\.(?<build>\\d+)-r(?<revision>\\d+)$"
     },
     {
+      "description": "VictoriaMetrics and vmalert are one release: one PR for the store and both vmalerts",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["docker.io/victoriametrics/victoria-metrics", "docker.io/victoriametrics/vmalert"],
+      "groupName": "VictoriaMetrics"
+    },
+    {
       "description": "VictoriaLogs and vlagent are one release (one repository, one version): one PR, so vlagent never runs ahead of the store it writes to",
       "matchDatasources": ["docker"],
       "matchPackageNames": ["docker.io/victoriametrics/victoria-logs", "docker.io/victoriametrics/vlagent"],

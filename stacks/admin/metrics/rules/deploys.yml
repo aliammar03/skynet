@@ -1,0 +1,90 @@
+# The deployers, and the alert and log paths themselves. comin and doco-cd post each failed deploy
+# to #alerts themselves; these catch what lasts, and what they can't post.
+groups:
+  # vlagent keeps on disk what VictoriaLogs doesn't take (at most 1 GiB, oldest dropped first).
+  # Normally nothing waits. Whether each host's lines still arrive is LogsNotArriving
+  # (stacks/admin/logs/rules).
+  - name: log path
+    rules:
+      - alert: LogForwardingStuck
+        expr: vlagent_remotewrite_pending_data_bytes > 10 * 1024 * 1024
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "vlagent holds {{ $value | humanize1024 }}B of logs that VictoriaLogs hasn't taken for 15 minutes."
+
+      - alert: LogsLost
+        expr: increase(vm_persistentqueue_bytes_dropped_total{job="vlagent"}[1h]) > 0 or increase(vlagent_remotewrite_packets_dropped_total[1h]) > 0
+        labels: { severity: warning }
+        annotations:
+          summary: "vlagent dropped logs in the last hour: its buffer filled or VictoriaLogs refused them."
+
+  - name: deploys
+    rules:
+      # Not the deploy itself: a switch where one unit fails counts as failed until the next deploy,
+      # though the host runs main. comin posts each failed switch, and UnitFailed covers a unit that
+      # stays failed.
+      - alert: CominFailing
+        expr: max by (instance) ({__name__=~"comin_last_(fetch|eval|build)_failed"}) == 1
+        for: 1h
+        labels: { severity: warning }
+        annotations:
+          summary: "comin on {{ $labels.instance }} has failed to fetch, evaluate or build main for an hour."
+
+      # doco-cd counts every poll in polls_total, failed or not, and a failed one in
+      # poll_errors_total too (the latter appears with the first failure). No poll at all, or only
+      # failed ones, for 30 minutes: main isn't reaching the host.
+      - alert: DocoCdNotPolling
+        expr: |
+          increase(doco_cd_polls_total[30m]) == 0
+            or increase(doco_cd_poll_errors_total[30m]) >= increase(doco_cd_polls_total[30m])
+        labels: { severity: warning }
+        annotations:
+          summary: "doco-cd on {{ $labels.instance }} hasn't polled main successfully for 30 minutes (no poll ran, or each failed: its log says why)."
+
+  - name: certificates
+    rules:
+      # Gatus alerts at 7 days on the doors' rows; this is the earlier, quieter notice.
+      - alert: CertificateExpiring
+        expr: gatus_results_certificate_expiration_seconds > 0 and gatus_results_certificate_expiration_seconds < 14 * 86400
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.name }}: its certificate expires in {{ $value | humanizeDuration }}."
+
+  - name: alerting
+    rules:
+      # Always firing. Alertmanager sends it to healthchecks.io every minute (its own route), which
+      # posts when it stops: vmalert, Alertmanager, docker-admin or its egress is down.
+      - alert: Watchdog
+        expr: vector(1)
+        labels: { severity: none }
+        annotations:
+          summary: "Always firing: the alert path's heartbeat to healthchecks.io."
+
+      # The failing rule's name moves to `rule`: the alert's own name takes `alertname`.
+      - alert: RuleFailing
+        expr: label_replace(increase(vmalert_alerting_rules_errors_total[10m]) > 0, "rule", "$1", "alertname", "(.*)")
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }}: rule {{ $labels.rule }} failed to evaluate in the last 10 minutes."
+
+      # The delivery heartbeat. Watchdog proves vmalert and Alertmanager run, not that Discord takes
+      # the posts: this fires only while the webhook exists (Gatus's `discord webhook` row) and no
+      # post to Discord failed in 15 minutes. Alertmanager sends it to healthchecks.io's check
+      # `alerts-delivery`, which posts through its own integrations when it stops.
+      - alert: DeliveryWatchdog
+        expr: |
+          sum(increase(alertmanager_notifications_failed_total{integration="discord"}[15m])) == 0
+            and on () (gatus_results_endpoint_success{name="discord webhook"} == 1)
+        labels: { severity: none }
+        annotations:
+          summary: "Firing while Discord takes #alerts' posts: the delivery heartbeat to healthchecks.io."
+
+      # Discord only: a missed Watchdog ping is healthchecks.io's to post, after its grace. This one
+      # can't reach a broken Discord either; it's for Alertmanager's UI and the agent, and
+      # DeliveryWatchdog stops with it.
+      - alert: AlertmanagerSendFailing
+        expr: increase(alertmanager_notifications_failed_total{integration!="webhook"}[10m]) > 0
+        labels: { severity: warning }
+        annotations:
+          summary: "Alertmanager failed to post to {{ $labels.integration }} in the last 10 minutes."

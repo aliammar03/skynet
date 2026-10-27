@@ -33,7 +33,8 @@ systemctl daemon-reload
 systemctl enable --now mnt-datastore-skynet.automount
 # Restarted every run, so a changed drop-in applies. The package doesn't enable the upload.
 systemctl enable systemd-journal-upload
-systemctl restart prometheus-node-exporter systemd-journal-upload
+systemctl restart systemd-journald prometheus-node-exporter systemd-journal-upload
+systemctl enable --now log-heartbeat.timer
 
 # The datastore: new on an empty share, reused (as-is) on one that has it.
 ls "$store" >/dev/null
