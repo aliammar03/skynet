@@ -1,0 +1,8 @@
+# VLAN 50's NIC (proxmox.sh's net1), named by its MAC as the installer names `lan`
+# (/usr/local/lib/systemd/network/50-pmx-lan.link).
+[Match]
+MACAddress=bc:24:11:20:40:02
+Type=ether
+
+[Link]
+Name=mgmt50

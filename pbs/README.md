@@ -1,7 +1,8 @@
 # pbs
 
-Proxmox Backup Server: both nodes' nightly guest backups. VMID 2040 · 10.10.20.40 · VLAN 20 ·
-server-proxmox-core · 2 vCPU / 4 GB (2 GB guaranteed) / 32 GB. Proxmox's appliance (Debian), not
+Proxmox Backup Server: both nodes' nightly guest backups. VMID 2040 · 10.10.20.40 (VLAN 20) and
+10.10.50.24 (VLAN 50, the nodes' way in) · server-proxmox-core · 2 vCPU / 4 GB (2 GB guaranteed) /
+32 GB. Proxmox's appliance (Debian), not
 NixOS: it installs from Proxmox's ISO with `answer.toml`, then `setup.sh` gives it `etc/`, the
 part of its `/etc` that git holds. ops compares that with the host every day.
 
@@ -25,13 +26,25 @@ part of its `/etc` that git holds. ops compares that with the host every day.
   the journal to docker-admin's vlagent (`etc/systemd/journal-upload.conf.d/`; its unit retries
   forever, `etc/systemd/system/systemd-journal-upload.service.d/`). journald drops what one service
   logs past about 100 lines a second (`etc/systemd/journald.conf.d/`), and `log-heartbeat.timer`
-  logs a line every 5 minutes, as on the NixOS hosts. PBS has no firewall of its own: OPNsense
+  logs a line every 5 minutes, as on the NixOS hosts. On VLAN 20 OPNsense is PBS's firewall: it
   admits only docker-admin to :9100.
+- **Network:** two NICs.
+  - `lan` (VLAN 20, 10.10.20.40): the datastore on Unraid, the internet, and every host off
+    VLAN 50, through OPNsense: ops's SSH, your browser, docker-admin's scrape, exporter and door.
+  - `mgmt50` (VLAN 50, 10.10.50.24, no gateway; `etc/network/interfaces.d/mgmt50`, named by its
+    MAC in `etc/systemd/network/`): each node's storage `pbs`, so backups and restores don't cross
+    OPNsense, which runs on the network node. The core node's never leave the node.
+  - **Each address answers by its own VLAN** (two routing tables, in `mgmt50`'s file). Otherwise a
+    VLAN 50 host using 10.10.20.40 would get its replies straight over VLAN 50, past OPNsense,
+    which drops a connection it sees only half of.
+  - `etc/nftables.conf` filters `mgmt50` only, where OPNsense isn't in the way: :8007 and ping from
+    the two nodes and docker-admin (Gatus's `pbs-vlan50` row).
 - **Secrets:** `secret.sops.yaml` (Ali only): `root_password`, for the UI and the console.
 - **Agent:** root over SSH from ops only (`from=` in `answer.toml`, D11). ops pins the host key
   (`ssh_host.pub`, `modules/agent.nix`).
 - **`etc/`:** `proxmox-backup/`'s config files that hold no secret, the datastore's mount units,
-  node-exporter's and the upload's drop-ins, the apt sources (no subscription) and `resolv.conf`. `modules/pbs-drift.nix` on ops compares them
+  node-exporter's and the upload's drop-ins, VLAN 50's NIC and its firewall, the apt sources (no
+  subscription) and `resolv.conf`. `modules/pbs-drift.nix` on ops compares them
   with PBS at 07:00, and every allowlisted name too, so a file that appears on PBS (a sync job added
   in the UI) counts. A difference, or a failed check, goes to `#alerts`.
 - **Updates:** `apt full-upgrade` (setup runs one). Proxmox's no-subscription repository.
@@ -70,7 +83,7 @@ part of its `/etc` that git holds. ops compares that with the host every day.
      secret. The ACLs stay. (In its Shell instead:
      `proxmox-backup-debug api set /access/users/pve@pbs/token/core --regenerate true`.)
    - the core node's UI: Datacenter → Storage → Add → Proxmox Backup Server: ID `pbs`, server
-     10.10.20.40, username `pve@pbs!core`, password the secret, datastore `skynet`, namespace
+     10.10.50.24, username `pve@pbs!core`, password the secret, datastore `skynet`, namespace
      `core`, fingerprint from the PR, Backup Retention "Keep all backups" (PBS prunes), Encryption
      "Auto-generate a client encryption key". Store the key it offers in the password manager
      (survival kit). Then Datacenter → Backup → the job → storage `pbs`;
@@ -112,3 +125,8 @@ PVE's.
   its history. Removing backups is root's, in PBS's UI.
 - Unraid's New Permissions tool must leave share `pbs` out. It would hand every file to
   `nobody:users`, and then PBS (uid 34) couldn't write its datastore, nor docker-admin read it.
+- A NIC added while PBS runs comes up under the kernel's name. `setup.sh` has udev rename it by
+  its MAC while it's still down, then brings it up.
+- PBS starts its own connections to VLAN 50 hosts from 10.10.50.24, the log upload to docker-admin
+  included, so docker-admin's firewall admits that address too.
+- VLAN 50 is vmbr0's native VLAN on both nodes, so `net1` carries no tag.

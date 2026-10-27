@@ -77,6 +77,7 @@ in
         "10.10.70.50" # technitium-network
         "10.10.70.51" # technitium-core
         "10.10.20.40" # PBS
+        "10.10.50.24" # PBS on VLAN 50: its upload to this host leaves by that NIC (pbs/README.md)
       ];
     in
     ''

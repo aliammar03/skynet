@@ -17,8 +17,8 @@ existing host (e.g. `hosts/docker-admin/`) is the template for each file.
 - **MACs:** `BC:24:11:XX:YY:NN`, where XX:YY are the VMID's last four digits (5040 → `50:40`,
   7050 → `70:50`, 10010 → `00:10`) and NN numbers the NIC (`01`, `02`…). Pinned, so OPNsense's ARP
   entry stays valid across a rebuild. docker-admin's second NIC (`:60`) predates this rule.
-- **VLAN tag:** every NIC is tagged, except VLAN 50 on server-proxmox-network (vmbr0's native VLAN
-  there).
+- **VLAN tag:** every NIC is tagged, except on VLAN 50, vmbr0's native VLAN on both nodes: each
+  node's own address sits on vmbr0, and 50 isn't in its VLAN list.
 
 ## 1. Branch (agent)
 
@@ -202,7 +202,7 @@ snapshot; then `touch /opt/appdata/.data-ready && systemctl start docker-doco-cd
 
 ## Gotchas
 
-- VLAN 50 on the network node is untagged; everywhere else, tag.
+- VLAN 50 is untagged on both nodes; every other VLAN is tagged.
 - **Ballooning:** `--memory` is the most a VM gets, `--balloon` the least. Proxmox keeps the minimum
   guaranteed and reclaims the rest, mostly page cache, only once the node passes 80% use.
   - Give a minimum of the working set plus headroom (`free -m`'s used, not its cache) to a guest

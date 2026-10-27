@@ -1345,6 +1345,9 @@ once both nodes back up to the new one (Ali, 2026-10-25: they aren't needed).
   firewall rules and the Gatus row carry over: 2 vCPU, 4 GB with 2 GB guaranteed (ballooning:
   verify, GC and backups use the rest), and a 32 GB OS disk on `local-lvm`. `pbs/proxmox.sh` is the
   `qm create`, as for the NixOS hosts. Core's backup job leaves it out: PBS rebuilds from git.
+- **A second NIC on VLAN 50**, 10.10.50.24: the nodes' storage `pbs` points there, so backups and
+  restores don't cross OPNsense, which runs on the network node. Each address answers by its own
+  VLAN, and PBS's own firewall guards that NIC (`pbs/README.md` → Network).
 - **Install:** Proxmox's automated installer. `pbs/answer.toml` holds:
   - the disk, address, hostname, and the NIC by its MAC (named `lan`);
   - root's SSH keys (the agent's, from ops only, and Ali's);
@@ -2040,7 +2043,7 @@ in a drill.
 |---|---|
 | Nodes | server-proxmox-core (12 cpu, 31 GB) · server-proxmox-network (8 cpu, 15 GB) · mgmt IPs 10.10.50.11 (core) / 10.10.50.10 (network) · storage `local` (ISO), `local-lvm` (disks), `pbs` (VM 2040) |
 | VLANs | 10 Trusted · 20 Servers · 30 IoT · 50 Mgmt · 60 Admin access · 70 Net services · 80 Identity · 90 Ops · 100 DMZ · 300 ISP L2 passthrough (not routed). `10.10.<vlan>.0/24`, gateway `.1` |
-| Keep | OPNsense VM 5001 (config → `skynet-opnsense` via os-git-backup) · Omada CT 525 (10.10.50.25) · PBS VM 2040 (10.10.20.40; `pbs/`) · Unraid VM 2020 · HAOS VM 3050 (10.10.30.50) · athena CT 10030 (10.10.100.30) |
+| Keep | OPNsense VM 5001 (config → `skynet-opnsense` via os-git-backup) · Omada CT 525 (10.10.50.25) · PBS VM 2040 (10.10.20.40, and 10.10.50.24 for the nodes; `pbs/`) · Unraid VM 2020 · HAOS VM 3050 (10.10.30.50) · athena CT 10030 (10.10.100.30) |
 | Retire | ops VM 9090 (P1) · Management Caddy CT 635 (P1) · AdGuard 730/731 and Technitium CTs 750/751 (P2) · docker-dmz VM 10015 + Arcane, Authentik CT 837 (P3) · PBS CT 240 with v1's backups (P4, at the cutover) · template 9000 (P7) |
 | Domain | `aliammar.net`: public DNS at Cloudflare (tunnel CNAMEs); split-horizon internal zone in Technitium (`dns/aliammar.net.zone`) |
 | Gotchas | ballooning per VM (`runbooks/new-vm.md`): a minimum for the Docker hosts and ops, off for passthrough guests and the DNS VMs · a NixOS host serving :53 needs `services.resolved.enable = false` (its stub holds :53) · recreating a guest on the same IP poisons OPNsense's ARP, so pin MACs |

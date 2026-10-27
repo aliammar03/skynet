@@ -1,0 +1,17 @@
+# VLAN 50 (Mgmt), proxmox.sh's net1: the nodes reach PBS here, so their backups and restores
+# don't cross OPNsense. No gateway: everything else still leaves by `lan`. nftables.conf limits who
+# may connect on it.
+auto mgmt50
+iface mgmt50 inet static
+	address 10.10.50.24/24
+	# Each address answers by its own VLAN, so no connection takes two paths: OPNsense drops one it
+	# sees only half of. 10.10.20.40 by `lan` (through OPNsense for other VLANs, VLAN 50 included),
+	# 10.10.50.24 by mgmt50.
+	post-up ip route replace 10.10.20.0/24 dev lan table 20
+	post-up ip route replace default via 10.10.20.1 dev lan table 20
+	post-up ip rule del from 10.10.20.40 table 20 2>/dev/null; ip rule add from 10.10.20.40 table 20
+	post-up ip route replace 10.10.50.0/24 dev mgmt50 table 50
+	post-up ip route replace default via 10.10.50.1 dev mgmt50 table 50
+	post-up ip rule del from 10.10.50.24 table 50 2>/dev/null; ip rule add from 10.10.50.24 table 50
+	pre-down ip rule del from 10.10.20.40 table 20 2>/dev/null || true
+	pre-down ip rule del from 10.10.50.24 table 50 2>/dev/null || true
