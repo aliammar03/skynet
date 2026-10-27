@@ -1557,11 +1557,12 @@ today a failed, missed or disabled guest backup posts nothing (P4 → Open).
 ### Where it runs (docker-admin)
 
 Four stacks in `stacks/admin/`, each with its site, DNS name, Gatus row and README
-(`runbooks/new-stack.md`):
+(`runbooks/new-stack.md`), and a fifth for Wider eyes, `exporters`, with no site:
 
 | Stack | Containers | Name | `/opt/appdata/<stack>/` |
 |---|---|---|---|
-| `metrics` | victoriametrics, vmalert, pve-exporter, pbs-exporter, mcp-victoriametrics; opnsense-exporter, omada-exporter (Wider eyes) | `metrics` | `data`: cache (history, not backed up) |
+| `metrics` | victoriametrics, vmalert, pve-exporter, pbs-exporter, mcp-victoriametrics | `metrics` | `data`: cache (history, not backed up) |
+| `exporters` (Wider eyes) | opnsense-exporter, omada-exporter | — | none |
 | `logs` | victorialogs, vlagent (its syslog listeners: Wider eyes), vmalert-logs, mcp-victorialogs | `logs` | `data`, `buffer`: cache |
 | `alertmanager` | alertmanager | `alerts` | `data` (silences): data |
 | `grafana` | grafana | `grafana` | `data`: cache (all of it comes from git or the login) |
@@ -1729,10 +1730,10 @@ the internet slow?", "is a disk failing?" and "why is this app slow?" are answer
 | Source | Metrics | Logs | Set up by |
 |---|---|---|---|
 | Proxmox nodes | Debian's node-exporter, with its SMART and NVMe textfile timers | the journal, through `systemd-journal-upload`, as PBS's | Ali runs `pve/setup.sh` on each node |
-| OPNsense | opnsense-exporter in `metrics`, through a read-only API user | remote syslog to vlagent, TCP 5514: firewall, system, dnsmasq | Ali: the user and its key, the logging target |
+| OPNsense | opnsense-exporter in `exporters`, through a read-only API user | remote syslog to vlagent, TCP 5514: firewall, system, dnsmasq | Ali: the user and its key, the logging target |
 | The doors | — | caddy-admin's and caddy-apps' access logs, JSON, into the journal | the PR |
 | Unraid | upstream node-exporter and smartctl-exporter, as two Unraid containers | remote syslog to vlagent, TCP 5515 | Ali: the containers (`unraid/README.md`), the syslog target |
-| Omada | OmadaBridge in `metrics`, through a viewer user | its devices' remote logging to vlagent, UDP 5516 | Ali: the user, the logging target |
+| Omada | OmadaBridge in `exporters`, through a viewer user | its devices' remote logging to vlagent, UDP 5516 | Ali: the user, the logging target |
 | Technitium | a timer on each DNS host writes the dashboard's last hour to node-exporter's textfile | already in the journal | the PR |
 
 **Tools** (researched 2026-10-28):
@@ -1747,6 +1748,10 @@ the internet slow?", "is a disk failing?" and "why is this app slow?" are answer
 | Technitium | a textfile timer on the DNS hosts (glue) | the admin login is already on the host, so no credential moves | the community exporters (39★ at most, and a token to move) |
 
 **Per source:**
+- **`exporters`, a stack of its own:** doco-cd redeploys a whole stack when one of its containers
+  dies, so two young exporters' crash loops would restart VictoriaMetrics if they sat in `metrics`.
+  Here they restart only each other, and a missing key fails only this stack's deploy.
+  VictoriaMetrics reaches them on `edge`.
 - **Proxmox nodes:** `pve/setup.sh` and `pve/etc/`, as PBS's. The nodes' config stays Ali's to
   apply; git describes it.
   - node-exporter on the node's VLAN 50 address, with the systemd and textfile collectors; SMART
@@ -1832,10 +1837,10 @@ its config in git. Widgets that need tokens wait.
    MCP servers and `.mcp.json`. Two real questions answered from the data, in the PR.
 5. **Homepage**, at Ali's call.
 6. **Wider eyes, plan:** this section. Merging it is Ali's go.
-7. **Wider eyes, wave 1 PR:** `pve/` and the nodes' targets; opnsense-exporter and vlagent's
-   syslog listener; the doors' access logs; their alerts and freshness checks. Ali: OPNsense's API
-   user (its key into `stacks/admin/metrics/secret.sops.env`) and logging target, then
-   `pve/setup.sh` on both nodes.
+7. **Wider eyes, wave 1 PR:** `pve/` and the nodes' targets; the `exporters` stack with
+   opnsense-exporter, and vlagent's syslog listener; the doors' access logs; their alerts and
+   freshness checks. Ali: OPNsense's API user (its key into `stacks/admin/exporters/secret.sops.env`)
+   and logging target, then `pve/setup.sh` on both nodes.
 8. **Wider eyes, wave 2 PR:** Unraid, Omada and Technitium, with their alerts. Ali: Unraid's
    containers and syslog target, Omada's viewer user (into the same secret file) and remote logging,
    and the alias changes.
