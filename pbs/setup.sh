@@ -23,6 +23,9 @@ done
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -q
 apt-get install -qy qemu-guest-agent nfs-common
+# A guest from Drive's copy (runbooks/restore.md, case 6). The rclone config, with its token, is
+# Ali's, made for a restore and removed after it.
+apt-get install -qy rclone fuse3
 # For docker-admin: node-exporter (VictoriaMetrics scrapes it) and the journal's upload to vlagent;
 # etc/systemd/ holds their settings. Not node-exporter's recommended extra collectors: their timers
 # probe hardware a VM lacks.

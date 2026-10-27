@@ -160,25 +160,64 @@ guest backup before any host is rebuilt.
    from restic (`skynet-restore drive --all`).
 
 **One guest, without copying it all** (a drill, or the first guest): mount Drive's copy read-only and
-give a scratch datastore its chunks, so only the chunks the restore reads are fetched.
-- **Agent**, as root on PBS:
-  1. `apt-get install -y rclone fuse3`; Ali's `rclone config` (remote `gdrive`);
-  2. mount `gdrive:skynet/pbs` read-only where `backup` can read it
-     (`rclone mount --read-only --allow-other --vfs-cache-mode full`);
-  3. `proxmox-backup-manager datastore create <scratch> /mnt/datastore/<scratch>`, then bind the
-     mount's `.chunks` over its own;
-  4. copy the guest's `owner` file and the snapshot's folder (in `ns/<node>/vm/<vmid>/`) into the
-     same paths there, owned by `backup`;
-  5. `DatastoreReader` on `/datastore/<scratch>` for `pve@pbs` and the node's token, then
-     `proxmox-backup-manager verify <scratch>`.
-- **Ali**, on the node:
-  1. storage `<scratch>` with the node's own token and key, and the fingerprint from storage `pbs`
-     (`/etc/pve/storage.cfg`):
-     `pvesm add pbs <scratch> --server 10.10.50.24 --datastore <scratch> --namespace <node> --username 'pve@pbs!<node>' --password "$(cat /etc/pve/priv/storage/pbs.pw)" --fingerprint <fingerprint> --encryption-key /etc/pve/priv/storage/pbs.enc`;
-  2. restore beside the original (case 4), and check it boots: `qm guest cmd <new vmid> get-host-name`;
-  3. destroy it and `pvesm remove <scratch>`.
-- **Agent** removes the scratch datastore and the mount. The datastore is removed on Ali's go
-  (D11), which the drill's go covers.
+give a scratch datastore its chunks, so only the guest's chunks are fetched (technitium-core: 888
+chunks, 918 MiB).
+- **Ali**, as root on PBS: `rclone config`. A new remote `gdrive`, type `drive`, the kit's client ID
+  and secret, scope `drive.file`, no auto config. Run the `rclone authorize "drive" "…"` line it
+  prints on the workstation (`nix shell nixpkgs#rclone -c rclone authorize …`), log in, and paste
+  the token back. `rclone lsd gdrive:skynet` then lists `pbs` and `restic`.
+- **Agent**, as root on PBS (`<s>` the scratch datastore, `<node>` core or network):
+  ```sh
+  mkdir -p /mnt/drive-pbs
+  systemd-run --unit=rclone-drill --property=Type=notify rclone mount gdrive:skynet/pbs /mnt/drive-pbs \
+    --config /root/.config/rclone/rclone.conf --read-only --allow-other --uid 34 --gid 34 \
+    --vfs-cache-mode full --cache-dir /var/cache/rclone-drill --vfs-cache-max-size 5G --tpslimit 8
+  proxmox-backup-manager datastore create <s> /mnt/datastore/<s> --tuning chunk-order=none
+  mount --bind /mnt/drive-pbs/.chunks /mnt/datastore/<s>/.chunks
+  proxmox-backup-debug api create /admin/datastore/<s>/namespace --name <node> --output-format json
+  mkdir -p /mnt/datastore/<s>/ns/<node>/vm/<vmid>
+  cp -r /mnt/drive-pbs/ns/<node>/vm/<vmid>/owner /mnt/drive-pbs/ns/<node>/vm/<vmid>/<time> /mnt/datastore/<s>/ns/<node>/vm/<vmid>/
+  chown -R backup:backup /mnt/datastore/<s>/ns/<node>/vm
+  proxmox-backup-manager acl update /datastore/<s> DatastoreReader --auth-id pve@pbs
+  proxmox-backup-manager acl update /datastore/<s> DatastoreReader --auth-id 'pve@pbs!<node>'
+  proxmox-backup-manager verify <s> --read-threads 8
+  ```
+  - Each chunk is about 2 s away on Drive, so reads must run side by side. PBS's defaults don't:
+    the verify reads with one thread, and first stats every chunk, one at a time, to sort them by
+    inode (good for a disk; here, minutes of Drive lookups before the first read).
+    `chunk-order=none` and `--read-threads 8` fix both.
+  - The verify leaves every chunk in rclone's cache (on PBS's disk, capped at 5 GiB), so the
+    restore after it reads locally.
+- **Ali**, as root on the node: storage `<s>` with the node's own token and key, and PBS's
+  fingerprint (storage `pbs`'s, in `/etc/pve/storage.cfg`); then the guest beside the original
+  (case 4), without its NIC or installer ISO, booted and asked its name; then both gone:
+  ```sh
+  pvesm add pbs <s> --server 10.10.50.24 --datastore <s> --namespace <node> \
+    --username 'pve@pbs!<node>' --password "$(cat /etc/pve/priv/storage/pbs.pw)" \
+    --fingerprint <fingerprint> --encryption-key /etc/pve/priv/storage/pbs.enc
+  pvesm list <s>
+  qmrestore <s>:backup/vm/<vmid>/<time> <new vmid> --unique 1 --bwlimit 51200 --storage local-lvm
+  qm set <new vmid> --delete net0,ide2 --boot order=scsi0 --onboot 0 --name drill-<vmid>
+  qm start <new vmid>
+  sleep 60; qm guest cmd <new vmid> get-host-name
+  qm stop <new vmid> && qm destroy <new vmid>
+  pvesm remove <s>
+  ```
+  Done before the node's next backup job, which would take the new VM too.
+- **Agent**, last: the scratch datastore's grants and the datastore go (on Ali's go, D11: the
+  drill's go covers it), then the mount and its cache, then Ali's rclone config:
+  ```sh
+  umount /mnt/datastore/<s>/.chunks
+  proxmox-backup-manager acl update /datastore/<s> DatastoreReader --auth-id pve@pbs --delete true
+  proxmox-backup-manager acl update /datastore/<s> DatastoreReader --auth-id 'pve@pbs!<node>' --delete true
+  proxmox-backup-manager datastore remove <s>
+  rm -r /mnt/datastore/<s>
+  systemctl stop rclone-drill; systemctl reset-failed rclone-drill
+  rm -r /var/cache/rclone-drill && rmdir /mnt/drive-pbs
+  rm /root/.config/rclone/rclone.conf
+  ```
+  Unmount the bind first: Drive's copy must never sit under a folder being removed. A stopped
+  mount's unit stays `failed`, which `UnitFailed` reports after 5 minutes, hence `reset-failed`.
 
 ## Last done
 
@@ -189,4 +228,5 @@ give a scratch datastore its chunks, so only the chunks the restore reads are fe
 | 3 | 2026-10-25, docker-dmz rebuilt, its data from ops; `--all` from Drive not yet | under 3 minutes each way, no difference |
 | 4 | 2026-10-27, docker-admin over itself, from its 10-25 backup | back; case 4's after-steps come from it |
 | 5 | not yet; PBS's first install (2026-10-25) took the same steps | — |
-| 6 | not yet: one guest, technitium-core, is P4's next drill | — |
+| 6, one guest | 2026-10-27, technitium-core as 99051, from Drive's copy of its 10-27 03:30 backup | verify 0 errors (916 MiB of chunks in 300 s); restored in 110 s; booted and answered as technitium-core |
+| 6, all of it | not yet | — |
