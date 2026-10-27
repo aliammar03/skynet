@@ -22,6 +22,8 @@
   Nothing that writes or deletes is open.
 - **Data:** `/opt/appdata/metrics/data` (the history; backup class: cache, not backed up). About
   30–45 MB a day, so 12–18 GB at 13 months.
+- **Memory:** VictoriaMetrics at most 1.5 GiB (`mem_limit`); its caches stay under 512 MiB.
+  docker-admin has no swap, so past the limit the kernel kills it and Docker restarts it.
 - **Secrets:** `pve.sops.yml`: one module per Proxmox node (`core`, `network`), with token
   `skynet@pve!metrics` (PVEAuditor on `/`) and its `token_value`, the only encrypted key (Ali).
   `secret.sops.env`: `PBS_API_TOKEN`, the secret of PBS's `metrics@pbs!exporter` (audit on the

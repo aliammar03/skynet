@@ -16,10 +16,7 @@
   `FilesystemErrors`, `LogFlood` and `LogsDropped` (journald's own count of what it dropped).
 - **Auth mode:** `forward` (Authelia). Ops (10.10.90.91) reads `/select/logsql/` without a login:
   `curl -s https://logs.aliammar.net/select/logsql/query --data-urlencode 'query=_time:1h CONTAINER_NAME:doco-cd'`.
-- **Deletes:** on for one cleanup, off again in the next PR (`-delete.enable`). From docker-admin's
-  shell, `curl -sS -X POST -G http://127.0.0.1:9428/delete/run_task --data-urlencode 'filter=<LogsQL>'`
-  starts a task, and `/delete/active_tasks` lists those still running. Anyone on docker-admin
-  reaches it; through the door, only Ali's login does.
+  Deletes are off in VictoriaLogs itself.
 - **The way in:** `vlagent` on :9429, on the host's network, so docker-admin's firewall admits only
   the hosts that ship (`hosts/docker-admin/default.nix`), after OPNsense's `ROLE_LOG_SHIPPERS`.
   It forwards to VictoriaLogs on `127.0.0.1:9428`, which nothing off this host reaches. vlagent has
@@ -29,6 +26,8 @@
   becomes `level`).
 - **Data:** `/opt/appdata/logs/data` (the logs) and `/opt/appdata/logs/buffer` (vlagent's, while
   VictoriaLogs is down; at most 1 GiB, oldest dropped first). Backup class: cache.
+- **Memory:** at most 1 GiB (`mem_limit`); its caches stay under 256 MiB. docker-admin has no swap,
+  so past the limit the kernel kills VictoriaLogs and Docker restarts it.
 - **Secrets:** none.
 - **Upstream:** [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) ·
   [vlagent](https://docs.victoriametrics.com/victorialogs/vlagent/) ·
