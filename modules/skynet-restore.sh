@@ -1,5 +1,5 @@
 # skynet-restore: puts a stack's /opt/appdata folder back, from a local btrfs snapshot (docker-dmz)
-# or from Drive (restic), with doco-cd paused so nothing restarts the stack meanwhile
+# or from Drive (restic), with doco-cd held so nothing restarts the stack meanwhile
 # (skynetv2.md → P4 → Restores). modules/docker-host.nix sets REPO, EXCLUDES (the backup stack's
 # excludes.txt), SNAPSHOTS (the snapshot folder; empty without btrbk), and ENV_FILE and RCLONE_FILE
 # (the backup stack's own secrets, which sops-nix renders whole).
@@ -18,27 +18,48 @@ die() {
 }
 
 [ "$(id -u)" = 0 ] || die "run it as root (sudo)"
+exec 9>/run/skynet-restore.lock
+flock -n 9 || die "another restore is running"
+
 appdata=/opt/appdata
-# doco-cd starts only with this marker (modules/docker-host.nix): the host's data is in place.
+# doco-cd starts only with this marker (modules/docker-host.nix): the host's data is in place. A
+# restore in place takes it away first, so nothing starts doco-cd under it: not a NixOS switch,
+# not a reboot.
 ready=$appdata/.data-ready
+# While the marker is away, that restore's record: its target, its undo snapshot, then the
+# containers it stopped.
+held=/var/lib/skynet/restore-held
 tmp=$(mktemp -d)
 stopped=$tmp/stopped
-doco_paused=false
-release=false
+closed=false  # this run took the marker away
+touched=false # this run began replacing a stack's folder
 
-# Whatever happens, the stopped containers and doco-cd come back. A failed --all leaves a fresh host
-# without the marker, so doco-cd stays held: its data isn't all there.
+# The data whole again: the marker back, then what the held restore stopped, then doco-cd.
+reopen() {
+  touch "$ready"
+  sed -n '3,$p' "$held" >"$stopped"
+  rm "$held"
+  if [ -s "$stopped" ]; then xargs docker start <"$stopped" >/dev/null; fi
+  systemctl start docker-doco-cd
+}
+
+# A failure before any file changed puts the host back as it was. One after leaves the stacks
+# stopped and doco-cd held, their data half one snapshot and half the other, until the same
+# restore, its undo or --all succeeds. A failed --all on a fresh host writes no marker either.
 cleanup() {
-  if [ -s "$stopped" ]; then xargs docker start <"$stopped" >/dev/null || true; fi
-  if [ "$doco_paused" = true ] || [ "$release" = true ]; then
-    systemctl start docker-doco-cd || true
+  rc=$?
+  if [ "$rc" != 0 ] && [ -e "$held" ]; then
+    if [ "$closed" = true ] && [ "$touched" = false ]; then
+      reopen || true
+    else
+      t=$(sed -n 1p "$held")
+      echo "skynet-restore: $t is only partly back: its containers stay stopped, doco-cd held, until" >&2
+      echo "skynet-restore: the same restore${undo:+, its undo (skynet-restore local $t ${undo#@appdata.})} or --all succeeds." >&2
+    fi
   fi
   rm -rf "$tmp"
 }
 trap cleanup EXIT
-
-exec 9>/run/skynet-restore.lock
-flock -n 9 || die "another restore is running"
 
 # The backup job's repository and password. rclone gets a writable copy of its config: it saves
 # refreshed tokens back.
@@ -56,18 +77,17 @@ name_ok() { [[ $1 =~ ^[a-z0-9][a-z0-9-]*$ ]] || die "'$1' isn't a stack name"; }
 # them.
 keep() { sed -n "s|^$appdata/$1/|/|p" "$EXCLUDES" >"$tmp/keep-$1"; }
 
-# --all | <stack>…: doco-cd paused, then the stacks' running containers stopped (every Compose
-# project's for --all), caches included.
+# --all | <stack>…: doco-cd stopped, then the stacks' running containers (every Compose project's
+# for --all), caches included. The record lists them first, so the restore that ends the hold
+# starts them again.
 pause() {
-  if systemctl is-active --quiet docker-doco-cd; then
-    systemctl stop docker-doco-cd
-    doco_paused=true
-  fi
+  systemctl stop docker-doco-cd
   if [ "$1" = --all ]; then
-    docker ps -q --filter label=com.docker.compose.project
+    docker ps --format '{{.Names}}' --filter label=com.docker.compose.project
   else
-    for s in "$@"; do docker ps -q --filter "label=com.docker.compose.project=$s"; done
+    for s in "$@"; do docker ps --format '{{.Names}}' --filter "label=com.docker.compose.project=$s"; done
   fi | sort -u >"$stopped"
+  if [ -e "$held" ]; then cat "$stopped" >>"$held"; fi
   if [ -s "$stopped" ]; then xargs docker stop <"$stopped" >/dev/null; fi
 }
 
@@ -75,6 +95,12 @@ source=${1:-}
 [ "$#" -gt 0 ] && shift
 case "$source" in
 list)
+  if [ -e "$held" ]; then
+    t=$(sed -n 1p "$held") u=$(sed -n 2p "$held")
+    echo "== held: a restore of $t failed partway${u:+ (undo: skynet-restore local $t ${u#@appdata.})}"
+  elif [ ! -e "$ready" ]; then
+    echo "== held: no $ready (a fresh host's data isn't all back)"
+  fi
   if [ -n "$SNAPSHOTS" ]; then
     echo "== local snapshots (latest: $(readlink "$SNAPSHOTS/latest" || echo none))"
     find "$SNAPSHOTS" -mindepth 1 -maxdepth 1 -name '@appdata.*' -printf '%f\n' | sort
@@ -158,16 +184,30 @@ if [ -n "$dir" ]; then
   exit 0
 fi
 
-# Undo point (docker-dmz): a snapshot of what is about to be replaced. A fresh host has nothing yet.
-if [ -n "$SNAPSHOTS" ] && [ -e "$ready" ]; then
-  systemctl start btrbk-appdata
-  undo=$(readlink "$SNAPSHOTS/latest")
+if [ -e "$held" ]; then
+  # A restore that failed partway holds this host: only it again, its undo or --all may run.
+  t=$(sed -n 1p "$held")
+  [ "$target" = "$t" ] || [ "$target" = --all ] ||
+    die "a restore of $t failed partway and holds this host: restore it again, or undo it, first"
+  undo=$(sed -n 2p "$held")
+elif [ -e "$ready" ]; then
+  # Undo point (docker-dmz): a snapshot of what is about to be replaced. Then the marker goes, its
+  # record written first. A fresh host has neither yet.
+  if [ -n "$SNAPSHOTS" ]; then
+    systemctl start btrbk-appdata
+    undo=$(readlink "$SNAPSHOTS/latest")
+  fi
+  closed=true
+  mkdir -p "${held%/*}"
+  printf '%s\n%s\n' "$target" "${undo:-}" >"$held"
+  rm "$ready"
 fi
 
 if [ "$target" = --all ]; then pause --all; else pause "${list[@]}"; fi
 
 for s in "${list[@]}"; do
   keep "$s"
+  touched=true
   mkdir -p "$appdata/$s"
   if [ "$source" = local ]; then
     # --checksum: compares contents, not just sizes and times.
@@ -182,10 +222,12 @@ if [ -n "${undo:-}" ]; then
   echo "undo: skynet-restore local ${target} ${undo#@appdata.}"
 fi
 
-# A fresh host, every stack back: its first snapshot, so the backup job finds `latest`; then the
-# marker, last, and doco-cd, started by cleanup, deploys the stacks onto their data.
-if [ "$target" = --all ] && [ ! -e "$ready" ]; then
+if [ -e "$held" ]; then
+  reopen
+elif [ "$target" = --all ] && [ ! -e "$ready" ]; then
+  # A fresh host, every stack back: its first snapshot, so the backup job finds `latest`; then the
+  # marker, last, and doco-cd deploys the stacks onto their data.
   if [ -n "$SNAPSHOTS" ]; then systemctl start btrbk-appdata; fi
   touch "$ready"
-  release=true
+  systemctl start docker-doco-cd
 fi

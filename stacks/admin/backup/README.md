@@ -9,7 +9,8 @@
   and 12 monthly snapshots; snapshot host `docker-admin`.
 - **Backed up:** all of `/opt/appdata` except `excludes.txt`: the paths the stacks' READMEs class as
   cache or disposable (Gatus's history, the metrics and logs stores), and the door's certificates.
-- **Source:** `/opt/appdata`, read-only. `run.sh` refuses it empty. This host keeps ext4: no
+- **Source:** `/opt/appdata`, read-only. `run.sh` refuses it with no app data (the marker doesn't
+  count), or without `.data-ready` (a restore under way or failed). This host keeps ext4: no
   snapshots, so no local restores (docker-dmz has both).
 - **Data:** none of its own. restic's cache is the host's `/var/cache/restic-appdata`.
   `/opt/appdata/backup/` holds its old cache, excluded; it can go.
@@ -23,8 +24,11 @@
   - `--to <dir>`: into a folder, with nothing stopped (a drill, or one file); `--all` in place of a
     stack: every stack (a rebuilt host).
 
-  In place, it pauses doco-cd, stops the stack, puts `/opt/appdata/<stack>` back exactly as in the
-  snapshot (its cache folders stay as they are), then starts the stack and doco-cd again.
+  In place, it holds doco-cd (it takes `/opt/appdata/.data-ready` away), stops the stack, puts
+  `/opt/appdata/<stack>` back exactly as in the snapshot (its cache folders stay as they are), then
+  puts the marker back and starts the stack and doco-cd again. Failing halfway, it leaves the stack
+  stopped and doco-cd held until the same restore or `--all` succeeds (`skynetv2.md` → P4 →
+  Restores).
 - **Alerts:** healthchecks.io (start, success and failure pings, and a missed night) and doco-cd's
   `notify_on: failure` on each job, both to `#alerts`. Gatus row `docker-admin backup` from the
   check's badge.
