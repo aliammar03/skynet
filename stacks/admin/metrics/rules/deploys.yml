@@ -33,11 +33,14 @@ groups:
 
       # doco-cd counts every poll in polls_total, failed or not, and a failed one in
       # poll_errors_total too (the latter appears with the first failure). No poll at all, or only
-      # failed ones, for 30 minutes: main isn't reaching the host.
+      # failed ones, for 30 minutes: main isn't reaching the host. The window holds only what
+      # VictoriaMetrics has, so on a store that starts empty (a restore) one failed poll can be all
+      # of it: the 10 minutes let the next polls in.
       - alert: DocoCdNotPolling
         expr: |
           increase(doco_cd_polls_total[30m]) == 0
             or increase(doco_cd_poll_errors_total[30m]) >= increase(doco_cd_polls_total[30m])
+        for: 10m
         labels: { severity: warning }
         annotations:
           summary: "doco-cd on {{ $labels.instance }} hasn't polled main successfully for 30 minutes (no poll ran, or each failed: its log says why)."

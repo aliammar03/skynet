@@ -19,6 +19,9 @@ services:
       - -vmalert.proxyURL=http://vmalert:8880
     environment:
       TZ: Asia/Karachi
+    # docker-admin has no swap: past this, the kernel kills VictoriaMetrics and Docker restarts it,
+    # instead of the whole host stalling for memory. Its caches stay under 512 MiB.
+    mem_limit: 1536m
     volumes:
       - ./scrape.yaml:/etc/victoriametrics/scrape.yaml:ro
       - /opt/appdata/metrics/data:/storage # history; cache (not backed up)

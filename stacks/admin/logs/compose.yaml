@@ -14,11 +14,11 @@ services:
       - -memory.allowedBytes=256MiB # its caches would take 60% of the host's memory otherwise
       # vmalert-logs' rules and alerts at /select/vmalert/ (the door's logs.aliammar.net).
       - -vmalert.proxyURL=http://vmalert-logs:8880/
-      # Deletes by filter (POST /delete/run_task), for one cleanup: off again in the next PR. Anyone
-      # on docker-admin reaches them; through the door, only Ali's login (ops reads /select/logsql/).
-      - -delete.enable
     environment:
       TZ: Asia/Karachi
+    # docker-admin has no swap: past this, the kernel kills VictoriaLogs and Docker restarts it,
+    # instead of the whole host stalling for memory. Its caches stay under 256 MiB.
+    mem_limit: 1g
     volumes:
       - /opt/appdata/logs/data:/storage # cache (not backed up)
     # For vlagent, on the host's network. Loopback only, so nothing off this host reaches it; the

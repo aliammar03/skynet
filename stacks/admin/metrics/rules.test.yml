@@ -23,7 +23,7 @@ tests:
       - series: 'doco_cd_polls_total{instance="stopped",job="doco-cd",repository="r"}'
         values: "5x60"
     alert_rule_test:
-      - eval_time: 45m
+      - eval_time: 55m
         groupname: deploys
         alertname: DocoCdNotPolling
         exp_alerts:
@@ -33,6 +33,24 @@ tests:
           - exp_labels: { instance: stopped, job: doco-cd, repository: r, severity: warning }
             exp_annotations:
               summary: "doco-cd on stopped hasn't polled main successfully for 30 minutes (no poll ran, or each failed: its log says why)."
+  # A store that starts empty (a restore) meets doco-cd's counters mid-count. The first poll it sees
+  # failed and the next ones (every 3 minutes) didn't: no alert.
+  - name: doco-cd polls, store starting empty
+    interval: 1m
+    input_series:
+      - series: 'doco_cd_polls_total{instance="fresh",job="doco-cd",repository="r"}'
+        values: "500x2 501x2 502x2 503x2 504x2 505x2 506x2 507x2"
+      - series: 'doco_cd_poll_errors_total{instance="fresh",job="doco-cd",repository="r"}'
+        values: "40x2 41x21"
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: deploys
+        alertname: DocoCdNotPolling
+        exp_alerts: []
+      - eval_time: 20m
+        groupname: deploys
+        alertname: DocoCdNotPolling
+        exp_alerts: []
 
   # The delivery heartbeat fires only while the webhook exists and no Discord post failed lately.
   - name: delivery heartbeat, Discord working
