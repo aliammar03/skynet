@@ -8,7 +8,7 @@
   query without its own) and sends what fires to Alertmanager. Its alerts' state lives in
   VictoriaMetrics and comes back on its first evaluation only, so it starts once both stores
   answer. **mcp-victorialogs** is the agent's eyes: VictoriaLogs' query tools over MCP (streamable
-  HTTP), which only read.
+  HTTP), which only read. Its documentation search is off (its index was most of its memory).
 - **URL:** https://logs.aliammar.net (caddy-admin → `victorialogs:9428`): the query UI at
   `/select/vmui`; vmalert-logs' rules and pending alerts at `/select/vmalert/` (VictoriaLogs
   proxies it). `/mcp` goes to `mcp-victorialogs:8081` (`.mcp.json`'s `victorialogs`). Grafana
