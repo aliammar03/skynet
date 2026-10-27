@@ -13,8 +13,12 @@
 - **Files:** `conf/` is mounted at `/etc/caddy` (no secrets in it): `Caddyfile` and
   `sites/<name>.conf` (one per name). A route edit reloads in place (`recreate.ignore` + `--watch`).
   `certs/` (the upstreams' public certs) is mounted at `/etc/caddy-certs`; a change there
-  recreates the container, because `--watch` only reacts to config changes. The metrics stack's
-  exporters check the Proxmox nodes and PBS against the same files (`stacks/admin/metrics`).
+  recreates the container, because `--watch` only reacts to config changes. The exporters check
+  the Proxmox nodes, PBS and OPNsense against the same files (`stacks/admin/metrics`,
+  `stacks/admin/exporters`).
+- **Access log** (the `access_log` snippet, as on caddy-apps): one JSON line per request on stdout,
+  so in VictoriaLogs (`CONTAINER_NAME:=caddy-admin`): host, method, status, duration, size, and the
+  URI's first path segment only; no headers, query or client address.
 - **Data:** `/opt/appdata/caddy-admin/{data,config}`: certs and ACME account. Re-issuable; no backup
   needed.
 - **Secrets** (`secret.sops.env`): `CLOUDFLARE_API_TOKEN` (Zone → DNS → Edit, `aliammar.net` only).

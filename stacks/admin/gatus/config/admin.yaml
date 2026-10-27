@@ -97,6 +97,9 @@ endpoints:
   - { <<: *service, name: grafana, url: http://grafana:3000/api/health, conditions: ["[STATUS] == 200"] }
   - { <<: *service, name: mcp-victoriametrics, url: http://mcp-victoriametrics:8080/health/readiness, conditions: ["[STATUS] == 200"] }
   - { <<: *service, name: mcp-victorialogs, url: http://mcp-victorialogs:8081/health/readiness, conditions: ["[STATUS] == 200"] }
+  # Wider eyes' exporters (stacks/admin/exporters), by name on `edge`: the landing page, which calls
+  # no API (/metrics would).
+  - { <<: *service, name: opnsense-exporter, url: http://opnsense-exporter:8080/, conditions: ["[STATUS] == 200"] }
 
   - { <<: *app, name: librespeed, url: https://speed.aliammar.net/, conditions: ["[STATUS] == 200"] }
   # /_up is CouchDB's only path without a login.

@@ -1,0 +1,41 @@
+# OPNsense, through opnsense-exporter (stacks/admin/exporters; skynetv2.md → P5 → Wider eyes).
+# `instance` is opnsense (scrape.yaml).
+groups:
+  - name: network
+    rules:
+      # The exporter answers even when it can't read OPNsense's API (opnsense_up 0): a wrong key, a
+      # page its user lost, or the API down. Its other series stop then, and every rule below goes
+      # quiet with them.
+      - alert: ExporterBlind
+        expr: opnsense_up == 0
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "opnsense-exporter can't read OPNsense's API (its key, its user's pages, or the API): the gateway and firewall alerts are blind."
+
+      # dpinger's own verdict per gateway (0 offline, 1 online, 2 unknown, 3 pending, 4 loss,
+      # 5 latency, 6 forced offline). Only one that was online this week: a monitored gateway that
+      # never comes up (an IPv6 one, with no IPv6 from the ISP) would otherwise post forever.
+      - alert: GatewayDown
+        expr: |
+          opnsense_gateways_status == 0
+            and on (name) max_over_time((opnsense_gateways_status == bool 1)[7d:5m]) == 1
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "OPNsense: gateway {{ $labels.name }} ({{ $labels.address }}) is offline."
+
+      - alert: GatewayLossy
+        expr: opnsense_gateways_loss_percentage > 5
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "OPNsense: gateway {{ $labels.name }} ({{ $labels.address }}) loses {{ $value }}% of its probes."
+
+      # Past the limit pf drops new connections, the whole lab's at once.
+      - alert: FirewallStatesHigh
+        expr: opnsense_pf_states_current / opnsense_pf_states_limit > 0.80
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "OPNsense: pf's state table is {{ $value | humanizePercentage }} full; past its limit new connections drop."

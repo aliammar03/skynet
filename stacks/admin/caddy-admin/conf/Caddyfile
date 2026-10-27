@@ -15,6 +15,26 @@
 	}
 }
 
+# Each request as one JSON line on stdout, which Docker's journald driver takes to VictoriaLogs
+# (skynetv2.md → P5 → Wider eyes): its host, method, status, duration and size, and its URI's first
+# path segment only. No headers, query or client address: some apps carry tokens in their paths,
+# queries and headers. The same in caddy-apps' Caddyfile.
+(access_log) {
+	log {
+		output stdout
+		format filter {
+			request>uri regexp ^(/[^/?]*).* $1
+			request>headers delete
+			request>tls delete
+			request>remote_ip delete
+			request>remote_port delete
+			request>client_ip delete
+			resp_headers delete
+			user_id delete
+		}
+	}
+}
+
 # One wildcard cert, so no admin name lands in certificate transparency logs.
 *.aliammar.net {
 	tls {
@@ -24,6 +44,7 @@
 		propagation_timeout -1
 		propagation_delay 60s
 	}
+	import access_log
 	import /etc/caddy/sites/*.conf
 	handle {
 		respond 404

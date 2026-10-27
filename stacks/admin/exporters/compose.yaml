@@ -1,0 +1,51 @@
+# Exporters for appliances whose API they read with a key of their own (skynetv2.md → P5 → Wider
+# eyes). A stack apart from `metrics`: doco-cd redeploys a whole stack when one of its containers
+# dies, so a crash loop here restarts only these, and a missing key fails only this stack's deploy.
+# VictoriaMetrics scrapes them by name on `edge` (stacks/admin/metrics/scrape.yaml).
+services:
+  # OPNsense: gateways (loss, latency), interfaces, firewall counters, pf states and mbufs,
+  # services, through its API as a user holding only the pages these collectors read, config writes
+  # denied (README.md). TLS is checked against OPNsense's self-signed cert (caddy-admin's pin), whose
+  # name is OPNsense.internal, not the IP.
+  opnsense-exporter:
+    container_name: opnsense-exporter
+    image: ghcr.io/athennamind/opnsense-exporter:0.0.19@sha256:e1f79c770dba7d3165e12836e4b6f849be93a8b2a25116b7ea11c5da8c3ad2db
+    restart: unless-stopped
+    command:
+      - --opnsense.protocol=https
+      - --opnsense.address=OPNsense.internal
+      - --exporter.instance-label=opnsense
+      # Off: pages the user doesn't hold (some act: an upgrade, a cron job), services OPNsense
+      # doesn't run here (dnsmasq serves DHCP, Technitium DNS, Tailscale the VPN), and sensors a VM
+      # lacks.
+      - --exporter.disable-firmware
+      - --exporter.disable-cron-table
+      - --exporter.disable-arp-table
+      - --exporter.disable-unbound
+      - --exporter.disable-kea-dhcpv4
+      - --exporter.disable-kea-dhcpv6
+      - --exporter.disable-wireguard
+      - --exporter.disable-openvpn
+      - --exporter.disable-ipsec
+      - --exporter.disable-carp
+      - --exporter.disable-temperature
+    env_file: secret.sops.env # OPNSENSE_EXPORTER_OPS_API_KEY, OPNSENSE_EXPORTER_OPS_API_SECRET
+    environment:
+      SSL_CERT_FILE: /etc/skynet-certs/opnsense.pem
+    extra_hosts: ["OPNsense.internal:10.10.50.1"]
+    volumes:
+      - ../caddy-admin/certs:/etc/skynet-certs:ro
+    labels:
+      # Go reads SSL_CERT_FILE once, at start. opnsense.pem's fingerprint here means a re-pinned
+      # cert changes this file, so doco-cd recreates the container and it loads the new one.
+      skynet.pinned-cert: "18:50:90:8B:2E:63:4F:6B:DF:7E:28:F0:9D:30:19:62:9B:F1:E3:58:F2:3E:A7:BC:7F:61:64:DD:E3:7D:8D:5F"
+    # A static binary that only reads its key and the cert: no root, no capabilities, no writes.
+    user: "65534:65534"
+    read_only: true
+    cap_drop: [ALL]
+    networks: [edge]
+    # No healthcheck: the image is only the binary. VictoriaMetrics' `up` and `opnsense_up` cover it.
+
+networks:
+  edge:
+    external: true

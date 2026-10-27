@@ -1,0 +1,8 @@
+# A line every 5 minutes, so VictoriaLogs can tell the node's lines still arrive (LogsNotArriving,
+# stacks/admin/logs/rules), as on every host (modules/observability.nix, pbs/etc/).
+[Unit]
+Description=Log a heartbeat line for VictoriaLogs
+
+[Service]
+Type=oneshot
+ExecStart=/bin/echo log heartbeat
