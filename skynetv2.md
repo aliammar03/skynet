@@ -1171,9 +1171,11 @@ reading `profiles.yaml` from git. Nothing stops.
   - its source is a read-only `/opt/appdata`. On docker-dmz that is the newest btrfs snapshot
     (btrbk, 04:20; next section), mounted there so restic sees the live paths. On docker-admin it
     is the folder itself, whose one database is Authelia's small SQLite file;
-  - `run.sh` refuses an empty source, and on docker-dmz a snapshot more than an hour old (from the
-    stamp `/opt/appdata/.snapshot-stamp`, written just before each snapshot). Either would become
-    the night's snapshot, and retention would age the real ones out;
+  - `run.sh` refuses a source with no app data (the dot files at its top, the stamp and the marker,
+    don't count: an app's folder must hold something), one without `/opt/appdata/.data-ready`
+    (a restore under way or failed, or a fresh host), and on docker-dmz a snapshot more than an hour
+    old (from the stamp `/opt/appdata/.snapshot-stamp`, written just before each snapshot). Any of
+    them would become the night's snapshot, and retention would age the real ones out;
   - then `resticprofile backup`, with retention (forget) right after it;
   - repository `rclone:gdrive:skynet/restic/<host>`, 64 MiB packs;
   - keeps 7 daily, 4 weekly and 12 monthly snapshots.
@@ -1261,8 +1263,7 @@ installer ISO is built from its branch.
    - Ali re-encrypts docker-dmz's 19 files for it (`rclone.sops.conf` with `--input-type ini`:
      sops doesn't know `.conf`), the agent checks each file's recipients, then Ali merges:
      `nix shell nixpkgs#sops -c sh -c 'for f in secrets/docker-dmz.yaml stacks/dmz/*/*.sops.*; do case "$f" in *.conf) sops updatekeys -y --input-type ini "$f" ;; *) sops updatekeys -y "$f" ;; esac || echo "FAILED: $f"; done'`;
-   - the install from `main`, with `--copy-host-keys` and the doco-cd hold (`--extra-files`,
-     Restores).
+   - the install from `main`, with `--copy-host-keys` and doco-cd held (Restores).
 5. **Agent**: the tar back into `/opt/appdata`, now on btrfs, and compared again; then the first
    local snapshot (`systemctl start btrbk-appdata`); then doco-cd released, which re-pulls the
    images (22 GB) and starts the stacks on their data.
@@ -1290,33 +1291,49 @@ so it reads `RESTIC_PASSWORD=` out of it.
   1. it checks that the stack's folder is in the snapshot;
   2. on docker-dmz it takes a snapshot first (btrbk's unit), so the restore can be undone, and
      prints `skynet-restore local <stack> <that snapshot>`;
-  3. it pauses doco-cd (`systemctl stop docker-doco-cd`), so no poll or reconciliation restarts
-     the stack mid-restore;
+  3. it holds doco-cd: it takes `/opt/appdata/.data-ready` away (below), after writing a record
+     of the restore (`/var/lib/skynet/restore-held`: the stack, the undo snapshot, then each
+     container it stops). doco-cd's systemd condition then fails whatever starts it: a NixOS
+     switch (which starts every wanted unit again) or a reboot. Then it stops doco-cd, so no poll
+     or reconciliation restarts the stack mid-restore;
   4. it stops the stack's containers: every container of its Compose project, caches included;
   5. it puts `/opt/appdata/<stack>` back exactly as in the snapshot. From a local snapshot that is
      `rsync --delete`, comparing contents; from Drive, `restic restore
      <snapshot>:/opt/appdata/<stack> --target /opt/appdata/<stack> --delete`. Only the stack's
      folder is the target, and its cache folders (`excludes.txt`) are neither restored nor deleted;
-  6. it starts the containers again, then doco-cd. If anything fails after step 3, it still
-     starts both, then exits non-zero.
+  6. it puts the marker back, starts the containers again, then doco-cd, and deletes the record.
+- **A failed restore holds the host.** Failing before step 5 changed a file, it puts everything
+  back as it was. Failing after, it leaves the stack stopped and doco-cd held: the stack's data is
+  half one snapshot and half the other, and no app should start on that. It prints how to end the
+  hold, and `skynet-restore list` repeats it. The same restore again (another snapshot is fine),
+  its undo (`skynet-restore local <stack> <undo snapshot>`) or `--all` may run, and the first to
+  succeed does step 6, starting everything the failed run stopped. A restore of another stack is
+  refused meanwhile. Ending it by hand (accepting the data as it is):
+  `rm /var/lib/skynet/restore-held && touch /opt/appdata/.data-ready && systemctl start
+  docker-doco-cd`; doco-cd's first poll then redeploys the stopped stack.
 - `--to <dir>`, either source: into a scratch folder, with nothing stopped or paused (drills, or one
   file).
 - `--all`, either source: every stack. On a rebuilt host doco-cd is still held (below): it restores
   every stack, takes the first local snapshot (docker-dmz), then releases doco-cd, which deploys the
   stacks onto their data.
 - One restore runs at a time (a lock). Restoring one stack leaves the others running.
-- **Fresh installs hold doco-cd.** It starts only while `/var/lib/skynet/hold-doco-cd` is absent (a
-  systemd condition in `modules/docker-host.nix`). A Docker host's install puts that file in place
-  (`nixos-anywhere --extra-files`), so no app starts on an empty `/opt/appdata`: an empty CouchDB,
-  say, offered to Obsidian's sync. `skynet-restore … --all` removes it. On a brand-new host, or
-  after data copied back from ops, it goes by hand (`runbooks/new-vm.md`, step 6): on docker-dmz
-  after a first `systemctl start btrbk-appdata`, so the backup job finds `latest`.
+- **doco-cd waits for the data.** It starts only once `/opt/appdata/.data-ready` exists (a systemd
+  condition in `modules/docker-host.nix`, after `/opt/appdata`'s mount). A fresh install's
+  `/opt/appdata` is empty, and so is a wiped data disk's, so no app starts on nothing: an empty
+  CouchDB, say, offered to Obsidian's sync. A forgotten step leaves the apps stopped, not empty.
+  - The marker is written last, once the data is complete. `skynet-restore … --all` writes it after
+    every stack and the first local snapshot (docker-dmz); a failed `--all` writes none. A restore
+    in place takes it away while it works (step 3), and the backup job refuses a source without it.
+  - The copy to ops leaves it out, so it can't arrive halfway through the copy back.
+  - On a brand-new host, or after data copied back from ops, it's written by hand
+    (`runbooks/new-vm.md`, step 6): on docker-dmz after a first `systemctl start btrbk-appdata`, so
+    the backup job finds `latest`.
 
 **Gotchas:**
 - A restored stack keeps its cache folders as they were. One whose search index is a cache
   (karakeep's meilisearch) may need a reindex.
-- While doco-cd is paused, its jobs wait too, the heartbeat included: a long `--all` may page
-  healthchecks.io's heartbeat check once.
+- While doco-cd is held, its jobs wait too, the heartbeat included: a long `--all` may page
+  healthchecks.io's heartbeat check once, and a failed restore pages it until the hold ends.
 - A Drive restore during Sunday's 10:00 prune fails on restic's lock; run it again after.
 
 ### PBS, greenfield: VM 2040 (`pbs/`)
@@ -2040,8 +2057,8 @@ in a drill.
 | `modules/dns.nix` + `modules/technitium-sync.sh` (settings + zone via the Technitium API, gratuitous ARP) | ~145 lines |
 | CI: flake check + `docker compose config` per stack + "every stack has a README and a Gatus row" check | ~60 lines |
 | `runbooks/dns-speed-test/dnsbench.py` (run by hand; nothing deploys it) | ~450 lines |
-| `stacks/<host>/backup/run.sh` (the jobs' entrypoint: a writable `rclone.conf`, the source checks) (P4) | ~25 lines, the same on both hosts |
-| `skynet-restore` (P4: two sources, the undo snapshot, doco-cd paused, the hold released) | ~110 lines |
+| `stacks/<host>/backup/run.sh` (the jobs' entrypoint: a writable `rclone.conf`, the source checks: app data, the marker, the snapshot's age) (P4) | ~30 lines, the same on both hosts |
+| `skynet-restore` (P4: two sources, the undo snapshot, doco-cd held by the marker, a failed restore's hold and its record) | ~185 lines |
 | btrbk's hooks on docker-dmz (the stamp, `latest`) (P4) | ~10 lines |
 | `stacks/admin/pbs-offsite/run.sh` (the jobs' entrypoint: the empty-source guard, the sync and its pings, the check) (P4) | ~35 lines |
 | `pbs/installer.nix` (Proxmox's ISO with `answer.toml` built in) (P4) | ~30 lines |

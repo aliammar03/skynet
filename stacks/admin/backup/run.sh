@@ -9,10 +9,16 @@ rp() { resticprofile --no-ansi --config /etc/resticprofile/profiles.yaml --name 
 
 case "${1:-}" in
 backup)
-  # An empty or stale source would become the night's snapshot, and retention would age the real
-  # ones out.
-  if [ -z "$(ls -A /opt/appdata)" ]; then
-    echo "backup: /opt/appdata is empty" >&2
+  # An empty, stale or half-restored source would become the night's snapshot, and retention would
+  # age the real ones out. Its dot files (btrbk's stamp, the marker) aren't app data: an app's
+  # folder must hold something. And the marker doco-cd waits for must be there: skynet-restore
+  # takes it away while it works, and a fresh host has none yet.
+  if [ -z "$(find /opt/appdata -mindepth 2 -maxdepth 2 ! -path '/opt/appdata/.*' | head -n 1)" ]; then
+    echo "backup: /opt/appdata holds no app data" >&2
+    exit 1
+  fi
+  if [ ! -e /opt/appdata/.data-ready ]; then
+    echo "backup: /opt/appdata has no .data-ready: a restore is under way or failed, or the host is new" >&2
     exit 1
   fi
   if [ "${APPDATA_SNAPSHOT:-}" = true ]; then

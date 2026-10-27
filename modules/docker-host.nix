@@ -254,10 +254,15 @@ in
         ];
       };
     };
-    # A fresh install holds doco-cd until its data is back (`skynet-restore … --all` or a hand
-    # release removes the file), so no app starts on an empty /opt/appdata (runbooks/new-vm.md,
-    # steps 5 and 6).
-    systemd.services.docker-doco-cd.unitConfig.ConditionPathExists = "!/var/lib/skynet/hold-doco-cd";
+    # doco-cd starts only once /opt/appdata holds the host's data: `skynet-restore … --all` writes
+    # the marker last, or a hand release does (runbooks/new-vm.md, step 6). A fresh install's
+    # /opt/appdata is empty, and so is a wiped data disk's, so no app starts on nothing. A restore
+    # in place takes the marker away while it works, so not even a switch or a reboot starts
+    # doco-cd under it.
+    systemd.services.docker-doco-cd.unitConfig = {
+      ConditionPathExists = "/opt/appdata/.data-ready";
+      RequiresMountsFor = "/opt/appdata";
+    };
     # The doco-cd API and MCP answer only to ops (OPNsense must allow it too).
     networking.firewall.extraCommands = ''
       iptables -A nixos-fw -p tcp -s 10.10.90.91 --dport 8080 -j nixos-fw-accept
