@@ -8,11 +8,13 @@ services:
     env_file: secret.sops.env # session, storage and JWT secrets (AUTHELIA_* variables)
     environment:
       TZ: Asia/Karachi
-      # In /etc/authelia, not /config: as root the image chowns /config at start, and these are
-      # read-only.
-      X_AUTHELIA_CONFIG: /etc/authelia/configuration.yml
+      # Merged in order: the settings, the OIDC clients (digests only), the OIDC provider's keys. In
+      # /etc/authelia, not /config: as root the image chowns /config at start, and these are read-only.
+      X_AUTHELIA_CONFIG: /etc/authelia/configuration.yml,/etc/authelia/oidc-clients.yml,/etc/authelia/oidc.yml
     volumes:
       - ./configuration.yml:/etc/authelia/configuration.yml:ro
+      - ./oidc-clients.yml:/etc/authelia/oidc-clients.yml:ro
+      - ./oidc.sops.yml:/etc/authelia/oidc.yml:ro # decrypted by doco-cd
       - ./users.sops.yml:/etc/authelia/users.yml:ro
       - /opt/appdata/authelia:/data # sqlite (passkeys, TOTP, sessions' state), notification.txt
     networks: [edge]

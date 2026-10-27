@@ -110,6 +110,27 @@ services:
     networks: [backend]
     # No healthcheck: the image is only the binary. VictoriaMetrics' `up` and `pbs_up` cover it.
 
+  # The agent's eyes (skynetv2.md → P5 → Agent eyes): VictoriaMetrics' query tools over MCP, at
+  # metrics.aliammar.net/mcp (the door routes /mcp here; Authelia lets ops through). Read-only: the
+  # image leaves export, flags, test_rules and the debug tools off by default.
+  mcp-victoriametrics:
+    container_name: mcp-victoriametrics
+    image: ghcr.io/victoriametrics/mcp-victoriametrics:v1.20.2@sha256:bcbf84f945d6efb03fb8b2d2ccc3294420dccdc0b445752dce96f02619416dfe
+    restart: unless-stopped
+    environment:
+      VM_INSTANCE_ENTRYPOINT: http://victoriametrics:8428
+      VM_INSTANCE_TYPE: single
+      MCP_SERVER_MODE: http # streamable HTTP, at /mcp
+      MCP_LISTEN_ADDR: :8080
+      MCP_LOG_LEVEL: warn
+    mem_limit: 128m
+    networks: [edge]
+    healthcheck:
+      test: [CMD, wget, -qO, /dev/null, http://127.0.0.1:8080/health/readiness]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
 networks:
   edge:
     external: true

@@ -12,6 +12,14 @@
       "type": "http",
       "url": "http://10.10.100.10:8080/mcp",
       "headersHelper": "cat /run/secrets/rendered/doco-dmz.headers.json"
+    },
+    "victoriametrics": {
+      "type": "http",
+      "url": "https://metrics.aliammar.net/mcp"
+    },
+    "victorialogs": {
+      "type": "http",
+      "url": "https://logs.aliammar.net/mcp"
     }
   }
 }

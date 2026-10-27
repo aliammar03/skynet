@@ -3,10 +3,13 @@
 - **Purpose:** VictoriaMetrics, the lab's metrics: every host, container, backup job and deploy
   tool, scraped every 30 s from `scrape.yaml` and kept 13 months. Proxmox (once a minute) and PBS
   (every 5 minutes) come through their exporters. **vmalert** evaluates `rules/*.yml` every minute
-  and sends what fires to Alertmanager (`stacks/admin/alertmanager`). The agent's MCP server joins
-  this stack in a later P5 PR (`skynetv2.md` → P5).
+  and sends what fires to Alertmanager (`stacks/admin/alertmanager`). **mcp-victoriametrics** is
+  the agent's eyes: VictoriaMetrics' query tools over MCP (streamable HTTP), read-only (the image
+  keeps `export`, `flags`, `test_rules` and the debug tools off by default).
 - **URL:** https://metrics.aliammar.net (caddy-admin → `victoriametrics:8428`): the query UI at
   `/vmui`, the scrape targets at `/targets`, vmalert's rules and alerts at `/vmalert/` (proxied).
+  `/mcp` goes to `mcp-victoriametrics:8080` (`.mcp.json`'s `victoriametrics`). Grafana
+  (`stacks/admin/grafana`) draws from VictoriaMetrics by name on `edge`.
 - **Rules** (`rules/`, PromQL; the table in `skynetv2.md` → P5 → Alerts): `hosts.yml` (hosts,
   disks, memory, units), `backups.yml` (each guest's PBS backup against PVE's guests, PBS's API,
   storage), `deploys.yml` (comin, doco-cd, certificates, vlagent's forwarding, the alert path
@@ -19,7 +22,7 @@
 - **Auth mode:** `forward` (Authelia). Ops (10.10.90.91) reads the query API without a login, only
   its read paths (`/api/v1/query`, `query_range`, `series`, `labels`, `label/…/values`, `metadata`,
   `targets`, `status/…`, `export`): `curl -s 'https://metrics.aliammar.net/api/v1/query?query=up'`.
-  Nothing that writes or deletes is open.
+  And `/mcp`, the MCP server's tools, which only read. Nothing that writes or deletes is open.
 - **Data:** `/opt/appdata/metrics/data` (the history; backup class: cache, not backed up). About
   30–45 MB a day, so 12–18 GB at 13 months.
 - **Memory:** VictoriaMetrics at most 1.5 GiB (`mem_limit`); its caches stay under 512 MiB.
@@ -39,7 +42,7 @@
   | `gatus` | `gatus:8080` | each row's result, response time and certificate expiry |
   | `pve` | `pve-exporter:9221`, one module per node | guests, storage, backups-job coverage |
   | `pbs` | `pbs-exporter:10019` | each guest's newest backup and its verify (`pbs_snapshot_vm_last_timestamp`, `pbs_snapshot_vm_last_verify`), the datastore's size |
-  | `victoriametrics`, `victorialogs`, `vlagent`, `vmalert` (both), `alertmanager` | this host | the stack itself |
+  | `victoriametrics`, `victorialogs`, `vlagent`, `vmalert` (both), `alertmanager`, `grafana`, `mcp` (both servers) | this host | the stack itself, and what reads it |
 
 - **Job results** (node-exporter's textfile collector): `resticprofile_backup_*` from each Docker
   host's nightly backup (`restic-appdata.prom`), `skynet_pbs_offsite_*` from the offsite sync

@@ -7,16 +7,18 @@
   the logs. **vmalert-logs** runs `rules/*.yml` (LogsQL; vmalert adds `_time:<interval>` to a
   query without its own) and sends what fires to Alertmanager. Its alerts' state lives in
   VictoriaMetrics and comes back on its first evaluation only, so it starts once both stores
-  answer. The agent's MCP server joins this stack in a later P5 PR.
+  answer. **mcp-victorialogs** is the agent's eyes: VictoriaLogs' query tools over MCP (streamable
+  HTTP), which only read.
 - **URL:** https://logs.aliammar.net (caddy-admin → `victorialogs:9428`): the query UI at
   `/select/vmui`; vmalert-logs' rules and pending alerts at `/select/vmalert/` (VictoriaLogs
-  proxies it).
+  proxies it). `/mcp` goes to `mcp-victorialogs:8081` (`.mcp.json`'s `victorialogs`). Grafana
+  (`stacks/admin/grafana`) reads VictoriaLogs by name on `edge`, through its plugin.
 - **Rules** (`rules/logs.yml`, LogsQL): `CrashLoop` (systemd's line for each container start),
   `LogsNotArriving` (each host's `log-heartbeat` line, every 5 minutes, missing for 15),
   `FilesystemErrors`, `LogFlood` and `LogsDropped` (journald's own count of what it dropped).
 - **Auth mode:** `forward` (Authelia). Ops (10.10.90.91) reads `/select/logsql/` without a login:
   `curl -s https://logs.aliammar.net/select/logsql/query --data-urlencode 'query=_time:1h CONTAINER_NAME:doco-cd'`.
-  Deletes are off in VictoriaLogs itself.
+  And `/mcp`, the MCP server's tools, which only read. Deletes are off in VictoriaLogs itself.
 - **The way in:** `vlagent` on :9429, on the host's network, so docker-admin's firewall admits only
   the hosts that ship (`hosts/docker-admin/default.nix`), after OPNsense's `ROLE_LOG_SHIPPERS`.
   It forwards to VictoriaLogs on `127.0.0.1:9428`, which nothing off this host reaches. vlagent has

@@ -60,9 +60,12 @@ in
   };
   skynet.docker.docoTarget = "admin";
 
-  # Alertmanager runs as nobody (65534) and doesn't take its folder over by itself (skynetv2.md →
-  # Conventions → Data).
-  systemd.tmpfiles.rules = [ "d /opt/appdata/alertmanager/data 0700 65534 65534 -" ];
+  # Alertmanager runs as nobody (65534) and Grafana as 472; neither takes its folder over by itself
+  # (skynetv2.md → Conventions → Data).
+  systemd.tmpfiles.rules = [
+    "d /opt/appdata/alertmanager/data 0700 65534 65534 -"
+    "d /opt/appdata/grafana/data 0700 472 472 -"
+  ];
 
   # P5 (stacks/admin/metrics, stacks/admin/logs). This host's own containers reach its exporters and
   # vlagent from a Docker bridge, not from 10.10.50.40. vlagent runs on the host's network, so this

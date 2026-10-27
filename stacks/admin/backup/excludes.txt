@@ -4,5 +4,6 @@
 /opt/appdata/backup
 /opt/appdata/caddy-admin
 /opt/appdata/gatus
+/opt/appdata/grafana
 /opt/appdata/logs
 /opt/appdata/metrics

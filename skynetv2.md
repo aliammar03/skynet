@@ -26,7 +26,7 @@
 | P2 | DNS (Technitium only) + remote access | done (2026-10-23); open: OPNsense rules 140/150/115 and CT 731 `onboot` (see P2 exit criteria) |
 | P3 | docker-dmz: apps + public path | done (2026-10-24): docker-dmz with v1's data (#48), its doors (#50) and all ten apps (#51–#61); the apps reach one another only through the door (#64); every image current (#67). Family accounts skipped for now; rule 150 can go now that 135 (ex-840) serves Gatus's `public` row |
 | P4 | Backups → Google Drive | in progress (2026-10-25): PBS greenfield done (VM 2040, `pbs/`; v1's PBS removed); PBS's datastore nightly to Drive by plain `rclone sync` (`stacks/admin/pbs-offsite/`; PVE already encrypts its chunks); app data nightly to Drive, hot (`stacks/<host>/backup/`): docker-dmz rebuilt onto btrfs and backed up from btrbk snapshots (#81); `skynet-restore` drilled from a snapshot and from Drive. Next: the guest drill from Drive's copy once its first sync ends, `runbooks/restore.md`, seven green nights |
-| P5 | Observability (agent eyes) | in progress (2026-10-26): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`, #88); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics; alerts: two vmalerts and Alertmanager to `#alerts`, its Watchdog to healthchecks.io. Next: the alert tests, then Grafana and the agent's MCP servers |
+| P5 | Observability (agent eyes) | in progress (2026-10-26): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`, #88); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics; alerts: two vmalerts and Alertmanager to `#alerts`, its Watchdog to healthchecks.io (#91; both watchdogs and HostDown proven live 10-27); Grafana at `grafana.aliammar.net` (OIDC through admin Authelia; Live and Backups boards of our own, seven upstream) and the agent's MCP servers at `/mcp`. Next: the DiskFull test, then the exit criteria |
 | P6 | Agent autonomy | planned (2026-10-26): the leash first (comin's testing branches off, with the plan), then tiered merges with verify and rollback, the incident loop, the rekey workflow, OpenTofu for our VMs and the OPNsense aliases; after P5 |
 | P7 | Retire v1 + disaster recovery | outline |
 
@@ -1696,17 +1696,23 @@ those scrapes is several API calls. Its targets are in `stacks/admin/metrics/scr
     digest in `oidc-clients.yml`;
   - Ali's account is Grafana's admin, and nobody else gets in. A local admin, its password
     agent-generated, is the break-glass.
-- **Provisioned from git:**
-  - two data sources: VictoriaMetrics (as Prometheus) and VictoriaLogs (its plugin, version pinned);
-  - dashboards as JSON: Node Exporter Full, cAdvisor, Proxmox, VictoriaMetrics, VictoriaLogs,
-    vmalert, Alertmanager, and a Backups board of our own (each guest's newest backup and verify,
-    restic per host, the offsite sync, btrbk).
+- **Provisioned from git** (`stacks/admin/grafana`), read-only in the UI:
+  - two data sources: VictoriaMetrics (as Prometheus) and VictoriaLogs (its plugin, version pinned,
+    installed before Grafana starts);
+  - our boards (`dashboards/lab/`): **Live**, the lab right now every 10 s (hosts, containers,
+    Proxmox guests, backups' age, errors and warnings from every host), and **Backups** (each
+    guest's newest backup and verify, restic per host, the offsite sync, btrbk);
+  - grafana.com's at pinned revisions (`dashboards/upstream/`, `fetch.sh`): Node Exporter Full,
+    cAdvisor, Proxmox, VictoriaMetrics, VictoriaLogs, vmalert, Alertmanager.
+- **Live tail:** Explore's Live mode on VictoriaLogs (Grafana Live, through the door).
 
 ### Agent eyes
 
 - The two MCP servers run in their stacks (HTTP mode, read-only tools) and answer at
-  `https://metrics.aliammar.net/mcp` and `https://logs.aliammar.net/mcp`.
-- `.mcp.json` gets both; `.claude/settings.json` allows their tools.
+  `https://metrics.aliammar.net/mcp` and `https://logs.aliammar.net/mcp`, for ops only (Authelia's
+  bypass on `/mcp`).
+- `.mcp.json` names both. Their tools ask before each call until Ali allows them in
+  `.claude/settings.json`: the agent doesn't grant itself tools.
 - P6's scripts read the same data through the plain query APIs.
 
 ### Homepage (at Ali's call)
@@ -2071,6 +2077,7 @@ in a drill.
 | CI: the scrape config, vmalert's rules (and their unit tests) and Alertmanager's config, each checked by its own pinned image (P5) | ~20 lines |
 | Alertmanager's entrypoint: its three URLs from the environment into files (P5) | ~4 lines |
 | both vmalerts' entrypoints: wait until their stores answer, since vmalert restores its alerts' state on its first evaluation only (P5) | ~2 lines each |
+| Grafana's `dashboards/fetch.sh`: grafana.com's boards at pinned revisions, their data source inputs pointed at ours (P5) | ~15 lines |
 | `skynet-incident` (P6: alert webhook → `claude -p`; one at a time, repeats dropped, the budget, escalation) | ~40 lines |
 | `skynet-merge` (P6: tier, window and CI checked; the merge; the post) | ~40 lines |
 | `skynet-verify` (P6: a stack's or a host's checks from doco-cd, Gatus, VictoriaMetrics and VictoriaLogs) | ~80 lines |
