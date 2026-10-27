@@ -37,7 +37,9 @@
       "mcp__doco-dmz__control_project",
       "mcp__doco-dmz__control_stack",
       "mcp__doco-dmz__trigger_scheduled_job",
-      "mcp__doco-dmz__compact_mirrors"
+      "mcp__doco-dmz__compact_mirrors",
+      "mcp__victoriametrics",
+      "mcp__victorialogs"
     ],
     "ask": [
       "mcp__doco-dmz__destroy_project",
@@ -71,6 +73,8 @@
   "enabledMcpjsonServers": [
     "nixos",
     "doco-admin",
-    "doco-dmz"
+    "doco-dmz",
+    "victoriametrics",
+    "victorialogs"
   ]
 }
