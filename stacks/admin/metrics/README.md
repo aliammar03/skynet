@@ -5,7 +5,8 @@
   (every 5 minutes) come through their exporters. **vmalert** evaluates `rules/*.yml` every minute
   and sends what fires to Alertmanager (`stacks/admin/alertmanager`). **mcp-victoriametrics** is
   the agent's eyes: VictoriaMetrics' query tools over MCP (streamable HTTP), read-only (the image
-  keeps `export`, `flags`, `test_rules` and the debug tools off by default).
+  keeps `export`, `flags`, `test_rules` and the debug tools off by default). Its documentation
+  search is off too: its index alone holds ~600 MiB, and without it the server needs ~35 MiB.
 - **URL:** https://metrics.aliammar.net (caddy-admin → `victoriametrics:8428`): the query UI at
   `/vmui`, the scrape targets at `/targets`, vmalert's rules and alerts at `/vmalert/` (proxied).
   `/mcp` goes to `mcp-victoriametrics:8080` (`.mcp.json`'s `victoriametrics`). Grafana
@@ -65,3 +66,6 @@
   OPNsense's `ROLE_METRICS_TARGETS` and `ROLE_LOG_SHIPPERS`, and docker-admin's list of log shippers.
 - No healthcheck for pbs-exporter (the image is only the binary): its `up` and `pbs_up` series say
   whether it works.
+- doco-cd redeploys the whole stack when one of its containers dies (reconciliation on `die` and
+  `oom`), so a container that keeps dying restarts VictoriaMetrics and vmalert with it. Measure a
+  new container's peak memory before giving it a `mem_limit`.

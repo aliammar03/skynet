@@ -86,7 +86,8 @@ services:
 
   # The agent's eyes (skynetv2.md → P5 → Agent eyes): VictoriaLogs' query tools over MCP, at
   # logs.aliammar.net/mcp (the door routes /mcp here; Authelia lets ops through). Its tools only
-  # read: queries, stats, fields, streams, flags.
+  # read: queries, stats, fields, streams, flags. Its documentation search is off: its index is
+  # most of the server's memory (~95 MiB with it, ~16 without).
   mcp-victorialogs:
     container_name: mcp-victorialogs
     image: ghcr.io/victoriametrics/mcp-victorialogs:v1.9.0@sha256:753bb4fbe402ca1a782842f44636830f9895736f11d7fe783b924f8a0daf083d
@@ -96,6 +97,7 @@ services:
       MCP_SERVER_MODE: http # streamable HTTP, at /mcp
       MCP_LISTEN_ADDR: :8081
       MCP_LOG_LEVEL: warn
+      MCP_DISABLED_TOOLS: documentation
     mem_limit: 128m
     networks: [edge]
     healthcheck:

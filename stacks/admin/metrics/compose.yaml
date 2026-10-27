@@ -112,7 +112,8 @@ services:
 
   # The agent's eyes (skynetv2.md → P5 → Agent eyes): VictoriaMetrics' query tools over MCP, at
   # metrics.aliammar.net/mcp (the door routes /mcp here; Authelia lets ops through). Read-only: the
-  # image leaves export, flags, test_rules and the debug tools off by default.
+  # image's own list of tools off (export, flags, test_rules, the debug ones), plus its documentation
+  # search, whose index alone holds ~600 MiB; without it the server needs ~35 MiB.
   mcp-victoriametrics:
     container_name: mcp-victoriametrics
     image: ghcr.io/victoriametrics/mcp-victoriametrics:v1.20.2@sha256:bcbf84f945d6efb03fb8b2d2ccc3294420dccdc0b445752dce96f02619416dfe
@@ -123,6 +124,8 @@ services:
       MCP_SERVER_MODE: http # streamable HTTP, at /mcp
       MCP_LISTEN_ADDR: :8080
       MCP_LOG_LEVEL: warn
+      MCP_DISABLED_TOOLS: export,flags,metric_relabel_debug,downsampling_filters_debug,retention_filters_debug,test_rules,documentation
+      MCP_DISABLE_RESOURCES: "true" # the docs again, as MCP resources
     mem_limit: 128m
     networks: [edge]
     healthcheck:
