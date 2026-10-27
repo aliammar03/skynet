@@ -1,7 +1,7 @@
 #!/bin/sh
 # PBS's setup after Proxmox's installer, run by the agent as root (README.md → Install): updates
 # without a subscription, the guest agent, the datastore on Unraid, node-exporter and the journal's
-# upload (P5), and etc/ copied into /etc.
+# upload (P5), VLAN 50's NIC and its firewall, and etc/ copied into /etc.
 # Re-runnable; a rebuild runs it the same way and reuses the datastore as it is on Unraid. From ops:
 #   tar -C pbs -c setup.sh etc | ssh root@10.10.20.40 'rm -rf /root/pbs && mkdir /root/pbs &&
 #     tar -C /root/pbs -x && sh /root/pbs/setup.sh; s=$?; rm -r /root/pbs; exit $s'
@@ -35,6 +35,19 @@ systemctl enable --now mnt-datastore-skynet.automount
 systemctl enable systemd-journal-upload
 systemctl restart systemd-journald prometheus-node-exporter systemd-journal-upload
 systemctl enable --now log-heartbeat.timer
+
+# VLAN 50 (etc/network/interfaces.d/mgmt50): its firewall first, then the NIC. A NIC added while PBS
+# runs came up under the kernel's name; udev renames it by its MAC (etc/systemd/network/) while it's
+# still down.
+systemctl enable nftables
+systemctl reload-or-restart nftables
+if ip -o link | grep -qi 'bc:24:11:20:40:02'; then
+  udevadm trigger --action=add --subsystem-match=net --attr-match=address=bc:24:11:20:40:02
+  udevadm settle
+  ifup mgmt50
+else
+  echo "setup: no NIC bc:24:11:20:40:02 (proxmox.sh's net1): VLAN 50 not up" >&2
+fi
 
 # The datastore: new on an empty share, reused (as-is) on one that has it.
 ls "$store" >/dev/null
