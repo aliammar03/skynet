@@ -33,3 +33,41 @@ identity_providers:
         access_token_signed_response_alg: none
         userinfo_signed_response_alg: none
         token_endpoint_auth_method: client_secret_basic # Grafana's auth_style InHeader
+      # Technitium's web UI, one client per DNS server (dns/README.md → Logging in); each plaintext
+      # is in secrets/<server>.oidc.yaml. ASP.NET's OIDC handler, which Technitium uses, sends the
+      # secret in the body, wants the answer posted back as a form, and reads the claims from
+      # userinfo (so no claims policy).
+      - client_id: technitium-network
+        client_name: Technitium (technitium-network)
+        client_secret: '$pbkdf2-sha512$310000$XbjWsMOlzs.CrE2AIG71/w$X3VdtevsgGTML.SPiF00AK0520VgRI4y4GQMEnozZk09EEDfEDjL09rdzErdaEzlP6hgdIImhIsr5M.EUvPb7A'
+        public: false
+        authorization_policy: admin
+        consent_mode: implicit
+        require_pkce: true
+        pkce_challenge_method: S256
+        redirect_uris:
+          - https://technitium-network.aliammar.net/sso/callback
+        scopes: [openid, profile, email, groups]
+        response_types: [code]
+        response_modes: [form_post]
+        grant_types: [authorization_code]
+        access_token_signed_response_alg: none
+        userinfo_signed_response_alg: none
+        token_endpoint_auth_method: client_secret_post
+      - client_id: technitium-core
+        client_name: Technitium (technitium-core)
+        client_secret: '$pbkdf2-sha512$310000$d45TPwao2cz57ashZeNH3w$JxA92SiP2UoPYX95zBfOq1wYqwTNWYKCf5Kx//UQc7qgOU.VzYzlhNzMETPG0VHWWmr6EW95qNieyDWoiIuWVA'
+        public: false
+        authorization_policy: admin
+        consent_mode: implicit
+        require_pkce: true
+        pkce_challenge_method: S256
+        redirect_uris:
+          - https://technitium-core.aliammar.net/sso/callback
+        scopes: [openid, profile, email, groups]
+        response_types: [code]
+        response_modes: [form_post]
+        grant_types: [authorization_code]
+        access_token_signed_response_alg: none
+        userinfo_signed_response_alg: none
+        token_endpoint_auth_method: client_secret_post

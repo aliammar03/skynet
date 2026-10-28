@@ -1,6 +1,7 @@
 # DNS servers (technitium-network, technitium-core): Technitium, configured only from dns/ in git.
-# technitium-sync applies dns/settings.json and dns/aliammar.net.zone through Technitium's HTTP API
-# at boot and on every deploy that changes them (skynetv2.md → P2, dns/README.md).
+# technitium-sync applies dns/settings.json, dns/aliammar.net.zone and dns/sso.json through
+# Technitium's HTTP API at boot and on every deploy that changes them (skynetv2.md → P2,
+# dns/README.md).
 {
   config,
   lib,
@@ -12,6 +13,8 @@ let
   ip = lib.head (lib.splitString "/" address);
   # sops-nix's file is root-only; systemd hands each unit its own copy (both run as dynamic users).
   credential = "admin-password:${config.sops.secrets.technitium_admin_password.path}";
+  # This server's OIDC client secret (admin Authelia's client, named after the host), for the sync.
+  oidcCredential = "oidc-client-secret:${config.sops.secrets.technitium_oidc_client_secret.path}";
   sync = pkgs.writeShellApplication {
     name = "technitium-sync";
     runtimeInputs = [
@@ -44,6 +47,12 @@ in
     ];
   };
   sops.secrets.technitium_admin_password = { };
+  # In a file of its own: the agent generated it, and can't add a key to the host's file. A new
+  # value re-runs the sync, which hands it to Technitium.
+  sops.secrets.technitium_oidc_client_secret = {
+    sopsFile = ../secrets + "/${config.networking.hostName}.oidc.yaml";
+    restartUnits = [ "technitium-sync.service" ];
+  };
   systemd.services.technitium-dns-server = {
     environment = {
       DNS_SERVER_DOMAIN = config.networking.hostName;
@@ -59,7 +68,7 @@ in
   zramSwap.enable = true; # comin evaluates the flake here; zram absorbs that peak
 
   systemd.services.technitium-sync = {
-    description = "Apply dns/ (settings, aliammar.net) to Technitium";
+    description = "Apply dns/ (settings, aliammar.net, the SSO login) to Technitium";
     wantedBy = [ "multi-user.target" ];
     requires = [ "technitium-dns-server.service" ];
     after = [ "technitium-dns-server.service" ];
@@ -68,12 +77,18 @@ in
       SETTINGS = "${../dns/settings.json}";
       ZONE_FILE = "${../dns/aliammar.net.zone}";
       PASSWORD_FILE = "%d/admin-password";
+      SSO = "${../dns/sso.json}";
+      SSO_CLIENT_ID = config.networking.hostName;
+      SSO_SECRET_FILE = "%d/oidc-client-secret";
     };
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
       DynamicUser = true;
-      LoadCredential = credential;
+      LoadCredential = [
+        credential
+        oidcCredential
+      ];
       ExecStart = lib.getExe sync;
     };
   };

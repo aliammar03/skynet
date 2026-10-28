@@ -5,12 +5,13 @@
   (`two_factor`). Everything not listed in `access_control` is denied.
 - **URL:** https://auth.aliammar.net (caddy-admin → `authelia:9091` on `edge`).
 - **Auth mode:** it *is* the auth.
-- **OIDC provider** (issuer `https://auth.aliammar.net`), for Grafana:
-  - `oidc-clients.yml`: the client `grafana` (its secret as a pbkdf2 digest), policy `admin` (you
-    alone, both factors) and claims policy `grafana` (`preferred_username`, `groups`, … in the ID
-    token too);
+- **OIDC provider** (issuer `https://auth.aliammar.net`), for Grafana and Technitium:
+  - `oidc-clients.yml`: the clients `grafana`, `technitium-network` and `technitium-core` (their
+    secrets as pbkdf2 digests), policy `admin` (you alone, both factors) and claims policy
+    `grafana` (`preferred_username`, `groups`, … in the ID token too; Technitium reads userinfo);
   - `oidc.sops.yml`: the provider's HMAC secret and RS256 signing key (agent-generated);
-  - the client's plaintext secret: `stacks/admin/grafana/oidc.sops.env` (agent-generated).
+  - the clients' plaintext secrets, agent-generated: `stacks/admin/grafana/oidc.sops.env` and
+    `secrets/technitium-{network,core}.oidc.yaml` (`dns/README.md`).
 
   `X_AUTHELIA_CONFIG` merges the three files. The client list lives in one file only: a second
   file's `clients` would replace it, not add to it. Containers on `edge` reach this portal by
