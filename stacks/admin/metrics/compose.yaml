@@ -4,7 +4,7 @@
 services:
   victoriametrics:
     container_name: victoriametrics
-    image: docker.io/victoriametrics/victoria-metrics:v1.154.1@sha256:c7884f32920dd45a9d86542a717227e63af03e060e53bbf8031e6e6fd0e1e05d
+    image: docker.io/victoriametrics/victoria-metrics:v1.155.0@sha256:f60dc268b54ecf87f6e09d740c2b732838aa9193090cc741417c9f6386a130df
     restart: unless-stopped
     command:
       - -storageDataPath=/storage
@@ -39,7 +39,7 @@ services:
   # after a reboot Docker starts containers in no order, and depends_on orders only a deploy.
   vmalert:
     container_name: vmalert
-    image: docker.io/victoriametrics/vmalert:v1.154.1@sha256:aafb962b5a5713c71f0d697d629416f9cccf23aecb74f0ec5e829ddbf3f221f2
+    image: docker.io/victoriametrics/vmalert:v1.155.0@sha256:3256cba5ddaca5974eae6141105cec4ce37871f1c213f0a5c267ec0111bc68e1
     restart: unless-stopped
     # $$: the container's shell reads it, not compose.
     entrypoint:
@@ -70,7 +70,7 @@ services:
   # token. TLS is checked against the nodes' CAs, caddy-admin's pins.
   pve-exporter:
     container_name: pve-exporter
-    image: docker.io/prompve/prometheus-pve-exporter:3.10.1@sha256:5678b230735a80816755dc8b5e0fb139a6595e1d4271ace2d22ff82983d1bdf1
+    image: docker.io/prompve/prometheus-pve-exporter:3.10.2@sha256:7ed5dbff1b145e62e94003cb78d70226d9a7c4d4d1c928b3c7daed21ae9a84d8
     restart: unless-stopped
     command:
       - --config.file=/etc/prometheus/pve.yml
@@ -116,7 +116,7 @@ services:
   # search, whose index alone holds ~600 MiB; without it the server needs ~35 MiB.
   mcp-victoriametrics:
     container_name: mcp-victoriametrics
-    image: ghcr.io/victoriametrics/mcp-victoriametrics:v1.20.2@sha256:bcbf84f945d6efb03fb8b2d2ccc3294420dccdc0b445752dce96f02619416dfe
+    image: ghcr.io/victoriametrics/mcp-victoriametrics:v1.120.1@sha256:16d9a30a6629319a8e84a73b9b54e1e9b9e5bf229bc40a7f1717c8602b0c1c09
     restart: unless-stopped
     environment:
       VM_INSTANCE_ENTRYPOINT: http://victoriametrics:8428

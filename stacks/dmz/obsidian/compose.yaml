@@ -3,7 +3,7 @@
 services:
   obsidian:
     container_name: obsidian
-    image: docker.io/library/couchdb:3.5.3@sha256:4e8e0a366208a87d5059b0f4fcbefff13c32401a655d4629c19be6288ea77675
+    image: docker.io/library/couchdb:3.5.3@sha256:bed314d10cdf58c0fff63352db4c3f168df58a185a773c0e2295105375c5ef10
     restart: unless-stopped
     # The image's entrypoint chowns everything under /opt/couchdb to couchdb (5984). local.ini is
     # mounted at a neutral path and copied in at start, so the checked-out file is never chowned.

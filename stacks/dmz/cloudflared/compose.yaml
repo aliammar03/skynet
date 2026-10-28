@@ -3,7 +3,7 @@
 services:
   cloudflared:
     container_name: cloudflared
-    image: docker.io/cloudflare/cloudflared:2026.10.3@sha256:faa8e0a1475f137c910be6025f43c8e4092fdd35461b31e19fd1390657a1ff39
+    image: docker.io/cloudflare/cloudflared:2026.10.5@sha256:1b1d34d0a9c0bfca9de72db8460d328db3f19edd2b96169114e3e893a97bbe53
     # The image's entrypoint is `cloudflared --no-autoupdate`: updates come as Renovate PRs.
     command: [tunnel, --config, /etc/cloudflared/config.yml, --metrics, 127.0.0.1:2000, run]
     restart: unless-stopped
