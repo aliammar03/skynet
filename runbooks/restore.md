@@ -14,7 +14,7 @@ restored whole is a shortcut: comin then brings it to `main`. Six cases, smalles
 | PBS, datastore `skynet` on Unraid's share `pbs` | every guest but Unraid (2020) and PBS (2040) | network node 02:00, core 03:30 | 14 daily, 8 weekly, 12 monthly | the node's PVE encryption key |
 | `gdrive:skynet/pbs` | that datastore, mirrored | 06:00 | as the datastore; what it drops stays 30 days in Drive's trash | the same keys |
 
-The passwords and keys are in the survival kit (`skynetv2.md` → P4 → Survival kit).
+The passwords and keys are in the survival kit (`survival-kit.md`).
 
 ## Before any restore
 
