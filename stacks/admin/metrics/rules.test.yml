@@ -356,6 +356,32 @@ tests:
             exp_annotations:
               summary: "unraid: disk nvme0 has used 85% of its rated writes."
 
+  # OmadaBridge exports every adopted device, its state in `device_status`. A reboot passes; an AP
+  # out for 15 minutes posts.
+  - name: Omada device out
+    interval: 1m
+    input_series:
+      - series: 'omada_device_uptime_seconds{device_ip="10.10.50.6",device_name="AP",device_show_model="EAP772(US) v2.0",device_status="Connected",instance="omada",job="omada"}'
+        values: "100+60x10"
+      - series: 'omada_device_uptime_seconds{device_ip="10.10.50.6",device_name="AP",device_show_model="EAP772(US) v2.0",device_status="Disconnected",instance="omada",job="omada"}'
+        values: "_x10 0x30"
+      - series: 'omada_device_uptime_seconds{device_ip="10.10.50.7",device_name="AP2",device_show_model="EAP683 UR(US) v1.0",device_status="Rebooting",instance="omada",job="omada"}'
+        values: "0x5"
+      - series: 'omada_device_uptime_seconds{device_ip="10.10.50.7",device_name="AP2",device_show_model="EAP683 UR(US) v1.0",device_status="Connected(Wireless)",instance="omada",job="omada"}'
+        values: "_x6 30+60x34"
+    alert_rule_test:
+      - eval_time: 20m
+        groupname: network
+        alertname: OmadaDeviceDown
+        exp_alerts: []
+      - eval_time: 30m
+        groupname: network
+        alertname: OmadaDeviceDown
+        exp_alerts:
+          - exp_labels: { device_ip: 10.10.50.6, device_name: AP, device_show_model: "EAP772(US) v2.0", device_status: Disconnected, instance: omada, job: omada, severity: warning }
+            exp_annotations:
+              summary: "Omada: AP (EAP772(US) v2.0, 10.10.50.6) is Disconnected."
+
   # A new host's counter already holds its kills since boot, which VictoriaMetrics would count as
   # new on its first scrape. Only a kill after its first 10 minutes alerts.
   - name: OOM kills

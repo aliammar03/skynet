@@ -16,6 +16,16 @@ groups:
         annotations:
           summary: "{{ $labels.instance }}: its exporter answers but can't read the appliance's API (its key or user, or the API): the alerts and graphs on it are blind."
 
+      # Omada's controller lists every adopted device with its state, and OmadaBridge puts that in
+      # `device_status` (Connected, Disconnected, Upgrading, Rebooting, Pending, …). 15 minutes not
+      # connected outlasts a reboot or a firmware upgrade: an AP or the switch is out.
+      - alert: OmadaDeviceDown
+        expr: omada_device_uptime_seconds{device_status!~"Connected.*"}
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "Omada: {{ $labels.device_name }} ({{ $labels.device_show_model }}, {{ $labels.device_ip }}) is {{ $labels.device_status }}."
+
       # dpinger's own verdict per gateway (0 offline, 1 online, 2 unknown, 3 pending, 4 loss,
       # 5 latency, 6 forced offline). Only one that was online this week: a monitored gateway that
       # never comes up (an IPv6 one, with no IPv6 from the ISP) would otherwise post forever.

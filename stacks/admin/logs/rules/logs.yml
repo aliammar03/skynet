@@ -57,20 +57,37 @@ groups:
         annotations:
           summary: '{{ index $labels "_HOSTNAME" }}: no log lines have reached VictoriaLogs for 15 minutes (its journal upload, vlagent or VictoriaLogs).'
 
-      # Appliances log by syslog to vlagent (skynetv2.md → P5 → Wider eyes) and run no heartbeat;
-      # each listener stamps its lines with `source`. OPNsense's firewall log alone brings about 8
-      # lines a second, so 15 minutes without any of its lines means its remote logging, the path or
-      # vlagent stopped.
+      # Appliances log by syslog to vlagent (skynetv2.md → P5 → Wider eyes); each listener stamps
+      # its lines with `source`. OPNsense's firewall log alone brings about 8 lines a second. Unraid's
+      # own log goes quiet for hours, so a User Script logs a heartbeat there every 5 minutes
+      # (unraid/README.md), and only those lines count for it. Omada's controller logs events alone,
+      # hours or days apart: OmadaBridge's alerts watch it instead (network.yml). 15 minutes without
+      # a line means the appliance's remote logging, the path or vlagent stopped.
       - alert: SyslogNotArriving
         expr: >-
-          _time:7d source:=opnsense
+          _time:7d (source:=opnsense OR (source:=unraid app_name:=log-heartbeat))
           | stats by (source) count() if (_time:15m) as recent
           | filter recent:=0
         labels:
           severity: warning
-          instance: opnsense
+          instance: '{{ index $labels "source" }}'
         annotations:
-          summary: 'OPNsense: none of its syslog lines have reached VictoriaLogs for 15 minutes (its remote logging, the path or vlagent).'
+          summary: '{{ index $labels "source" }}: its syslog hasn''t reached VictoriaLogs for 15 minutes (its remote logging, the path or vlagent; on Unraid, also its heartbeat script).'
+
+      # The doors log every request into the journal (caddy's access log; skynetv2.md → P5 → Wider
+      # eyes), each well over 100 in any 15 minutes, Gatus's checks among them. A door seen this
+      # week that logs none for 15 minutes stopped logging (its config), and its apps' latency and
+      # errors go unseen. A door that's down is Gatus's to report.
+      - alert: AccessLogsNotArriving
+        expr: >-
+          _time:7d {CONTAINER_NAME=~"caddy-admin|caddy-apps"} "http.log.access"
+          | stats by (_HOSTNAME, CONTAINER_NAME) count() if (_time:15m) as recent
+          | filter recent:=0
+        labels:
+          severity: warning
+          instance: '{{ index $labels "_HOSTNAME" }}'
+        annotations:
+          summary: '{{ index $labels "_HOSTNAME" }}: {{ index $labels "CONTAINER_NAME" }} has logged no request for 15 minutes (its access log), so its apps'' latency and errors go unseen.'
 
   - name: backups
     type: vlogs

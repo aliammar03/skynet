@@ -26,7 +26,7 @@
 | P2 | DNS (Technitium only) + remote access | done (2026-10-23); open: OPNsense rules 140/150/115 and CT 731 `onboot` (see P2 exit criteria) |
 | P3 | docker-dmz: apps + public path | done (2026-10-24): docker-dmz with v1's data (#48), its doors (#50) and all ten apps (#51–#61); the apps reach one another only through the door (#64); every image current (#67). Family accounts skipped for now; rule 150 can go now that 135 (ex-840) serves Gatus's `public` row |
 | P4 | Backups → Google Drive | in progress (2026-10-25): PBS greenfield done (VM 2040, `pbs/`; v1's PBS removed); PBS's datastore nightly to Drive by plain `rclone sync` (`stacks/admin/pbs-offsite/`; PVE already encrypts its chunks); app data nightly to Drive, hot (`stacks/<host>/backup/`): docker-dmz rebuilt onto btrfs and backed up from btrbk snapshots (#81); `skynet-restore` drilled from a snapshot and from Drive; `runbooks/restore.md` (six cases); a guest restored from Drive's copy (2026-10-27). Next: seven green nights (from 10-26 → 27), the survival kit |
-| P5 | Observability (agent eyes) | in progress (2026-10-26): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`, #88); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics; alerts: two vmalerts and Alertmanager to `#alerts`, its Watchdog to healthchecks.io (#91; both watchdogs, HostDown, TargetDown and DiskFull proven live 10-27); Grafana at `grafana.aliammar.net` (OIDC through admin Authelia; Live and Backups boards of our own, seven upstream) and the agent's MCP servers at `/mcp`; Ali's first Grafana login 10-27. Next: the week's sizing check (11-03) |
+| P5 | Observability (agent eyes) | in progress (2026-10-26): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`, #88); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics; alerts: two vmalerts and Alertmanager to `#alerts`, its Watchdog to healthchecks.io (#91; both watchdogs, HostDown, TargetDown and DiskFull proven live 10-27); Grafana at `grafana.aliammar.net` (OIDC through admin Authelia; Live and Backups boards of our own, seven upstream) and the agent's MCP servers at `/mcp`; Ali's first Grafana login 10-27. Wider eyes live 10-28 (#102–#109): the Proxmox nodes, OPNsense, the doors' access logs, Unraid, Omada, Technitium's stats and query log. Asked and answered through the MCP tools on 10-28: network (the nodes' backups reach PBS over VLAN 50, not through OPNsense; technitium-network's 700 refusals were one burst), storage (night 2's guest backups, verify, restic and Drive copy). Next: the freshness tests (Wider eyes, with Ali), the week's sizing check (11-03) |
 | P6 | Agent autonomy | planned (2026-10-26): the leash first (comin's testing branches off, with the plan), then tiered merges with verify and rollback, the incident loop, the rekey workflow, OpenTofu for our VMs and the OPNsense aliases; after P5 |
 | P7 | Retire v1 + disaster recovery | outline |
 
@@ -202,7 +202,7 @@ skynet/
 | docker-admin host key | `secrets/docker-admin.yaml`, `stacks/admin/**` | that host | P1 |
 | caddy-admin / caddy-apps | Cloudflare token `Zone.DNS:Edit` on `aliammar.net` | DNS-01 | P1 / P3 |
 | doco-cd API keys | REST/MCP per Docker host | held by ops (diagnose tools only until P6) | P1 / P3 |
-| `#alerts` webhook | post only | Gatus, Apprise, comin, healthchecks.io; Alertmanager (P5) | P1 |
+| `#alerts` webhook | post only | Gatus, Apprise, comin, healthchecks.io; Alertmanager and Unraid's notifications (P5) | P1 |
 | technitium-network / technitium-core host keys | `secrets/technitium-<node>.yaml`: Technitium `admin` password (agent-generated) | that host | P2 |
 | Tailscale | Ali's account; OPNsense holds the node key | subnet routes 10.10.50.0/24, 10.10.60.60, 10.10.70.50–51 | P2 |
 | docker-dmz host key, tunnel credentials | `stacks/dmz/**`, cloudflared | that host | P3 |
@@ -1740,7 +1740,7 @@ the internet slow?", "is a disk failing?" and "why is this app slow?" are answer
 | Proxmox nodes | Debian's node-exporter, with its SMART and NVMe textfile timers | the journal, through `systemd-journal-upload`, as PBS's | Ali runs `pve/setup.sh` on each node |
 | OPNsense | opnsense-exporter in `exporters`, through a read-only API user | remote syslog to vlagent, TCP 5514: firewall, system, dnsmasq | Ali: the user and its key, the logging target |
 | The doors | — | caddy-admin's and caddy-apps' access logs, JSON, into the journal | the PR |
-| Unraid | upstream node-exporter and smartctl-exporter, as two Unraid containers | remote syslog to vlagent, TCP 5515 | Ali: the containers (`unraid/README.md`), the syslog target |
+| Unraid | upstream node-exporter and smartctl-exporter, as two Unraid containers | remote syslog to vlagent, TCP 5515, with a 5-minute heartbeat | Ali: the containers (`unraid/README.md`), the syslog target, the heartbeat script, its notifications |
 | Omada | OmadaBridge in its own stack `omada-exporter`, through a viewer user | its remote logging to vlagent, UDP 5516 | Ali: the user, the logging target |
 | Technitium | a timer on each DNS host writes the dashboard's last hour to node-exporter's textfile | already in the journal | the PR |
 
@@ -1788,7 +1788,8 @@ the internet slow?", "is a disk failing?" and "why is this app slow?" are answer
   errors, with no new series.
 - **Unraid:** `unraid/README.md` describes the two containers (Unraid's config isn't in git). Its
   syslog (Settings → Syslog Server → remote server 10.10.50.40, TCP 5515) carries the array's
-  events: a disk disabled, a parity check's result. Its array disks (`/mnt/disk*`) fill past 90%
+  events: a disk disabled, a parity check's result. Its own lines can be hours apart, so a User
+  Script logs a heartbeat every 5 minutes. Its array disks (`/mnt/disk*`) fill past 90%
   by design, so `DiskFull` leaves them out; node-exporter's mdadm collector, which misreads
   Unraid's own md driver, is off.
 - **Omada:** OmadaBridge reaches the controller as `Omada:8043` (CT 525; caddy-admin's pinned
@@ -1804,12 +1805,30 @@ the internet slow?", "is a disk failing?" and "why is this app slow?" are answer
 |---|---|
 | `TargetDown`, `HostDown`, the host rules | as for every host, now for the nodes and Unraid too |
 | `ExporterBlind` | opnsense-exporter or OmadaBridge answers but can't read its API, for 10 min (each one's own success metric) |
-| `SyslogNotArriving` | an appliance seen this week sends nothing for 15 min (OPNsense's firewall log never pauses that long; Unraid's and Omada's windows set from their measured rates) |
+| `SyslogNotArriving` | an appliance seen this week sends nothing for 15 min: OPNsense's lines (its firewall log never pauses that long), Unraid's 5-minute heartbeat (its own lines can be hours apart). Omada's controller logs only events, days apart at times, so `ExporterBlind` and `TargetDown` stand for its freshness |
+| `AccessLogsNotArriving` | a door logs no request for 15 min (each logs over 100 in any 15 min, Gatus's checks among them) |
+| `OmadaDeviceDown` | an AP or the switch not connected for 15 min (OmadaBridge's `device_status`): longer than a reboot or a firmware upgrade |
 | `GuestBackupFailed` | a node's journal logs a failed vzdump job: P4's open gap closes in minutes, not 26 h |
 | `DiskUnhealthy`, `DiskWearing` | SMART not passed or an NVMe critical warning; wear past 80% (nodes, Unraid) |
 | `GatewayDown`, `GatewayLossy` | a gateway offline for 5 min; over 5% loss for 15 min |
 | `FirewallStatesHigh` | pf states over 80% of the limit |
 | `DnsFailing` | server failures over 5% of the last hour's queries |
+
+Unraid's array events (a disk disabled or missing, a parity check's errors, a disk too hot) post
+through Unraid's own notifications, by its Discord agent to `#alerts` (`unraid/README.md`).
+
+**Freshness tests** (the exit criteria), one sitting of about 30 minutes: each source stopped, its
+alert posted, the source back, the alert resolved. HostDown and TargetDown were proven on 10-27.
+
+| Source | Stopped by | Alert |
+|---|---|---|
+| OPNsense's syslog | Ali: its remote logging target disabled | `SyslogNotArriving` opnsense |
+| OPNsense's API | Ali: the exporter's API user disabled (System → Access → Users) | `ExporterBlind` opnsense |
+| Unraid's syslog | Ali: the `skynet-heartbeat` script's schedule disabled | `SyslogNotArriving` unraid |
+| Omada | Ali: the controller's `exporter` user disabled | `ExporterBlind` omada (`TargetDown` if OmadaBridge exits) |
+| A Proxmox node's journal | Ali, as root on one node: `systemctl stop systemd-journal-upload` | `LogsNotArriving` |
+| Technitium's stats | agent, as root on technitium-core: `systemctl stop technitium-stats.timer` | `DnsStatsStale` |
+| The apps door's access log | agent, as root on docker-dmz: caddy-apps reloaded from a copy of its Caddyfile without `import access_log`, then from its own | `AccessLogsNotArriving` |
 
 **Cost:** two small containers (about 50 MB) and about 8,000 more series. That takes the 13-month
 disk estimate from 12–18 GB to 18–27 GB, past docker-admin's 20 GB free before P6's rebuild grows
