@@ -15,9 +15,11 @@
   `Omada`, mapped to 10.10.50.25:8043). docker-admin shares VLAN 50 with CT 525.
 - **Data:** none. Backup class: none.
 - **Secrets:** `secret.sops.env` (Ali): `OMADA_USER` and `OMADA_PASS`.
-- **Alerts** (`stacks/admin/metrics/rules/network.yml`): `ExporterBlind` when it answers but reports
+- **Alerts** (`stacks/admin/metrics/rules/network.yml`): `OmadaDeviceDown` when an AP or the switch
+  isn't connected for 15 minutes (its `device_status`); `ExporterBlind` when it answers but reports
   no device for 10 minutes (it has no metric for a failed controller call: those are only in its
-  log); `TargetDown` when it doesn't answer.
+  log); `TargetDown` when it doesn't answer. These two are Omada's freshness alerts: its syslog
+  carries only events, hours or days apart, so a silence there means nothing.
 - **Upstream:** [OmadaBridge](https://github.com/RCooLeR/omada_exporter)
 
 **Gotchas**

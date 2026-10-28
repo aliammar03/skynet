@@ -16,10 +16,11 @@
   (`stacks/admin/grafana`) reads VictoriaLogs by name on `edge`, through its plugin.
 - **Rules** (`rules/logs.yml`, LogsQL): `CrashLoop` (systemd's line for each container start),
   `LogsNotArriving` (each host's `log-heartbeat` line, every 5 minutes, missing for 15),
-  `SyslogNotArriving` (OPNsense's lines, missing for 15; Unraid's and Omada's join once a week of
-  their rates says how long a silence is normal), `GuestBackupFailed` (a Proxmox node's
-  vzdump error), `FilesystemErrors`, `LogFlood` and `LogsDropped` (journald's own count of what it
-  dropped).
+  `SyslogNotArriving` (OPNsense's lines, or Unraid's 5-minute heartbeat, missing for 15; Omada
+  logs only events, hours or days apart, so OmadaBridge's alerts watch it instead),
+  `AccessLogsNotArriving` (a door's request lines, missing for 15), `GuestBackupFailed` (a Proxmox
+  node's vzdump error), `FilesystemErrors`, `LogFlood` and `LogsDropped` (journald's own count of
+  what it dropped).
 - **Auth mode:** `forward` (Authelia). Ops (10.10.90.91) reads `/select/logsql/` without a login:
   `curl -s https://logs.aliammar.net/select/logsql/query --data-urlencode 'query=_time:1h CONTAINER_NAME:doco-cd'`.
   And `/mcp`, the MCP server's tools, which only read. Deletes are off in VictoriaLogs itself.
