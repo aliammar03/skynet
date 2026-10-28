@@ -66,6 +66,21 @@
       "matchFileNames": ["stacks/dmz/jikan/**"],
       "matchPackageNames": ["docker.io/typesense/typesense"],
       "allowedVersions": "/^0\\.24\\./"
+    },
+    {
+      "description": "Until P6 merges updates in its nightly window (skynetv2.md → P6 → Merges), the low-risk ones come as one PR a week, opened or updated on Monday morning: every digest and patch, and minors from 1.0 up. Majors, 0.x minors (semver lets those break) and doco-cd (it deploys everything else) still come one PR each. Last in the list, so it wins over the groups above; those stay together inside it.",
+      "matchUpdateTypes": ["digest", "patch"],
+      "matchPackageNames": ["!ghcr.io/kimdre/doco-cd"],
+      "groupName": "weekly updates",
+      "schedule": ["before 6am on monday"]
+    },
+    {
+      "description": "Minors from 1.0 up join the weekly PR (see above)",
+      "matchUpdateTypes": ["minor"],
+      "matchCurrentVersion": "/^v?[1-9]/",
+      "matchPackageNames": ["!ghcr.io/kimdre/doco-cd"],
+      "groupName": "weekly updates",
+      "schedule": ["before 6am on monday"]
     }
   ]
 }
