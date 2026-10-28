@@ -68,6 +68,11 @@
       "allowedVersions": "/^0\\.24\\./"
     },
     {
+      "description": "mcp-victoriametrics's tag v1.120.1 is v1.20.1 tagged wrong: its revision label is v1.20.1's commit, built a month before v1.20.2, and upstream has no such release. Moving to it would be a downgrade",
+      "matchPackageNames": ["ghcr.io/victoriametrics/mcp-victoriametrics"],
+      "allowedVersions": "!/^v?1\\.120\\./"
+    },
+    {
       "description": "Until P6 merges updates in its nightly window (skynetv2.md → P6 → Merges), the low-risk ones come as one PR a week, opened or updated on Monday morning: every digest and patch, and minors from 1.0 up. Majors, 0.x minors (semver lets those break) and doco-cd (it deploys everything else) still come one PR each. Last in the list, so it wins over the groups above; those stay together inside it.",
       "matchUpdateTypes": ["digest", "patch"],
       "matchPackageNames": ["!ghcr.io/kimdre/doco-cd"],
