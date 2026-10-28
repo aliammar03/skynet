@@ -355,3 +355,25 @@ tests:
           - exp_labels: { device: nvme0, instance: unraid, job: smartctl, severity: warning }
             exp_annotations:
               summary: "unraid: disk nvme0 has used 85% of its rated writes."
+
+  # A new host's counter already holds its kills since boot, which VictoriaMetrics would count as
+  # new on its first scrape. Only a kill after its first 10 minutes alerts.
+  - name: OOM kills
+    interval: 1m
+    input_series:
+      - series: 'node_vmstat_oom_kill{instance="new",job="node"}'
+        values: "1x40"
+      - series: 'node_vmstat_oom_kill{instance="old",job="node"}'
+        values: "0x20 1x20"
+    alert_rule_test:
+      - eval_time: 5m
+        groupname: hosts
+        alertname: OOMKill
+        exp_alerts: []
+      - eval_time: 25m
+        groupname: hosts
+        alertname: OOMKill
+        exp_alerts:
+          - exp_labels: { instance: old, job: node, severity: warning }
+            exp_annotations:
+              summary: "old: the kernel killed a process for lack of memory in the last 10 minutes; its journal names it."
