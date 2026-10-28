@@ -24,4 +24,8 @@ in
   };
   # resolved is off (dns.nix), so resolv.conf comes from here: its own Technitium first.
   networking.nameservers = [ "127.0.0.1" ] ++ net.dns;
+
+  # The agent is root here (D11): wheel = passwordless sudo (base.nix), each command logged in the
+  # journal. Its key is still accepted from ops only.
+  users.users.skynet.extraGroups = [ "wheel" ];
 }
