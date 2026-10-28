@@ -1739,7 +1739,7 @@ the internet slow?", "is a disk failing?" and "why is this app slow?" are answer
 | OPNsense | opnsense-exporter in `exporters`, through a read-only API user | remote syslog to vlagent, TCP 5514: firewall, system, dnsmasq | Ali: the user and its key, the logging target |
 | The doors | — | caddy-admin's and caddy-apps' access logs, JSON, into the journal | the PR |
 | Unraid | upstream node-exporter and smartctl-exporter, as two Unraid containers | remote syslog to vlagent, TCP 5515 | Ali: the containers (`unraid/README.md`), the syslog target |
-| Omada | OmadaBridge in its own stack `omada-exporter`, through a viewer user | its devices' remote logging to vlagent, UDP 5516 | Ali: the user, the logging target |
+| Omada | OmadaBridge in its own stack `omada-exporter`, through a viewer user | its remote logging to vlagent, UDP 5516 | Ali: the user, the logging target |
 | Technitium | a timer on each DNS host writes the dashboard's last hour to node-exporter's textfile | already in the journal | the PR |
 
 **Tools** (researched 2026-10-28):
@@ -1790,8 +1790,9 @@ the internet slow?", "is a disk failing?" and "why is this app slow?" are answer
   by design, so `DiskFull` leaves them out; node-exporter's mdadm collector, which misreads
   Unraid's own md driver, is off.
 - **Omada:** OmadaBridge reaches the controller as `Omada:8043` (CT 525; caddy-admin's pinned
-  `omada.pem`) and reads the site `Omada Network Skynet`. Remote Logging (site settings):
-  10.10.50.40, UDP 5516.
+  `omada.pem`) and reads the site `Omada Network Skynet`. Remote Logging (global): 10.10.50.40,
+  UDP 5516, in a header that only looks like RFC 5424, so vlagent takes each line's arrival time
+  and its sender's address (`stacks/admin/logs`).
 - **Technitium:** every 5 minutes, `dashboard/stats/get?type=LastHour`: queries, server failures,
   NX domains, refusals, blocks, drops, clients and cache size.
 

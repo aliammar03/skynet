@@ -4,11 +4,12 @@
   journald driver), kept 30 days and never more than 4 GiB. Each host ships with
   `systemd-journal-upload` (`modules/observability.nix`; PBS from `pbs/etc/`, the Proxmox nodes from
   `pve/etc/`), which keeps a cursor: after an outage it resumes where it stopped, and until then the
-  host's own journal (2 weeks) holds the logs. Appliances log by syslog (OPNsense). **vmalert-logs** runs `rules/*.yml` (LogsQL; vmalert adds `_time:<interval>` to a
-  query without its own) and sends what fires to Alertmanager. Its alerts' state lives in
-  VictoriaMetrics and comes back on its first evaluation only, so it starts once both stores
-  answer. **mcp-victorialogs** is the agent's eyes: VictoriaLogs' query tools over MCP (streamable
-  HTTP), which only read. Its documentation search is off (its index was most of its memory).
+  host's own journal (2 weeks) holds the logs. Appliances log by syslog (OPNsense, Unraid, Omada).
+  **vmalert-logs** runs `rules/*.yml` (LogsQL; vmalert adds `_time:<interval>` to a query without
+  its own) and sends what fires to Alertmanager. Its alerts' state lives in VictoriaMetrics and
+  comes back on its first evaluation only, so it starts once both stores answer.
+  **mcp-victorialogs** is the agent's eyes: VictoriaLogs' query tools over MCP (streamable HTTP),
+  which only read. Its documentation search is off (its index was most of its memory).
 - **URL:** https://logs.aliammar.net (caddy-admin → `victorialogs:9428`): the query UI at
   `/select/vmui`; vmalert-logs' rules and pending alerts at `/select/vmalert/` (VictoriaLogs
   proxies it). `/mcp` goes to `mcp-victorialogs:8081` (`.mcp.json`'s `victorialogs`). Grafana
@@ -33,11 +34,13 @@
   from that appliance only, its lines stamped with `source`:
   - TCP 5514: OPNsense (System → Settings → Logging → Remote, RFC 5424; `source:=opnsense`);
   - TCP 5515: Unraid (Settings → Syslog Server; `source:=unraid`; `unraid/`);
-  - UDP 5516: Omada's devices (Site Settings → Services → Remote Logging; `source:=omada`), from
-    VLAN 50.
+  - UDP 5516: Omada (its controller's global Remote Logging; `source:=omada`), from VLAN 50.
 
   A line carries `hostname`, `app_name` (the stream, with `proc_id`), `format`, `severity` (also as
-  `level`) and its own time (RFC 3164 lines, Unraid's and Omada's, in TZ's time). The firewall log
+  `level`) and its own time (RFC 3164 lines, Unraid's, in TZ's time). Omada's header only looks
+  like RFC 5424 (a space inside its timestamp, a name with spaces), so its fields land one place
+  off: its lines take their arrival time, `remote_ip` names the sender (the stream), the misplaced
+  hostname is dropped, and its text, JSON, follows `- - `. The firewall log
   (`app_name:=filterlog`) is OPNsense's CSV; what got blocked, and where:
   ```
   _time:1h app_name:=filterlog ",block," | extract_regexp "^(?P<rule>[^,]*),[^,]*,[^,]*,(?P<rid>[^,]*),(?P<iface>[^,]*),[^,]*,(?P<action>[^,]*),(?P<dir>[^,]*),4,(?:[^,]*,){7}(?P<proto>[^,]*),[^,]*,(?P<src>[^,]*),(?P<dst>[^,]*),(?P<sport>[^,]*),(?P<dport>[^,]*)" | stats by (iface, src, dst, dport) count() as blocks | sort by (blocks desc) | limit 20

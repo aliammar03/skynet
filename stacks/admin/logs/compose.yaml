@@ -48,9 +48,17 @@ services:
       - '-syslog.extraFields.tcp={"source":"opnsense"}'
       - -syslog.listenAddr.tcp=:5515
       - '-syslog.extraFields.tcp={"source":"unraid"}'
-      # Omada's devices send over UDP only.
+      # Omada sends over UDP only, in a header that only looks like RFC 5424: a space inside its
+      # timestamp, and its name, spaces and all, where the hostname goes. Each field lands one place
+      # off (its time of day as `hostname`), so the arrival time stands in for its timestamp,
+      # `remote_ip` names the sender and is the stream, and the misplaced hostname is dropped. A
+      # flag given once applies to every UDP listener; this is the only one.
       - -syslog.listenAddr.udp=:5516
       - '-syslog.extraFields.udp={"source":"omada"}'
+      - -syslog.useLocalTimestamp.udp=true
+      - -syslog.useRemoteIP.udp=true
+      - '-syslog.streamFields.udp=["remote_ip"]'
+      - '-syslog.ignoreFields.udp=["hostname"]'
     environment:
       TZ: Asia/Karachi
     volumes:
