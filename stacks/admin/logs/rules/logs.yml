@@ -115,14 +115,15 @@ groups:
       # (modules/observability.nix); 50 a second from one container, unit or appliance's app for 10
       # minutes is a loop. Appliances' syslog has no journald in front of it, so this is their only
       # brake: OPNsense's firewall log runs at about 8 a second. Counted by each line's own time, so
-      # a host's first upload of its old journal doesn't count.
+      # a host's first upload of its old journal doesn't count. Omada's lines have no hostname
+      # (vlagent drops its misplaced one), so `source` and the sender's `remote_ip` name them.
       - alert: LogFlood
         expr: >-
-          * | stats by (_HOSTNAME, _SYSTEMD_UNIT, CONTAINER_NAME, hostname, app_name) count() as lines
+          * | stats by (_HOSTNAME, _SYSTEMD_UNIT, CONTAINER_NAME, source, hostname, remote_ip, app_name) count() as lines
           | filter lines:>15000
         for: 10m
         labels:
           severity: warning
-          instance: '{{ or (index $labels "_HOSTNAME") (index $labels "hostname") }}'
+          instance: '{{ or (index $labels "_HOSTNAME") (index $labels "hostname") (index $labels "source") }}'
         annotations:
-          summary: '{{ or (index $labels "_HOSTNAME") (index $labels "hostname") }}: {{ or (index $labels "CONTAINER_NAME") (index $labels "_SYSTEMD_UNIT") (index $labels "app_name") }} logged {{ $value }} lines in 5 minutes; its log shows what repeats.'
+          summary: '{{ or (index $labels "_HOSTNAME") (index $labels "hostname") (index $labels "source") }}: {{ or (index $labels "CONTAINER_NAME") (index $labels "_SYSTEMD_UNIT") (index $labels "app_name") (index $labels "remote_ip") }} logged {{ $value }} lines in 5 minutes; its log shows what repeats.'

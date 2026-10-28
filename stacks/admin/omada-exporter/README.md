@@ -26,5 +26,5 @@
   a whole stack when one of its containers dies.
 - A re-pinned controller cert changes `omada.pem`; its fingerprint in the `skynet.pinned-cert` label
   must change with it.
-- The devices' own logs come by syslog (Site Settings → Services → Remote Logging: 10.10.50.40,
-  UDP 5516; `stacks/admin/logs`), not through this exporter.
+- Omada's logs come by syslog (its global Remote Logging: 10.10.50.40, UDP 5516;
+  `stacks/admin/logs`), not through this exporter.
