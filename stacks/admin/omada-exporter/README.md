@@ -8,8 +8,9 @@
 - **URL / auth:** none (not routed). VictoriaMetrics scrapes `omada-exporter:9202` once a minute on
   `edge` (`stacks/admin/metrics/scrape.yaml`); Gatus checks `/healthz`.
 - **The controller's user** (Ali, once): Global View → Account → Role: a viewer role (read only);
-  Account → Add New User, e.g. `exporter`, with that role and the `Default` site. Log in once as it
-  to confirm the password. If the site isn't named `Default`, change `OMADA_SITE`.
+  Account → Add New User, e.g. `exporter`, with that role and the site, `Omada Network Skynet`.
+  Log in once as it to confirm the password. `OMADA_SITE` names the site exactly, so renaming the
+  site means changing it too.
 - **TLS:** checked against the controller's self-signed cert, caddy-admin's pin (`omada.pem`, name
   `Omada`, mapped to 10.10.50.25:8043). docker-admin shares VLAN 50 with CT 525.
 - **Data:** none. Backup class: none.

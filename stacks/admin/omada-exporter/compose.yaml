@@ -14,7 +14,8 @@ services:
       # TLS is checked against the controller's self-signed cert (caddy-admin's pin), whose name is
       # Omada, not the IP.
       OMADA_HOST: https://Omada:8043
-      OMADA_SITE: Default
+      # The site's name, matched exactly.
+      OMADA_SITE: Omada Network Skynet
       SSL_CERT_FILE: /etc/skynet-certs/omada.pem
       OMADA_MQTT_ENABLED: "false"
       OMADA_ALLOW_DEVICE_CONTROL: "false"
