@@ -25,8 +25,8 @@
 | P1 | docker-admin: admin door, identity, status | done (2026-10-22); 7 admin names move to .60 with P2's Technitium |
 | P2 | DNS (Technitium only) + remote access | done (2026-10-23); open: OPNsense rules 140/150/115 and CT 731 `onboot` (see P2 exit criteria) |
 | P3 | docker-dmz: apps + public path | done (2026-10-24): docker-dmz with v1's data (#48), its doors (#50) and all ten apps (#51–#61); the apps reach one another only through the door (#64); every image current (#67). Family accounts skipped for now; rule 150 can go now that 135 (ex-840) serves Gatus's `public` row |
-| P4 | Backups → Google Drive | in progress (2026-10-25): PBS greenfield done (VM 2040, `pbs/`; v1's PBS removed); PBS's datastore nightly to Drive by plain `rclone sync` (`stacks/admin/pbs-offsite/`; PVE already encrypts its chunks); app data nightly to Drive, hot (`stacks/<host>/backup/`): docker-dmz rebuilt onto btrfs and backed up from btrbk snapshots (#81); `skynet-restore` drilled from a snapshot and from Drive; `runbooks/restore.md` (six cases). Next: the guest drill from Drive's copy (its case 6), seven green nights |
-| P5 | Observability (agent eyes) | in progress (2026-10-26): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`, #88); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics; alerts: two vmalerts and Alertmanager to `#alerts`, its Watchdog to healthchecks.io (#91; both watchdogs, HostDown, TargetDown and DiskFull proven live 10-27); Grafana at `grafana.aliammar.net` (OIDC through admin Authelia; Live and Backups boards of our own, seven upstream) and the agent's MCP servers at `/mcp`. Next: Ali's first Grafana login, then the week's sizing check (11-03) |
+| P4 | Backups → Google Drive | in progress (2026-10-25): PBS greenfield done (VM 2040, `pbs/`; v1's PBS removed); PBS's datastore nightly to Drive by plain `rclone sync` (`stacks/admin/pbs-offsite/`; PVE already encrypts its chunks); app data nightly to Drive, hot (`stacks/<host>/backup/`): docker-dmz rebuilt onto btrfs and backed up from btrbk snapshots (#81); `skynet-restore` drilled from a snapshot and from Drive; `runbooks/restore.md` (six cases); a guest restored from Drive's copy (2026-10-27). Next: seven green nights (from 10-26 → 27), the survival kit |
+| P5 | Observability (agent eyes) | in progress (2026-10-26): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`, #88); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics; alerts: two vmalerts and Alertmanager to `#alerts`, its Watchdog to healthchecks.io (#91; both watchdogs, HostDown, TargetDown and DiskFull proven live 10-27); Grafana at `grafana.aliammar.net` (OIDC through admin Authelia; Live and Backups boards of our own, seven upstream) and the agent's MCP servers at `/mcp`; Ali's first Grafana login 10-27. Next: the week's sizing check (11-03) |
 | P6 | Agent autonomy | planned (2026-10-26): the leash first (comin's testing branches off, with the plan), then tiered merges with verify and rollback, the incident loop, the rekey workflow, OpenTofu for our VMs and the OPNsense aliases; after P5 |
 | P7 | Retire v1 + disaster recovery | outline |
 
@@ -103,6 +103,8 @@ skynet/
 ├ secrets/<host>.yaml host-level secrets (sops-nix); secrets/shared/ a value two hosts share (P6)
 ├ dns/                aliammar.net.zone · settings.json (Technitium, P2)
 ├ pbs/                PBS, VM 2040: vm.nix (P6) · answer.toml · installer.nix · setup.sh · etc/ (P4)
+├ pve/                the Proxmox nodes' exporters and log upload: setup.sh · etc/, Ali runs it (P5)
+├ unraid/             README.md: Unraid's exporter containers and syslog target, Ali applies (P5)
 ├ infra/proxmox/      OpenTofu: our VMs, from each host's vm.nix (P6)
 ├ opnsense/           aliases.yaml, synced to OPNsense (P6)
 ├ .doco-cd.admin.yml  .doco-cd.dmz.yml
@@ -1473,7 +1475,12 @@ manager.
      equal to the snapshot;
    - `skynet-restore drive karakeep --to` a scratch folder (75 s): 1.79 GiB in 414 files, no
      difference from the live folder.
-7. **Drill:** one small guest restored from the Drive copy.
+7. **Drill:** done (2026-10-27): technitium-core (7051) from Drive's copy of its 10-27 backup,
+   restored beside itself as VM 99051 (`runbooks/restore.md`, case 6). PBS verified its 888
+   chunks through a read-only mount of Drive (0 errors; 916 MiB in 300 s, 8 readers), PVE
+   restored the 16 GiB disk in 110 s, and the VM booted and answered as technitium-core. A
+   cloud-backed datastore needs `chunk-order=none` and parallel readers: Drive answers each chunk
+   in about 2 s.
 
 ### Exit criteria
 
@@ -1555,12 +1562,14 @@ today a failed, missed or disabled guest backup posts nothing (P4 → Open).
 ### Where it runs (docker-admin)
 
 Four stacks in `stacks/admin/`, each with its site, DNS name, Gatus row and README
-(`runbooks/new-stack.md`):
+(`runbooks/new-stack.md`), and two for Wider eyes, `exporters` and `omada-exporter`, with no site:
 
 | Stack | Containers | Name | `/opt/appdata/<stack>/` |
 |---|---|---|---|
 | `metrics` | victoriametrics, vmalert, pve-exporter, pbs-exporter, mcp-victoriametrics | `metrics` | `data`: cache (history, not backed up) |
-| `logs` | victorialogs, vlagent, vmalert-logs, mcp-victorialogs | `logs` | `data`, `buffer`: cache |
+| `exporters` (Wider eyes) | opnsense-exporter | — | none |
+| `omada-exporter` (Wider eyes) | omada-exporter | — | none |
+| `logs` | victorialogs, vlagent (its syslog listeners: Wider eyes), vmalert-logs, mcp-victorialogs | `logs` | `data`, `buffer`: cache |
 | `alertmanager` | alertmanager | `alerts` | `data` (silences): data |
 | `grafana` | grafana | `grafana` | `data`: cache (all of it comes from git or the login) |
 
@@ -1657,7 +1666,7 @@ those scrapes is several API calls. Its targets are in `stacks/admin/metrics/scr
 | `GuestBackupStale`, `GuestBackupUnverified` | the newest backup of a guest PVE has now, in its node's namespace, older than 26 h (a retired or moved guest's kept backups don't count); or any guest's newest without a passed verify 5 h on (PBS verifies at 04:30, after both nodes' jobs) |
 | `GuestNeverBackedUp`, `PbsApiDown` | a guest PVE runs with no backup in its node's namespace for 26 h (Unraid and PBS left out, as in the jobs); pbs-exporter unable to read PBS's API for 10 min, which otherwise leaves the backup alerts quiet |
 | `StorageFull`, `DatastoreFull` | a PVE storage or PBS's datastore over 80% |
-| `CominFailing`, `DocoCdNotPolling` | comin failing to fetch, evaluate or build main for an hour; doco-cd without a successful poll for 30 min (none ran, or each failed: doco-cd counts both in `polls_total`). A failed deploy is the deployer's own post, as now |
+| `CominFailing`, `DocoCdNotPolling` | comin failing to fetch, evaluate or build main for an hour; doco-cd without a successful poll for 30 min (none ran, or each failed: doco-cd counts both in `polls_total`), except while one of its own jobs, running under 8 h, holds the polls. A failed deploy is the deployer's own post, as now |
 | `CertificateExpiring` | a certificate Gatus checks expires within 14 days (Gatus itself alerts at 7) |
 | `FilesystemErrors` | ext4, btrfs, I/O or medium errors in a kernel log (every 5 min) |
 | `LogFlood`, `LogsDropped` | one container or unit logging over 50 lines a second for 10 min: a loop (journald drops what passes 100); journald reporting lines it dropped |
@@ -1715,6 +1724,94 @@ those scrapes is several API calls. Its targets are in `stacks/admin/metrics/scr
   `.claude/settings.json`: the agent doesn't grant itself tools.
 - P6's scripts read the same data through the plain query APIs.
 
+### Wider eyes (planned 2026-10-28)
+
+The first round watches our own hosts. This one adds what they run on and pass through, so "is
+the internet slow?", "is a disk failing?" and "why is this app slow?" are answered from data too
+(Ali, 2026-10-28). As before:
+- exporters on docker-admin hold any key, and the agent reads only VictoriaMetrics and
+  VictoriaLogs;
+- every source gets a freshness alert: a dead exporter otherwise leaves the agent blind, silently.
+
+| Source | Metrics | Logs | Set up by |
+|---|---|---|---|
+| Proxmox nodes | Debian's node-exporter, with its SMART and NVMe textfile timers | the journal, through `systemd-journal-upload`, as PBS's | Ali runs `pve/setup.sh` on each node |
+| OPNsense | opnsense-exporter in `exporters`, through a read-only API user | remote syslog to vlagent, TCP 5514: firewall, system, dnsmasq | Ali: the user and its key, the logging target |
+| The doors | — | caddy-admin's and caddy-apps' access logs, JSON, into the journal | the PR |
+| Unraid | upstream node-exporter and smartctl-exporter, as two Unraid containers | remote syslog to vlagent, TCP 5515 | Ali: the containers (`unraid/README.md`), the syslog target |
+| Omada | OmadaBridge in its own stack `omada-exporter`, through a viewer user | its devices' remote logging to vlagent, UDP 5516 | Ali: the user, the logging target |
+| Technitium | a timer on each DNS host writes the dashboard's last hour to node-exporter's textfile | already in the journal | the PR |
+
+**Tools** (researched 2026-10-28):
+
+| Need | Choice | Why | Passed over |
+|---|---|---|---|
+| OPNsense | opnsense-exporter 0.0.19 (AthennaMind; 274★, released 2026-10-21) | gateways' loss and latency, interfaces, pf states and mbufs, services, through OPNsense's API | OPNsense's `os-node_exporter` plugin (the box's CPU and memory, which PVE's view of VM 5001 already gives) |
+| Appliances' logs | vlagent's syslog listeners (1.53: the same `vlinsert` VictoriaLogs runs) | no new daemon, and VictoriaLogs stays closed | VictoriaLogs' own listeners (a second way in) |
+| Proxmox nodes | Debian 13's `prometheus-node-exporter` and `prometheus-node-exporter-collectors` (smartmon, nvme), `systemd-journal-remote` | what PBS runs; both nodes are PVE 9.2 on Debian 13 | pve-exporter alone (the API's view: no disks, no host I/O, no logs) |
+| Unraid | `quay.io/prometheus/node-exporter`, `quay.io/prometheuscommunity/smartctl-exporter` | upstream's images, on Unraid's Docker | ich777's plugins (archived 2026-08); Unraid's API (no Prometheus side) |
+| Omada | OmadaBridge (`rcooler/omada_exporter`, MIT; the maintained fork of charlie-haley's) | controller, APs, switches and clients through a viewer user; its MQTT side off | charlie-haley's original (idle since 2024-08) |
+| Technitium | a textfile timer on the DNS hosts (glue) | the admin login is already on the host, so no credential moves | the community exporters (39★ at most, and a token to move) |
+
+**Per source:**
+- **`exporters`, a stack of its own:** doco-cd redeploys a whole stack when one of its containers
+  dies, so two young exporters' crash loops would restart VictoriaMetrics if they sat in `metrics`.
+  Here they restart only each other, and a missing key fails only this stack's deploy.
+  VictoriaMetrics reaches them on `edge`. OmadaBridge gets a stack of its own (`omada-exporter`):
+  it exits when the controller doesn't answer at its start (tested 2026-10-28), so a controller
+  outage is a restart loop, which in `exporters` would restart OPNsense's exporter with it.
+- **Proxmox nodes:** `pve/setup.sh` and `pve/etc/`, as PBS's. The nodes' config stays Ali's to
+  apply; git describes it.
+  - node-exporter on the node's VLAN 50 address, with the systemd and textfile collectors; SMART
+    and NVMe health from Debian's own timers;
+  - the journal to vlagent, journald's flood cap and the 5-minute heartbeat: PBS's files;
+  - docker-admin shares VLAN 50 with both nodes, so OPNsense isn't in the way. docker-admin's
+    firewall admits them to vlagent.
+- **OPNsense:**
+  - the exporter's user holds only the pages its collectors read (Diagnostics: Firewall statistics
+    and Netstat, Reporting: Traffic, System: Gateways and Status, Status: Services, Lobby:
+    Dashboard), and config writes are denied to it, as to ops's `skynet-read`. Of these, only
+    Status: Services allows an action (restarting a service), and the key stays on docker-admin.
+    Its firmware, cron, Unbound, Kea (dnsmasq serves DHCP), VPN, CARP, ARP and temperature
+    collectors are off, so it holds none of their pages, some of which allow actions (an upgrade,
+    a cron job);
+  - TLS against caddy-admin's pinned cert (`opnsense.pem`, name `OPNsense.internal`). docker-admin
+    already reaches OPNsense's API;
+  - the remote log: System → Settings → Logging → Remote, 10.10.50.40, TCP 5514, RFC 5424. The
+    firewall log runs at about 8 lines a second (2026-10-28), mostly the default rule's passes:
+    about 730,000 lines a day, 10–20 MB stored.
+- **The doors:** each request as one JSON line holding only its host, method, status, duration,
+  size and the URI's first path segment: no headers and no query, since some apps carry tokens in
+  their paths (Stremio addons), queries and headers. LogsQL then gives each app's latency and
+  errors, with no new series.
+- **Unraid:** `unraid/README.md` describes the two containers (Unraid's config isn't in git). Its
+  syslog (Settings → Syslog Server → remote server 10.10.50.40, TCP 5515) carries the array's
+  events: a disk disabled, a parity check's result. Its array disks (`/mnt/disk*`) fill past 90%
+  by design, so `DiskFull` leaves them out; node-exporter's mdadm collector, which misreads
+  Unraid's own md driver, is off.
+- **Omada:** OmadaBridge reaches the controller as `Omada:8043` (CT 525; caddy-admin's pinned
+  `omada.pem`). Remote Logging (site settings): 10.10.50.40, UDP 5516.
+- **Technitium:** every 5 minutes, `dashboard/stats/get?type=LastHour`: queries, server failures,
+  NX domains, refusals, blocks, drops, clients and cache size.
+
+**Alerts**, each new source's freshness first:
+
+| Alert | Fires when |
+|---|---|
+| `TargetDown`, `HostDown`, the host rules | as for every host, now for the nodes and Unraid too |
+| `ExporterBlind` | opnsense-exporter or OmadaBridge answers but can't read its API, for 10 min (each one's own success metric) |
+| `SyslogNotArriving` | an appliance seen this week sends nothing for 15 min (OPNsense's firewall log never pauses that long; Unraid's and Omada's windows set from their measured rates) |
+| `GuestBackupFailed` | a node's journal logs a failed vzdump job: P4's open gap closes in minutes, not 26 h |
+| `DiskUnhealthy`, `DiskWearing` | SMART not passed or an NVMe critical warning; wear past 80% (nodes, Unraid) |
+| `GatewayDown`, `GatewayLossy` | a gateway offline for 5 min; over 5% loss for 15 min |
+| `FirewallStatesHigh` | pf states over 80% of the limit |
+| `DnsFailing` | server failures over 5% of the last hour's queries |
+
+**Cost:** two small containers (about 50 MB) and about 8,000 more series. That takes the 13-month
+disk estimate from 12–18 GB to 18–27 GB, past docker-admin's 20 GB free before P6's rebuild grows
+its disk to 64 GiB: the 11-03 check says which comes first. Logs: about 30 MB a day more, mostly
+OPNsense's, inside the 4 GiB cap at 30 days.
+
 ### Homepage (at Ali's call)
 
 `home.aliammar.net` behind admin Authelia: links to every admin UI and app, with Gatus's status,
@@ -1731,6 +1828,11 @@ its config in git. Widgets that need tokens wait.
   this is the DMZ's one opening into the management VLAN (Logs).
 - The Proxmox nodes share docker-admin's VLAN, and rule 235 already covers PBS's :8007.
 - DNS: `metrics`, `logs`, `alerts`, `grafana` (and `home`) → 10.10.60.60, each with its PR.
+- **Wider eyes:** the nodes, Omada's controller and OPNsense's own address share VLAN 50 with
+  docker-admin, and docker-admin already reaches OPNsense's API: none of them needs a rule. Unraid
+  does (wave 2): `HOST_UNRAID` joins `ROLE_METRICS_TARGETS` and `ROLE_LOG_SHIPPERS`, `PORT_METRICS`
+  gains 9633 (smartctl-exporter), and rule 237's port becomes an alias `PORT_LOG_INGEST` (9429,
+  5515). Omada's devices need rule 237 for UDP 5516 only if they sit outside VLAN 50.
 
 ### PRs and order
 
@@ -1744,6 +1846,14 @@ its config in git. Widgets that need tokens wait.
 4. **Grafana and agent eyes PR:** admin Authelia's OIDC provider, Grafana and its dashboards; the
    MCP servers and `.mcp.json`. Two real questions answered from the data, in the PR.
 5. **Homepage**, at Ali's call.
+6. **Wider eyes, plan:** this section. Merging it is Ali's go.
+7. **Wider eyes, wave 1 PR:** `pve/` and the nodes' targets; the `exporters` stack with
+   opnsense-exporter, and vlagent's syslog listener; the doors' access logs; their alerts and
+   freshness checks. Ali: OPNsense's API user (its key into `stacks/admin/exporters/secret.sops.env`)
+   and logging target, then `pve/setup.sh` on both nodes.
+8. **Wider eyes, wave 2 PR:** Unraid, Omada and Technitium, with their alerts. Ali: Unraid's
+   containers and syslog target, Omada's viewer user (into
+   `stacks/admin/omada-exporter/secret.sops.env`) and remote logging, and the alias changes.
 
 ### Exit criteria
 
@@ -1756,9 +1866,13 @@ its config in git. Widgets that need tokens wait.
 - Grafana opens behind the admin login, with data sources and dashboards from git alone.
 - After a week, docker-admin's memory and disk growth match the sizing, or this section says what
   they are.
+- Every Wider eyes source is in, and its freshness alert tested: the source stopped, the alert
+  posted, then cleared.
+- Two real questions answered through the MCP tools themselves: one about the network, one about
+  storage.
 
-**Open:** exporters for OPNsense (its `os-node_exporter` plugin, and its syslog), Omada, Unraid and
-HAOS; Technitium's query stats.
+**Open:** HAOS (its built-in Prometheus integration); checks that do an app's real work (a search,
+a stream lookup), each with a read-only app token (Ali: later).
 
 ## P6 — Agent autonomy `[detailed]`
 
@@ -2078,6 +2192,8 @@ in a drill.
 | Alertmanager's entrypoint: its three URLs from the environment into files (P5) | ~4 lines |
 | both vmalerts' entrypoints: wait until their stores answer, since vmalert restores its alerts' state on its first evaluation only (P5) | ~2 lines each |
 | Grafana's `dashboards/fetch.sh`: grafana.com's boards at pinned revisions, their data source inputs pointed at ours (P5) | ~15 lines |
+| `pve/setup.sh` (the Proxmox nodes' exporters and log upload, as PBS's) (P5, Wider eyes) | ~30 lines |
+| Technitium's stats into node-exporter's textfile, every 5 min on each DNS host (P5, Wider eyes) | ~25 lines |
 | `skynet-incident` (P6: alert webhook → `claude -p`; one at a time, repeats dropped, the budget, escalation) | ~40 lines |
 | `skynet-merge` (P6: tier, window and CI checked; the merge; the post) | ~40 lines |
 | `skynet-verify` (P6: a stack's or a host's checks from doco-cd, Gatus, VictoriaMetrics and VictoriaLogs) | ~80 lines |

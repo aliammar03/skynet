@@ -36,6 +36,32 @@ tests:
           - exp_labels: { instance: stopped, job: doco-cd, repository: r, severity: warning }
             exp_annotations:
               summary: "doco-cd on stopped hasn't polled main successfully for 30 minutes (no poll ran, or each failed: its log says why)."
+  # doco-cd holds a repository's polls while one of its one-off jobs runs. held: a 3-hour sync whose
+  # gauge appears only when it starts (as after a restart of doco-cd), then polls again: no alert.
+  # hung: a job still running past 8 hours: the alert comes back.
+  - name: doco-cd polls held by a job
+    interval: 1m
+    input_series:
+      - series: 'doco_cd_polls_total{instance="held",job="doco-cd",repository="r"}'
+        values: "0+1x60 60x180 61+1x60"
+      - series: 'doco_cd_scheduled_runs_active{context="default",execution_mode="one_off",exported_job="pbs-offsite",instance="held",job="doco-cd",mode="container",stack="pbs-offsite"}'
+        values: "_x60 1x180 0x60"
+      - series: 'doco_cd_polls_total{instance="hung",job="doco-cd",repository="r"}'
+        values: "0+1x60 60x600"
+      - series: 'doco_cd_scheduled_runs_active{context="default",execution_mode="one_off",exported_job="pbs-offsite",instance="hung",job="doco-cd",mode="container",stack="pbs-offsite"}'
+        values: "0x60 1x600"
+    alert_rule_test:
+      - eval_time: 3h
+        groupname: deploys
+        alertname: DocoCdNotPolling
+        exp_alerts: []
+      - eval_time: 9h30m
+        groupname: deploys
+        alertname: DocoCdNotPolling
+        exp_alerts:
+          - exp_labels: { instance: hung, job: doco-cd, repository: r, severity: warning }
+            exp_annotations:
+              summary: "doco-cd on hung hasn't polled main successfully for 30 minutes (no poll ran, or each failed: its log says why)."
   # A store that starts empty (a restore) meets doco-cd's counters mid-count. The first poll it sees
   # failed and the next ones (every 3 minutes) didn't: no alert.
   - name: doco-cd polls, store starting empty

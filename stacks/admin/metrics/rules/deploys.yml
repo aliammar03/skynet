@@ -35,11 +35,21 @@ groups:
       # poll_errors_total too (the latter appears with the first failure). No poll at all, or only
       # failed ones, for 30 minutes: main isn't reaching the host. The window holds only what
       # VictoriaMetrics has, so on a store that starts empty (a restore) one failed poll can be all
-      # of it: the 10 minutes let the next polls in.
+      # of it: the 10 minutes let the next polls in. doco-cd holds a repository's polls while one of
+      # its one-off jobs runs (pbs-offsite's sync takes hours some nights): not a fault while every
+      # running job has run under 8 hours (470 of the last 480 minutes; a job's gauge exists only
+      # from its first run after doco-cd starts, so minutes are counted, not the gauge's minimum). A
+      # longer one is a fault of its own (healthchecks.io), and this alerts again.
       - alert: DocoCdNotPolling
         expr: |
-          increase(doco_cd_polls_total[30m]) == 0
-            or increase(doco_cd_poll_errors_total[30m]) >= increase(doco_cd_polls_total[30m])
+          (
+            increase(doco_cd_polls_total[30m]) == 0
+              or increase(doco_cd_poll_errors_total[30m]) >= increase(doco_cd_polls_total[30m])
+          )
+          unless on (instance) (
+            sum by (instance) (doco_cd_scheduled_runs_active{execution_mode="one_off"}) > 0
+              and on (instance) max by (instance) (count_over_time((doco_cd_scheduled_runs_active{execution_mode="one_off"} == 1)[8h:1m])) < 470
+          )
         for: 10m
         labels: { severity: warning }
         annotations:

@@ -48,6 +48,9 @@ part of its `/etc` that git holds. ops compares that with the host every day.
   with PBS at 07:00, and every allowlisted name too, so a file that appears on PBS (a sync job added
   in the UI) counts. A difference, or a failed check, goes to `#alerts`.
 - **Updates:** `apt full-upgrade` (setup runs one). Proxmox's no-subscription repository.
+- **Restores from Drive:** rclone and fuse3 (`setup.sh`) mount Drive's copy for a guest restore
+  (`runbooks/restore.md`, case 6). The rclone config holds a Drive token: Ali makes it for the
+  restore, and it's removed after.
 
 ## Install (a rebuild too)
 
