@@ -1825,7 +1825,7 @@ alert posted, the source back, the alert resolved. HostDown and TargetDown were 
 | OPNsense's syslog | Ali: its remote logging target disabled | `SyslogNotArriving` opnsense |
 | OPNsense's API | Ali: the exporter's API user disabled (System → Access → Users) | `ExporterBlind` opnsense |
 | Unraid's syslog | Ali: the `skynet-heartbeat` script's schedule disabled | `SyslogNotArriving` unraid |
-| Omada | Ali: the controller's `exporter` user disabled | `ExporterBlind` omada |
+| Omada | Ali: the controller's `exporter` user disabled | `ExporterBlind` omada (`TargetDown` if OmadaBridge exits) |
 | A Proxmox node's journal | Ali, as root on one node: `systemctl stop systemd-journal-upload` | `LogsNotArriving` |
 | Technitium's stats | agent, as root on technitium-core: `systemctl stop technitium-stats.timer` | `DnsStatsStale` |
 | The apps door's access log | agent, as root on docker-dmz: caddy-apps reloaded from a copy of its Caddyfile without `import access_log`, then from its own | `AccessLogsNotArriving` |
