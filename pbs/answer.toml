@@ -8,7 +8,7 @@ country = "pk"
 fqdn = "pbs.aliammar.net"
 mailto = "root@pbs.aliammar.net" # root's mail stays on the box: no relay
 timezone = "Asia/Karachi"
-root-password-hashed = '$y$j9T$WOEqLAOhjd6y3H5SEVS2X.$k3hKIDcSgip5yGtcolDAzE1liHxi60mAPTwf7Jpzas6'
+root-password-hashed = '$y$j9T$uMR5DCpi5UOVCpJnweBqU/$jWDWYlXe//5KoGRM6oYxE7OSag.ahi7mSLV0QoD6xGC'
 # The agent, from ops only (D11), and Ali.
 root-ssh-keys = [
   'from="10.10.90.91" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAID5Iw9nu4WyT4v0D/5S2n3qs3QpSprx7HlIU9/sWA+++ skynet@ops',
