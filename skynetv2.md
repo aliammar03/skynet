@@ -23,7 +23,7 @@
 |---|---|---|
 | P0 | Foundations + new ops VM | done |
 | P1 | docker-admin: admin door, identity, status | done (2026-10-22); 7 admin names move to .60 with P2's Technitium |
-| P2 | DNS (Technitium only) + remote access | done (2026-10-23); open: OPNsense rule 140 (see P2 exit criteria) |
+| P2 | DNS (Technitium only) + remote access | done (2026-10-23); its OPNsense cleanup too (2026-10-28) |
 | P3 | docker-dmz: apps + public path | done (2026-10-24): docker-dmz with v1's data (#48), its doors (#50) and all ten apps (#51–#61); the apps reach one another only through the door (#64); every image current (#67). Family accounts skipped for now |
 | P4 | Backups → Google Drive | in progress (2026-10-25): PBS greenfield done (VM 2040, `pbs/`; v1's PBS removed); PBS's datastore nightly to Drive by plain `rclone sync` (`stacks/admin/pbs-offsite/`; PVE already encrypts its chunks); app data nightly to Drive, hot (`stacks/<host>/backup/`): docker-dmz rebuilt onto btrfs and backed up from btrbk snapshots (#81); `skynet-restore` drilled from a snapshot and from Drive; `runbooks/restore.md` (six cases); a guest restored from Drive's copy (2026-10-27). Next: seven green nights (from 10-26 → 27), the survival kit |
 | P5 | Observability (agent eyes) | in progress (2026-10-26): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`, #88); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics; alerts: two vmalerts and Alertmanager to `#alerts`, its Watchdog to healthchecks.io (#91; both watchdogs, HostDown, TargetDown and DiskFull proven live 10-27); Grafana at `grafana.aliammar.net` (OIDC through admin Authelia; Live and Backups boards of our own, seven upstream) and the agent's MCP servers at `/mcp`; Ali's first Grafana login 10-27. Next: the week's sizing check (11-03) |
@@ -807,14 +807,14 @@ rebuilds from git.
 
 ### Exit criteria
 
-Met on 2026-10-23, apart from the items marked open:
+Met on 2026-10-23, the OPNsense cleanup on 2026-10-28:
 - `dig @10.10.70.50` and `@10.10.70.51`: every admin name → 10.10.60.60, `googlesyndication.com` blocked,
   the internet resolves. Gatus `dns` rows green. ✅
 - Both VMs were configured only from git, and a merged record change shows on both within ~2 min. ✅
   (#42 changed the zone; both servers had it within minutes.)
 - Every VLAN's DHCP lists both .50 and .51 (Ali); `ROLE_DNS_RESOLVERS` = the two `HOST_TECHNITIUM_*`
-  aliases ✅. CTs 730, 731, 750 and 751 are gone (2026-10-25) ✅. Rules 150 and 115 are gone
-  (2026-10-28) ✅. **Open:** rule 140 on.
+  aliases ✅. CTs 730, 731, 750 and 751 are gone (2026-10-25) ✅. Rule 140 is on, and rules 150
+  and 115 are gone (2026-10-28) ✅.
 - All ten admin names load behind Authelia. ✅ OPNsense's Alternate Hostnames now include
   `auth.aliammar.net` (P1 sites table).
 - On mobile data via Tailscale, a phone opens `https://opnsense.aliammar.net` and
@@ -1386,7 +1386,7 @@ once both nodes back up to the new one (Ali, 2026-10-25: they aren't needed).
   The first night writes full backups into the new datastore.
 - **v1's PBS** (Ali): CT 240 moved to 10.10.20.39 to free .40 for VM 2040, and `HOST_PBS` held
   both addresses meanwhile. Gone on 2026-10-25: CT 240, each node's `pbs-unraid` storage and the
-  core node's NFS mount of `pbs-backups`; then the share with v1's datastore. Left: .39 out of
+  core node's NFS mount of `pbs-backups`; then the share with v1's datastore, and .39 left
   `HOST_PBS`.
 
 ### PBS offsite: `stacks/admin/pbs-offsite/` (docker-admin)
