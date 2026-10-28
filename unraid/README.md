@@ -24,8 +24,9 @@ config is Ali's and isn't in git; this folder is what Ali applies there, so git 
    - the Docker Compose Manager plugin (Community Apps): a new stack `exporters` with this
      `compose.yaml` pasted in, then Compose Up;
    - or Docker → Add Container, twice, with the same settings: the image (tag and digest), network
-     type Host, and for node-exporter `--pid=host` and the path `/` → `/host` read-only (slave) plus
-     the two arguments; for smartctl-exporter Privileged on and user `root`.
+     type Host, and for node-exporter `--pid=host` and the path `/` → `/host` read-only (not slave:
+     Unraid's root isn't a shared mount) plus the two arguments; for smartctl-exporter Privileged on
+     and user `root`.
 
    Check from the workstation: `curl -s http://10.10.20.20:9100/metrics | head` and
    `curl -s http://10.10.20.20:9633/metrics | grep smartctl_device_smart_status`.

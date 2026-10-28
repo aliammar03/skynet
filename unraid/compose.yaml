@@ -14,8 +14,11 @@ services:
     # Unraid's own network and processes, on :9100.
     network_mode: host
     pid: host
+    # Not upstream's `rslave`: Unraid's root lives in RAM and isn't a shared mount, so Docker refuses
+    # it. Docker runs only while the array is started, so the array and pools are mounted before
+    # this starts, and the recursive bind holds them.
     volumes:
-      - /:/host:ro,rslave
+      - /:/host:ro
 
   # Each disk's SMART health, wear and temperature, on :9633. smartctl needs the disks themselves.
   smartctl-exporter:
