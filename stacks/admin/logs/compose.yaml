@@ -46,6 +46,11 @@ services:
       # (RFC 5424; RFC 3164 times are read as TZ's).
       - -syslog.listenAddr.tcp=:5514
       - '-syslog.extraFields.tcp={"source":"opnsense"}'
+      - -syslog.listenAddr.tcp=:5515
+      - '-syslog.extraFields.tcp={"source":"unraid"}'
+      # Omada's devices send over UDP only.
+      - -syslog.listenAddr.udp=:5516
+      - '-syslog.extraFields.udp={"source":"omada"}'
     environment:
       TZ: Asia/Karachi
     volumes:

@@ -15,7 +15,8 @@
   `hosts.yml` (hosts, disks and their health, memory, units), `backups.yml` (each guest's PBS
   backup against PVE's guests, PBS's API, storage), `deploys.yml` (comin, doco-cd, certificates,
   vlagent's forwarding, the alert path and its two heartbeats to healthchecks.io), `network.yml`
-  (OPNsense: its API through the exporter, gateways, pf's states).
+  (OPNsense's and Omada's exporters reading their APIs; OPNsense's gateways and pf states),
+  `dns.yml` (Technitium's stats: their freshness, SERVFAIL).
   Containers' crash loops are LogsQL (`stacks/admin/logs`). Each alert's `instance` is its host,
   so Alertmanager groups and inhibits by it. A rule's state lives in VictoriaMetrics, so a restart
   keeps each `for` timer; vmalert reads it back on its first evaluation only, so its entrypoint
@@ -37,7 +38,8 @@
 
   | Job | Where | What |
   |---|---|---|
-  | `node` | every host :9100, the Proxmox nodes too (`pve/`) | node-exporter: the host, its failed units, and job results from `/var/lib/node-exporter/*.prom`; on the nodes, SMART and NVMe health from Debian's timers |
+  | `node` | every host :9100, the Proxmox nodes (`pve/`) and Unraid (`unraid/`) too | node-exporter: the host, its failed units, and job results from `/var/lib/node-exporter/*.prom`; on the nodes, SMART and NVMe health from Debian's timers; on the DNS hosts, Technitium's last hour (`technitium_*`, `modules/dns.nix`) |
+  | `smartctl` | Unraid :9633 (`unraid/`), once a minute | each disk's SMART status, critical warning, wear and temperature (`smartctl_device_*`) |
   | `comin` | every NixOS host :4243 | fetch, build and deploy failures; `comin_need_to_reboot` |
   | `cadvisor` | both Docker hosts :9338 | each container's CPU, memory, network and disk I/O, with its compose project |
   | `doco-cd` | both Docker hosts :9120 | polls, deploys, scheduled jobs |
@@ -45,6 +47,7 @@
   | `pve` | `pve-exporter:9221`, one module per node | guests, storage, backups-job coverage |
   | `pbs` | `pbs-exporter:10019` | each guest's newest backup and its verify (`pbs_snapshot_vm_last_timestamp`, `pbs_snapshot_vm_last_verify`), the datastore's size |
   | `opnsense` | `opnsense-exporter:8080` (`stacks/admin/exporters`), once a minute | gateways (`opnsense_gateways_status`, `_loss_percentage`, `_rtt_milliseconds`), interfaces, firewall counters, pf states and mbufs, services; `opnsense_up` |
+  | `omada` | `omada-exporter:9202` (`stacks/admin/omada-exporter`), once a minute | the controller, each AP and switch (`omada_device_*`: uptime, CPU, memory, radios), ports, site alerts, `omada_client_connected_total` |
   | `victoriametrics`, `victorialogs`, `vlagent`, `vmalert` (both), `alertmanager`, `grafana`, `mcp` (both servers) | this host | the stack itself, and what reads it |
 
 - **Job results** (node-exporter's textfile collector): `resticprofile_backup_*` from each Docker

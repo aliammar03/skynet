@@ -15,7 +15,8 @@
   (`stacks/admin/grafana`) reads VictoriaLogs by name on `edge`, through its plugin.
 - **Rules** (`rules/logs.yml`, LogsQL): `CrashLoop` (systemd's line for each container start),
   `LogsNotArriving` (each host's `log-heartbeat` line, every 5 minutes, missing for 15),
-  `SyslogNotArriving` (OPNsense's lines, missing for 15), `GuestBackupFailed` (a Proxmox node's
+  `SyslogNotArriving` (OPNsense's lines, missing for 15; Unraid's and Omada's join once a week of
+  their rates says how long a silence is normal), `GuestBackupFailed` (a Proxmox node's
   vzdump error), `FilesystemErrors`, `LogFlood` and `LogsDropped` (journald's own count of what it
   dropped).
 - **Auth mode:** `forward` (Authelia). Ops (10.10.90.91) reads `/select/logsql/` without a login:
@@ -29,9 +30,15 @@
   container is a stream of its own. Every other journal field is kept as a field (`PRIORITY` also
   becomes `level`).
 - **Syslog** (vlagent's listeners, on the host's network), one port per appliance, each admitted
-  from that appliance only, its lines stamped with `source`: TCP 5514, OPNsense's (System →
-  Settings → Logging → Remote, RFC 5424; `source:=opnsense`). A line carries `hostname`, `app_name`
-  (the stream, with `proc_id`), `format`, `severity` (also as `level`) and its own time. The firewall log (`app_name:=filterlog`) is OPNsense's CSV; what got blocked, and where:
+  from that appliance only, its lines stamped with `source`:
+  - TCP 5514: OPNsense (System → Settings → Logging → Remote, RFC 5424; `source:=opnsense`);
+  - TCP 5515: Unraid (Settings → Syslog Server; `source:=unraid`; `unraid/`);
+  - UDP 5516: Omada's devices (Site Settings → Services → Remote Logging; `source:=omada`), from
+    VLAN 50.
+
+  A line carries `hostname`, `app_name` (the stream, with `proc_id`), `format`, `severity` (also as
+  `level`) and its own time (RFC 3164 lines, Unraid's and Omada's, in TZ's time). The firewall log
+  (`app_name:=filterlog`) is OPNsense's CSV; what got blocked, and where:
   ```
   _time:1h app_name:=filterlog ",block," | extract_regexp "^(?P<rule>[^,]*),[^,]*,[^,]*,(?P<rid>[^,]*),(?P<iface>[^,]*),[^,]*,(?P<action>[^,]*),(?P<dir>[^,]*),4,(?:[^,]*,){7}(?P<proto>[^,]*),[^,]*,(?P<src>[^,]*),(?P<dst>[^,]*),(?P<sport>[^,]*),(?P<dport>[^,]*)" | stats by (iface, src, dst, dport) count() as blocks | sort by (blocks desc) | limit 20
   ```

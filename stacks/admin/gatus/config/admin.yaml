@@ -100,6 +100,7 @@ endpoints:
   # Wider eyes' exporters (stacks/admin/exporters), by name on `edge`: the landing page, which calls
   # no API (/metrics would).
   - { <<: *service, name: opnsense-exporter, url: http://opnsense-exporter:8080/, conditions: ["[STATUS] == 200"] }
+  - { <<: *service, name: omada-exporter, url: http://omada-exporter:9202/healthz, conditions: ["[STATUS] == 200"] }
 
   - { <<: *app, name: librespeed, url: https://speed.aliammar.net/, conditions: ["[STATUS] == 200"] }
   # /_up is CouchDB's only path without a login.

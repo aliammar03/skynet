@@ -4,6 +4,8 @@ rule_files:
   - rules/backups.yml
   - rules/deploys.yml
   - rules/network.yml
+  - rules/dns.yml
+  - rules/hosts.yml
 evaluation_interval: 1m
 tests:
   # doco-cd counts every poll in polls_total and the failed ones in poll_errors_total too.
@@ -242,3 +244,88 @@ tests:
           - exp_labels: { address: 203.0.113.1, default_gateway: "true", instance: opnsense, job: opnsense, name: WAN_DHCP, opnsense_instance: opnsense, severity: critical }
             exp_annotations:
               summary: "OPNsense: gateway WAN_DHCP (203.0.113.1) is offline."
+
+  # OmadaBridge has no metric for a failed controller call: answering with no device is blind.
+  # (Each case is its own test: the rule counts every device series there is.)
+  - name: Omada exporter blind
+    interval: 1m
+    input_series:
+      - series: 'up{instance="omada",job="omada"}'
+        values: "1x30"
+    alert_rule_test:
+      - eval_time: 15m
+        groupname: network
+        alertname: ExporterBlind
+        exp_alerts:
+          - exp_labels: { instance: omada, job: omada, severity: warning }
+            exp_annotations:
+              summary: "omada: its exporter answers but can't read the appliance's API (its key or user, or the API): the alerts and graphs on it are blind."
+  - name: Omada exporter reading devices
+    interval: 1m
+    input_series:
+      - series: 'up{instance="omada",job="omada"}'
+        values: "1x30"
+      - series: 'omada_device_uptime_seconds{device_name="ap",instance="omada",job="omada"}'
+        values: "100+60x30"
+    alert_rule_test:
+      - eval_time: 15m
+        groupname: network
+        alertname: ExporterBlind
+        exp_alerts: []
+
+  # technitium-stats' last hour: SERVFAIL over 5% of 200 queries or more alerts; a quiet server's
+  # few failures don't.
+  - name: DNS failing
+    interval: 1m
+    input_series:
+      - series: 'technitium_queries_last_hour{instance="busy",job="node"}'
+        values: "1000x30"
+      - series: 'technitium_responses_last_hour{instance="busy",job="node",rcode="server_failure"}'
+        values: "80x30"
+      - series: 'technitium_queries_last_hour{instance="quiet",job="node"}'
+        values: "50x30"
+      - series: 'technitium_responses_last_hour{instance="quiet",job="node",rcode="server_failure"}'
+        values: "10x30"
+    alert_rule_test:
+      - eval_time: 20m
+        groupname: dns
+        alertname: DnsFailing
+        exp_alerts:
+          - exp_labels: { instance: busy, job: node, severity: warning }
+            exp_annotations:
+              summary: "busy: 8% of the last hour's queries got SERVFAIL (no forwarder answered)."
+
+  # Unraid: its array disks fill past 90% by design and its root lives in RAM; its pool counts.
+  # smartctl-exporter's wear is a percentage, shown as a ratio like the NVMe timer's.
+  - name: Unraid disks
+    interval: 1m
+    input_series:
+      - series: 'node_filesystem_avail_bytes{device="/dev/md1p1",fstype="xfs",instance="unraid",job="node",mountpoint="/mnt/disk1"}'
+        values: "5x90"
+      - series: 'node_filesystem_size_bytes{device="/dev/md1p1",fstype="xfs",instance="unraid",job="node",mountpoint="/mnt/disk1"}'
+        values: "100x90"
+      - series: 'node_filesystem_avail_bytes{device="rootfs",fstype="rootfs",instance="unraid",job="node",mountpoint="/"}'
+        values: "5x90"
+      - series: 'node_filesystem_size_bytes{device="rootfs",fstype="rootfs",instance="unraid",job="node",mountpoint="/"}'
+        values: "100x90"
+      - series: 'node_filesystem_avail_bytes{device="/dev/nvme0n1p1",fstype="btrfs",instance="unraid",job="node",mountpoint="/mnt/cache"}'
+        values: "5x90"
+      - series: 'node_filesystem_size_bytes{device="/dev/nvme0n1p1",fstype="btrfs",instance="unraid",job="node",mountpoint="/mnt/cache"}'
+        values: "100x90"
+      - series: 'smartctl_device_percentage_used{device="nvme0",instance="unraid",job="smartctl"}'
+        values: "85x90"
+    alert_rule_test:
+      - eval_time: 10m
+        groupname: hosts
+        alertname: DiskFull
+        exp_alerts:
+          - exp_labels: { device: /dev/nvme0n1p1, fstype: btrfs, instance: unraid, job: node, mountpoint: /mnt/cache, severity: critical }
+            exp_annotations:
+              summary: "unraid: /mnt/cache has 5% free."
+      - eval_time: 70m
+        groupname: hosts
+        alertname: DiskWearing
+        exp_alerts:
+          - exp_labels: { device: nvme0, instance: unraid, job: smartctl, severity: warning }
+            exp_annotations:
+              summary: "unraid: disk nvme0 has used 85% of its rated writes."
