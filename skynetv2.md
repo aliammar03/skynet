@@ -1657,7 +1657,7 @@ those scrapes is several API calls. Its targets are in `stacks/admin/metrics/scr
 | `GuestBackupStale`, `GuestBackupUnverified` | the newest backup of a guest PVE has now, in its node's namespace, older than 26 h (a retired or moved guest's kept backups don't count); or any guest's newest without a passed verify 5 h on (PBS verifies at 04:30, after both nodes' jobs) |
 | `GuestNeverBackedUp`, `PbsApiDown` | a guest PVE runs with no backup in its node's namespace for 26 h (Unraid and PBS left out, as in the jobs); pbs-exporter unable to read PBS's API for 10 min, which otherwise leaves the backup alerts quiet |
 | `StorageFull`, `DatastoreFull` | a PVE storage or PBS's datastore over 80% |
-| `CominFailing`, `DocoCdNotPolling` | comin failing to fetch, evaluate or build main for an hour; doco-cd without a successful poll for 30 min (none ran, or each failed: doco-cd counts both in `polls_total`). A failed deploy is the deployer's own post, as now |
+| `CominFailing`, `DocoCdNotPolling` | comin failing to fetch, evaluate or build main for an hour; doco-cd without a successful poll for 30 min (none ran, or each failed: doco-cd counts both in `polls_total`), except while one of its own jobs, running under 8 h, holds the polls. A failed deploy is the deployer's own post, as now |
 | `CertificateExpiring` | a certificate Gatus checks expires within 14 days (Gatus itself alerts at 7) |
 | `FilesystemErrors` | ext4, btrfs, I/O or medium errors in a kernel log (every 5 min) |
 | `LogFlood`, `LogsDropped` | one container or unit logging over 50 lines a second for 10 min: a loop (journald drops what passes 100); journald reporting lines it dropped |

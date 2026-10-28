@@ -50,8 +50,10 @@ services:
       # Straight to Authelia. The break-glass form: /login?disableAutoLogin.
       GF_AUTH_GENERIC_OAUTH_AUTO_LOGIN: "true"
       GF_AUTH_SIGNOUT_REDIRECT_URL: https://auth.aliammar.net/logout
-    # docker-admin has no swap: past this the kernel kills Grafana, not the host.
-    mem_limit: 512m
+    # docker-admin has no swap: past this the kernel kills Grafana, not the host. Measured
+    # (2026-10-27): about 320 MiB idle, and the old 512 MiB reached with the Live board open,
+    # where it stalled (requests failed with "context canceled"), then the kernel killed it.
+    mem_limit: 1g
     volumes:
       - ./provisioning:/etc/grafana/provisioning:ro
       - ./dashboards:/etc/grafana/dashboards:ro
