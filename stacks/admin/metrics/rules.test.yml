@@ -3,6 +3,7 @@
 rule_files:
   - rules/backups.yml
   - rules/deploys.yml
+  - rules/network.yml
 evaluation_interval: 1m
 tests:
   # doco-cd counts every poll in polls_total and the failed ones in poll_errors_total too.
@@ -239,3 +240,31 @@ tests:
         groupname: backups
         alertname: GuestNeverBackedUp
         exp_alerts: []
+
+  # OPNsense's gateways (opnsense-exporter: 0 offline, 1 online, 6 forced offline). Only a gateway
+  # that was online this week counts as down: a monitored one that never came up (an IPv6 gateway
+  # with no IPv6 from the ISP) or one a person turned off stays quiet.
+  - name: OPNsense gateways
+    interval: 1m
+    input_series:
+      # wan: online for 30 minutes, then offline
+      - series: 'opnsense_gateways_status{address="203.0.113.1",default_gateway="true",instance="opnsense",job="opnsense",name="WAN_DHCP",opnsense_instance="opnsense"}'
+        values: "1x30 0x30"
+      # wan6: monitored, never up
+      - series: 'opnsense_gateways_status{address="2001:db8::1",default_gateway="false",instance="opnsense",job="opnsense",name="WAN_DHCP6",opnsense_instance="opnsense"}'
+        values: "0x60"
+      # spare: forced offline
+      - series: 'opnsense_gateways_status{address="198.51.100.1",default_gateway="false",instance="opnsense",job="opnsense",name="SPARE",opnsense_instance="opnsense"}'
+        values: "6x60"
+    alert_rule_test:
+      - eval_time: 33m
+        groupname: network
+        alertname: GatewayDown
+        exp_alerts: []
+      - eval_time: 45m
+        groupname: network
+        alertname: GatewayDown
+        exp_alerts:
+          - exp_labels: { address: 203.0.113.1, default_gateway: "true", instance: opnsense, job: opnsense, name: WAN_DHCP, opnsense_instance: opnsense, severity: critical }
+            exp_annotations:
+              summary: "OPNsense: gateway WAN_DHCP (203.0.113.1) is offline."

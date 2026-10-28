@@ -70,7 +70,8 @@ in
   # P5 (stacks/admin/metrics, stacks/admin/logs). This host's own containers reach its exporters and
   # vlagent from a Docker bridge, not from 10.10.50.40. vlagent runs on the host's network, so this
   # firewall, not a published port, decides who may send it logs: the hosts that ship their journal
-  # (modules/observability.nix; PBS from pbs/etc/), as OPNsense's ROLE_LOG_SHIPPERS does.
+  # (modules/observability.nix; PBS from pbs/etc/; the Proxmox nodes from pve/etc/), as OPNsense's
+  # ROLE_LOG_SHIPPERS does, and each appliance on its own syslog port.
   networking.firewall.extraCommands =
     let
       ports = lib.concatMapStringsSep "," toString (config.skynet.metricsPorts ++ [ 9429 ]);
@@ -81,6 +82,15 @@ in
         "10.10.70.51" # technitium-core
         "10.10.20.40" # PBS
         "10.10.50.24" # PBS on VLAN 50: its upload to this host leaves by that NIC (pbs/README.md)
+        "10.10.50.10" # server-proxmox-network
+        "10.10.50.11" # server-proxmox-core
+      ];
+      # Appliances that log by syslog (skynetv2.md → P5 → Wider eyes): source and TCP port.
+      syslog = [
+        {
+          ip = "10.10.50.1"; # OPNsense, from its VLAN 50 address
+          port = 5514;
+        }
       ];
     in
     ''
@@ -88,5 +98,8 @@ in
     ''
     + lib.concatMapStrings (ip: ''
       iptables -A nixos-fw -p tcp -s ${ip} --dport 9429 -j nixos-fw-accept
-    '') shippers;
+    '') shippers
+    + lib.concatMapStrings (s: ''
+      iptables -A nixos-fw -p tcp -s ${s.ip} --dport ${toString s.port} -j nixos-fw-accept
+    '') syslog;
 }

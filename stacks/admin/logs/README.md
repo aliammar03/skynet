@@ -2,9 +2,9 @@
 
 - **Purpose:** VictoriaLogs, every host's journal in one place, containers' logs included (Docker's
   journald driver), kept 30 days and never more than 4 GiB. Each host ships with
-  `systemd-journal-upload` (`modules/observability.nix`; PBS from `pbs/etc/`), which keeps a cursor:
-  after an outage it resumes where it stopped, and until then the host's own journal (2 weeks) holds
-  the logs. **vmalert-logs** runs `rules/*.yml` (LogsQL; vmalert adds `_time:<interval>` to a
+  `systemd-journal-upload` (`modules/observability.nix`; PBS from `pbs/etc/`, the Proxmox nodes from
+  `pve/etc/`), which keeps a cursor: after an outage it resumes where it stopped, and until then the
+  host's own journal (2 weeks) holds the logs. Appliances log by syslog (OPNsense). **vmalert-logs** runs `rules/*.yml` (LogsQL; vmalert adds `_time:<interval>` to a
   query without its own) and sends what fires to Alertmanager. Its alerts' state lives in
   VictoriaMetrics and comes back on its first evaluation only, so it starts once both stores
   answer. **mcp-victorialogs** is the agent's eyes: VictoriaLogs' query tools over MCP (streamable
@@ -15,7 +15,9 @@
   (`stacks/admin/grafana`) reads VictoriaLogs by name on `edge`, through its plugin.
 - **Rules** (`rules/logs.yml`, LogsQL): `CrashLoop` (systemd's line for each container start),
   `LogsNotArriving` (each host's `log-heartbeat` line, every 5 minutes, missing for 15),
-  `FilesystemErrors`, `LogFlood` and `LogsDropped` (journald's own count of what it dropped).
+  `SyslogNotArriving` (OPNsense's lines, missing for 15), `GuestBackupFailed` (a Proxmox node's
+  vzdump error), `FilesystemErrors`, `LogFlood` and `LogsDropped` (journald's own count of what it
+  dropped).
 - **Auth mode:** `forward` (Authelia). Ops (10.10.90.91) reads `/select/logsql/` without a login:
   `curl -s https://logs.aliammar.net/select/logsql/query --data-urlencode 'query=_time:1h CONTAINER_NAME:doco-cd'`.
   And `/mcp`, the MCP server's tools, which only read. Deletes are off in VictoriaLogs itself.
@@ -26,6 +28,14 @@
 - **Streams:** `_HOSTNAME`, `_SYSTEMD_UNIT` and `CONTAINER_NAME` (with `_MACHINE_ID`), so each
   container is a stream of its own. Every other journal field is kept as a field (`PRIORITY` also
   becomes `level`).
+- **Syslog** (vlagent's listeners, on the host's network), one port per appliance, each admitted
+  from that appliance only, its lines stamped with `source`: TCP 5514, OPNsense's (System →
+  Settings → Logging → Remote, RFC 5424; `source:=opnsense`). A line carries `hostname`, `app_name`
+  (the stream, with `proc_id`), `format`, `severity` (also as `level`) and its own time. The firewall log (`app_name:=filterlog`) is OPNsense's CSV; what got blocked, and where:
+  ```
+  _time:1h app_name:=filterlog ",block," | extract_regexp "^(?P<rule>[^,]*),[^,]*,[^,]*,(?P<rid>[^,]*),(?P<iface>[^,]*),[^,]*,(?P<action>[^,]*),(?P<dir>[^,]*),4,(?:[^,]*,){7}(?P<proto>[^,]*),[^,]*,(?P<src>[^,]*),(?P<dst>[^,]*),(?P<sport>[^,]*),(?P<dport>[^,]*)" | stats by (iface, src, dst, dport) count() as blocks | sort by (blocks desc) | limit 20
+  ```
+  (IPv4 only; an ICMP line has no ports there.)
 - **Data:** `/opt/appdata/logs/data` (the logs) and `/opt/appdata/logs/buffer` (vlagent's, while
   VictoriaLogs is down; at most 1 GiB, oldest dropped first). Backup class: cache.
 - **Memory:** at most 1 GiB (`mem_limit`); its caches stay under 256 MiB. docker-admin has no swap,
@@ -47,6 +57,8 @@
   heartbeat, and one silent for a week drops out of the rule (HostDown has it by then).
 - vlagent's port also serves `/metrics` and the usual `/debug/pprof` to the hosts that ship; its
   flags hold no secret.
+- OPNsense's firewall log is the biggest source: about 8 lines a second (2026-10-28), most of them
+  the default rule passing the firewall's own traffic.
 - No healthcheck in VictoriaLogs or vlagent (the images are only the binary): Gatus checks both
   `/health` endpoints, and VictoriaMetrics scrapes both. vmalert-logs has one.
 - A LogsQL rule's labels are its `stats by (...)` fields; each rule sets `instance` from

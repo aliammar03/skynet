@@ -16,6 +16,11 @@
   (`vars`) for the `authelia` snippet's check. No app sees a session it could replay.
 - **Files:** `conf/` is mounted at `/etc/caddy` (no secrets in it): `Caddyfile` and
   `sites/<name>.conf` (one per name). A route edit reloads in place (`recreate.ignore` + `--watch`).
+- **Access log** (the `access_log` snippet, as on caddy-admin): one JSON line per request on stdout,
+  so in the host's journal and VictoriaLogs (`CONTAINER_NAME:=caddy-apps`): host, method, status,
+  duration, size, and the URI's first path segment only. No headers, query or client address: the
+  Stremio addons carry their config in the path. Per app, e.g.
+  `_time:1h CONTAINER_NAME:=caddy-apps | unpack_json fields (request.host, duration, status) | stats by (request.host) quantile(0.9, duration) as p90, count() as requests`.
 - **Data:** `/opt/appdata/caddy-apps/{data,config}`: certs and ACME account. Re-issuable; no backup
   needed.
 - **Secrets** (`secret.sops.env`): `CLOUDFLARE_API_TOKEN` (Zone → DNS → Edit, `aliammar.net` only;

@@ -7,7 +7,8 @@ global:
   scrape_timeout: 10s
 
 scrape_configs:
-  # Every host (modules/observability.nix; PBS from pbs/etc/).
+  # Every host (modules/observability.nix; PBS from pbs/etc/; the Proxmox nodes from pve/, named by
+  # their hostnames like the rest, so their log alerts match).
   - job_name: node
     static_configs:
       - { targets: [10.10.50.40:9100], labels: { instance: docker-admin } }
@@ -16,6 +17,8 @@ scrape_configs:
       - { targets: [10.10.70.51:9100], labels: { instance: technitium-core } }
       - { targets: [10.10.90.91:9100], labels: { instance: ops } }
       - { targets: [10.10.20.40:9100], labels: { instance: pbs } }
+      - { targets: [10.10.50.11:9100], labels: { instance: server-proxmox-core } }
+      - { targets: [10.10.50.10:9100], labels: { instance: server-proxmox-network } }
 
   # comin on every NixOS host: fetch, build and deploy failures, and a pending reboot.
   - job_name: comin
@@ -52,6 +55,13 @@ scrape_configs:
     relabel_configs:
       - { source_labels: [__address__], target_label: __param_target }
       - { target_label: __address__, replacement: pve-exporter:9221 }
+
+  # OPNsense, through opnsense-exporter (stacks/admin/exporters). Once a minute: each scrape is
+  # eight API calls.
+  - job_name: opnsense
+    scrape_interval: 1m
+    static_configs:
+      - { targets: [opnsense-exporter:8080], labels: { instance: opnsense } }
 
   # PBS, through pbs-exporter. Every 5 minutes: it lists every snapshot, and a backup's age is
   # counted in hours.

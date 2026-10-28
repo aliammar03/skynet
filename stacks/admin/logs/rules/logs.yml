@@ -57,6 +57,40 @@ groups:
         annotations:
           summary: '{{ index $labels "_HOSTNAME" }}: no log lines have reached VictoriaLogs for 15 minutes (its journal upload, vlagent or VictoriaLogs).'
 
+      # Appliances log by syslog to vlagent (skynetv2.md → P5 → Wider eyes) and run no heartbeat;
+      # each listener stamps its lines with `source`. OPNsense's firewall log alone brings about 8
+      # lines a second, so 15 minutes without any of its lines means its remote logging, the path or
+      # vlagent stopped.
+      - alert: SyslogNotArriving
+        expr: >-
+          _time:7d source:=opnsense
+          | stats by (source) count() if (_time:15m) as recent
+          | filter recent:=0
+        labels:
+          severity: warning
+          instance: opnsense
+        annotations:
+          summary: 'OPNsense: none of its syslog lines have reached VictoriaLogs for 15 minutes (its remote logging, the path or vlagent).'
+
+  - name: backups
+    type: vlogs
+    interval: 5m
+    rules:
+      # vzdump logs each guest it fails to back up to the node's syslog (pve-guest-common's
+      # VZDump::Plugin::debugmsg): "ERROR: Backup of VM <id> failed - <reason>". This names the
+      # guest within minutes of its job; GuestBackupStale would take 26 hours. It fires once per
+      # failure and clears 5 minutes later.
+      - alert: GuestBackupFailed
+        expr: >-
+          {_HOSTNAME=~"server-proxmox-.*"} "Backup of VM" "failed"
+          | extract "Backup of VM <vmid> failed - <reason>"
+          | stats by (_HOSTNAME, vmid, reason) count() as failures
+        labels:
+          severity: critical
+          instance: '{{ index $labels "_HOSTNAME" }}'
+        annotations:
+          summary: '{{ index $labels "_HOSTNAME" }}: the backup of guest {{ $labels.vmid }} failed: {{ $labels.reason }}'
+
   - name: volume
     type: vlogs
     interval: 5m
@@ -77,17 +111,18 @@ groups:
           summary: '{{ index $labels "_HOSTNAME" }}: journald dropped {{ $value }} lines from {{ $labels.unit }} in 5 minutes (over its cap).'
 
       # A loop that logs (a client retrying a request hundreds of times a second) would push the
-      # oldest days out. The lab logs about 0.5 lines a second in all, and journald drops what one
-      # service logs past about 100 a second (modules/observability.nix); 50 a second from one
-      # container or unit for 10 minutes is a loop. Counted by each line's own time, so a host's
-      # first upload of its old journal doesn't count.
+      # oldest days out. journald drops what one service logs past about 100 a second
+      # (modules/observability.nix); 50 a second from one container, unit or appliance's app for 10
+      # minutes is a loop. Appliances' syslog has no journald in front of it, so this is their only
+      # brake: OPNsense's firewall log runs at about 8 a second. Counted by each line's own time, so
+      # a host's first upload of its old journal doesn't count.
       - alert: LogFlood
         expr: >-
-          * | stats by (_HOSTNAME, _SYSTEMD_UNIT, CONTAINER_NAME) count() as lines
+          * | stats by (_HOSTNAME, _SYSTEMD_UNIT, CONTAINER_NAME, hostname, app_name) count() as lines
           | filter lines:>15000
         for: 10m
         labels:
           severity: warning
-          instance: '{{ index $labels "_HOSTNAME" }}'
+          instance: '{{ or (index $labels "_HOSTNAME") (index $labels "hostname") }}'
         annotations:
-          summary: '{{ index $labels "_HOSTNAME" }}: {{ or (index $labels "CONTAINER_NAME") (index $labels "_SYSTEMD_UNIT") }} logged {{ $value }} lines in 5 minutes; its log shows what repeats.'
+          summary: '{{ or (index $labels "_HOSTNAME") (index $labels "hostname") }}: {{ or (index $labels "CONTAINER_NAME") (index $labels "_SYSTEMD_UNIT") (index $labels "app_name") }} logged {{ $value }} lines in 5 minutes; its log shows what repeats.'
