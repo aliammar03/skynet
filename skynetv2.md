@@ -29,7 +29,7 @@
 | P5 | Observability (agent eyes) | in progress (2026-10-26): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`, #88); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics; alerts: two vmalerts and Alertmanager to `#alerts`, its Watchdog to healthchecks.io (#91; both watchdogs, HostDown, TargetDown and DiskFull proven live 10-27); Grafana at `grafana.aliammar.net` (OIDC through admin Authelia; Live and Backups boards of our own, seven upstream) and the agent's MCP servers at `/mcp`; Ali's first Grafana login 10-27. Wider eyes live 10-28 (#102–#109): the Proxmox nodes, OPNsense, the doors' access logs, Unraid, Omada, Technitium's stats and query log. Asked and answered through the MCP tools on 10-28: network (the nodes' backups reach PBS over VLAN 50, not through OPNsense; technitium-network's 700 refusals were one burst), storage (night 2's guest backups, verify, restic and Drive copy). Next: the freshness tests (Wider eyes, with Ali), the week's sizing check (11-03) |
 | P6 | Agent autonomy | planned (2026-10-26): the leash first (comin's testing branches off, with the plan), then tiered merges with verify and rollback, the incident loop, the rekey workflow, OpenTofu for our VMs and the OPNsense aliases; after P5 |
 | P7 | Retire v1 + disaster recovery | outline; v1's guests are already gone (Ali, 2026-10-25) |
-| P8 | Comics and manga | planned (2026-10-29): Suwayomi finds and downloads, Komga serves the library from Unraid, the iPad reads over OPDS |
+| P8 | Comics and manga | planned (2026-10-29): Uchiyomi on trial (finds, downloads, reads) and Komga's library, both on Unraid's `Storage`; the iPad reads over OPDS; the agent configures them (D16) |
 
 ## Target state
 
@@ -72,6 +72,7 @@ Nothing outside the lab pushes into it.
 | D12 | v1 archived; fresh repo; new ops VM built alongside the old one, which is then retired | Clean start without a blind spot |
 | D14 | Remote access = **Tailscale**, with `os-tailscale` on OPNsense as the subnet router and split DNS for `aliammar.net`; replaces the WireGuard plan | Nothing inbound to open; it keeps working when docker-admin or a node is down, so it can reach what needs fixing |
 | D15 | Backups = **restic** (run by resticprofile in doco-cd `one_off` jobs) copying `/opt/appdata` **hot**: on docker-dmz from a read-only **btrfs snapshot** taken by **btrbk** a moment before. PBS's datastore goes with **rclone** (PVE encrypts its chunks); both to Drive, nightly. PBS is rebuilt greenfield as VM 2040 from Proxmox's automated installer. Restores: `skynet-restore`, from a local snapshot or from Drive, with doco-cd paused | Battle-tested pieces. A snapshot holds every app's files at one instant, which databases restart from as after a power cut: no dumps, no stopped apps, no stop lists. Holding apps stopped through doco-cd (`stop_services`, the first design) relies on no poll redeploying them mid-job, and doco-cd 0.129.1's can (P4 → Prechecks) |
+| D16 | The agent **administers P8's apps** (Komga, Uchiyomi) through their APIs, with an admin account of its own in each: libraries, sources, extensions, series, settings, users' roles. Their passwords are agent-generated, encrypted to Ali and ops, and rendered on ops for its calls. Deleting a series' files, a library or an account asks Ali each time | Ali's ask (2026-10-29): "configure the services for me". Both apps do everything over documented APIs, and what can live in git (their environment) still does |
 
 ## Rules
 
@@ -219,6 +220,8 @@ skynet/
 | alert webhook | token (agent-generated) | Alertmanager → `skynet-incident` on ops | P6 |
 | OPNsense `skynet-read` | API key | Diagnostics: ARP Table · Diagnostics: Logs: Firewall: Live View · Diagnostics: PF Table IP addresses · Diagnostics: Routing tables · Firewall: Aliases · Firewall: Rules [new] · Lobby: Dashboard · System: Gateways · Tailscale · System: Deny config write. Config writes stay denied; PF tables and Tailscale's service could change at runtime, and the agent leaves them to Ali (rule 5) | P1 / P4 |
 | Technitium | read-only user | diagnose | P5 / P6 |
+| agent's Komga and Uchiyomi admins | passwords in `secrets/ops.komga.yaml` and `secrets/ops.uchiyomi.yaml` (agent-generated; Ali + ops) | those two apps, through their APIs (D16) | P8 |
+| apps' Authelia OIDC clients `komga`, `uchiyomi` | client secrets (agent-generated), digests in `stacks/dmz/authelia/oidc-clients.yml` | Ali's login to each | P8 |
 
 ---
 
@@ -2188,9 +2191,10 @@ in a drill.
 **Goal**
 - Ali browses manga sources from the iPad and follows series; their new chapters download
   themselves.
-- One library, on Unraid, with a good reader: in Safari, and in iPad apps over OPDS, offline too.
-  Reading progress follows Ali between devices.
+- One library, on Unraid's `Storage` share, with good readers: in Safari, and in iPad apps over
+  OPDS, offline too. Reading progress follows Ali between devices.
 - Ali's own files (DRM-free volumes, comics) sit in the same library.
+- The agent configures the apps for Ali: libraries, sources, series, settings (D16).
 
 **Why:** Ali reads comics and manga, mostly on an iPad (2026-10-29). It can come before P6 and P7:
 it needs only docker-dmz and Unraid.
@@ -2199,60 +2203,82 @@ it needs only docker-dmz and Unraid.
 
 | Need | Choice | Why | Passed over |
 |---|---|---|---|
-| Browse and download | Suwayomi-Server 2.4 (7.9k★) with its WebUI | Mihon's extensions on a server: searches the sources Ali adds, follows series, downloads new chapters as CBZ, tracks to AniList/MyAnimeList, serves OPDS | Uchiyomi (serves and downloads in one, but 95★ and one maintainer); Tranga (no release since 2023) |
-| Library and reader | Komga 1.29 (6.8k★) | a series per folder at any depth, so Suwayomi's `<source>/<series>/` folders need no rework; a web reader with right-to-left, double pages and webtoon scroll; OPDS for iPad apps; OIDC login (Authelia documents a Komga client) | Kavita 0.9 (12k★, a polished reader with ebooks too, but its scanner wants `Library/Series/`, and its manga metadata is the paid Kavita+) |
-| iPad | Panels or Komic, both on the App Store, free with paid tiers | native readers of Komga over OPDS, with downloads for offline reading; Panels adds guided view and double pages | Aidoku (open source, browses sources on the iPad itself and talks to Komga and Suwayomi, but a beta outside the App Store: TestFlight or AltStore); Paperback (no release since 2025-05) |
+| Browse, download and read: **on trial** (Ali, 2026-10-29) | Uchiyomi 0.99 (95★; one maintainer, a release every few days) | a library, reader and downloader in one: MangaDex's API and common site families built in, Mihon's extensions through a bundled Suwayomi engine; follows series and fetches new chapters; a webtoon-first reader that works offline (PWA); OPDS and a Komga-compatible API; OIDC; scoped API tokens, and everything its web app does through a documented API (`/api/docs`) | Suwayomi-Server 2.4 alone (7.9k★, the mature choice and the fallback if the trial fails; it is Uchiyomi's engine anyway); Tranga (no release since 2023) |
+| Library and reader | Komga 1.29 (6.8k★) | a series per folder at any depth, so any downloader's folders need no rework; a web reader with right-to-left, double pages and webtoon scroll; OPDS for iPad apps; OIDC login (Authelia documents a Komga client); API keys | Kavita 0.9 (12k★, a polished reader with ebooks too, but its scanner wants `Library/Series/`, and its manga metadata is the paid Kavita+) |
+| iPad | Panels or Komic, both on the App Store, free with paid tiers; Uchiyomi's PWA | native readers of Komga (Komic, and Panels over OPDS) with downloads for offline reading; Panels adds guided view and double pages | Aidoku (open source, browses sources on the iPad itself, but a beta outside the App Store: TestFlight or AltStore); Paperback (no release since 2025-05) |
 
-**Sources are Ali's.** Suwayomi ships none: Ali adds an extension repository and picks sources.
-MangaDex has a public API and hosts fan translations, and most other extensions read aggregator
+**Sources are Ali's.** Uchiyomi ships none enabled: Ali names the sources and the agent turns them
+on. MangaDex has a public API and hosts fan translations, and most other extensions read aggregator
 sites. Licensed series come from their publishers' apps, or as bought DRM-free files for the library.
 
 ### Where it runs
 
-- **docker-dmz**, two stacks (`runbooks/new-stack.md`), each on a door network of its own, as calibre:
-  - `stacks/dmz/suwayomi`: Suwayomi-Server, its state in `/opt/appdata/suwayomi` (settings,
-    database, extensions; backup class: data), its downloads into the library;
-  - `stacks/dmz/komga`: Komga, its state in `/opt/appdata/komga` (database and thumbnails; backup
-    class: data), the library read-only.
-  - Each JVM gets a heap cap and a `mem_limit` set from its measured peak: docker-dmz has about
-    3 GiB free (2026-10-29).
-- **The library:** a new Unraid share `manga` (the array has 4.2 TiB free), over NFS 4.2 to
-  docker-dmz at `/mnt/manga` (`hosts/docker-dmz`, automounted, as docker-admin's PBS mount). Rule
-  300 already carries docker-dmz's NFS to Unraid. Inside it:
-  - `suwayomi/`: Suwayomi's downloads, `mangas/<source>/<series>/<chapter>.cbz`;
+- **docker-dmz**, two stacks (`runbooks/new-stack.md`), each on a door network of its own:
+  - `stacks/dmz/uchiyomi`: Uchiyomi, its database inside (Postgres in `/data`), and its extension
+    engine (Suwayomi, `-Xmx768m`, as upstream pins it). Its state in `/opt/appdata/uchiyomi`
+    (database, config, nightly database dumps; backup class: data), its image cache left out of the
+    backup and capped. Its Cloudflare solver (FlareSolverr, a headless Chrome) stays off until a
+    source Ali wants needs it.
+  - `stacks/dmz/komga`: Komga, its state in `/opt/appdata/komga` (backup class: data), the manga
+    folder read-only.
+- **Memory:** docker-dmz runs 3.7 GiB of containers in the 7.6 GiB the core node leaves it today (the
+  node is at 80%, so Proxmox balloons its guests toward their floors). The two stacks add about
+  1.8 GB, each container capped from its measured peak, so docker-dmz's floor rises from 6 to
+  8 GiB (`hosts/docker-dmz/proxmox.sh`; Ali applies it).
+- **Storage:** Unraid's share `Storage` (`/mnt/user/Storage`), mounted on docker-dmz at
+  `/mnt/storage` for all its storage and media (NFS 4.2, automounted; `hosts/docker-dmz`). Rule 300
+  already carries docker-dmz's NFS to Unraid, but the export doesn't list 10.10.100.10 yet. Manga in
+  `/mnt/storage/manga/`:
+  - `uchiyomi/`: Uchiyomi's downloads;
   - `library/`: Ali's own files, a folder per series.
 
-  Komga reads both as one library. The share stays out of the nightly backups: downloads can be
+  Uchiyomi and Komga each read both. The share stays out of the nightly backups: downloads can be
   fetched again, and Ali's own files wait on P4 → Open (Unraid shares offsite).
 - **Doors** (caddy-apps; inside and over Tailscale, which already routes 10.10.100.35; not public):
-  - `manga.aliammar.net` → Komga, auth `own`: its web login through the apps' Authelia (an OIDC
-    client `komga`, agent-generated), and a Komga password or API key for the iPad's OPDS;
-  - `suwayomi.aliammar.net` → Suwayomi, auth `forward` (`import authelia`, admins), as calibre.
-  - Both names → 10.10.100.35 in `dns/aliammar.net.zone`, and a Gatus row each.
+  - `uchiyomi.aliammar.net` → Uchiyomi, auth `own`: OIDC through the apps' Authelia (an OIDC client
+    `uchiyomi`; Authelia's `admins` are its admins), and its own OPDS token for iPad apps;
+  - `komga.aliammar.net` → Komga, auth `own`: OIDC through the apps' Authelia (a client `komga`),
+    and a Komga API key for the iPad's OPDS.
+  - Both names → 10.10.100.35 in `dns/aliammar.net.zone`, and a Gatus row each. The engine has no
+    door: only Uchiyomi talks to it.
+
+### The agent configures them (D16)
+
+- **Its own admin account in each,** made right after the deploy, before anyone else can: Uchiyomi's
+  first-run setup (`POST /api/setup`) and Komga's claim. The passwords are agent-generated into
+  `secrets/ops.uchiyomi.yaml` and `secrets/ops.komga.yaml` (Ali + ops), and ops renders them for the
+  agent's calls, as it does the Proxmox tokens. The agent reaches both through caddy-apps, like Ali.
+- **Through their APIs:** Uchiyomi's sources, extensions (its engine, through Uchiyomi), custom
+  sites, settings, and the series Ali asks for; Komga's library, and Ali's account made an admin.
+- **What can live in git does:** each app's environment (auth, paths, caps, the engine's settings).
+- **Ali asks in chat** ("follow X", "add the source Y"); the agent does it and says what it did.
+  Deleting a series' files, a library or an account asks Ali first (rule 5).
 
 ### Steps
 
-1. **Ali, Unraid:** the share `manga`, NFS export Yes, rule for 10.10.100.10: read-write, every
-   write as Unraid's `nobody:users` (`all_squash`, `anonuid=99,anongid=100`).
-2. **PR (agent, `runbooks/new-stack.md`):** the mount, both stacks, their sites, DNS, Gatus rows and
-   Komga's OIDC client. Ali merges.
-3. **Ali, first run:**
-   - Suwayomi (`suwayomi.aliammar.net`): an extension repository and the sources; then series
-     added to the library, with new chapters downloaded automatically;
-   - Komga (`manga.aliammar.net`): log in through Authelia, add the library `/manga`.
-4. **Ali, iPad:** Panels or Komic, a server `https://manga.aliammar.net/opds/v1.2/catalog` with
-   Komga's credentials; a volume downloaded to read offline.
+1. **Ali:** Unraid, `Storage`'s NFS export: a rule for 10.10.100.10, read-write, every write as
+   Unraid's `nobody:users` (`all_squash,anonuid=99,anongid=100`). Proxmox: `qm set 10010 --balloon
+   8192`.
+2. **PR (agent):** the mount, both stacks, their sites, DNS and Gatus rows, the two OIDC clients, the
+   agent's two credentials, `proxmox.sh`'s floor. Ali merges.
+3. **Agent, right after:** both admin accounts; Komga's library; Uchiyomi's library folders, MangaDex
+   in Ali's languages, and the sources and first series Ali names.
+4. **Ali, iPad:** `uchiyomi.aliammar.net` added to the Home Screen; Komga or Uchiyomi's feed in
+   Panels or Komic; a volume downloaded to read offline.
+5. **After two weeks:** Ali's verdict on Uchiyomi. Kept: it stays as is. Not: Suwayomi takes its
+   place (a PR), into the same folders.
 
 ### Exit criteria
 
-- A series found and added in Suwayomi from the iPad: its chapters on Unraid as CBZ, and a new one
-  downloaded by itself.
-- Komga lists it with covers and reads it in Safari: right to left, double pages in landscape, a
-  webtoon as one scroll.
-- Panels (or Komic) reads from Komga, a downloaded volume opens offline, and the progress shows in
-  Komga.
-- Both stacks' state is in the nightly restic copy; Gatus rows green; their logs reach
-  VictoriaLogs.
+- A series found and followed in Uchiyomi from the iPad: its chapters on Unraid as CBZ, and a new
+  one downloaded by itself.
+- Uchiyomi and Komga list it with covers and read it in Safari: right to left, double pages in
+  landscape, a webtoon as one scroll; Uchiyomi's PWA offline too.
+- An iPad app reads from Komga or Uchiyomi over OPDS, a downloaded volume opens offline, and the
+  progress shows on the server.
+- The agent added a source and a series from a chat request, through the API.
+- Ali's verdict on the trial.
+- Both stacks' state in the nightly restic copy; Gatus rows green; their logs reach VictoriaLogs.
 
 **Open:** Western comics (Kapowarr is active; Mylar3 slower); Komf for AniList and MyAnimeList
 metadata in Komga, if the downloads' own isn't enough; Aidoku, if it reaches the App Store; family
