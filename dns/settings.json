@@ -20,5 +20,6 @@
   "blockListUrls": ["https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro-onlydomains.txt"],
   "blockListUpdateIntervalHours": 24,
   "loggingType": "Console",
-  "useLocalTime": true
+  "useLocalTime": true,
+  "logQueries": true
 }

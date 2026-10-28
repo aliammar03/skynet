@@ -39,6 +39,19 @@ doesn't read back as written (a typo, say), so the deploy fails and comin posts 
 | `cacheMaximumEntries`, `enableCachePrefetch` | 100 000 (default 10 000), on | popular names refresh before they expire |
 | `enableBlocking`, `blockingType`, `blockListUrls`, `blockListUpdateIntervalHours` | HaGeZi Pro, NXDOMAIN, daily | HaGeZi's wildcard format: a listed domain blocks its subdomains too |
 | `loggingType`, `useLocalTime` | console, on | logs go to the journal, in PKT |
+| `logQueries` | on | every query too: the query log, below |
+
+## The query log
+
+Each query is a line in the journal, so VictoriaLogs keeps 30 days of who asked what (Ali's call,
+2026-10-28; every device's lookups, the family's included):
+`[<client>:<port>] [UDP] QNAME: <name>; QTYPE: A; QCLASS: IN; RCODE: Refused; ANSWER: […]`. Both
+servers together write about 160,000 a day. Who was refused in the last hour, and for what:
+```
+_time:1h _SYSTEMD_UNIT:="technitium-dns-server.service" "RCODE: Refused" | extract "Local] [<client>:<_>] [<proto>] QNAME: <qname>; QTYPE: <qtype>;" | stats by (_HOSTNAME, client, proto, qname, qtype) count() hits | sort by (hits desc)
+```
+A storm past journald's cap (about 100 lines a second, `modules/observability.nix`) loses lines;
+`LogsDropped` says how many.
 
 ## The web UI
 
