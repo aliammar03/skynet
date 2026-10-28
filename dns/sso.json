@@ -1,0 +1,8 @@
+{
+  "ssoEnabled": true,
+  "ssoAuthority": "https://auth.aliammar.net",
+  "ssoScopes": ["openid", "profile", "email", "groups"],
+  "ssoAllowSignup": true,
+  "ssoAllowSignupOnlyForMappedUsers": true,
+  "ssoGroupMap": { "admins": "Administrators" }
+}

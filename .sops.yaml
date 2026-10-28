@@ -17,12 +17,14 @@ creation_rules:
       - age:
           - *aliammar
           - *docker-admin
-  - path_regex: ^secrets/technitium-network\.yaml$
+  # A host's own file, and its OIDC client's secret (agent-generated: the agent can't add a key to
+  # a file it can't decrypt).
+  - path_regex: ^secrets/technitium-network(\.oidc)?\.yaml$
     key_groups:
       - age:
           - *aliammar
           - *technitium-network
-  - path_regex: ^secrets/technitium-core\.yaml$
+  - path_regex: ^secrets/technitium-core(\.oidc)?\.yaml$
     key_groups:
       - age:
           - *aliammar

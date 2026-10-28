@@ -679,7 +679,9 @@ Done 2026-10-23:
   2. apply `dns/settings.json` (Set DNS Settings);
   3. create `aliammar.net` as a Primary zone if it's missing (or convert it, e.g. from Forwarder);
   4. import `dns/aliammar.net.zone` with `overwriteZone=true`, so the zone is exactly the file. The
-     file is in Technitium's export format, SOA and NS lines included.
+     file is in Technitium's export format, SOA and NS lines included;
+  5. apply `dns/sso.json`, the login through admin Authelia (P5), with this server's client ID and
+     secret, wait out the web service's restart, and read it back (`dns/README.md` → The web UI).
 
   Idempotent. A failure fails the unit, so the deploy fails and comin posts to `#alerts`. Proven
   against Technitium 15.6.2 before the build:
@@ -2196,6 +2198,7 @@ in a drill.
 | Grafana's `dashboards/fetch.sh`: grafana.com's boards at pinned revisions, their data source inputs pointed at ours (P5) | ~15 lines |
 | `pve/setup.sh` (the Proxmox nodes' exporters and log upload, as PBS's) (P5, Wider eyes) | ~30 lines |
 | Technitium's stats into node-exporter's textfile, every 5 min on each DNS host (P5, Wider eyes) | ~25 lines |
+| Technitium's login through admin Authelia: `dns/sso.json` applied by `technitium-sync`, read back after the web service restarts (P5) | ~40 lines |
 | `skynet-incident` (P6: alert webhook → `claude -p`; one at a time, repeats dropped, the budget, escalation) | ~40 lines |
 | `skynet-merge` (P6: tier, window and CI checked; the merge; the post) | ~40 lines |
 | `skynet-verify` (P6: a stack's or a host's checks from doco-cd, Gatus, VictoriaMetrics and VictoriaLogs) | ~80 lines |
