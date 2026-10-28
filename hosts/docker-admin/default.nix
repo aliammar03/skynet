@@ -85,11 +85,24 @@ in
         "10.10.50.10" # server-proxmox-network
         "10.10.50.11" # server-proxmox-core
       ];
-      # Appliances that log by syslog (skynetv2.md → P5 → Wider eyes): source and TCP port.
+      # Appliances that log by syslog (skynetv2.md → P5 → Wider eyes): source, protocol and port.
       syslog = [
         {
-          ip = "10.10.50.1"; # OPNsense, from its VLAN 50 address
+          src = "10.10.50.1"; # OPNsense, from its VLAN 50 address
+          proto = "tcp";
           port = 5514;
+        }
+        {
+          src = "10.10.20.20"; # Unraid, through OPNsense's rule 237
+          proto = "tcp";
+          port = 5515;
+        }
+        {
+          # Omada's devices, on VLAN 50 with their controller: by subnet, since their addresses
+          # come from DHCP (and UDP's source is no proof anyway). Write-only, like vlagent's port.
+          src = "10.10.50.0/24";
+          proto = "udp";
+          port = 5516;
         }
       ];
     in
@@ -100,6 +113,6 @@ in
       iptables -A nixos-fw -p tcp -s ${ip} --dport 9429 -j nixos-fw-accept
     '') shippers
     + lib.concatMapStrings (s: ''
-      iptables -A nixos-fw -p tcp -s ${s.ip} --dport ${toString s.port} -j nixos-fw-accept
+      iptables -A nixos-fw -p ${s.proto} -s ${s.src} --dport ${toString s.port} -j nixos-fw-accept
     '') syslog;
 }

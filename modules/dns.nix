@@ -20,6 +20,14 @@ let
     ];
     text = builtins.readFile ./technitium-sync.sh;
   };
+  stats = pkgs.writeShellApplication {
+    name = "technitium-stats";
+    runtimeInputs = [
+      pkgs.curl
+      pkgs.jq
+    ];
+    text = builtins.readFile ./technitium-stats.sh;
+  };
 in
 {
   services.resolved.enable = false; # its stub would hold :53
@@ -68,6 +76,32 @@ in
       LoadCredential = credential;
       ExecStart = lib.getExe sync;
     };
+  };
+
+  # The dashboard's last hour, every 5 minutes, for node-exporter's textfile collector (skynetv2.md →
+  # P5 → Wider eyes): DnsFailing, and the answers' mix for the agent. It logs in as the sync does; a
+  # failed run is UnitFailed, and a stale file DnsStatsStale. node-exporter's folder is root's, so a
+  # root step (+) moves the file in whole: a scrape never reads half of it.
+  systemd.services.technitium-stats = {
+    description = "Write Technitium's last hour for node-exporter";
+    requires = [ "technitium-dns-server.service" ];
+    after = [ "technitium-dns-server.service" ];
+    environment.PASSWORD_FILE = "%d/admin-password";
+    serviceConfig = {
+      Type = "oneshot";
+      DynamicUser = true;
+      LoadCredential = credential;
+      RuntimeDirectory = "technitium-stats";
+      ExecStart = lib.getExe stats;
+      ExecStartPost = [
+        "+${pkgs.coreutils}/bin/install -m 644 %t/technitium-stats/technitium.prom /var/lib/node-exporter/technitium.prom.tmp"
+        "+${pkgs.coreutils}/bin/mv /var/lib/node-exporter/technitium.prom.tmp /var/lib/node-exporter/technitium.prom"
+      ];
+    };
+  };
+  systemd.timers.technitium-stats = {
+    wantedBy = [ "timers.target" ];
+    timerConfig.OnCalendar = "*:0/5";
   };
 
   # When a VM takes over .50/.51 from an old CT, OPNsense learns the new MAC at once instead of when

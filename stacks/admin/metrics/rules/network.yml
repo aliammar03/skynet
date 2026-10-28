@@ -1,17 +1,20 @@
-# OPNsense, through opnsense-exporter (stacks/admin/exporters; skynetv2.md → P5 → Wider eyes).
-# `instance` is opnsense (scrape.yaml).
+# OPNsense and Omada, through their exporters (stacks/admin/exporters, stacks/admin/omada-exporter;
+# skynetv2.md → P5 → Wider eyes). `instance` is opnsense or omada (scrape.yaml).
 groups:
   - name: network
     rules:
-      # The exporter answers even when it can't read OPNsense's API (opnsense_up 0): a wrong key, a
-      # page its user lost, or the API down. Its other series stop then, and every rule below goes
-      # quiet with them.
+      # The exporters answer even when they can't read their appliance: a wrong key or user, a page
+      # the user lost, or the API down. Their other series stop then, and every rule on them goes
+      # quiet. opnsense-exporter says so (opnsense_up 0); OmadaBridge has no such metric (a failed
+      # call is only in its log), so answering without a single device is its tell.
       - alert: ExporterBlind
-        expr: opnsense_up == 0
+        expr: |
+          opnsense_up == 0
+            or (up{job="omada"} == 1 unless on () count(omada_device_uptime_seconds) > 0)
         for: 10m
         labels: { severity: warning }
         annotations:
-          summary: "opnsense-exporter can't read OPNsense's API (its key, its user's pages, or the API): the gateway and firewall alerts are blind."
+          summary: "{{ $labels.instance }}: its exporter answers but can't read the appliance's API (its key or user, or the API): the alerts and graphs on it are blind."
 
       # dpinger's own verdict per gateway (0 offline, 1 online, 2 unknown, 3 pending, 4 loss,
       # 5 latency, 6 forced offline). Only one that was online this week: a monitored gateway that

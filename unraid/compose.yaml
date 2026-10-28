@@ -1,0 +1,30 @@
+# Unraid's exporters (skynetv2.md → P5 → Wider eyes), for docker-admin's VictoriaMetrics. Unraid's
+# config isn't in git: Ali applies this on Unraid (README.md), and nothing here deploys it. Renovate
+# keeps the pins current, as for the stacks.
+services:
+  # The host: CPU, memory, disks' I/O and space, the network.
+  node-exporter:
+    container_name: node-exporter
+    image: quay.io/prometheus/node-exporter:v1.12.1@sha256:1b4e4438faca4dd7e001dd445d161a4a2091b0fededa84093b3a8dfeae1f1be0
+    restart: unless-stopped
+    command:
+      - --path.rootfs=/host
+      # Unraid's array is its own md driver, whose /proc/mdstat the mdadm collector misreads.
+      - --no-collector.mdadm
+    # Unraid's own network and processes, on :9100.
+    network_mode: host
+    pid: host
+    # Not upstream's `rslave`: Unraid's root lives in RAM and isn't a shared mount, so Docker refuses
+    # it. Docker runs only while the array is started, so the array and pools are mounted before
+    # this starts, and the recursive bind holds them.
+    volumes:
+      - /:/host:ro
+
+  # Each disk's SMART health, wear and temperature, on :9633. smartctl needs the disks themselves.
+  smartctl-exporter:
+    container_name: smartctl-exporter
+    image: quay.io/prometheuscommunity/smartctl-exporter:v0.15.0@sha256:a76e08dbf5db4781fefd1ed81c65ad46ae8d2849dae6b6d3acebcde2fc4e59d6
+    restart: unless-stopped
+    privileged: true
+    user: root
+    network_mode: host

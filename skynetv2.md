@@ -1790,7 +1790,8 @@ the internet slow?", "is a disk failing?" and "why is this app slow?" are answer
   by design, so `DiskFull` leaves them out; node-exporter's mdadm collector, which misreads
   Unraid's own md driver, is off.
 - **Omada:** OmadaBridge reaches the controller as `Omada:8043` (CT 525; caddy-admin's pinned
-  `omada.pem`). Remote Logging (site settings): 10.10.50.40, UDP 5516.
+  `omada.pem`) and reads the site `Omada Network Skynet`. Remote Logging (site settings):
+  10.10.50.40, UDP 5516.
 - **Technitium:** every 5 minutes, `dashboard/stats/get?type=LastHour`: queries, server failures,
   NX domains, refusals, blocks, drops, clients and cache size.
 

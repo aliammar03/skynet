@@ -19,11 +19,12 @@ VMID 5040 · 10.10.50.40 · server-proxmox-network · 2 vCPU / 4 GB / 32 GB.
   mounted on first access (`default.nix`), for `stacks/admin/pbs-offsite/`. Unraid's export maps
   this host to uid 34 (PBS's `backup`, the datastore's owner); OPNsense lets it reach Unraid on
   TCP 2049.
-- **Observability** (P5): the `metrics`, `logs`, `alertmanager`, `grafana` and `exporters` stacks.
-  Firewall rules in `default.nix`: its own containers reach this host's exporters and vlagent from a
-  Docker bridge; vlagent (:9429, on the host's network) admits the hosts that ship their journal,
-  the Proxmox nodes included; and each appliance that logs by syslog reaches only its own vlagent
-  port (OPNsense, from 10.10.50.1, TCP 5514);
+- **Observability** (P5): the `metrics`, `logs`, `alertmanager`, `grafana`, `exporters` and
+  `omada-exporter` stacks. Firewall rules in `default.nix`: its own containers reach this host's
+  exporters and vlagent from a Docker bridge; vlagent (:9429, on the host's network) admits the
+  hosts that ship their journal, the Proxmox nodes included; and each appliance that logs by syslog
+  reaches only its own vlagent port (OPNsense from 10.10.50.1, TCP 5514; Unraid from 10.10.20.20,
+  TCP 5515; Omada's devices from VLAN 50, UDP 5516);
   tmpfiles rules give Alertmanager (`nobody`) and Grafana (472) their folders. Like every host, it runs node-exporter and the
   journal upload (`modules/observability.nix`), and cAdvisor on :9338 (`modules/docker-host.nix`).
 - **Secrets** (`secrets/docker-admin.yaml`): `doco_api_secret`, `discord_alerts_webhook`.

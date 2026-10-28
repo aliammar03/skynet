@@ -19,6 +19,16 @@ scrape_configs:
       - { targets: [10.10.20.40:9100], labels: { instance: pbs } }
       - { targets: [10.10.50.11:9100], labels: { instance: server-proxmox-core } }
       - { targets: [10.10.50.10:9100], labels: { instance: server-proxmox-network } }
+      # Unraid's node-exporter, an Unraid container (unraid/), through OPNsense's rule 236.
+      - { targets: [10.10.20.20:9100], labels: { instance: unraid } }
+
+  # Unraid's disks: SMART health, wear, temperature (smartctl-exporter, unraid/). Each scrape runs
+  # smartctl per disk, skipping disks in standby; once a minute.
+  - job_name: smartctl
+    scrape_interval: 1m
+    scrape_timeout: 30s
+    static_configs:
+      - { targets: [10.10.20.20:9633], labels: { instance: unraid } }
 
   # comin on every NixOS host: fetch, build and deploy failures, and a pending reboot.
   - job_name: comin
@@ -62,6 +72,14 @@ scrape_configs:
     scrape_interval: 1m
     static_configs:
       - { targets: [opnsense-exporter:8080], labels: { instance: opnsense } }
+
+  # Omada, through OmadaBridge (stacks/admin/omada-exporter): the controller, its APs and switches,
+  # their ports, the client count. Once a minute: each scrape is a round of controller calls.
+  - job_name: omada
+    scrape_interval: 1m
+    scrape_timeout: 30s
+    static_configs:
+      - { targets: [omada-exporter:9202], labels: { instance: omada } }
 
   # PBS, through pbs-exporter. Every 5 minutes: it lists every snapshot, and a backup's age is
   # counted in hours.

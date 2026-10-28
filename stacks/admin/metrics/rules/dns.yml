@@ -1,0 +1,22 @@
+# Technitium, the DNS servers, from technitium-stats' textfile (modules/dns.nix; skynetv2.md → P5 →
+# Wider eyes): the dashboard's last hour, written every 5 minutes on each host.
+groups:
+  - name: dns
+    rules:
+      # A failed run is UnitFailed; a file that stops changing is this, and DnsFailing is blind.
+      - alert: DnsStatsStale
+        expr: time() - technitium_stats_timestamp_seconds > 20 * 60
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }}: Technitium's stats are {{ $value | humanizeDuration }} old (technitium-stats.timer): DnsFailing is blind meanwhile."
+
+      # SERVFAIL is Technitium failing to get an answer from any forwarder. Over 5% of a busy hour
+      # (200 queries or more) is the upstream path, not one broken name.
+      - alert: DnsFailing
+        expr: |
+          technitium_responses_last_hour{rcode="server_failure"} / ignoring (rcode) technitium_queries_last_hour > 0.05
+            and on (instance) technitium_queries_last_hour >= 200
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.instance }}: {{ $value | humanizePercentage }} of the last hour's queries got SERVFAIL (no forwarder answered)."

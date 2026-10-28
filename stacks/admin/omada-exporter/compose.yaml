@@ -1,0 +1,46 @@
+# Omada (CT 525): the controller, its APs and switches, their ports, and the client count, through
+# the controller's web API as a viewer (README.md; skynetv2.md → P5 → Wider eyes). OmadaBridge, the
+# maintained fork of charlie-haley's exporter; its Home Assistant side (MQTT) and device control stay
+# off. A stack of its own: it exits when the controller doesn't answer at its start, and a restart
+# loop then restarts nothing else. VictoriaMetrics scrapes it by name on `edge`
+# (stacks/admin/metrics/scrape.yaml).
+services:
+  omada-exporter:
+    container_name: omada-exporter
+    image: docker.io/rcooler/omada_exporter:2.4.4@sha256:8586f9754157570ae1ecbb5551036c12a2972c10caf23ec28f18012db19c96e1
+    restart: unless-stopped
+    env_file: secret.sops.env # OMADA_USER, OMADA_PASS
+    environment:
+      # TLS is checked against the controller's self-signed cert (caddy-admin's pin), whose name is
+      # Omada, not the IP.
+      OMADA_HOST: https://Omada:8043
+      # The site's name, matched exactly.
+      OMADA_SITE: Omada Network Skynet
+      SSL_CERT_FILE: /etc/skynet-certs/omada.pem
+      OMADA_MQTT_ENABLED: "false"
+      OMADA_ALLOW_DEVICE_CONTROL: "false"
+      # A series per client, with labels that change as it roams; the client count stays.
+      OMADA_TRACK_CLIENT_METRICS: "false"
+      # A port label that changes with traffic, each change a new series.
+      OMADA_INCLUDE_PORT_ACTIVITY_LABEL: "false"
+    extra_hosts: ["Omada:10.10.50.25"]
+    volumes:
+      - ../caddy-admin/certs:/etc/skynet-certs:ro
+    labels:
+      # Go reads SSL_CERT_FILE once, at start. omada.pem's fingerprint here means a re-pinned cert
+      # changes this file, so doco-cd recreates the container and it loads the new one.
+      skynet.pinned-cert: "D1:CB:06:99:7A:EA:7C:37:E2:F6:DB:FD:A5:FA:68:0E:86:48:81:B5:9A:BA:0F:FD:09:9E:F7:13:C8:C8:74:F8"
+    # Its image's own user (10001); it writes nothing but /tmp.
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    networks: [edge]
+    healthcheck:
+      test: [CMD, wget, -qO, /dev/null, http://127.0.0.1:9202/healthz]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks:
+  edge:
+    external: true
