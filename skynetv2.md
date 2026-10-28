@@ -23,12 +23,12 @@
 |---|---|---|
 | P0 | Foundations + new ops VM | done |
 | P1 | docker-admin: admin door, identity, status | done (2026-10-22); 7 admin names move to .60 with P2's Technitium |
-| P2 | DNS (Technitium only) + remote access | done (2026-10-23); open: OPNsense rules 140/150/115 and CT 731 `onboot` (see P2 exit criteria) |
-| P3 | docker-dmz: apps + public path | done (2026-10-24): docker-dmz with v1's data (#48), its doors (#50) and all ten apps (#51–#61); the apps reach one another only through the door (#64); every image current (#67). Family accounts skipped for now; rule 150 can go now that 135 (ex-840) serves Gatus's `public` row |
+| P2 | DNS (Technitium only) + remote access | done (2026-10-23); its OPNsense cleanup too (2026-10-28) |
+| P3 | docker-dmz: apps + public path | done (2026-10-24): docker-dmz with v1's data (#48), its doors (#50) and all ten apps (#51–#61); the apps reach one another only through the door (#64); every image current (#67). Family accounts skipped for now |
 | P4 | Backups → Google Drive | in progress (2026-10-25): PBS greenfield done (VM 2040, `pbs/`; v1's PBS removed); PBS's datastore nightly to Drive by plain `rclone sync` (`stacks/admin/pbs-offsite/`; PVE already encrypts its chunks); app data nightly to Drive, hot (`stacks/<host>/backup/`): docker-dmz rebuilt onto btrfs and backed up from btrbk snapshots (#81); `skynet-restore` drilled from a snapshot and from Drive; `runbooks/restore.md` (six cases); a guest restored from Drive's copy (2026-10-27). Next: seven green nights (from 10-26 → 27), the survival kit |
 | P5 | Observability (agent eyes) | in progress (2026-10-26): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`, #88); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics; alerts: two vmalerts and Alertmanager to `#alerts`, its Watchdog to healthchecks.io (#91; both watchdogs, HostDown, TargetDown and DiskFull proven live 10-27); Grafana at `grafana.aliammar.net` (OIDC through admin Authelia; Live and Backups boards of our own, seven upstream) and the agent's MCP servers at `/mcp`; Ali's first Grafana login 10-27. Wider eyes live 10-28 (#102–#109): the Proxmox nodes, OPNsense, the doors' access logs, Unraid, Omada, Technitium's stats and query log. Asked and answered through the MCP tools on 10-28: network (the nodes' backups reach PBS over VLAN 50, not through OPNsense; technitium-network's 700 refusals were one burst), storage (night 2's guest backups, verify, restic and Drive copy). Next: the freshness tests (Wider eyes, with Ali), the week's sizing check (11-03) |
 | P6 | Agent autonomy | planned (2026-10-26): the leash first (comin's testing branches off, with the plan), then tiered merges with verify and rollback, the incident loop, the rekey workflow, OpenTofu for our VMs and the OPNsense aliases; after P5 |
-| P7 | Retire v1 + disaster recovery | outline |
+| P7 | Retire v1 + disaster recovery | outline; v1's guests are already gone (Ali, 2026-10-25) |
 
 ## Target state
 
@@ -522,7 +522,7 @@ If an appliance cert can't be pinned, use `tls_insecure_skip_verify` and note it
 | opnsense | https://10.10.50.1 | `tls_server_name OPNsense.internal` + trust its cert (`tls_trust_pool file`). In OPNsense, System → Settings → Administration → **Alternate Hostnames** must include `opnsense.aliammar.net` and `auth.aliammar.net` (after an Authelia login the first request's Referer is `auth`, which OPNsense otherwise rejects) |
 | proxmox-core / proxmox-network | https://10.10.50.11:8006 / .10:8006 | trust each node's `pve-root-ca.pem` |
 | pbs | https://10.10.20.40:8007 | trust its self-signed cert |
-| technitium-core / technitium-network | http://10.10.70.51:5380 / .50:5380 | CT 751 / CT 750 |
+| technitium-core / technitium-network | http://10.10.70.51:5380 / .50:5380 | VMs 7051 / 7050 (P2) |
 | omada | https://10.10.50.25:8043 | pin its self-signed cert, `tls_server_name Omada` |
 | unraid | http://10.10.20.20 | `header_down Location ^http:// https://` (it redirects to absolute http URLs) |
 | auth | authelia:9091 | portal (the apps' is `login`, P3) |
@@ -554,7 +554,7 @@ the missing ones (`auth`, `status`, …).
 
 ### Cutover
 
-Done in a maintenance window. Rollback = stop caddy-admin, start CT 635.
+Done in a maintenance window (2026-10-22).
 
 1. Merge every P1 stack except caddy-admin's macvlan IP. Authelia, Gatus and heartbeat should go green.
 2. Set OPNsense Alternate Hostnames.
@@ -572,7 +572,7 @@ Done in a maintenance window. Rollback = stop caddy-admin, start CT 635.
 5. Retire v1 monitoring: VM 9090 is shut down with `onboot 0` (2026-10-22), so `skynet-watch` is
    off and Gatus is the monitor. Remove 10.10.90.90 from `HOST_SKYNET_OPS`.
 
-   CT 635 and VM 9090 stay stopped for 14 days, then Ali destroys them (P7).
+   Ali destroyed CT 635 and VM 9090 on 2026-10-25.
 
 ### Exit criteria
 
@@ -582,7 +582,8 @@ Done in a maintenance window. Rollback = stop caddy-admin, start CT 635.
   posted; rule 235 disabled → Gatus posted 4 DOWN after 3 min and 4 RESOLVED after re-enabling.
 - doco-cd deploys and failed comin deploys post to `#alerts`. The healthchecks.io heartbeat is green.
 - The agent lists docker-admin projects and runs via MCP, and answers "is X up?" from Gatus.
-- CT 635 and VM 9090 are off. Renovate tracks every pinned image (compose + Nix).
+- CT 635 and VM 9090 are off (destroyed 2026-10-25). Renovate tracks every pinned image (compose +
+  Nix).
 
 ---
 
@@ -784,10 +785,10 @@ After cutover:
 3. **technitium-network → .50:** the same with CT 750.
 4. The OPNsense changes above. AdGuard CT 731: `pct shutdown 731 && pct set 731 --onboot 0`
    (730 is already off).
-5. CTs 750, 751, 730 and 731 stay stopped for 14 days, then P7 destroys them.
+5. CTs 750, 751, 730 and 731 stayed stopped until Ali destroyed them on 2026-10-25.
 
-Rollback for either server: stop its VM, `pct start` its CT (same IP). Nothing on the VMs needs a
-backup: cache, stats and logs are disposable, and everything else rebuilds from git.
+Nothing on the VMs needs a backup: cache, stats and logs are disposable, and everything else
+rebuilds from git.
 
 ### Tailscale (agent drafts, Ali applies)
 
@@ -806,23 +807,21 @@ backup: cache, stats and logs are disposable, and everything else rebuilds from 
 
 ### Exit criteria
 
-Met on 2026-10-23, apart from the items marked open:
+Met on 2026-10-23, the OPNsense cleanup on 2026-10-28:
 - `dig @10.10.70.50` and `@10.10.70.51`: every admin name → 10.10.60.60, `googlesyndication.com` blocked,
   the internet resolves. Gatus `dns` rows green. ✅
 - Both VMs were configured only from git, and a merged record change shows on both within ~2 min. ✅
   (#42 changed the zone; both servers had it within minutes.)
 - Every VLAN's DHCP lists both .50 and .51 (Ali); `ROLE_DNS_RESOLVERS` = the two `HOST_TECHNITIUM_*`
-  aliases ✅. CTs 730, 731, 750 and 751 are stopped ✅. **Open:**
-  - rule 140 on, rule 150 gone, rule 115 deleted;
-  - CT 731 `onboot` 0.
+  aliases ✅. CTs 730, 731, 750 and 751 are gone (2026-10-25) ✅. Rule 140 is on, and rules 150
+  and 115 are gone (2026-10-28) ✅.
 - All ten admin names load behind Authelia. ✅ OPNsense's Alternate Hostnames now include
   `auth.aliammar.net` (P1 sites table).
 - On mobile data via Tailscale, a phone opens `https://opnsense.aliammar.net` and
   `https://10.10.50.11:8006`. ✅ OPNsense: `TAILSCALE` interface, alias `NET_TAILNET`, rules 270–272.
 
-Deferred:
-- Technitium SSO, and the login screen. Authelia stays for now; an Authentik trial comes later
-  (P3 → Open).
+Deferred: a login screen of our own, with the Authentik trial (P3 → Open). Technitium's own login
+goes through admin Authelia since P5 (`dns/README.md` → The web UI).
 
 ## P3 — docker-dmz: apps + public path `[detailed]`
 
@@ -834,7 +833,8 @@ Deferred:
 - The apps without a login of their own (calibre, sillytavern, marinara) sit behind the apps' own
   Authelia on docker-dmz (portal `login.aliammar.net`), from inside and outside. Admin Authelia stays
   internal.
-- v1's docker-dmz (VM 10015, with Arcane) and Authentik (CT 837) stay off.
+- v1's docker-dmz (VM 10015, with Arcane) and Authentik (CT 837) stay off. Ali destroyed both on
+  2026-10-25.
 
 **Why now:** the apps are down (Prechecks). P3 brings them back on a host that rebuilds from git
 and fits the node's memory.
@@ -880,7 +880,7 @@ Done 2026-10-24:
   - `stacks/dmz/heartbeat` (healthchecks.io check `docker-dmz`; Gatus row `docker-dmz heartbeat`
     from its badge);
   - MCP `doco-dmz` for the agent;
-  - `rsync`, for the data move.
+  - `rsync`, so copies can arrive over SSH (`--rsync-path='sudo rsync'`), as v1's data did.
 
 ### Apps
 
@@ -951,14 +951,14 @@ the apps deploy:
       `qm shutdown 10015 && qm set 10015 --memory 2048 && qm start 10015` (Docker stays off). With
       10015 at 8 GB, the core node has 8 GB free, less than docker-dmz's 10.
    2. After the install: from a workstation shell with the key in an agent
-      (`eval "$(ssh-agent -s)"; ssh-add`), `ssh -A <you>@10.10.100.15` and run the copy in
-      `hosts/docker-dmz/README.md` (v1's data). It's one line per path of the table, each
+      (`eval "$(ssh-agent -s)"; ssh-add`), `ssh -A <you>@10.10.100.15` and run the copy: one line
+      per path of the table, each
       `sudo --preserve-env=SSH_AUTH_SOCK rsync -aHAX --numeric-ids --mkpath --rsync-path='sudo rsync' <v1 path>/ aliammar@10.10.100.10:/opt/appdata/<stack>/<role>/`.
       - `--preserve-env=SSH_AUTH_SOCK` lets root's ssh use the forwarded key.
       - `--numeric-ids` keeps the owners (CouchDB runs as 5984, Mongo as 999).
 
       All 21 paths arrived with v1's sizes and owners.
-3. `sudo poweroff` (done 2026-10-24). Until P7, 10015 keeps v1's data as it was.
+3. `sudo poweroff` (done 2026-10-24). Ali destroyed 10015 on 2026-10-25.
 
 ### Doors and auth (one PR, docker-dmz)
 
@@ -1019,7 +1019,8 @@ deletes tunnel `b5171e13…`).
   - Tailscale: also advertise 10.10.100.35/32 and approve it. Rule 273: `NET_TAILNET` →
     `HOST_PROXY_APPS` `PORT_WEB`, for the app names. Admin names and their logins stay on
     caddy-admin (rule 270);
-  - rule 840: `HOST_DOCKER_ADMIN` → 1.1.1.1 :53, for Gatus's `public` row. P2's rule 150 can then go.
+  - rule 840: `HOST_DOCKER_ADMIN` → 1.1.1.1 :53, for Gatus's `public` row. P2's rule 150 went
+    after it (2026-10-28).
 - **Unchanged, and still right:** 200 (app clients → .35), 235 (Gatus → doors), 340, 430, 800, 810
   and 820.
 - **After the last app:** rules 240/245 (Authentik) disabled. P7 deletes them, along with
@@ -1038,8 +1039,8 @@ deletes tunnel `b5171e13…`).
    karakeep one PR each, proving the pattern; then, at Ali's call, the other seven in one PR with
    the apps' OIDC (provider, the two clients; Ali adds the family accounts).
 
-Rollback: revert an app's PR. Until P7, v1 can come back as it was: stop docker-dmz's doors (they
-hold .33/.35), give 10015 its memory back, then `sudo systemctl enable --now docker` on it.
+Rollback: revert an app's PR; its data comes back from a snapshot or from Drive
+(`runbooks/restore.md`).
 
 ### Exit criteria
 
@@ -1052,13 +1053,14 @@ hold .33/.35), give 10015 its memory back, then `sudo systemctl enable --now doc
   door (skipped for now: no family accounts yet, Ali 2026-10-24). Nothing in the DMZ reaches
   docker-admin.
 - Over Tailscale, an app name and an admin name both open.
-- 10015 and CT 837 are stopped with `onboot 0` (Arcane went with 10015). P7 destroys them after 14
-  days.
+- 10015 and CT 837 are stopped with `onboot 0` (Arcane went with 10015). Ali destroyed both on
+  2026-10-25.
 
 **Open:**
 - Trial Authentik as the login service (not a P3 step): a custom login screen (CSS, backgrounds),
   forward-auth + OIDC, config as blueprints in git. It would replace Authelia (a D4 change) and needs
-  docker-admin resized. Technitium SSO waits for this choice; the two OIDC clients would move with it.
+  docker-admin resized. Every OIDC client would move with it: the apps' two, Grafana's and
+Technitium's two (P5).
 
 ## P4 — Backups → Google Drive `[detailed]`
 
@@ -1125,8 +1127,8 @@ requests a second per client.
   21.6 GB (23 images, all in use), the Nix store 3.3 GB, logs 0.1 GB. 25 GB stays on root once the
   app data moves.
 - **Core's `local-lvm`** (2026-10-25): a 348 GiB thin pool, 73% used (94 GiB free), holding 682 GiB
-  of guest disks in all, 346 GiB of them v1's stopped guests, which P7 destroys. A disk takes pool
-  space only for what is written, and docker-dmz trims weekly.
+  of guest disks in all, 346 GiB of them v1's stopped guests (destroyed 2026-10-25). A disk takes
+  pool space only for what is written, and docker-dmz trims weekly.
 - **docker-dmz's `/opt/appdata`, for the copy to ops** (2026-10-25): 8.7 GB in 18,258 entries, with
   no ACLs, extended attributes or hard links, so `tar` with numeric owners carries it whole. It
   skips the 13 sockets, which the apps make again. ops has 38 GB free, and one ssh stream from
@@ -1378,14 +1380,14 @@ once both nodes back up to the new one (Ali, 2026-10-25: they aren't needed).
 - **Cutover** (Ali, PVE config), on each node:
   - add storage `pbs`: the new server, its token, and a new client-side encryption key (PVE
     generates it; it goes in the survival kit);
-  - point the backup job at it. The jobs already leave out the retired guests until P7 destroys
-    them (Prechecks).
+  - point the backup job at it. Core's leaves out only Unraid and PBS (`--exclude 2020,2040`); the
+    network node's takes every guest.
 
   The first night writes full backups into the new datastore.
-- **v1's PBS** (Ali): CT 240 moved to 10.10.20.39 to free .40 for VM 2040, and `HOST_PBS` holds
-  both addresses meanwhile. Once both backup jobs write to `pbs`, it all goes: each node's
-  `pbs-unraid` storage, CT 240, the core node's NFS mount of `pbs-backups` (`/mnt/pbs-unraid`,
-  CT 240's `mp0`), .39 from `HOST_PBS`, and the share with v1's datastore.
+- **v1's PBS** (Ali): CT 240 moved to 10.10.20.39 to free .40 for VM 2040, and `HOST_PBS` held
+  both addresses meanwhile. Gone on 2026-10-25: CT 240, each node's `pbs-unraid` storage and the
+  core node's NFS mount of `pbs-backups`; then the share with v1's datastore, and .39 left
+  `HOST_PBS`.
 
 ### PBS offsite: `stacks/admin/pbs-offsite/` (docker-admin)
 
@@ -1449,6 +1451,8 @@ PBS stays Proxmox's appliance (VM 2040, Debian), but its settings live in git, t
 
 ### Survival kit (Ali, outside the lab)
 
+`runbooks/survival-kit.md`: each item, where it comes from, a template to fill in, and how to check
+it. In short:
 - the restic passwords, one per host;
 - PVE's PBS encryption keys, one per node (Datacenter → Storage → `pbs` → Encryption: download).
   Without them every copy, on Unraid or on Drive, is unreadable;
@@ -2162,7 +2166,7 @@ Steps 7–9 can start during shadow mode; until step 6, Ali merges their PRs too
 - Proxmox `svc-ops` tokens; the Technitium, Cloudflare and Authentik tokens.
 - OPNsense `svc-skynet-recon`; Omada viewer; the v1 GitHub PAT; v1 healthchecks; the v1 rclone client.
 
-**What: Ali destroys** 9090, 10015, 635, 837, 730, 731, 750, 751 and template 9000.
+**Done (Ali, 2026-10-25):** 9090, 10015, 635, 837, 730, 731, 750, 751 and template 9000 destroyed.
 
 **What: DR**
 - Final survival kit.
@@ -2187,7 +2191,7 @@ in a drill.
 | Nodes | server-proxmox-core (12 cpu, 31 GB) · server-proxmox-network (8 cpu, 15 GB) · mgmt IPs 10.10.50.11 (core) / 10.10.50.10 (network) · storage `local` (ISO), `local-lvm` (disks), `pbs` (VM 2040) |
 | VLANs | 10 Trusted · 20 Servers · 30 IoT · 50 Mgmt · 60 Admin access · 70 Net services · 80 Identity · 90 Ops · 100 DMZ · 300 ISP L2 passthrough (not routed). `10.10.<vlan>.0/24`, gateway `.1` |
 | Keep | OPNsense VM 5001 (config → `skynet-opnsense` via os-git-backup) · Omada CT 525 (10.10.50.25) · PBS VM 2040 (10.10.20.40, and 10.10.50.24 for the nodes; `pbs/`) · Unraid VM 2020 · HAOS VM 3050 (10.10.30.50) · athena CT 10030 (10.10.100.30) |
-| Retire | ops VM 9090 (P1) · Management Caddy CT 635 (P1) · AdGuard 730/731 and Technitium CTs 750/751 (P2) · docker-dmz VM 10015 + Arcane, Authentik CT 837 (P3) · PBS CT 240 with v1's backups (P4, at the cutover) · template 9000 (P7) |
+| Retired (destroyed 2026-10-25) | ops VM 9090 (P1) · Management Caddy CT 635 (P1) · AdGuard 730/731 and Technitium CTs 750/751 (P2) · docker-dmz VM 10015 + Arcane, Authentik CT 837 (P3) · PBS CT 240 with v1's backups (P4) · template 9000 |
 | Domain | `aliammar.net`: public DNS at Cloudflare (tunnel CNAMEs); split-horizon internal zone in Technitium (`dns/aliammar.net.zone`) |
 | Gotchas | ballooning per VM (`runbooks/new-vm.md`): a minimum for the Docker hosts and ops, off for passthrough guests and the DNS VMs · a NixOS host serving :53 needs `services.resolved.enable = false` (its stub holds :53) · recreating a guest on the same IP poisons OPNsense's ARP, so pin MACs |
 

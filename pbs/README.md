@@ -66,7 +66,7 @@ part of its `/etc` that git holds. ops compares that with the host every day.
    ```sh
    curl -fsSL https://raw.githubusercontent.com/aliammar03/skynet/refs/heads/<branch>/pbs/proxmox.sh -o /root/proxmox-pbs.sh
    sh /root/proxmox-pbs.sh
-   pvesh set /cluster/backup/backup-c59694d0-3593 --exclude 2020,240,731,751,9000,9090,10015,2040
+   pvesh set /cluster/backup/backup-c59694d0-3593 --exclude 2020,2040
    ```
    The VM installs itself in a few minutes and reboots into PBS.
 4. **Agent:** scan the host key, run `setup.sh`, reboot, check. The scanned key is new, so ssh

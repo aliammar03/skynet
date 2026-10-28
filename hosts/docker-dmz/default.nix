@@ -42,7 +42,7 @@ in
   # Redis (paperless, jikan, aiometadata) asks for it at every start: its background saves fork.
   boot.kernel.sysctl."vm.overcommit_memory" = 1;
 
-  # The receiving end of v1's data copy (README.md → v1's data).
+  # So copies can arrive over SSH (`--rsync-path='sudo rsync'`), as v1's data did.
   environment.systemPackages = [ pkgs.rsync ];
 
   # The agent is root here (D11): wheel = passwordless sudo (base.nix), each command logged in the
