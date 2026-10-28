@@ -1,7 +1,7 @@
 # unraid
 
 Unraid (VM 2020, 10.10.20.20) as docker-admin sees it (skynetv2.md → P5 → Wider eyes). Unraid's
-config is Ali's and isn't in git; this folder is what he applies there, so git describes it.
+config is Ali's and isn't in git; this folder is what Ali applies there, so git describes it.
 
 - **Metrics:** `compose.yaml`, two upstream exporters as Unraid containers, on Unraid's own network:
   node-exporter on :9100 (the host; its mdadm collector off, since Unraid's array is its own md

@@ -2,14 +2,15 @@
 
 The Proxmox nodes' observability (skynetv2.md → P5 → Wider eyes): server-proxmox-core (10.10.50.11)
 and server-proxmox-network (10.10.50.10), PVE 9.2 on Debian 13. The nodes' config is Ali's to apply;
-this folder is what he applies, so git describes it. As on PBS (`pbs/etc/`):
+this folder is what Ali applies, so git describes it. As on PBS (`pbs/etc/`):
 
 - **Metrics:** Debian's `prometheus-node-exporter` on :9100, with the systemd collector (a failed
   unit alerts) and the textfile collector, which `prometheus-node-exporter-collectors`' timers fill
   every 15 minutes: SMART health (`smartmon_device_smart_healthy`), NVMe health and wear
   (`nvme_critical_warning`, `nvme_percentage_used_ratio`), pending updates. Each timer skips
-  hardware the node lacks (its unit's conditions). docker-admin's VictoriaMetrics scrapes it as
-  `proxmox-core` and `proxmox-network` (`stacks/admin/metrics/scrape.yaml`).
+  hardware the node lacks (its unit's conditions): smartmon runs only with SATA or IDE disks, so
+  core, all NVMe, has the NVMe timer's metrics alone. docker-admin's VictoriaMetrics scrapes it as
+  `server-proxmox-core` and `server-proxmox-network` (`stacks/admin/metrics/scrape.yaml`).
 - **Logs:** `systemd-journal-upload` sends the journal to docker-admin's vlagent
   (`http://10.10.50.40:9429/insert/journald`): vzdump's results, the kernel, pveproxy. journald
   drops what one service logs past about 100 lines a second, and `log-heartbeat.timer` logs a line
