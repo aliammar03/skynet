@@ -1740,7 +1740,7 @@ the internet slow?", "is a disk failing?" and "why is this app slow?" are answer
 | The doors | — | caddy-admin's and caddy-apps' access logs, JSON, into the journal | the PR |
 | Unraid | upstream node-exporter and smartctl-exporter, as two Unraid containers | remote syslog to vlagent, TCP 5515 | Ali: the containers (`unraid/README.md`), the syslog target |
 | Omada | OmadaBridge in its own stack `omada-exporter`, through a viewer user | its devices' remote logging to vlagent, UDP 5516 | Ali: the user, the logging target |
-| Technitium | a timer on each DNS host writes the dashboard's last hour to node-exporter's textfile | already in the journal | the PR |
+| Technitium | a timer on each DNS host writes the dashboard's last hour to node-exporter's textfile | already in the journal, every query included (`logQueries`, `dns/README.md`) | the PR |
 
 **Tools** (researched 2026-10-28):
 
