@@ -29,7 +29,7 @@
 | P5 | Observability (agent eyes) | in progress (2026-10-26): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`, #88); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics; alerts: two vmalerts and Alertmanager to `#alerts`, its Watchdog to healthchecks.io (#91; both watchdogs, HostDown, TargetDown and DiskFull proven live 10-27); Grafana at `grafana.aliammar.net` (OIDC through admin Authelia; Live and Backups boards of our own, seven upstream) and the agent's MCP servers at `/mcp`; Ali's first Grafana login 10-27. Wider eyes live 10-28 (#102–#109): the Proxmox nodes, OPNsense, the doors' access logs, Unraid, Omada, Technitium's stats and query log. Asked and answered through the MCP tools on 10-28: network (the nodes' backups reach PBS over VLAN 50, not through OPNsense; technitium-network's 700 refusals were one burst), storage (night 2's guest backups, verify, restic and Drive copy). Next: the freshness tests (Wider eyes, with Ali), the week's sizing check (11-03) |
 | P6 | Agent autonomy | planned (2026-10-26): the leash first (comin's testing branches off, with the plan), then tiered merges with verify and rollback, the incident loop, the rekey workflow, OpenTofu for our VMs and the OPNsense aliases; after P5 |
 | P7 | Retire v1 + disaster recovery | outline; v1's guests are already gone (Ali, 2026-10-25) |
-| P8 | Comics and manga | building (2026-10-29): Komga and Uchiyomi live (#119), the agent's accounts made, libraries and sources set; Kapowarr for Western comics next; then Ali's iPad. Uchiyomi on trial (finds, downloads, reads) and Komga's library, both on Unraid's `Storage`; the agent configures them (D16) |
+| P8 | Comics and manga | building (2026-10-29): Komga, Uchiyomi (#119) and Kapowarr (#121) live, the agent's accounts made, sources set, Ali's iPad readers connected; Manga and Comics libraries with downloads sorted by type next. Uchiyomi on trial (finds, downloads, reads) and Komga's library, both on Unraid's `Storage`; the agent configures them (D16) |
 
 ## Target state
 
@@ -2224,7 +2224,7 @@ sites. Licensed series come from their publishers' apps, or as bought DRM-free f
     read-only.
   - `stacks/dmz/kapowarr`: Kapowarr, behind the apps' Authelia (`admins`; no login of its own), its
     state in `/opt/appdata/kapowarr` (backup class: data), its downloads in progress on the host's
-    ext4, its root folder `Books/Downloads/Kapowarr`. 106 MiB at start (2026-10-29).
+    ext4, its root folder `Books/Comics/kapowarr`. 106 MiB at start (2026-10-29).
 - **Memory:** the core node (31.2 GiB) sits at Proxmox's 80% ballooning target. Its VMs' maximums
   add up to 29 GiB, and about 8 GiB of what it holds is the guests' own file cache (2026-10-29: ops
   holds 5.7 GiB for a 2.4 GiB peak, PBS 3.2 for 0.6, docker-dmz 7.2 for 4.9). The two stacks add
@@ -2237,19 +2237,19 @@ sites. Licensed series come from their publishers' apps, or as bought DRM-free f
   - PBS's falls from 2 to 1 GiB.
 - **Storage:** Unraid's share `Storage` (`/mnt/user/Storage`), mounted on docker-dmz at
   `/mnt/storage` for all its storage and media (NFS 4.2, automounted, hard; `hosts/docker-dmz`).
-  Rule 300 carries docker-dmz's NFS to Unraid. Comics and manga in `Books/` (Ali's choice,
-  2026-10-29), Ali's own files apart from what is downloaded, so a later offsite copy takes
-  `Manga/` and `Comics/` alone:
-  - `Manga/`: Ali's manga, a folder per series;
-  - `Comics/`: Ali's comics, a folder per series;
-  - `Downloads/`: Uchiyomi's, as `<source>/<series>/`, comics and manga alike, and Kapowarr's, as
-    `Kapowarr/<publisher>/<series>/`.
+  Rule 300 carries docker-dmz's NFS to Unraid. Comics and manga in `Books/`, by type, every
+  download sorted into its type by itself (Ali's choice, 2026-10-29):
+  - `Manga/library/`: Ali's manga, a folder per series; `Manga/uchiyomi/`: Uchiyomi's manga
+    sources' downloads, as `<source>/<series>/`;
+  - `Comics/library/`: Ali's comics; `Comics/uchiyomi/`: Uchiyomi's comic sources' downloads;
+    `Comics/kapowarr/`: Kapowarr's, as `<publisher>/<series> (<year>)/`.
 
-  Each app reads all three, Ali's two read-only. Komga has a library each (a Komga library is one
-  folder); Uchiyomi's libraries are lists of folders, so it splits by type: Manga (`Manga/` and the
-  manga sources' folders) and Comics (`Comics/` and the comic sources', AniList lookups off). The
-  share stays out of the nightly backups: downloads can be fetched again, and Ali's own files wait
-  on P4 → Open (Unraid shares offsite).
+  Uchiyomi writes every download under one folder (`Manga/uchiyomi`); each comic source's folder
+  there is a bind mount from `Comics/uchiyomi/<source>`, one compose line per comic extension.
+  Komga has a library per type (one folder each, read-only). Uchiyomi's libraries are lists of
+  folders: Comics (Ali's comics, Kapowarr's and the comic sources'; AniList lookups off) and Manga
+  (everything else). The share stays out of the nightly backups: downloads can be fetched again,
+  and Ali's `library/` folders wait on P4 → Open (Unraid shares offsite).
 - **Doors** (caddy-apps; inside and over Tailscale, which already routes 10.10.100.35; not public):
   - `uchiyomi.aliammar.net` → Uchiyomi, auth `own`: OIDC through the apps' Authelia (an OIDC client
     `uchiyomi`; Authelia's `admins` are its admins), and its own OPDS token for iPad apps;

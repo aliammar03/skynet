@@ -13,9 +13,10 @@
 - **Network:** only `door-komga`, an internal bridge it shares with caddy-apps alone (from
   `hosts/docker-dmz`): nothing else reaches it, and it has no way out. It reaches its issuer as
   `login.aliammar.net`, caddy-apps' alias there; it doesn't start until that answers.
-- **Libraries:** Ali's files on Unraid's `Storage`, read-only (`hosts/docker-dmz`: `/mnt/storage`):
-  `Books/Manga` → `/books/Manga`, `Books/Comics` → `/books/Comics`, and Uchiyomi's downloads
-  `Books/Downloads` → `/books/Downloads`. One Komga library each (a library is one folder).
+- **Libraries:** on Unraid's `Storage`, read-only (`hosts/docker-dmz`: `/mnt/storage`):
+  `Books/Manga` → `/books/Manga` and `Books/Comics` → `/books/Comics`, a library each (a Komga
+  library is one folder, at any depth). Each holds Ali's own files (`library/`) and the
+  downloaders' (`uchiyomi/`, `kapowarr/`).
 - **Data:** `/opt/appdata/komga/config` → `/config`: its database, thumbnails, search index and
   sessions (backup class: data), and `logs/` (cache: `stacks/dmz/backup/excludes.txt`).
 - **Secrets:** `oidc.sops.env`: `SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_AUTHELIA_CLIENT_SECRET`

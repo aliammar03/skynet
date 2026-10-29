@@ -19,11 +19,16 @@
 - **Network:** the app on `door-uchiyomi` (internal, shared with caddy-apps alone, from
   `hosts/docker-dmz`; it reaches its issuer there as `login.aliammar.net`) and `backend`, the stack's
   own network with the engine and the solver, and its way out. Only the app is routed.
-- **Library:** on Unraid's `Storage` (`hosts/docker-dmz`: `/mnt/storage`): Ali's `Books/Manga` and
-  `Books/Comics`, read-only at `/library/Manga` and `/library/Comics`, and its downloads in
-  `Books/Downloads` → `/library-dl`, as `<source>/<series>/Chapter N.cbz`. It runs as `99:100`
-  (`PUID`/`PGID`), Unraid's `nobody:users`. Its libraries are lists of these folders: Manga
-  (`Manga`, and the manga sources' folders), Comics (`Comics`, the comic sources' folders, AniList off).
+- **Library:** on Unraid's `Storage` (`hosts/docker-dmz`: `/mnt/storage`), sorted by type:
+  - read-only: Ali's `Books/Manga/library` → `/library/Manga`, `Books/Comics/library` →
+    `/library/Comics`, and Kapowarr's `Books/Comics/kapowarr` → `/library/Kapowarr`;
+  - its downloads, `/library-dl`, as `<source>/<series>/Chapter N.cbz`: `Books/Manga/uchiyomi`, with
+    each comic source's folder mounted over it from `Books/Comics/uchiyomi/<source>` (one compose
+    line per comic extension: BatCave, ComicHubFree, Read Comics Online, XOXO Comics).
+
+  It runs as `99:100` (`PUID`/`PGID`), Unraid's `nobody:users`. Its libraries are lists of folders:
+  Comics (`Comics`, `Kapowarr` and the comic sources' folders; AniList off) and Manga (the default:
+  everything else).
 - **Data:**
   - `/opt/appdata/uchiyomi/data` → `/data`: its Postgres (backup class: data);
   - `/opt/appdata/uchiyomi/config` → `/config`: session and push keys, sites added by address (data);
@@ -47,3 +52,9 @@
 - The engine's Chromium logs D-Bus errors at start; they're harmless.
 - The library folders are `create_host_path: false`: with Unraid down, the app doesn't start
   (doco-cd retries it) rather than download onto docker-dmz's own disk.
+- A new comic extension: its folder in `Books/Comics/uchiyomi/` and its line in compose (PR), or its
+  downloads land in Manga. A symlink won't do: Uchiyomi refuses a download path that leaves
+  `/library-dl`.
+- BatCave passes its site's check (DLE Guard) only through Open site: done once 2026-10-29, and
+  Uchiyomi revisits its home page whenever it fails. Admin → Sources → BatCave → Open site → Done
+  if it stays red.

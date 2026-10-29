@@ -2,7 +2,7 @@
 
 - **Purpose:** Western comics for P8: searches GetComics for the issues of a volume Ali adds, downloads
   whole issues and collections (CBR/CBZ as published), and files them as publisher and series folders
-  with ComicVine's metadata. Komga (library Downloads) and Uchiyomi (library Comics) read them.
+  with ComicVine's metadata. Komga and Uchiyomi read them (library Comics in each).
 - **URL:** https://kapowarr.aliammar.net (caddy-apps → `kapowarr:5656` on `door-kapowarr`). Inside and
   over Tailscale; not public.
 - **Auth mode:** forward: the apps' Authelia, group `admins`, a password (`one_factor`). Its own
@@ -14,7 +14,7 @@
     backup class: data);
   - `/var/cache/kapowarr` → `/app/temp_downloads`: downloads in progress, on the host's ext4, outside
     `/opt/appdata`'s snapshots and the backup;
-  - root folder `/comics` = Unraid's `Books/Downloads/Kapowarr` (`hosts/docker-dmz`: `/mnt/storage`).
+  - root folder `/comics` = Unraid's `Books/Comics/kapowarr` (`hosts/docker-dmz`: `/mnt/storage`).
     It runs as `99:100` (`PUID`/`PGID`), Unraid's `nobody:users`.
 - **Secrets:** none in git. Ali's ComicVine API key (free account,
   https://comicvine.gamespot.com/api/) goes into Settings → General, and lives in its database.
