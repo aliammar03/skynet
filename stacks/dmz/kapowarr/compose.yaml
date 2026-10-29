@@ -1,5 +1,5 @@
 # Kapowarr (kapowarr.aliammar.net): finds Western comics on GetComics and downloads whole issues and
-# collections to Unraid (Books/Downloads/Kapowarr, as publisher and series folders, with ComicVine's
+# collections to Unraid (Books/Comics/kapowarr, as publisher and series folders, with ComicVine's
 # metadata); Komga and Uchiyomi read them there. No login of its own: the apps' Authelia guards it
 # (admins). Inside and over Tailscale only. Not on `edge`: caddy-apps is the only container that
 # reaches it.
@@ -21,7 +21,7 @@ services:
       - /var/cache/kapowarr:/app/temp_downloads
       # Its root folder (`/comics` in Settings → Media Management). A missing folder fails the start
       # rather than becoming an empty one on this disk.
-      - { type: bind, source: /mnt/storage/Books/Downloads/Kapowarr, target: /comics, bind: { create_host_path: false } }
+      - { type: bind, source: /mnt/storage/Books/Comics/kapowarr, target: /comics, bind: { create_host_path: false } }
     networks:
       # Shared with caddy-apps alone (internal, from the host's Nix config): it answers without a login.
       door-kapowarr: {}

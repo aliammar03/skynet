@@ -42,11 +42,19 @@ services:
       # Page images it rebuilds on demand: on the host's ext4, outside /opt/appdata's snapshots and
       # the backup.
       - /var/cache/uchiyomi:/cache
-      # Ali's files on Unraid (hosts/docker-dmz: /mnt/storage), read-only, and its own downloads. A
-      # missing folder fails the start rather than becoming an empty one on this disk.
-      - { type: bind, source: /mnt/storage/Books/Manga, target: /library/Manga, read_only: true, bind: { create_host_path: false } }
-      - { type: bind, source: /mnt/storage/Books/Comics, target: /library/Comics, read_only: true, bind: { create_host_path: false } }
-      - { type: bind, source: /mnt/storage/Books/Downloads, target: /library-dl, bind: { create_host_path: false } }
+      # On Unraid (hosts/docker-dmz: /mnt/storage). A missing folder fails the start rather than
+      # becoming an empty one on this disk. Ali's own files and Kapowarr's, read-only:
+      - { type: bind, source: /mnt/storage/Books/Manga/library, target: /library/Manga, read_only: true, bind: { create_host_path: false } }
+      - { type: bind, source: /mnt/storage/Books/Comics/library, target: /library/Comics, read_only: true, bind: { create_host_path: false } }
+      - { type: bind, source: /mnt/storage/Books/Comics/kapowarr, target: /library/Kapowarr, read_only: true, bind: { create_host_path: false } }
+      # Its downloads, `<source>/<series>/`: the manga sources' in Books/Manga/uchiyomi, and each comic
+      # source's folder mounted over from Books/Comics/uchiyomi, so they sort by type on Unraid. A new
+      # comic extension gets a line here, its folder named as Uchiyomi names the source.
+      - { type: bind, source: /mnt/storage/Books/Manga/uchiyomi, target: /library-dl, bind: { create_host_path: false } }
+      - { type: bind, source: "/mnt/storage/Books/Comics/uchiyomi/BatCave (EN)", target: "/library-dl/BatCave (EN)", bind: { create_host_path: false } }
+      - { type: bind, source: "/mnt/storage/Books/Comics/uchiyomi/ComicHubFree (EN)", target: "/library-dl/ComicHubFree (EN)", bind: { create_host_path: false } }
+      - { type: bind, source: "/mnt/storage/Books/Comics/uchiyomi/Read Comics Online (EN)", target: "/library-dl/Read Comics Online (EN)", bind: { create_host_path: false } }
+      - { type: bind, source: "/mnt/storage/Books/Comics/uchiyomi/XOXO Comics (EN)", target: "/library-dl/XOXO Comics (EN)", bind: { create_host_path: false } }
     networks:
       # Internal, shared with caddy-apps alone (from the host's Nix config). The issuer's name
       # (login.aliammar.net) is caddy-apps' alias there.

@@ -28,9 +28,9 @@ VMID 10010 · 10.10.100.10 · server-proxmox-core · 6 vCPU / 10 GB / 193 GB.
 - **Storage** (P8): Unraid's share `Storage` (`10.10.20.20:/mnt/user/Storage`) at `/mnt/storage`, NFS
   4.2, mounted on first access and kept (the containers' bind mounts hold it), `hard`. Unraid's
   export admits this host read-write and writes everything as `nobody:users` (99:100, all_squash);
-  OPNsense rule 300 carries it. Comics and manga live in `Books/`: `Manga/` and `Comics/` (Ali's
-  own), `Downloads/` (Uchiyomi's, and Kapowarr's in `Downloads/Kapowarr/`). The share isn't in this
-  host's backups.
+  OPNsense rule 300 carries it. Comics and manga live in `Books/Manga/` and `Books/Comics/`, each
+  with Ali's own files in `library/` and the downloaders' beside them (`uchiyomi/`, and
+  `Comics/kapowarr/`). The share isn't in this host's backups.
 - **doco-cd** (`modules/docker-host.nix`): polls `main` every 60 s, target `dmz` → `.doco-cd.dmz.yml`
   → every folder in `stacks/dmz/`. API, `/mcp` and `/v1/health` on :8080 are for ops only (MCP
   `doco-dmz`). Deploy notices go to `#alerts` via Apprise (loopback :8000).

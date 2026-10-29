@@ -29,11 +29,11 @@ services:
     mem_limit: 1536m
     volumes:
       - /opt/appdata/komga/config:/config # database, thumbnails, search index, logs
-      # Ali's comics and manga on Unraid (hosts/docker-dmz: /mnt/storage), read-only. A missing folder
-      # fails the start rather than becoming an empty one on this disk.
+      # The manga and comics on Unraid (hosts/docker-dmz: /mnt/storage), read-only: Ali's own and the
+      # downloaders', a library each. A missing folder fails the start rather than becoming an empty
+      # one on this disk.
       - { type: bind, source: /mnt/storage/Books/Manga, target: /books/Manga, read_only: true, bind: { create_host_path: false } }
       - { type: bind, source: /mnt/storage/Books/Comics, target: /books/Comics, read_only: true, bind: { create_host_path: false } }
-      - { type: bind, source: /mnt/storage/Books/Downloads, target: /books/Downloads, read_only: true, bind: { create_host_path: false } }
     networks:
       # Internal, shared with caddy-apps alone (from the host's Nix config). The issuer's name
       # (login.aliammar.net) is caddy-apps' alias there.
