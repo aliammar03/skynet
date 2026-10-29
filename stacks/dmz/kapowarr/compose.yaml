@@ -1,0 +1,40 @@
+# Kapowarr (kapowarr.aliammar.net): finds Western comics on GetComics and downloads whole issues and
+# collections to Unraid (Books/Downloads/Kapowarr, as publisher and series folders, with ComicVine's
+# metadata); Komga and Uchiyomi read them there. No login of its own: the apps' Authelia guards it
+# (admins). Inside and over Tailscale only. Not on `edge`: caddy-apps is the only container that
+# reaches it.
+services:
+  kapowarr:
+    container_name: kapowarr
+    image: docker.io/mrcas/kapowarr:v1.3.2@sha256:cd3f004caff59636dde73b06df5b2f8068b485b47ff5fe82f6129562c0f2ac3b
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Karachi
+      # Unraid's nobody:users, who owns everything on the share (all_squash).
+      PUID: "99"
+      PGID: "100"
+    # Measured 2026-10-29: 106 MiB after start; room for unpacking a downloaded archive.
+    mem_limit: 512m
+    volumes:
+      - /opt/appdata/kapowarr/db:/app/db # its database: library, settings, ComicVine key
+      # Downloads in progress, on the host's ext4: outside /opt/appdata's snapshots and the backup.
+      - /var/cache/kapowarr:/app/temp_downloads
+      # Its root folder (`/comics` in Settings → Media Management). A missing folder fails the start
+      # rather than becoming an empty one on this disk.
+      - { type: bind, source: /mnt/storage/Books/Downloads/Kapowarr, target: /comics, bind: { create_host_path: false } }
+    networks:
+      # Shared with caddy-apps alone (internal, from the host's Nix config): it answers without a login.
+      door-kapowarr: {}
+      # Its own way out (GetComics, ComicVine, the file hosts); nothing else is on it.
+      egress: {}
+    healthcheck:
+      # The image has Python but no curl or wget.
+      test: [CMD, python3, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5656/', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+networks:
+  door-kapowarr:
+    external: true
+  egress: {}

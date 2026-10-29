@@ -29,7 +29,7 @@
 | P5 | Observability (agent eyes) | in progress (2026-10-26): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`, #88); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics; alerts: two vmalerts and Alertmanager to `#alerts`, its Watchdog to healthchecks.io (#91; both watchdogs, HostDown, TargetDown and DiskFull proven live 10-27); Grafana at `grafana.aliammar.net` (OIDC through admin Authelia; Live and Backups boards of our own, seven upstream) and the agent's MCP servers at `/mcp`; Ali's first Grafana login 10-27. Wider eyes live 10-28 (#102–#109): the Proxmox nodes, OPNsense, the doors' access logs, Unraid, Omada, Technitium's stats and query log. Asked and answered through the MCP tools on 10-28: network (the nodes' backups reach PBS over VLAN 50, not through OPNsense; technitium-network's 700 refusals were one burst), storage (night 2's guest backups, verify, restic and Drive copy). Next: the freshness tests (Wider eyes, with Ali), the week's sizing check (11-03) |
 | P6 | Agent autonomy | planned (2026-10-26): the leash first (comin's testing branches off, with the plan), then tiered merges with verify and rollback, the incident loop, the rekey workflow, OpenTofu for our VMs and the OPNsense aliases; after P5 |
 | P7 | Retire v1 + disaster recovery | outline; v1's guests are already gone (Ali, 2026-10-25) |
-| P8 | Comics and manga | building (2026-10-29): Ali's steps done; the stacks, their mount and auth in one PR; then the agent's accounts and Ali's iPad. Uchiyomi on trial (finds, downloads, reads) and Komga's library, both on Unraid's `Storage`; the agent configures them (D16) |
+| P8 | Comics and manga | building (2026-10-29): Komga and Uchiyomi live (#119), the agent's accounts made, libraries and sources set; Kapowarr for Western comics next; then Ali's iPad. Uchiyomi on trial (finds, downloads, reads) and Komga's library, both on Unraid's `Storage`; the agent configures them (D16) |
 
 ## Target state
 
@@ -2205,6 +2205,7 @@ it needs only docker-dmz and Unraid.
 |---|---|---|---|
 | Browse, download and read: **on trial** (Ali, 2026-10-29) | Uchiyomi 0.99 (95★; one maintainer, a release every few days) | a library, reader and downloader in one: MangaDex's API and common site families built in, Mihon's extensions through a bundled Suwayomi engine; follows series and fetches new chapters; a webtoon-first reader that works offline (PWA); OPDS and a Komga-compatible API; OIDC; scoped API tokens, and everything its web app does through a documented API (`/api/docs`) | Suwayomi-Server 2.4 alone (7.9k★, the mature choice and the fallback if the trial fails; it is Uchiyomi's engine anyway); Tranga (no release since 2023) |
 | Library and reader | Komga 1.29 (6.8k★) | a series per folder at any depth, so any downloader's folders need no rework; a web reader with right-to-left, double pages and webtoon scroll; OPDS for iPad apps; OIDC login (Authelia documents a Komga client); API keys | Kavita 0.9 (12k★, a polished reader with ebooks too, but its scanner wants `Library/Series/`, and its manga metadata is the paid Kavita+) |
+| Western comics (Ali, 2026-10-29) | Kapowarr 1.3 (1.1k★, active) | finds a volume's issues on GetComics and downloads whole issues and collections as published, filed by publisher and series with ComicVine's metadata | Mihon's comic extensions (keiyoushi has four Marvel/DC aggregators, one broken on 2026-10-29, ReadComicOnline gone; dead image links leave holes); Mylar3 (slower) |
 | iPad | Panels or Komic, both on the App Store, free with paid tiers; Uchiyomi's PWA | native readers of Komga (Komic, and Panels over OPDS) with downloads for offline reading; Panels adds guided view and double pages | Aidoku (open source, browses sources on the iPad itself, but a beta outside the App Store: TestFlight or AltStore); Paperback (no release since 2025-05) |
 
 **Sources are Ali's.** Uchiyomi ships none enabled: Ali names the sources and the agent turns them
@@ -2213,7 +2214,7 @@ sites. Licensed series come from their publishers' apps, or as bought DRM-free f
 
 ### Where it runs
 
-- **docker-dmz**, two stacks (`runbooks/new-stack.md`), each on a door network of its own:
+- **docker-dmz**, three stacks (`runbooks/new-stack.md`), each on a door network of its own:
   - `stacks/dmz/uchiyomi`: Uchiyomi, its database inside (Postgres in `/data`), its extension
     engine (Suwayomi, `-Xmx768m`, as upstream pins it) and its Cloudflare solver (FlareSolverr, a
     headless Chrome; Ali, 2026-10-29: kept on). Its state in `/opt/appdata/uchiyomi` (database,
@@ -2221,6 +2222,9 @@ sites. Licensed series come from their publishers' apps, or as bought DRM-free f
     ext4, capped at 5 GiB, out of the backup.
   - `stacks/dmz/komga`: Komga, its state in `/opt/appdata/komga` (backup class: data), Ali's folders
     read-only.
+  - `stacks/dmz/kapowarr`: Kapowarr, behind the apps' Authelia (`admins`; no login of its own), its
+    state in `/opt/appdata/kapowarr` (backup class: data), its downloads in progress on the host's
+    ext4, its root folder `Books/Downloads/Kapowarr`. 106 MiB at start (2026-10-29).
 - **Memory:** the core node (31.2 GiB) sits at Proxmox's 80% ballooning target. Its VMs' maximums
   add up to 29 GiB, and about 8 GiB of what it holds is the guests' own file cache (2026-10-29: ops
   holds 5.7 GiB for a 2.4 GiB peak, PBS 3.2 for 0.6, docker-dmz 7.2 for 4.9). The two stacks add
@@ -2238,7 +2242,8 @@ sites. Licensed series come from their publishers' apps, or as bought DRM-free f
   `Manga/` and `Comics/` alone:
   - `Manga/`: Ali's manga, a folder per series;
   - `Comics/`: Ali's comics, a folder per series;
-  - `Downloads/`: Uchiyomi's, as `<source>/<series>/`, comics and manga alike.
+  - `Downloads/`: Uchiyomi's, as `<source>/<series>/`, comics and manga alike, and Kapowarr's, as
+    `Kapowarr/<publisher>/<series>/`.
 
   Each app reads all three, Ali's two read-only. Komga has a library each (a Komga library is one
   folder); Uchiyomi's libraries are lists of folders, so it splits by type: Manga (`Manga/` and the
@@ -2293,9 +2298,8 @@ sites. Licensed series come from their publishers' apps, or as bought DRM-free f
 - Ali's verdict on the trial.
 - Both stacks' state in the nightly restic copy; Gatus rows green; their logs reach VictoriaLogs.
 
-**Open:** Western comics (Kapowarr is active; Mylar3 slower); Komf for AniList and MyAnimeList
-metadata in Komga, if the downloads' own isn't enough; Aidoku, if it reaches the App Store; family
-accounts.
+**Open:** Komf for AniList and MyAnimeList metadata in Komga, if the downloads' own isn't enough;
+Aidoku, if it reaches the App Store; family accounts.
 
 ---
 
