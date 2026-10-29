@@ -37,7 +37,7 @@ access_control:
   default_policy: deny
   rules:
     # Ali only: none of these has a login of its own (Marinara's, Kapowarr's, Suwayomi's, Mylar3's,
-    # SABnzbd's and JDownloader's are switched off).
+    # SABnzbd's and JDownloader's are switched off; CLU is single-user, which has none).
     - domain:
         - calibre.aliammar.net
         - sillytavern.aliammar.net
@@ -47,6 +47,7 @@ access_control:
         - mylar3.aliammar.net
         - sabnzbd.aliammar.net
         - jdownloader.aliammar.net
+        - clu.aliammar.net
       subject: ['group:admins']
       policy: one_factor
     # Last: a name no rule above allows is refused. (With a `deny` default, Authelia also refuses to

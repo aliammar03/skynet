@@ -1,0 +1,45 @@
+# CLU, Comic Library Utilities (clu.aliammar.net): a comic library manager with its own GetComics
+# search (a local index of GetComics' sitemap, a scorer that takes the pack holding a missing issue),
+# a pull list, and bulk CBR→CBZ, renaming and ComicInfo tools. It files what it downloads into its
+# own library, Books/Comics/clu on Unraid, where Komga and Uchiyomi read it. No login of its own
+# (single-user): the apps' Authelia guards it (admins). Inside and over Tailscale only. Not on
+# `edge`: caddy-apps is the only container that reaches it.
+services:
+  clu:
+    container_name: clu
+    image: docker.io/allaboutduncan/comic-utils-web:v7.0@sha256:64d14273c891f5a94d5c7d1756cfce6b67dcc948027a2a2e2fce9915f66b037d
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Karachi
+      FLASK_ENV: production
+      # Unraid's nobody:users, who owns everything on the share (all_squash).
+      PUID: "99"
+      PGID: "100"
+      UMASK: "022"
+    # Measured 2026-10-30: 200 MiB after start and four GetComics searches; room for building its
+    # GetComics index and unpacking packs.
+    mem_limit: 1g
+    volumes:
+      - /opt/appdata/clu/config:/config # its database: settings, library index, wanted list, keys
+      - /var/cache/clu/thumbnails:/cache # covers it draws; rebuilt on demand
+      # Downloads (temp/) and their processed copies (processed/) before it files them; on the host's
+      # ext4, outside /opt/appdata's snapshots and the backup.
+      - /var/cache/clu/downloads:/downloads
+      # Its library. A missing folder fails the start rather than becoming an empty one on this disk.
+      - { type: bind, source: /mnt/storage/Books/Comics/clu, target: /data, bind: { create_host_path: false } }
+    networks:
+      # Shared with caddy-apps alone (internal, from the host's Nix config): it answers without a login.
+      door-clu: {}
+      # Its way out (GetComics, MEGA, Pixeldrain, Metron, ComicVine); nothing else is on it.
+      egress: {}
+    healthcheck:
+      # The image has Python and wget but no curl.
+      test: [CMD, python3, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5577/', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+networks:
+  door-clu:
+    external: true
+  egress: {}

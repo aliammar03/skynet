@@ -33,12 +33,13 @@ in
     subnet = "10.10.100.0/24";
     gateway = "10.10.100.1";
   };
-  # calibre, JDownloader, kapowarr, Mylar3 and Suwayomi (Uchiyomi's engine) have no login of their
-  # own: caddy-apps reaches each on a network only the two share. Komga and Uchiyomi have one, but
+  # calibre, CLU, JDownloader, kapowarr, Mylar3 and Suwayomi (Uchiyomi's engine) have no login of
+  # their own: caddy-apps reaches each on a network only the two share. Komga and Uchiyomi have one, but
   # read Ali's files, so nothing else on `edge` reaches them either. (SABnzbd has no login either:
   # caddy-apps reaches it on the macvlan, where OPNsense names it for usenet.)
   skynet.docker.doorNetworks = [
     "door-calibre"
+    "door-clu"
     "door-jdownloader"
     "door-kapowarr"
     "door-komga"
@@ -79,6 +80,9 @@ in
     # Mylar3 run as 99:100.
     "d /var/cache/sabnzbd 0755 99 100 -"
     "d /var/cache/jdownloader 0755 99 100 -"
+    # CLU's covers and downloads (stacks/dmz/clu); it runs as 99:100 too.
+    "d /var/cache/clu/thumbnails 0755 99 100 -"
+    "d /var/cache/clu/downloads 0755 99 100 -"
   ];
 
   # So copies can arrive over SSH (`--rsync-path='sudo rsync'`), as v1's data did.
