@@ -14,6 +14,7 @@ komga                 300       IN  A             10.10.100.35
 login                 300       IN  A             10.10.100.35
 logs                  300       IN  A             10.10.60.60
 marinara              300       IN  A             10.10.100.35
+mylar3                300       IN  A             10.10.100.35
 metrics               300       IN  A             10.10.60.60
 ns                    300       IN  A             10.10.70.50
 ns                    300       IN  A             10.10.70.51
@@ -21,6 +22,7 @@ obsidian              300       IN  A             10.10.100.35
 omada                 300       IN  A             10.10.60.60
 opnsense              300       IN  A             10.10.60.60
 paperless             300       IN  A             10.10.100.35
+sabnzbd               300       IN  A             10.10.100.35
 pbs                   300       IN  A             10.10.60.60
 proxmox-core          300       IN  A             10.10.60.60
 proxmox-network       300       IN  A             10.10.60.60

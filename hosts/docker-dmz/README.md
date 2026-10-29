@@ -2,7 +2,7 @@
 
 Apps Docker host: doco-cd (target `dmz`), the apps, their doors caddy-apps (10.10.100.35) and
 cloudflared (.33), and the apps' own Authelia (portal `login`) (skynetv2.md → P3).
-VMID 10010 · 10.10.100.10 · server-proxmox-core · 6 vCPU / 10 GB / 193 GB.
+VMID 10010 · 10.10.100.10 · server-proxmox-core · 6 vCPU / 12 GB (10 guaranteed) / 193 GB.
 
 - **NIC** (MAC pinned in `proxmox.sh`, matched in `net.nix`): `dmz` = net0, tag 100. It carries the
   host IP and is the parent of the `dmz` macvlan. The host and the macvlan's containers can't reach
@@ -22,15 +22,15 @@ VMID 10010 · 10.10.100.10 · server-proxmox-core · 6 vCPU / 10 GB / 193 GB.
   restores from any (`stacks/dmz/backup/README.md`).
 - **Docker:** `modules/docker-host.nix`, with journald logs and a weekly image prune. The
   `docker-networks` unit creates `edge` (bridge), `dmz` (macvlan on NIC `dmz`, 10.10.100.0/24) and
-  the door networks `door-calibre`, `door-kapowarr`, `door-komga`, `door-suwayomi`, `door-uchiyomi`
-  (internal, each shared by caddy-apps and one app); stacks only join them, and every container on
-  `dmz` sets a fixed `ipv4_address`.
+  the door networks `door-calibre`, `door-kapowarr`, `door-komga`, `door-mylar3`, `door-sabnzbd`,
+  `door-suwayomi`, `door-uchiyomi` (internal, each shared by caddy-apps and one app); stacks only
+  join them, and every container on `dmz` sets a fixed `ipv4_address`.
 - **Storage** (P8): Unraid's share `Storage` (`10.10.20.20:/mnt/user/Storage`) at `/mnt/storage`, NFS
   4.2, mounted on first access and kept (the containers' bind mounts hold it), `hard`. Unraid's
   export admits this host read-write and writes everything as `nobody:users` (99:100, all_squash);
   OPNsense rule 300 carries it. Comics and manga live in `Books/Manga/` and `Books/Comics/`, each
   with Ali's own files in `library/` and the downloaders' beside them (`uchiyomi/`, `suwayomi/`, and
-  `Comics/kapowarr/`). The share isn't in this host's backups.
+  `Comics/kapowarr/` and `Comics/mylar3/`). The share isn't in this host's backups.
 - **doco-cd** (`modules/docker-host.nix`): polls `main` every 60 s, target `dmz` → `.doco-cd.dmz.yml`
   → every folder in `stacks/dmz/`. API, `/mcp` and `/v1/health` on :8080 are for ops only (MCP
   `doco-dmz`). Deploy notices go to `#alerts` via Apprise (loopback :8000).
