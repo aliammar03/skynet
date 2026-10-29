@@ -22,7 +22,7 @@ VMID 10010 · 10.10.100.10 · server-proxmox-core · 6 vCPU / 12 GB (10 guarante
   restores from any (`stacks/dmz/backup/README.md`).
 - **Docker:** `modules/docker-host.nix`, with journald logs and a weekly image prune. The
   `docker-networks` unit creates `edge` (bridge), `dmz` (macvlan on NIC `dmz`, 10.10.100.0/24) and
-  the door networks `door-calibre`, `door-kapowarr`, `door-komga`, `door-mylar3`, `door-sabnzbd`,
+  the door networks `door-calibre`, `door-jdownloader`, `door-kapowarr`, `door-komga`, `door-mylar3`,
   `door-suwayomi`, `door-uchiyomi` (internal, each shared by caddy-apps and one app); stacks only
   join them, and every container on `dmz` sets a fixed `ipv4_address`.
 - **Storage** (P8): Unraid's share `Storage` (`10.10.20.20:/mnt/user/Storage`) at `/mnt/storage`, NFS

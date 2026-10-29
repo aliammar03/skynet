@@ -13,5 +13,7 @@
 /opt/appdata/komga/config/logs
 /opt/appdata/mylar3/config/mylar/cache
 /opt/appdata/mylar3/config/mylar/logs
+/opt/appdata/mylar3/jdownloader/logs
+/opt/appdata/mylar3/jdownloader/tmp
 /opt/appdata/mylar3/sabnzbd/logs
 /opt/appdata/uchiyomi/engine/cache
