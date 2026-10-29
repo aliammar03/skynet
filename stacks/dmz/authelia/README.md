@@ -22,8 +22,13 @@
 - **Session:** cookie `authelia_apps_session` on `.aliammar.net`. A different name from admin
   Authelia's `authelia_session`, so the two never overwrite each other. caddy-apps passes it only to
   this instance (`login` and its forward-auth checks), never to an app, and drops the admin one.
+  A session lasts a week, or until a day unused; "Remember me" makes it a month however long
+  unused. Sessions live in the stack's Redis (`authelia-redis`, on its own internal `backend`),
+  encrypted with the session secret, so restarting Authelia (a config change, an update) or
+  docker-dmz signs no one out.
 - **Data:** `/opt/appdata/authelia` on docker-dmz: `db.sqlite3` (passkeys, TOTP, consent; backup
-  class: app data) and `notification.txt` (one-time codes; no mail server).
+  class: app data), `notification.txt` (one-time codes; no mail server) and `redis/` (the sessions,
+  saved each minute and at a stop; cache: `stacks/dmz/backup/excludes.txt`).
 - **Secrets:** `secret.sops.env`: `AUTHELIA_SESSION_SECRET`, `AUTHELIA_STORAGE_ENCRYPTION_KEY`,
   `AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET` (random, agent-generated).
   `users.sops.yml`: the users with argon2 hashes: Ali in `admins`, the family in `family` (with their

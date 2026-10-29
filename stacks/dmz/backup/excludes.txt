@@ -6,6 +6,7 @@
 /opt/appdata/aiometadata/cold-store
 /opt/appdata/aiometadata/poster-cache
 /opt/appdata/aiometadata/redis
+/opt/appdata/authelia/redis
 /opt/appdata/jikan/redis
 /opt/appdata/jikan/typesense
 /opt/appdata/karakeep/meili

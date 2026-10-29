@@ -978,6 +978,8 @@ the apps deploy:
   published.
   - portal `https://login.aliammar.net`; its own session cookie name (`authelia_apps_session`), so the
     two instances' cookies never overwrite each other;
+  - sessions in the stack's own Redis, so a restart signs no one out; a week, or a day unused, and
+    a month with "Remember me" (Ali, 2026-10-29);
   - its own `users.sops.yml` (Ali first; the family with the OIDC PR) and secrets (agent-generated);
   - `default_policy: deny`. Each app's PR adds its access rule.
 - **Admin Authelia is unchanged:** `auth` stays on caddy-admin (10.10.60.60), nothing is published
