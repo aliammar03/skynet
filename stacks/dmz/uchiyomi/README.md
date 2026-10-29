@@ -27,14 +27,15 @@
   `door-suwayomi`, with caddy-apps alone, for its web UI.
 - **Library:** on Unraid's `Storage` (`hosts/docker-dmz`: `/mnt/storage`), sorted by type:
   - read-only: Ali's `Books/Manga/library` → `/library/Manga`, `Books/Comics/library` →
-    `/library/Comics`, and Kapowarr's `Books/Comics/kapowarr` → `/library/Kapowarr`;
+    `/library/Comics`, Kapowarr's `Books/Comics/kapowarr` → `/library/Kapowarr`, and Mylar3's
+    `Books/Comics/mylar3` → `/library/Mylar3`;
   - its downloads, `/library-dl`, as `<source>/<series>/Chapter N.cbz`: `Books/Manga/uchiyomi`, with
     each comic source's folder mounted over it from `Books/Comics/uchiyomi/<source>` (one compose
     line per comic extension: BatCave, ComicHubFree, Read Comics Online, XOXO Comics).
 
   It runs as `99:100` (`PUID`/`PGID`), Unraid's `nobody:users`. Its libraries are lists of folders:
-  Comics (`Comics`, `Kapowarr` and the comic sources' folders; AniList off) and Manga (the default:
-  everything else).
+  Comics (`Comics`, `Kapowarr`, `Mylar3` and the comic sources' folders; AniList off) and Manga
+  (the default: everything else).
 - **Data:**
   - `/opt/appdata/uchiyomi/data` → `/data`: its Postgres (backup class: data);
   - `/opt/appdata/uchiyomi/config` → `/config`: session and push keys, sites added by address (data);

@@ -29,7 +29,7 @@
 | P5 | Observability (agent eyes) | in progress (2026-10-26): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`, #88); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics; alerts: two vmalerts and Alertmanager to `#alerts`, its Watchdog to healthchecks.io (#91; both watchdogs, HostDown, TargetDown and DiskFull proven live 10-27); Grafana at `grafana.aliammar.net` (OIDC through admin Authelia; Live and Backups boards of our own, seven upstream) and the agent's MCP servers at `/mcp`; Ali's first Grafana login 10-27. Wider eyes live 10-28 (#102–#109): the Proxmox nodes, OPNsense, the doors' access logs, Unraid, Omada, Technitium's stats and query log. Asked and answered through the MCP tools on 10-28: network (the nodes' backups reach PBS over VLAN 50, not through OPNsense; technitium-network's 700 refusals were one burst), storage (night 2's guest backups, verify, restic and Drive copy). Next: the freshness tests (Wider eyes, with Ali), the week's sizing check (11-03) |
 | P6 | Agent autonomy | planned (2026-10-26): the leash first (comin's testing branches off, with the plan), then tiered merges with verify and rollback, the incident loop, the rekey workflow, OpenTofu for our VMs and the OPNsense aliases; after P5 |
 | P7 | Retire v1 + disaster recovery | outline; v1's guests are already gone (Ali, 2026-10-25) |
-| P8 | Comics and manga | building (2026-10-29): Komga, Uchiyomi (#119) and Kapowarr (#121) live, the agent's accounts made, sources set, Ali's iPad readers connected, Manga and Comics libraries with downloads sorted by type (#122); Suwayomi's UI on Uchiyomi's engine next, for the trial. Uchiyomi on trial (finds, downloads, reads) and Komga's library, both on Unraid's `Storage`; the agent configures them (D16) |
+| P8 | Comics and manga | building (2026-10-29): Komga, Uchiyomi (#119) and Kapowarr (#121) live, the agent's accounts made, sources set, Ali's iPad readers connected, Manga and Comics libraries with downloads sorted by type (#122), Suwayomi's UI on Uchiyomi's engine for the trial (#123); Mylar3 and SABnzbd next, for comics from Usenet (Easynews, NZBGeek), with docker-dmz at 12 GB. Uchiyomi on trial (finds, downloads, reads) and Komga's library, both on Unraid's `Storage`; the agent configures them (D16) |
 
 ## Target state
 
@@ -2205,7 +2205,8 @@ it needs only docker-dmz and Unraid.
 |---|---|---|---|
 | Browse, download and read: **on trial** (Ali, 2026-10-29) | Uchiyomi 0.99 (95★; one maintainer, a release every few days) | a library, reader and downloader in one: MangaDex's API and common site families built in, Mihon's extensions through a bundled Suwayomi engine; follows series and fetches new chapters; a webtoon-first reader that works offline (PWA); OPDS and a Komga-compatible API; OIDC; scoped API tokens, and everything its web app does through a documented API (`/api/docs`) | Suwayomi-Server 2.4 alone (7.9k★, the mature choice and the fallback if the trial fails; it is Uchiyomi's engine anyway); Tranga (no release since 2023) |
 | Library and reader | Komga 1.29 (6.8k★) | a series per folder at any depth, so any downloader's folders need no rework; a web reader with right-to-left, double pages and webtoon scroll; OPDS for iPad apps; OIDC login (Authelia documents a Komga client); API keys | Kavita 0.9 (12k★, a polished reader with ebooks too, but its scanner wants `Library/Series/`, and its manga metadata is the paid Kavita+) |
-| Western comics (Ali, 2026-10-29) | Kapowarr 1.3 (1.1k★, active) | finds a volume's issues on GetComics and downloads whole issues and collections as published, filed by publisher and series with ComicVine's metadata | Mihon's comic extensions (keiyoushi has four Marvel/DC aggregators, one broken on 2026-10-29, ReadComicOnline gone; dead image links leave holes); Mylar3 (slower) |
+| Western comics (Ali, 2026-10-29) | Kapowarr 1.3 (1.1k★, active) | finds a volume's issues on GetComics and downloads whole issues and collections as published, filed by publisher and series with ComicVine's metadata | Mihon's comic extensions (keiyoushi has four Marvel/DC aggregators, one broken on 2026-10-29, ReadComicOnline gone; dead image links leave holes); Mylar3 (slower on GetComics; it runs for Usenet, below) |
+| Western comics from Usenet (Ali, 2026-10-29: his Easynews and NZBGeek) | Mylar3 0.11 (moved to github.com/MylarComics in 2026-03, three releases since; linuxserver builds from there) and SABnzbd 5.1 | Mylar3 follows series on ComicVine, searches a Newznab indexer for each new issue, has SABnzbd download it, then renames, tags (ComicInfo) and files it; no file hosts in between | Kapowarr (GetComics and torrents only); Premiumize (Ali's; a cloud downloader without NNTP access, which Mylar3 can't drive) |
 | iPad | Panels or Komic, both on the App Store, free with paid tiers; Uchiyomi's PWA | native readers of Komga (Komic, and Panels over OPDS) with downloads for offline reading; Panels adds guided view and double pages | Aidoku (open source, browses sources on the iPad itself, but a beta outside the App Store: TestFlight or AltStore); Paperback (no release since 2025-05) |
 
 **Sources are Ali's.** Uchiyomi ships none enabled: Ali names the sources and the agent turns them
@@ -2214,7 +2215,7 @@ sites. Licensed series come from their publishers' apps, or as bought DRM-free f
 
 ### Where it runs
 
-- **docker-dmz**, three stacks (`runbooks/new-stack.md`), each on a door network of its own:
+- **docker-dmz**, four stacks (`runbooks/new-stack.md`), each app on a door network of its own:
   - `stacks/dmz/uchiyomi`: Uchiyomi, its database inside (Postgres in `/data`), its extension
     engine (Suwayomi, `-Xmx768m`, as upstream pins it) and its Cloudflare solver (FlareSolverr, a
     headless Chrome; Ali, 2026-10-29: kept on). Its state in `/opt/appdata/uchiyomi` (database,
@@ -2225,15 +2226,22 @@ sites. Licensed series come from their publishers' apps, or as bought DRM-free f
   - `stacks/dmz/kapowarr`: Kapowarr, behind the apps' Authelia (`admins`; no login of its own), its
     state in `/opt/appdata/kapowarr` (backup class: data), its downloads in progress on the host's
     ext4, its root folder `Books/Comics/kapowarr`. 106 MiB at start (2026-10-29).
+  - `stacks/dmz/mylar3`: Mylar3 and SABnzbd, both behind the apps' Authelia (`admins`; no logins
+    of their own), their state in `/opt/appdata/mylar3` (backup class: data), SABnzbd's downloads
+    on the host's ext4, Mylar3's comic location `Books/Comics/mylar3`. Easynews answers on :443 over
+    TLS, which rule 810 already allows, so no rule names SABnzbd and it needs no macvlan IP. 60 and
+    65 MiB at start (2026-10-29).
 - **Memory:** the core node (31.2 GiB) sits at Proxmox's 80% ballooning target. Its VMs' maximums
-  add up to 29 GiB, and about 8 GiB of what it holds is the guests' own file cache (2026-10-29: ops
+  add up to 31 GiB, and about 8 GiB of what it holds is the guests' own file cache (2026-10-29: ops
   holds 5.7 GiB for a 2.4 GiB peak, PBS 3.2 for 0.6, docker-dmz 7.2 for 4.9). The two stacks add
   about 2 GB to docker-dmz, more under load, each container capped from its measured peak
   (2026-10-29: Komga 830 MiB analysing Ali's comics, Uchiyomi 324, its engine 750 with no
   extension yet, the solver 630 as Chrome starts). So the floors follow real use (each VM's
-  `proxmox.sh`; Ali applied them 2026-10-29):
-  - docker-dmz's floor rises from 6 to 8 GiB, with double balloon shares, so it is squeezed last;
-  - ops' falls from 5 to 3 GiB, and its maximum from 8 to 6 GiB;
+  `proxmox.sh`; Ali applies them):
+  - docker-dmz's floor rises from 6 to 10 GiB and its maximum from 10 to 12, with double balloon
+    shares, so it is squeezed last (at an 8 GiB floor the node held it there with 0.7 GiB free, its
+    containers at 6.3 GiB before Mylar3 and SABnzbd; 2026-10-29);
+  - ops' falls from 5 to 3 GiB, and its maximum from 8 to 6 GiB (when ops next restarts);
   - PBS's falls from 2 to 1 GiB.
 - **Storage:** Unraid's share `Storage` (`/mnt/user/Storage`), mounted on docker-dmz at
   `/mnt/storage` for all its storage and media (NFS 4.2, automounted, hard; `hosts/docker-dmz`).
@@ -2243,15 +2251,16 @@ sites. Licensed series come from their publishers' apps, or as bought DRM-free f
     sources' downloads, as `<source>/<series>/`; `Manga/suwayomi/`: Suwayomi's, as
     `mangas/<source>/<series>/`;
   - `Comics/library/`: Ali's comics; `Comics/uchiyomi/` and `Comics/suwayomi/`: their comic
-    sources' downloads; `Comics/kapowarr/`: Kapowarr's, as `<publisher>/<series> (<year>)/`.
+    sources' downloads; `Comics/kapowarr/` and `Comics/mylar3/`: Kapowarr's and Mylar3's, as
+    `<publisher>/<series> (<year>)/`.
 
   Uchiyomi and Suwayomi each write every download under one folder (`Manga/uchiyomi`,
   `Manga/suwayomi`); each comic source's folder there is a bind mount from
   `Comics/<app>/<source>`, one compose line per comic extension.
   Komga has a library per type (one folder each, read-only). Uchiyomi's libraries are lists of
-  folders: Comics (Ali's comics, Kapowarr's and the comic sources'; AniList lookups off) and Manga
-  (everything else). The share stays out of the nightly backups: downloads can be fetched again,
-  and Ali's `library/` folders wait on P4 → Open (Unraid shares offsite).
+  folders: Comics (Ali's comics, Kapowarr's, Mylar3's and the comic sources'; AniList lookups off)
+  and Manga (everything else). The share stays out of the nightly backups: downloads can be fetched
+  again, and Ali's `library/` folders wait on P4 → Open (Unraid shares offsite).
 - **Doors** (caddy-apps; inside and over Tailscale, which already routes 10.10.100.35; not public):
   - `uchiyomi.aliammar.net` → Uchiyomi, auth `own`: OIDC through the apps' Authelia (an OIDC client
     `uchiyomi`; Authelia's `admins` are its admins), and its own OPDS token for iPad apps;

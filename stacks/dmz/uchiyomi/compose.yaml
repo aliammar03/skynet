@@ -47,6 +47,7 @@ services:
       - { type: bind, source: /mnt/storage/Books/Manga/library, target: /library/Manga, read_only: true, bind: { create_host_path: false } }
       - { type: bind, source: /mnt/storage/Books/Comics/library, target: /library/Comics, read_only: true, bind: { create_host_path: false } }
       - { type: bind, source: /mnt/storage/Books/Comics/kapowarr, target: /library/Kapowarr, read_only: true, bind: { create_host_path: false } }
+      - { type: bind, source: /mnt/storage/Books/Comics/mylar3, target: /library/Mylar3, read_only: true, bind: { create_host_path: false } }
       # Its downloads, `<source>/<series>/`: the manga sources' in Books/Manga/uchiyomi, and each comic
       # source's folder mounted over from Books/Comics/uchiyomi, so they sort by type on Unraid. A new
       # comic extension gets a line here, its folder named as Uchiyomi names the source.
