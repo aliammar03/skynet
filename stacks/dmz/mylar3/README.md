@@ -12,9 +12,11 @@
   own logins stay off: whoever passes Authelia runs them.
 - **Network:** each on its `door-*` network, an internal bridge it shares with caddy-apps alone
   (from `hosts/docker-dmz`), and the stack's own `egress`, where Mylar3 calls SABnzbd as
-  `http://sabnzbd:8080`. Easynews answers NNTP over TLS on :443 (`secure.news.easynews.com`), which
-  the DMZ's web egress already allows (rule 810); its :563 is closed from the DMZ, and needing it would
-  mean a rule naming SABnzbd, so a macvlan IP (`skynetv2.md` → Conventions → Networks).
+  `http://sabnzbd:8080`. Easynews answers NNTP over TLS on :443 (`secure-us.news.easynews.com`),
+  which the DMZ's web egress already allows (rule 810); its :563 is closed from the DMZ, and
+  needing it would mean a rule naming SABnzbd, so a macvlan IP (`skynetv2.md` → Conventions →
+  Networks). Its US host, not its EU one: from here the EU host (and `secure.news.easynews.com`, a
+  retired name for it) gave 0.25 MB/s, the US host 17–25 MB/s (2026-10-29).
 - **Data:**
   - `/opt/appdata/mylar3/config` → Mylar3's `/config`: its database and settings, the ComicVine and
     NZBGeek keys (backup class: data); `mylar/cache` and `mylar/logs` (cache:
@@ -32,8 +34,9 @@
   `host_whitelist` (Special), folders `/downloads/incomplete` and `/downloads/complete`, and a
   category `comics`.
 - **Setup (Ali, once):**
-  1. sabnzbd.aliammar.net, its wizard: server `secure.news.easynews.com`, port 443, SSL on, the
-     Easynews username and password, 20 connections. Then copy Config → General → API Key.
+  1. sabnzbd.aliammar.net, its wizard: server `secure-us.news.easynews.com`, port 443, SSL on, the
+     Easynews username and password, 20 connections; then, in Config → Servers, Articles per
+     request 5 (SABnzbd's advice at this ~230 ms latency). Then copy Config → General → API Key.
   2. mylar3.aliammar.net → Settings:
      - Web Interface: ComicVine API Key (Kapowarr's); Comic Location Path `/comics`;
      - Download settings: SABnzbd; host `http://sabnzbd:8080`, the API key, category `comics`;

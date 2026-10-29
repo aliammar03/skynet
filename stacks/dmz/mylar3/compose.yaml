@@ -15,7 +15,7 @@ services:
       # Unraid's nobody:users, who owns everything on the share (all_squash).
       PUID: "99"
       PGID: "100"
-    # Measured 2026-10-29: 60 MiB after start and its pages; room for tagging downloads (ComicTagger).
+    # Measured 2026-10-29: 60 MiB after start, 157 MiB at most filing Watchmen's 12 issues.
     mem_limit: 512m
     volumes:
       - /opt/appdata/mylar3/config:/config # its database and settings, the ComicVine and NZBGeek keys
@@ -46,8 +46,8 @@ services:
       TZ: Asia/Karachi
       PUID: "99"
       PGID: "100"
-    # Measured 2026-10-29: 65 MiB idle. Its article cache adds up to 256 MiB (its default), and par2
-    # and unrar run inside the limit too.
+    # Measured 2026-10-29: 65 MiB idle, 126 MiB at most downloading and unpacking at 25 MB/s. Its
+    # article cache can grow to 192 MiB (its default for this limit), and par2 runs inside it too.
     mem_limit: 768m
     volumes:
       - /opt/appdata/mylar3/sabnzbd:/config # its settings (Easynews' login, its API key), queue, history
