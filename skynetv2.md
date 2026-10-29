@@ -29,7 +29,7 @@
 | P5 | Observability (agent eyes) | in progress (2026-10-26): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`, #88); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics; alerts: two vmalerts and Alertmanager to `#alerts`, its Watchdog to healthchecks.io (#91; both watchdogs, HostDown, TargetDown and DiskFull proven live 10-27); Grafana at `grafana.aliammar.net` (OIDC through admin Authelia; Live and Backups boards of our own, seven upstream) and the agent's MCP servers at `/mcp`; Ali's first Grafana login 10-27. Wider eyes live 10-28 (#102–#109): the Proxmox nodes, OPNsense, the doors' access logs, Unraid, Omada, Technitium's stats and query log. Asked and answered through the MCP tools on 10-28: network (the nodes' backups reach PBS over VLAN 50, not through OPNsense; technitium-network's 700 refusals were one burst), storage (night 2's guest backups, verify, restic and Drive copy). Next: the freshness tests (Wider eyes, with Ali), the week's sizing check (11-03) |
 | P6 | Agent autonomy | planned (2026-10-26): the leash first (comin's testing branches off, with the plan), then tiered merges with verify and rollback, the incident loop, the rekey workflow, OpenTofu for our VMs and the OPNsense aliases; after P5 |
 | P7 | Retire v1 + disaster recovery | outline; v1's guests are already gone (Ali, 2026-10-25) |
-| P8 | Comics and manga | planned (2026-10-29): Uchiyomi on trial (finds, downloads, reads) and Komga's library, both on Unraid's `Storage`; the iPad reads over OPDS; the agent configures them (D16) |
+| P8 | Comics and manga | building (2026-10-29): Ali's steps done; the stacks, their mount and auth in one PR; then the agent's accounts and Ali's iPad. Uchiyomi on trial (finds, downloads, reads) and Komga's library, both on Unraid's `Storage`; the agent configures them (D16) |
 
 ## Target state
 
@@ -2214,30 +2214,37 @@ sites. Licensed series come from their publishers' apps, or as bought DRM-free f
 ### Where it runs
 
 - **docker-dmz**, two stacks (`runbooks/new-stack.md`), each on a door network of its own:
-  - `stacks/dmz/uchiyomi`: Uchiyomi, its database inside (Postgres in `/data`), and its extension
-    engine (Suwayomi, `-Xmx768m`, as upstream pins it). Its state in `/opt/appdata/uchiyomi`
-    (database, config, nightly database dumps; backup class: data), its image cache left out of the
-    backup and capped. Its Cloudflare solver (FlareSolverr, a headless Chrome) stays off until a
-    source Ali wants needs it.
-  - `stacks/dmz/komga`: Komga, its state in `/opt/appdata/komga` (backup class: data), the manga
-    folder read-only.
+  - `stacks/dmz/uchiyomi`: Uchiyomi, its database inside (Postgres in `/data`), its extension
+    engine (Suwayomi, `-Xmx768m`, as upstream pins it) and its Cloudflare solver (FlareSolverr, a
+    headless Chrome; Ali, 2026-10-29: kept on). Its state in `/opt/appdata/uchiyomi` (database,
+    config, nightly database dumps, the engine; backup class: data), its image cache on the host's
+    ext4, capped at 5 GiB, out of the backup.
+  - `stacks/dmz/komga`: Komga, its state in `/opt/appdata/komga` (backup class: data), Ali's folders
+    read-only.
 - **Memory:** the core node (31.2 GiB) sits at Proxmox's 80% ballooning target. Its VMs' maximums
   add up to 29 GiB, and about 8 GiB of what it holds is the guests' own file cache (2026-10-29: ops
   holds 5.7 GiB for a 2.4 GiB peak, PBS 3.2 for 0.6, docker-dmz 7.2 for 4.9). The two stacks add
-  about 1.8 GB to docker-dmz, each container capped from its measured peak. So the floors follow
-  real use (each VM's `proxmox.sh`; Ali applies them):
+  about 2 GB to docker-dmz, more under load, each container capped from its measured peak
+  (2026-10-29: Komga 830 MiB analysing Ali's comics, Uchiyomi 324, its engine 750 with no
+  extension yet, the solver 630 as Chrome starts). So the floors follow real use (each VM's
+  `proxmox.sh`; Ali applied them 2026-10-29):
   - docker-dmz's floor rises from 6 to 8 GiB, with double balloon shares, so it is squeezed last;
   - ops' falls from 5 to 3 GiB, and its maximum from 8 to 6 GiB;
   - PBS's falls from 2 to 1 GiB.
 - **Storage:** Unraid's share `Storage` (`/mnt/user/Storage`), mounted on docker-dmz at
-  `/mnt/storage` for all its storage and media (NFS 4.2, automounted; `hosts/docker-dmz`). Rule 300
-  already carries docker-dmz's NFS to Unraid, but the export doesn't list 10.10.100.10 yet. Manga in
-  `/mnt/storage/manga/`:
-  - `uchiyomi/`: Uchiyomi's downloads;
-  - `library/`: Ali's own files, a folder per series.
+  `/mnt/storage` for all its storage and media (NFS 4.2, automounted, hard; `hosts/docker-dmz`).
+  Rule 300 carries docker-dmz's NFS to Unraid. Comics and manga in `Books/` (Ali's choice,
+  2026-10-29), Ali's own files apart from what is downloaded, so a later offsite copy takes
+  `Manga/` and `Comics/` alone:
+  - `Manga/`: Ali's manga, a folder per series;
+  - `Comics/`: Ali's comics, a folder per series;
+  - `Downloads/`: Uchiyomi's, as `<source>/<series>/`, comics and manga alike.
 
-  Uchiyomi and Komga each read both. The share stays out of the nightly backups: downloads can be
-  fetched again, and Ali's own files wait on P4 → Open (Unraid shares offsite).
+  Each app reads all three, Ali's two read-only. Komga has a library each (a Komga library is one
+  folder); Uchiyomi's libraries are lists of folders, so it splits by type: Manga (`Manga/` and the
+  manga sources' folders) and Comics (`Comics/` and the comic sources', AniList lookups off). The
+  share stays out of the nightly backups: downloads can be fetched again, and Ali's own files wait
+  on P4 → Open (Unraid shares offsite).
 - **Doors** (caddy-apps; inside and over Tailscale, which already routes 10.10.100.35; not public):
   - `uchiyomi.aliammar.net` → Uchiyomi, auth `own`: OIDC through the apps' Authelia (an OIDC client
     `uchiyomi`; Authelia's `admins` are its admins), and its own OPDS token for iPad apps;
@@ -2260,12 +2267,13 @@ sites. Licensed series come from their publishers' apps, or as bought DRM-free f
 
 ### Steps
 
-1. **Ali:** Unraid, `Storage`'s NFS export: a rule for 10.10.100.10, read-write, every write as
-   Unraid's `nobody:users` (`all_squash,anonuid=99,anongid=100`). Proxmox, core node:
+1. **Ali (done 2026-10-29):** Unraid, `Storage`'s NFS export: a rule for 10.10.100.10, read-write,
+   every write as Unraid's `nobody:users` (`all_squash,anonuid=99,anongid=100`). Proxmox, core node:
    `qm set 10010 --balloon 8192 --shares 2000`, `qm set 9091 --balloon 3072`,
    `qm set 2040 --balloon 1024`; `qm set 9091 --memory 6144` applies when ops next restarts.
 2. **PR (agent):** the mount, both stacks, their sites, DNS and Gatus rows, the two OIDC clients, the
-   agent's two credentials, the three VMs' `proxmox.sh`. Ali merges.
+   agent's two credentials, the three VMs' `proxmox.sh`. Ali merges. If doco-cd deploys before comin
+   has mounted `/mnt/storage`, the two stacks fail until it has, and doco-cd retries them by itself.
 3. **Agent, right after:** both admin accounts; Komga's library; Uchiyomi's library folders, MangaDex
    in Ali's languages, and the sources and first series Ali names.
 4. **Ali, iPad:** `uchiyomi.aliammar.net` added to the Home Screen; Komga or Uchiyomi's feed in

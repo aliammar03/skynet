@@ -1,0 +1,113 @@
+# Uchiyomi (uchiyomi.aliammar.net), on trial (skynetv2.md → P8): finds manga and comics on their
+# sources, follows series and downloads their new chapters to Unraid, and reads them (a PWA on the
+# iPad). Its own login beside sign-in through the apps' Authelia (OIDC). Inside and over Tailscale
+# only. Its extension engine and Cloudflare solver sit on the stack's own network; only Uchiyomi
+# calls them.
+services:
+  uchiyomi:
+    container_name: uchiyomi
+    image: ghcr.io/angelosha/uchiyomi:v0.99.0@sha256:3efabdc742563da4420ca7dc0c4020bb08f9fa7d4580ce3e33dfe399533f24ac
+    restart: unless-stopped
+    # It finishes the chapter it is writing (up to 20 s), then its Postgres checkpoints and stops.
+    stop_grace_period: 40s
+    env_file: oidc.sops.env # OIDC_CLIENT_SECRET for the apps' Authelia
+    environment:
+      TZ: Asia/Karachi
+      # Unraid's nobody:users, who owns everything on the share (all_squash): the downloads folder is
+      # then its own already, and the entrypoint doesn't walk it at every start to take it over.
+      PUID: "99"
+      PGID: "100"
+      PUBLIC_ORIGIN: https://uchiyomi.aliammar.net
+      # Who may name the visitor in X-Forwarded-For: the private ranges, which reach it only as
+      # caddy-apps (door-uchiyomi) and the stack's engine and solver (backend).
+      TRUST_PROXY: uniquelocal
+      LOG_LEVEL: warn # info is a line per request, which caddy-apps' access log already has
+      CACHE_MAX_BYTES: "5368709120" # 5 GiB of page images
+      SUWAYOMI_URL: http://uchiyomi-suwayomi:4567
+      FLARESOLVERR_URL: http://uchiyomi-flaresolverr:8191
+      # Sign-in through the apps' Authelia (client `uchiyomi`): the first sign-in makes the account,
+      # and group `admins` makes it an admin. Password sign-in stays, for the agent's account (D16).
+      OIDC_ISSUER: https://login.aliammar.net
+      OIDC_CLIENT_ID: uchiyomi
+      OIDC_NAME: Authelia
+      OIDC_SCOPES: openid profile email groups
+      OIDC_ALLOW_SIGNUP: "true"
+      OIDC_ADMIN_GROUP: admins
+    # Measured 2026-10-29: 324 MiB with its Postgres, after setup and a search; room for a library.
+    mem_limit: 1g
+    volumes:
+      - /opt/appdata/uchiyomi/data:/data # its Postgres
+      - /opt/appdata/uchiyomi/config:/config # session and push keys, sites added by address
+      - /opt/appdata/uchiyomi/backups:/backups # its nightly database dumps
+      # Page images it rebuilds on demand: on the host's ext4, outside /opt/appdata's snapshots and
+      # the backup.
+      - /var/cache/uchiyomi:/cache
+      # Ali's files on Unraid (hosts/docker-dmz: /mnt/storage), read-only, and its own downloads. A
+      # missing folder fails the start rather than becoming an empty one on this disk.
+      - { type: bind, source: /mnt/storage/Books/Manga, target: /library/Manga, read_only: true, bind: { create_host_path: false } }
+      - { type: bind, source: /mnt/storage/Books/Comics, target: /library/Comics, read_only: true, bind: { create_host_path: false } }
+      - { type: bind, source: /mnt/storage/Books/Downloads, target: /library-dl, bind: { create_host_path: false } }
+    networks:
+      # Internal, shared with caddy-apps alone (from the host's Nix config). The issuer's name
+      # (login.aliammar.net) is caddy-apps' alias there.
+      door-uchiyomi: {}
+      # The engine, the solver and the way out (MangaDex, AniList).
+      backend: {}
+    # The image's healthcheck applies: /livez, and its Postgres.
+
+  # The extension engine: Suwayomi, headless, running Mihon's extensions for Uchiyomi. Uchiyomi does the
+  # downloading and owns the library; this one never writes into it. Its tag moves only with an
+  # Uchiyomi release that names it: it upgrades its database one way.
+  uchiyomi-suwayomi:
+    container_name: uchiyomi-suwayomi # the name Uchiyomi knows as its bundled engine
+    image: ghcr.io/suwayomi/suwayomi-server:v2.4.2366@sha256:1fac27c387dc2ea9949e1a01ad7f6d6de9d72d3988338a95476748e5c45c4582
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Karachi
+      # A JVM sizes its heap from the host's memory unless told: upstream's cap, with the serial
+      # collector. Two malloc arenas instead of up to eight per CPU.
+      JAVA_TOOL_OPTIONS: -Xmx768m -XX:+UseSerialGC
+      MALLOC_ARENA_MAX: "2"
+      AUTO_DOWNLOAD_CHAPTERS: "false"
+      DOWNLOAD_AS_CBZ: "true"
+      FLARESOLVERR_ENABLED: "true"
+      FLARESOLVERR_URL: http://uchiyomi-flaresolverr:8191
+    # Measured 2026-10-29: 750 MiB with no extension yet. Upstream's figure is 1.4 GB with 45
+    # extensions, after two days; this is its cap.
+    mem_limit: 2048m
+    volumes:
+      # Its extensions, database and settings; owner 1000 (hosts/docker-dmz).
+      - /opt/appdata/uchiyomi/engine:/home/suwayomi/.local/share/Tachidesk
+    networks: [backend]
+    healthcheck:
+      # The image has bash but no curl, wget or nc. 401 counts as alive (sign-in switched on).
+      test: [CMD, bash, -c, "exec 3<>/dev/tcp/127.0.0.1/4567; printf 'GET /api/v1/settings/about HTTP/1.0\\r\\n\\r\\n' >&3; head -1 <&3 | grep -qE ' (200|401) '"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+  # The Cloudflare solver (a headless Chrome), for sources behind Cloudflare: Uchiyomi's own fetches
+  # and the engine's.
+  uchiyomi-flaresolverr:
+    container_name: uchiyomi-flaresolverr
+    image: ghcr.io/flaresolverr/flaresolverr:v3.5.2@sha256:c80ae007ce2ccdcd217a12426e4f039ef763ff90738c808d38810c3e59323767
+    restart: unless-stopped
+    shm_size: 1gb # Chrome's shared memory; under Docker's 64 MB, chromedriver dies mid-challenge
+    environment:
+      TZ: Asia/Karachi
+      LOG_LEVEL: warning
+    # Measured 2026-10-29: 630 MiB as Chrome starts, then ~320 MiB idle. It leaks over weeks: the cap
+    # turns that into a restart.
+    mem_limit: 1g
+    networks: [backend]
+    healthcheck:
+      test: [CMD-SHELL, "curl -fsS http://127.0.0.1:8191/ | grep -q 'FlareSolverr is ready'"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+networks:
+  door-uchiyomi:
+    external: true
+  backend: {}

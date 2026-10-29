@@ -1,7 +1,8 @@
 # ops
 
 The agent's VM: Claude Code as user `skynet` (no sudo), reachable from Discord `#skynet` and the
-Claude app. VMID 9091 · 10.10.90.91 · VLAN 90 · server-proxmox-core · 4 vCPU / 8 GB / 64 GB.
+Claude app. VMID 9091 · 10.10.90.91 · VLAN 90 · server-proxmox-core · 4 vCPU / 6 GB (8 until its
+next restart) / 64 GB.
 
 - **Sessions:** `skynet-agent` (tmux `skynet`: the persistent Discord + Remote Control conversation)
   and `skynet-spawn` (tmux `spawn`: on-demand sessions from the Claude app, one git worktree each).
@@ -24,11 +25,19 @@ Claude app. VMID 9091 · 10.10.90.91 · VLAN 90 · server-proxmox-core · 4 vCPU
   PVEAuditor on `/`, one per standalone node) and `opnsense_read_key` / `opnsense_read_secret`
   (user `skynet-read`, config writes denied). sops-nix renders them into files under
   `/run/secrets/rendered/` (owner `skynet`, 0400) that curl reads itself:
-  - `curl -sk -H @/run/secrets/rendered/pve-core.header https://10.10.50.11:8006/api2/json/…`
-    (`pve-network.header` → `10.10.50.10`);
-  - `curl -sk --netrc-file /run/secrets/rendered/opnsense.netrc https://10.10.50.1/api/…`.
-
-  `-k` because both use self-signed certs (caddy-admin pins them for the browser path).
+  - `curl -sS --cacert stacks/admin/caddy-admin/certs/proxmox-core.pem -H @/run/secrets/rendered/pve-core.header https://10.10.50.11:8006/api2/json/…`
+    (`pve-network.header` and `proxmox-network.pem` → `10.10.50.10`): the nodes' own CAs, pinned in
+    caddy-admin for the browser path; their certs name the IPs;
+  - `curl -sk --netrc-file /run/secrets/rendered/opnsense.netrc https://10.10.50.1/api/…`: `-k`,
+    because its pinned cert names a host, not the IP.
+- **P8's apps (D16):** `komga_password` (`secrets/ops.komga.yaml`) and `uchiyomi_password`
+  (`secrets/ops.uchiyomi.yaml`), the agent's admin accounts, through caddy-apps like any visitor:
+  - `curl --netrc-file /run/secrets/rendered/komga.netrc https://komga.aliammar.net/api/…` (HTTP
+    Basic as `skynet@aliammar.net`); the claim, once:
+    `curl -X POST -H @/run/secrets/rendered/komga-claim.header https://komga.aliammar.net/api/v1/claim`;
+  - `uchiyomi-login.json` is the body of `POST /api/setup` (once) and `POST /auth/login` (user
+    `skynet`), which answers a 15-minute JWT (`accessToken`): keep it in a 0600 file, never in a
+    transcript.
 - **doco-cd MCP (`doco-admin`, `doco-dmz` in `.mcp.json`):** `doco_<target>_api_key` (= that Docker
   host's `doco_api_secret`) is rendered to `/run/secrets/rendered/doco-<target>.headers.json`, which
   Claude Code's `headersHelper` prints as the `x-api-key` header. For each server,

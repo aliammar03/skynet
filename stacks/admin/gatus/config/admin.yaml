@@ -112,6 +112,9 @@ endpoints:
   - { <<: *forward, name: marinara, url: https://marinara.aliammar.net/ }
   - { <<: *app, name: aiometadata, url: https://aiometadata.aliammar.net/health/live, conditions: ["[STATUS] == 200"] }
   - { <<: *app, name: aiostreams, url: https://aiostreams.aliammar.net/api/v1/health, conditions: ["[STATUS] == 200"] }
+  - { <<: *app, name: komga, url: https://komga.aliammar.net/actuator/health, conditions: ["[STATUS] == 200"] }
+  # /healthz asks its Postgres too (the container's own check, /livez, doesn't).
+  - { <<: *app, name: uchiyomi, url: https://uchiyomi.aliammar.net/healthz, conditions: ["[STATUS] == 200"] }
 
   # healthchecks.io's read-only badge for each Docker host's heartbeat check (2-state: up, or down
   # once period + grace pass with no ping). No alert: healthchecks.io already posts to #alerts.
