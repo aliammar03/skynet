@@ -33,13 +33,14 @@ in
     subnet = "10.10.100.0/24";
     gateway = "10.10.100.1";
   };
-  # calibre and kapowarr have no login of their own: caddy-apps reaches each on a network only the
-  # two share. Komga and Uchiyomi have one, but read Ali's files, so nothing else on `edge` reaches
-  # them either.
+  # calibre, kapowarr and Suwayomi (Uchiyomi's engine) have no login of their own: caddy-apps reaches
+  # each on a network only the two share. Komga and Uchiyomi have one, but read Ali's files, so
+  # nothing else on `edge` reaches them either.
   skynet.docker.doorNetworks = [
     "door-calibre"
     "door-kapowarr"
     "door-komga"
+    "door-suwayomi"
     "door-uchiyomi"
   ];
   skynet.docker.docoTarget = "dmz";

@@ -12,13 +12,19 @@
   setup (D16; its password is `secrets/ops.uchiyomi.yaml`).
 - **Services:**
   - `uchiyomi`: the app, with its own Postgres 16 inside (on a socket, no password);
-  - `uchiyomi-suwayomi`: the extension engine (Suwayomi, headless), which runs Mihon's extensions for
-    Uchiyomi. Uchiyomi does the downloading; the engine never writes into the library;
+  - `uchiyomi-suwayomi`: the extension engine (Suwayomi v2.4), which runs Mihon's extensions for
+    Uchiyomi. Uchiyomi does its own downloading; the engine never writes into its library. For the
+    trial it is also Ali's Suwayomi, at https://suwayomi.aliammar.net (caddy-apps →
+    `uchiyomi-suwayomi:4567` on `door-suwayomi`; auth forward, the apps' Authelia, `admins`): its own
+    web UI, library and downloads, sharing the extensions with Uchiyomi. Its downloads go to
+    `Books/Manga/suwayomi` as `mangas/<source>/<series>/`, each comic source's folder mounted over
+    from `Books/Comics/suwayomi/<source>`; it downloads followed series' new chapters by itself;
   - `uchiyomi-flaresolverr`: the Cloudflare solver (a headless Chrome) for sources behind Cloudflare,
     for the app and the engine.
 - **Network:** the app on `door-uchiyomi` (internal, shared with caddy-apps alone, from
   `hosts/docker-dmz`; it reaches its issuer there as `login.aliammar.net`) and `backend`, the stack's
-  own network with the engine and the solver, and its way out. Only the app is routed.
+  own network with the engine and the solver, and its way out. The engine also sits on
+  `door-suwayomi`, with caddy-apps alone, for its web UI.
 - **Library:** on Unraid's `Storage` (`hosts/docker-dmz`: `/mnt/storage`), sorted by type:
   - read-only: Ali's `Books/Manga/library` → `/library/Manga`, `Books/Comics/library` →
     `/library/Comics`, and Kapowarr's `Books/Comics/kapowarr` → `/library/Kapowarr`;
