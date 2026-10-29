@@ -26,6 +26,7 @@ services:
       # Apps with no login of their own, each on a network only it and this door share.
       door-calibre: {}
       door-kapowarr: {}
+      door-suwayomi: {}
       # Apps that read Ali's files, alone with this door; they reach their issuer here.
       door-komga:
         aliases: [login.aliammar.net]
@@ -50,6 +51,8 @@ networks:
   door-kapowarr:
     external: true
   door-komga:
+    external: true
+  door-suwayomi:
     external: true
   door-uchiyomi:
     external: true

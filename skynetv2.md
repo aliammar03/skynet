@@ -29,7 +29,7 @@
 | P5 | Observability (agent eyes) | in progress (2026-10-26): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`, #88); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics; alerts: two vmalerts and Alertmanager to `#alerts`, its Watchdog to healthchecks.io (#91; both watchdogs, HostDown, TargetDown and DiskFull proven live 10-27); Grafana at `grafana.aliammar.net` (OIDC through admin Authelia; Live and Backups boards of our own, seven upstream) and the agent's MCP servers at `/mcp`; Ali's first Grafana login 10-27. Wider eyes live 10-28 (#102–#109): the Proxmox nodes, OPNsense, the doors' access logs, Unraid, Omada, Technitium's stats and query log. Asked and answered through the MCP tools on 10-28: network (the nodes' backups reach PBS over VLAN 50, not through OPNsense; technitium-network's 700 refusals were one burst), storage (night 2's guest backups, verify, restic and Drive copy). Next: the freshness tests (Wider eyes, with Ali), the week's sizing check (11-03) |
 | P6 | Agent autonomy | planned (2026-10-26): the leash first (comin's testing branches off, with the plan), then tiered merges with verify and rollback, the incident loop, the rekey workflow, OpenTofu for our VMs and the OPNsense aliases; after P5 |
 | P7 | Retire v1 + disaster recovery | outline; v1's guests are already gone (Ali, 2026-10-25) |
-| P8 | Comics and manga | building (2026-10-29): Komga, Uchiyomi (#119) and Kapowarr (#121) live, the agent's accounts made, sources set, Ali's iPad readers connected; Manga and Comics libraries with downloads sorted by type next. Uchiyomi on trial (finds, downloads, reads) and Komga's library, both on Unraid's `Storage`; the agent configures them (D16) |
+| P8 | Comics and manga | building (2026-10-29): Komga, Uchiyomi (#119) and Kapowarr (#121) live, the agent's accounts made, sources set, Ali's iPad readers connected, Manga and Comics libraries with downloads sorted by type (#122); Suwayomi's UI on Uchiyomi's engine next, for the trial. Uchiyomi on trial (finds, downloads, reads) and Komga's library, both on Unraid's `Storage`; the agent configures them (D16) |
 
 ## Target state
 
@@ -2240,12 +2240,14 @@ sites. Licensed series come from their publishers' apps, or as bought DRM-free f
   Rule 300 carries docker-dmz's NFS to Unraid. Comics and manga in `Books/`, by type, every
   download sorted into its type by itself (Ali's choice, 2026-10-29):
   - `Manga/library/`: Ali's manga, a folder per series; `Manga/uchiyomi/`: Uchiyomi's manga
-    sources' downloads, as `<source>/<series>/`;
-  - `Comics/library/`: Ali's comics; `Comics/uchiyomi/`: Uchiyomi's comic sources' downloads;
-    `Comics/kapowarr/`: Kapowarr's, as `<publisher>/<series> (<year>)/`.
+    sources' downloads, as `<source>/<series>/`; `Manga/suwayomi/`: Suwayomi's, as
+    `mangas/<source>/<series>/`;
+  - `Comics/library/`: Ali's comics; `Comics/uchiyomi/` and `Comics/suwayomi/`: their comic
+    sources' downloads; `Comics/kapowarr/`: Kapowarr's, as `<publisher>/<series> (<year>)/`.
 
-  Uchiyomi writes every download under one folder (`Manga/uchiyomi`); each comic source's folder
-  there is a bind mount from `Comics/uchiyomi/<source>`, one compose line per comic extension.
+  Uchiyomi and Suwayomi each write every download under one folder (`Manga/uchiyomi`,
+  `Manga/suwayomi`); each comic source's folder there is a bind mount from
+  `Comics/<app>/<source>`, one compose line per comic extension.
   Komga has a library per type (one folder each, read-only). Uchiyomi's libraries are lists of
   folders: Comics (Ali's comics, Kapowarr's and the comic sources'; AniList lookups off) and Manga
   (everything else). The share stays out of the nightly backups: downloads can be fetched again,
@@ -2255,8 +2257,10 @@ sites. Licensed series come from their publishers' apps, or as bought DRM-free f
     `uchiyomi`; Authelia's `admins` are its admins), and its own OPDS token for iPad apps;
   - `komga.aliammar.net` → Komga, auth `own`: OIDC through the apps' Authelia (a client `komga`),
     and a Komga API key for the iPad's OPDS.
-  - Both names → 10.10.100.35 in `dns/aliammar.net.zone`, and a Gatus row each. The engine has no
-    door: only Uchiyomi talks to it.
+  - `suwayomi.aliammar.net` → Uchiyomi's engine, which is Suwayomi v2.4, opened as Ali's own
+    Suwayomi for the trial (Ali, 2026-10-29: its web UI, library and downloads beside Uchiyomi's,
+    sharing the extensions; no second JVM). Auth `forward` (the apps' Authelia, `admins`).
+  - Every name → 10.10.100.35 in `dns/aliammar.net.zone`, and a Gatus row each.
 
 ### The agent configures them (D16)
 

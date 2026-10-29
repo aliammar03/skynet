@@ -26,6 +26,7 @@ proxmox-core          300       IN  A             10.10.60.60
 proxmox-network       300       IN  A             10.10.60.60
 sillytavern           300       IN  A             10.10.100.35
 speed                 300       IN  A             10.10.100.35
+suwayomi              300       IN  A             10.10.100.35
 status                300       IN  A             10.10.60.60
 technitium-core       300       IN  A             10.10.60.60
 technitium-network    300       IN  A             10.10.60.60

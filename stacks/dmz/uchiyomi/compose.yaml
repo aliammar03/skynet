@@ -63,9 +63,10 @@ services:
       backend: {}
     # The image's healthcheck applies: /livez, and its Postgres.
 
-  # The extension engine: Suwayomi, headless, running Mihon's extensions for Uchiyomi. Uchiyomi does the
-  # downloading and owns the library; this one never writes into it. Its tag moves only with an
-  # Uchiyomi release that names it: it upgrades its database one way.
+  # The extension engine: Suwayomi, running Mihon's extensions for Uchiyomi. Uchiyomi does its own
+  # downloading and owns its library; this one never writes into it. For the trial it is also Ali's
+  # Suwayomi (suwayomi.aliammar.net): its own web UI, library and downloads, beside Uchiyomi's. Its
+  # tag moves only with an Uchiyomi release that names it: it upgrades its database one way.
   uchiyomi-suwayomi:
     container_name: uchiyomi-suwayomi # the name Uchiyomi knows as its bundled engine
     image: ghcr.io/suwayomi/suwayomi-server:v2.4.2366@sha256:1fac27c387dc2ea9949e1a01ad7f6d6de9d72d3988338a95476748e5c45c4582
@@ -76,7 +77,9 @@ services:
       # collector. Two malloc arenas instead of up to eight per CPU.
       JAVA_TOOL_OPTIONS: -Xmx768m -XX:+UseSerialGC
       MALLOC_ARENA_MAX: "2"
-      AUTO_DOWNLOAD_CHAPTERS: "false"
+      # New chapters of the series followed in Suwayomi's own UI. Uchiyomi never adds a series to the
+      # engine's library (it only asks its sources), so this downloads nothing for Uchiyomi.
+      AUTO_DOWNLOAD_CHAPTERS: "true"
       DOWNLOAD_AS_CBZ: "true"
       FLARESOLVERR_ENABLED: "true"
       FLARESOLVERR_URL: http://uchiyomi-flaresolverr:8191
@@ -86,7 +89,18 @@ services:
     volumes:
       # Its extensions, database and settings; owner 1000 (hosts/docker-dmz).
       - /opt/appdata/uchiyomi/engine:/home/suwayomi/.local/share/Tachidesk
-    networks: [backend]
+      # Suwayomi's downloads, `mangas/<source>/<series>/`, sorted by type as Uchiyomi's are: manga in
+      # Books/Manga/suwayomi, each comic source's folder mounted over from Books/Comics/suwayomi.
+      - { type: bind, source: /mnt/storage/Books/Manga/suwayomi, target: /home/suwayomi/.local/share/Tachidesk/downloads, bind: { create_host_path: false } }
+      - { type: bind, source: "/mnt/storage/Books/Comics/suwayomi/BatCave (EN)", target: "/home/suwayomi/.local/share/Tachidesk/downloads/mangas/BatCave (EN)", bind: { create_host_path: false } }
+      - { type: bind, source: "/mnt/storage/Books/Comics/suwayomi/ComicHubFree (EN)", target: "/home/suwayomi/.local/share/Tachidesk/downloads/mangas/ComicHubFree (EN)", bind: { create_host_path: false } }
+      - { type: bind, source: "/mnt/storage/Books/Comics/suwayomi/Read Comics Online (EN)", target: "/home/suwayomi/.local/share/Tachidesk/downloads/mangas/Read Comics Online (EN)", bind: { create_host_path: false } }
+      - { type: bind, source: "/mnt/storage/Books/Comics/suwayomi/XOXO Comics (EN)", target: "/home/suwayomi/.local/share/Tachidesk/downloads/mangas/XOXO Comics (EN)", bind: { create_host_path: false } }
+    networks:
+      backend: {}
+      # Shared with caddy-apps alone (internal, from the host's Nix config): its web UI has no login of
+      # its own; the apps' Authelia guards it (admins).
+      door-suwayomi: {}
     healthcheck:
       # The image has bash but no curl, wget or nc. 401 counts as alive (sign-in switched on).
       test: [CMD, bash, -c, "exec 3<>/dev/tcp/127.0.0.1/4567; printf 'GET /api/v1/settings/about HTTP/1.0\\r\\n\\r\\n' >&3; head -1 <&3 | grep -qE ' (200|401) '"]
@@ -117,5 +131,7 @@ services:
       start_period: 30s
 networks:
   door-uchiyomi:
+    external: true
+  door-suwayomi:
     external: true
   backend: {}
