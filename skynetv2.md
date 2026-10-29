@@ -2221,10 +2221,14 @@ sites. Licensed series come from their publishers' apps, or as bought DRM-free f
     source Ali wants needs it.
   - `stacks/dmz/komga`: Komga, its state in `/opt/appdata/komga` (backup class: data), the manga
     folder read-only.
-- **Memory:** docker-dmz runs 3.7 GiB of containers in the 7.6 GiB the core node leaves it today (the
-  node is at 80%, so Proxmox balloons its guests toward their floors). The two stacks add about
-  1.8 GB, each container capped from its measured peak, so docker-dmz's floor rises from 6 to
-  8 GiB (`hosts/docker-dmz/proxmox.sh`; Ali applies it).
+- **Memory:** the core node (31.2 GiB) sits at Proxmox's 80% ballooning target. Its VMs' maximums
+  add up to 29 GiB, and about 8 GiB of what it holds is the guests' own file cache (2026-10-29: ops
+  holds 5.7 GiB for a 2.4 GiB peak, PBS 3.2 for 0.6, docker-dmz 7.2 for 4.9). The two stacks add
+  about 1.8 GB to docker-dmz, each container capped from its measured peak. So the floors follow
+  real use (each VM's `proxmox.sh`; Ali applies them):
+  - docker-dmz's floor rises from 6 to 8 GiB, with double balloon shares, so it is squeezed last;
+  - ops' falls from 5 to 3 GiB, and its maximum from 8 to 6 GiB;
+  - PBS's falls from 2 to 1 GiB.
 - **Storage:** Unraid's share `Storage` (`/mnt/user/Storage`), mounted on docker-dmz at
   `/mnt/storage` for all its storage and media (NFS 4.2, automounted; `hosts/docker-dmz`). Rule 300
   already carries docker-dmz's NFS to Unraid, but the export doesn't list 10.10.100.10 yet. Manga in
@@ -2257,10 +2261,11 @@ sites. Licensed series come from their publishers' apps, or as bought DRM-free f
 ### Steps
 
 1. **Ali:** Unraid, `Storage`'s NFS export: a rule for 10.10.100.10, read-write, every write as
-   Unraid's `nobody:users` (`all_squash,anonuid=99,anongid=100`). Proxmox: `qm set 10010 --balloon
-   8192`.
+   Unraid's `nobody:users` (`all_squash,anonuid=99,anongid=100`). Proxmox, core node:
+   `qm set 10010 --balloon 8192 --shares 2000`, `qm set 9091 --balloon 3072`,
+   `qm set 2040 --balloon 1024`; `qm set 9091 --memory 6144` applies when ops next restarts.
 2. **PR (agent):** the mount, both stacks, their sites, DNS and Gatus rows, the two OIDC clients, the
-   agent's two credentials, `proxmox.sh`'s floor. Ali merges.
+   agent's two credentials, the three VMs' `proxmox.sh`. Ali merges.
 3. **Agent, right after:** both admin accounts; Komga's library; Uchiyomi's library folders, MangaDex
    in Ali's languages, and the sources and first series Ali names.
 4. **Ali, iPad:** `uchiyomi.aliammar.net` added to the Home Screen; Komga or Uchiyomi's feed in
