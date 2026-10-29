@@ -54,6 +54,15 @@ access_control:
       policy: deny
 
 session:
+  # Signed in for a week, or until a day unused; "Remember me" makes it a month however long unused.
+  inactivity: 1d
+  expiration: 1w
+  remember_me: 1M
+  # Sessions live in the stack's Redis, not in Authelia's memory: restarting Authelia (a config
+  # change, an update) keeps everyone signed in.
+  redis:
+    host: authelia-redis
+    port: 6379
   cookies:
     # Both instances' cookies live on .aliammar.net; one name would make them overwrite each other.
     - name: authelia_apps_session

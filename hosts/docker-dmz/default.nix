@@ -49,7 +49,8 @@ in
   # /opt/appdata is btrfs (disk.nix): btrbk snapshots it for the backup and local restores.
   skynet.docker.appdataSnapshots = true;
 
-  # Redis (paperless, jikan, aiometadata) asks for it at every start: its background saves fork.
+  # Redis (paperless, jikan, aiometadata, authelia) asks for it at every start: its background saves
+  # fork.
   boot.kernel.sysctl."vm.overcommit_memory" = 1;
 
   # Unraid's share `Storage`, for every stack's storage and media (P8: comics and manga under

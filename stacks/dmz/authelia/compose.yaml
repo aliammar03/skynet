@@ -18,8 +18,31 @@ services:
       - ./oidc.sops.yml:/etc/authelia/oidc.yml:ro # decrypted by doco-cd
       - ./users.sops.yml:/etc/authelia/users.yml:ro
       - /opt/appdata/authelia:/data # sqlite (passkeys, TOTP, consent), notification.txt
-    networks: [edge]
+    networks: [edge, backend]
+    depends_on:
+      redis:
+        condition: service_healthy
     # The image's own healthcheck (/app/healthcheck.sh) applies.
+  # Its sessions (encrypted with the session secret), so they outlive a restart of Authelia.
+  redis:
+    container_name: authelia-redis
+    image: docker.io/library/redis:8.10.3-alpine@sha256:896f241f438ab6a210cfb24f573b84bea721a4cbe67f1b4fd07eb638b3b02a7b
+    restart: unless-stopped
+    # Saved to disk each minute something changed, and when it stops: a reboot keeps them too.
+    command: [redis-server, --save, "60 1", --appendonly, "no"]
+    mem_limit: 64m # measured 2026-10-29: 6 MiB holding a session
+    volumes:
+      - /opt/appdata/authelia/redis:/data # sessions (backup class: cache)
+    networks: [backend]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 networks:
   edge:
     external: true
+  # This stack's own; Redis needs no internet.
+  backend:
+    internal: true
