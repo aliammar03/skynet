@@ -25,9 +25,9 @@ services:
         aliases: [login.aliammar.net, aiometadata.aliammar.net, aiostreams.aliammar.net]
       # Apps with no login of their own, each on a network only it and this door share.
       door-calibre: {}
+      door-jdownloader: {}
       door-kapowarr: {}
       door-mylar3: {}
-      door-sabnzbd: {}
       door-suwayomi: {}
       # Apps that read Ali's files, alone with this door; they reach their issuer here.
       door-komga:
@@ -50,13 +50,13 @@ networks:
     external: true
   door-calibre:
     external: true
+  door-jdownloader:
+    external: true
   door-kapowarr:
     external: true
   door-komga:
     external: true
   door-mylar3:
-    external: true
-  door-sabnzbd:
     external: true
   door-suwayomi:
     external: true

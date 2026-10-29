@@ -114,6 +114,7 @@ endpoints:
   - { <<: *forward, name: suwayomi, url: https://suwayomi.aliammar.net/ }
   - { <<: *forward, name: mylar3, url: https://mylar3.aliammar.net/ }
   - { <<: *forward, name: sabnzbd, url: https://sabnzbd.aliammar.net/ }
+  - { <<: *forward, name: jdownloader, url: https://jdownloader.aliammar.net/ }
   - { <<: *app, name: aiometadata, url: https://aiometadata.aliammar.net/health/live, conditions: ["[STATUS] == 200"] }
   - { <<: *app, name: aiostreams, url: https://aiostreams.aliammar.net/api/v1/health, conditions: ["[STATUS] == 200"] }
   - { <<: *app, name: komga, url: https://komga.aliammar.net/actuator/health, conditions: ["[STATUS] == 200"] }
