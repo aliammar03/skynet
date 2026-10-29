@@ -25,6 +25,7 @@ services:
         aliases: [login.aliammar.net, aiometadata.aliammar.net, aiostreams.aliammar.net]
       # Apps with no login of their own, each on a network only it and this door share.
       door-calibre: {}
+      door-clu: {}
       door-jdownloader: {}
       door-kapowarr: {}
       door-mylar3: {}
@@ -49,6 +50,8 @@ networks:
   edge:
     external: true
   door-calibre:
+    external: true
+  door-clu:
     external: true
   door-jdownloader:
     external: true

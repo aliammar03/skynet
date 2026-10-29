@@ -16,7 +16,7 @@
 - **Libraries:** on Unraid's `Storage`, read-only (`hosts/docker-dmz`: `/mnt/storage`):
   `Books/Manga` → `/books/Manga` and `Books/Comics` → `/books/Comics`, a library each (a Komga
   library is one folder, at any depth). Each holds Ali's own files (`library/`) and the
-  downloaders' (`uchiyomi/`, `suwayomi/`, `kapowarr/`, `mylar3/`).
+  downloaders' (`uchiyomi/`, `suwayomi/`, `kapowarr/`, `mylar3/`, `clu/`).
 - **Data:** `/opt/appdata/komga/config` → `/config`: its database, thumbnails, search index and
   sessions (backup class: data), and `logs/` (cache: `stacks/dmz/backup/excludes.txt`).
 - **Secrets:** `oidc.sops.env`: `SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_AUTHELIA_CLIENT_SECRET`

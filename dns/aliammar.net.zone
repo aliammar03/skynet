@@ -6,6 +6,7 @@ aiostreams            300       IN  A             10.10.100.35
 alerts                300       IN  A             10.10.60.60
 auth                  300       IN  A             10.10.60.60
 calibre               300       IN  A             10.10.100.35
+clu                   300       IN  A             10.10.100.35
 grafana               300       IN  A             10.10.60.60
 homeassistant         300       IN  A             10.10.100.35
 jdownloader           300       IN  A             10.10.100.35

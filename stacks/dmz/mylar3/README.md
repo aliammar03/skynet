@@ -44,9 +44,10 @@
   and Mylar3's.
 - **Setup (agent, right after the deploy):**
   - SABnzbd, through its API: `sabnzbd.aliammar.net` added to `host_whitelist`; folders
-    `/downloads/incomplete` and `/downloads/complete`; a category `comics`; the three access
-    settings above; Easynews' host and port above, 20 connections, 5 articles per request
-    (SABnzbd's advice at this ~230 ms latency).
+    `/downloads/incomplete` and `/downloads/complete`; a category `comics`; `verify_xff_header` 0;
+    Easynews' host and port above, 20 connections, 5 articles per request (SABnzbd's advice at this
+    ~230 ms latency). Its API refuses the two protected ones, so `local_ranges =
+    10.10.100.35/32,` and `inet_exposure = 3` go into `sabnzbd.ini` while it's stopped.
   - JDownloader, after its first start and while it's stopped: its local API on, in
     `cfg/org.jdownloader.api.RemoteAPIConfig.json`:
     `{"deprecatedapienabled": true, "deprecatedapiport": 3128, "deprecatedapilocalhostonly": false}`.
