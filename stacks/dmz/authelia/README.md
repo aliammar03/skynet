@@ -9,10 +9,11 @@
   are first-match; `default_policy: deny` plus a last catch-all deny, and each app's PR adds its rule
   above that. Now: calibre, sillytavern and marinara for group `admins`, with a password
   (`one_factor`).
-- **OIDC provider** (issuer `https://login.aliammar.net`), for aiostreams and aiometadata:
-  - `oidc-clients.yml`: the clients (secrets as pbkdf2 digests), policy `apps` (a password from
-    `admins` or `family`), and claims policy `apps` (`preferred_username`, `groups`, … in the ID
-    token too);
+- **OIDC provider** (issuer `https://login.aliammar.net`), for aiostreams, aiometadata, komga and
+  uchiyomi:
+  - `oidc-clients.yml`: the clients (secrets as pbkdf2 digests); policies `apps` (a password from
+    `admins` or `family`: the two addons) and `admins` (a password from `admins` alone: Komga and
+    Uchiyomi); claims policy `apps` (`preferred_username`, `groups`, … in the ID token too);
   - `oidc.sops.yml`: the provider's HMAC secret and RS256 signing key (agent-generated);
   - each app's plaintext client secret: its `oidc.sops.env` (agent-generated).
 

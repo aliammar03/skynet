@@ -1,0 +1,50 @@
+# Komga (komga.aliammar.net): the comics and manga library, its reader in the browser, and the feeds
+# iPad apps read (OPDS, and its own API for Komic). Its own login beside sign-in through the apps'
+# Authelia (OIDC). Inside and over Tailscale only. Only caddy-apps reaches it, and it reaches nothing
+# else: it reads Ali's files, read-only.
+services:
+  komga:
+    container_name: komga
+    image: docker.io/gotson/komga:1.29.2@sha256:1d89b79f6cee732438c0c51f876373ad1c6a0d6cdae47c008bfa24e1d1bed748
+    restart: unless-stopped
+    # SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_AUTHELIA_CLIENT_SECRET for the apps' Authelia.
+    env_file: oidc.sops.env
+    environment:
+      TZ: Asia/Karachi
+      # Measured 2026-10-29, analysing Ali's comics (3.2 GB, two 1,100-page books): 307 MiB of heap,
+      # 830 MiB in all at the peak (the JVM, Lucene, image codecs).
+      JAVA_TOOL_OPTIONS: -Xmx512m -XX:+UseSerialGC
+      # Sign-in through the apps' Authelia (client `komga`). The first sign-in makes the account,
+      # matched by email; the agent makes Ali's an admin (D16).
+      KOMGA_OAUTH2_ACCOUNT_CREATION: "true"
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_AUTHELIA_CLIENT_ID: komga
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_AUTHELIA_CLIENT_NAME: Authelia
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_AUTHELIA_SCOPE: openid,profile,email
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_AUTHELIA_AUTHORIZATION_GRANT_TYPE: authorization_code
+      # Komga fills these from caddy-apps' X-Forwarded-* headers.
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_AUTHELIA_REDIRECT_URI: "{baseScheme}://{baseHost}{basePort}{basePath}/login/oauth2/code/authelia"
+      # Read at start: Komga doesn't start until it reaches the issuer (caddy-apps, on door-komga).
+      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_AUTHELIA_ISSUER_URI: https://login.aliammar.net
+      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_AUTHELIA_USER_NAME_ATTRIBUTE: preferred_username
+    mem_limit: 1536m
+    volumes:
+      - /opt/appdata/komga/config:/config # database, thumbnails, search index, logs
+      # Ali's comics and manga on Unraid (hosts/docker-dmz: /mnt/storage), read-only. A missing folder
+      # fails the start rather than becoming an empty one on this disk.
+      - { type: bind, source: /mnt/storage/Books/Manga, target: /books/Manga, read_only: true, bind: { create_host_path: false } }
+      - { type: bind, source: /mnt/storage/Books/Comics, target: /books/Comics, read_only: true, bind: { create_host_path: false } }
+      - { type: bind, source: /mnt/storage/Books/Downloads, target: /books/Downloads, read_only: true, bind: { create_host_path: false } }
+    networks:
+      # Internal, shared with caddy-apps alone (from the host's Nix config). The issuer's name
+      # (login.aliammar.net) is caddy-apps' alias there.
+      door-komga: {}
+    healthcheck:
+      # The one actuator endpoint that answers without a login.
+      test: [CMD, curl, -fsS, -o, /dev/null, http://127.0.0.1:25600/actuator/health]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 1m
+networks:
+  door-komga:
+    external: true

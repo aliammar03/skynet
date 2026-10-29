@@ -7,7 +7,9 @@ keys:
   - &technitium-core age1z04wgrdkynk2ez3hlqh67x65ayd2hq743z64wlrc8vvcfrcwqefsgu8ed2  # ssh-to-age < hosts/technitium-core/ssh_host.pub
   - &docker-dmz age1tkp56dteeem3l4jc6vjjfy82aepghf6fe0dxtlqqmqrk5p90ryequsakza  # ssh-to-age < hosts/docker-dmz/ssh_host.pub
 creation_rules:
-  - path_regex: ^secrets/ops\.yaml$
+  # ops's own file, and the agent's admin passwords for P8's apps (D16; agent-generated: the agent
+  # can't add a key to a file it can't decrypt).
+  - path_regex: ^secrets/ops(\.komga|\.uchiyomi)?\.yaml$
     key_groups:
       - age:
           - *aliammar

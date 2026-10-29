@@ -181,6 +181,32 @@ in
     secrets.doco_dmz_api_key = { };
     templates."doco-admin.headers.json" = docoHeaders "admin";
     templates."doco-dmz.headers.json" = docoHeaders "dmz";
+
+    # The agent's admin accounts in P8's apps (D16), each password in its own file (agent-generated).
+    secrets.komga_password.sopsFile = ../secrets/ops.komga.yaml;
+    secrets.uchiyomi_password.sopsFile = ../secrets/ops.uchiyomi.yaml;
+    templates."komga.netrc" = {
+      owner = "skynet";
+      content = ''
+        machine komga.aliammar.net login skynet@aliammar.net password ${config.sops.placeholder.komga_password}
+      '';
+    };
+    # Komga's claim (POST /api/v1/claim), which makes the first account its admin.
+    templates."komga-claim.header" = {
+      owner = "skynet";
+      content = ''
+        X-Komga-Email: skynet@aliammar.net
+        X-Komga-Password: ${config.sops.placeholder.komga_password}
+      '';
+    };
+    # Uchiyomi's first-run setup (POST /api/setup) and its sign-in (POST /auth/login) take this body.
+    templates."uchiyomi-login.json" = {
+      owner = "skynet";
+      content = builtins.toJSON {
+        username = "skynet";
+        password = config.sops.placeholder.uchiyomi_password;
+      };
+    };
   };
 
   # The Discord channel plugin reads its token from ~/.claude/channels/discord/.env; Claude doesn't

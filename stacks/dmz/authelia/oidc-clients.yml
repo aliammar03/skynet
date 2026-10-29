@@ -3,15 +3,21 @@
 # client_secret is a pbkdf2 digest; the app's plaintext is in its oidc.sops.env.
 identity_providers:
   oidc:
-    # The two addons take a password (one factor) from Ali's group or the family's.
+    # The two addons take a password (one factor) from Ali's group or the family's. Komga and
+    # Uchiyomi take Ali's group alone, until family accounts are decided (skynetv2.md → P8 → Open).
     authorization_policies:
       apps:
         default_policy: deny
         rules:
           - policy: one_factor
             subject: ['group:admins', 'group:family']
-    # The claims both apps read, in the ID token too (by default Authelia 4.39 sends them only from
-    # the userinfo endpoint).
+      admins:
+        default_policy: deny
+        rules:
+          - policy: one_factor
+            subject: ['group:admins']
+    # The claims the apps read, in the ID token too (by default Authelia 4.39 sends them only from
+    # the userinfo endpoint; Uchiyomi reads the ID token alone).
     claims_policies:
       apps:
         id_token: [email, email_verified, name, preferred_username, groups]
@@ -43,6 +49,38 @@ identity_providers:
         pkce_challenge_method: S256
         redirect_uris:
           - https://aiometadata.aliammar.net/api/auth/oidc/callback
+        scopes: [openid, profile, email, groups]
+        response_types: [code]
+        grant_types: [authorization_code]
+        token_endpoint_auth_method: client_secret_basic
+        userinfo_signed_response_alg: none
+      # Komga (Spring Security) finds the account by `email`, and makes one at the first sign-in.
+      - client_id: komga
+        client_name: Komga
+        client_secret: '$pbkdf2-sha512$310000$ndfxUk.ybJC4udJZR7LkPA$mmH5xqtvCCSvoDk9cnGC8aCaIczTKfSu1yXKGxXyBxYjt66zu8gcKOttJZodgt1kbQBaj1JbXX9cqaC7NROIGA'
+        public: false
+        authorization_policy: admins
+        claims_policy: apps
+        consent_mode: implicit
+        redirect_uris:
+          - https://komga.aliammar.net/login/oauth2/code/authelia
+        scopes: [openid, profile, email]
+        response_types: [code]
+        grant_types: [authorization_code]
+        token_endpoint_auth_method: client_secret_basic
+        userinfo_signed_response_alg: none
+      # Uchiyomi always sends PKCE (S256); `groups` makes `admins` its admins (OIDC_ADMIN_GROUP).
+      - client_id: uchiyomi
+        client_name: Uchiyomi
+        client_secret: '$pbkdf2-sha512$310000$xfW3gw.RNxguXwcN0P1pYQ$AcD/CGqW1tATGQJs25sfW7/PiAIQ0LORjrOl3hMZdNsQyikW66WgEXipao8lxEMLbeoOvSz1mXGBPxLBNP14FQ'
+        public: false
+        authorization_policy: admins
+        claims_policy: apps
+        consent_mode: implicit
+        require_pkce: true
+        pkce_challenge_method: S256
+        redirect_uris:
+          - https://uchiyomi.aliammar.net/auth/oidc/callback
         scopes: [openid, profile, email, groups]
         response_types: [code]
         grant_types: [authorization_code]

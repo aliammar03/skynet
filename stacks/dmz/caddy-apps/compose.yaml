@@ -25,6 +25,11 @@ services:
         aliases: [login.aliammar.net, aiometadata.aliammar.net, aiostreams.aliammar.net]
       # An app with no login of its own, on a network only it and this door share.
       door-calibre: {}
+      # Apps that read Ali's files, alone with this door; they reach their issuer here.
+      door-komga:
+        aliases: [login.aliammar.net]
+      door-uchiyomi:
+        aliases: [login.aliammar.net]
     labels:
       # A route edit updates /etc/caddy in place and --watch reloads it; no recreate, no dropped
       # connections.
@@ -40,4 +45,8 @@ networks:
   edge:
     external: true
   door-calibre:
+    external: true
+  door-komga:
+    external: true
+  door-uchiyomi:
     external: true
