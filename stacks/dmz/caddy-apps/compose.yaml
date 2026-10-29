@@ -23,8 +23,9 @@ services:
         # Containers on edge that call these names (the OIDC issuer, the addons) reach this door
         # directly: the host can't reach its own macvlan IPs, so Technitium's .35 fails from edge.
         aliases: [login.aliammar.net, aiometadata.aliammar.net, aiostreams.aliammar.net]
-      # An app with no login of its own, on a network only it and this door share.
+      # Apps with no login of their own, each on a network only it and this door share.
       door-calibre: {}
+      door-kapowarr: {}
       # Apps that read Ali's files, alone with this door; they reach their issuer here.
       door-komga:
         aliases: [login.aliammar.net]
@@ -45,6 +46,8 @@ networks:
   edge:
     external: true
   door-calibre:
+    external: true
+  door-kapowarr:
     external: true
   door-komga:
     external: true

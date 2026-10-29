@@ -110,6 +110,7 @@ endpoints:
   - { <<: *forward, name: calibre, url: https://calibre.aliammar.net/ }
   - { <<: *forward, name: sillytavern, url: https://sillytavern.aliammar.net/ }
   - { <<: *forward, name: marinara, url: https://marinara.aliammar.net/ }
+  - { <<: *forward, name: kapowarr, url: https://kapowarr.aliammar.net/ }
   - { <<: *app, name: aiometadata, url: https://aiometadata.aliammar.net/health/live, conditions: ["[STATUS] == 200"] }
   - { <<: *app, name: aiostreams, url: https://aiostreams.aliammar.net/api/v1/health, conditions: ["[STATUS] == 200"] }
   - { <<: *app, name: komga, url: https://komga.aliammar.net/actuator/health, conditions: ["[STATUS] == 200"] }
