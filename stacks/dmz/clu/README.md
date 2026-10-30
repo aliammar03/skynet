@@ -7,7 +7,8 @@
     GetComics' sitemap and scores every result against the wanted issue (with Download Packs on,
     the pack holding a missing issue is taken once and the rest of its range skipped). It unpacks,
     renames and files what it gets into series folders in its library, and has a pull list, bulk
-    CBR→CBZ, a CBZ editor and ComicInfo tools.
+    CBR→CBZ, a CBZ editor and ComicInfo tools. It tags from Metron and ComicVine, ComicVine first
+    from a local copy of its database.
   - **SABnzbd** downloads CLU's NZBs from Easynews.
   - **JDownloader 2** is for Ali's own picks (a GetComics pack, a file-host link): it downloads
     through his Premiumize into CLU's downloads, and CLU processes and files the result.
@@ -38,7 +39,10 @@
   - `/opt/appdata/clu/jdownloader` → JDownloader's `/config`: its settings with Premiumize's login,
     and the JDownloader it keeps updated (data); `logs` and `tmp` (cache);
   - on the host's ext4, outside `/opt/appdata`'s snapshots and the backup (`hosts/docker-dmz` makes
-    them, `99:100`): `/var/cache/clu/thumbnails` → `/cache` (covers); `/var/cache/clu/downloads` →
+    them, `99:100`): `/var/cache/clu/thumbnails` → `/cache` (covers); `/var/cache/clu/comicvine` →
+    `/comicvine` (`localcv.db`, ComicVine's data as one SQLite file, 3.2 GB, which CLU downloads
+    from a public mirror and refreshes every two weeks; a refresh holds about 7 GB for a few
+    minutes: the old file, the zip and the new one); `/var/cache/clu/downloads` →
     CLU's `/downloads` (`temp/`, where downloads arrive, and `processed/`, before filing), its
     `temp/` also JDownloader's `/output`; `/var/cache/sabnzbd` → SABnzbd's `/downloads`; and
     `/var/cache/sabnzbd/clu` → `/usenet` in both CLU and SABnzbd: SABnzbd's `clu` category, where
@@ -58,7 +62,12 @@
   - The agent (D16), through CLU's API: Download Packs and CBR→CBZ on; timezone `5` (an hour offset);
     folder monitoring on; sources `usenet`, then `getcomics`; SABnzbd as its Usenet client
     (`sabnzbd`, 8080, SABnzbd's API key, category `clu`); the schedules (CLU takes UTC): the
-    GetComics index at 00:30, the auto-download at 03:30, the library index at 04:30, Pakistan time.
+    GetComics index at 00:30, the auto-download at 03:30, the library index at 04:30, Pakistan time;
+    the local ComicVine database: its path `/comicvine/localcv.db`, its two-weekly refresh on, a
+    first download (`POST /api/providers/comicvine_sqlite/update`), and the library's metadata
+    providers in the order Metron, ComicVine (local), ComicVine (its API, for issues newer than
+    the copy); file names `{series_name} ({volume_year}) #{issue_number}` (Ali, 2026-10-30), the
+    issue number padded to three digits (its default): `Ultimate Spider-Man (2000) #004.cbz`.
   - The agent, in SABnzbd: through its API, `sabnzbd.aliammar.net` in `host_whitelist`, folders
     `/downloads/incomplete` and `/downloads/complete`, the category `clu` → `/usenet`,
     `verify_xff_header` 0, the Easynews server above with 20 connections and 5 articles per request;
@@ -87,6 +96,10 @@
 - Re-packing a CBZ whose pages sit in one subfolder can stop half-way with no error logged, leaving
   a `<name>.zip` and a `<name>_folder` in the series folder. Grab another copy instead.
 - A series page's "check for missing issues" is a real search and download, not a count.
+- It names a download twice: first from the release's name, where `{volume_year}` can only be the
+  year in that name (the cover year: `Ultimate Spider-Man (2001) #004`), then, once filed, from
+  the metadata it fetches (the series' start year: `(2000)`). A file whose metadata lookup fails
+  keeps the first name.
 - With its GetComics index empty, its searches go live, several variants an issue: GetComics
   answered 429 (too many requests) 213 times in 20 minutes on 2026-10-30. Usenet first keeps that
   down; the index fills for followed series, 300 posts a night.

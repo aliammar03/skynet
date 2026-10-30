@@ -23,6 +23,10 @@ services:
     volumes:
       - /opt/appdata/clu/config:/config # its database: settings, library index, wanted list, keys
       - /var/cache/clu/thumbnails:/cache # covers it draws; rebuilt on demand
+      # ComicVine's data as one SQLite file (3.2 GB; a 569 MB download, 2026-10-30), which CLU
+      # tags from without the API's hourly limit and refreshes every two weeks. Re-downloadable, so
+      # on the host's ext4 with the other caches.
+      - /var/cache/clu/comicvine:/comicvine
       # Downloads (temp/) and their processed copies (processed/) before it files them; on the host's
       # ext4, outside /opt/appdata's snapshots and the backup. JDownloader saves into temp/ too.
       - /var/cache/clu/downloads:/downloads
