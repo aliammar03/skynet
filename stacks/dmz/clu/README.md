@@ -64,10 +64,27 @@
     (`sabnzbd`, 8080, SABnzbd's API key, category `clu`); the schedules (CLU takes UTC): the
     GetComics index at 00:30, the auto-download at 03:30, the library index at 04:30, Pakistan time;
     the local ComicVine database: its path `/comicvine/localcv.db`, its two-weekly refresh on, a
-    first download (`POST /api/providers/comicvine_sqlite/update`), and the library's metadata
-    providers in the order Metron, ComicVine (local), ComicVine (its API, for issues newer than
-    the copy); file names `{series_name} ({volume_year}) #{issue_number}` (Ali, 2026-10-30), the
-    issue number padded to three digits (its default): `Ultimate Spider-Man (2000) #004.cbz`.
+    first download (`POST /api/providers/comicvine_sqlite/update`); the library's metadata providers
+    in the order ComicVine (local), ComicVine (its API, for issues newer than the copy), Metron
+    (Ali, 2026-10-30); file names `{series_name} ({volume_year}) #{issue_number}` (Ali,
+    2026-10-30), the issue number padded to three digits (its default):
+    `Ultimate Spider-Man (2000) #004.cbz`; series folders `{publisher}/{series_name} ({start_year})`
+    (`CUSTOM_MOVE_PATTERN`, Ali, 2026-10-30), which the Subscribe dialog suggests:
+    `DC Comics/Watchmen (1986)`. That one through `core.settings.set_setting` in the container and a
+    restart: its Settings page saves every field at once, so a partial save resets the rest.
+- **Patches:** `patches/apply.py` fixes four things in CLU v7.0 at each start, before CLU's
+  entrypoint (its `clu-patch:` lines in the log):
+  - a Usenet download is filed once `temp/` empties, as a direct download is (CLU never filed one);
+  - an issue with no on-sale date counts as out by its cover date (Metron lacks on-sale dates for
+    many older issues, Watchmen #2–#12 among them, and CLU never searched for those);
+  - among results with the same score the bigger post wins (CLU took the first: Watchmen #1 came as
+    a 29 MB, 1280×1968 copy where a 90 MB, 1988×3056 one scored the same);
+  - a filed issue is named from CLU's record of its series, the series' start year (CLU kept the
+    release's year whenever it fetched no metadata, which it skips for a release that arrives
+    tagged: Watchmen #5–#12 came as `(1987)`).
+
+  A fix whose text CLU's code no longer has (after an update) is left out with a `clu-patch:` line,
+  and that file runs as shipped. On a CLU update: read those lines, and drop each fix CLU now has.
   - The agent, in SABnzbd: through its API, `sabnzbd.aliammar.net` in `host_whitelist`, folders
     `/downloads/incomplete` and `/downloads/complete`, the category `clu` → `/usenet`,
     `verify_xff_header` 0, the Easynews server above with 20 connections and 5 articles per request;
@@ -89,17 +106,17 @@
   December is rejected (Ultimate Spider-Man #15: 20 by on-sale year, 60 by cover year), and the run
   falls through to GetComics. For a backfill, search such issues by cover year and grab them through
   `/api/usenet/grab`.
-- It files only when a finished download empties its `temp/`; a straggler waits in `processed/`
-  until the next one, or `POST /api/scan-downloads`. Either way it files only issues it still wants:
-  a better copy of an issue it has (a digital release for a scan) stays in `processed/` until moved
-  into the series folder by hand.
+- It files once a finished download has emptied its `temp/` (a Usenet one through the patch); a
+  straggler waits in `processed/` until the next one, or `POST /api/scan-downloads`. It files only
+  issues it still wants: a better copy of an issue it has (a digital release for a scan) stays in
+  `processed/` until moved into the series folder by hand.
 - Re-packing a CBZ whose pages sit in one subfolder can stop half-way with no error logged, leaving
   a `<name>.zip` and a `<name>_folder` in the series folder. Grab another copy instead.
 - A series page's "check for missing issues" is a real search and download, not a count.
-- It names a download twice: first from the release's name, where `{volume_year}` can only be the
-  year in that name (the cover year: `Ultimate Spider-Man (2001) #004`), then, once filed, from
-  the metadata it fetches (the series' start year: `(2000)`). A file whose metadata lookup fails
-  keeps the first name.
+- It names a download in `temp/` from the release's name, where `{volume_year}` can only be the year
+  in that name (the cover year: `Watchmen (1987) #005`); the patch renames it at filing
+  (`Watchmen (1986) #005`). A release's own ComicInfo may carry ComicVine's series id as its
+  `Volume` (Marika-Empire's Watchmen: 3622), which CLU's rename from metadata would read as a year.
 - With its GetComics index empty, its searches go live, several variants an issue: GetComics
   answered 429 (too many requests) 213 times in 20 minutes on 2026-10-30. Usenet first keeps that
   down; the index fills for followed series, 300 posts a night.
