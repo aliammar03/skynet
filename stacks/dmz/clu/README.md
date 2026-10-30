@@ -30,6 +30,9 @@
     anywhere else, its API with its key and nothing more), `verify_xff_header` 0 (the client in
     `X-Forwarded-For` is Ali's, not the door's). Easynews: `news.us.easynews.com`, port 119, no SSL
     (Ali, 2026-10-29); its US hosts, not its EU ones (0.25 MB/s from here against 17–25 MB/s).
+    Thundernews, Ali's block account, fills the articles Easynews lacks: another backbone
+    (UsenetExpress; Easynews is Omicron), `news.thundernews.com`, port 563 with SSL, 10
+    connections, priority 1 and optional, so SABnzbd asks it only for what Easynews is missing.
   - JDownloader: `door-jdownloader` and `egress` (file hosts, Premiumize, its own updates).
 - **Data:**
   - `/opt/appdata/clu/config` → CLU's `/config`: its database (settings, library index, wanted list,
@@ -52,12 +55,13 @@
     `<publisher>/<series>/`. Files land there as `99:100` (Unraid's `nobody:users`, all_squash),
     the user CLU runs as (`PUID`/`PGID`).
 - **Secrets:** none in git. Ali's Metron account, ComicVine and NZBGeek keys live in CLU's database,
-  his Easynews login in SABnzbd's settings, his Premiumize login in JDownloader's; SABnzbd's API key
+  his Easynews and Thundernews logins in SABnzbd's settings, his Premiumize login in JDownloader's; SABnzbd's API key
   in SABnzbd's settings and CLU's database.
 - **Setup:**
   - Ali: CLU → Settings → Metadata providers: Metron (its Wanted list, pull list and subscriptions
     need it) and the ComicVine key; → Download & API → Indexers: NZBGeek
-    (`https://api.nzbgeek.info`, his API key). SABnzbd's wizard: the Easynews login. JDownloader →
+    (`https://api.nzbgeek.info`, his API key). SABnzbd's wizard: the Easynews login; → Config →
+    Servers: Thundernews as above, with its login. JDownloader →
     Settings → Account Manager → premiumize.me: the customer ID and API key.
   - The agent (D16), through CLU's API: Download Packs and CBR→CBZ on; timezone `5` (an hour offset);
     folder monitoring on; sources `usenet`, then `getcomics`; SABnzbd as its Usenet client
@@ -83,7 +87,7 @@
   - The agent, in JDownloader, after its first start and while it's stopped: archive extraction off
     (`cfg/org.jdownloader.extensions.extraction.ExtractionExtension.json`: `"enabled": false`), so
     CLU alone unpacks what lands in its `temp/`.
-- **Patches:** `patches/apply.py` fixes five things in CLU v7.0 at each start, before CLU's
+- **Patches:** `patches/apply.py` fixes six things in CLU v7.0 at each start, before CLU's
   entrypoint (its `clu-patch:` lines in the log):
   - a Usenet download is filed once `temp/` empties, as a direct download is (CLU never filed one);
   - an issue with no on-sale date counts as out by its cover date (Metron lacks on-sale dates for
@@ -94,7 +98,12 @@
     release's year whenever it fetched no metadata, which it skips for a release that arrives
     tagged: Watchmen #5–#12 came as `(1987)`);
   - a hyphen is a space when a release's series name is matched (CLU scored Zone-Empire's digital
-    "All-Star Superman" 0 against Metron's "All Star Superman" and took 2006 scans at 1280×1967).
+    "All-Star Superman" 0 against Metron's "All Star Superman" and took 2006 scans at 1280×1967);
+  - when SABnzbd fails a post (articles missing), CLU grabs the next-best accepted post for the
+    issue, until one completes or none is left, and never takes a failed post again (kept, as title
+    and size, in `/config/skynet_failed_posts.json`); and a trailing "REPOST" no longer lowers a
+    post's score (CLU stopped at a failed post for All Star Superman #1 and #4, while complete
+    reposts at 1920×2951 scored 30).
 
   A fix whose text CLU's code no longer has (after an update) is left out with a `clu-patch:` line,
   and that file runs as shipped. On a CLU update: read those lines, and drop each fix CLU now has.
