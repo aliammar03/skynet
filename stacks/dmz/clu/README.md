@@ -78,7 +78,11 @@
   falls through to GetComics. For a backfill, search such issues by cover year and grab them through
   `/api/usenet/grab`.
 - It files only when a finished download empties its `temp/`; a straggler waits in `processed/`
-  until the next one, or `POST /api/scan-downloads`.
+  until the next one, or `POST /api/scan-downloads`. Either way it files only issues it still wants:
+  a better copy of an issue it has (a digital release for a scan) stays in `processed/` until moved
+  into the series folder by hand.
+- Re-packing a CBZ whose pages sit in one subfolder can stop half-way with no error logged, leaving
+  a `<name>.zip` and a `<name>_folder` in the series folder. Grab another copy instead.
 - A series page's "check for missing issues" is a real search and download, not a count.
 - With its GetComics index empty, its searches go live, several variants an issue: GetComics
   answered 429 (too many requests) 213 times in 20 minutes on 2026-10-30. Usenet first keeps that
