@@ -25,8 +25,8 @@
 | P1 | docker-admin: admin door, identity, status | done (2026-10-22); 7 admin names move to .60 with P2's Technitium |
 | P2 | DNS (Technitium only) + remote access | done (2026-10-23); its OPNsense cleanup too (2026-10-28) |
 | P3 | docker-dmz: apps + public path | done (2026-10-24): docker-dmz with v1's data (#48), its doors (#50) and all ten apps (#51–#61); the apps reach one another only through the door (#64); every image current (#67). Family accounts skipped for now |
-| P4 | Backups → Google Drive | in progress (2026-10-25): PBS greenfield done (VM 2040, `pbs/`; v1's PBS removed); PBS's datastore nightly to Drive by plain `rclone sync` (`stacks/admin/pbs-offsite/`; PVE already encrypts its chunks); app data nightly to Drive, hot (`stacks/<host>/backup/`): docker-dmz rebuilt onto btrfs and backed up from btrbk snapshots (#81); `skynet-restore` drilled from a snapshot and from Drive; `runbooks/restore.md` (six cases); a guest restored from Drive's copy (2026-10-27). Next: seven green nights (from 10-26 → 27), the survival kit |
-| P5 | Observability (agent eyes) | in progress (2026-10-26): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`, #88); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics; alerts: two vmalerts and Alertmanager to `#alerts`, its Watchdog to healthchecks.io (#91; both watchdogs, HostDown, TargetDown and DiskFull proven live 10-27); Grafana at `grafana.aliammar.net` (OIDC through admin Authelia; Live and Backups boards of our own, seven upstream) and the agent's MCP servers at `/mcp`; Ali's first Grafana login 10-27. Wider eyes live 10-28 (#102–#109): the Proxmox nodes, OPNsense, the doors' access logs, Unraid, Omada, Technitium's stats and query log. Asked and answered through the MCP tools on 10-28: network (the nodes' backups reach PBS over VLAN 50, not through OPNsense; technitium-network's 700 refusals were one burst), storage (night 2's guest backups, verify, restic and Drive copy). Next: the freshness tests (Wider eyes, with Ali), the week's sizing check (11-03) |
+| P4 | Backups → Google Drive | in progress (2026-10-25): PBS greenfield done (VM 2040, `pbs/`; v1's PBS removed); PBS's datastore nightly to Drive by plain `rclone sync` (`stacks/admin/pbs-offsite/`; PVE already encrypts its chunks); app data nightly to Drive, hot (`stacks/<host>/backup/`): docker-dmz rebuilt onto btrfs and backed up from btrbk snapshots (#81); `skynet-restore` drilled from a snapshot and from Drive; `runbooks/restore.md` (six cases); a guest restored from Drive's copy (2026-10-27); the survival kit stored (Ali, 2026-10-28). Next: seven green nights (from 10-26 → 27) |
+| P5 | Observability (agent eyes) | in progress (2026-10-26): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`, #88); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics; alerts: two vmalerts and Alertmanager to `#alerts`, its Watchdog to healthchecks.io (#91; both watchdogs, HostDown, TargetDown and DiskFull proven live 10-27); Grafana at `grafana.aliammar.net` (OIDC through admin Authelia; Live and Backups boards of our own, seven upstream) and the agent's MCP servers at `/mcp`; Ali's first Grafana login 10-27. Wider eyes live 10-28 (#102–#109): the Proxmox nodes, OPNsense, the doors' access logs, Unraid, Omada, Technitium's stats and query log. Asked and answered through the MCP tools on 10-28: network (the nodes' backups reach PBS over VLAN 50, not through OPNsense; technitium-network's 700 refusals were one burst), storage (night 2's guest backups, verify, restic and Drive copy). Every Wider eyes source's freshness alert posted and resolved in the tests of 10-29 (Wider eyes → Freshness tests). Next: the week's sizing check (11-03) |
 | P6 | Agent autonomy | planned (2026-10-26): the leash first (comin's testing branches off, with the plan), then tiered merges with verify and rollback, the incident loop, the rekey workflow, OpenTofu for our VMs and the OPNsense aliases; after P5 |
 | P7 | Retire v1 + disaster recovery | outline; v1's guests are already gone (Ali, 2026-10-25) |
 | P8 | Comics and manga | building (2026-10-29): Komga, Uchiyomi (#119) and Kapowarr (#121) live, the agent's accounts made, sources set, Ali's iPad readers connected, Manga and Comics libraries with downloads sorted by type (#122), Suwayomi's UI on Uchiyomi's engine for the trial (#123); Mylar3 and SABnzbd for comics from Usenet (#124; Easynews, NZBGeek), docker-dmz at 12 GB, the apps' Authelia keeping sessions across restarts (#125); SABnzbd on its own usenet address and JDownloader 2 for GetComics through Premiumize (#127); CLU for old runs from GetComics next. Uchiyomi on trial (finds, downloads, reads) and Komga's library, both on Unraid's `Storage`; the agent configures them (D16) |
@@ -1499,7 +1499,7 @@ manager.
 - Seven green nights in a row, for all three jobs, docker-dmz's snapshots and VM 2040's backups. CT
   240 is gone.
 - Both drills done (app data from both sources, and a guest from Drive), with evidence in their PRs.
-- Ali confirms the survival kit is stored.
+- Ali confirms the survival kit is stored. ✅ (2026-10-28, `runbooks/survival-kit.md`)
 - `pbs/etc/` matches PBS, and the drift check is quiet.
 - `runbooks/restore.md` covers six cases: an app from a local snapshot, an app from Drive, a host, a
   guest, PBS rebuilt from `pbs/etc/`, and a restore from Drive with nothing else left.
@@ -1827,18 +1827,24 @@ the internet slow?", "is a disk failing?" and "why is this app slow?" are answer
 Unraid's array events (a disk disabled or missing, a parity check's errors, a disk too hot) post
 through Unraid's own notifications, by its Discord agent to `#alerts` (`unraid/README.md`).
 
-**Freshness tests** (the exit criteria), one sitting of about 30 minutes: each source stopped, its
-alert posted, the source back, the alert resolved. HostDown and TargetDown were proven on 10-27.
+**Freshness tests** (the exit criteria): passed 2026-10-29 in one sitting, 00:01–00:43. Each source
+stopped, its alert posted to `#alerts`, the source back, the alert resolved (13 posts, none
+failed). HostDown and TargetDown were proven on 10-27.
 
-| Source | Stopped by | Alert |
-|---|---|---|
-| OPNsense's syslog | Ali: its remote logging target disabled | `SyslogNotArriving` opnsense |
-| OPNsense's API | Ali: the exporter's API user disabled (System → Access → Users) | `ExporterBlind` opnsense |
-| Unraid's syslog | Ali: the `skynet-heartbeat` script's schedule disabled | `SyslogNotArriving` unraid |
-| Omada | Ali: the controller's `exporter` user disabled | `ExporterBlind` omada (`TargetDown` if OmadaBridge exits) |
-| A Proxmox node's journal | Ali, as root on one node: `systemctl stop systemd-journal-upload` | `LogsNotArriving` |
-| Technitium's stats | agent, as root on technitium-core: `systemctl stop technitium-stats.timer` | `DnsStatsStale` |
-| The apps door's access log | agent, as root on docker-dmz: caddy-apps reloaded from a copy of its Caddyfile without `import access_log`, then from its own | `AccessLogsNotArriving` |
+| Source | Stopped by | Alert | Posted, resolved (10-29) |
+|---|---|---|---|
+| OPNsense's syslog | Ali: its remote logging target disabled | `SyslogNotArriving` opnsense | 00:28, 00:38 |
+| OPNsense's API | Ali: the exporter's API user disabled (System → Access → Users) | `ExporterBlind` opnsense | 00:18, 00:31 |
+| Unraid's syslog | Ali: the `skynet-heartbeat` script's schedule disabled | `SyslogNotArriving` unraid | 00:28, 00:43 |
+| Omada | Ali: the controller's `exporter` user deleted (Omada can't disable one), then made again | `ExporterBlind` omada | 00:21, 00:32 |
+| A Proxmox node's journal | Ali, as root on server-proxmox-core: `systemctl stop systemd-journal-upload` | `LogsNotArriving` | 00:33, 00:38 |
+| Technitium's stats | agent, as root on technitium-core: `systemctl stop technitium-stats.timer` | `DnsStatsStale` | 00:21, 00:26 |
+| The apps door's access log | agent, as root on docker-dmz: caddy-apps reloaded from a copy of its Caddyfile without `import access_log`, then from its own | `AccessLogsNotArriving` | 00:23, 00:33 |
+
+- A log rule runs every 5 minutes and queries up to the last 5-minute mark, so a freshness alert
+  posts 15–25 minutes after its source goes quiet, and resolves up to 10 minutes after it's back.
+- Omada's user change also proved its syslog path: the controller's own lines ("exporter deleted",
+  "failed to log in", "logged in") arrived from 10.10.50.25 as they happened.
 
 **Cost:** two small containers (about 50 MB) and about 8,000 more series. That takes the 13-month
 disk estimate from 12–18 GB to 18–27 GB, past docker-admin's 20 GB free before P6's rebuild grows
