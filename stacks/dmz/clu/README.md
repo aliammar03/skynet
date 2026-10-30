@@ -30,6 +30,9 @@
     anywhere else, its API with its key and nothing more), `verify_xff_header` 0 (the client in
     `X-Forwarded-For` is Ali's, not the door's). Easynews: `news.us.easynews.com`, port 119, no SSL
     (Ali, 2026-10-29); its US hosts, not its EU ones (0.25 MB/s from here against 17–25 MB/s).
+    Thundernews, Ali's block account, fills the articles Easynews lacks: another backbone
+    (UsenetExpress; Easynews is Omicron), `news.thundernews.com`, port 563 with SSL, 10
+    connections, priority 1 and optional, so SABnzbd asks it only for what Easynews is missing.
   - JDownloader: `door-jdownloader` and `egress` (file hosts, Premiumize, its own updates).
 - **Data:**
   - `/opt/appdata/clu/config` → CLU's `/config`: its database (settings, library index, wanted list,
@@ -52,12 +55,13 @@
     `<publisher>/<series>/`. Files land there as `99:100` (Unraid's `nobody:users`, all_squash),
     the user CLU runs as (`PUID`/`PGID`).
 - **Secrets:** none in git. Ali's Metron account, ComicVine and NZBGeek keys live in CLU's database,
-  his Easynews login in SABnzbd's settings, his Premiumize login in JDownloader's; SABnzbd's API key
+  his Easynews and Thundernews logins in SABnzbd's settings, his Premiumize login in JDownloader's; SABnzbd's API key
   in SABnzbd's settings and CLU's database.
 - **Setup:**
   - Ali: CLU → Settings → Metadata providers: Metron (its Wanted list, pull list and subscriptions
     need it) and the ComicVine key; → Download & API → Indexers: NZBGeek
-    (`https://api.nzbgeek.info`, his API key). SABnzbd's wizard: the Easynews login. JDownloader →
+    (`https://api.nzbgeek.info`, his API key). SABnzbd's wizard: the Easynews login; → Config →
+    Servers: Thundernews as above, with its login. JDownloader →
     Settings → Account Manager → premiumize.me: the customer ID and API key.
   - The agent (D16), through CLU's API: Download Packs and CBR→CBZ on; timezone `5` (an hour offset);
     folder monitoring on; sources `usenet`, then `getcomics`; SABnzbd as its Usenet client
