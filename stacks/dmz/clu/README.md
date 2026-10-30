@@ -83,7 +83,7 @@
   - The agent, in JDownloader, after its first start and while it's stopped: archive extraction off
     (`cfg/org.jdownloader.extensions.extraction.ExtractionExtension.json`: `"enabled": false`), so
     CLU alone unpacks what lands in its `temp/`.
-- **Patches:** `patches/apply.py` fixes five things in CLU v7.0 at each start, before CLU's
+- **Patches:** `patches/apply.py` fixes six things in CLU v7.0 at each start, before CLU's
   entrypoint (its `clu-patch:` lines in the log):
   - a Usenet download is filed once `temp/` empties, as a direct download is (CLU never filed one);
   - an issue with no on-sale date counts as out by its cover date (Metron lacks on-sale dates for
@@ -94,7 +94,12 @@
     release's year whenever it fetched no metadata, which it skips for a release that arrives
     tagged: Watchmen #5–#12 came as `(1987)`);
   - a hyphen is a space when a release's series name is matched (CLU scored Zone-Empire's digital
-    "All-Star Superman" 0 against Metron's "All Star Superman" and took 2006 scans at 1280×1967).
+    "All-Star Superman" 0 against Metron's "All Star Superman" and took 2006 scans at 1280×1967);
+  - when SABnzbd fails a post (articles missing), CLU grabs the next-best accepted post for the
+    issue, until one completes or none is left, and never takes a failed post again (kept, as title
+    and size, in `/config/skynet_failed_posts.json`); and a trailing "REPOST" no longer lowers a
+    post's score (CLU stopped at a failed post for All Star Superman #1 and #4, while complete
+    reposts at 1920×2951 scored 30).
 
   A fix whose text CLU's code no longer has (after an update) is left out with a `clu-patch:` line,
   and that file runs as shipped. On a CLU update: read those lines, and drop each fix CLU now has.

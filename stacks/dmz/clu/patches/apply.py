@@ -1,4 +1,4 @@
-"""Five fixes to CLU v7.0 until CLU ships its own (stacks/dmz/clu/README.md → Patches).
+"""Six fixes to CLU v7.0 until CLU ships its own (stacks/dmz/clu/README.md → Patches).
 
 The container runs this as root before CLU's entrypoint. Each fix replaces one exact piece of
 CLU's code. A file is rewritten only when all its fixes apply and the result compiles; when CLU's
@@ -158,8 +158,136 @@ HYPHEN_IS_SPACE = (
     "        )\n",
 )
 
+# 6. When the download client fails a post (articles missing), CLU records it, never takes it again,
+#    and grabs the next-best accepted post for the issue; and "REPOST" in a title no longer costs it
+#    the match (CLU scored All Star Superman #1 and #4's complete reposts 30 and gave up on both).
+FAILOVER_HELPERS = (
+    "failover",
+    "def try_download_for_issue(\n",
+    '''_SKYNET_FAILED_FILE = "/config/skynet_failed_posts.json"
+_skynet_failed_lock = threading.Lock()
+
+
+def _skynet_failed_keys():
+    """Skynet patch: posts a download client has failed, as (title, size)."""
+    import json
+
+    try:
+        with open(_SKYNET_FAILED_FILE, encoding="utf-8") as f:
+            return {tuple(k) for k in json.load(f)}
+    except (OSError, ValueError):
+        return set()
+
+
+def _skynet_failed_before(r):
+    return (r.title, r.size or 0) in _skynet_failed_keys()
+
+
+def _skynet_mark_failed(title, size):
+    import json
+
+    with _skynet_failed_lock:
+        keys = _skynet_failed_keys() | {(title, size or 0)}
+        try:
+            with open(_SKYNET_FAILED_FILE, "w", encoding="utf-8") as f:
+                json.dump(sorted(keys), f)
+        except OSError as e:
+            app_logger.warning(f"Skynet patch: could not record failed post {title}: {e}")
+
+
+def _skynet_scoring_title(title):
+    """Skynet patch: a trailing "REPOST" says nothing about which issue a post is."""
+    import re
+
+    return re.sub(r"\\s*[\\[(]?\\bre-?post\\b[\\])]?\\s*$", "", title or "", flags=re.IGNORECASE)
+
+
+def _skynet_remember_alternates(download_id, res, chosen, series_name, issue_num):
+    """Skynet patch: the other accepted posts, best first, for when this one fails."""
+    ranked = sorted(
+        (r for r in res["all_results"] if r["decision"] == "ACCEPT" and r["nzb_url"] != chosen.nzb_url),
+        key=lambda r: (-r["score"], -(r["size"] or 0)),
+    )
+    with _jobs_lock:
+        job = usenet_downloads.get(download_id)
+        if job is not None:
+            job["skynet_post"] = (chosen.title, chosen.size or 0)
+            job["skynet_alternates"] = ranked
+            job["skynet_issue"] = (series_name, issue_num)
+
+
+def _skynet_try_next(download_id):
+    """Skynet patch: a post the client failed is recorded, and the next-best one grabbed."""
+    with _jobs_lock:
+        job = dict(usenet_downloads.get(download_id) or {})
+    post = job.get("skynet_post")
+    if not post:
+        return  # a manual grab: nothing to fall back to
+    _skynet_mark_failed(*post)
+    failed = _skynet_failed_keys()
+    left = [a for a in job.get("skynet_alternates") or [] if (a["title"], a["size"] or 0) not in failed]
+    series_name, issue_num = job["skynet_issue"]
+    if not left:
+        app_logger.warning(f"Skynet patch: {post[0]} failed at the client; no other post for {series_name} #{issue_num}")
+        return
+    nxt = left[0]
+    app_logger.info(f"Skynet patch: {post[0]} failed at the client; trying {nxt['title']} ({len(left) - 1} more left)")
+    filename = _make_filename(series_name, issue_num, None, "direct match")
+    new_id = grab_nzb(nxt["nzb_url"], filename, series=series_name, issue=issue_num)
+    if new_id:
+        with _jobs_lock:
+            new_job = usenet_downloads.get(new_id)
+            if new_job is not None:
+                new_job["skynet_post"] = (nxt["title"], nxt["size"] or 0)
+                new_job["skynet_alternates"] = left[1:]
+                new_job["skynet_issue"] = (series_name, issue_num)
+
+
+def try_download_for_issue(
+''',
+)
+FAILOVER_REMEMBER = (
+    "failover",
+    "    download_id = grab_nzb(result.nzb_url, filename, series=series_name, issue=issue_num)\n",
+    "    download_id = grab_nzb(result.nzb_url, filename, series=series_name, issue=issue_num)\n"
+    "    if download_id:\n"
+    "        _skynet_remember_alternates(download_id, res, result, series_name, issue_num)\n",
+)
+FAILOVER_ON_FAILED = (
+    "failover",
+    '            elif status.status == "failed":\n'
+    '                _set_status(download_id, "failed", error="Download failed at client")\n',
+    '            elif status.status == "failed":\n'
+    '                _set_status(download_id, "failed", error="Download failed at client")\n'
+    "                _skynet_try_next(download_id)\n",
+)
+FAILOVER_SCORING_TITLE = (
+    "failover",
+    "        score, is_range, series_match, issue_matched = score_getcomics_result(\n"
+    "            r.title, series_name, issue_num, issue_year,\n",
+    "        score, is_range, series_match, issue_matched = score_getcomics_result(\n"
+    "            _skynet_scoring_title(r.title), series_name, issue_num, issue_year,\n",
+)
+FAILOVER_SKIP_FAILED = (
+    "failover",
+    '        if decision == "ACCEPT" and not issue_matched:\n            decision = "REJECT"\n',
+    '        if decision == "ACCEPT" and not issue_matched:\n            decision = "REJECT"\n'
+    "        # Skynet patch: a post the download client failed before is not taken again.\n"
+    '        if decision == "ACCEPT" and _skynet_failed_before(r):\n'
+    '            decision = "REJECT"\n',
+)
+
 FIXES = {
-    USENET: [FILE_AFTER_IMPORT, FILE_AFTER_IMPORT_HELPER, BIGGER_WINS],
+    USENET: [
+        FILE_AFTER_IMPORT,
+        FILE_AFTER_IMPORT_HELPER,
+        BIGGER_WINS,
+        FAILOVER_HELPERS,
+        FAILOVER_REMEMBER,
+        FAILOVER_ON_FAILED,
+        FAILOVER_SCORING_TITLE,
+        FAILOVER_SKIP_FAILED,
+    ],
     APP: [UNDATED_SEARCHED, NAME_FROM_SERIES, NAME_FROM_SERIES_HELPER],
     SCORER: [HYPHEN_IS_SPACE],
 }
