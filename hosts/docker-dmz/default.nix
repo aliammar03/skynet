@@ -83,6 +83,8 @@ in
     "d /var/cache/clu/downloads 0755 99 100 -"
     "d /var/cache/clu/downloads/temp 0755 99 100 -"
     "d /var/cache/clu/downloads/processed 0755 99 100 -"
+    # CLU's local ComicVine database: its refresh stages the new file in this folder, as 99:100.
+    "d /var/cache/clu/comicvine 0755 99 100 -"
     # SABnzbd's `clu` category folder, mounted in SABnzbd and CLU at the same path.
     "d /var/cache/sabnzbd/clu 0755 99 100 -"
   ];
