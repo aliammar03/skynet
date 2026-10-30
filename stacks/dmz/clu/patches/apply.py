@@ -1,4 +1,4 @@
-"""Six fixes to CLU v7.0 until CLU ships its own (stacks/dmz/clu/README.md → Patches).
+"""Eight fixes to CLU v7.0 until CLU ships its own (stacks/dmz/clu/README.md → Patches).
 
 The container runs this as root before CLU's entrypoint. Each fix replaces one exact piece of
 CLU's code. A file is rewritten only when all its fixes apply and the result compiles; when CLU's
@@ -277,6 +277,42 @@ FAILOVER_SKIP_FAILED = (
     '            decision = "REJECT"\n',
 )
 
+# 7. A series' search aliases are searched on Usenet too, not only used to score: Metron's
+#    "TMNT: The Last Ronin" is posted as "Teenage Mutant Ninja Turtles - The Last Ronin", and CLU
+#    found nothing for #2-#5 under the short name.
+ALIASES_SEARCHED = (
+    "aliases-searched",
+    "    queries = _build_queries(series_name, issue_num)\n",
+    "    queries = _build_queries(series_name, issue_num)\n"
+    "    # Skynet patch: the series' search aliases are searched too.\n"
+    "    for _alias in series_aliases or []:\n"
+    "        queries += [q for q in _build_queries(_alias, issue_num) if q not in queries]\n",
+)
+
+# 8. Filing waits while CLU is still converting a CBR in TARGET: it converts after the move into
+#    TARGET, and a file filed mid-conversion stayed a CBR while its CBZ was orphaned in TARGET.
+FILE_AFTER_CONVERSION = (
+    "file-after-conversion",
+    "    # Load rename pattern\n    enabled, pattern = load_custom_rename_config()\n",
+    "    # Skynet patch: wait (at most 10 minutes) while a CBR that just arrived in TARGET, or a\n"
+    "    # conversion's .temp_ folder, is still fresh, so a CBR is filed as its CBZ.\n"
+    "    for _ in range(120):\n"
+    "        _now = time.time()\n"
+    "        try:\n"
+    "            _busy = any(\n"
+    "                (e.name.startswith('.temp_') or e.name.lower().endswith(('.cbr', '.rar')))\n"
+    "                and _now - max(e.stat().st_mtime, e.stat().st_ctime) < 120\n"
+    "                for e in os.scandir(target_folder)\n"
+    "            )\n"
+    "        except OSError:\n"
+    "            _busy = False\n"
+    "        if not _busy:\n"
+    "            break\n"
+    "        time.sleep(5)\n"
+    "\n"
+    "    # Load rename pattern\n    enabled, pattern = load_custom_rename_config()\n",
+)
+
 FIXES = {
     USENET: [
         FILE_AFTER_IMPORT,
@@ -287,8 +323,9 @@ FIXES = {
         FAILOVER_ON_FAILED,
         FAILOVER_SCORING_TITLE,
         FAILOVER_SKIP_FAILED,
+        ALIASES_SEARCHED,
     ],
-    APP: [UNDATED_SEARCHED, NAME_FROM_SERIES, NAME_FROM_SERIES_HELPER],
+    APP: [UNDATED_SEARCHED, NAME_FROM_SERIES, NAME_FROM_SERIES_HELPER, FILE_AFTER_CONVERSION],
     SCORER: [HYPHEN_IS_SPACE],
 }
 
