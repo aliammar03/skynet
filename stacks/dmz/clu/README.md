@@ -66,7 +66,8 @@
     the local ComicVine database: its path `/comicvine/localcv.db`, its two-weekly refresh on, a
     first download (`POST /api/providers/comicvine_sqlite/update`), and the library's metadata
     providers in the order Metron, ComicVine (local), ComicVine (its API, for issues newer than
-    the copy).
+    the copy); file names `{series_name} ({volume_year}) #{issue_number}` (Ali, 2026-10-30), the
+    issue number padded to three digits (its default): `Ultimate Spider-Man (2000) #004.cbz`.
   - The agent, in SABnzbd: through its API, `sabnzbd.aliammar.net` in `host_whitelist`, folders
     `/downloads/incomplete` and `/downloads/complete`, the category `clu` → `/usenet`,
     `verify_xff_header` 0, the Easynews server above with 20 connections and 5 articles per request;
@@ -95,6 +96,10 @@
 - Re-packing a CBZ whose pages sit in one subfolder can stop half-way with no error logged, leaving
   a `<name>.zip` and a `<name>_folder` in the series folder. Grab another copy instead.
 - A series page's "check for missing issues" is a real search and download, not a count.
+- It names a download twice: first from the release's name, where `{volume_year}` can only be the
+  year in that name (the cover year: `Ultimate Spider-Man (2001) #004`), then, once filed, from
+  the metadata it fetches (the series' start year: `(2000)`). A file whose metadata lookup fails
+  keeps the first name.
 - With its GetComics index empty, its searches go live, several variants an issue: GetComics
   answered 429 (too many requests) 213 times in 20 minutes on 2026-10-30. Usenet first keeps that
   down; the index fills for followed series, 300 posts a night.
