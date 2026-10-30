@@ -29,7 +29,7 @@
 | P5 | Observability (agent eyes) | in progress (2026-10-26): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`, #88); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics; alerts: two vmalerts and Alertmanager to `#alerts`, its Watchdog to healthchecks.io (#91; both watchdogs, HostDown, TargetDown and DiskFull proven live 10-27); Grafana at `grafana.aliammar.net` (OIDC through admin Authelia; Live and Backups boards of our own, seven upstream) and the agent's MCP servers at `/mcp`; Ali's first Grafana login 10-27. Wider eyes live 10-28 (#102–#109): the Proxmox nodes, OPNsense, the doors' access logs, Unraid, Omada, Technitium's stats and query log. Asked and answered through the MCP tools on 10-28: network (the nodes' backups reach PBS over VLAN 50, not through OPNsense; technitium-network's 700 refusals were one burst), storage (night 2's guest backups, verify, restic and Drive copy). Every Wider eyes source's freshness alert posted and resolved in the tests of 10-29 (Wider eyes → Freshness tests). Next: the week's sizing check (11-03) |
 | P6 | Agent autonomy | planned (2026-10-26): the leash first (comin's testing branches off, with the plan), then tiered merges with verify and rollback, the incident loop, the rekey workflow, OpenTofu for our VMs and the OPNsense aliases; after P5 |
 | P7 | Retire v1 + disaster recovery | outline; v1's guests are already gone (Ali, 2026-10-25) |
-| P8 | Comics and manga | building (2026-10-29): Komga, Uchiyomi (#119) and Kapowarr (#121) live, the agent's accounts made, sources set, Ali's iPad readers connected, Manga and Comics libraries with downloads sorted by type (#122), Suwayomi's UI on Uchiyomi's engine for the trial (#123); Mylar3 and SABnzbd for comics from Usenet (#124; Easynews, NZBGeek), docker-dmz at 12 GB, the apps' Authelia keeping sessions across restarts (#125); SABnzbd on its own usenet address and JDownloader 2 for GetComics through Premiumize (#127); CLU for old runs from GetComics next. Uchiyomi on trial (finds, downloads, reads) and Komga's library, both on Unraid's `Storage`; the agent configures them (D16) |
+| P8 | Comics and manga | building (2026-10-29): Komga, Uchiyomi (#119) and Kapowarr (#121) live, the agent's accounts made, sources set, Ali's iPad readers connected, Manga and Comics libraries with downloads sorted by type (#122), Suwayomi's UI on Uchiyomi's engine for the trial (#123); Mylar3 and SABnzbd for comics from Usenet (#124; Easynews, NZBGeek), docker-dmz at 12 GB, the apps' Authelia keeping sessions across restarts (#125); SABnzbd on its own usenet address and JDownloader 2 through Premiumize (#127); CLU (#128, #130) in place of Kapowarr and Mylar3, SABnzbd and JDownloader under it (Ali, 2026-10-30). Uchiyomi on trial (finds, downloads, reads) and Komga's library, both on Unraid's `Storage`; the agent configures them (D16) |
 
 ## Target state
 
@@ -2213,10 +2213,7 @@ it needs only docker-dmz and Unraid.
 |---|---|---|---|
 | Browse, download and read: **on trial** (Ali, 2026-10-29) | Uchiyomi 0.99 (95★; one maintainer, a release every few days) | a library, reader and downloader in one: MangaDex's API and common site families built in, Mihon's extensions through a bundled Suwayomi engine; follows series and fetches new chapters; a webtoon-first reader that works offline (PWA); OPDS and a Komga-compatible API; OIDC; scoped API tokens, and everything its web app does through a documented API (`/api/docs`) | Suwayomi-Server 2.4 alone (7.9k★, the mature choice and the fallback if the trial fails; it is Uchiyomi's engine anyway); Tranga (no release since 2023) |
 | Library and reader | Komga 1.29 (6.8k★) | a series per folder at any depth, so any downloader's folders need no rework; a web reader with right-to-left, double pages and webtoon scroll; OPDS for iPad apps; OIDC login (Authelia documents a Komga client); API keys | Kavita 0.9 (12k★, a polished reader with ebooks too, but its scanner wants `Library/Series/`, and its manga metadata is the paid Kavita+) |
-| Western comics (Ali, 2026-10-29) | Kapowarr 1.3 (1.1k★, active) | finds a volume's issues on GetComics and downloads whole issues and collections as published, filed by publisher and series with ComicVine's metadata | Mihon's comic extensions (keiyoushi has four Marvel/DC aggregators, one broken on 2026-10-29, ReadComicOnline gone; dead image links leave holes); Mylar3 (slower on GetComics; it runs for Usenet, below) |
-| Western comics from Usenet (Ali, 2026-10-29: his Easynews and NZBGeek) | Mylar3 0.11 (moved to github.com/MylarComics in 2026-03, three releases since; linuxserver builds from there) and SABnzbd 5.1 | Mylar3 follows series on ComicVine, searches a Newznab indexer for each new issue, has SABnzbd download it, then renames, tags (ComicInfo) and files it; no file hosts in between | Kapowarr (GetComics and torrents only); Premiumize (Ali's; a cloud downloader without NNTP access, which Mylar3 can't drive) |
-| What Usenet lacks (Ali, 2026-10-29: his Premiumize) | Mylar3's GetComics search, its links to JDownloader 2 (jlesage's image, 1.5k★) | old runs come as whole-run packs there; JDownloader downloads the file hosts' links with Premiumize as its premium account, retries other mirrors and unpacks the packs, and Mylar3 drives it over its local API (Mylar3 0.9+) | Mylar3's own file-host downloaders (free-tier speeds); torrents (Mylar3's FAQ: rarely single issues); AirDC++ (needs a hub of Ali's, and Direct Connect hubs expect a share in return) |
-| Old runs from GetComics (Ali, 2026-10-30) | CLU 7.0 (Comic Library Utilities, 293★, releases every week or two) | searches a local index of GetComics' sitemap instead of walking its result pages, scores each result against the wanted issue and takes the pack that holds it once (Download Packs); files into series folders; pull list, bulk CBR→CBZ and ComicInfo tools | Mylar3's GetComics search (15 s a page, about five minutes an issue, found none of Ultimate Spider-Man 2000's on 2026-10-30); Kapowarr (volumes, but no pack scoring) |
+| Western comics (Ali, 2026-10-30) | CLU 7.0 (Comic Library Utilities, 293★, releases every week or two), with SABnzbd 5.1 for Usenet (Ali's Easynews and NZBGeek) and JDownloader 2 for his own picks (his Premiumize) | follows series on Metron; Usenet first (on Ultimate Spider-Man 2000 it found 10 of 14 sample issues where Mylar3 found 2), then GetComics from a local index of its sitemap, scoring each result and taking the pack that holds a missing issue once (Watchmen's pack: clean, in 17 minutes); files into series folders; pull list, bulk CBR→CBZ and ComicInfo tools | Kapowarr 1.3 (its download of the same Watchmen pack came back corrupt after hours at 40 KB/s); Mylar3 0.11 (its Usenet search missed most of a run, and Ali found its UI hard); Mihon's comic extensions (one broken on 2026-10-29, Read Comics Online behind a Cloudflare check since that evening; dead image links leave holes); Premiumize alone (no NNTP; it serves JDownloader) |
 | iPad | Panels or Komic, both on the App Store, free with paid tiers; Uchiyomi's PWA | native readers of Komga (Komic, and Panels over OPDS) with downloads for offline reading; Panels adds guided view and double pages | Aidoku (open source, browses sources on the iPad itself, but a beta outside the App Store: TestFlight or AltStore); Paperback (no release since 2025-05) |
 
 **Sources are Ali's.** Uchiyomi ships none enabled: Ali names the sources and the agent turns them
@@ -2225,7 +2222,7 @@ sites. Licensed series come from their publishers' apps, or as bought DRM-free f
 
 ### Where it runs
 
-- **docker-dmz**, five stacks (`runbooks/new-stack.md`), each app on a door network of its own:
+- **docker-dmz**, three stacks (`runbooks/new-stack.md`), each app on a door network of its own:
   - `stacks/dmz/uchiyomi`: Uchiyomi, its database inside (Postgres in `/data`), its extension
     engine (Suwayomi, `-Xmx768m`, as upstream pins it) and its Cloudflare solver (FlareSolverr, a
     headless Chrome; Ali, 2026-10-29: kept on). Its state in `/opt/appdata/uchiyomi` (database,
@@ -2233,22 +2230,14 @@ sites. Licensed series come from their publishers' apps, or as bought DRM-free f
     ext4, capped at 5 GiB, out of the backup.
   - `stacks/dmz/komga`: Komga, its state in `/opt/appdata/komga` (backup class: data), Ali's folders
     read-only.
-  - `stacks/dmz/kapowarr`: Kapowarr, behind the apps' Authelia (`admins`; no login of its own), its
-    state in `/opt/appdata/kapowarr` (backup class: data), its downloads in progress on the host's
-    ext4, its root folder `Books/Comics/kapowarr`. 106 MiB at start (2026-10-29).
-  - `stacks/dmz/mylar3`: Mylar3, SABnzbd and JDownloader 2, all behind the apps' Authelia
-    (`admins`; no logins of their own), their state in `/opt/appdata/mylar3` (backup class: data),
-    the downloads on the host's ext4, Mylar3's comic location `Books/Comics/mylar3`. SABnzbd is the
-    usenet client the Conventions plan for: on the macvlan at 10.10.100.66, in
-    `ROLE_USENET_CLIENTS` (rule 820: 119/563), Easynews' US host on 119 without SSL (Ali,
-    2026-10-29; the EU host crawls from here). JDownloader takes GetComics' file-host links from
-    Mylar3 and downloads them through Ali's Premiumize. 60, 65 and 184 MiB at start; 157 and 126 at
-    most with Watchmen's 12 issues found, downloaded at 25 MB/s and filed in 12 minutes, and
-    JDownloader 500 downloading and unpacking (2026-10-29).
-  - `stacks/dmz/clu`: CLU, behind the apps' Authelia (`admins`; single-user, no login of its own),
-    its state in `/opt/appdata/clu` (backup class: data), its downloads and covers on the host's
-    ext4, its library `Books/Comics/clu`. Usenet through the SABnzbd above (category `clu`, on trial
-    against Mylar3; Ali, 2026-10-30), reached on `mylar3_backend`. 200 MiB at start (2026-10-30).
+  - `stacks/dmz/clu`: CLU, SABnzbd and JDownloader 2, all behind the apps' Authelia (`admins`;
+    no logins of their own), their state in `/opt/appdata/clu` (backup class: data), the downloads
+    on the host's ext4, CLU's library `Books/Comics/clu`. SABnzbd is the usenet client the
+    Conventions plan for: on the macvlan at 10.10.100.66, in `ROLE_USENET_CLIENTS` (rule 820:
+    119/563), Easynews' US host on 119 without SSL (Ali, 2026-10-29; the EU host crawls from
+    here). JDownloader downloads Ali's own picks through his Premiumize into CLU's downloads. CLU
+    200–230 MiB; SABnzbd 65 idle and 126 at most at 25 MB/s; JDownloader 184 at start and 500
+    downloading and unpacking (2026-10-29/30).
 - **Memory:** the core node (31.2 GiB) sits at Proxmox's 80% ballooning target. Its VMs' maximums
   add up to 31 GiB, and about 8 GiB of what it holds is the guests' own file cache (2026-10-29: ops
   holds 5.7 GiB for a 2.4 GiB peak, PBS 3.2 for 0.6, docker-dmz 7.2 for 4.9). The two stacks add
@@ -2269,16 +2258,15 @@ sites. Licensed series come from their publishers' apps, or as bought DRM-free f
     sources' downloads, as `<source>/<series>/`; `Manga/suwayomi/`: Suwayomi's, as
     `mangas/<source>/<series>/`;
   - `Comics/library/`: Ali's comics; `Comics/uchiyomi/` and `Comics/suwayomi/`: their comic
-    sources' downloads; `Comics/kapowarr/`, `Comics/mylar3/` and `Comics/clu/`: Kapowarr's,
-    Mylar3's and CLU's, as `<publisher>/<series>/`.
+    sources' downloads; `Comics/clu/`: CLU's, as `<publisher>/<series>/`.
 
   Uchiyomi and Suwayomi each write every download under one folder (`Manga/uchiyomi`,
   `Manga/suwayomi`); each comic source's folder there is a bind mount from
   `Comics/<app>/<source>`, one compose line per comic extension.
   Komga has a library per type (one folder each, read-only). Uchiyomi's libraries are lists of
-  folders: Comics (Ali's comics, Kapowarr's, Mylar3's, CLU's and the comic sources'; AniList
-  lookups off) and Manga (everything else). The share stays out of the nightly backups: downloads can be fetched
-  again, and Ali's `library/` folders wait on P4 → Open (Unraid shares offsite).
+  folders: Comics (Ali's comics, CLU's and the comic sources'; AniList lookups off) and Manga
+  (everything else). The share stays out of the nightly backups: downloads can be fetched again,
+  and Ali's `library/` folders wait on P4 → Open (Unraid shares offsite).
 - **Doors** (caddy-apps; inside and over Tailscale, which already routes 10.10.100.35; not public):
   - `uchiyomi.aliammar.net` → Uchiyomi, auth `own`: OIDC through the apps' Authelia (an OIDC client
     `uchiyomi`; Authelia's `admins` are its admins), and its own OPDS token for iPad apps;

@@ -33,17 +33,15 @@ in
     subnet = "10.10.100.0/24";
     gateway = "10.10.100.1";
   };
-  # calibre, CLU, JDownloader, kapowarr, Mylar3 and Suwayomi (Uchiyomi's engine) have no login of
-  # their own: caddy-apps reaches each on a network only the two share. Komga and Uchiyomi have one, but
-  # read Ali's files, so nothing else on `edge` reaches them either. (SABnzbd has no login either:
+  # calibre, CLU, JDownloader and Suwayomi (Uchiyomi's engine) have no login of their own:
+  # caddy-apps reaches each on a network only the two share. Komga and Uchiyomi have one, but read
+  # Ali's files, so nothing else on `edge` reaches them either. (SABnzbd has no login either:
   # caddy-apps reaches it on the macvlan, where OPNsense names it for usenet.)
   skynet.docker.doorNetworks = [
     "door-calibre"
     "door-clu"
     "door-jdownloader"
-    "door-kapowarr"
     "door-komga"
-    "door-mylar3"
     "door-suwayomi"
     "door-uchiyomi"
   ];
@@ -76,11 +74,9 @@ in
     # Uchiyomi's extension engine runs as its image's user 1000 and doesn't take its folder over
     # (skynetv2.md → Conventions → Data).
     "d /opt/appdata/uchiyomi/engine 0750 1000 1000 -"
-    # SABnzbd's and JDownloader's downloads (stacks/dmz/mylar3), outside /opt/appdata: they and
-    # Mylar3 run as 99:100.
+    # SABnzbd's downloads (stacks/dmz/clu), outside /opt/appdata; it runs as 99:100.
     "d /var/cache/sabnzbd 0755 99 100 -"
-    "d /var/cache/jdownloader 0755 99 100 -"
-    # CLU's covers and downloads (stacks/dmz/clu); it runs as 99:100 too.
+    # CLU's covers and downloads (JDownloader saves into downloads/temp); 99:100 too.
     "d /var/cache/clu/thumbnails 0755 99 100 -"
     "d /var/cache/clu/downloads 0755 99 100 -"
     # SABnzbd's `clu` category folder, mounted in SABnzbd and CLU at the same path.

@@ -10,13 +10,11 @@ clu                   300       IN  A             10.10.100.35
 grafana               300       IN  A             10.10.60.60
 homeassistant         300       IN  A             10.10.100.35
 jdownloader           300       IN  A             10.10.100.35
-kapowarr              300       IN  A             10.10.100.35
 karakeep              300       IN  A             10.10.100.35
 komga                 300       IN  A             10.10.100.35
 login                 300       IN  A             10.10.100.35
 logs                  300       IN  A             10.10.60.60
 marinara              300       IN  A             10.10.100.35
-mylar3                300       IN  A             10.10.100.35
 metrics               300       IN  A             10.10.60.60
 ns                    300       IN  A             10.10.70.50
 ns                    300       IN  A             10.10.70.51

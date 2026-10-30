@@ -1,9 +1,10 @@
-# CLU, Comic Library Utilities (clu.aliammar.net): a comic library manager with its own GetComics
-# search (a local index of GetComics' sitemap, a scorer that takes the pack holding a missing issue),
-# a pull list, and bulk CBR→CBZ, renaming and ComicInfo tools. It files what it downloads into its
-# own library, Books/Comics/clu on Unraid, where Komga and Uchiyomi read it. No login of its own
-# (single-user): the apps' Authelia guards it (admins). Inside and over Tailscale only. Not on
-# `edge`: caddy-apps is the only container that reaches it.
+# CLU, Comic Library Utilities (clu.aliammar.net): Western comics. It follows Ali's series (Metron),
+# finds their missing issues on Usenet (NZBGeek, downloaded by its SABnzbd from Easynews) and then on
+# GetComics (its own index and scorer), and files them into its library, Books/Comics/clu on Unraid,
+# where Komga and Uchiyomi read them. JDownloader 2 (jdownloader.aliammar.net) is for Ali's own
+# picks: what it downloads through his Premiumize lands in CLU's downloads, which CLU processes. No
+# logins of their own: the apps' Authelia guards all three (admins). Inside and over Tailscale only.
+# Not on `edge`: caddy-apps is the only container that reaches their pages.
 services:
   clu:
     container_name: clu
@@ -16,14 +17,14 @@ services:
       PUID: "99"
       PGID: "100"
       UMASK: "022"
-    # Measured 2026-10-30: 200 MiB after start and four GetComics searches; room for building its
-    # GetComics index and unpacking packs.
+    # Measured 2026-10-30: 200 MiB after start, 230 MiB building its index and filing Ultimate
+    # Spider-Man's backfill.
     mem_limit: 1g
     volumes:
       - /opt/appdata/clu/config:/config # its database: settings, library index, wanted list, keys
       - /var/cache/clu/thumbnails:/cache # covers it draws; rebuilt on demand
       # Downloads (temp/) and their processed copies (processed/) before it files them; on the host's
-      # ext4, outside /opt/appdata's snapshots and the backup.
+      # ext4, outside /opt/appdata's snapshots and the backup. JDownloader saves into temp/ too.
       - /var/cache/clu/downloads:/downloads
       # SABnzbd's `clu` category: it finishes CLU's Usenet jobs here, and CLU moves them into its
       # downloads (temp/) to process. The same path in both, because CLU looks for a finished job
@@ -37,8 +38,8 @@ services:
       # Its way out (GetComics, MEGA, Pixeldrain, Metron, NZBGeek, ComicVine); nothing else is on
       # it.
       egress: {}
-      # SABnzbd's internal network (stacks/dmz/mylar3), where CLU calls `http://sabnzbd:8080`.
-      mylar3_backend: {}
+      # SABnzbd, by name.
+      backend: {}
     healthcheck:
       # The image has Python and wget but no curl.
       test: [CMD, python3, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5577/', timeout=5)"]
@@ -46,9 +47,76 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+  sabnzbd:
+    container_name: sabnzbd
+    # Its host check admits its own hostname, set at first start: CLU calls it by this name.
+    hostname: sabnzbd
+    image: lscr.io/linuxserver/sabnzbd:5.1.3-ls279@sha256:a7cfba459929f73b83c98b476a845076dc72524af80b24fcb4200684e6b1b675
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Karachi
+      PUID: "99"
+      PGID: "100"
+    # Measured 2026-10-29: 65 MiB idle, 126 MiB at most downloading and unpacking at 25 MB/s. Its
+    # article cache can grow to 192 MiB (its default for this limit), and par2 runs inside it too.
+    mem_limit: 768m
+    volumes:
+      - /opt/appdata/clu/sabnzbd:/config # its settings (Easynews' login, its API key), queue, history
+      # Downloads in progress and finished, on the host's ext4: outside /opt/appdata's snapshots and
+      # the backup.
+      - /var/cache/sabnzbd:/downloads
+      # Its `clu` category's folder, at the same path as in CLU.
+      - /var/cache/sabnzbd/clu:/usenet
+    networks:
+      # Usenet the planned way (skynetv2.md → Conventions → Networks): its own address on the
+      # macvlan, which OPNsense names, so it alone leaves on the usenet ports. caddy-apps reaches it
+      # here by name; SABnzbd admits only that address to its pages (README).
+      dmz:
+        ipv4_address: 10.10.100.66 # ROLE_USENET_CLIENTS (rule 820: usenet ports 119/563)
+      # CLU, by name; internal.
+      backend: {}
+    healthcheck:
+      test: [CMD, curl, -fsS, -o, /dev/null, "http://127.0.0.1:8080/api?mode=version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+  jdownloader:
+    container_name: jdownloader
+    image: docker.io/jlesage/jdownloader-2:v26.09.1@sha256:bd6cd2fdc72818f30207e677b33cd7f1b425048c4e7132624e541e99f992be4c
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Karachi
+      USER_ID: "99"
+      GROUP_ID: "100"
+      DARK_MODE: "1"
+      JDOWNLOADER_MAX_MEM: 512M # its Java heap
+    # Measured 2026-10-29: 184 MiB after start, 475-500 MiB downloading and unpacking.
+    mem_limit: 1g
+    volumes:
+      - /opt/appdata/clu/jdownloader:/config # its settings (Premiumize's login), its own updates
+      # Its default download folder is CLU's downloads/temp/, which CLU processes and files.
+      - /var/cache/clu/downloads/temp:/output
+    networks:
+      # Its desktop in the browser (5800), shared with caddy-apps alone.
+      door-jdownloader: {}
+      # Its way out (file hosts, Premiumize, its own updates).
+      egress: {}
+    healthcheck:
+      # The image has none; its web server answers once the desktop is up.
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:5800/]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 networks:
   door-clu:
     external: true
-  egress: {}
-  mylar3_backend:
+  door-jdownloader:
     external: true
+  dmz:
+    external: true
+  egress: {}
+  # CLU and SABnzbd, by name; no way out, so SABnzbd's only route is its macvlan.
+  backend:
+    internal: true
