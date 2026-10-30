@@ -37,6 +37,9 @@
   - `/var/cache/sabnzbd` → `/downloads` in SABnzbd and Mylar3, `/var/cache/jdownloader` → `/jd2` in
     JDownloader and Mylar3: downloads in progress and finished, on the host's ext4, outside
     `/opt/appdata`'s snapshots and the backup (`hosts/docker-dmz` makes both, `99:100`);
+  - `/var/cache/sabnzbd/clu` → `/usenet` in SABnzbd and CLU (`stacks/dmz/clu`): SABnzbd's `clu`
+    category, for CLU's Usenet jobs; CLU reaches SABnzbd on this stack's `backend`
+    (`mylar3_backend`);
   - comic location `/comics` = Unraid's `Books/Comics/mylar3` (`hosts/docker-dmz`: `/mnt/storage`).
     All three run as `99:100`, Unraid's `nobody:users`.
 - **Secrets:** none in git. Ali's Easynews login lives in SABnzbd's settings, the ComicVine and

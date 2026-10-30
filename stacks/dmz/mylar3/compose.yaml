@@ -59,6 +59,8 @@ services:
       # Downloads in progress and finished, on the host's ext4: outside /opt/appdata's snapshots and
       # the backup.
       - /var/cache/sabnzbd:/downloads
+      # Its `clu` category's folder: CLU (stacks/dmz/clu) mounts it at the same path to take its jobs.
+      - /var/cache/sabnzbd/clu:/usenet
     networks:
       # Usenet the planned way (skynetv2.md → Conventions → Networks): its own address on the
       # macvlan, which OPNsense names, so it alone leaves on the usenet ports. caddy-apps reaches it

@@ -2247,7 +2247,8 @@ sites. Licensed series come from their publishers' apps, or as bought DRM-free f
     JDownloader 500 downloading and unpacking (2026-10-29).
   - `stacks/dmz/clu`: CLU, behind the apps' Authelia (`admins`; single-user, no login of its own),
     its state in `/opt/appdata/clu` (backup class: data), its downloads and covers on the host's
-    ext4, its library `Books/Comics/clu`. 200 MiB at start (2026-10-30).
+    ext4, its library `Books/Comics/clu`. Usenet through the SABnzbd above (category `clu`, on trial
+    against Mylar3; Ali, 2026-10-30), reached on `mylar3_backend`. 200 MiB at start (2026-10-30).
 - **Memory:** the core node (31.2 GiB) sits at Proxmox's 80% ballooning target. Its VMs' maximums
   add up to 31 GiB, and about 8 GiB of what it holds is the guests' own file cache (2026-10-29: ops
   holds 5.7 GiB for a 2.4 GiB peak, PBS 3.2 for 0.6, docker-dmz 7.2 for 4.9). The two stacks add

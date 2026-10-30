@@ -83,6 +83,8 @@ in
     # CLU's covers and downloads (stacks/dmz/clu); it runs as 99:100 too.
     "d /var/cache/clu/thumbnails 0755 99 100 -"
     "d /var/cache/clu/downloads 0755 99 100 -"
+    # SABnzbd's `clu` category folder, mounted in SABnzbd and CLU at the same path.
+    "d /var/cache/sabnzbd/clu 0755 99 100 -"
   ];
 
   # So copies can arrive over SSH (`--rsync-path='sudo rsync'`), as v1's data did.
