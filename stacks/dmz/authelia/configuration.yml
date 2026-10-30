@@ -36,15 +36,13 @@ totp:
 access_control:
   default_policy: deny
   rules:
-    # Ali only: none of these has a login of its own (Marinara's, Kapowarr's, Suwayomi's, Mylar3's,
-    # SABnzbd's and JDownloader's are switched off; CLU is single-user, which has none).
+    # Ali only: none of these has a login of its own (Marinara's, Suwayomi's, SABnzbd's and
+    # JDownloader's are switched off; CLU is single-user, which has none).
     - domain:
         - calibre.aliammar.net
         - sillytavern.aliammar.net
         - marinara.aliammar.net
-        - kapowarr.aliammar.net
         - suwayomi.aliammar.net
-        - mylar3.aliammar.net
         - sabnzbd.aliammar.net
         - jdownloader.aliammar.net
         - clu.aliammar.net

@@ -110,9 +110,7 @@ endpoints:
   - { <<: *forward, name: calibre, url: https://calibre.aliammar.net/ }
   - { <<: *forward, name: sillytavern, url: https://sillytavern.aliammar.net/ }
   - { <<: *forward, name: marinara, url: https://marinara.aliammar.net/ }
-  - { <<: *forward, name: kapowarr, url: https://kapowarr.aliammar.net/ }
   - { <<: *forward, name: suwayomi, url: https://suwayomi.aliammar.net/ }
-  - { <<: *forward, name: mylar3, url: https://mylar3.aliammar.net/ }
   - { <<: *forward, name: sabnzbd, url: https://sabnzbd.aliammar.net/ }
   - { <<: *forward, name: jdownloader, url: https://jdownloader.aliammar.net/ }
   - { <<: *forward, name: clu, url: https://clu.aliammar.net/ }

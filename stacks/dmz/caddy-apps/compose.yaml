@@ -27,8 +27,6 @@ services:
       door-calibre: {}
       door-clu: {}
       door-jdownloader: {}
-      door-kapowarr: {}
-      door-mylar3: {}
       door-suwayomi: {}
       # Apps that read Ali's files, alone with this door; they reach their issuer here.
       door-komga:
@@ -55,11 +53,7 @@ networks:
     external: true
   door-jdownloader:
     external: true
-  door-kapowarr:
-    external: true
   door-komga:
-    external: true
-  door-mylar3:
     external: true
   door-suwayomi:
     external: true
