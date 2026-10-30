@@ -76,9 +76,13 @@ in
     "d /opt/appdata/uchiyomi/engine 0750 1000 1000 -"
     # SABnzbd's downloads (stacks/dmz/clu), outside /opt/appdata; it runs as 99:100.
     "d /var/cache/sabnzbd 0755 99 100 -"
-    # CLU's covers and downloads (JDownloader saves into downloads/temp); 99:100 too.
+    # CLU's covers and downloads (JDownloader saves into downloads/temp); 99:100 too. temp/ and
+    # processed/ as well: CLU's entrypoint makes a missing one as root, then finds it unwritable as
+    # 99:100 and runs CLU as root.
     "d /var/cache/clu/thumbnails 0755 99 100 -"
     "d /var/cache/clu/downloads 0755 99 100 -"
+    "d /var/cache/clu/downloads/temp 0755 99 100 -"
+    "d /var/cache/clu/downloads/processed 0755 99 100 -"
     # SABnzbd's `clu` category folder, mounted in SABnzbd and CLU at the same path.
     "d /var/cache/sabnzbd/clu 0755 99 100 -"
   ];

@@ -45,8 +45,8 @@
     finished jobs wait for CLU (CLU looks for a job at the path SABnzbd reports, so the path is the
     same in both);
   - CLU's library `/data` = Unraid's `Books/Comics/clu` (`hosts/docker-dmz`: `/mnt/storage`), as
-    `<publisher>/<series>/`. Files land there as `99:100` (Unraid's `nobody:users`, all_squash);
-    CLU's processes run as root inside the container.
+    `<publisher>/<series>/`. Files land there as `99:100` (Unraid's `nobody:users`, all_squash),
+    the user CLU runs as (`PUID`/`PGID`).
 - **Secrets:** none in git. Ali's Metron account, ComicVine and NZBGeek keys live in CLU's database,
   his Easynews login in SABnzbd's settings, his Premiumize login in JDownloader's; SABnzbd's API key
   in SABnzbd's settings and CLU's database.
@@ -72,6 +72,9 @@
   [JDownloader 2 image](https://github.com/jlesage/docker-jdownloader-2)
 
 **Gotchas**
+- CLU's entrypoint runs CLU as root (its *Container user* notice) when `/downloads/temp`,
+  `/downloads/processed`, `/data` or `/cache` isn't writable by `PUID:PGID`, and makes a missing
+  `temp/` or `processed/` as root itself: the host makes both as `99:100` first (`hosts/docker-dmz`).
 - CLU dates a wanted issue by Metron's on-sale year, while releases carry the cover year (two or three
   months later), and its scorer takes 20 points off for a wrong year: an issue on sale in October to
   December is rejected (Ultimate Spider-Man #15: 20 by on-sale year, 60 by cover year), and the run
