@@ -1,4 +1,4 @@
-"""Four fixes to CLU v7.0 until CLU ships its own (stacks/dmz/clu/README.md → Patches).
+"""Five fixes to CLU v7.0 until CLU ships its own (stacks/dmz/clu/README.md → Patches).
 
 The container runs this as root before CLU's entrypoint. Each fix replaces one exact piece of
 CLU's code. A file is rewritten only when all its fixes apply and the result compiles; when CLU's
@@ -9,6 +9,7 @@ import os
 
 USENET = "/app/models/usenet.py"
 APP = "/app/app.py"
+SCORER = "/app/models/getcomics.py"
 
 # 1. A Usenet download is filed like any other: CLU runs its filing pass once WATCH empties after
 #    a direct download, and never after a Usenet import.
@@ -133,9 +134,34 @@ def process_incoming_wanted_issues():
 ''',
 )
 
+# 5. A hyphen is a space when a release's series name is compared with the wanted one: CLU scored
+#    "All-Star Superman" 0 against Metron's "All Star Superman" and took the scans named the
+#    other way. Tried only when the names don't match as written.
+HYPHEN_IS_SPACE = (
+    "hyphen-is-space",
+    "    # Series name matching — must happen before range rejection logic\n"
+    "    delta, series_match, sub_series_type, remaining, used_the_swap, detected_variant = \\\n"
+    "        _score_series_match(title_lower, title_normalized, search)\n",
+    "    # Series name matching — must happen before range rejection logic\n"
+    "    delta, series_match, sub_series_type, remaining, used_the_swap, detected_variant = \\\n"
+    "        _score_series_match(title_lower, title_normalized, search)\n"
+    '    # Skynet patch: a hyphen is a space ("All-Star Superman" is "All Star Superman").\n'
+    '    if not series_match and "-" in title_lower + search.series_name:\n'
+    "        import dataclasses\n"
+    "\n"
+    "        delta, series_match, sub_series_type, remaining, used_the_swap, detected_variant = (\n"
+    "            _score_series_match(\n"
+    '                title_lower.replace("-", " "),\n'
+    '                title_normalized.replace("-", " "),\n'
+    '                dataclasses.replace(search, series_name=search.series_name.replace("-", " ")),\n'
+    "            )\n"
+    "        )\n",
+)
+
 FIXES = {
     USENET: [FILE_AFTER_IMPORT, FILE_AFTER_IMPORT_HELPER, BIGGER_WINS],
     APP: [UNDATED_SEARCHED, NAME_FROM_SERIES, NAME_FROM_SERIES_HELPER],
+    SCORER: [HYPHEN_IS_SPACE],
 }
 
 

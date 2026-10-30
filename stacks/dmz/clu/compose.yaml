@@ -10,7 +10,7 @@ services:
     container_name: clu
     image: docker.io/allaboutduncan/comic-utils-web:v7.0@sha256:64d14273c891f5a94d5c7d1756cfce6b67dcc948027a2a2e2fce9915f66b037d
     restart: unless-stopped
-    # Four fixes to CLU v7.0 (patches/apply.py; README → Patches), applied before its own
+    # Five fixes to CLU v7.0 (patches/apply.py; README → Patches), applied before its own
     # entrypoint. The image's command is restated: a new entrypoint drops it.
     entrypoint: [/usr/bin/tini, --, /bin/sh, -c, 'python3 -I /patches/apply.py; exec /usr/local/bin/entrypoint.sh "$$@"', clu-entrypoint]
     command: [gunicorn, -w, "1", --threads, "8", -b, "0.0.0.0:5577", --timeout, "120", "app:app"]

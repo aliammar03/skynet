@@ -71,20 +71,10 @@
     `Ultimate Spider-Man (2000) #004.cbz`; series folders `{publisher}/{series_name} ({start_year})`
     (`CUSTOM_MOVE_PATTERN`, Ali, 2026-10-30), which the Subscribe dialog suggests:
     `DC Comics/Watchmen (1986)`. That one through `core.settings.set_setting` in the container and a
-    restart: its Settings page saves every field at once, so a partial save resets the rest.
-- **Patches:** `patches/apply.py` fixes four things in CLU v7.0 at each start, before CLU's
-  entrypoint (its `clu-patch:` lines in the log):
-  - a Usenet download is filed once `temp/` empties, as a direct download is (CLU never filed one);
-  - an issue with no on-sale date counts as out by its cover date (Metron lacks on-sale dates for
-    many older issues, Watchmen #2–#12 among them, and CLU never searched for those);
-  - among results with the same score the bigger post wins (CLU took the first: Watchmen #1 came as
-    a 29 MB, 1280×1968 copy where a 90 MB, 1988×3056 one scored the same);
-  - a filed issue is named from CLU's record of its series, the series' start year (CLU kept the
-    release's year whenever it fetched no metadata, which it skips for a release that arrives
-    tagged: Watchmen #5–#12 came as `(1987)`).
-
-  A fix whose text CLU's code no longer has (after an update) is left out with a `clu-patch:` line,
-  and that file runs as shipped. On a CLU update: read those lines, and drop each fix CLU now has.
+    restart: its Settings page saves every field at once, so a partial save resets the rest. WATCH
+    `/downloads/temp` and TARGET `/downloads/processed`, saved (`POST /api/config/folder-paths`):
+    unsaved, its monitor used them as defaults, but its path guard refused `processed/`, so no CBR
+    was converted.
   - The agent, in SABnzbd: through its API, `sabnzbd.aliammar.net` in `host_whitelist`, folders
     `/downloads/incomplete` and `/downloads/complete`, the category `clu` → `/usenet`,
     `verify_xff_header` 0, the Easynews server above with 20 connections and 5 articles per request;
@@ -93,6 +83,21 @@
   - The agent, in JDownloader, after its first start and while it's stopped: archive extraction off
     (`cfg/org.jdownloader.extensions.extraction.ExtractionExtension.json`: `"enabled": false`), so
     CLU alone unpacks what lands in its `temp/`.
+- **Patches:** `patches/apply.py` fixes five things in CLU v7.0 at each start, before CLU's
+  entrypoint (its `clu-patch:` lines in the log):
+  - a Usenet download is filed once `temp/` empties, as a direct download is (CLU never filed one);
+  - an issue with no on-sale date counts as out by its cover date (Metron lacks on-sale dates for
+    many older issues, Watchmen #2–#12 among them, and CLU never searched for those);
+  - among results with the same score the bigger post wins (CLU took the first: Watchmen #1 came as
+    a 29 MB, 1280×1968 copy where a 90 MB, 1988×3056 one scored the same);
+  - a filed issue is named from CLU's record of its series, the series' start year (CLU kept the
+    release's year whenever it fetched no metadata, which it skips for a release that arrives
+    tagged: Watchmen #5–#12 came as `(1987)`);
+  - a hyphen is a space when a release's series name is matched (CLU scored Zone-Empire's digital
+    "All-Star Superman" 0 against Metron's "All Star Superman" and took 2006 scans at 1280×1967).
+
+  A fix whose text CLU's code no longer has (after an update) is left out with a `clu-patch:` line,
+  and that file runs as shipped. On a CLU update: read those lines, and drop each fix CLU now has.
 - **Upstream:** [CLU](https://github.com/allaboutduncan/clu-comics) · [docs](https://clucomics.org) ·
   [SABnzbd](https://sabnzbd.org/wiki/) ·
   [JDownloader 2 image](https://github.com/jlesage/docker-jdownloader-2)
