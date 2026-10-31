@@ -55,6 +55,11 @@ next restart) / 64 GB.
   `ROLE_NIX_CACHE_CLIENTS` decides which hosts get through: a new host needs adding there. `nix-cache-key` generates the signing key once
   in `/var/lib/nix-cache-key/`. Its public half is `hosts/ops/cache.pub`, which switches the clients
   on. A rebuilt ops gets a new key, so update `cache.pub`.
+- **Tailscale:** on Ali's tailnet as `tag:ops` (D14), userspace, so ops's own routes and DNS are
+  unchanged. `ssh <machine>.<tailnet>.ts.net` goes through `tailscale nc` (`programs.ssh`, `Host
+  *.ts.net`); what `tag:ops` may reach is set in the tailnet policy (Ali's admin console).
+  `tailscale_authkey` (`secrets/ops.yaml`, tagged `tag:ops`) serves the first login only; the node
+  key then stays in `/var/lib/tailscale`. A rebuilt ops needs a fresh key.
 - **Permissions:** both sessions run in Claude Code **auto mode**: a classifier approves routine
   actions and sends anything risky to Ali as a Discord prompt. `.claude/settings.json` deny rules
   (merge, force-push, sudo on ops) and ask rules (doco-dmz's destroy and remove) apply in every mode.
