@@ -1,4 +1,4 @@
-"""Nine fixes to CLU v7.0 until CLU ships its own (stacks/dmz/clu/README.md → Patches).
+"""Ten fixes to CLU v7.0 until CLU ships its own (stacks/dmz/clu/README.md → Patches).
 
 The container runs this as root before CLU's entrypoint. Each fix replaces one exact piece of
 CLU's code. A file is rewritten only when all its fixes apply and the result compiles; when CLU's
@@ -11,6 +11,7 @@ USENET = "/app/models/usenet.py"
 APP = "/app/app.py"
 SCORER = "/app/models/getcomics.py"
 SERIES_ROUTES = "/app/routes/series.py"
+DOWNLOAD_ROUTES = "/app/routes/download_clients.py"
 
 # 1. A Usenet download is filed like any other: CLU runs its filing pass once WATCH empties after
 #    a direct download, and never after a Usenet import.
@@ -314,9 +315,11 @@ FILE_AFTER_CONVERSION = (
     "    # Load rename pattern\n    enabled, pattern = load_custom_rename_config()\n",
 )
 
-# 9. Subscribing seeds the series' search aliases from ComicVine (the local copy): its volume's name
-#    when it differs from Metron's, and its aliases. ComicVine lists "Teenage Mutant Ninja Turtles:
-#    The Last Ronin" for Metron's "TMNT: The Last Ronin", the name the releases are posted under.
+# 9. A series' search aliases are filled from ComicVine (the local copy), on subscribing and before
+#    the scheduled search first searches it (a series mapped any other way): its volume's name when
+#    it differs from Metron's, and its aliases. Each name is offered once, so one deleted on the
+#    series page stays deleted. ComicVine lists "Teenage Mutant Ninja Turtles: The Last Ronin" for
+#    Metron's "TMNT: The Last Ronin", the name the releases are posted under.
 SEED_ALIASES = (
     "aliases-from-comicvine",
     "        save_series_mapping(series, path)\n"
@@ -329,8 +332,13 @@ SEED_ALIASES_HELPER = (
     "aliases-from-comicvine",
     '@series_bp.route("/api/series/<int:series_id>/subscribe", methods=["POST"])\n'
     "def subscribe_series(series_id):\n",
-    '''def _skynet_seed_aliases(series):
-    """Skynet patch: ComicVine's name and aliases for the series' volume, added to its aliases."""
+    '''_SKYNET_OFFERED_FILE = "/config/skynet_offered_aliases.json"
+_skynet_offered_lock = threading.Lock()
+
+
+def _skynet_seed_aliases(series):
+    """Skynet patch: ComicVine's name and aliases for the series' volume, added to its aliases;
+    each only once (kept by series id), so one deleted on the series page stays deleted."""
     try:
         import sqlite3
 
@@ -341,19 +349,34 @@ SEED_ALIASES_HELPER = (
         db = (get_connection_params() or {}).get("database_path")
         if not (name and cv_id and db and os.path.exists(db)):
             return
-        con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
-        row = con.execute("SELECT name, aliases FROM cv_volume WHERE id = ?", (int(cv_id),)).fetchone()
-        con.close()
-        if not row:
-            return
-        found = [a for a in (row[1] or "").splitlines() + [row[0] or ""] if a.strip()]
-        norm = lambda a: " ".join(a.lower().replace(",", " ").replace("-", " ").replace(":", " ").split())
-        current = [a for a in (get_series_aliases(name) or "").split(",") if a.strip()]
-        have = {norm(a) for a in current} | {norm(name)}
-        new = [a.replace(",", " ").strip() for a in found if norm(a) not in have]
-        if new:
-            update_series_aliases(name, ",".join(current + new))
-            app_logger.info(f"Skynet patch: search aliases for {name} from ComicVine: {new}")
+        with _skynet_offered_lock:
+            try:
+                with open(_SKYNET_OFFERED_FILE, encoding="utf-8") as f:
+                    offered_all = json.load(f)
+            except (OSError, ValueError):
+                offered_all = {}
+            con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+            row = con.execute(
+                "SELECT name, aliases FROM cv_volume WHERE id = ?", (int(cv_id),)
+            ).fetchone()
+            con.close()
+            if not row:
+                return
+            found = [a for a in (row[1] or "").splitlines() + [row[0] or ""] if a.strip()]
+            clean = lambda a: " ".join(a.replace(",", " ").replace(":", " ").split())
+            norm = lambda a: clean(a.lower().replace("-", " "))
+            offered = set(offered_all.get(str(series["id"]), []))
+            if {norm(a) for a in found} <= offered:
+                return
+            current = [a for a in (get_series_aliases(name) or "").split(",") if a.strip()]
+            have = {norm(a) for a in current} | {norm(name)} | offered
+            new = [clean(a) for a in found if norm(a) not in have]
+            if new:
+                update_series_aliases(name, ",".join(current + new))
+                app_logger.info(f"Skynet patch: search aliases for {name} from ComicVine: {new}")
+            offered_all[str(series["id"])] = sorted(offered | {norm(a) for a in found})
+            with open(_SKYNET_OFFERED_FILE, "w", encoding="utf-8") as f:
+                json.dump(offered_all, f)
     except Exception as e:
         app_logger.warning(f"Skynet patch: no ComicVine aliases for {series.get('name')}: {e}")
 
@@ -361,6 +384,38 @@ SEED_ALIASES_HELPER = (
 @series_bp.route("/api/series/<int:series_id>/subscribe", methods=["POST"])
 def subscribe_series(series_id):
 ''',
+)
+SEED_ALIASES_BEFORE_SEARCH = (
+    "aliases-from-comicvine",
+    "            series_aliases = get_series_alias_list(series_name)\n",
+    "            try:  # Skynet patch: ComicVine's names for the series first (routes/series.py)\n"
+    "                from routes.series import _skynet_seed_aliases\n"
+    "\n"
+    "                _skynet_seed_aliases(series)\n"
+    "            except ImportError:\n"
+    "                pass\n"
+    "            series_aliases = get_series_alias_list(series_name)\n",
+)
+
+# 10. An issue's search window searches and scores Usenet under the series' aliases too, as the
+#     scheduled search does: it searched "TMNT: The Last Ronin" alone and showed nothing posted as
+#     "Teenage Mutant Ninja Turtles - The Last Ronin".
+ALIASES_IN_SEARCH_WINDOW = (
+    "aliases-in-search-window",
+    "            res = search_usenet_for_issue(\n"
+    "                series, issue,\n"
+    "                issue_year=_as_year(data.get('issue_year')),\n"
+    "                series_volume=data.get('series_volume'),\n"
+    "            )\n",
+    "            # Skynet patch: the series' search aliases, as the scheduled search uses them.\n"
+    "            from models.getcomics import get_series_alias_list\n"
+    "\n"
+    "            res = search_usenet_for_issue(\n"
+    "                series, issue,\n"
+    "                issue_year=_as_year(data.get('issue_year')),\n"
+    "                series_volume=data.get('series_volume'),\n"
+    "                series_aliases=get_series_alias_list(series),\n"
+    "            )\n",
 )
 
 FIXES = {
@@ -375,9 +430,16 @@ FIXES = {
         FAILOVER_SKIP_FAILED,
         ALIASES_SEARCHED,
     ],
-    APP: [UNDATED_SEARCHED, NAME_FROM_SERIES, NAME_FROM_SERIES_HELPER, FILE_AFTER_CONVERSION],
+    APP: [
+        UNDATED_SEARCHED,
+        NAME_FROM_SERIES,
+        NAME_FROM_SERIES_HELPER,
+        FILE_AFTER_CONVERSION,
+        SEED_ALIASES_BEFORE_SEARCH,
+    ],
     SCORER: [HYPHEN_IS_SPACE],
     SERIES_ROUTES: [SEED_ALIASES, SEED_ALIASES_HELPER],
+    DOWNLOAD_ROUTES: [ALIASES_IN_SEARCH_WINDOW],
 }
 
 
