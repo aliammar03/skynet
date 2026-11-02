@@ -89,7 +89,7 @@
   - The agent, in JDownloader, after its first start and while it's stopped: archive extraction off
     (`cfg/org.jdownloader.extensions.extraction.ExtractionExtension.json`: `"enabled": false`), so
     CLU alone unpacks what lands in its `temp/`.
-- **Patches:** `patches/apply.py` fixes nine things in CLU v7.0 at each start, before CLU's
+- **Patches:** `patches/apply.py` fixes ten things in CLU v7.0 at each start, before CLU's
   entrypoint (its `clu-patch:` lines in the log):
   - a Usenet download is filed once `temp/` empties, as a direct download is (CLU never filed one);
   - an issue with no on-sale date counts as out by its cover date (Metron lacks on-sale dates for
@@ -113,10 +113,15 @@
   - filing waits (at most 10 minutes) while a CBR that just arrived in `processed/`, or a
     conversion's `.temp_` folder, is fresh: CLU converts after moving a download there, and
     filing that ran mid-conversion filed The Last Ronin #1 as its CBR and orphaned the CBZ;
-  - subscribing seeds the series' search aliases from the local ComicVine copy: its volume's name
-    when it differs from Metron's, and its aliases (ComicVine lists "Teenage Mutant Ninja Turtles:
-    The Last Ronin" for Metron's "TMNT: The Last Ronin"). They show, and can be edited, on the
-    series page.
+  - a series' search aliases are filled from the local ComicVine copy, on subscribing and before
+    the scheduled search (or a check of the series) first searches it: its volume's name when it
+    differs from Metron's, and its aliases (ComicVine lists "Teenage Mutant Ninja Turtles: The
+    Last Ronin" for Metron's "TMNT: The Last Ronin"). They show, and can be edited, on the series
+    page; each name is offered once (kept in `/config/skynet_offered_aliases.json`), so one
+    deleted there stays deleted;
+  - an issue's search window searches and scores Usenet under the series' aliases too, as the
+    scheduled search does (it searched "TMNT: The Last Ronin" alone and listed nothing posted
+    under the long name, where a check of the series grabbed all five).
 
   A fix whose text CLU's code no longer has (after an update) is left out with a `clu-patch:` line,
   and that file runs as shipped. On a CLU update: read those lines, and drop each fix CLU now has.
@@ -137,8 +142,9 @@
   straggler waits in `processed/` until the next one, or `POST /api/scan-downloads`. It files only
   issues it still wants: a better copy of an issue it has (a digital release for a scan) stays in
   `processed/` until moved into the series folder by hand.
-- Re-packing a CBZ whose pages sit in one subfolder can stop half-way with no error logged, leaving
-  a `<name>.zip` and a `<name>_folder` in the series folder. Grab another copy instead.
+- An issue's Edit window unpacks it in place, as `<name>.zip` and `<name>_folder`; only Save packs
+  it back, and closing the window leaves it unpacked. Re-packing a CBZ whose pages sit in one
+  subfolder can stop half-way with no error logged, leaving the same pair: grab another copy instead.
 - A series page's "check for missing issues" is a real search and download, not a count.
 - It names a download in `temp/` from the release's name, where `{volume_year}` can only be the year
   in that name (the cover year: `Watchmen (1987) #005`); the patch renames it at filing
