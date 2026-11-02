@@ -1,4 +1,4 @@
-"""Ten fixes to CLU v7.0 until CLU ships its own (stacks/dmz/clu/README.md → Patches).
+"""Eleven fixes to CLU v7.0 until CLU ships its own (stacks/dmz/clu/README.md → Patches).
 
 The container runs this as root before CLU's entrypoint. Each fix replaces one exact piece of
 CLU's code. A file is rewritten only when all its fixes apply and the result compiles; when CLU's
@@ -418,6 +418,16 @@ ALIASES_IN_SEARCH_WINDOW = (
     "            )\n",
 )
 
+# 11. A format keyword (TPB, one-shot, omnibus, ...) counts as a whole word in the collected-edition
+#     check, as CLU's title parser already reads it: the "os" of one-shot inside "Lost Years" took 30
+#     points off every post of The Last Ronin - The Lost Years, and the Usenet ones below acceptance.
+FORMAT_WORDS = (
+    "format-words-whole",
+    "    for kw in get_format_variants() + [r'\\bcompendium\\b',\n",
+    "    # Skynet patch: a format keyword as a whole word, as the title parser reads it.\n"
+    "    for kw in [rf'(?<![a-zA-Z]){_keyword_pattern(v)}\\b' for v in get_format_variants()] + [r'\\bcompendium\\b',\n",
+)
+
 FIXES = {
     USENET: [
         FILE_AFTER_IMPORT,
@@ -437,7 +447,7 @@ FIXES = {
         FILE_AFTER_CONVERSION,
         SEED_ALIASES_BEFORE_SEARCH,
     ],
-    SCORER: [HYPHEN_IS_SPACE],
+    SCORER: [HYPHEN_IS_SPACE, FORMAT_WORDS],
     SERIES_ROUTES: [SEED_ALIASES, SEED_ALIASES_HELPER],
     DOWNLOAD_ROUTES: [ALIASES_IN_SEARCH_WINDOW],
 }
