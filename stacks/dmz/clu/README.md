@@ -89,7 +89,7 @@
   - The agent, in JDownloader, after its first start and while it's stopped: archive extraction off
     (`cfg/org.jdownloader.extensions.extraction.ExtractionExtension.json`: `"enabled": false`), so
     CLU alone unpacks what lands in its `temp/`.
-- **Patches:** `patches/apply.py` fixes ten things in CLU v7.0 at each start, before CLU's
+- **Patches:** `patches/apply.py` fixes eleven things in CLU v7.0 at each start, before CLU's
   entrypoint (its `clu-patch:` lines in the log):
   - a Usenet download is filed once `temp/` empties, as a direct download is (CLU never filed one);
   - an issue with no on-sale date counts as out by its cover date (Metron lacks on-sale dates for
@@ -121,7 +121,11 @@
     deleted there stays deleted;
   - an issue's search window searches and scores Usenet under the series' aliases too, as the
     scheduled search does (it searched "TMNT: The Last Ronin" alone and listed nothing posted
-    under the long name, where a check of the series grabbed all five).
+    under the long name, where a check of the series grabbed all five);
+  - a format keyword (TPB, one-shot, omnibus, ...) counts only as a whole word in the
+    collected-edition check, as CLU's title parser reads it: the "os" of one-shot inside "Lost
+    Years" took 30 points off every post of The Last Ronin - The Lost Years, so CLU rejected the
+    Usenet copies and fell back to GetComics, where three of the five downloads failed.
 
   A fix whose text CLU's code no longer has (after an update) is left out with a `clu-patch:` line,
   and that file runs as shipped. On a CLU update: read those lines, and drop each fix CLU now has.
