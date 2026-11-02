@@ -73,7 +73,7 @@ Nothing outside the lab pushes into it.
 | D14 | Remote access = **Tailscale**, with `os-tailscale` on OPNsense as the subnet router and split DNS for `aliammar.net`; replaces the WireGuard plan | Nothing inbound to open; it keeps working when docker-admin or a node is down, so it can reach what needs fixing |
 | D15 | Backups = **restic** (run by resticprofile in doco-cd `one_off` jobs) copying `/opt/appdata` **hot**: on docker-dmz from a read-only **btrfs snapshot** taken by **btrbk** a moment before. PBS's datastore goes with **rclone** (PVE encrypts its chunks); both to Drive, nightly. PBS is rebuilt greenfield as VM 2040 from Proxmox's automated installer. Restores: `skynet-restore`, from a local snapshot or from Drive, with doco-cd paused | Battle-tested pieces. A snapshot holds every app's files at one instant, which databases restart from as after a power cut: no dumps, no stopped apps, no stop lists. Holding apps stopped through doco-cd (`stop_services`, the first design) relies on no poll redeploying them mid-job, and doco-cd 0.129.1's can (P4 → Prechecks) |
 | D16 | The agent **administers P8's apps** (Komga, Uchiyomi) through their APIs, with an admin account of its own in each: libraries, sources, extensions, series, settings, users' roles. Their passwords are agent-generated, encrypted to Ali and ops, and rendered on ops for its calls. Deleting a series' files, a library or an account asks Ali each time | Ali's ask (2026-10-29): "configure the services for me". Both apps do everything over documented APIs, and what can live in git (their environment) still does |
-| D17 | A **comics agent** of its own runs P8's day to day: Codex CLI on Ali's ChatGPT subscription, in Discord through OpenAB (`#comics`, a thread per conversation), with a skill for comics and manga. It adds and fills series and grabs by itself; swaps and deletions wait for Ali's ✅. It holds no key: `comics-tools`, beside it, holds them and offers a fixed list of verbs, and is the one thing besides the doors on CLU's network | Ali, 2026-10-30, after CLU needed eight fixes and still needed judgment (names, editions, damaged posts): "comics are really just gonna need a nanny llm agent". Ali's idle Codex subscription, not the Skynet agent's budget. CLU's internal port has no login, so the agent itself stays off that network |
+| D17 | A **comics agent** of its own runs P8's day to day: Codex CLI on Ali's ChatGPT subscription, in Discord through OpenAB (`#comics`, a thread per conversation), with a skill for comics and manga. It adds and fills series and grabs by itself (at most 360 an hour); swaps and deletions wait for Ali's ✅. It holds no key: `comics-tools`, beside it, holds them and offers a fixed list of verbs, and is the one thing besides the doors on CLU's network | Ali, 2026-10-30, after CLU needed eight fixes and still needed judgment (names, editions, damaged posts): "comics are really just gonna need a nanny llm agent". Ali's idle Codex subscription, not the Skynet agent's budget. CLU's internal port has no login, so the agent itself stays off that network |
 
 ## Rules
 
@@ -2299,10 +2299,12 @@ digital over scan. A model with a rubric makes those well; Ali's idle Codex subs
 not the Skynet agent's budget.
 
 **What it does:**
-- **Talks in one Discord channel, `#comics`:** Ali mentions the bot ("add Saga", "fill East of
-  West", "what's missing?"); it answers in a thread of its own, a conversation in it. CLU's own
-  alerts (download complete, failed, wanted added) arrive in the same channel through its Apprise
-  webhook.
+- **Talks in one Discord channel, `#comics`,** in one standing thread there, the desk: Ali opens it
+  once with an @mention, then just writes ("add Saga", "fill East of West", "what's missing?"), no
+  @mention again (Ali, 2026-11-02: it's only him and the agent). OpenAB answers without one in any
+  thread it has joined (`allow_user_messages = "involved"`); it has no such mode for a channel. The
+  patrol and the morning report post into the desk too. CLU's own alerts (download complete,
+  failed, wanted added) arrive in the channel through its Apprise webhook.
 - **Adds and fills series by itself:** comics through CLU (find the volume on Metron, add an alias
   where releases use another name, subscribe, check, judge every issue filed, find and grab the
   right post when CLU missed it); manga through Uchiyomi and its Suwayomi engine (search the
@@ -2329,7 +2331,7 @@ not the Skynet agent's budget.
     edition), trash (CLU's trash, only with Ali's ✅), SABnzbd's queue and history;
   - manga: search Uchiyomi's sources, add a series, fill it, its status;
   - both: Komga's and Uchiyomi's rescans.
-  It refuses anything else, and caps grabs at 60 an hour.
+  It refuses anything else, and caps grabs at 360 an hour (Ali, 2026-11-02).
 - **Keys:** the Discord bot token (Ali, into `secret.sops.env`); a Komga API key and a Uchiyomi
   token for `comics-tools`, made by the agent's accounts (D16) and encrypted to docker-dmz;
   SABnzbd's key read from its own config, mounted read-only. No door, no DNS name: nothing
@@ -2341,7 +2343,7 @@ not the Skynet agent's budget.
    Notifications: download complete and failed, wanted added); device-code login turned on in
    ChatGPT's security settings.
 2. **PR (agent):** the stack, `comics-tools`, the skill, OpenAB's config (the channel, Ali alone,
-   the two scheduled prompts), Glue budget rows.
+   the two scheduled prompts into the desk thread), Glue budget rows.
 3. **After merge:** Codex's device-code login (Ali enters the code); then from `#comics`, a comic
    series and a manga series added and filled to the end.
 
