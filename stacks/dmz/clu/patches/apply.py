@@ -1,4 +1,4 @@
-"""Eight fixes to CLU v7.0 until CLU ships its own (stacks/dmz/clu/README.md → Patches).
+"""Nine fixes to CLU v7.0 until CLU ships its own (stacks/dmz/clu/README.md → Patches).
 
 The container runs this as root before CLU's entrypoint. Each fix replaces one exact piece of
 CLU's code. A file is rewritten only when all its fixes apply and the result compiles; when CLU's
@@ -10,6 +10,7 @@ import os
 USENET = "/app/models/usenet.py"
 APP = "/app/app.py"
 SCORER = "/app/models/getcomics.py"
+SERIES_ROUTES = "/app/routes/series.py"
 
 # 1. A Usenet download is filed like any other: CLU runs its filing pass once WATCH empties after
 #    a direct download, and never after a Usenet import.
@@ -286,7 +287,7 @@ ALIASES_SEARCHED = (
     "    queries = _build_queries(series_name, issue_num)\n"
     "    # Skynet patch: the series' search aliases are searched too.\n"
     "    for _alias in series_aliases or []:\n"
-    "        queries += [q for q in _build_queries(_alias, issue_num) if q not in queries]\n",
+    '        queries += [q for q in _build_queries(" ".join(_alias.split()), issue_num) if q not in queries]\n',
 )
 
 # 8. Filing waits while CLU is still converting a CBR in TARGET: it converts after the move into
@@ -313,6 +314,55 @@ FILE_AFTER_CONVERSION = (
     "    # Load rename pattern\n    enabled, pattern = load_custom_rename_config()\n",
 )
 
+# 9. Subscribing seeds the series' search aliases from ComicVine (the local copy): its volume's name
+#    when it differs from Metron's, and its aliases. ComicVine lists "Teenage Mutant Ninja Turtles:
+#    The Last Ronin" for Metron's "TMNT: The Last Ronin", the name the releases are posted under.
+SEED_ALIASES = (
+    "aliases-from-comicvine",
+    "        save_series_mapping(series, path)\n"
+    '        app_logger.info(f"Subscribed series {series_id} to {path}")\n',
+    "        save_series_mapping(series, path)\n"
+    '        app_logger.info(f"Subscribed series {series_id} to {path}")\n'
+    "        _skynet_seed_aliases(series)\n",
+)
+SEED_ALIASES_HELPER = (
+    "aliases-from-comicvine",
+    '@series_bp.route("/api/series/<int:series_id>/subscribe", methods=["POST"])\n'
+    "def subscribe_series(series_id):\n",
+    '''def _skynet_seed_aliases(series):
+    """Skynet patch: ComicVine's name and aliases for the series' volume, added to its aliases."""
+    try:
+        import sqlite3
+
+        from models.comicvine_sqlite import get_connection_params
+        from models.getcomics import get_series_aliases, update_series_aliases
+
+        name, cv_id = series.get("name") or "", series.get("cv_id")
+        db = (get_connection_params() or {}).get("database_path")
+        if not (name and cv_id and db and os.path.exists(db)):
+            return
+        con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+        row = con.execute("SELECT name, aliases FROM cv_volume WHERE id = ?", (int(cv_id),)).fetchone()
+        con.close()
+        if not row:
+            return
+        found = [a for a in (row[1] or "").splitlines() + [row[0] or ""] if a.strip()]
+        norm = lambda a: " ".join(a.lower().replace(",", " ").replace("-", " ").replace(":", " ").split())
+        current = [a for a in (get_series_aliases(name) or "").split(",") if a.strip()]
+        have = {norm(a) for a in current} | {norm(name)}
+        new = [a.replace(",", " ").strip() for a in found if norm(a) not in have]
+        if new:
+            update_series_aliases(name, ",".join(current + new))
+            app_logger.info(f"Skynet patch: search aliases for {name} from ComicVine: {new}")
+    except Exception as e:
+        app_logger.warning(f"Skynet patch: no ComicVine aliases for {series.get('name')}: {e}")
+
+
+@series_bp.route("/api/series/<int:series_id>/subscribe", methods=["POST"])
+def subscribe_series(series_id):
+''',
+)
+
 FIXES = {
     USENET: [
         FILE_AFTER_IMPORT,
@@ -327,6 +377,7 @@ FIXES = {
     ],
     APP: [UNDATED_SEARCHED, NAME_FROM_SERIES, NAME_FROM_SERIES_HELPER, FILE_AFTER_CONVERSION],
     SCORER: [HYPHEN_IS_SPACE],
+    SERIES_ROUTES: [SEED_ALIASES, SEED_ALIASES_HELPER],
 }
 
 

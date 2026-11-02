@@ -89,7 +89,7 @@
   - The agent, in JDownloader, after its first start and while it's stopped: archive extraction off
     (`cfg/org.jdownloader.extensions.extraction.ExtractionExtension.json`: `"enabled": false`), so
     CLU alone unpacks what lands in its `temp/`.
-- **Patches:** `patches/apply.py` fixes eight things in CLU v7.0 at each start, before CLU's
+- **Patches:** `patches/apply.py` fixes nine things in CLU v7.0 at each start, before CLU's
   entrypoint (its `clu-patch:` lines in the log):
   - a Usenet download is filed once `temp/` empties, as a direct download is (CLU never filed one);
   - an issue with no on-sale date counts as out by its cover date (Metron lacks on-sale dates for
@@ -112,7 +112,11 @@
     Cut, the one post named "TMNT");
   - filing waits (at most 10 minutes) while a CBR that just arrived in `processed/`, or a
     conversion's `.temp_` folder, is fresh: CLU converts after moving a download there, and
-    filing that ran mid-conversion filed The Last Ronin #1 as its CBR and orphaned the CBZ.
+    filing that ran mid-conversion filed The Last Ronin #1 as its CBR and orphaned the CBZ;
+  - subscribing seeds the series' search aliases from the local ComicVine copy: its volume's name
+    when it differs from Metron's, and its aliases (ComicVine lists "Teenage Mutant Ninja Turtles:
+    The Last Ronin" for Metron's "TMNT: The Last Ronin"). They show, and can be edited, on the
+    series page.
 
   A fix whose text CLU's code no longer has (after an update) is left out with a `clu-patch:` line,
   and that file runs as shipped. On a CLU update: read those lines, and drop each fix CLU now has.
