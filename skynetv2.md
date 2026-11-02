@@ -2362,6 +2362,7 @@ Aidoku, if it reaches the App Store; family accounts.
 | Technitium's stats into node-exporter's textfile, every 5 min on each DNS host (P5, Wider eyes) | ~25 lines |
 | Technitium's login through admin Authelia: `dns/sso.json` applied by `technitium-sync`, read back after the web service restarts (P5) | ~40 lines |
 | `stacks/dmz/clu/patches/apply.py` (P8: ten fixes to CLU v7.0 at each start, until CLU ships its own; a fix that no longer matches is left out) | ~470 lines |
+| `storage-keepalive` on docker-dmz (P8: every container's mounts of Unraid's share read every 2 minutes, so none goes stale) | ~20 lines |
 | `skynet-incident` (P6: alert webhook → `claude -p`; one at a time, repeats dropped, the budget, escalation) | ~40 lines |
 | `skynet-merge` (P6: tier, window and CI checked; the merge; the post) | ~40 lines |
 | `skynet-verify` (P6: a stack's or a host's checks from doco-cd, Gatus, VictoriaMetrics and VictoriaLogs) | ~80 lines |
