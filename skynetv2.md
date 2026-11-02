@@ -2349,6 +2349,7 @@ Aidoku, if it reaches the App Store; family accounts.
 | `stacks/<host>/backup/run.sh` (the jobs' entrypoint: a writable `rclone.conf`, the source checks: app data, the marker, the snapshot's age) (P4) | ~30 lines, the same on both hosts |
 | `skynet-restore` (P4: two sources, the undo snapshot, doco-cd held by the marker, a failed restore's hold and its record) | ~185 lines |
 | btrbk's hooks on docker-dmz (the stamp, `latest`) (P4) | ~10 lines |
+| `storage-keepalive` on docker-dmz (P8: every container's mounts of Unraid's share read every 2 minutes, so none goes stale) | ~20 lines |
 | `stacks/admin/pbs-offsite/run.sh` (the jobs' entrypoint: the empty-source guard, the sync and its pings, the check) (P4) | ~35 lines |
 | `pbs/installer.nix` (Proxmox's ISO with `answer.toml` built in) (P4) | ~30 lines |
 | `pbs/setup.sh` (PBS after its installer: repos, guest agent, datastore mount, `pbs/etc/`) (P4) | ~50 lines |
@@ -2362,7 +2363,6 @@ Aidoku, if it reaches the App Store; family accounts.
 | Technitium's stats into node-exporter's textfile, every 5 min on each DNS host (P5, Wider eyes) | ~25 lines |
 | Technitium's login through admin Authelia: `dns/sso.json` applied by `technitium-sync`, read back after the web service restarts (P5) | ~40 lines |
 | `stacks/dmz/clu/patches/apply.py` (P8: ten fixes to CLU v7.0 at each start, until CLU ships its own; a fix that no longer matches is left out) | ~470 lines |
-| `storage-keepalive` on docker-dmz (P8: every container's mounts of Unraid's share read every 2 minutes, so none goes stale) | ~20 lines |
 | `skynet-incident` (P6: alert webhook → `claude -p`; one at a time, repeats dropped, the budget, escalation) | ~40 lines |
 | `skynet-merge` (P6: tier, window and CI checked; the merge; the post) | ~40 lines |
 | `skynet-verify` (P6: a stack's or a host's checks from doco-cd, Gatus, VictoriaMetrics and VictoriaLogs) | ~80 lines |
