@@ -1,4 +1,4 @@
-"""Six fixes to CLU v7.0 until CLU ships its own (stacks/dmz/clu/README.md → Patches).
+"""Thirteen fixes to CLU v7.0 until CLU ships its own (stacks/dmz/clu/README.md → Patches).
 
 The container runs this as root before CLU's entrypoint. Each fix replaces one exact piece of
 CLU's code. A file is rewritten only when all its fixes apply and the result compiles; when CLU's
@@ -10,9 +10,12 @@ import os
 USENET = "/app/models/usenet.py"
 APP = "/app/app.py"
 SCORER = "/app/models/getcomics.py"
+SERIES_ROUTES = "/app/routes/series.py"
+DOWNLOAD_ROUTES = "/app/routes/download_clients.py"
 
 # 1. A Usenet download is filed like any other: CLU runs its filing pass once WATCH empties after
-#    a direct download, and never after a Usenet import.
+#    a direct download, and never after a Usenet import. A failed download's leftover in WATCH
+#    doesn't count: two from GetComics held The Lost Years #3-#5 unfiled.
 FILE_AFTER_IMPORT = (
     "file-usenet-downloads",
     '        app_logger.info(f"{source} import: moved {moved} file(s) into WATCH for {filename}")\n'
@@ -30,12 +33,15 @@ FILE_AFTER_IMPORT_HELPER = (
     import time
 
     def run():
+        from core.download_utils import is_temporary_download_file
+
         for _ in range(90):  # 15 minutes
             time.sleep(10)
             busy = False
             for _root, dirs, files in os.walk(watch):
                 dirs[:] = [d for d in dirs if not d.startswith(".")]
-                if any(not f.startswith((".", "_")) for f in files):
+                # A failed download's leftover (.part, .crdownload) is no comic on its way.
+                if any(not f.startswith((".", "_")) and not is_temporary_download_file(f) for f in files):
                     busy = True
                     break
             if not busy:
@@ -196,10 +202,12 @@ def _skynet_mark_failed(title, size):
 
 
 def _skynet_scoring_title(title):
-    """Skynet patch: a trailing "REPOST" says nothing about which issue a post is."""
+    """Skynet patch: a trailing "REPOST" says nothing about which issue a post is; a scene-style
+    name is read with spaces (_skynet_scene_spaces)."""
     import re
 
-    return re.sub(r"\\s*[\\[(]?\\bre-?post\\b[\\])]?\\s*$", "", title or "", flags=re.IGNORECASE)
+    title = re.sub(r"\\s*[\\[(]?\\bre-?post\\b[\\])]?\\s*$", "", title or "", flags=re.IGNORECASE)
+    return _skynet_scene_spaces(title)
 
 
 def _skynet_remember_alternates(download_id, res, chosen, series_name, issue_num):
@@ -277,6 +285,183 @@ FAILOVER_SKIP_FAILED = (
     '            decision = "REJECT"\n',
 )
 
+# 7. A series' search aliases are searched on Usenet too, not only used to score: Metron's
+#    "TMNT: The Last Ronin" is posted as "Teenage Mutant Ninja Turtles - The Last Ronin", and CLU
+#    found nothing for #2-#5 under the short name.
+ALIASES_SEARCHED = (
+    "aliases-searched",
+    "    queries = _build_queries(series_name, issue_num)\n",
+    "    queries = _build_queries(series_name, issue_num)\n"
+    "    # Skynet patch: the series' search aliases are searched too.\n"
+    "    for _alias in series_aliases or []:\n"
+    '        queries += [q for q in _build_queries(" ".join(_alias.split()), issue_num) if q not in queries]\n',
+)
+
+# 8. Filing waits while CLU is still converting a CBR in TARGET: it converts after the move into
+#    TARGET, and a file filed mid-conversion stayed a CBR while its CBZ was orphaned in TARGET.
+FILE_AFTER_CONVERSION = (
+    "file-after-conversion",
+    "    # Load rename pattern\n    enabled, pattern = load_custom_rename_config()\n",
+    "    # Skynet patch: wait (at most 10 minutes) while a CBR that just arrived in TARGET, or a\n"
+    "    # conversion's .temp_ folder, is still fresh, so a CBR is filed as its CBZ.\n"
+    "    for _ in range(120):\n"
+    "        _now = time.time()\n"
+    "        try:\n"
+    "            _busy = any(\n"
+    "                (e.name.startswith('.temp_') or e.name.lower().endswith(('.cbr', '.rar')))\n"
+    "                and _now - max(e.stat().st_mtime, e.stat().st_ctime) < 120\n"
+    "                for e in os.scandir(target_folder)\n"
+    "            )\n"
+    "        except OSError:\n"
+    "            _busy = False\n"
+    "        if not _busy:\n"
+    "            break\n"
+    "        time.sleep(5)\n"
+    "\n"
+    "    # Load rename pattern\n    enabled, pattern = load_custom_rename_config()\n",
+)
+
+# 9. A series' search aliases are filled from ComicVine (the local copy), on subscribing and before
+#    the scheduled search first searches it (a series mapped any other way): its volume's name when
+#    it differs from Metron's, and its aliases. Each name is offered once, so one deleted on the
+#    series page stays deleted. ComicVine lists "Teenage Mutant Ninja Turtles: The Last Ronin" for
+#    Metron's "TMNT: The Last Ronin", the name the releases are posted under.
+SEED_ALIASES = (
+    "aliases-from-comicvine",
+    "        save_series_mapping(series, path)\n"
+    '        app_logger.info(f"Subscribed series {series_id} to {path}")\n',
+    "        save_series_mapping(series, path)\n"
+    '        app_logger.info(f"Subscribed series {series_id} to {path}")\n'
+    "        _skynet_seed_aliases(series)\n",
+)
+SEED_ALIASES_HELPER = (
+    "aliases-from-comicvine",
+    '@series_bp.route("/api/series/<int:series_id>/subscribe", methods=["POST"])\n'
+    "def subscribe_series(series_id):\n",
+    '''_SKYNET_OFFERED_FILE = "/config/skynet_offered_aliases.json"
+_skynet_offered_lock = threading.Lock()
+
+
+def _skynet_seed_aliases(series):
+    """Skynet patch: ComicVine's name and aliases for the series' volume, added to its aliases;
+    each only once (kept by series id), so one deleted on the series page stays deleted."""
+    try:
+        import sqlite3
+
+        from models.comicvine_sqlite import get_connection_params
+        from models.getcomics import get_series_aliases, update_series_aliases
+
+        name, cv_id = series.get("name") or "", series.get("cv_id")
+        db = (get_connection_params() or {}).get("database_path")
+        if not (name and cv_id and db and os.path.exists(db)):
+            return
+        with _skynet_offered_lock:
+            try:
+                with open(_SKYNET_OFFERED_FILE, encoding="utf-8") as f:
+                    offered_all = json.load(f)
+            except (OSError, ValueError):
+                offered_all = {}
+            con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+            row = con.execute(
+                "SELECT name, aliases FROM cv_volume WHERE id = ?", (int(cv_id),)
+            ).fetchone()
+            con.close()
+            if not row:
+                return
+            found = [a for a in (row[1] or "").splitlines() + [row[0] or ""] if a.strip()]
+            clean = lambda a: " ".join(a.replace(",", " ").replace(":", " ").split())
+            norm = lambda a: clean(a.lower().replace("-", " "))
+            offered = set(offered_all.get(str(series["id"]), []))
+            if {norm(a) for a in found} <= offered:
+                return
+            current = [a for a in (get_series_aliases(name) or "").split(",") if a.strip()]
+            have = {norm(a) for a in current} | {norm(name)} | offered
+            new = [clean(a) for a in found if norm(a) not in have]
+            if new:
+                update_series_aliases(name, ",".join(current + new))
+                app_logger.info(f"Skynet patch: search aliases for {name} from ComicVine: {new}")
+            offered_all[str(series["id"])] = sorted(offered | {norm(a) for a in found})
+            with open(_SKYNET_OFFERED_FILE, "w", encoding="utf-8") as f:
+                json.dump(offered_all, f)
+    except Exception as e:
+        app_logger.warning(f"Skynet patch: no ComicVine aliases for {series.get('name')}: {e}")
+
+
+@series_bp.route("/api/series/<int:series_id>/subscribe", methods=["POST"])
+def subscribe_series(series_id):
+''',
+)
+SEED_ALIASES_BEFORE_SEARCH = (
+    "aliases-from-comicvine",
+    "            series_aliases = get_series_alias_list(series_name)\n",
+    "            try:  # Skynet patch: ComicVine's names for the series first (routes/series.py)\n"
+    "                from routes.series import _skynet_seed_aliases\n"
+    "\n"
+    "                _skynet_seed_aliases(series)\n"
+    "            except ImportError:\n"
+    "                pass\n"
+    "            series_aliases = get_series_alias_list(series_name)\n",
+)
+
+# 10. An issue's search window searches and scores Usenet under the series' aliases too, as the
+#     scheduled search does: it searched "TMNT: The Last Ronin" alone and showed nothing posted as
+#     "Teenage Mutant Ninja Turtles - The Last Ronin".
+ALIASES_IN_SEARCH_WINDOW = (
+    "aliases-in-search-window",
+    "            res = search_usenet_for_issue(\n"
+    "                series, issue,\n"
+    "                issue_year=_as_year(data.get('issue_year')),\n"
+    "                series_volume=data.get('series_volume'),\n"
+    "            )\n",
+    "            # Skynet patch: the series' search aliases, as the scheduled search uses them.\n"
+    "            from models.getcomics import get_series_alias_list\n"
+    "\n"
+    "            res = search_usenet_for_issue(\n"
+    "                series, issue,\n"
+    "                issue_year=_as_year(data.get('issue_year')),\n"
+    "                series_volume=data.get('series_volume'),\n"
+    "                series_aliases=get_series_alias_list(series),\n"
+    "            )\n",
+)
+
+# 11. A format keyword (TPB, one-shot, omnibus, ...) counts as a whole word in the collected-edition
+#     check, as CLU's title parser already reads it: the "os" of one-shot inside "Lost Years" took 30
+#     points off every post of The Last Ronin - The Lost Years, and the Usenet ones below acceptance.
+FORMAT_WORDS = (
+    "format-words-whole",
+    "    for kw in get_format_variants() + [r'\\bcompendium\\b',\n",
+    "    # Skynet patch: a format keyword as a whole word, as the title parser reads it.\n"
+    "    for kw in [rf'(?<![a-zA-Z]){_keyword_pattern(v)}\\b' for v in get_format_variants()] + [r'\\bcompendium\\b',\n",
+)
+
+# 12. The scheduled search dates an issue by its cover year, the year its posts carry: it used the
+#     on-sale year, and took 30 points off any other, so an issue on sale in October to December was
+#     rejected (Ultimate Spider-Man (2000) #15, on sale 2001-11, cover 2002-01, posted as "(2002)").
+COVER_YEAR = (
+    "cover-year",
+    '                    "issue_year": int(store_date[:4]) if store_date else series_year,\n',
+    "                    # Skynet patch: the cover year, as posts carry it.\n"
+    '                    "issue_year": int((issue.get("cover_date") or store_date)[:4]) if store_date else series_year,\n',
+)
+
+# 13. A scene-style post name ("Absolute.Batman.001.2024.Webrip.The.Last.Kryptonian-DCP") is read
+#     with spaces, as the scorer needs; a decimal issue ("001.5") keeps its dot. CLU matched none.
+SCENE_NAMES = (
+    "scene-names",
+    "def _make_filename(series_name, issue_num, chosen_result, tier) -> str:\n",
+    '''def _skynet_scene_spaces(title):
+    """Skynet patch: a name with no spaces and dots between its words reads with spaces."""
+    import re
+
+    if " " in title or title.count(".") < 2:
+        return title
+    return re.sub(r"(?<!\\d)\\.|\\.(?!\\d{1,2}(?!\\d))", " ", title)
+
+
+def _make_filename(series_name, issue_num, chosen_result, tier) -> str:
+''',
+)
+
 FIXES = {
     USENET: [
         FILE_AFTER_IMPORT,
@@ -287,9 +472,20 @@ FIXES = {
         FAILOVER_ON_FAILED,
         FAILOVER_SCORING_TITLE,
         FAILOVER_SKIP_FAILED,
+        ALIASES_SEARCHED,
+        SCENE_NAMES,
     ],
-    APP: [UNDATED_SEARCHED, NAME_FROM_SERIES, NAME_FROM_SERIES_HELPER],
-    SCORER: [HYPHEN_IS_SPACE],
+    APP: [
+        UNDATED_SEARCHED,
+        NAME_FROM_SERIES,
+        NAME_FROM_SERIES_HELPER,
+        FILE_AFTER_CONVERSION,
+        SEED_ALIASES_BEFORE_SEARCH,
+        COVER_YEAR,
+    ],
+    SCORER: [HYPHEN_IS_SPACE, FORMAT_WORDS],
+    SERIES_ROUTES: [SEED_ALIASES, SEED_ALIASES_HELPER],
+    DOWNLOAD_ROUTES: [ALIASES_IN_SEARCH_WINDOW],
 }
 
 

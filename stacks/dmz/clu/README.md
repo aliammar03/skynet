@@ -30,9 +30,11 @@
     anywhere else, its API with its key and nothing more), `verify_xff_header` 0 (the client in
     `X-Forwarded-For` is Ali's, not the door's). Easynews: `news.us.easynews.com`, port 119, no SSL
     (Ali, 2026-10-29); its US hosts, not its EU ones (0.25 MB/s from here against 17–25 MB/s).
-    Thundernews, Ali's block account, fills the articles Easynews lacks: another backbone
-    (UsenetExpress; Easynews is Omicron), `news.thundernews.com`, port 563 with SSL, 10
-    connections, priority 1 and optional, so SABnzbd asks it only for what Easynews is missing.
+    Ali's three block or fill accounts, each on another backbone than Easynews (Omicron), at
+    priority 1, so SABnzbd asks them only for articles Easynews lacks: Thundernews
+    (UsenetExpress, `news.thundernews.com`), Bulknews (Abavia, `news.bulknews.eu`) and Blocknews
+    (NetNews, `eunews.blocknews.net`), all on 563 with SSL. They rescue articles a backbone has
+    lost, not a post that was damaged when uploaded (malformed everywhere): that needs a repost.
   - JDownloader: `door-jdownloader` and `egress` (file hosts, Premiumize, its own updates).
 - **Data:**
   - `/opt/appdata/clu/config` → CLU's `/config`: its database (settings, library index, wanted list,
@@ -55,13 +57,13 @@
     `<publisher>/<series>/`. Files land there as `99:100` (Unraid's `nobody:users`, all_squash),
     the user CLU runs as (`PUID`/`PGID`).
 - **Secrets:** none in git. Ali's Metron account, ComicVine and NZBGeek keys live in CLU's database,
-  his Easynews and Thundernews logins in SABnzbd's settings, his Premiumize login in JDownloader's; SABnzbd's API key
+  his Easynews, Thundernews, Bulknews and Blocknews logins in SABnzbd's settings, his Premiumize login in JDownloader's; SABnzbd's API key
   in SABnzbd's settings and CLU's database.
 - **Setup:**
   - Ali: CLU → Settings → Metadata providers: Metron (its Wanted list, pull list and subscriptions
     need it) and the ComicVine key; → Download & API → Indexers: NZBGeek
     (`https://api.nzbgeek.info`, his API key). SABnzbd's wizard: the Easynews login; → Config →
-    Servers: Thundernews as above, with its login. JDownloader →
+    Servers: the three fill servers as above, with their logins. JDownloader →
     Settings → Account Manager → premiumize.me: the customer ID and API key.
   - The agent (D16), through CLU's API: Download Packs and CBR→CBZ on; timezone `5` (an hour offset);
     folder monitoring on; sources `usenet`, then `getcomics`; SABnzbd as its Usenet client
@@ -87,9 +89,11 @@
   - The agent, in JDownloader, after its first start and while it's stopped: archive extraction off
     (`cfg/org.jdownloader.extensions.extraction.ExtractionExtension.json`: `"enabled": false`), so
     CLU alone unpacks what lands in its `temp/`.
-- **Patches:** `patches/apply.py` fixes six things in CLU v7.0 at each start, before CLU's
+- **Patches:** `patches/apply.py` fixes thirteen things in CLU v7.0 at each start, before CLU's
   entrypoint (its `clu-patch:` lines in the log):
   - a Usenet download is filed once `temp/` empties, as a direct download is (CLU never filed one);
+    a failed download's leftover there (`.part`, `.crdownload`) doesn't count, until CLU's hourly
+    orphan cleanup removes it;
   - an issue with no on-sale date counts as out by its cover date (Metron lacks on-sale dates for
     many older issues, Watchmen #2–#12 among them, and CLU never searched for those);
   - among results with the same score the bigger post wins (CLU took the first: Watchmen #1 came as
@@ -99,11 +103,36 @@
     tagged: Watchmen #5–#12 came as `(1987)`);
   - a hyphen is a space when a release's series name is matched (CLU scored Zone-Empire's digital
     "All-Star Superman" 0 against Metron's "All Star Superman" and took 2006 scans at 1280×1967);
-  - when SABnzbd fails a post (articles missing), CLU grabs the next-best accepted post for the
+  - when SABnzbd fails a post (articles missing or damaged), CLU grabs the next-best accepted post for the
     issue, until one completes or none is left, and never takes a failed post again (kept, as title
     and size, in `/config/skynet_failed_posts.json`); and a trailing "REPOST" no longer lowers a
     post's score (CLU stopped at a failed post for All Star Superman #1 and #4, while complete
-    reposts at 1920×2951 scored 30).
+    reposts at 1920×2951 scored 30);
+  - a series' search aliases (its page → Search aliases) are searched on Usenet too, not only
+    used to score (Metron's "TMNT: The Last Ronin" is posted as "Teenage Mutant Ninja Turtles -
+    The Last Ronin": under the short name CLU found nothing for #2–#5, and took #1's Director's
+    Cut, the one post named "TMNT");
+  - filing waits (at most 10 minutes) while a CBR that just arrived in `processed/`, or a
+    conversion's `.temp_` folder, is fresh: CLU converts after moving a download there, and
+    filing that ran mid-conversion filed The Last Ronin #1 as its CBR and orphaned the CBZ;
+  - a series' search aliases are filled from the local ComicVine copy, on subscribing and before
+    the scheduled search (or a check of the series) first searches it: its volume's name when it
+    differs from Metron's, and its aliases (ComicVine lists "Teenage Mutant Ninja Turtles: The
+    Last Ronin" for Metron's "TMNT: The Last Ronin"). They show, and can be edited, on the series
+    page; each name is offered once (kept in `/config/skynet_offered_aliases.json`), so one
+    deleted there stays deleted;
+  - an issue's search window searches and scores Usenet under the series' aliases too, as the
+    scheduled search does (it searched "TMNT: The Last Ronin" alone and listed nothing posted
+    under the long name, where a check of the series grabbed all five);
+  - a format keyword (TPB, one-shot, omnibus, ...) counts only as a whole word in the
+    collected-edition check, as CLU's title parser reads it: the "os" of one-shot inside "Lost
+    Years" took 30 points off every post of The Last Ronin - The Lost Years, so CLU rejected the
+    Usenet copies and fell back to GetComics, where three of the five downloads failed;
+  - the scheduled search dates an issue by its cover year, the year posts carry: CLU used the
+    on-sale year and took 30 points off any other, so an issue on sale in October to December was
+    rejected (Ultimate Spider-Man (2000) #15: on sale 2001-11, cover 2002-01, posted as "(2002)");
+  - a scene-style post name (`Absolute.Batman.001.2024.Webrip…`, `Ultimate.Spider-Man.064-000`)
+    is read with spaces before scoring; a decimal issue (`001.5`) keeps its dot. CLU matched none.
 
   A fix whose text CLU's code no longer has (after an update) is left out with a `clu-patch:` line,
   and that file runs as shipped. On a CLU update: read those lines, and drop each fix CLU now has.
@@ -115,17 +144,13 @@
 - CLU's entrypoint runs CLU as root (its *Container user* notice) when `/downloads/temp`,
   `/downloads/processed`, `/data` or `/cache` isn't writable by `PUID:PGID`, and makes a missing
   `temp/` or `processed/` as root itself: the host makes both as `99:100` first (`hosts/docker-dmz`).
-- CLU dates a wanted issue by Metron's on-sale year, while releases carry the cover year (two or three
-  months later), and its scorer takes 20 points off for a wrong year: an issue on sale in October to
-  December is rejected (Ultimate Spider-Man #15: 20 by on-sale year, 60 by cover year), and the run
-  falls through to GetComics. For a backfill, search such issues by cover year and grab them through
-  `/api/usenet/grab`.
 - It files once a finished download has emptied its `temp/` (a Usenet one through the patch); a
   straggler waits in `processed/` until the next one, or `POST /api/scan-downloads`. It files only
   issues it still wants: a better copy of an issue it has (a digital release for a scan) stays in
   `processed/` until moved into the series folder by hand.
-- Re-packing a CBZ whose pages sit in one subfolder can stop half-way with no error logged, leaving
-  a `<name>.zip` and a `<name>_folder` in the series folder. Grab another copy instead.
+- An issue's Edit window unpacks it in place, as `<name>.zip` and `<name>_folder`; only Save packs
+  it back, and closing the window leaves it unpacked. Re-packing a CBZ whose pages sit in one
+  subfolder can stop half-way with no error logged, leaving the same pair: grab another copy instead.
 - A series page's "check for missing issues" is a real search and download, not a count.
 - It names a download in `temp/` from the release's name, where `{volume_year}` can only be the year
   in that name (the cover year: `Watchmen (1987) #005`); the patch renames it at filing
@@ -134,10 +159,10 @@
 - With its GetComics index empty, its searches go live, several variants an issue: GetComics
   answered 429 (too many requests) 213 times in 20 minutes on 2026-10-30. Usenet first keeps that
   down; the index fills for followed series, 300 posts a night.
-- Its scorer drops TPBs, annuals and other variants unless accepted, rejects scanners' odd names
-  (`Ultimate.Spider-Man.064-000`, a title starting with "- ") that are proper issues, and once took
-  same-named spin-offs (Ultimate Spider-Man – Infinity Comic #17 and Incursion #3 for Ultimate
-  Spider-Man 2000).
+- Its scorer drops TPBs, annuals and other variants unless accepted, and once took same-named
+  spin-offs (Ultimate Spider-Man – Infinity Comic #17 and Incursion #3 for Ultimate Spider-Man
+  2000). With the right post absent it can take another edition of the issue (The Last Ronin #1's
+  Director's Cut, Absolute Batman #1's preview edition).
 - SABnzbd refuses a host name it doesn't know ("Hostname verification failed"): its own hostname,
   `sabnzbd`, is admitted at its first start; the door's name is the agent's step above. A rebuilt
   config needs that step again.

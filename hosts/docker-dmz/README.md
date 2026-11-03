@@ -30,7 +30,10 @@ VMID 10010 · 10.10.100.10 · server-proxmox-core · 6 vCPU / 12 GB (10 guarante
   export admits this host read-write and writes everything as `nobody:users` (99:100, all_squash);
   OPNsense rule 300 carries it. Comics and manga live in `Books/Manga/` and `Books/Comics/`, each
   with Ali's own files in `library/` and the downloaders' beside them (`uchiyomi/`, `suwayomi/`, and
-  `Comics/clu/`). The share isn't in this host's backups.
+  `Comics/clu/`). The share isn't in this host's backups. A container's mount of a folder on it goes
+  stale once nothing has read the folder for a while, so `storage-keepalive` lists every
+  container's share mounts from inside it every 2 minutes; a mount it finds stale already is a
+  warning in the journal (`stale: <container> <path>`), and that container needs a restart.
 - **doco-cd** (`modules/docker-host.nix`): polls `main` every 60 s, target `dmz` → `.doco-cd.dmz.yml`
   → every folder in `stacks/dmz/`. API, `/mcp` and `/v1/health` on :8080 are for ops only (MCP
   `doco-dmz`). Deploy notices go to `#alerts` via Apprise (loopback :8000).

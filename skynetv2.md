@@ -70,7 +70,7 @@ Nothing outside the lab pushes into it.
 | D11 | The agent never merges. It is **root on docker-dmz, on PBS** (VM 2040) **and on the DNS servers** (technitium-network, technitium-core). On docker-dmz and the DNS servers: passwordless sudo, every command in the host's journal, which also gives it the host's key and secrets, and on docker-dmz its Docker socket. On PBS: root over SSH from ops. It never prints a secret value or decrypts one on purpose. On docker-dmz's doco-cd MCP it may restart and run jobs. Destroying a project or stack, or on PBS removing a backup, namespace or datastore, asks Ali each time. Everywhere else: no sudo, no Docker socket, no private age key. While it installs a host it is root on the installer, which holds the new host key that `--copy-host-keys` keeps (`runbooks/new-vm.md`); it reads only the public half | The apps host is where operate work happens, and it needs hands; PBS is where P4's offsite copy and its drills happen (both Ali's call, 2026-10-24). The DNS servers too (Ali's call, 2026-10-28): what they refuse or drop shows only on the host, in a capture, and they hold no secret but their own admin password and the `#alerts` webhook. docker-admin (admin portal, Gatus, admin secrets) stays diagnose-only, so GitHub and missing credentials still leash the rest. The install window was already root-equivalent (the agent installs the OS), and it buys a one-PR install |
 | D13 | `aliammar-skynet` has **Write**. The `main` ruleset requires a PR and check `nix` and blocks force-push/deletion; no review is required (Ali's call, 2026-10-21) | Branches in one repo, no approval clicks. "Never merge" is a **soft wall**: AGENTS.md + Claude Code deny rules |
 | D12 | v1 archived; fresh repo; new ops VM built alongside the old one, which is then retired | Clean start without a blind spot |
-| D14 | Remote access = **Tailscale**, with `os-tailscale` on OPNsense as the subnet router and split DNS for `aliammar.net`; replaces the WireGuard plan | Nothing inbound to open; it keeps working when docker-admin or a node is down, so it can reach what needs fixing |
+| D14 | Remote access = **Tailscale**, with `os-tailscale` on OPNsense as the subnet router and split DNS for `aliammar.net`; replaces the WireGuard plan. ops is a node too, `tag:ops`, in userspace (Ali, 2026-10-31) | Nothing inbound to open; it keeps working when docker-admin or a node is down, so it can reach what needs fixing |
 | D15 | Backups = **restic** (run by resticprofile in doco-cd `one_off` jobs) copying `/opt/appdata` **hot**: on docker-dmz from a read-only **btrfs snapshot** taken by **btrbk** a moment before. PBS's datastore goes with **rclone** (PVE encrypts its chunks); both to Drive, nightly. PBS is rebuilt greenfield as VM 2040 from Proxmox's automated installer. Restores: `skynet-restore`, from a local snapshot or from Drive, with doco-cd paused | Battle-tested pieces. A snapshot holds every app's files at one instant, which databases restart from as after a power cut: no dumps, no stopped apps, no stop lists. Holding apps stopped through doco-cd (`stop_services`, the first design) relies on no poll redeploying them mid-job, and doco-cd 0.129.1's can (P4 → Prechecks) |
 | D16 | The agent **administers P8's apps** (Komga, Uchiyomi) through their APIs, with an admin account of its own in each: libraries, sources, extensions, series, settings, users' roles. Their passwords are agent-generated, encrypted to Ali and ops, and rendered on ops for its calls. Deleting a series' files, a library or an account asks Ali each time | Ali's ask (2026-10-29): "configure the services for me". Both apps do everything over documented APIs, and what can live in git (their environment) still does |
 | D17 | A **comics agent** of its own runs P8's day to day: Codex CLI on Ali's ChatGPT subscription, in Discord through OpenAB (`#comics`, a thread per conversation), with a skill for comics and manga. It adds and fills series and grabs by itself (at most 360 an hour); swaps and deletions wait for Ali's ✅. It holds no key: `comics-tools`, beside it, holds them and offers a fixed list of verbs, and is the one thing besides the doors on CLU's network | Ali, 2026-10-30, after CLU needed eight fixes and still needed judgment (names, editions, damaged posts): "comics are really just gonna need a nanny llm agent". Ali's idle Codex subscription, not the Skynet agent's budget. CLU's internal port has no login, so the agent itself stays off that network |
@@ -208,6 +208,7 @@ skynet/
 | `#alerts` webhook | post only | Gatus, Apprise, comin, healthchecks.io; Alertmanager and Unraid's notifications (P5) | P1 |
 | technitium-network / technitium-core host keys | `secrets/technitium-<node>.yaml`: Technitium `admin` password (agent-generated) | that host | P2 |
 | Tailscale | Ali's account; OPNsense holds the node key | subnet routes 10.10.50.0/24, 10.10.60.60, 10.10.70.50–51 | P2 |
+| Tailscale: ops | `tag:ops` node key in `/var/lib/tailscale`; its first login's auth key in `secrets/ops.yaml` | what the tailnet policy lets `tag:ops` reach, over SSH (userspace) | P2 |
 | docker-dmz host key, tunnel credentials | `stacks/dmz/**`, cloudflared | that host | P3 |
 | rclone | Drive, scope `drive.file` (only what rclone created); Ali's own OAuth client | the backup and PBS-offsite jobs | P4 |
 | restic repositories | one password per Docker host (agent-generated) | that host's snapshots | P4 |
@@ -2311,7 +2312,10 @@ not the Skynet agent's budget.
   sources, add, follow, fetch); Komga and Uchiyomi re-synced after. It grabs and files on its own;
   swapping or deleting what's already in the library waits for Ali's ✅ in the thread.
 - **Patrols:** CLU's wanted list every 6 hours (issues with no results, a failed post, the wrong
-  edition), and a morning report after CLU's 03:30 run.
+  edition), and a morning report after CLU's 03:30 run. Weekly, upgrades: a filed issue that came
+  from a scan, against what's posted now; a digital copy that has since appeared is offered in the
+  desk, and on Ali's ✅ grabbed and swapped in (CLU files only issues it still wants, so it never
+  upgrades one by itself).
 
 | Need | Choice | Why | Passed over |
 |---|---|---|---|
@@ -2332,18 +2336,21 @@ not the Skynet agent's budget.
   - manga: search Uchiyomi's sources, add a series, fill it, its status;
   - both: Komga's and Uchiyomi's rescans.
   It refuses anything else, and caps grabs at 360 an hour (Ali, 2026-11-02).
-- **Keys:** the Discord bot token (Ali, into `secret.sops.env`); a Komga API key and a Uchiyomi
-  token for `comics-tools`, made by the agent's accounts (D16) and encrypted to docker-dmz;
-  SABnzbd's key read from its own config, mounted read-only. No door, no DNS name: nothing
+- **Keys:** the Discord bot token, and for `comics-tools` a Komga API key and a Uchiyomi API token
+  (read + write + admin), all made by Ali and typed into `sops` (a credential is Ali's to make: the
+  agent's attempt to mint one was refused, 2026-11-03); SABnzbd's key read from its own config, mounted
+  read-only. No door, no DNS name: nothing
   reaches the stack from outside, and it shows in Gatus by the bot's heartbeat.
 
 **Steps:**
 1. **Ali:** a Discord application and bot (its token into `sops`), the bot invited to the server,
    `#comics` made, its ID and Ali's user ID; a webhook in `#comics`, its URL into CLU (Settings →
-   Notifications: download complete and failed, wanted added); device-code login turned on in
-   ChatGPT's security settings.
+   Notifications: download complete and failed, wanted added); a Komga API key and a Uchiyomi API
+   token for `comics-tools` (into `sops`); device-code login turned on in ChatGPT's security
+   settings.
 2. **PR (agent):** the stack, `comics-tools`, the skill, OpenAB's config (the channel, Ali alone,
-   the two scheduled prompts into the desk thread), Glue budget rows.
+   the scheduled prompts into the desk thread: patrol, morning report, weekly upgrades), Glue
+   budget rows.
 3. **After merge:** Codex's device-code login (Ali enters the code); then from `#comics`, a comic
    series and a manga series added and filled to the end.
 
@@ -2409,6 +2416,7 @@ Aidoku, if it reaches the App Store; family accounts.
 | `stacks/<host>/backup/run.sh` (the jobs' entrypoint: a writable `rclone.conf`, the source checks: app data, the marker, the snapshot's age) (P4) | ~30 lines, the same on both hosts |
 | `skynet-restore` (P4: two sources, the undo snapshot, doco-cd held by the marker, a failed restore's hold and its record) | ~185 lines |
 | btrbk's hooks on docker-dmz (the stamp, `latest`) (P4) | ~10 lines |
+| `storage-keepalive` on docker-dmz (P8: every container's mounts of Unraid's share read every 2 minutes, so none goes stale) | ~20 lines |
 | `stacks/admin/pbs-offsite/run.sh` (the jobs' entrypoint: the empty-source guard, the sync and its pings, the check) (P4) | ~35 lines |
 | `pbs/installer.nix` (Proxmox's ISO with `answer.toml` built in) (P4) | ~30 lines |
 | `pbs/setup.sh` (PBS after its installer: repos, guest agent, datastore mount, `pbs/etc/`) (P4) | ~50 lines |
@@ -2421,9 +2429,9 @@ Aidoku, if it reaches the App Store; family accounts.
 | `pve/setup.sh` (the Proxmox nodes' exporters and log upload, as PBS's) (P5, Wider eyes) | ~30 lines |
 | Technitium's stats into node-exporter's textfile, every 5 min on each DNS host (P5, Wider eyes) | ~25 lines |
 | Technitium's login through admin Authelia: `dns/sso.json` applied by `technitium-sync`, read back after the web service restarts (P5) | ~40 lines |
-| `stacks/dmz/clu/patches/apply.py` (P8: six fixes to CLU v7.0 at each start, until CLU ships its own; a fix that no longer matches is left out) | ~320 lines |
+| `stacks/dmz/clu/patches/apply.py` (P8: thirteen fixes to CLU v7.0 at each start, until CLU ships its own; a fix that no longer matches is left out) | ~520 lines |
 | `stacks/dmz/comics-agent/tools` (P8, D17: `comics-tools`, the comics agent's fixed verbs over CLU, SABnzbd, Komga and Uchiyomi, holding their keys) | ~250 lines |
-| `stacks/dmz/comics-agent` OpenAB config (P8, D17: the channel, Ali alone, the two scheduled prompts) | ~30 lines |
+| `stacks/dmz/comics-agent` OpenAB config (P8, D17: the channel, Ali alone, the scheduled prompts) | ~30 lines |
 | `skynet-incident` (P6: alert webhook → `claude -p`; one at a time, repeats dropped, the budget, escalation) | ~40 lines |
 | `skynet-merge` (P6: tier, window and CI checked; the merge; the post) | ~40 lines |
 | `skynet-verify` (P6: a stack's or a host's checks from doco-cd, Gatus, VictoriaMetrics and VictoriaLogs) | ~80 lines |

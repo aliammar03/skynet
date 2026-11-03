@@ -1,5 +1,5 @@
 # docker-dmz — apps Docker host. VMID 10010 · 10.10.100.10 · VLAN 100 · proxmox-core.
-{ pkgs, ... }:
+{ config, pkgs, ... }:
 let
   net = import ./net.nix;
 in
@@ -68,6 +68,34 @@ in
       "x-systemd.automount"
       "x-systemd.mount-timeout=30s"
     ];
+  };
+
+  # A container's bind mount of a folder on the share goes stale ("Stale file handle", until the
+  # container restarts) once nothing has read the folder for a while, whatever Unraid's
+  # fuse_remember says (#129). So every 2 minutes each running container's share mounts are listed
+  # from inside it. The unit logs only a mount it finds stale already, as a warning: that container
+  # needs a restart.
+  systemd.services.storage-keepalive = {
+    description = "Read every container's mounts of the share";
+    requires = [ "docker.service" ];
+    after = [ "docker.service" ];
+    path = [ config.virtualisation.docker.package ];
+    serviceConfig = {
+      Type = "oneshot";
+      LogLevelMax = "warning";
+    };
+    script = ''
+      for c in $(docker ps --format '{{.Names}}'); do
+        docker inspect -f '{{range .Mounts}}{{if eq .Type "bind"}}{{.Source}}|{{.Destination}}{{println}}{{end}}{{end}}' "$c" |
+          grep '^/mnt/storage/' |
+          while IFS='|' read -r _ dst; do
+            if docker exec "$c" ls -A "$dst" 2>&1 >/dev/null </dev/null | grep -qi stale; then
+              echo "<4>stale: $c $dst"
+            fi
+          done
+      done
+    '';
+    startAt = "*:0/2";
   };
 
   systemd.tmpfiles.rules = [
