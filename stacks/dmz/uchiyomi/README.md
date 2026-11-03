@@ -74,6 +74,9 @@
   Kagane, OniSaga, for the adult titles they also carry). Uchiyomi leaves them, and the series added
   from them, out of searches and lists unless a request says `adult=1` (or the account shows 18+);
   an admin can't rate a source below its extension's flag.
+- Uchiyomi follows every series it finds in its folders, CLU's comics too, though no source of its
+  own can update them: its updater tries them nightly and Health lists them as "Series that can no
+  longer update". The comics agent's `/rescan` (`comics-tools`) unfollows every series with no source.
 - BatCave passes its site's check (DLE Guard) only through Open site: done once 2026-10-29, and
   Uchiyomi revisits its home page whenever it fails. Admin → Sources → BatCave → Open site → Done
   if it stays red.

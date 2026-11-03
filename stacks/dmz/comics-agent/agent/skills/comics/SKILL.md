@@ -38,7 +38,7 @@ Your only way to the apps. `curl -sS comics-tools:8080/` lists every verb with i
 | `POST /manga/add {source, source_id}` | Uchiyomi adds it, downloads every chapter, follows new ones |
 | `GET /manga/library?q=`, `GET /manga/status?series_id=`, `GET /manga/jobs` | the library; one series' gaps and downloads; all downloads |
 | `POST /manga/fill {series_id}`, `POST /manga/fill-other` | fetch what its own sources list; or what other sources offer |
-| `POST /rescan [{"deep": 1}]` | Komga and Uchiyomi read their folders now; `deep` after a trash or swap |
+| `POST /rescan [{"deep": 1}]` | Komga and Uchiyomi read their folders now, and Uchiyomi stops following CLU's comics (it can't update them); `deep` after a trash or swap |
 
 ## The library and the schedule
 
@@ -112,7 +112,8 @@ Removing or replacing a file in the library waits for Ali's ✅. comics-tools ch
 3. `downloads`: files waiting in `processed/` — wanted ones `file`; a better copy of an owned issue →
    a swap proposal; a wrong file → a trash proposal.
 4. `manga/jobs`: a failed or stuck download → `manga/fill` for that series.
-5. Report in a few lines (Reports): what you grabbed and filed, what's still missing and why.
+5. `/rescan`: a series Ali subscribed in CLU by hand reaches Komga and Uchiyomi as well.
+6. Report in a few lines (Reports): what you grabbed and filed, what's still missing and why.
    Nothing to do: one line.
 
 ## Morning report (08:00)

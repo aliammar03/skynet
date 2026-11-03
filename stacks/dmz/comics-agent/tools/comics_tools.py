@@ -432,10 +432,10 @@ def manga_fill_other(a):
 
 # --- both -----------------------------------------------------------------------------------------
 
-@verb("POST", "/rescan", "[deep=1] → Komga and Uchiyomi scan their libraries; deep: Uchiyomi's Rescan everything too (after a trash or swap)")
+@verb("POST", "/rescan", "[deep=1] → Komga and Uchiyomi scan their libraries, and Uchiyomi stops following series no source can update (CLU's); deep: Uchiyomi's Rescan everything too (after a trash or swap)")
 def rescan(a):
     out = {"komga": [call("POST", f"{KOMGA}/api/v1/libraries/{lib['id']}/scan") or lib["name"] for lib in call("GET", f"{KOMGA}/api/v1/libraries")],
-           "uchiyomi": call("POST", f"{UCHIYOMI}/api/refresh", timeout=180)}
+           "uchiyomi": call("POST", f"{UCHIYOMI}/api/refresh", timeout=180), "unfollowed": unfollow_sourceless()}
     if a.get("deep"):  # its preview, then the plan applied: rows of files gone marked, moved files paired
         start = time.time() * 1000
         call("POST", f"{UCHIYOMI}/api/admin/tasks/rescan/run")
@@ -447,6 +447,24 @@ def rescan(a):
                 break
         out["deep"] = call("POST", f"{UCHIYOMI}/api/admin/tasks/rescan/apply", {"plan": plan["id"]}) if plan.get("id") else s.get("error") or "no plan"
     return out
+
+
+def unfollow_sourceless():
+    """Uchiyomi follows every series it finds in its folders, CLU's comics too, which no source of its
+    own can update: its updater tries them every night and Health lists them as series that can no
+    longer update. CLU updates them, so Uchiyomi stops following them. Answers their names."""
+    found, page = [], 0
+    while True:
+        d = call("POST", f"{UCHIYOMI}/api/series/search?adult=1",
+                 {"condition": {"allOf": [{"hasMainSource": {"operator": "isFalse"}}]}, "size": 100, "page": page})
+        found += [s for s in d.get("content", []) if s.get("autoUpdate")]
+        if d.get("last", True):
+            break
+        page += 1
+    for i in range(0, len(found), 500):
+        call("POST", f"{UCHIYOMI}/api/admin/series/bulk/auto-update",
+             {"seriesIds": [s["id"] for s in found[i:i + 500]], "autoUpdate": False})
+    return [s.get("name") for s in found]
 
 
 @verb("GET", "/", "→ this list")
