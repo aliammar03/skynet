@@ -31,12 +31,12 @@ Your only way to the apps. `curl -sS comics-tools:8080/` lists every verb with i
 | `POST /comics/grab {result}` | download a post by its `id`; CLU files it if the issue is wanted |
 | `GET /comics/downloads` | CLU's latest downloads, each with the `post` it took, and the files waiting in `processed/` |
 | `POST /comics/file` | CLU files what waits in `processed/` now |
-| `GET /comics/inspect?path=` | a file's format, page count, page sizes and ComicInfo |
+| `GET /comics/inspect?path=` | a file's format, page count, page sizes and ComicInfo: a comic, or a manga chapter |
 | `POST /comics/trash` | a proposal for Ali's ✅, then the trash (Approvals) |
 | `GET /sab/queue`, `GET /sab/history[?failed=1]` | SABnzbd's downloads; a failed one says why |
 | `GET /manga/search?q=`, `GET /manga/detail?source=&source_id=` | the best match on each source; one source's copy |
 | `POST /manga/add {source, source_id}` | Uchiyomi adds it, downloads every chapter, follows new ones |
-| `GET /manga/library?q=`, `GET /manga/status?series_id=`, `GET /manga/jobs` | the library; one series' gaps and downloads; all downloads |
+| `GET /manga/library?q=`, `GET /manga/status?series_id=`, `GET /manga/jobs` | the library; one series' folder, gaps and downloads; all downloads |
 | `POST /manga/fill {series_id}`, `POST /manga/fill-other` | fetch what its own sources list; or what other sources offer |
 | `POST /rescan [{"deep": 1}]` | Komga and Uchiyomi read their folders now, and Uchiyomi stops following CLU's comics (it can't update them); `deep` after a trash or swap |
 
@@ -58,7 +58,8 @@ Whenever something was filed or downloaded, the report says:
 - **What landed:** filed N of M, by series.
 - **Its quality:** for comics, the release (`downloads` → `post`, as "(digital-Empire)"), digital or
   scan (`references/judging.md`) and the interior page size (`inspect`); for manga, the source, its
-  translators (`groups` in `manga/detail`) and the page size.
+  translators (`groups` in `manga/detail`) and the page size (`inspect` a chapter that landed, in
+  `manga/status`' `folder`).
 - **Caveats:** what's missing and why; scans with no digital copy posted; mixed translators or
   sources; anything waiting for Ali.
 - **Usage**, one line: what the task took of Ali's Codex limits, and where they stand. Read them when
@@ -132,8 +133,9 @@ old and new page size. Nothing better: say how many scans are left and that none
 ## Manga
 
 1. `manga/search`, then `manga/detail` on each source that carries it. Take the highest tier in
-   `references/manga.md` → Sources that has the whole run in one translation; a source Ali names
-   wins. Tell Ali which you took and why.
+   `references/manga.md` → Sources that has the whole run in one translation; within a tier, the
+   originals over a copy of the same pages, then the bigger pages, then the faster. A source Ali
+   names wins. Tell Ali which you took and why.
 2. `manga/add`. It downloads every chapter and follows new ones.
 3. `manga/library` for its id; `manga/status` until its downloads finish.
 4. Anything missing or failed: `manga/fill`, then always `manga/fill-other`, which asks every source

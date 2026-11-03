@@ -12,14 +12,17 @@ same order when a series follows more than one source.
 
 | Tier | Source | Whole runs | Search | Pages | Notes |
 |---|---|---|---|---|---|
-| 1 | Atsumaru | 17 of 17 | 0.5 s | 1067 px | fastest; Weeb Central's pages, re-compressed |
-| 1 | MangaFire | 16 | 0.6 s | 1060 px | Chainsaw Man only to #97 |
-| 1 | Weeb Central | 16 | 2–4 s | 1067–1200 px | the official releases' originals (Vagabond 1–327 at 1200 px); slow to answer |
+| 1 | Atsumaru | 17 of 17 | 0.5 s | 1067–1200 px | fastest to answer; Weeb Central's pages, re-encoded |
+| 1 | MangaFire | 16 | 0.6 s | 1060–1080 px | its own, smaller copies; Chainsaw Man only to #97 |
+| 1 | Weeb Central | 16 | 2–4 s | 1067–1200 px | the originals (Vagabond 1–327 at 1200 px); slow to search, quick to download |
 | 2 | MangaDot | 15 | 0.5 s | 1200–1500 px | no Vagabond, Berserk #1–7 only; One Piece at 1.4× the others' size, likely enlarged |
 | 3 | MangaDex | few | 0.3 s | ~850 px | fan and unlicensed works; a licensed series is previews, or MangaPlus links it can't download |
 | 3 | Asura Scans, Flame Comics | manhwa | 1 s | 720 px strips | Korean webtoons only |
 | 3 | Webtoons.com | webtoons | 0.5 s | 800 px | official webtoons only |
 | 4 | Kagane, OniSaga | 4, 1 | 0.6 s, 4 s | ~850 px | partial runs; last |
+
+Within a tier: the originals over a copy of the same pages (Weeb Central over Atsumaru when both
+have the whole run), then the bigger pages, then the faster source.
 
 ## Choosing a source
 

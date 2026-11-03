@@ -226,8 +226,8 @@ def comics_file(a):
 
 def inside(path):
     real = os.path.realpath(path)
-    if not real.startswith(("/data/", "/downloads/")):
-        raise Refused(403, "only CLU's library (/data) and downloads (/downloads)")
+    if not real.startswith(("/data/", "/downloads/", "/manga/")):
+        raise Refused(403, "only CLU's library (/data) and downloads (/downloads), and the manga (/manga)")
     return real
 
 
@@ -261,7 +261,7 @@ def dims(head):
     return None
 
 
-@verb("GET", "/comics/inspect", "path (a file from series, downloads or wanted) → format, pages, page sizes, ComicInfo")
+@verb("GET", "/comics/inspect", "path (a file from series or downloads, or a chapter in manga/status' folder) → format, pages, page sizes, ComicInfo")
 def comics_inspect(a):
     path = inside(need(a, "path")[0])
     out = {"path": path, "mb": round(os.path.getsize(path) / 1e6, 1)}
@@ -386,13 +386,16 @@ def manga_library(a):
     return [{"id": s["id"], "name": s.get("name"), "books": s.get("booksCount"), "following": s.get("autoUpdate")} for s in r]
 
 
-@verb("GET", "/manga/status", "series_id (from library) → books, the runs it lacks, what its sources list that it lacks and why, its downloads")
+@verb("GET", "/manga/status", "series_id (from library) → books, its folder here (for inspect), the runs it lacks, what its sources list that it lacks and why, its downloads")
 def manga_status(a):
     sid = need(a, "series_id")[0]
     s = call("GET", f"{UCHIYOMI}/api/series/{q(sid)}")
     listing = call("GET", f"{UCHIYOMI}/api/series/{q(sid)}/listing")
     jobs = call("GET", f"{UCHIYOMI}/api/sources/jobs")["content"]
+    # Uchiyomi's downloads (its /library-dl) are Unraid's Books/Manga/uchiyomi, here /manga/uchiyomi.
+    folder = f"/manga/uchiyomi/{s['folder']}" if s.get("folder") else None
     return {"name": s.get("name"), "books": s.get("booksCount"), "following": s.get("autoUpdate"),
+            "folder": folder, "files": sorted(os.listdir(folder))[:3] if folder and os.path.isdir(folder) else None,
             "gaps": call("GET", f"{UCHIYOMI}/api/series/{q(sid)}/gaps")["gaps"], "checked": listing.get("checkedAt"),
             "lacks": [{k: x.get(k) for k in ("number", "why", "sourceName", "scanlator", "attempts")} for x in listing["content"]],
             "jobs": [{k: j.get(k) for k in ("title", "done", "total", "status", "origin", "reason")} for j in jobs if j.get("seriesId") == sid]}
