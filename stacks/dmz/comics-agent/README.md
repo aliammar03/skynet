@@ -5,9 +5,10 @@
   through Uchiyomi), judges every issue filed, finds and grabs the right post when CLU misses it,
   patrols the wanted list every 6 hours, reports each morning and offers upgrades weekly. Swapping or
   trashing what's in the library waits for Ali's ✅.
-  - `comics-agent`: OpenAB 0.10 with Codex CLI 0.159 and its ACP adapter. A Codex session per Discord
-    thread, two at a time; the model is `gpt-6.1-terra` (Ali, 2026-11-03), set by OpenAB at each
-    session. It runs in Codex's full-access mode: the container is the boundary.
+  - `comics-agent`: OpenAB 0.10 (a nightly: 0.10.0 and two commits), whose ACP adapter (codex-acp
+    2.5) runs Codex 0.165; the image's own Codex CLI (0.166) is for the login. A Codex session per
+    Discord thread, two at a time; the model is `gpt-6.1-terra` (Ali, 2026-11-03), set by OpenAB at
+    each session. It runs in Codex's full-access mode: the container is the boundary.
   - `comics-tools` (`tools/comics_tools.py`, Python's standard library): the agent's only way to the
     apps, and the only holder of their keys. A fixed list of verbs (`GET /` lists them) over CLU,
     SABnzbd, Komga and Uchiyomi; anything else is refused, and it answers only the agent's container
@@ -59,8 +60,14 @@
   from compose.yaml's `x-discord`), comments and prompts included.
 - The bot stays in the desk while one of its messages is among the thread's last 200; the patrol
   sees to that. If it ever stops answering there, @mention it once.
-- The model is chosen per session through OpenAB (`[pool] default_config_options`); a model Codex
-  doesn't know logs `failed to set default config option` and the session runs on Codex's default.
+- The model is chosen per session through OpenAB (`[pool] default_config_options`), from the model
+  list ChatGPT gives the adapter's Codex (its version, not the CLI's). A model not in it logs
+  `set_config_option not supported, falling back to prompt`: OpenAB then sends `/model …` to Codex as a
+  chat turn, and the session runs on Codex's default. It's set only when a session starts, not when
+  one resumes: after a change, `/reset` in a thread starts it afresh.
+- Renovate can't follow a nightly tag: back to a stable `-codex` tag by hand once one carries codex-acp
+  2.5 or later.
+- Discord's @ list offers the bot's role beside the bot; `allowed_role_ids` makes either one count.
 - The agent can read anything in its own container, the Discord token included (OpenAB's
   environment): that's why no app key is there.
 - `comics-tools` names Komga and Uchiyomi by their public names: on `edge`, only caddy-apps' aliases
