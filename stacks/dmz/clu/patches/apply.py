@@ -14,7 +14,8 @@ SERIES_ROUTES = "/app/routes/series.py"
 DOWNLOAD_ROUTES = "/app/routes/download_clients.py"
 
 # 1. A Usenet download is filed like any other: CLU runs its filing pass once WATCH empties after
-#    a direct download, and never after a Usenet import.
+#    a direct download, and never after a Usenet import. A failed download's leftover in WATCH
+#    doesn't count: two from GetComics held The Lost Years #3-#5 unfiled.
 FILE_AFTER_IMPORT = (
     "file-usenet-downloads",
     '        app_logger.info(f"{source} import: moved {moved} file(s) into WATCH for {filename}")\n'
@@ -32,12 +33,15 @@ FILE_AFTER_IMPORT_HELPER = (
     import time
 
     def run():
+        from core.download_utils import is_temporary_download_file
+
         for _ in range(90):  # 15 minutes
             time.sleep(10)
             busy = False
             for _root, dirs, files in os.walk(watch):
                 dirs[:] = [d for d in dirs if not d.startswith(".")]
-                if any(not f.startswith((".", "_")) for f in files):
+                # A failed download's leftover (.part, .crdownload) is no comic on its way.
+                if any(not f.startswith((".", "_")) and not is_temporary_download_file(f) for f in files):
                     busy = True
                     break
             if not busy:

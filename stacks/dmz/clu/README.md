@@ -92,6 +92,8 @@
 - **Patches:** `patches/apply.py` fixes eleven things in CLU v7.0 at each start, before CLU's
   entrypoint (its `clu-patch:` lines in the log):
   - a Usenet download is filed once `temp/` empties, as a direct download is (CLU never filed one);
+    a failed download's leftover there (`.part`, `.crdownload`) doesn't count, until CLU's hourly
+    orphan cleanup removes it;
   - an issue with no on-sale date counts as out by its cover date (Metron lacks on-sale dates for
     many older issues, Watchmen #2–#12 among them, and CLU never searched for those);
   - among results with the same score the bigger post wins (CLU took the first: Watchmen #1 came as
