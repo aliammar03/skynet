@@ -1,0 +1,55 @@
+# OpenAB 0.10 (upstream docs/config-reference.md): the comics agent in Discord (skynetv2.md → P8,
+# D17). Codex is the image's agent (codex-acp). ${COMICS_*} come from compose.yaml: OpenAB fills
+# every ${NAME} in this file from its environment before reading it.
+
+[discord]
+bot_token = "${DISCORD_BOT_TOKEN}"
+# #comics and the threads in it, and Ali alone.
+allowed_channels = ["${COMICS_CHANNEL}"]
+allowed_users = ["${COMICS_ALI}"]
+# In a thread it has joined (the desk), it answers without an @mention; in #comics itself it needs
+# one, and opens a thread of its own for it. Other bots and webhooks (CLU's alerts) are ignored.
+allow_user_messages = "involved"
+allow_bot_messages = "off"
+
+[pool]
+# A Codex session per thread: the desk, and one more thread an @mention opens (the oldest idle one
+# is set aside and resumed when it is written in again).
+max_sessions = 2
+session_ttl_hours = 24
+# Full access inside its container, which is the boundary (Codex's own sandbox needs user
+# namespaces); the model Ali picked (2026-11-03).
+default_config_options = { mode = "agent-full-access", model = "gpt-6.1-terra" }
+
+[reactions]
+tool_display = "compact"
+
+# Ali's ✅ on a message reaches the agent with that message's id; comics-tools reads the ✅ back from
+# Discord before it trashes anything.
+[reactions.mapping]
+"✅" = "✅ — I approve the message I reacted to."
+
+# Into the desk, Pakistan time; how to do each is in the comics skill. CLU's own search runs at 03:30.
+[[cron.jobs]]
+schedule = "0 0,6,12,18 * * *"
+timezone = "Asia/Karachi"
+channel = "${COMICS_CHANNEL}"
+thread_id = "${COMICS_DESK}"
+sender_name = "patrol"
+message = "Patrol (comics skill → Patrol)."
+
+[[cron.jobs]]
+schedule = "0 8 * * *"
+timezone = "Asia/Karachi"
+channel = "${COMICS_CHANNEL}"
+thread_id = "${COMICS_DESK}"
+sender_name = "morning report"
+message = "Morning report (comics skill → Morning report)."
+
+[[cron.jobs]]
+schedule = "0 11 * * 0"
+timezone = "Asia/Karachi"
+channel = "${COMICS_CHANNEL}"
+thread_id = "${COMICS_DESK}"
+sender_name = "upgrades"
+message = "Weekly upgrades (comics skill → Upgrades)."

@@ -20,9 +20,10 @@ services:
         ipv4_address: 10.10.100.35 # HOST_PROXY_APPS (rules 200, 430, 235)
         gw_priority: 1 # default route (and replies to clients) via VLAN 100, not Docker's bridge
       edge:
-        # Containers on edge that call these names (the OIDC issuer, the addons) reach this door
-        # directly: the host can't reach its own macvlan IPs, so Technitium's .35 fails from edge.
-        aliases: [login.aliammar.net, aiometadata.aliammar.net, aiostreams.aliammar.net]
+        # Containers on edge that call these names (the OIDC issuer, the addons, comics-tools' Komga
+        # and Uchiyomi) reach this door directly: the host can't reach its own macvlan IPs, so
+        # Technitium's .35 fails from edge.
+        aliases: [login.aliammar.net, aiometadata.aliammar.net, aiostreams.aliammar.net, komga.aliammar.net, uchiyomi.aliammar.net]
       # Apps with no login of their own, each on a network only it and this door share.
       door-calibre: {}
       door-clu: {}
