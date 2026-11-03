@@ -1,0 +1,4 @@
+# Codex's settings for the comics agent (skynetv2.md → P8, D17), read as its system config
+# (/etc/codex/config.toml, below anything in ~/.codex): live web search, for arcs and reading orders,
+# release news, reviews and covers.
+web_search = "live"

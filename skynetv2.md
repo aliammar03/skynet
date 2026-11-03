@@ -2323,6 +2323,12 @@ not the Skynet agent's budget.
   right post when CLU missed it); manga through Uchiyomi and its Suwayomi engine (search the
   sources, add, follow, fetch); Komga and Uchiyomi re-synced after. It grabs and files on its own;
   swapping or deleting what's already in the library waits for Ali's ✅ in the thread.
+- **Talks comics and orchestrates (Ali, 2026-11-03):** recommends from what Ali reads (Komga's read
+  progress) and from a live web search (arcs and reading orders, news, reviews); adds arcs, not only
+  whole runs (CLU skips the issues outside an arc; Uchiyomi fetches only the arc's chapters); follows
+  up when a download it started lands, through a job it writes in OpenAB's usercron file, never one
+  that runs a command; reports as a card (cover, quality, links to read it in Komga and Uchiyomi,
+  caveats, what it took of Ali's Codex limits).
 - **Patrols:** CLU's wanted list every 6 hours (issues with no results, a failed post, the wrong
   edition), and a morning report after CLU's 03:30 run. Weekly, upgrades: a filed issue that came
   from a scan, against what's posted now; a digital copy that has since appeared is offered in the
@@ -2332,7 +2338,7 @@ not the Skynet agent's budget.
 | Need | Choice | Why | Passed over |
 |---|---|---|---|
 | Discord ↔ agent | OpenAB 0.10 (830★, MIT, a release a week), image `openab:nightly-20261103-…-codex` (0.10.0 and two commits; its ACP adapter 2.5 runs Codex 0.165, whose model list has `gpt-6.1-terra`) | a thread per conversation and a Codex session per thread, channel and user allowlists, scheduled prompts built in; the image carries Codex CLI and its ACP adapter | codex-discord-mcp (one session per channel); a bot of our own (glue); the stable `0.10.0-codex` and `pre-beta-codex` (their adapter 2.0 runs its own Codex 0.158: no `gpt-6.1-terra`) |
-| The model | Codex CLI on Ali's ChatGPT subscription (device-code login), `gpt-6.1-terra` (Ali, 2026-11-03), set by OpenAB at each session | his idle subscription | the Skynet agent through its Discord plugin |
+| The model | Codex CLI on Ali's ChatGPT subscription (device-code login), `gpt-6.1-terra` at high reasoning effort with live web search (Ali, 2026-11-03), set by OpenAB at each session | his idle subscription | the Skynet agent through its Discord plugin |
 | Its hands | `comics-tools`, a small service (glue) holding every key, offering a fixed list of verbs | CLU's internal port has no login, and one of its routes rewrites every setting at once; the agent reaches the verbs only and holds no key | the agent on CLU's network with curl; an MCP server (more code) |
 | Its know-how | a skill, `comics` (`SKILL.md` and references), from this phase's lessons | Codex loads skills from `~/.agents/skills` | — |
 
@@ -2450,7 +2456,7 @@ Aidoku, if it reaches the App Store; family accounts.
 | Technitium's login through admin Authelia: `dns/sso.json` applied by `technitium-sync`, read back after the web service restarts (P5) | ~40 lines |
 | `stacks/dmz/clu/patches/apply.py` (P8: fifteen fixes to CLU v7.0 at each start, until CLU ships its own; a fix that no longer matches is left out) | ~560 lines |
 | `stacks/dmz/clu/patches/test/` (P8: CLU's matcher, patched, on 397 labelled real posts, in a throwaway on docker-dmz; for CLU updates) | ~90 lines |
-| `stacks/dmz/comics-agent/tools` (P8, D17: `comics-tools`, the comics agent's 26 fixed verbs over CLU, SABnzbd, Komga and Uchiyomi, holding their keys; an issue's page sizes read from its image headers, Ali's ✅ read back from Discord, every answer scrubbed of links and keys; Uchiyomi's unfollowing of the series no source can update) | ~425 lines |
+| `stacks/dmz/comics-agent/tools` (P8, D17: `comics-tools`, the comics agent's 30 fixed verbs over CLU, SABnzbd, Komga and Uchiyomi, holding their keys; an issue's page sizes read from its image headers, Ali's ✅ read back from Discord, every answer scrubbed of links and keys; Uchiyomi's unfollowing of the series no source can update; arcs, and what Ali reads in Komga) | ~460 lines |
 | `stacks/dmz/comics-agent` OpenAB config (P8, D17: the channel, Ali alone, the model, the ✅, the scheduled prompts) | ~35 lines |
 | `skynet-incident` (P6: alert webhook → `claude -p`; one at a time, repeats dropped, the budget, escalation) | ~40 lines |
 | `skynet-merge` (P6: tier, window and CI checked; the merge; the post) | ~40 lines |

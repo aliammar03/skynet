@@ -27,6 +27,9 @@ services:
       - /opt/appdata/comics-agent/home:/home/node
       - ./agent/AGENTS.md:/home/node/AGENTS.md:ro
       - ./agent/skills/comics:/home/node/.agents/skills/comics:ro
+      # Codex's own settings (web search), as its system config: outside its home, so nothing there
+      # is created or shadowed.
+      - ./agent/codex.toml:/etc/codex/config.toml:ro
     networks:
       # OpenAI and Discord.
       egress: {}
