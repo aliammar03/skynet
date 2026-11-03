@@ -300,16 +300,20 @@ def comics_inspect(a):
             "comicinfo": ci}
 
 
-@verb("POST", "/comics/trash", "series_id + issues: [numbers] | paths: [files] → a proposal for Ali's ✅; then code + the ✅'s message_id, thread_id, channel_id → CLU's trash")
+@verb("POST", "/comics/trash", "paths: [strays in /downloads/processed] → CLU's trash now; series_id + issues: [numbers] | paths: [other files] → a proposal for Ali's ✅; then code + the ✅'s message_id, thread_id, channel_id → CLU's trash")
 def comics_trash(a):
     if a.get("code"):
         return confirm(a)
-    acts, said = [], []
+    acts, said, strays = [], [], []
     if a.get("paths"):
         for path in a["paths"]:
             real = inside(path)
-            acts.append(lambda real=real: call("POST", f"{CLU}/api/delete-multiple", {"targets": [real]}))
-            said.append(real)
+            act = lambda real=real: call("POST", f"{CLU}/api/delete-multiple", {"targets": [real]})
+            if real.startswith("/downloads/processed/"):  # a stray CLU won't file: no ✅ (Ali, 2026-11-04)
+                strays.append((real, act))
+            else:
+                acts.append(act)
+                said.append(real)
     if a.get("issues"):
         sid = int(need(a, "series_id")[0])
         st = collection(sid)["issue_status"]
@@ -319,9 +323,12 @@ def comics_trash(a):
                 raise Refused(404, f"#{n} has no file in the library")
             acts.append(lambda n=n, path=path: call("POST", f"{CLU}/api/series/{sid}/issue/{q(n)}/delete-file", {"path": path}))
             said.append(f"{path} (back on the wanted list)")
-    if not acts:
+    if not acts and not strays:
         raise Refused(400, "missing: paths, or series_id and issues")
-    return propose("to CLU's trash", said, acts)
+    trashed = [{"path": real, "result": act()} for real, act in strays]  # after every check above
+    if not acts:
+        return {"trashed": trashed}
+    return {**propose("to CLU's trash", said, acts), **({"trashed": trashed} if trashed else {})}
 
 
 def propose(what, said, acts):

@@ -19,7 +19,9 @@
     (comics to CLU's trash; manga chapters' files, or a whole series, out of Uchiyomi) is a proposal
     first: it runs only once Ali's ✅ on the agent's proposal (a reaction, or a ✅ reply to it) in
     `#comics` is read back from Discord. Stopping a download or a follow needs no ✅: nothing is
-    removed. Its answers carry no link (an indexer's NZB link holds its API key) and no key.
+    removed; nor does a stray in CLU's `processed/` (a duplicate, another series' issue), which goes
+    straight to CLU's trash (Ali, 2026-11-04). Its answers carry no link (an indexer's NZB link holds
+    its API key) and no key.
 - **Discord:** only `#comics` and the threads in it, and only Ali (config.toml). The desk is Ali's
   standing thread there: once the bot has answered in it, no @mention is needed; an @mention in the
   channel opens a thread of its own. The patrol (00:00, 06:00, 12:00, 18:00), the morning report

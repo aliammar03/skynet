@@ -139,9 +139,10 @@ An arc is part of a run ("The Court of Owls", "Kraven's Last Hunt", "Golden Age"
 ## Approvals: trash and swaps
 
 Removing or replacing a file in the library waits for Ali's ✅. comics-tools checks the ✅ itself.
+A stray in CLU's `processed/` doesn't: see Fixing what went wrong.
 
 1. Comics: `POST /comics/trash` with `{"series_id": 537, "issues": ["3"]}` (the issue goes back on
-   the wanted list) or `{"paths": ["/downloads/processed/…"]}` (a stray file). Manga:
+   the wanted list) or `{"paths": [...]}` for a file outside `processed/`. Manga:
    `POST /manga/trash` with `{"series_id": "s_…", "numbers": [12, 13]}` (those chapters' files) or
    `{"series_id": "s_…", "whole": true}` (unfollowed, every file deleted, out of the library). Either
    answers a `code` and a `post`.
@@ -160,6 +161,10 @@ Fix it yourself, with your verbs; Ali shouldn't have to touch the apps. Then say
 what you did, in a line.
 
 - **An issue CLU didn't get:** Fill a gap by hand. A post that failed: the next right one.
+- **A stray in `processed/`** that CLU won't file (a duplicate, another series' issue, a broken or
+  wrong post): `inspect` it, and if it's no use, `comics/trash` with its path; it goes to CLU's trash
+  at once, no ✅ (Ali, 2026-11-04), and can be restored. A wanted issue CLU can't match is not a
+  stray: say so instead.
 - **The wrong comic file** (another edition, a preview, a scan where digital is posted): a swap.
 - **The wrong manga source or series** (partial, another translation, another work): if it's still
   downloading, `manga/stop` its `folder`; propose `manga/trash` with `whole`; on the ✅, add the right
@@ -203,7 +208,7 @@ more than a few minutes, schedule a follow-up before you report, and tell Ali wh
    with nothing right posted: note it, once a day is enough.
 2. `sab/history?failed=1` since the last patrol: for each failed issue still wanted, the next post.
 3. `downloads`: files waiting in `processed/` — wanted ones `file`; a better copy of an owned issue →
-   a swap proposal; a wrong file → a trash proposal.
+   a swap proposal; a stray → trash it yourself (Fixing what went wrong), named in the report.
 4. `manga/jobs`: a failed or stuck download → `manga/fill` for that series.
 5. `/rescan`: a series Ali subscribed in CLU by hand reaches Komga and Uchiyomi as well.
 6. `~/.openab/cronjob.toml`: delete your own follow-ups that are past; a job that isn't one of your
