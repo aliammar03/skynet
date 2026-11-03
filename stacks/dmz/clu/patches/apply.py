@@ -1,4 +1,4 @@
-"""Eleven fixes to CLU v7.0 until CLU ships its own (stacks/dmz/clu/README.md → Patches).
+"""Thirteen fixes to CLU v7.0 until CLU ships its own (stacks/dmz/clu/README.md → Patches).
 
 The container runs this as root before CLU's entrypoint. Each fix replaces one exact piece of
 CLU's code. A file is rewritten only when all its fixes apply and the result compiles; when CLU's
@@ -202,10 +202,12 @@ def _skynet_mark_failed(title, size):
 
 
 def _skynet_scoring_title(title):
-    """Skynet patch: a trailing "REPOST" says nothing about which issue a post is."""
+    """Skynet patch: a trailing "REPOST" says nothing about which issue a post is; a scene-style
+    name is read with spaces (_skynet_scene_spaces)."""
     import re
 
-    return re.sub(r"\\s*[\\[(]?\\bre-?post\\b[\\])]?\\s*$", "", title or "", flags=re.IGNORECASE)
+    title = re.sub(r"\\s*[\\[(]?\\bre-?post\\b[\\])]?\\s*$", "", title or "", flags=re.IGNORECASE)
+    return _skynet_scene_spaces(title)
 
 
 def _skynet_remember_alternates(download_id, res, chosen, series_name, issue_num):
@@ -432,6 +434,34 @@ FORMAT_WORDS = (
     "    for kw in [rf'(?<![a-zA-Z]){_keyword_pattern(v)}\\b' for v in get_format_variants()] + [r'\\bcompendium\\b',\n",
 )
 
+# 12. The scheduled search dates an issue by its cover year, the year its posts carry: it used the
+#     on-sale year, and took 30 points off any other, so an issue on sale in October to December was
+#     rejected (Ultimate Spider-Man (2000) #15, on sale 2001-11, cover 2002-01, posted as "(2002)").
+COVER_YEAR = (
+    "cover-year",
+    '                    "issue_year": int(store_date[:4]) if store_date else series_year,\n',
+    "                    # Skynet patch: the cover year, as posts carry it.\n"
+    '                    "issue_year": int((issue.get("cover_date") or store_date)[:4]) if store_date else series_year,\n',
+)
+
+# 13. A scene-style post name ("Absolute.Batman.001.2024.Webrip.The.Last.Kryptonian-DCP") is read
+#     with spaces, as the scorer needs; a decimal issue ("001.5") keeps its dot. CLU matched none.
+SCENE_NAMES = (
+    "scene-names",
+    "def _make_filename(series_name, issue_num, chosen_result, tier) -> str:\n",
+    '''def _skynet_scene_spaces(title):
+    """Skynet patch: a name with no spaces and dots between its words reads with spaces."""
+    import re
+
+    if " " in title or title.count(".") < 2:
+        return title
+    return re.sub(r"(?<!\\d)\\.|\\.(?!\\d{1,2}(?!\\d))", " ", title)
+
+
+def _make_filename(series_name, issue_num, chosen_result, tier) -> str:
+''',
+)
+
 FIXES = {
     USENET: [
         FILE_AFTER_IMPORT,
@@ -443,6 +473,7 @@ FIXES = {
         FAILOVER_SCORING_TITLE,
         FAILOVER_SKIP_FAILED,
         ALIASES_SEARCHED,
+        SCENE_NAMES,
     ],
     APP: [
         UNDATED_SEARCHED,
@@ -450,6 +481,7 @@ FIXES = {
         NAME_FROM_SERIES_HELPER,
         FILE_AFTER_CONVERSION,
         SEED_ALIASES_BEFORE_SEARCH,
+        COVER_YEAR,
     ],
     SCORER: [HYPHEN_IS_SPACE, FORMAT_WORDS],
     SERIES_ROUTES: [SEED_ALIASES, SEED_ALIASES_HELPER],

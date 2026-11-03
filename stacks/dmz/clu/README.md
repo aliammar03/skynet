@@ -89,7 +89,7 @@
   - The agent, in JDownloader, after its first start and while it's stopped: archive extraction off
     (`cfg/org.jdownloader.extensions.extraction.ExtractionExtension.json`: `"enabled": false`), so
     CLU alone unpacks what lands in its `temp/`.
-- **Patches:** `patches/apply.py` fixes eleven things in CLU v7.0 at each start, before CLU's
+- **Patches:** `patches/apply.py` fixes thirteen things in CLU v7.0 at each start, before CLU's
   entrypoint (its `clu-patch:` lines in the log):
   - a Usenet download is filed once `temp/` empties, as a direct download is (CLU never filed one);
     a failed download's leftover there (`.part`, `.crdownload`) doesn't count, until CLU's hourly
@@ -127,7 +127,12 @@
   - a format keyword (TPB, one-shot, omnibus, ...) counts only as a whole word in the
     collected-edition check, as CLU's title parser reads it: the "os" of one-shot inside "Lost
     Years" took 30 points off every post of The Last Ronin - The Lost Years, so CLU rejected the
-    Usenet copies and fell back to GetComics, where three of the five downloads failed.
+    Usenet copies and fell back to GetComics, where three of the five downloads failed;
+  - the scheduled search dates an issue by its cover year, the year posts carry: CLU used the
+    on-sale year and took 30 points off any other, so an issue on sale in October to December was
+    rejected (Ultimate Spider-Man (2000) #15: on sale 2001-11, cover 2002-01, posted as "(2002)");
+  - a scene-style post name (`Absolute.Batman.001.2024.Webrip…`, `Ultimate.Spider-Man.064-000`)
+    is read with spaces before scoring; a decimal issue (`001.5`) keeps its dot. CLU matched none.
 
   A fix whose text CLU's code no longer has (after an update) is left out with a `clu-patch:` line,
   and that file runs as shipped. On a CLU update: read those lines, and drop each fix CLU now has.
@@ -139,11 +144,6 @@
 - CLU's entrypoint runs CLU as root (its *Container user* notice) when `/downloads/temp`,
   `/downloads/processed`, `/data` or `/cache` isn't writable by `PUID:PGID`, and makes a missing
   `temp/` or `processed/` as root itself: the host makes both as `99:100` first (`hosts/docker-dmz`).
-- CLU dates a wanted issue by Metron's on-sale year, while releases carry the cover year (two or three
-  months later), and its scorer takes 20 points off for a wrong year: an issue on sale in October to
-  December is rejected (Ultimate Spider-Man #15: 20 by on-sale year, 60 by cover year), and the run
-  falls through to GetComics. For a backfill, search such issues by cover year and grab them through
-  `/api/usenet/grab`.
 - It files once a finished download has emptied its `temp/` (a Usenet one through the patch); a
   straggler waits in `processed/` until the next one, or `POST /api/scan-downloads`. It files only
   issues it still wants: a better copy of an issue it has (a digital release for a scan) stays in
@@ -159,10 +159,10 @@
 - With its GetComics index empty, its searches go live, several variants an issue: GetComics
   answered 429 (too many requests) 213 times in 20 minutes on 2026-10-30. Usenet first keeps that
   down; the index fills for followed series, 300 posts a night.
-- Its scorer drops TPBs, annuals and other variants unless accepted, rejects scanners' odd names
-  (`Ultimate.Spider-Man.064-000`, a title starting with "- ") that are proper issues, and once took
-  same-named spin-offs (Ultimate Spider-Man – Infinity Comic #17 and Incursion #3 for Ultimate
-  Spider-Man 2000).
+- Its scorer drops TPBs, annuals and other variants unless accepted, and once took same-named
+  spin-offs (Ultimate Spider-Man – Infinity Comic #17 and Incursion #3 for Ultimate Spider-Man
+  2000). With the right post absent it can take another edition of the issue (The Last Ronin #1's
+  Director's Cut, Absolute Batman #1's preview edition).
 - SABnzbd refuses a host name it doesn't know ("Hostname verification failed"): its own hostname,
   `sabnzbd`, is admitted at its first start; the door's name is the agent's step above. A rebuilt
   config needs that step again.
