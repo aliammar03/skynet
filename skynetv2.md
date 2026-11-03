@@ -2450,7 +2450,7 @@ Aidoku, if it reaches the App Store; family accounts.
 | Technitium's login through admin Authelia: `dns/sso.json` applied by `technitium-sync`, read back after the web service restarts (P5) | ~40 lines |
 | `stacks/dmz/clu/patches/apply.py` (P8: fifteen fixes to CLU v7.0 at each start, until CLU ships its own; a fix that no longer matches is left out) | ~560 lines |
 | `stacks/dmz/clu/patches/test/` (P8: CLU's matcher, patched, on 397 labelled real posts, in a throwaway on docker-dmz; for CLU updates) | ~90 lines |
-| `stacks/dmz/comics-agent/tools` (P8, D17: `comics-tools`, the comics agent's 26 fixed verbs over CLU, SABnzbd, Komga and Uchiyomi, holding their keys; an issue's page sizes read from its image headers, Ali's ✅ read back from Discord, every answer scrubbed of links and keys) | ~400 lines |
+| `stacks/dmz/comics-agent/tools` (P8, D17: `comics-tools`, the comics agent's 26 fixed verbs over CLU, SABnzbd, Komga and Uchiyomi, holding their keys; an issue's page sizes read from its image headers, Ali's ✅ read back from Discord, every answer scrubbed of links and keys; Uchiyomi's unfollowing of the series no source can update) | ~425 lines |
 | `stacks/dmz/comics-agent` OpenAB config (P8, D17: the channel, Ali alone, the model, the ✅, the scheduled prompts) | ~35 lines |
 | `skynet-incident` (P6: alert webhook → `claude -p`; one at a time, repeats dropped, the budget, escalation) | ~40 lines |
 | `skynet-merge` (P6: tier, window and CI checked; the merge; the post) | ~40 lines |

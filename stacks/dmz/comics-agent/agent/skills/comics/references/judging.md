@@ -34,7 +34,10 @@ Prefer digital, always; among digital copies, the bigger file.
 
 - **Digital** releases say "(Digital)" or "Webrip" and come from groups such as Zone-Empire,
   Marika-Empire, Mephisto-Empire or Shadowcat-Empire (`ComicInfo` → `ScanInformation`). Interior
-  pages around 1920×2951, 1988×3056 or 2128×3263; the cover may be smaller.
+  pages around 1920×2951, 1988×3056 or 2128×3263; the cover may be smaller. Older digital files are
+  smaller: DC's are about 1280 px wide (Batman: The Long Halloween, digital-Empire: 1280×1929). The
+  post's title (`downloads` → `post`) and interior pages all of one size say digital; a scan's vary
+  by a few pixels. Never propose a swap for the same release.
 - **Scans** of print copies: interior pages around 1280×1967, or less; "c2c" (cover to cover). Old
   issues may exist only as scans: then the cleanest scan.
 - `inspect` samples the cover, page 2, the middle and the last page. Judge by the interior pages, and

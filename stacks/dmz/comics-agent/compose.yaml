@@ -18,8 +18,7 @@ services:
     environment:
       <<: *discord
       TZ: Asia/Karachi
-    # Not measured yet: OpenAB is small, each Codex session (codex-acp and Codex) a few hundred MB,
-    # and the pool holds two (config.toml). Measured at the exit test.
+    # 180–270 MB with one session (the exit test, 2026-11-03); the pool holds two (config.toml).
     mem_limit: 1g
     volumes:
       - ./config.toml:/etc/openab/config.toml:ro

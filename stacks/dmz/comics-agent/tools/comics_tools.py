@@ -210,11 +210,12 @@ def comics_grab(a):
     return call("POST", f"{CLU}/api/usenet/grab", {"nzb_url": x["nzb_url"], "filename": name, "series": x["series"], "issue": x["issue"]})
 
 
-@verb("GET", "/comics/downloads", "→ CLU's latest Usenet downloads, and the files waiting in processed/ to be filed")
+@verb("GET", "/comics/downloads", "→ CLU's latest Usenet downloads (each with the post it took), and the files waiting in processed/ to be filed")
 def comics_downloads(a):
     d = call("GET", f"{CLU}/api/usenet/downloads")["downloads"][-int(a.get("limit") or 30):]
     keys = ("filename", "series", "issue", "status", "stage", "percent", "error")
-    return {"downloads": [{k: x.get(k) for k in keys} for x in d],
+    # skynet_post: the post's title and size, kept by CLU's patch 6; the release a report names.
+    return {"downloads": [{**{k: x.get(k) for k in keys}, "post": (x.get("skynet_post") or [None])[0]} for x in d],
             "processed": sorted(os.listdir("/downloads/processed")), "temp": sorted(os.listdir("/downloads/temp"))}
 
 
@@ -355,9 +356,11 @@ def sab_history(a):
 
 # --- manga: Uchiyomi ------------------------------------------------------------------------------
 
+# adult=1: Uchiyomi leaves out every source whose extension calls itself 18+ (most of the big manga
+# sites, for the adult titles they also carry), and the series added from them, unless asked.
 @verb("GET", "/manga/search", "q → the best match on each of Uchiyomi's sources (source, source_id, title, lang, inLibrary)")
 def manga_search(a):
-    hits = call("GET", f"{UCHIYOMI}/api/sources/find?q={q(need(a, 'q')[0])}", timeout=180)["content"]
+    hits = call("GET", f"{UCHIYOMI}/api/sources/find?q={q(need(a, 'q')[0])}&adult=1", timeout=180)["content"]
     return [{"source": h["source"], "name": h.get("name"), "source_id": h["sourceId"], "title": h["title"],
              "lang": h.get("lang"), "inLibrary": h.get("inLibrary")} for h in hits]
 
@@ -379,7 +382,7 @@ def manga_add(a):
 
 @verb("GET", "/manga/library", "q → series in Uchiyomi's library (id, name, books)")
 def manga_library(a):
-    r = call("POST", f"{UCHIYOMI}/api/series/search", {"query": a.get("q") or ""})["content"]
+    r = call("POST", f"{UCHIYOMI}/api/series/search?adult=1", {"query": a.get("q") or ""})["content"]
     return [{"id": s["id"], "name": s.get("name"), "books": s.get("booksCount"), "following": s.get("autoUpdate")} for s in r]
 
 
@@ -429,10 +432,10 @@ def manga_fill_other(a):
 
 # --- both -----------------------------------------------------------------------------------------
 
-@verb("POST", "/rescan", "[deep=1] → Komga and Uchiyomi scan their libraries; deep: Uchiyomi's Rescan everything too (after a trash or swap)")
+@verb("POST", "/rescan", "[deep=1] → Komga and Uchiyomi scan their libraries, and Uchiyomi stops following series no source can update (CLU's); deep: Uchiyomi's Rescan everything too (after a trash or swap)")
 def rescan(a):
     out = {"komga": [call("POST", f"{KOMGA}/api/v1/libraries/{lib['id']}/scan") or lib["name"] for lib in call("GET", f"{KOMGA}/api/v1/libraries")],
-           "uchiyomi": call("POST", f"{UCHIYOMI}/api/refresh", timeout=180)}
+           "uchiyomi": call("POST", f"{UCHIYOMI}/api/refresh", timeout=180), "unfollowed": unfollow_sourceless()}
     if a.get("deep"):  # its preview, then the plan applied: rows of files gone marked, moved files paired
         start = time.time() * 1000
         call("POST", f"{UCHIYOMI}/api/admin/tasks/rescan/run")
@@ -444,6 +447,24 @@ def rescan(a):
                 break
         out["deep"] = call("POST", f"{UCHIYOMI}/api/admin/tasks/rescan/apply", {"plan": plan["id"]}) if plan.get("id") else s.get("error") or "no plan"
     return out
+
+
+def unfollow_sourceless():
+    """Uchiyomi follows every series it finds in its folders, CLU's comics too, which no source of its
+    own can update: its updater tries them every night and Health lists them as series that can no
+    longer update. CLU updates them, so Uchiyomi stops following them. Answers their names."""
+    found, page = [], 0
+    while True:
+        d = call("POST", f"{UCHIYOMI}/api/series/search?adult=1",
+                 {"condition": {"allOf": [{"hasMainSource": {"operator": "isFalse"}}]}, "size": 100, "page": page})
+        found += [s for s in d.get("content", []) if s.get("autoUpdate")]
+        if d.get("last", True):
+            break
+        page += 1
+    for i in range(0, len(found), 500):
+        call("POST", f"{UCHIYOMI}/api/admin/series/bulk/auto-update",
+             {"seriesIds": [s["id"] for s in found[i:i + 500]], "autoUpdate": False})
+    return [s.get("name") for s in found]
 
 
 @verb("GET", "/", "→ this list")

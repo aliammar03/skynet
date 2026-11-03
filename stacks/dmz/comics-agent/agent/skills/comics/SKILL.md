@@ -29,7 +29,7 @@ Your only way to the apps. `curl -sS comics-tools:8080/` lists every verb with i
 | `GET /comics/series?series_id=` | every issue's file in the library, or `null` |
 | `POST /comics/search {series, issue, year, volume}` | Usenet posts for one issue, scored by CLU, each with an `id` |
 | `POST /comics/grab {result}` | download a post by its `id`; CLU files it if the issue is wanted |
-| `GET /comics/downloads` | CLU's latest downloads, and the files waiting in `processed/` |
+| `GET /comics/downloads` | CLU's latest downloads, each with the `post` it took, and the files waiting in `processed/` |
 | `POST /comics/file` | CLU files what waits in `processed/` now |
 | `GET /comics/inspect?path=` | a file's format, page count, page sizes and ComicInfo |
 | `POST /comics/trash` | a proposal for Ali's ✅, then the trash (Approvals) |
@@ -38,7 +38,7 @@ Your only way to the apps. `curl -sS comics-tools:8080/` lists every verb with i
 | `POST /manga/add {source, source_id}` | Uchiyomi adds it, downloads every chapter, follows new ones |
 | `GET /manga/library?q=`, `GET /manga/status?series_id=`, `GET /manga/jobs` | the library; one series' gaps and downloads; all downloads |
 | `POST /manga/fill {series_id}`, `POST /manga/fill-other` | fetch what its own sources list; or what other sources offer |
-| `POST /rescan [{"deep": 1}]` | Komga and Uchiyomi read their folders now; `deep` after a trash or swap |
+| `POST /rescan [{"deep": 1}]` | Komga and Uchiyomi read their folders now, and Uchiyomi stops following CLU's comics (it can't update them); `deep` after a trash or swap |
 
 ## The library and the schedule
 
@@ -51,6 +51,22 @@ Your only way to the apps. `curl -sS comics-tools:8080/` lists every verb with i
 - CLU files only issues it still wants. A copy of an issue it already has stays in `processed/`
   until a swap (Approvals).
 
+## Reports
+
+Whenever something was filed or downloaded, the report says:
+
+- **What landed:** filed N of M, by series.
+- **Its quality:** for comics, the release (`downloads` → `post`, as "(digital-Empire)"), digital or
+  scan (`references/judging.md`) and the interior page size (`inspect`); for manga, the source, its
+  translators (`groups` in `manga/detail`) and the page size.
+- **Caveats:** what's missing and why; scans with no digital copy posted; mixed translators or
+  sources; anything waiting for Ali.
+- **Usage**, one line: what the task took of Ali's Codex limits, and where they stand. Read them when
+  you start and again when you report:
+  `grep -o '"primary":{[^}]*}\|"secondary":{[^}]*}' "$(ls -t ~/.codex/sessions/*/*/*/rollout-*.jsonl | head -1)" | tail -2`
+  (`primary` is the 5-hour window, `secondary` the week): "Usage: 1% of the 5-hour limit (now 4%),
+  week 1%."
+
 ## Add a comic series
 
 1. `find` it. Pick the volume by name, start year, publisher and issue count; Ali's words ("the 2000
@@ -61,7 +77,7 @@ Your only way to the apps. `curl -sS comics-tools:8080/` lists every verb with i
 4. Judge every filed issue (`series`, then `inspect`): the right issue, the right edition, digital
    over scan. A wrong one goes through Approvals.
 5. For each issue still in `wanted`: Fill a gap by hand.
-6. `/rescan`, then report: filed N of M, what's missing and why, what needs Ali.
+6. `/rescan`, then report (Reports).
 
 ## Fill a gap by hand
 
@@ -96,8 +112,9 @@ Removing or replacing a file in the library waits for Ali's ✅. comics-tools ch
 3. `downloads`: files waiting in `processed/` — wanted ones `file`; a better copy of an owned issue →
    a swap proposal; a wrong file → a trash proposal.
 4. `manga/jobs`: a failed or stuck download → `manga/fill` for that series.
-5. Report in a few lines: what you grabbed and filed, what's still missing and why. Nothing to do:
-   one line.
+5. `/rescan`: a series Ali subscribed in CLU by hand reaches Komga and Uchiyomi as well.
+6. Report in a few lines (Reports): what you grabbed and filed, what's still missing and why.
+   Nothing to do: one line.
 
 ## Morning report (08:00)
 
@@ -114,11 +131,15 @@ old and new page size. Nothing better: say how many scans are left and that none
 
 ## Manga
 
-1. `manga/search`, then `manga/detail` for the likely sources. Pick by `references/manga.md`; tell Ali
-   which source you took and why.
+1. `manga/search`, then `manga/detail` on each source that carries it. Take the highest tier in
+   `references/manga.md` → Sources that has the whole run in one translation; a source Ali names
+   wins. Tell Ali which you took and why.
 2. `manga/add`. It downloads every chapter and follows new ones.
-3. `manga/library` for its id; `manga/status` until its downloads finish. Gaps: `manga/fill`, then
-   `manga/fill-other` (take a candidate's `fillable` numbers only), then report what no source has.
+3. `manga/library` for its id; `manga/status` until its downloads finish.
+4. Anything missing or failed: `manga/fill`, then always `manga/fill-other`, which asks every source
+   under the series' other names too (take a candidate's `fillable` numbers only). Only then is a gap
+   one no source fills.
+5. Report (Reports).
 
 ## Re-sync
 

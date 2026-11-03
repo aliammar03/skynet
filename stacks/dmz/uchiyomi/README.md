@@ -51,6 +51,10 @@
 - **Library scan:** Uchiyomi scans its folders only when asked (its Tasks list: "on demand").
   `uchiyomi-scan`, a doco-cd job every 30 minutes, asks (`POST /api/refresh`), so what CLU files
   shows within half an hour.
+- **Source order** (settings, `sourcePrefs`; set 2026-11-03 from a measurement of every manga
+  source, in the comics agent's skill: `references/manga.md` → Sources): Atsumaru, MangaFire, Weeb
+  Central, MangaDot, Asura Scans, Flame Comics, Webtoons.com, MangaDex, Kagane, OniSaga. A series that
+  follows several sources takes each new chapter from the first that lists it.
 - **Upstream:** [Uchiyomi](https://github.com/AngeloSha/uchiyomi) ([API](https://github.com/AngeloSha/uchiyomi/blob/main/docs/api.md),
   also at `/api/docs`) · [Suwayomi-Server](https://github.com/Suwayomi/Suwayomi-Server) ·
   [FlareSolverr](https://github.com/FlareSolverr/FlareSolverr)
@@ -66,6 +70,13 @@
 - A new comic extension: its folder in `Books/Comics/uchiyomi/` and its line in compose (PR), or its
   downloads land in Manga. A symlink won't do: Uchiyomi refuses a download path that leaves
   `/library-dl`.
+- Most manga sites' extensions call themselves 18+ (Weeb Central, Atsumaru, MangaFire, MangaDot,
+  Kagane, OniSaga, for the adult titles they also carry). Uchiyomi leaves them, and the series added
+  from them, out of searches and lists unless a request says `adult=1` (or the account shows 18+);
+  an admin can't rate a source below its extension's flag.
+- Uchiyomi follows every series it finds in its folders, CLU's comics too, though no source of its
+  own can update them: its updater tries them nightly and Health lists them as "Series that can no
+  longer update". The comics agent's `/rescan` (`comics-tools`) unfollows every series with no source.
 - BatCave passes its site's check (DLE Guard) only through Open site: done once 2026-10-29, and
   Uchiyomi revisits its home page whenever it fails. Admin → Sources → BatCave → Open site → Done
   if it stays red.
