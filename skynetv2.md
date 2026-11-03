@@ -25,8 +25,8 @@
 | P1 | docker-admin: admin door, identity, status | done (2026-10-22); 7 admin names move to .60 with P2's Technitium |
 | P2 | DNS (Technitium only) + remote access | done (2026-10-23); its OPNsense cleanup too (2026-10-28) |
 | P3 | docker-dmz: apps + public path | done (2026-10-24): docker-dmz with v1's data (#48), its doors (#50) and all ten apps (#51–#61); the apps reach one another only through the door (#64); every image current (#67). Family accounts skipped for now |
-| P4 | Backups → Google Drive | in progress (2026-10-25): PBS greenfield done (VM 2040, `pbs/`; v1's PBS removed); PBS's datastore nightly to Drive by plain `rclone sync` (`stacks/admin/pbs-offsite/`; PVE already encrypts its chunks); app data nightly to Drive, hot (`stacks/<host>/backup/`): docker-dmz rebuilt onto btrfs and backed up from btrbk snapshots (#81); `skynet-restore` drilled from a snapshot and from Drive; `runbooks/restore.md` (six cases); a guest restored from Drive's copy (2026-10-27); the survival kit stored (Ali, 2026-10-28). Next: seven green nights (from 10-26 → 27) |
-| P5 | Observability (agent eyes) | in progress (2026-10-26): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`, #88); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics; alerts: two vmalerts and Alertmanager to `#alerts`, its Watchdog to healthchecks.io (#91; both watchdogs, HostDown, TargetDown and DiskFull proven live 10-27); Grafana at `grafana.aliammar.net` (OIDC through admin Authelia; Live and Backups boards of our own, seven upstream) and the agent's MCP servers at `/mcp`; Ali's first Grafana login 10-27. Wider eyes live 10-28 (#102–#109): the Proxmox nodes, OPNsense, the doors' access logs, Unraid, Omada, Technitium's stats and query log. Asked and answered through the MCP tools on 10-28: network (the nodes' backups reach PBS over VLAN 50, not through OPNsense; technitium-network's 700 refusals were one burst), storage (night 2's guest backups, verify, restic and Drive copy). Every Wider eyes source's freshness alert posted and resolved in the tests of 10-29 (Wider eyes → Freshness tests). Next: the week's sizing check (11-03) |
+| P4 | Backups → Google Drive | done (2026-11-02): PBS greenfield done (VM 2040, `pbs/`; v1's PBS removed); PBS's datastore nightly to Drive by plain `rclone sync` (`stacks/admin/pbs-offsite/`; PVE already encrypts its chunks); app data nightly to Drive, hot (`stacks/<host>/backup/`): docker-dmz rebuilt onto btrfs and backed up from btrbk snapshots (#81); `skynet-restore` drilled from a snapshot and from Drive; `runbooks/restore.md` (six cases); a guest restored from Drive's copy (2026-10-27); the survival kit stored (Ali, 2026-10-28). seven green nights, 10-26 → 27 through 11-01 → 02 |
+| P5 | Observability (agent eyes) | done (2026-11-03): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`, #88); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics; alerts: two vmalerts and Alertmanager to `#alerts`, its Watchdog to healthchecks.io (#91; both watchdogs, HostDown, TargetDown and DiskFull proven live 10-27); Grafana at `grafana.aliammar.net` (OIDC through admin Authelia; Live and Backups boards of our own, seven upstream) and the agent's MCP servers at `/mcp`; Ali's first Grafana login 10-27. Wider eyes live 10-28 (#102–#109): the Proxmox nodes, OPNsense, the doors' access logs, Unraid, Omada, Technitium's stats and query log. Asked and answered through the MCP tools on 10-28: network (the nodes' backups reach PBS over VLAN 50, not through OPNsense; technitium-network's 700 refusals were one burst), storage (night 2's guest backups, verify, restic and Drive copy). Every Wider eyes source's freshness alert posted and resolved in the tests of 10-29 (Wider eyes → Freshness tests). The week's sizing checked on 11-03: memory and disk as estimated (Sizing) |
 | P6 | Agent autonomy | planned (2026-10-26): the leash first (comin's testing branches off, with the plan), then tiered merges with verify and rollback, the incident loop, the rekey workflow, OpenTofu for our VMs and the OPNsense aliases; after P5 |
 | P7 | Retire v1 + disaster recovery | outline; v1's guests are already gone (Ali, 2026-10-25) |
 | P8 | Comics and manga | building (2026-10-29): Komga, Uchiyomi (#119) and Kapowarr (#121) live, the agent's accounts made, sources set, Ali's iPad readers connected, Manga and Comics libraries with downloads sorted by type (#122), Suwayomi's UI on Uchiyomi's engine for the trial (#123); Mylar3 and SABnzbd for comics from Usenet (#124; Easynews, NZBGeek), docker-dmz at 12 GB, the apps' Authelia keeping sessions across restarts (#125); SABnzbd on its own usenet address and JDownloader 2 through Premiumize (#127); CLU (#128, #130) in place of Kapowarr and Mylar3, SABnzbd and JDownloader under it (Ali, 2026-10-30). Uchiyomi on trial (finds, downloads, reads) and Komga's library, both on Unraid's `Storage`; the agent configures them (D16) |
@@ -1498,12 +1498,15 @@ manager.
 ### Exit criteria
 
 - Seven green nights in a row, for all three jobs, docker-dmz's snapshots and VM 2040's backups. CT
-  240 is gone.
+  240 is gone. ✅ (10-26 → 27 through 11-01 → 02, read in VictoriaMetrics: every morning 9 of 9
+  guests backed up and verified, docker-dmz's snapshot at 04:20, both hosts' restic status 2, the
+  Drive copy's exit 0; the eighth night too)
 - Both drills done (app data from both sources, and a guest from Drive), with evidence in their PRs.
+  ✅ (`skynet-restore` from a snapshot and from Drive; technitium-core from Drive's copy, #101)
 - Ali confirms the survival kit is stored. ✅ (2026-10-28, `runbooks/survival-kit.md`)
-- `pbs/etc/` matches PBS, and the drift check is quiet.
+- `pbs/etc/` matches PBS, and the drift check is quiet. ✅ (`pbs-drift`, daily on ops)
 - `runbooks/restore.md` covers six cases: an app from a local snapshot, an app from Drive, a host, a
-  guest, PBS rebuilt from `pbs/etc/`, and a restore from Drive with nothing else left.
+  guest, PBS rebuilt from `pbs/etc/`, and a restore from Drive with nothing else left. ✅ (#100)
 
 **Open:**
 - Whether any Unraid shares need offsite too (not part of this phase).
@@ -1591,12 +1594,15 @@ Four stacks in `stacks/admin/`, each with its site, DNS name, Gatus row and READ
   silences API.
 - **Memory:** about 1 GB for all of it, so docker-admin goes from 0.8 to about 2 GB in use. It keeps
   its 4 GiB; the part guaranteed rises from 2 to 3 GiB (`proxmox.sh`; Ali:
-  `qm set 5040 --balloon 3072`).
-- **Disk:** about 15,000 series every 30 s comes to 30–45 MB a day, so 13 months of metrics is
-  12–18 GB, reached over the year. Logs keep 30 days and never more than 4 GiB
-  (`-retention.maxDiskSpaceUsageBytes`). The 25 GB free holds the first months, and docker-admin's
-  rebuild in P6 grows its disk to 64 GiB. The first week's growth (`vm_data_size_bytes`) checks the
-  estimate.
+  `qm set 5040 --balloon 3072`). The first week (10-27 to 11-03): 1.8 GB in use on average, 2.5 GB
+  at most.
+- **Disk:** metrics take about 30 MB a day, so 13 months is about 12 GB, reached over the year. The
+  first week counted 36,000 series every 30 s, not the 15,000 estimated (Wider eyes came after the
+  estimate), yet stayed at the low end of the 30–45 MB a day estimated. Logs keep 30 days and never
+  more than 4 GiB (`-retention.maxDiskSpaceUsageBytes`); they take about 33 MB a day, about 1 GB at
+  30 days. Images come and go besides: an update batch takes 0.8–1 GB, the weekly prune gives it
+  back. The 25 GB free holds the first months, and docker-admin's rebuild in P6 grows its disk to
+  64 GiB.
 
 ### Metrics
 
@@ -1898,18 +1904,18 @@ its config in git. Widgets that need tokens wait.
 ### Exit criteria
 
 - Every scrape target is up, and every host's journal reaches VictoriaLogs, docker-dmz's through
-  vlagent.
+  vlagent. ✅ (11-03: 34 of 34 up, no log alert)
 - The agent answers "why is X slow?" and "what happened at 03:00?" from the data (PRs and order,
-  step 4).
+  step 4). ✅
 - Each test fires in `#alerts` and clears: docker-dmz's disk filled (`fallocate`, then removed); an
-  exporter stopped; Alertmanager stopped, so healthchecks.io posts.
-- Grafana opens behind the admin login, with data sources and dashboards from git alone.
+  exporter stopped; Alertmanager stopped, so healthchecks.io posts. ✅ (10-27)
+- Grafana opens behind the admin login, with data sources and dashboards from git alone. ✅ (10-27)
 - After a week, docker-admin's memory and disk growth match the sizing, or this section says what
-  they are.
+  they are. ✅ (11-03: Sizing)
 - Every Wider eyes source is in, and its freshness alert tested: the source stopped, the alert
-  posted, then cleared.
+  posted, then cleared. ✅ (10-29: Wider eyes → Freshness tests)
 - Two real questions answered through the MCP tools themselves: one about the network, one about
-  storage.
+  storage. ✅ (10-28: Status)
 
 **Open:** HAOS (its built-in Prometheus integration); checks that do an app's real work (a search,
 a stream lookup), each with a read-only app token (Ali: later).
