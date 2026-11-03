@@ -46,9 +46,9 @@
     `comics-tools`: read + write + admin; admin for Rescan everything).
   - Codex's login is in its home, made once by `codex login --device-auth` (below).
 - **Setup (once, after the deploy):**
-  - Codex's login: `ssh skynet@10.10.100.10 sudo docker exec -it comics-agent codex login --device-auth`,
-    Ali enters the code at the address it prints (device-code login allowed in ChatGPT → Settings →
-    Security), then `sudo docker restart comics-agent`.
+  - Codex's login, by Ali (device-code login allowed in ChatGPT → Settings → Security):
+    `ssh -t aliammar@10.10.100.10 sudo docker exec -it comics-agent codex login --device-auth`, the
+    code entered at the address it prints, then `ssh aliammar@10.10.100.10 sudo docker restart comics-agent`.
   - Ali @mentions the bot once in the desk; it answers, and from then on it's in.
 - **Upstream:** [OpenAB](https://github.com/openabdev/openab) ([config](https://github.com/openabdev/openab/blob/main/docs/config-reference.md),
   [Codex](https://github.com/openabdev/openab/blob/main/docs/codex.md)) ·
