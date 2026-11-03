@@ -29,7 +29,7 @@
 | P5 | Observability (agent eyes) | done (2026-11-03): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`, #88); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics; alerts: two vmalerts and Alertmanager to `#alerts`, its Watchdog to healthchecks.io (#91; both watchdogs, HostDown, TargetDown and DiskFull proven live 10-27); Grafana at `grafana.aliammar.net` (OIDC through admin Authelia; Live and Backups boards of our own, seven upstream) and the agent's MCP servers at `/mcp`; Ali's first Grafana login 10-27. Wider eyes live 10-28 (#102–#109): the Proxmox nodes, OPNsense, the doors' access logs, Unraid, Omada, Technitium's stats and query log. Asked and answered through the MCP tools on 10-28: network (the nodes' backups reach PBS over VLAN 50, not through OPNsense; technitium-network's 700 refusals were one burst), storage (night 2's guest backups, verify, restic and Drive copy). Every Wider eyes source's freshness alert posted and resolved in the tests of 10-29 (Wider eyes → Freshness tests). The week's sizing checked on 11-03: memory and disk as estimated (Sizing) |
 | P6 | Agent autonomy | planned (2026-10-26): the leash first (comin's testing branches off, with the plan), then tiered merges with verify and rollback, the incident loop, the rekey workflow, OpenTofu for our VMs and the OPNsense aliases; after P5 |
 | P7 | Retire v1 + disaster recovery | outline; v1's guests are already gone (Ali, 2026-10-25) |
-| P8 | Comics and manga | building (2026-10-29): Komga, Uchiyomi (#119) and Kapowarr (#121) live, the agent's accounts made, sources set, Ali's iPad readers connected, Manga and Comics libraries with downloads sorted by type (#122), Suwayomi's UI on Uchiyomi's engine for the trial (#123); Mylar3 and SABnzbd for comics from Usenet (#124; Easynews, NZBGeek), docker-dmz at 12 GB, the apps' Authelia keeping sessions across restarts (#125); SABnzbd on its own usenet address and JDownloader 2 through Premiumize (#127); CLU (#128, #130) in place of Kapowarr and Mylar3, SABnzbd and JDownloader under it (Ali, 2026-10-30). Uchiyomi on trial (finds, downloads, reads) and Komga's library, both on Unraid's `Storage`; the agent configures them (D16). Next: the comics agent, Codex in Discord (D17; Ali, 2026-10-30) |
+| P8 | Comics and manga | building (2026-10-29): Komga, Uchiyomi (#119) and Kapowarr (#121) live, the agent's accounts made, sources set, Ali's iPad readers connected, Manga and Comics libraries with downloads sorted by type (#122), Suwayomi's UI on Uchiyomi's engine for the trial (#123); Mylar3 and SABnzbd for comics from Usenet (#124; Easynews, NZBGeek), docker-dmz at 12 GB, the apps' Authelia keeping sessions across restarts (#125); SABnzbd on its own usenet address and JDownloader 2 through Premiumize (#127); CLU (#128, #130) in place of Kapowarr and Mylar3, SABnzbd and JDownloader under it (Ali, 2026-10-30). Uchiyomi on trial (finds, downloads, reads) and Komga's library, both on Unraid's `Storage`; the agent configures them (D16). The comics agent, Codex in Discord's `#comics` with `comics-tools` beside it (D17; `stacks/dmz/comics-agent`). Next: its exit test, a comic and a manga series added and filled from `#comics` |
 
 ## Target state
 
@@ -224,6 +224,9 @@ skynet/
 | Technitium | read-only user | diagnose | P5 / P6 |
 | agent's Komga and Uchiyomi admins | passwords in `secrets/ops.komga.yaml` and `secrets/ops.uchiyomi.yaml` (agent-generated; Ali + ops) | those two apps, through their APIs (D16) | P8 |
 | apps' Authelia OIDC clients `komga`, `uchiyomi` | client secrets (agent-generated), digests in `stacks/dmz/authelia/oidc-clients.yml` | Ali's login to each | P8 |
+| comics bot (Discord; its own, not Skynet's) | bot token, `stacks/dmz/comics-agent/secret.sops.env` (Ali) | `#comics`, Ali alone; `comics-tools` reads Ali's ✅ with it | P8 (D17) |
+| `comics-tools`' Komga API key and Uchiyomi API token | made by Ali under his accounts, `stacks/dmz/comics-agent/tools.sops.env` | Komga's scans; Uchiyomi read + write + admin | P8 (D17) |
+| the comics agent's Codex login | Ali's ChatGPT subscription (device code), in `/opt/appdata/comics-agent/home` | its model | P8 (D17) |
 
 ---
 
@@ -2306,12 +2309,15 @@ digital over scan. A model with a rubric makes those well; Ali's idle Codex subs
 not the Skynet agent's budget.
 
 **What it does:**
-- **Talks in one Discord channel, `#comics`,** in one standing thread there, the desk: Ali opens it
-  once with an @mention, then just writes ("add Saga", "fill East of West", "what's missing?"), no
-  @mention again (Ali, 2026-11-02: it's only him and the agent). OpenAB answers without one in any
-  thread it has joined (`allow_user_messages = "involved"`); it has no such mode for a channel. The
-  patrol and the morning report post into the desk too. CLU's own alerts (download complete,
-  failed, wanted added) arrive in the channel through its Apprise webhook.
+- **Talks in one Discord channel, `#comics`,** in one standing thread there, the desk: Ali makes it,
+  @mentions the bot in it once, then just writes ("add Saga", "fill East of West", "what's
+  missing?"), no @mention again (Ali, 2026-11-02: it's only him and the agent). OpenAB answers
+  without one in any thread it has joined (`allow_user_messages = "involved"`); it has no such mode
+  for a channel. Ali makes the desk himself so the scheduled prompts can name it from the first
+  deploy: the patrol, the morning report and the weekly upgrades post into it. CLU's own alerts
+  (download complete, failed, wanted added) arrive in the channel through its Apprise webhook. The
+  bot is its own (Ali's, not Skynet's): the agent can read its token, so it shouldn't be able to
+  speak as Skynet.
 - **Adds and fills series by itself:** comics through CLU (find the volume on Metron, add an alias
   where releases use another name, subscribe, check, judge every issue filed, find and grab the
   right post when CLU missed it); manga through Uchiyomi and its Suwayomi engine (search the
@@ -2325,40 +2331,47 @@ not the Skynet agent's budget.
 
 | Need | Choice | Why | Passed over |
 |---|---|---|---|
-| Discord ↔ agent | OpenAB 0.10 (830★, MIT, a release a week), image `openab:<version>-codex` | a thread per conversation and a Codex session per thread, channel and user allowlists, scheduled prompts built in; the image carries Codex CLI and its ACP adapter | codex-discord-mcp (one session per channel); a bot of our own (glue) |
-| The model | Codex CLI on Ali's ChatGPT subscription (device-code login), the model Ali picks | his idle subscription | the Skynet agent through its Discord plugin |
+| Discord ↔ agent | OpenAB 0.10 (830★, MIT, a release a week), image `openab:0.10.0-codex` (Codex CLI 0.159, its ACP adapter 2.0) | a thread per conversation and a Codex session per thread, channel and user allowlists, scheduled prompts built in; the image carries Codex CLI and its ACP adapter | codex-discord-mcp (one session per channel); a bot of our own (glue); OpenAB's pre-beta and nightly images (Codex 0.166; untested pre-releases) |
+| The model | Codex CLI on Ali's ChatGPT subscription (device-code login), `gpt-6.1-terra` (Ali, 2026-11-03), set by OpenAB at each session | his idle subscription | the Skynet agent through its Discord plugin |
 | Its hands | `comics-tools`, a small service (glue) holding every key, offering a fixed list of verbs | CLU's internal port has no login, and one of its routes rewrites every setting at once; the agent reaches the verbs only and holds no key | the agent on CLU's network with curl; an MCP server (more code) |
 | Its know-how | a skill, `comics` (`SKILL.md` and references), from this phase's lessons | Codex loads skills from `~/.agents/skills` | — |
 
 **Where it runs:** `stacks/dmz/comics-agent` (`runbooks/new-stack.md`):
-- `openab`, Codex inside, in its full-access mode (the container is the boundary): on the stack's
-  `egress` (OpenAI, Discord) and its internal `backend` with `comics-tools`, nothing else. Its login
-  and sessions in `/opt/appdata/comics-agent` (backup class: data).
+- `comics-agent` (OpenAB), Codex inside, in its full-access mode (the container is the boundary): on
+  the stack's `egress` (OpenAI, Discord) and its internal `backend` with `comics-tools`, nothing
+  else; two sessions at a time. Its login and sessions in `/opt/appdata/comics-agent/home` (backup
+  class: data). Its standing instructions (`AGENTS.md`) and skill come from git, read-only.
 - `comics-tools` (D17's exception to Networks): on `backend`, CLU's `clu_backend` (CLU, SABnzbd)
-  and `edge` (Komga, Uchiyomi, by name). Its verbs:
+  and `edge` (Komga, Uchiyomi through caddy-apps' `edge` aliases; Discord). Its verbs:
   - comics: find a series, subscribe, set aliases, check for missing issues, the wanted list, search
     Usenet (CLU's search), grab a result, file now, inspect an issue (format, pages, page size,
     edition), trash (CLU's trash, only with Ali's ✅), SABnzbd's queue and history;
   - manga: search Uchiyomi's sources, add a series, fill it, its status;
-  - both: Komga's and Uchiyomi's rescans.
-  It refuses anything else, and caps grabs at 360 an hour (Ali, 2026-11-02).
-- **Keys:** the Discord bot token, and for `comics-tools` a Komga API key and a Uchiyomi API token
-  (read + write + admin), all made by Ali and typed into `sops` (a credential is Ali's to make: the
-  agent's attempt to mint one was refused, 2026-11-03); SABnzbd's key read from its own config, mounted
-  read-only. No door, no DNS name: nothing
-  reaches the stack from outside, and it shows in Gatus by the bot's heartbeat.
+  - both: Komga's and Uchiyomi's rescans;
+  - and the reads that go with them: a series' files, CLU's downloads, a source's copy of a manga,
+    Uchiyomi's downloads.
+  It refuses anything else and caps grabs at 360 an hour (Ali, 2026-11-02). It reads Ali's ✅ back
+  from Discord before a trash, and its answers carry no link (an indexer's NZB link holds its API
+  key) and no key.
+- **Keys:** the comics bot's token (`secret.sops.env`, both containers: OpenAB's login, and
+  `comics-tools` reading Ali's ✅), and for `comics-tools` alone (`tools.sops.env`) a Komga API key
+  and a Uchiyomi API token (read + write + admin), all made by Ali and typed into `sops` (a
+  credential is Ali's to make: the agent's attempt to mint one was refused, 2026-11-03); SABnzbd's
+  key read from its own config, mounted read-only. No door, no DNS name, no Gatus row (Ali,
+  2026-11-03): nothing reaches the stack from outside; the containers' health checks restart a dead
+  one, and a missing morning report says the rest.
 
 **Steps:**
-1. **Ali:** a Discord application and bot (its token into `sops`), the bot invited to the server,
-   `#comics` made, its ID and Ali's user ID; a webhook in `#comics`, its URL into CLU (Settings →
-   Notifications: download complete and failed, wanted added); a Komga API key and a Uchiyomi API
-   token for `comics-tools` (into `sops`); device-code login turned on in ChatGPT's security
-   settings.
+1. **Ali:** a Discord application and bot of its own (its token into `sops`), the bot invited to the
+   server, `#comics` made and the desk thread in it, their IDs and Ali's user ID; a webhook in
+   `#comics`, its URL into CLU (Settings → Notifications: download complete and failed, wanted
+   added); a Komga API key and a Uchiyomi API token for `comics-tools` (into `sops`); device-code
+   login turned on in ChatGPT's security settings.
 2. **PR (agent):** the stack, `comics-tools`, the skill, OpenAB's config (the channel, Ali alone,
    the scheduled prompts into the desk thread: patrol, morning report, weekly upgrades), Glue
    budget rows.
-3. **After merge:** Codex's device-code login (Ali enters the code); then from `#comics`, a comic
-   series and a manga series added and filled to the end.
+3. **After merge:** Codex's device-code login (Ali enters the code), Ali's first @mention in the
+   desk; then from `#comics`, a comic series and a manga series added and filled to the end.
 
 **Exit:** both test series complete and reported in `#comics`; CLU's alerts there; a morning
 report posted by itself.
@@ -2437,8 +2450,8 @@ Aidoku, if it reaches the App Store; family accounts.
 | Technitium's login through admin Authelia: `dns/sso.json` applied by `technitium-sync`, read back after the web service restarts (P5) | ~40 lines |
 | `stacks/dmz/clu/patches/apply.py` (P8: fifteen fixes to CLU v7.0 at each start, until CLU ships its own; a fix that no longer matches is left out) | ~560 lines |
 | `stacks/dmz/clu/patches/test/` (P8: CLU's matcher, patched, on 397 labelled real posts, in a throwaway on docker-dmz; for CLU updates) | ~90 lines |
-| `stacks/dmz/comics-agent/tools` (P8, D17: `comics-tools`, the comics agent's fixed verbs over CLU, SABnzbd, Komga and Uchiyomi, holding their keys) | ~250 lines |
-| `stacks/dmz/comics-agent` OpenAB config (P8, D17: the channel, Ali alone, the scheduled prompts) | ~30 lines |
+| `stacks/dmz/comics-agent/tools` (P8, D17: `comics-tools`, the comics agent's 26 fixed verbs over CLU, SABnzbd, Komga and Uchiyomi, holding their keys; an issue's page sizes read from its image headers, Ali's ✅ read back from Discord, every answer scrubbed of links and keys) | ~400 lines |
+| `stacks/dmz/comics-agent` OpenAB config (P8, D17: the channel, Ali alone, the model, the ✅, the scheduled prompts) | ~35 lines |
 | `skynet-incident` (P6: alert webhook → `claude -p`; one at a time, repeats dropped, the budget, escalation) | ~40 lines |
 | `skynet-merge` (P6: tier, window and CI checked; the merge; the post) | ~40 lines |
 | `skynet-verify` (P6: a stack's or a host's checks from doco-cd, Gatus, VictoriaMetrics and VictoriaLogs) | ~80 lines |

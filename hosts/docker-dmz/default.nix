@@ -102,6 +102,8 @@ in
     # Uchiyomi's extension engine runs as its image's user 1000 and doesn't take its folder over
     # (skynetv2.md → Conventions → Data).
     "d /opt/appdata/uchiyomi/engine 0750 1000 1000 -"
+    # The comics agent's home (Codex's login and sessions), the same: its image runs as user 1000.
+    "d /opt/appdata/comics-agent/home 0750 1000 1000 -"
     # SABnzbd's downloads (stacks/dmz/clu), outside /opt/appdata; it runs as 99:100.
     "d /var/cache/sabnzbd 0755 99 100 -"
     # CLU's covers and downloads (JDownloader saves into downloads/temp); 99:100 too. temp/ and

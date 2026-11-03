@@ -1,0 +1,74 @@
+# The comics agent (skynetv2.md → P8, D17): Codex on Ali's ChatGPT subscription, in Discord's
+# #comics through OpenAB, runs comics and manga day to day with its `comics` skill. It holds no key:
+# comics-tools, beside it, holds them and offers it a fixed list of verbs over CLU, SABnzbd, Komga and
+# Uchiyomi. No door: nothing reaches the stack from outside.
+x-discord: &discord
+  COMICS_CHANNEL: "COMICS_CHANNEL_ID" # #comics
+  COMICS_DESK: "COMICS_DESK_ID" # the desk: Ali's standing thread in #comics
+  COMICS_ALI: "1351159625533362258" # Ali, the one person it answers and whose ✅ counts
+services:
+  comics-agent:
+    container_name: comics-agent
+    image: ghcr.io/openabdev/openab:0.10.0-codex@sha256:15a0e52556fc3c6544072ff8df2f410bdadc93ea84de2483bc099d7f0bd9c2ad
+    restart: unless-stopped
+    env_file: secret.sops.env # DISCORD_BOT_TOKEN
+    environment:
+      <<: *discord
+      TZ: Asia/Karachi
+    # Not measured yet: OpenAB is small, each Codex session (codex-acp and Codex) a few hundred MB,
+    # and the pool holds two (config.toml). Measured at the exit test.
+    mem_limit: 1g
+    volumes:
+      - ./config.toml:/etc/openab/config.toml:ro
+      # Its home: Codex's login and sessions (.codex), OpenAB's thread map (.openab); owner 1000, the
+      # image's user (hosts/docker-dmz). Its instructions and skill come from git, read-only.
+      - /opt/appdata/comics-agent/home:/home/node
+      - ./agent/AGENTS.md:/home/node/AGENTS.md:ro
+      - ./agent/skills/comics:/home/node/.agents/skills/comics:ro
+    networks:
+      # OpenAI and Discord.
+      egress: {}
+      # comics-tools, its only way to the apps.
+      backend: {}
+    # The image's healthcheck applies: the openab process.
+
+  comics-tools:
+    container_name: comics-tools
+    image: docker.io/library/python:3.15.2-alpine3.24@sha256:20a82dbc2783112ddb91d1534603f802d222a3e63e593cd002eb2ac534e70211
+    restart: unless-stopped
+    command: [python3, -I, /tools/comics_tools.py]
+    # The bot's token (to read Ali's ✅ back from Discord) and the apps' keys; never the agent's.
+    env_file: [secret.sops.env, tools.sops.env]
+    environment:
+      <<: *discord
+      TZ: Asia/Karachi
+    # Unraid's nobody:users, who owns CLU's library and downloads, and SABnzbd's settings.
+    user: "99:100"
+    mem_limit: 128m
+    volumes:
+      - ./tools:/tools:ro
+      # SABnzbd's API key, from its own settings.
+      - /opt/appdata/clu/sabnzbd/sabnzbd.ini:/sabnzbd/sabnzbd.ini:ro
+      # CLU's library and downloads, at CLU's own paths, for inspect.
+      - { type: bind, source: /mnt/storage/Books/Comics/clu, target: /data, read_only: true, bind: { create_host_path: false } }
+      - /var/cache/clu/downloads:/downloads:ro
+    networks:
+      # The agent calls it here.
+      backend: {}
+      # CLU and SABnzbd, by name (D17's exception to Networks: CLU's port has no login).
+      clu_backend: {}
+      # Komga and Uchiyomi through caddy-apps (its edge aliases), and Discord.
+      edge: {}
+    healthcheck:
+      test: [CMD, python3, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+networks:
+  egress: {}
+  backend:
+    internal: true
+  clu_backend:
+    external: true
+  edge:
+    external: true
