@@ -129,6 +129,21 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+
+  # Uchiyomi scans its library folders only when asked, and CLU files new comics into one of them:
+  # doco-cd's scheduler starts this every 30 minutes, and Uchiyomi rescans (at most once a minute).
+  uchiyomi-scan:
+    container_name: uchiyomi-scan
+    image: docker.io/curlimages/curl:8.23.0@sha256:6b46ee7c652d53ef17ddf1428b1a365a66d913d21c54df42e2e46d5bd321bb46
+    entrypoint: ["/bin/sh", "-c"]
+    # $$: read at run time, not by compose.
+    command: ['curl -fsS -m 60 -X POST -o /dev/null -H "Authorization: Bearer $$UCHIYOMI_TOKEN" http://uchiyomi:3000/api/refresh']
+    env_file: scan.sops.env # UCHIYOMI_TOKEN: an API token with the write scope (README → Secrets)
+    networks: [backend]
+    labels:
+      cd.doco.job.enabled: "true"
+      cd.doco.job.schedule: "@every 30m"
+      cd.doco.job.notify_on: failure
 networks:
   door-uchiyomi:
     external: true

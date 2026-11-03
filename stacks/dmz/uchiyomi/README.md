@@ -44,8 +44,13 @@
   - `/var/cache/uchiyomi` → `/cache`: page images, capped at 5 GiB (`CACHE_MAX_BYTES`), on the host's
     ext4: outside `/opt/appdata`, its snapshots and the backup.
 - **Secrets:** `oidc.sops.env`: `OIDC_CLIENT_SECRET` (agent-generated; its digest is in
-  `stacks/dmz/authelia/oidc-clients.yml`). The engine has no password: only this stack's network
+  `stacks/dmz/authelia/oidc-clients.yml`). `scan.sops.env`: `UCHIYOMI_TOKEN`, Ali's API token for
+  the scan job (Profile → Connections → API tokens: read + write, not admin; a rescan is a POST,
+  which a read-only token can't make). The engine has no password: only this stack's network
   reaches it.
+- **Library scan:** Uchiyomi scans its folders only when asked (its Tasks list: "on demand").
+  `uchiyomi-scan`, a doco-cd job every 30 minutes, asks (`POST /api/refresh`), so what CLU files
+  shows within half an hour.
 - **Upstream:** [Uchiyomi](https://github.com/AngeloSha/uchiyomi) ([API](https://github.com/AngeloSha/uchiyomi/blob/main/docs/api.md),
   also at `/api/docs`) · [Suwayomi-Server](https://github.com/Suwayomi/Suwayomi-Server) ·
   [FlareSolverr](https://github.com/FlareSolverr/FlareSolverr)
