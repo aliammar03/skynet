@@ -89,7 +89,7 @@
   - The agent, in JDownloader, after its first start and while it's stopped: archive extraction off
     (`cfg/org.jdownloader.extensions.extraction.ExtractionExtension.json`: `"enabled": false`), so
     CLU alone unpacks what lands in its `temp/`.
-- **Patches:** `patches/apply.py` fixes fifteen things in CLU v7.0 at each start, before CLU's
+- **Patches:** `patches/apply.py` fixes sixteen things in CLU v7.0 at each start, before CLU's
   entrypoint (its `clu-patch:` lines in the log):
   - a Usenet download is filed once `temp/` empties, as a direct download is (CLU never filed one);
     a failed download's leftover there (`.part`, `.crdownload`) doesn't count, until CLU's hourly
@@ -140,14 +140,17 @@
   - another edition of an issue (a director's cut, a preview, a `digital-mobile` or DC W.I.P.
     reformat, a noir or facsimile edition) isn't the issue, unless the series is that edition: with
     the regular post absent CLU took The Last Ronin #1's Director's Cut and a preview of Absolute
-    Batman #1.
+    Batman #1;
+  - a number later in a post's name isn't its issue when the issue slot (the number right after
+    the series) holds another: "Mister Miracle 003 (2017) (2 covers)" read as #2 by its "2 covers",
+    so CLU accepted #1 and #3–#10 for Mister Miracle (2017) #2 and took #3, the biggest.
 
   A fix whose text CLU's code no longer has (after an update) is left out with a `clu-patch:` line,
   and that file runs as shipped. On a CLU update or a change to `apply.py`: read those lines, drop
   each fix CLU now has, and run `patches/test/run.sh` (from ops). It runs CLU's matcher, patched, on
-  `test/posts.json`: 397 real posts for 14 issues that tripped it, each labelled. It should still
-  print 14/14 issues found, 14/14 best copy, 0 wrong picks, 41/46 right posts recognised, 0 wrong
-  posts accepted, and 0/14 wrong grabs with the right post absent.
+  `test/posts.json`: 517 real posts for 15 issues that tripped it, each labelled. It should still
+  print 15/15 issues found, 15/15 best copy, 0 wrong picks, 44/49 right posts recognised, 0 wrong
+  posts accepted, and 0/15 wrong grabs with the right post absent.
 - **Upstream:** [CLU](https://github.com/allaboutduncan/clu-comics) · [docs](https://clucomics.org) ·
   [SABnzbd](https://sabnzbd.org/wiki/) ·
   [JDownloader 2 image](https://github.com/jlesage/docker-jdownloader-2)
