@@ -2429,7 +2429,8 @@ Aidoku, if it reaches the App Store; family accounts.
 | `pve/setup.sh` (the Proxmox nodes' exporters and log upload, as PBS's) (P5, Wider eyes) | ~30 lines |
 | Technitium's stats into node-exporter's textfile, every 5 min on each DNS host (P5, Wider eyes) | ~25 lines |
 | Technitium's login through admin Authelia: `dns/sso.json` applied by `technitium-sync`, read back after the web service restarts (P5) | ~40 lines |
-| `stacks/dmz/clu/patches/apply.py` (P8: thirteen fixes to CLU v7.0 at each start, until CLU ships its own; a fix that no longer matches is left out) | ~520 lines |
+| `stacks/dmz/clu/patches/apply.py` (P8: fifteen fixes to CLU v7.0 at each start, until CLU ships its own; a fix that no longer matches is left out) | ~560 lines |
+| `stacks/dmz/clu/patches/test/` (P8: CLU's matcher, patched, on 397 labelled real posts, in a throwaway on docker-dmz; for CLU updates) | ~90 lines |
 | `stacks/dmz/comics-agent/tools` (P8, D17: `comics-tools`, the comics agent's fixed verbs over CLU, SABnzbd, Komga and Uchiyomi, holding their keys) | ~250 lines |
 | `stacks/dmz/comics-agent` OpenAB config (P8, D17: the channel, Ali alone, the scheduled prompts) | ~30 lines |
 | `skynet-incident` (P6: alert webhook → `claude -p`; one at a time, repeats dropped, the budget, escalation) | ~40 lines |

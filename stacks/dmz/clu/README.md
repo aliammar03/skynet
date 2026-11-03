@@ -89,7 +89,7 @@
   - The agent, in JDownloader, after its first start and while it's stopped: archive extraction off
     (`cfg/org.jdownloader.extensions.extraction.ExtractionExtension.json`: `"enabled": false`), so
     CLU alone unpacks what lands in its `temp/`.
-- **Patches:** `patches/apply.py` fixes thirteen things in CLU v7.0 at each start, before CLU's
+- **Patches:** `patches/apply.py` fixes fifteen things in CLU v7.0 at each start, before CLU's
   entrypoint (its `clu-patch:` lines in the log):
   - a Usenet download is filed once `temp/` empties, as a direct download is (CLU never filed one);
     a failed download's leftover there (`.part`, `.crdownload`) doesn't count, until CLU's hourly
@@ -132,10 +132,22 @@
     on-sale year and took 30 points off any other, so an issue on sale in October to December was
     rejected (Ultimate Spider-Man (2000) #15: on sale 2001-11, cover 2002-01, posted as "(2002)");
   - a scene-style post name (`Absolute.Batman.001.2024.Webrip…`, `Ultimate.Spider-Man.064-000`)
-    is read with spaces before scoring; a decimal issue (`001.5`) keeps its dot. CLU matched none.
+    is read with spaces before scoring; a decimal issue (`001.5`) keeps its dot. CLU matched none;
+  - a download that failed outright (every mirror dead or rate-limited, every post broken) leaves
+    its issue to the next scheduled search: CLU held every queued issue off for seven days (The Lost
+    Years #3–#5, failed at GetComics on 11-02, would have waited until 11-09). One that completed but
+    wasn't filed is still held, CLU's guard against fetching it again every night;
+  - another edition of an issue (a director's cut, a preview, a `digital-mobile` or DC W.I.P.
+    reformat, a noir or facsimile edition) isn't the issue, unless the series is that edition: with
+    the regular post absent CLU took The Last Ronin #1's Director's Cut and a preview of Absolute
+    Batman #1.
 
   A fix whose text CLU's code no longer has (after an update) is left out with a `clu-patch:` line,
-  and that file runs as shipped. On a CLU update: read those lines, and drop each fix CLU now has.
+  and that file runs as shipped. On a CLU update or a change to `apply.py`: read those lines, drop
+  each fix CLU now has, and run `patches/test/run.sh` (from ops). It runs CLU's matcher, patched, on
+  `test/posts.json`: 397 real posts for 14 issues that tripped it, each labelled. It should still
+  print 14/14 issues found, 14/14 best copy, 0 wrong picks, 41/46 right posts recognised, 0 wrong
+  posts accepted, and 0/14 wrong grabs with the right post absent.
 - **Upstream:** [CLU](https://github.com/allaboutduncan/clu-comics) · [docs](https://clucomics.org) ·
   [SABnzbd](https://sabnzbd.org/wiki/) ·
   [JDownloader 2 image](https://github.com/jlesage/docker-jdownloader-2)
@@ -161,8 +173,7 @@
   down; the index fills for followed series, 300 posts a night.
 - Its scorer drops TPBs, annuals and other variants unless accepted, and once took same-named
   spin-offs (Ultimate Spider-Man – Infinity Comic #17 and Incursion #3 for Ultimate Spider-Man
-  2000). With the right post absent it can take another edition of the issue (The Last Ronin #1's
-  Director's Cut, Absolute Batman #1's preview edition).
+  2000).
 - SABnzbd refuses a host name it doesn't know ("Hostname verification failed"): its own hostname,
   `sabnzbd`, is admitted at its first start; the door's name is the agent's step above. A rebuilt
   config needs that step again.
