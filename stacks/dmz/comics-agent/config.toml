@@ -7,6 +7,8 @@ bot_token = "${DISCORD_BOT_TOKEN}"
 # #comics and the threads in it, and Ali alone.
 allowed_channels = ["${COMICS_CHANNEL}"]
 allowed_users = ["${COMICS_ALI}"]
+# An @ of the bot's own role counts as an @ of the bot.
+allowed_role_ids = ["${COMICS_ROLE}"]
 # In a thread it has joined (the desk), it answers without an @mention; in #comics itself it needs
 # one, and opens a thread of its own for it. Other bots and webhooks (CLU's alerts) are ignored.
 allow_user_messages = "involved"

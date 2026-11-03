@@ -6,10 +6,13 @@ x-discord: &discord
   COMICS_CHANNEL: "1567143468554256395" # #comics
   COMICS_DESK: "1567143806191804476" # the desk: Ali's standing thread in #comics
   COMICS_ALI: "1351159625533362258" # Ali, the one person it answers and whose ✅ counts
+  COMICS_ROLE: "1567143228409647185" # the bot's own role, which Discord's @ list offers beside it
 services:
   comics-agent:
     container_name: comics-agent
-    image: ghcr.io/openabdev/openab:0.10.0-codex@sha256:15a0e52556fc3c6544072ff8df2f410bdadc93ea84de2483bc099d7f0bd9c2ad
+    # A nightly (OpenAB 0.10.0 and two commits): its ACP adapter, 2.5, runs Codex 0.165, whose model
+    # list has gpt-6.1-terra. 0.10.0's adapter, 2.0, runs its own Codex 0.158, whose list doesn't.
+    image: ghcr.io/openabdev/openab:nightly-20261103-41653922154.1-codex@sha256:52b5afb9b369dbc92e72b7e713e05f2cdf3f135c73367a17ce8b91dc2dc8ff16
     restart: unless-stopped
     env_file: secret.sops.env # DISCORD_BOT_TOKEN
     environment:

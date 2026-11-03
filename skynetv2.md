@@ -2331,7 +2331,7 @@ not the Skynet agent's budget.
 
 | Need | Choice | Why | Passed over |
 |---|---|---|---|
-| Discord ↔ agent | OpenAB 0.10 (830★, MIT, a release a week), image `openab:0.10.0-codex` (Codex CLI 0.159, its ACP adapter 2.0) | a thread per conversation and a Codex session per thread, channel and user allowlists, scheduled prompts built in; the image carries Codex CLI and its ACP adapter | codex-discord-mcp (one session per channel); a bot of our own (glue); OpenAB's pre-beta and nightly images (Codex 0.166; untested pre-releases) |
+| Discord ↔ agent | OpenAB 0.10 (830★, MIT, a release a week), image `openab:nightly-20261103-…-codex` (0.10.0 and two commits; its ACP adapter 2.5 runs Codex 0.165, whose model list has `gpt-6.1-terra`) | a thread per conversation and a Codex session per thread, channel and user allowlists, scheduled prompts built in; the image carries Codex CLI and its ACP adapter | codex-discord-mcp (one session per channel); a bot of our own (glue); the stable `0.10.0-codex` and `pre-beta-codex` (their adapter 2.0 runs its own Codex 0.158: no `gpt-6.1-terra`) |
 | The model | Codex CLI on Ali's ChatGPT subscription (device-code login), `gpt-6.1-terra` (Ali, 2026-11-03), set by OpenAB at each session | his idle subscription | the Skynet agent through its Discord plugin |
 | Its hands | `comics-tools`, a small service (glue) holding every key, offering a fixed list of verbs | CLU's internal port has no login, and one of its routes rewrites every setting at once; the agent reaches the verbs only and holds no key | the agent on CLU's network with curl; an MCP server (more code) |
 | Its know-how | a skill, `comics` (`SKILL.md` and references), from this phase's lessons | Codex loads skills from `~/.agents/skills` | — |
