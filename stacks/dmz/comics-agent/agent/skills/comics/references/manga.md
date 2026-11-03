@@ -4,6 +4,23 @@ Uchiyomi finds series on the sources Ali turned on (MangaDex built in; Mihon's e
 engine), downloads chapters as CBZ, and follows a series for new chapters. Which sources exist is
 Ali's call: never ask for one to be added on your own, tell him what's missing instead.
 
+## Sources
+
+Measured 2026-11-03 on 17 well-known series: how many each carries whole, how fast its search
+answers, and the page width it serves (every one downloads a page in 0.5–0.8 s). Uchiyomi uses the
+same order when a series follows more than one source.
+
+| Tier | Source | Whole runs | Search | Pages | Notes |
+|---|---|---|---|---|---|
+| 1 | Atsumaru | 17 of 17 | 0.5 s | 1067 px | fastest; Weeb Central's pages, re-compressed |
+| 1 | MangaFire | 16 | 0.6 s | 1060 px | Chainsaw Man only to #97 |
+| 1 | Weeb Central | 16 | 2–4 s | 1067–1200 px | the official releases' originals (Vagabond 1–327 at 1200 px); slow to answer |
+| 2 | MangaDot | 15 | 0.5 s | 1200–1500 px | no Vagabond, Berserk #1–7 only; One Piece at 1.4× the others' size, likely enlarged |
+| 3 | MangaDex | few | 0.3 s | ~850 px | fan and unlicensed works; a licensed series is previews, or MangaPlus links it can't download |
+| 3 | Asura Scans, Flame Comics | manhwa | 1 s | 720 px strips | Korean webtoons only |
+| 3 | Webtoons.com | webtoons | 0.5 s | 800 px | official webtoons only |
+| 4 | Kagane, OniSaga | 4, 1 | 0.6 s, 4 s | ~850 px | partial runs; last |
+
 ## Choosing a source
 
 `manga/search` gives the best match on each source; `manga/detail` one source's copy. Compare:
@@ -11,7 +28,8 @@ Ali's call: never ask for one to be added on your own, tell him what's missing i
 - **The same work?** A title can name different works: Webtoons' "Blue Period" is not the manga. Check
   the author, the status and the chapter range.
 - **How much of it?** `count`, `first`, `last`. MangaDex lists only official previews for a licensed
-  series (Blue Period: 6 chapters of 84); say so, and offer the sources that carry the rest.
+  series (Blue Period: 6 chapters of 84), or chapters that are links to MangaPlus, which can't be
+  downloaded (One Piece): take a tier 1 source.
 - **Who translates it?** `groups`: one group carrying the whole run beats a patchwork. Language
   English unless Ali says otherwise.
 - **Numbering.** A source that gives many posts one number (webtoon sites) is numbered by posting

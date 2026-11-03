@@ -68,6 +68,8 @@
 - Renovate can't follow a nightly tag: back to a stable `-codex` tag by hand once one carries codex-acp
   2.5 or later.
 - Discord's @ list offers the bot's role beside the bot; `allowed_role_ids` makes either one count.
+- Uchiyomi hides the manga sites whose extensions call themselves 18+ (most of the good ones) unless
+  asked: `comics-tools` searches sources and the library with `adult=1` (`stacks/dmz/uchiyomi`).
 - The agent can read anything in its own container, the Discord token included (OpenAB's
   environment): that's why no app key is there.
 - `comics-tools` names Komga and Uchiyomi by their public names: on `edge`, only caddy-apps' aliases
