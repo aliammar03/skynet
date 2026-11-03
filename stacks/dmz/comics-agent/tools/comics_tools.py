@@ -302,17 +302,8 @@ def comics_inspect(a):
 
 @verb("POST", "/comics/trash", "series_id + issues: [numbers] | paths: [files] → a proposal for Ali's ✅; then code + the ✅'s message_id, thread_id, channel_id → CLU's trash")
 def comics_trash(a):
-    if a.get("code"):  # the ✅'s sender context: its message_id, and thread_id or else channel_id
-        code, message = need(a, "code", "message_id")
-        channel = a.get("thread_id") or need(a, "channel_id")[0]
-        with LOCK:
-            p = PROPOSALS.get(code)
-        if not p or p[0] < time.time():
-            raise Refused(404, "no such proposal (they last a week, and not across a restart): propose again")
-        approved(code, channel, message)
-        with LOCK:
-            PROPOSALS.pop(code, None)
-        return [act() for act in p[2]]
+    if a.get("code"):
+        return confirm(a)
     acts, said = [], []
     if a.get("paths"):
         for path in a["paths"]:
@@ -330,11 +321,30 @@ def comics_trash(a):
             said.append(f"{path} (back on the wanted list)")
     if not acts:
         raise Refused(400, "missing: paths, or series_id and issues")
+    return propose("to CLU's trash", said, acts)
+
+
+def propose(what, said, acts):
+    """A removal waits for Ali: a code and the post that names it, kept a week (not across a restart)."""
     code = secrets.token_hex(3).upper()
     with LOCK:
         PROPOSALS[code] = (time.time() + 7 * 86400, said, acts)
-    return {"code": code, "post": f"🗑️ {code}: to CLU's trash —\n" + "\n".join(f"• {s}" for s in said) + "\nReact ✅ to approve.",
+    return {"code": code, "post": f"🗑️ {code}: {what} —\n" + "\n".join(f"• {s}" for s in said) + "\nReact ✅ to approve.",
             "next": "post `post` as its own message; when Ali's ✅ arrives, call again with code and the ✅'s message_id, thread_id and channel_id"}
+
+
+def confirm(a):
+    """The ✅'s sender context (its message_id, and thread_id or else channel_id) → the proposal's acts."""
+    code, message = need(a, "code", "message_id")
+    channel = a.get("thread_id") or need(a, "channel_id")[0]
+    with LOCK:
+        p = PROPOSALS.get(code)
+    if not p or p[0] < time.time():
+        raise Refused(404, "no such proposal (they last a week, and not across a restart): propose again")
+    approved(code, channel, message)
+    with LOCK:
+        PROPOSALS.pop(code, None)
+    return [act() for act in p[2]]
 
 
 def approved(code, channel, message):
@@ -420,9 +430,9 @@ def manga_status(a):
             "jobs": [{k: j.get(k) for k in ("title", "done", "total", "status", "origin", "reason")} for j in jobs if j.get("seriesId") == sid]}
 
 
-@verb("GET", "/manga/jobs", "→ Uchiyomi's downloads in progress, and the failed ones with why")
+@verb("GET", "/manga/jobs", "→ Uchiyomi's downloads in progress (folder: for manga/stop), and the failed ones with why")
 def manga_jobs(a):
-    keys = ("title", "seriesId", "done", "total", "status", "origin", "reason")
+    keys = ("title", "folder", "seriesId", "done", "total", "status", "origin", "reason")
     return [{k: j.get(k) for k in keys} for j in call("GET", f"{UCHIYOMI}/api/sources/jobs")["content"]]
 
 
@@ -450,6 +460,54 @@ def manga_fill_other(a):
     keys = ("source", "name", "sourceSeriesId", "title", "count", "first", "last", "coverage", "fillable", "why")
     return {**{k: r.get(k) for k in ("done", "failed", "planId", "title", "have", "gaps", "following")},
             "candidates": [{k: c.get(k) for k in keys} for c in r.get("candidates", []) if c.get("count")]}
+
+
+@verb("POST", "/manga/stop", "folder (from manga/jobs) → that download stops after the chapter in flight; what landed stays")
+def manga_stop(a):
+    return call("POST", f"{UCHIYOMI}/api/sources/jobs/{q(need(a, 'folder')[0])}/cancel")
+
+
+@verb("POST", "/manga/follow", "series_id, follow: true|false → whether Uchiyomi keeps fetching the series' new chapters")
+def manga_follow(a):
+    sid, follow = need(a, "series_id")[0], a.get("follow")
+    if follow not in (True, False, "true", "false"):
+        raise Refused(400, "follow: true or false")
+    return call("POST", f"{UCHIYOMI}/api/admin/series/bulk/auto-update", {"seriesIds": [sid], "autoUpdate": follow in (True, "true")})
+
+
+def series_books(sid):
+    """A series' chapters in Uchiyomi: id and number, every page."""
+    books, page = [], 0
+    while True:
+        d = call("GET", f"{UCHIYOMI}/api/series/{q(sid)}/books?size=500&page={page}")
+        books += [{"id": b["id"], "number": b.get("number")} for b in d.get("content", [])]
+        if d.get("last", True):
+            return books
+        page += 1
+
+
+@verb("POST", "/manga/trash", "series_id + numbers: [chapters] | whole: true → a proposal for Ali's ✅; then code + the ✅'s message_id, thread_id, channel_id → those chapters' files deleted (whole: unfollowed, every file deleted, out of the library)")
+def manga_trash(a):
+    if a.get("code"):
+        return confirm(a)
+    sid = need(a, "series_id")[0]
+    s, books = call("GET", f"{UCHIYOMI}/api/series/{q(sid)}"), series_books(sid)
+    if a.get("whole"):
+        ids = [b["id"] for b in books]
+        acts = [lambda: call("POST", f"{UCHIYOMI}/api/admin/series/bulk/auto-update", {"seriesIds": [sid], "autoUpdate": False}),
+                lambda: ids and call("POST", f"{UCHIYOMI}/api/admin/series/{q(sid)}/chapters/delete", {"bookIds": ids}),
+                lambda: call("DELETE", f"{UCHIYOMI}/api/admin/series/{q(sid)}")]
+        said = [f"{s.get('name')} ({s.get('folder')}): unfollowed, its {len(ids)} chapters' files deleted, out of the library"]
+    else:
+        wanted = {float(n) for n in need(a, "numbers")[0]}
+        found = [b for b in books if b["number"] is not None and float(b["number"]) in wanted]
+        if not found:
+            raise Refused(404, "none of those chapters is in the series")
+        ids = [b["id"] for b in found]
+        acts = [lambda: call("POST", f"{UCHIYOMI}/api/admin/series/{q(sid)}/chapters/delete", {"bookIds": ids})]
+        numbers = sorted({float(b["number"]) for b in found})
+        said = [f"{s.get('name')}: the files of chapters {', '.join(str(n).removesuffix('.0') for n in numbers)} (fetchable again)"]
+    return propose("deleted from Uchiyomi", said, acts)
 
 
 # --- what Ali has, and reads ---------------------------------------------------------------------

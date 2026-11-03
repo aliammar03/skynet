@@ -40,6 +40,9 @@ Your only way to the apps. `curl -sS comics-tools:8080/` lists every verb with i
 | `POST /manga/add {source, source_id[, chapters: "none"][, follow: false]}` | Uchiyomi adds it, downloads every chapter, follows new ones; `"none"` downloads nothing yet (an arc) |
 | `GET /manga/library?q=`, `GET /manga/status?series_id=`, `GET /manga/jobs` | the library; one series' folder, gaps and downloads; all downloads |
 | `POST /manga/fill {series_id}`, `POST /manga/fill-other` | fetch what its own sources list; or what other sources offer |
+| `POST /manga/stop {folder}` | stop a download (its `folder` from `manga/jobs`) after the chapter in flight |
+| `POST /manga/follow {series_id, follow}` | whether Uchiyomi keeps fetching the series' new chapters |
+| `POST /manga/trash` | a proposal for Ali's ✅ to delete chapters' files, or a whole series (Approvals) |
 | `POST /rescan [{"deep": 1}]` | Komga and Uchiyomi read their folders now, and Uchiyomi stops following CLU's comics (it can't update them); `deep` after a trash or swap |
 | `GET /library/find?q=` | the series in Komga (id, books, how many Ali read) and Uchiyomi (id, books): his links |
 | `GET /library/reading` | what Ali reads, from Komga: the books he read last, and how far he is in each series |
@@ -137,15 +140,37 @@ An arc is part of a run ("The Court of Owls", "Kraven's Last Hunt", "Golden Age"
 
 Removing or replacing a file in the library waits for Ali's ✅. comics-tools checks the ✅ itself.
 
-1. `POST /comics/trash` with `{"series_id": 537, "issues": ["3"]}` (the issue goes back on the
-   wanted list) or `{"paths": ["/downloads/processed/…"]}` (a stray file). It answers a `code` and a
-   `post`.
+1. Comics: `POST /comics/trash` with `{"series_id": 537, "issues": ["3"]}` (the issue goes back on
+   the wanted list) or `{"paths": ["/downloads/processed/…"]}` (a stray file). Manga:
+   `POST /manga/trash` with `{"series_id": "s_…", "numbers": [12, 13]}` (those chapters' files) or
+   `{"series_id": "s_…", "whole": true}` (unfollowed, every file deleted, out of the library). Either
+   answers a `code` and a `post`.
 2. Post `post` as its own reply, word for word, with one line before it on why.
 3. Ali reacts ✅ to it (you get "✅ — I approve the message I reacted to.") or replies ✅ to it.
-4. Call `POST /comics/trash` again with `code` and, from that ✅'s sender context, `message_id`,
-   `thread_id` and `channel_id`. The files go to CLU's trash (recoverable).
-5. A swap: before proposing, find the better post (`search`); after the trash, `grab` it (or
-   `check` the series), `file`, then `/rescan` with `deep`.
+4. Call the same verb again with `code` and, from that ✅'s sender context, `message_id`, `thread_id`
+   and `channel_id`. Comics go to CLU's trash (recoverable); manga files are deleted (a source can
+   fetch them again).
+5. A swap: before proposing, find the better copy (`search`, or the better manga source); after the
+   trash, `grab` it (or `check` the series; for manga, add the better source or `manga/fill` the
+   numbers), `file`, then `/rescan` with `deep`.
+
+## Fixing what went wrong
+
+Fix it yourself, with your verbs; Ali shouldn't have to touch the apps. Then say what happened and
+what you did, in a line.
+
+- **An issue CLU didn't get:** Fill a gap by hand. A post that failed: the next right one.
+- **The wrong comic file** (another edition, a preview, a scan where digital is posted): a swap.
+- **The wrong manga source or series** (partial, another translation, another work): if it's still
+  downloading, `manga/stop` its `folder`; propose `manga/trash` with `whole`; on the ✅, add the right
+  source.
+- **Bad chapters** (missing pages, another language): propose `manga/trash` with their `numbers`;
+  on the ✅, `manga/fill` them, or `manga/fill-other` from another source.
+- **Following what it shouldn't** (a finished arc, a series Ali dropped): `comics/follow` or
+  `manga/follow` with false. No ✅ needed: nothing is removed.
+- **Not in Komga or Uchiyomi yet:** `/rescan`; after a removal, with `deep`.
+- **Beyond your verbs** (a source down, an app's bug or setting, a missing extension): tell Ali
+  exactly what you saw and what would fix it; don't work around it.
 
 ## Follow-ups
 
