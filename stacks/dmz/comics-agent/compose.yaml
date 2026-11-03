@@ -3,8 +3,8 @@
 # comics-tools, beside it, holds them and offers it a fixed list of verbs over CLU, SABnzbd, Komga and
 # Uchiyomi. No door: nothing reaches the stack from outside.
 x-discord: &discord
-  COMICS_CHANNEL: "COMICS_CHANNEL_ID" # #comics
-  COMICS_DESK: "COMICS_DESK_ID" # the desk: Ali's standing thread in #comics
+  COMICS_CHANNEL: "1567143468554256395" # #comics
+  COMICS_DESK: "1567143806191804476" # the desk: Ali's standing thread in #comics
   COMICS_ALI: "1351159625533362258" # Ali, the one person it answers and whose ✅ counts
 services:
   comics-agent:
