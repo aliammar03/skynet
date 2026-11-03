@@ -37,8 +37,9 @@
     `~/.agents/skills/comics`).
   - `comics-tools` keeps nothing on disk: its search results, proposals and grab count are in memory,
     gone at a restart (a proposal is made again).
-  - It reads, read-only: SABnzbd's `sabnzbd.ini` (its API key), CLU's library (`/data`) and downloads
-    (`/downloads`) at CLU's own paths, for `inspect`.
+  - It reads, read-only: SABnzbd's `sabnzbd.ini` (its API key); for `inspect`, CLU's library (`/data`)
+    and downloads (`/downloads`) at CLU's own paths, and Unraid's `Books/Manga` (`/manga`), where
+    Uchiyomi downloads.
 - **Secrets:**
   - `secret.sops.env`: `DISCORD_BOT_TOKEN`, the comics bot's (Ali; not Skynet's bot), for both
     containers: OpenAB's login, and comics-tools reading Ali's ✅.

@@ -51,9 +51,10 @@ services:
       - ./tools:/tools:ro
       # SABnzbd's API key, from its own settings.
       - /opt/appdata/clu/sabnzbd/sabnzbd.ini:/sabnzbd/sabnzbd.ini:ro
-      # CLU's library and downloads, at CLU's own paths, for inspect.
+      # CLU's library and downloads, at CLU's own paths, and the manga, for inspect.
       - { type: bind, source: /mnt/storage/Books/Comics/clu, target: /data, read_only: true, bind: { create_host_path: false } }
       - /var/cache/clu/downloads:/downloads:ro
+      - { type: bind, source: /mnt/storage/Books/Manga, target: /manga, read_only: true, bind: { create_host_path: false } }
     networks:
       # The agent calls it here.
       backend: {}
