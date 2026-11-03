@@ -15,9 +15,12 @@
   - `comics-tools` (`tools/comics_tools.py`, Python's standard library): the agent's only way to the
     apps, and the only holder of their keys. A fixed list of verbs (`GET /` lists them) over CLU,
     SABnzbd, Komga and Uchiyomi; anything else is refused, and it answers only the agent's container
-    (by its name on `backend`), not the others on its networks. Grabs are capped at 360 an hour. A trash is
-    a proposal first: it runs only once Ali's ✅ on the agent's proposal (a reaction, or a ✅ reply to
-    it) in `#comics` is read back from Discord. Its answers carry no link (an indexer's NZB link holds
+    (by its name on `backend`), not the others on its networks. Grabs are capped at 360 an hour. A trash
+    (comics to CLU's trash; manga chapters' files, or a whole series, out of Uchiyomi) is a proposal
+    first: it runs only once Ali's ✅ on the agent's proposal (a reaction, or a ✅ reply to it) in
+    `#comics` is read back from Discord. Stopping a download or a follow needs no ✅: nothing is
+    removed; nor does a stray in CLU's `processed/` (a duplicate, another series' issue), which goes
+    straight to CLU's trash (Ali, 2026-11-04). Its answers carry no link (an indexer's NZB link holds
     its API key) and no key.
 - **Discord:** only `#comics` and the threads in it, and only Ali (config.toml). The desk is Ali's
   standing thread there: once the bot has answered in it, no @mention is needed; an @mention in the
