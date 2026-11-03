@@ -20,8 +20,8 @@ allow_bot_messages = "off"
 max_sessions = 2
 session_ttl_hours = 24
 # Full access inside its container, which is the boundary (Codex's own sandbox needs user
-# namespaces); the model Ali picked (2026-11-03).
-default_config_options = { mode = "agent-full-access", model = "gpt-6.1-terra" }
+# namespaces); the model and how hard it thinks, Ali's picks (2026-11-03).
+default_config_options = { mode = "agent-full-access", model = "gpt-6.1-terra", reasoning_effort = "high" }
 
 [reactions]
 tool_display = "compact"
@@ -30,6 +30,12 @@ tool_display = "compact"
 # Discord before it trashes anything.
 [reactions.mapping]
 "✅" = "✅ — I approve the message I reacted to."
+
+# The agent's own follow-ups ("Vagabond is ready"): it writes ~/.openab/cronjob.toml, which OpenAB
+# reloads every minute (comics skill → Follow-ups). The jobs below are fixed.
+[cron]
+usercron_enabled = true
+usercron_path = "cronjob.toml"
 
 # Into the desk, Pakistan time; how to do each is in the comics skill. CLU's own search runs at 03:30.
 [[cron.jobs]]

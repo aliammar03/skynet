@@ -151,6 +151,22 @@ def comics_op(a):
     return call("GET", f"{CLU}/api/operation/{q(need(a, 'id')[0])}").get("operation")
 
 
+@verb("POST", "/comics/skip", "series_id, issues: [numbers], [undo] → CLU skips those issues (off the wanted list: an arc's edges), or wants them again")
+def comics_skip(a):
+    sid, issues = int(need(a, "series_id")[0]), [str(n) for n in need(a, "issues")[0]]
+    if a.get("undo"):
+        return call("DELETE", f"{CLU}/api/series/{sid}/bulk-manual-status", {"issue_numbers": issues})
+    return call("POST", f"{CLU}/api/series/{sid}/bulk-manual-status", {"issue_numbers": issues, "status": "skipped", "notes": "outside an arc (comics agent)"})
+
+
+@verb("POST", "/comics/follow", "series_id, follow: true|false → whether CLU's nightly search looks for the series' new and missing issues")
+def comics_follow(a):
+    sid, follow = int(need(a, "series_id")[0]), a.get("follow")
+    if follow not in (True, False, "true", "false"):
+        raise Refused(400, "follow: true or false")
+    return call("POST", f"{CLU}/api/series/{sid}/monitored", {"enabled": follow in (True, "true")})
+
+
 def collection(sid):
     return call("GET", f"{CLU}/api/series/{sid}/check-collection")
 
@@ -374,10 +390,13 @@ def manga_detail(a):
             "groups": [{k: g.get(k) for k in ("name", "releases", "first", "last", "langs")} for g in d.get("groups", [])]}
 
 
-@verb("POST", "/manga/add", "source, source_id → Uchiyomi adds the series, downloads it, and follows its new chapters")
+@verb("POST", "/manga/add", "source, source_id, [chapters: \"none\"], [follow: false] → Uchiyomi adds the series, downloads it, and follows its new chapters; \"none\" downloads nothing yet (an arc: then manga/fill its numbers)")
 def manga_add(a):
     src, sid = need(a, "source", "source_id")
-    return call("POST", f"{UCHIYOMI}/api/sources/add", {"source": src, "sourceId": sid, "autoUpdate": True}, timeout=180)
+    body = {"source": src, "sourceId": sid, "autoUpdate": a.get("follow") not in (False, "false")}
+    if a.get("chapters") == "none":  # the row and its listing, no download (Uchiyomi's chapterFrom: none)
+        body["chapterFrom"] = "none"
+    return call("POST", f"{UCHIYOMI}/api/sources/add", body, timeout=180)
 
 
 @verb("GET", "/manga/library", "q → series in Uchiyomi's library (id, name, books)")
@@ -431,6 +450,27 @@ def manga_fill_other(a):
     keys = ("source", "name", "sourceSeriesId", "title", "count", "first", "last", "coverage", "fillable", "why")
     return {**{k: r.get(k) for k in ("done", "failed", "planId", "title", "have", "gaps", "following")},
             "candidates": [{k: c.get(k) for k in keys} for c in r.get("candidates", []) if c.get("count")]}
+
+
+# --- what Ali has, and reads ---------------------------------------------------------------------
+
+@verb("GET", "/library/find", "q → that series in Komga (id, books, how many Ali has read) and in Uchiyomi (id, books): the ids make his links")
+def library_find(a):
+    term = need(a, "q")[0]
+    komga = call("GET", f"{KOMGA}/api/v1/series?search={q(term)}&size=10")["content"]
+    uchiyomi = call("POST", f"{UCHIYOMI}/api/series/search?adult=1", {"query": term, "size": 10})["content"]
+    return {"komga": [{"id": s["id"], "name": s["name"], "books": s["booksCount"], "read": s["booksReadCount"]} for s in komga],
+            "uchiyomi": [{"id": s["id"], "name": s["name"], "books": s.get("booksCount")} for s in uchiyomi]}
+
+
+@verb("GET", "/library/reading", "→ what Ali reads, from Komga: the books he read last, and each series he has started with how far he is")
+def library_reading(a):
+    books = call("GET", f"{KOMGA}/api/v1/books?read_status=READ&read_status=IN_PROGRESS&sort=readProgress.readDate,desc&size=30")["content"]
+    series = call("GET", f"{KOMGA}/api/v1/series?read_status=READ&read_status=IN_PROGRESS&size=200")["content"]
+    return {"latest": [{"series": b["seriesTitle"], "book": b["metadata"]["title"], "number": b["metadata"]["number"],
+                        "read": (b.get("readProgress") or {}).get("readDate"), "finished": (b.get("readProgress") or {}).get("completed")} for b in books],
+            "series": [{"id": s["id"], "name": s["name"], "books": s["booksCount"], "read": s["booksReadCount"],
+                        "reading": s["booksInProgressCount"]} for s in series]}
 
 
 # --- both -----------------------------------------------------------------------------------------
