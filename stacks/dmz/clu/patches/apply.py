@@ -1,4 +1,4 @@
-"""Thirteen fixes to CLU v7.0 until CLU ships its own (stacks/dmz/clu/README.md → Patches).
+"""Fifteen fixes to CLU v7.0 until CLU ships its own (stacks/dmz/clu/README.md → Patches).
 
 The container runs this as root before CLU's entrypoint. Each fix replaces one exact piece of
 CLU's code. A file is rewritten only when all its fixes apply and the result compiles; when CLU's
@@ -12,6 +12,7 @@ APP = "/app/app.py"
 SCORER = "/app/models/getcomics.py"
 SERIES_ROUTES = "/app/routes/series.py"
 DOWNLOAD_ROUTES = "/app/routes/download_clients.py"
+DOWNLOAD_RUNS = "/app/core/download_runs.py"
 
 # 1. A Usenet download is filed like any other: CLU runs its filing pass once WATCH empties after
 #    a direct download, and never after a Usenet import. A failed download's leftover in WATCH
@@ -462,6 +463,45 @@ def _make_filename(series_name, issue_num, chosen_result, tier) -> str:
 ''',
 )
 
+# 14. A download that failed outright (every mirror dead or rate-limited, every post broken) leaves its
+#     issue to the next scheduled search: CLU held any queued issue off for its seven-day cooldown, so
+#     The Lost Years #3-#5, failed at GetComics on 11-02, would have waited until 11-09. The cooldown
+#     still holds an issue whose download completed but wasn't filed (the repeat-download guard).
+RETRY_FAILED = (
+    "retry-failed-downloads",
+    "            conn.commit()\n"
+    "    except Exception as e:\n"
+    '        app_logger.debug(f"Could not record outcome for download {download_id}: {e}")\n',
+    "            conn.commit()\n"
+    "            # Skynet patch: a failed download left nothing to re-fetch: search again next run.\n"
+    '            if status == "failed":\n'
+    "                row = conn.execute(\n"
+    '                    "SELECT series_id, issue_number FROM download_run_items WHERE download_id = ?",\n'
+    "                    (download_id,),\n"
+    "                ).fetchone()\n"
+    "                if row and row[0] is not None:\n"
+    "                    from core.database import clear_wanted_queue_stamp\n"
+    "\n"
+    "                    clear_wanted_queue_stamp(row[0], row[1])\n"
+    "    except Exception as e:\n"
+    '        app_logger.debug(f"Could not record outcome for download {download_id}: {e}")\n',
+)
+
+# 15. Another edition of an issue is not the issue, unless the series is that edition: a director's
+#     cut, a preview, a mobile or work-in-progress reformat, a noir or facsimile edition. With the
+#     regular post absent CLU took The Last Ronin #1's Director's Cut and a preview of Absolute
+#     Batman #1.
+OTHER_EDITIONS = (
+    "other-editions",
+    "    pub_pattern = r'\\b(?:' + '|'.join(_keyword_pattern(p) for p in get_publication_types()) + r')\\b'\n",
+    "    # Skynet patch: another edition of the issue is not the issue, unless the series is it.\n"
+    "    for kw in (r\"\\bdirector'?s\\s+cut\\b\", r\"\\bpreview\\s+edition\\b\", r\"\\bdigital-mobile\\b\",\n"
+    "               r\"\\bw\\.\\s?i\\.\\s?p\\.\", r\"\\bnoir\\s+edition\\b\", r\"\\bfacsimile\\b\"):\n"
+    "        if re.search(kw, title_rem) and not re.search(kw, series_lower):\n"
+    "            return -30\n"
+    "    pub_pattern = r'\\b(?:' + '|'.join(_keyword_pattern(p) for p in get_publication_types()) + r')\\b'\n",
+)
+
 FIXES = {
     USENET: [
         FILE_AFTER_IMPORT,
@@ -483,9 +523,10 @@ FIXES = {
         SEED_ALIASES_BEFORE_SEARCH,
         COVER_YEAR,
     ],
-    SCORER: [HYPHEN_IS_SPACE, FORMAT_WORDS],
+    SCORER: [HYPHEN_IS_SPACE, FORMAT_WORDS, OTHER_EDITIONS],
     SERIES_ROUTES: [SEED_ALIASES, SEED_ALIASES_HELPER],
     DOWNLOAD_ROUTES: [ALIASES_IN_SEARCH_WINDOW],
+    DOWNLOAD_RUNS: [RETRY_FAILED],
 }
 
 
