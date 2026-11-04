@@ -2,9 +2,10 @@
 
 - **Purpose:** the comics agent (P8, D17): Codex on Ali's ChatGPT subscription, in Discord's `#comics`
   through OpenAB, Ali's graphic-novel librarian. It talks comics and manga and recommends from what
-  he reads (Komga), searching the web for arcs, reading orders, news and reviews. It adds series and
-  arcs and fills them (comics through CLU, manga through Uchiyomi), judges every issue filed, finds
-  and grabs the right post when CLU misses it, follows up when a download lands, patrols the wanted
+  he has and reads (Komga's whole shelf in one call), searching the web for arcs, reading orders,
+  news and reviews. It adds series and arcs and fills them (comics through CLU, manga through
+  Uchiyomi), watches each add through and reports the moment it's in, judges every issue filed,
+  finds and grabs the right post when CLU misses it, patrols the wanted
   list every 6 hours, reports each morning and offers upgrades weekly. Swapping or trashing what's
   in the library waits for Ali's ✅.
   - `comics-agent`: OpenAB 0.10 (a nightly: 0.10.0 and two commits), whose ACP adapter (codex-acp
