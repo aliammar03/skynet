@@ -124,16 +124,23 @@ def r_mister_miracle(reply, log, _):
     ]
 
 
+WRONG_BATMAN = {2481, 93, 12829, 9843}  # Batman (1940), (2016), (2025), and the saga's TPB
+
+
 def r_court_of_owls(reply, log, _):
-    subs = [int(c["args"].get("series_id", 0)) for c in calls(log, "POST /comics/subscribe")]
+    """The arc is Batman (2011) #1–7; Night of the Owls (to #12, the annual, other series' tie-ins)
+    may come with it, as the skill takes an arc's tie-ins: only those issues, nothing followed."""
+    subs = {int(c["args"].get("series_id", 0)) for c in calls(log, "POST /comics/subscribe")}
     s = log["series"].get("763", {})
-    kept = set(s.get("files") or {}) | set(s.get("wanted") or [])
+    kept = lambda x: set(x.get("files") or {}) | set(x.get("wanted") or [])  # noqa: E731
+    others = [x for sid, x in log["series"].items() if sid != "763" and x["subscribed"]]
     return [
-        ok("adds Batman (2011), not another Batman or the TPB", 2, subs and set(subs) == {763}),
-        ok("wants the arc only: #1–7 (#8–11, Night of the Owls, allowed)", 2,
-           {str(n) for n in range(1, 8)} <= kept <= {str(n) for n in range(1, 13)}),
+        ok("adds Batman (2011), not another Batman or the TPB", 2, 763 in subs and not subs & WRONG_BATMAN),
+        ok("wants the arc only: #1–7 (to #12 with Night of the Owls)", 2,
+           {str(n) for n in range(1, 8)} <= kept(s) <= {str(n) for n in range(1, 13)}),
+        ok("a tie-in's series only for its tie-ins", 1, all(len(kept(x)) <= 3 for x in others)),
         ok("#1–7 filed", 1, {str(n) for n in range(1, 8)} <= set(s.get("files") or {})),
-        ok("doesn't follow the series", 1, s and not s.get("monitored")),
+        ok("follows none of them", 1, s and not s.get("monitored") and not any(x["monitored"] for x in others)),
         ok("tells Ali the issues", 0.5, has(reply, r"#?\s?1\s?(?:–|-|to|through|thru)\s?#?\s?(?:7|11|12)\b")),
     ]
 
