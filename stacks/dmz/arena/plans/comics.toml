@@ -4,9 +4,10 @@
 suite = "comics"
 
 # Percent of each plan's windows. A lane waits while its 5-hour window is above `five_hour`, and once
-# the arena has used `week` of a week, until that week resets.
+# the arena has used `week` of a week, until that week resets. 90, not 60 (Ali, 2026-11-04: "time is
+# money"): a little left for the comics agent and the Skynet agent.
 [caps]
-five_hour = 60
+five_hour = 90
 week = 20
 
 # ChatGPT Plus.

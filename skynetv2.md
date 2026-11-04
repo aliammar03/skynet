@@ -2407,8 +2407,8 @@ measured on the agent's own tasks, the same for every model, without touching th
   reports them (Codex's session, Claude Code's stream).
 - **Plan (`plans/comics.toml`):** a qualifier with every model at high (49 runs), then the best two at
   low, medium and xhigh (42); a close call runs the qualifier again first. A lane waits while its
-  5-hour window is above 60 % and stops for the week once the arena has used 20 % of it: the plans
-  are shared with the comics agent and the Skynet agent.
+  5-hour window is above 90 % (Ali, 2026-11-04: 60 % at first) and stops for the week once the
+  arena has used 20 % of it: the plans are shared with the comics agent and the Skynet agent.
 - **The agent starts and runs it (Ali, 2026-11-04):** nothing runs on a deploy or a boot. The agent
   starts each stage on each lane (`arena.py start`), watches it (`status`), stops it if need be, and
   reports.
