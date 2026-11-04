@@ -2390,8 +2390,9 @@ report posted by itself.
 measured on the agent's own tasks, the same for every model, without touching the library.
 
 **How:** `stacks/dmz/arena` (its README has the parts):
-- **Lanes:** Codex 0.166 on Ali's ChatGPT Plus (`gpt-6.1-terra`, `gpt-6.1-sol`, `gpt-6-astra`,
-  `gpt-6-luna`) and Claude Code 2.1.317 on his Claude Pro (Haiku, Sonnet and Opus 5.5), headless,
+- **Lanes:** Codex 0.166 on Ali's ChatGPT Plus (`gpt-6.1-terra`, `gpt-6.1-sol`, `gpt-6-luna`;
+  `gpt-6-astra` dropped after its first rounds, Ali, 2026-11-04: as good as Terra at 14 times the
+  plan a run) and Claude Code 2.1.317 on his Claude Pro (Haiku, Sonnet and Opus 5.5), headless,
   in OpenAB's images of the comics agent's build. A lane reaches only its world and the internet.
 - **The comics suite:** the agent's own `AGENTS.md` and skill. Its world is `comics-tools` itself over
   a frozen library: Metron's answers, Komga's shelf and the manga sources' listings recorded from
@@ -2405,7 +2406,7 @@ measured on the agent's own tasks, the same for every model, without touching th
   A/B votes on the recommendation, the card and the report (a private page).
 - **Usage:** tokens, time, and each run's rise in the plan's 5-hour and weekly windows as the CLI
   reports them (Codex's session, Claude Code's stream).
-- **Plan (`plans/comics.toml`):** a qualifier with every model at high (49 runs), then the best two at
+- **Plan (`plans/comics.toml`):** a qualifier with every model at high (42 runs), then the best two at
   low, medium and xhigh (42); a close call runs the qualifier again first. A lane waits while its
   5-hour window is above 90 % and stops for the week once the arena has used 30 % of it (Ali,
   2026-11-04: 60 % and 20 % at first): the plans are shared with the comics agent and the Skynet

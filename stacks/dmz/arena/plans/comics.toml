@@ -10,9 +10,10 @@ suite = "comics"
 five_hour = 90
 week = 30
 
-# ChatGPT Plus.
+# ChatGPT Plus. Not gpt-6-astra (Ali, 2026-11-04): 100 on its first rounds, like Terra, but about 14%
+# of the 5-hour window a run against Terra's 1%. Its runs so far stay in the results.
 [lanes.codex]
-models = ["gpt-6.1-terra", "gpt-6.1-sol", "gpt-6-astra", "gpt-6-luna"]
+models = ["gpt-6.1-terra", "gpt-6.1-sol", "gpt-6-luna"]
 
 # Claude Pro, the Skynet agent's own plan: its week was past half on 11-04; it resets 11-10 08:00.
 [lanes.claude]
