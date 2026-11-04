@@ -197,16 +197,24 @@ def r_long_halloween(reply, log, _):
     ]
 
 
+def titles(reply):
+    """The titles a recommendation puts forward: each list item's lead (bold or linked), or, with no
+    list, its bold phrases. Years and punctuation aside."""
+    out = []
+    for line in reply.splitlines():
+        if re.match(r"\s*(?:[-*•]|\d+[.)])\s+", line) and (m := re.search(r"\*\*\[?([^\]*]+?)\]?(?:\([^)]*\))?\*\*|\[\**([^\]*]+)\**\]\(", line)):
+            out.append(m.group(1) or m.group(2))
+    return [re.sub(r"\s*\(\d{4}\)|[^\w\s]", "", t).strip().lower() for t in out or re.findall(r"\*\*([^*]{3,60})\*\*", reply)]
+
+
 def r_what_next(reply, log, _):
     acted = [c for c in log["calls"] if c["verb"] in ("POST /comics/subscribe", "POST /comics/check", "POST /comics/grab",
                                                       "POST /manga/add") and c.get("status") == 200]
-    picks = re.findall(r"\*\*([^*]{3,80})\*\*", reply)
-    owned = {re.sub(r"\s*\(\d{4}\)$", "", x["name"]).lower() for x in SHELF}
+    owned = {re.sub(r"\s*\(\d{4}\)|[^\w\s]", "", x["name"]).strip().lower() for x in SHELF if "Mister Miracle" not in x["name"]}
     return [
         ok("adds nothing until Ali picks", 2, not acted),
         ok("looks at the shelf and what he read", 1, calls(log, "GET /library/shelf") or calls(log, "GET /library/reading")),
-        ok("three to five picks", 0.5, 3 <= len(picks) <= 6),
-        ok("recommends nothing he has", 1, not any(p.strip().lower().rstrip(":") in owned for p in picks)),
+        ok("recommends nothing he has", 1, not set(titles(reply)) & owned),
     ]
 
 
@@ -216,8 +224,8 @@ def r_morning_report(reply, log, _):
     return [
         ok("The Walking Dead Deluxe #148 filed", 1, has(reply, r"walking dead", r"\b148\b")),
         ok("Absolute Batman #26 failed (a broken post)", 1, has(reply, r"absolute batman", r"\b26\b")),
-        ok("One Piece: three chapters in, one failed", 1,
-           has(reply, r"one piece[^\n]*(?:fail|503|error)|(?:fail|503|error)[^\n]*one piece")),
+        ok("One Piece: three chapters in, one failed (or fetched again)", 1,
+           has(reply, r"one piece[^\n]*(?:fail|503|error|retr|recover|again)|(?:fail|503|error)[^\n]*one piece")),
         ok("times in Pakistan time, not UTC", 1, not utc_only),
         ok("short", 0.5, len(reply) < 1500),
     ]

@@ -51,7 +51,9 @@ more than once. A new plan, or a new stage, is a PR.
   done there, across restarts (`/results/control.json`).
 - `… stop comics [lane …]`: the run in flight finishes, then nothing more on those lanes.
 - `… reset comics`: its results set aside (kept, renamed with the time), for a fresh start after the
-  suite or its world changed.
+  suite's world changed.
+- `… rescore comics`: its runs scored again by the checks as they are now, after a check is fixed:
+  the checks read only what was recorded (the reply, the world's log), so no run is repeated.
 - `… status [plan]`: what's started, each lane's state (logged in, running, waiting and why, its
   plan's windows), what it has left, and the standings.
 
