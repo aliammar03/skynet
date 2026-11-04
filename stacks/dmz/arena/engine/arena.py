@@ -15,7 +15,8 @@ Nothing runs until the Skynet agent starts it (Ali, 2026-11-04), from docker-dmz
 `start` runs a stage (the test's first unless named) on the lanes named (all unless named) until it's
 done, across restarts; `stop` lets the run in flight finish, then nothing more (/results/control.json);
 `reset <test>` sets its results aside (kept, renamed with the time) for a fresh start; `rescore <test>`
-scores its runs again with the checks as they are now (a check fixed; the runs stand).
+scores its runs again with the checks as they are now (a check fixed; the runs stand); `rejudge
+<test>` clears the judge's verdicts, to be graded again (its prompt or a rubric changed).
 
 /results/<test>/runs.jsonl has a line per run (what's done: a restart resumes there); runs/<n>/ the
 run itself (prompt, stream, reply, steps, world log, the judge's job); summary.json the standings and
@@ -47,22 +48,29 @@ The request it got:
 {request}
 </request>
 
-What it did, in order (its tool calls and the world's answers):
-<calls>
-{calls}
-</calls>
+What it did and said, in order (its own messages, the commands it ran, its searches), each turn
+after the first being the help below:
+<transcript>
+{transcript}
+</transcript>
 
 The help it was given after it said it was done (none: it worked alone):
 <help>
 {help}
 </help>
 
+How the world ended up, checked by the test itself (these are facts, not its claims):
+<outcome>
+{outcome}
+</outcome>
+
 Its final reply:
 <reply>
 {reply}
 </reply>
 
-Judge each item strictly, from the material above alone:
+Judge each item strictly, from the material above alone. Its claims can be checked against the
+outcome and the transcript; a claim neither supports isn't shown.
 {items}
 
 Answer with JSON alone: [{{"item": 1, "pass": true, "why": "one line"}}, …]"""
@@ -394,18 +402,49 @@ def judging(name, p, lane):
     return next((r for r in records(name) if any(c.get("judge") and c.get("ok") is None for c in r["checks"])), None)
 
 
+def transcript(lane, dirs, limit=24000):
+    """What the agent did and said over a run's turns, from its CLI's own stream: its messages, the
+    commands it ran (with the start of what they printed), its searches. The middle gives way first."""
+    lines = []
+    for k, d in enumerate(dirs):
+        lines.append(f"--- turn {k + 1}" + (" (after the help below)" if k else ""))
+        for e in jsonl(f"{d}/events.jsonl"):
+            if lane == "codex" and e.get("type") == "item.completed":
+                i = e.get("item") or {}
+                if i.get("type") == "agent_message":
+                    lines.append("said: " + str(i.get("text", ""))[:600])
+                elif i.get("type") == "command_execution":
+                    lines.append("ran: " + str(i.get("command", ""))[:300] + " → " + str(i.get("aggregated_output", ""))[:300])
+                elif i.get("type") == "web_search":
+                    lines.append("searched: " + str(i.get("query", ""))[:200])
+            elif lane == "claude" and e.get("type") == "assistant":
+                for b in (e.get("message") or {}).get("content") or []:
+                    if b.get("type") == "text":
+                        lines.append("said: " + str(b.get("text", ""))[:600])
+                    elif b.get("type") == "tool_use":
+                        a = b.get("input") or {}
+                        lines.append(f"{b.get('name')}: " + str(a.get("command") or a.get("query") or a.get("url") or a)[:300])
+            elif lane == "claude" and e.get("type") == "user":
+                for b in (e.get("message") or {}).get("content") or []:
+                    if isinstance(b, dict) and b.get("type") == "tool_result":
+                        lines.append("  → " + str(b.get("content", ""))[:300])
+    text = "\n".join(lines)
+    return text if len(text) <= limit else text[: limit // 2] + "\n[… the middle left out …]\n" + text[-limit // 2:]
+
+
 def judge(name, p, rec):
-    """A judge model grades a run's judge items (a rubric each) from the request, the run's calls and
-    its reply, in one job on the judge's lane; its usage counts in that lane's windows like a run's."""
+    """A judge model grades a run's judge items (a rubric each) from the request, the agent's own
+    transcript, the help it got, the world's end state as the test saw it, and its reply, in one job on
+    the judge's lane; its usage counts in that lane's windows like a run's."""
     cfg, s = p["judge"], suite(p["suite"])
     items = [c for c in rec["checks"] if c.get("judge") and c.get("ok") is None]
     run_dir = f"/results/{name}/runs/{rec['n']:04d}"
-    world = json.load(open(f"{run_dir}/world.json")) if os.path.exists(f"{run_dir}/world.json") else None
-    calls = "\n".join(f"{c['verb']} {json.dumps(c.get('args'), ensure_ascii=False)[:200]} → {c.get('status')}"
-                      for c in (world or {}).get("calls", [])[:120]) or "(none)"
-    prompt = JUDGE.format(request=s.ROUNDS[rec["round"]].get("text", rec["round"]), calls=calls, reply=rec["reply"][:12000],
+    dirs = [run_dir] + [f"{run_dir}/turn-{k}" for k in range(1, rec.get("turns", 1))]
+    when = {0: "reached alone", 1: "reached after the nudge", 2: "reached after the pointed hint"}
+    outcome = "\n".join(f"- {o['item']}: {when.get(o['turn'], 'not reached')}" for o in rec.get("outcome") or []) or "(no outcome kept)"
+    prompt = JUDGE.format(request=s.ROUNDS[rec["round"]].get("text", rec["round"]), transcript=transcript(rec["lane"], dirs),
                           help="\n".join(f"{i}. {h}" for i, h in enumerate(rec.get("hints") or [], 1)) or "(none)",
-                          items="\n".join(f"{i}. {c['judge']}" for i, c in enumerate(items, 1)))
+                          outcome=outcome, reply=rec["reply"][:12000], items="\n".join(f"{i}. {c['judge']}" for i, c in enumerate(items, 1)))
     d = f"/jobs/{cfg['lane']}/judge-" + hashlib.sha1(f"{name}/{rec['n']}".encode()).hexdigest()[:10]
     say(cfg["lane"], "judges", name, rec["n"])
     hand(cfg["lane"], d, cfg["model"], cfg.get("effort", "low"), 900, prompt, key=f"judge {name} #{rec['n']}")
@@ -537,8 +576,8 @@ def command(args):
     plan, *lanes = [a for a in rest if a != "--stage"]
     p, c = plans()[plan], control()
     order = [s["name"] for s in p["stages"]]
-    if set(lanes) - set(p["lanes"]) or (stage and stage not in order) or cmd not in ("start", "stop", "reset", "rescore"):
-        raise SystemExit(f"start|stop|reset|rescore {plan} [{' '.join(p['lanes'])}] [--stage {'|'.join(order)}]")
+    if set(lanes) - set(p["lanes"]) or (stage and stage not in order) or cmd not in ("start", "stop", "reset", "rescore", "rejudge"):
+        raise SystemExit(f"start|stop|reset|rescore|rejudge {plan} [{' '.join(p['lanes'])}] [--stage {'|'.join(order)}]")
     lanes = lanes or list(p["lanes"])
     if cmd == "reset":  # a fresh start: the plan's results set aside, kept, and nothing of it started
         if [k for k in glob.glob("/jobs/*/*/key") if not os.path.exists(os.path.join(os.path.dirname(k), "done"))]:
@@ -546,9 +585,9 @@ def command(args):
         if os.path.exists(f"/results/{plan}"):
             os.rename(f"/results/{plan}", f"/results/{plan}.{datetime.datetime.now():%Y%m%d-%H%M}")
         c.pop(plan, None)
-    elif cmd == "rescore":  # the runner does it between two records (rescored())
-        open(f"/results/{plan}/rescore", "w").close()
-        return print(f"{plan}: rescoring within a minute")
+    elif cmd in ("rescore", "rejudge"):  # the runner does them between two records (rescored(), rejudged())
+        open(f"/results/{plan}/{cmd}", "w").close()
+        return print(f"{plan}: {cmd} within a minute")
     elif cmd == "start":
         e = c.setdefault(plan, {"lanes": [], "stages": []})
         e["lanes"] = sorted(set(e["lanes"]) | set(lanes))
@@ -598,6 +637,22 @@ def rescored(plan, p):
     say(plan, "rescored", len(recs), "runs")
 
 
+def rejudged(plan, p):
+    """Every judge verdict of a plan cleared (the judge's prompt or rubric changed): its lane grades
+    them again, run by run, between its runs."""
+    with LOCK:
+        recs = records(plan)
+        for r in recs:
+            for c in r["checks"]:
+                if c.get("judge"):
+                    c.update(ok=None, why=None)
+            if "outcome" not in r:
+                r["score"] = score(r["checks"])
+        rewrite(plan, p, recs)
+        os.remove(f"/results/{plan}/rejudge")
+    say(plan, "rejudging", len(recs), "runs")
+
+
 # --- the lanes ----------------------------------------------------------------------------------------
 
 def lane(name):
@@ -633,6 +688,8 @@ if __name__ == "__main__":
             try:
                 if os.path.exists(f"/results/{plan}/rescore"):
                     rescored(plan, p)
+                if os.path.exists(f"/results/{plan}/rejudge"):
+                    rejudged(plan, p)
             except Exception as e:  # noqa: BLE001 - the runner keeps going; the log says why
-                say(plan, "rescore failed:", repr(e))
+                say(plan, "rescore or rejudge failed:", repr(e))
         time.sleep(30)

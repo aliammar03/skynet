@@ -53,6 +53,7 @@
   world changed.
 - `rescore <test>`: its runs scored again by the checks as they are now: the checks read only what was
   recorded (the reply, the world's log), so nothing runs again.
+- `rejudge <test>`: the judge's verdicts cleared, to be graded again (its prompt or a rubric changed).
 
 ## Writing a test
 
@@ -68,7 +69,9 @@
   (the agent's instructions and skills, `work/…` its working folder, `home/…` its home),
   `collect(round)` (files to bring back), `check(round, reply, world_log, collected[, steps,
   variant])` (each check's `weight` and `ok`, `red` for a rule broken; or `judge`, a rubric, for the
-  judge model to grade from the request, the run's calls and its reply; `steps` are what the agent
+  judge model to grade from the request, the agent's own transcript (its messages, commands and
+  searches, every turn), the help it got, the world's end state as the outcome saw it, and its
+  reply; `steps` are what the agent
   ran, searched and called, in order), `blind(reply)` (the reply without what names its model), and
   `ENV`.
 - `world.py`: `load(round)`, `log()` and `Handler` (an HTTP handler class with `answer(method)`). The
