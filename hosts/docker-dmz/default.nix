@@ -104,6 +104,10 @@ in
     "d /opt/appdata/uchiyomi/engine 0750 1000 1000 -"
     # The comics agent's home (Codex's login and sessions), the same: its image runs as user 1000.
     "d /opt/appdata/comics-agent/home 0750 1000 1000 -"
+    # The arena's lanes (OpenAB's images, user 1000): Codex's login and sessions, and each lane's jobs.
+    "d /opt/appdata/arena/codex 0750 1000 1000 -"
+    "d /opt/appdata/arena/jobs/codex 0750 1000 1000 -"
+    "d /opt/appdata/arena/jobs/claude 0750 1000 1000 -"
     # SABnzbd's downloads (stacks/dmz/clu), outside /opt/appdata; it runs as 99:100.
     "d /var/cache/sabnzbd 0755 99 100 -"
     # CLU's covers and downloads (JDownloader saves into downloads/temp); 99:100 too. temp/ and
@@ -119,8 +123,12 @@ in
     "d /var/cache/sabnzbd/clu 0755 99 100 -"
   ];
 
-  # So copies can arrive over SSH (`--rsync-path='sudo rsync'`), as v1's data did.
-  environment.systemPackages = [ pkgs.rsync ];
+  # So copies can arrive over SSH (`--rsync-path='sudo rsync'`), as v1's data did; and Python, for
+  # the agent's checks on the host, such as reading the arena's results (Ali, 2026-11-04).
+  environment.systemPackages = [
+    pkgs.rsync
+    pkgs.python3
+  ];
 
   # The agent is root here (D11): wheel = passwordless sudo (base.nix), each command logged in the
   # journal. Its key is still accepted from ops only.

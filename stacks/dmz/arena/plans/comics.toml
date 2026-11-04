@@ -1,0 +1,28 @@
+# The comics agent's models (D17, D18; Ali, 2026-11-04): the qualifier runs each model at high (Terra's
+# effort in #comics), then the ladder runs the two best at the other efforts.
+suite = "comics"
+
+# Percent of each plan's windows. A lane waits while its 5-hour window is above `five_hour`, and once
+# the arena has used `week` of a week, until that week resets.
+[caps]
+five_hour = 60
+week = 20
+
+# ChatGPT Plus.
+[lanes.codex]
+models = ["gpt-6.1-terra", "gpt-6.1-sol", "gpt-6-astra", "gpt-6-luna"]
+
+# Claude Pro, the Skynet agent's own plan: its week was past half on 11-04, and resets then.
+[lanes.claude]
+models = ["claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5"]
+not_before = 2026-11-10T08:00:00+05:00
+
+[[stages]]
+name = "qualifier"
+effort = "high"
+
+[[stages]]
+name = "ladder"
+top = 2
+close = 5 # within 5 points of the cut: those run the qualifier once more first
+efforts = ["low", "medium", "xhigh"]

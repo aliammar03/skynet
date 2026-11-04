@@ -1,0 +1,3 @@
+# Codex's system config in the arena's codex lane (/etc/codex/config.toml): web search, as the
+# comics agent has it (stacks/dmz/comics-agent/agent/codex.toml).
+web_search = "live"

@@ -6,6 +6,7 @@
 /opt/appdata/aiometadata/cold-store
 /opt/appdata/aiometadata/poster-cache
 /opt/appdata/aiometadata/redis
+/opt/appdata/arena/jobs
 /opt/appdata/authelia/redis
 /opt/appdata/clu/jdownloader/logs
 /opt/appdata/clu/jdownloader/tmp

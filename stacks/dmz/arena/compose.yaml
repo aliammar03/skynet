@@ -1,0 +1,117 @@
+# The arena (skynetv2.md → D18): models side by side on Ali's subscriptions. A lane is an agent CLI
+# on one of his plans (codex: ChatGPT; claude: Claude); each runs a suite's rounds (suites/: comics
+# today) against a frozen world of its own, which answers under the suite's tool names. The runner
+# (`arena`) loads each round, hands the lane its job, scores what the agent did and records it
+# (plans/ says who runs what). The lanes hold no app key and reach no app: their only networks are
+# their world's and the internet. No door: nothing reaches the stack from outside.
+x-python: &python
+  image: docker.io/library/python:3.15.2-alpine3.24@sha256:20a82dbc2783112ddb91d1534603f802d222a3e63e593cd002eb2ac534e70211
+  restart: unless-stopped
+  environment:
+    TZ: Asia/Karachi
+  mem_limit: 256m
+
+x-world: &world
+  <<: *python
+  command: [python3, -I, /arena/engine/world.py]
+  # The frozen library's files: sparse, a few MB however big they say they are.
+  tmpfs: [/data, /downloads, /manga]
+  volumes:
+    - ./engine:/arena/engine:ro
+    - ./suites:/arena/suites:ro
+    # The comics suite's world is comics-tools itself.
+    - ../comics-agent/tools:/stacks/comics-agent/tools:ro
+  healthcheck:
+    test: [CMD, python3, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/healthz', timeout=5)"]
+    interval: 30s
+    timeout: 10s
+    retries: 3
+
+x-lane: &lane
+  restart: unless-stopped
+  # A run at a time; the CLI and its shell commands (~300 MB for Codex in #comics).
+  mem_limit: 1g
+  healthcheck:
+    test: [CMD, pgrep, -f, harness.sh] # procps is in both images
+    interval: 30s
+    timeout: 10s
+    retries: 3
+
+services:
+  arena:
+    <<: *python
+    container_name: arena
+    command: [python3, -I, /arena/engine/arena.py]
+    volumes:
+      - ./engine:/arena/engine:ro
+      - ./suites:/arena/suites:ro
+      - ./plans:/arena/plans:ro
+      # The comics agent's instructions and skill, which its suite hands each lane.
+      - ../comics-agent/agent:/stacks/comics-agent/agent:ro
+      # The lanes' jobs (owner 1000, the lanes' user; hosts/docker-dmz), and the results.
+      - /opt/appdata/arena/jobs:/jobs
+      - /opt/appdata/arena/results:/results
+    networks: [admin]
+    healthcheck:
+      test: [CMD, python3, -c, "import os, time; assert time.time() - os.path.getmtime('/tmp/alive') < 300"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  world-codex:
+    <<: *world
+    container_name: world-codex
+    networks:
+      admin: {}
+      lane-codex: { aliases: [comics-tools] }
+
+  world-claude:
+    <<: *world
+    container_name: world-claude
+    networks:
+      admin: {}
+      lane-claude: { aliases: [comics-tools] }
+
+  # Codex, on Ali's ChatGPT plan: the comics agent's image (its CLI, 0.166).
+  arena-codex:
+    <<: *lane
+    container_name: arena-codex
+    image: ghcr.io/openabdev/openab:nightly-20261103-41653922154.1-codex@sha256:52b5afb9b369dbc92e72b7e713e05f2cdf3f135c73367a17ce8b91dc2dc8ff16
+    command: [sh, /arena/harness.sh, codex]
+    environment:
+      TZ: Asia/Karachi
+      CODEX_HOME: /codex
+    volumes:
+      - ./engine/harness.sh:/arena/harness.sh:ro
+      - ./engine/codex.toml:/etc/codex/config.toml:ro
+      # Codex's login (Ali's, by device code: README) and its sessions; owner 1000 (hosts/docker-dmz).
+      - /opt/appdata/arena/codex:/codex
+      - /opt/appdata/arena/jobs/codex:/jobs
+    networks: [lane-codex, egress]
+
+  # Claude Code, on Ali's Claude plan: OpenAB's Claude image, of the same build (its CLI, 2.1.317).
+  arena-claude:
+    <<: *lane
+    container_name: arena-claude
+    image: ghcr.io/openabdev/openab:nightly-20261103-41653922154.1-claude@sha256:992ebd27aeb653057353ea76bac0cce5189248e855777e160b2afb60a34c391b
+    command: [sh, /arena/harness.sh, claude]
+    env_file: secret.sops.env # CLAUDE_CODE_OAUTH_TOKEN
+    environment:
+      TZ: Asia/Karachi
+      DISABLE_AUTOUPDATER: "1"
+    volumes:
+      - ./engine/harness.sh:/arena/harness.sh:ro
+      - /opt/appdata/arena/jobs/claude:/jobs
+    networks: [lane-claude, egress]
+
+networks:
+  # The runner and the worlds.
+  admin:
+    internal: true
+  # Each lane and its world, alone.
+  lane-codex:
+    internal: true
+  lane-claude:
+    internal: true
+  # OpenAI and Anthropic, and the web search.
+  egress: {}
