@@ -84,7 +84,9 @@ agent got there) and `hint(round, turn, missing)` (what Ali would say: a nudge a
 items' hints at turn 2) is run with a **hint ladder**. When the agent finishes and an item isn't
 reached, the runner continues the same session with the hint (`codex exec resume`, `claude -p
 --resume`) and reads the world again. A run scores each item's weight times 1 (reached alone), 0.6
-(after the nudge), 0.3 (after the pointed hint) or 0; `alone` is the share reached without help. Its
+(after the nudge), 0.3 (after the pointed hint) or 0; `alone` is the share reached without help. An
+item counts only if the world ends with it: one a later turn broke counts from the turn it was right
+again, or not at all (a fix after the nudge that files a wrong copy loses what was right alone). Its
 `check()` then holds the rules (red flags) and the judge's items on its approach. The comics test's
 open version is `comics-open`, with variants for the skill as it runs, a proactive one, and cold (its
 role and tools, no know-how).
@@ -109,6 +111,9 @@ what the CLI leaves), and a world of its own (`world-<lane>`, on `lane-<lane>`).
   (`rate_limit_event` → `unifiedWindows`) and its result's `total_cost_usd` (list price, not billed).
 - A test changed mid-stage changes it for the runs still to come: fix a world between stages, or
   `reset`; a check fix only needs `rescore`.
+- A world holds the run in flight and keeps nothing across a restart. The runner's restart is safe
+  (it waits for the job a restart left going), so the worlds mount only `engine/world.py`: a change
+  to it, or to comics-tools, restarts them and spoils the run in flight. Stop the lanes first.
 - promptfoo (the mature runner) was weighed on 11-04: its Codex SDK is pinned below the Codex that
   lists gpt-6.1-terra, it reads no plan window, and it has no sandboxed world. Its good ideas are
   here: the judge, steps, variants, repeats and their spread.
