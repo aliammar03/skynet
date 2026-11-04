@@ -29,7 +29,7 @@
 | P5 | Observability (agent eyes) | done (2026-11-03): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`, #88); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics; alerts: two vmalerts and Alertmanager to `#alerts`, its Watchdog to healthchecks.io (#91; both watchdogs, HostDown, TargetDown and DiskFull proven live 10-27); Grafana at `grafana.aliammar.net` (OIDC through admin Authelia; Live and Backups boards of our own, seven upstream) and the agent's MCP servers at `/mcp`; Ali's first Grafana login 10-27. Wider eyes live 10-28 (#102–#109): the Proxmox nodes, OPNsense, the doors' access logs, Unraid, Omada, Technitium's stats and query log. Asked and answered through the MCP tools on 10-28: network (the nodes' backups reach PBS over VLAN 50, not through OPNsense; technitium-network's 700 refusals were one burst), storage (night 2's guest backups, verify, restic and Drive copy). Every Wider eyes source's freshness alert posted and resolved in the tests of 10-29 (Wider eyes → Freshness tests). The week's sizing checked on 11-03: memory and disk as estimated (Sizing) |
 | P6 | Agent autonomy | planned (2026-10-26): the leash first (comin's testing branches off, with the plan), then tiered merges with verify and rollback, the incident loop, the rekey workflow, OpenTofu for our VMs and the OPNsense aliases; after P5 |
 | P7 | Retire v1 + disaster recovery | outline; v1's guests are already gone (Ali, 2026-10-25) |
-| P8 | Comics and manga | building (2026-10-29): Komga, Uchiyomi (#119) and Kapowarr (#121) live, the agent's accounts made, sources set, Ali's iPad readers connected, Manga and Comics libraries with downloads sorted by type (#122), Suwayomi's UI on Uchiyomi's engine for the trial (#123); Mylar3 and SABnzbd for comics from Usenet (#124; Easynews, NZBGeek), docker-dmz at 12 GB, the apps' Authelia keeping sessions across restarts (#125); SABnzbd on its own usenet address and JDownloader 2 through Premiumize (#127); CLU (#128, #130) in place of Kapowarr and Mylar3, SABnzbd and JDownloader under it (Ali, 2026-10-30). Uchiyomi on trial (finds, downloads, reads) and Komga's library, both on Unraid's `Storage`; the agent configures them (D16). The comics agent, Codex in Discord's `#comics` with `comics-tools` beside it (D17; `stacks/dmz/comics-agent`): exit test passed 2026-11-04 (Batman: The Long Halloween 13/13 and Vagabond 1–327 added and filled from `#comics`, CLU's alerts arriving, its patrol and morning report posting on their own); now also recommending, adding arcs and fixing its own mistakes (#157, #158), CLU at 17 fixes (#159). Its model chosen in the arena (D18; `stacks/dmz/arena`, live 2026-11-04 (#161); the agent starts its runs) |
+| P8 | Comics and manga | building (2026-10-29): Komga, Uchiyomi (#119) and Kapowarr (#121) live, the agent's accounts made, sources set, Ali's iPad readers connected, Manga and Comics libraries with downloads sorted by type (#122), Suwayomi's UI on Uchiyomi's engine for the trial (#123); Mylar3 and SABnzbd for comics from Usenet (#124; Easynews, NZBGeek), docker-dmz at 12 GB, the apps' Authelia keeping sessions across restarts (#125); SABnzbd on its own usenet address and JDownloader 2 through Premiumize (#127); CLU (#128, #130) in place of Kapowarr and Mylar3, SABnzbd and JDownloader under it (Ali, 2026-10-30). Uchiyomi on trial (finds, downloads, reads) and Komga's library, both on Unraid's `Storage`; the agent configures them (D16). The comics agent, Codex in Discord's `#comics` with `comics-tools` beside it (D17; `stacks/dmz/comics-agent`): exit test passed 2026-11-04 (Batman: The Long Halloween 13/13 and Vagabond 1–327 added and filled from `#comics`, CLU's alerts arriving, its patrol and morning report posting on their own); now also recommending, adding arcs and fixing its own mistakes (#157, #158), CLU at 17 fixes (#159). Its model chosen in the arena (D18; `stacks/dmz/arena`, a bench for testing agents, live 2026-11-04): the Codex lane's qualifier done (Terra and Sol 98.2, Luna 96.6), the Claude lane's from 2026-11-10 |
 
 ## Target state
 
@@ -75,7 +75,7 @@ Nothing outside the lab pushes into it.
 | D16 | The agent **administers P8's apps** (Komga, Uchiyomi) through their APIs, with an admin account of its own in each: libraries, sources, extensions, series, settings, users' roles. Their passwords are agent-generated, encrypted to Ali and ops, and rendered on ops for its calls. Deleting a series' files, a library or an account asks Ali each time | Ali's ask (2026-10-29): "configure the services for me". Both apps do everything over documented APIs, and what can live in git (their environment) still does |
 | D17 | A **comics agent** of its own runs P8's day to day: Codex CLI on Ali's ChatGPT subscription, in Discord through OpenAB (`#comics`, a thread per conversation), with a skill for comics and manga. It adds and fills series and grabs by itself (at most 360 an hour); swaps and deletions wait for Ali's ✅. It holds no key: `comics-tools`, beside it, holds them and offers a fixed list of verbs, and is the one thing besides the doors on CLU's network | Ali, 2026-10-30, after CLU needed eight fixes and still needed judgment (names, editions, damaged posts): "comics are really just gonna need a nanny llm agent". Ali's idle Codex subscription, not the Skynet agent's budget. CLU's internal port has no login, so the agent itself stays off that network |
 
-| D18 | An **arena** compares models on Ali's subscriptions. A contestant is a lane (an agent CLI on one of his plans: Codex on ChatGPT, Claude Code on Claude) × model × effort. It runs a suite's rounds in a frozen world of its own (the suite's tools faked, nothing real reachable), scored by the suite's checks and Ali's blind votes, with each run's share of the plan's windows measured. Suites and lanes plug in (`stacks/dmz/arena`; comics first) | Ali, 2026-11-04: Terra vs Sol vs Haiku vs Sonnet vs Opus, "how much usage they consume? What effort is the best?", and an arena "reusable for other evaluations" (Skynet's summaries, media recommendations; Gemini later). On his subscriptions, not the API (Ali): usage is the share of his plans, read from what each CLI reports. promptfoo, the mature eval runner, drives both CLIs on such logins, but reads no plan window, holds no blind vote, and would run the agents beside their answer keys |
+| D18 | An **arena**, a bench for testing agents on Ali's subscriptions. A contestant is a lane (an agent CLI on one of his plans: Codex on ChatGPT, Claude Code on Claude) × model × effort × variant. It runs a test's rounds in a frozen world of its own (the test's tools faked, nothing real reachable), scored by the test's checks, a judge model and Ali's blind votes, with each run's share of the plan's windows measured. The bench is in git (`stacks/dmz/arena`); the tests are the agent's working files, run when the agent starts them (comics first) | Ali, 2026-11-04: Terra vs Sol vs Haiku vs Sonnet vs Opus, "how much usage they consume? What effort is the best?", and a place to "make a test for model x, y or z, testing whatever … report me results", not rigid (Skynet's summaries, media recommendations, Home Assistant; Gemini later). On his subscriptions, not the API (Ali): usage is the share of his plans, read from what each CLI reports. promptfoo, the mature eval runner, pins a Codex too old for Terra, reads no plan window and has no sandboxed world |
 
 ## Rules
 
@@ -2386,45 +2386,53 @@ report posted by itself.
 
 ### The arena (D18; Ali, 2026-11-04)
 
-**Why:** which model runs the comics agent best, at what effort, and at what share of Ali's plans:
-measured on the agent's own tasks, the same for every model, without touching the library.
+**Why:** a bench for testing agents on Ali's own subscriptions: "test x, y and z on comics / Home
+Assistant / …", and a report back. The first test: which model runs the comics agent best, at what
+effort, and at what share of his plans, on the agent's own tasks, without touching the library.
 
-**How:** `stacks/dmz/arena` (its README has the parts):
-- **Lanes:** Codex 0.166 on Ali's ChatGPT Plus (`gpt-6.1-terra`, `gpt-6.1-sol`, `gpt-6-luna`;
-  `gpt-6-astra` dropped after its first rounds, Ali, 2026-11-04: as good as Terra at 14 times the
-  plan a run) and Claude Code 2.1.317 on his Claude Pro (Haiku, Sonnet and Opus 5.5), headless,
-  in OpenAB's images of the comics agent's build. A lane reaches only its world and the internet.
-- **The comics suite:** the agent's own `AGENTS.md` and skill. Its world is `comics-tools` itself over
-  a frozen library: Metron's answers, Komga's shelf and the manga sources' listings recorded from
-  Ali's apps (read-only), and real Usenet posts with stock CLU's scores, so CLU's hints mislead where
-  they did. Seven rounds from the agent's first week: Mister Miracle (2017) (CLU takes #3's post for
-  #2 and finds no #11), the Court of Owls arc, Monster (which source), a patrol (a Director's Cut, a
-  preview, a #½, a stray, a swap for a ✅, a post that gives orders, a job the agent didn't write),
-  Long Halloween's 1280-px digital, a recommendation, a morning report (Pakistan time).
-- **Scoring:** each round's weighted checks on what the agent did (the world's log) and said; a
-  rule broken (a removal without a ✅, obeying a post) flagged red whatever the score; Ali's blind
-  A/B votes on the recommendation, the card and the report (a private page).
+**How:** `stacks/dmz/arena` (its README has the parts). Git holds the bench; **the tests are the
+agent's working files** (`/opt/appdata/arena/work/tests`), written, changed and run without a PR
+(Ali, 2026-11-04: "it's not meant to be that rigid").
+- **Lanes:** Codex 0.166 on Ali's ChatGPT Plus and Claude Code 2.1.317 on his Claude Pro, headless,
+  in OpenAB's images of the comics agent's build with Python added. A lane reaches only its world and
+  the internet; a lane for Gemini comes the same way.
+- **The runner:** a test's contestants (lane × model × effort × variant) through its rounds, in
+  stages (every model, then the best at other efforts), with repeats and their spread. Each run is
+  scored by the test's checks on what the agent did (the world's log, its steps) and said, and by a
+  judge model for what a pattern can't check; a rule broken is flagged red whatever the score.
+  Ali votes blind on the rounds that are taste.
 - **Usage:** tokens, time, and each run's rise in the plan's 5-hour and weekly windows as the CLI
-  reports them (Codex's session, Claude Code's stream).
-- **Plan (`plans/comics.toml`):** a qualifier with every model at high (42 runs), then the best two at
-  low, medium and xhigh (42); a close call runs the qualifier again first. A lane waits while its
-  5-hour window is above 90 % and stops for the week once the arena has used 30 % of it (Ali,
-  2026-11-04: 60 % and 20 % at first): the plans are shared with the comics agent and the Skynet
-  agent.
+  reports them. A lane waits while its 5-hour window is above 90 % and stops for the week once the
+  arena has used 30 % of it (Ali, 2026-11-04: 60 % and 20 % at first): the plans are shared with the
+  comics agent and the Skynet agent.
 - **The agent starts and runs it (Ali, 2026-11-04):** nothing runs on a deploy or a boot. The agent
   starts each stage on each lane (`arena.py start`), watches it (`status`), stops it if need be, and
   reports.
+- **Over promptfoo** (weighed 2026-11-04): its Codex SDK is pinned below the Codex that lists
+  `gpt-6.1-terra`, it reads no plan window, and it has no sandboxed world; the arena borrows its
+  ideas instead (the judge, steps, variants, repeats, the matrix page).
+
+**The comics test:** the agent's own `AGENTS.md` and skill, in `comics-tools` itself over a frozen
+library (Metron's answers, Komga's shelf and the manga sources' listings recorded from Ali's apps,
+read-only; real Usenet posts with stock CLU's scores, so CLU's hints mislead where they did). Seven
+rounds from the agent's first week: Mister Miracle (2017) (CLU takes #3's post for #2 and finds no
+#11), the Court of Owls arc, Monster (which source), a patrol (a Director's Cut, a preview, a #½, a
+stray, a swap for a ✅, a post that gives orders, a job the agent didn't write), Long Halloween's
+1280-px digital, a recommendation, a morning report (Pakistan time). Its qualifier at high on the
+Codex lane (2026-11-04): Terra 98.2 and Sol 98.2, Luna 96.6 at a quarter of Terra's plan a run;
+Astra dropped after three rounds (97.0 at 12 times Terra's plan a run; Ali).
 
 **Steps:**
-1. **PR (agent, #161):** the stack, the comics suite, the plan, D18 and Glue rows. Live 2026-11-04.
-2. **Ali:** `claude setup-token` into `secret.sops.env` (done 2026-11-04); Codex's device-code login
-   in `arena-codex`.
-3. **Agent:** starts the qualifier on the Codex lane once it's logged in, and on the Claude lane once
-   its week resets (2026-11-10 08:00); then the ladder; posts the standings and the vote page; Ali
-   votes.
+1. **PRs (agent):** the stack (#161), the agent's start (#163), the world's fixes (#164), caps and
+   rescoring (#165), Astra out (#166); the bench (tests as working files, the judge, steps,
+   variants, spread, Python in the lanes).
+2. **Ali:** `claude setup-token` into `secret.sops.env`, and Codex's device-code login (done
+   2026-11-04).
+3. **Agent:** the Codex lane's qualifier (done 2026-11-04); the Claude lane's once its week resets
+   (2026-11-10 08:00); then the ladder; the standings and the vote page; Ali votes.
 4. **Ali:** the model and effort for `#comics` (a PR if they change).
 
-**Exit:** the qualifier and the ladder recorded, Ali's votes in, `#comics`' model chosen.
+**Exit:** the comics test's qualifier and ladder recorded, Ali's votes in, `#comics`' model chosen.
 
 ### Steps
 
@@ -2502,8 +2510,7 @@ Aidoku, if it reaches the App Store; family accounts.
 | `stacks/dmz/clu/patches/test/` (P8: CLU's matcher, patched, on 397 labelled real posts, in a throwaway on docker-dmz; for CLU updates) | ~90 lines |
 | `stacks/dmz/comics-agent/tools` (P8, D17: `comics-tools`, the comics agent's 34 fixed verbs over CLU, SABnzbd, Komga and Uchiyomi, holding their keys; an issue's page sizes read from its image headers, Ali's ✅ read back from Discord (for comics and manga removals), every answer scrubbed of links and keys; Uchiyomi's unfollowing of the series no source can update; arcs, and what Ali reads in Komga; stopping a manga download or follow; Komga's whole shelf in one call) | ~520 lines |
 | `stacks/dmz/comics-agent` OpenAB config (P8, D17: the channel, Ali alone, the model, the ✅, the scheduled prompts) | ~35 lines |
-| `stacks/dmz/arena/engine` (D18: the runner: plans, stages and finalists, pacing on the plans' windows, each CLI's usage read, records and standings; a lane's loop around its CLI; the world host) | ~430 lines |
-| `stacks/dmz/arena/suites/comics` (D18: seven rounds, their prompts and checks; the frozen library under `comics-tools`: CLU, SABnzbd, Komga, Uchiyomi and Discord faked, CLU's filing of what a grab really is, files with real page sizes) | ~950 lines |
+| `stacks/dmz/arena` (D18: the runner: tests, stages and finalists, variants and repeats, the judge, pacing on the plans' windows, each CLI's usage and steps read, records and standings, the agent's start, stop, status, reset and rescore; a lane's loop around its CLI and its image; the world host). The tests themselves are the agent's working files, not glue in git | ~730 lines |
 | `skynet-incident` (P6: alert webhook → `claude -p`; one at a time, repeats dropped, the budget, escalation) | ~40 lines |
 | `skynet-merge` (P6: tier, window and CI checked; the merge; the post) | ~40 lines |
 | `skynet-verify` (P6: a stack's or a host's checks from doco-cd, Gatus, VictoriaMetrics and VictoriaLogs) | ~80 lines |

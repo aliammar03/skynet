@@ -1,9 +1,10 @@
-# The arena (skynetv2.md → D18): models side by side on Ali's subscriptions. A lane is an agent CLI
-# on one of his plans (codex: ChatGPT; claude: Claude); each runs a suite's rounds (suites/: comics
-# today) against a frozen world of its own, which answers under the suite's tool names. The runner
-# (`arena`) loads each round, hands the lane its job, scores what the agent did and records it
-# (plans/ says who runs what). The lanes hold no app key and reach no app: their only networks are
-# their world's and the internet. No door: nothing reaches the stack from outside.
+# The arena (skynetv2.md → D18): a bench for testing agents on Ali's subscriptions. A lane is an agent
+# CLI on one of his plans (codex: ChatGPT; claude: Claude), with Python and a few tools; each runs a
+# test's rounds against a frozen world of its own, which answers under the test's tool names. The
+# runner (`arena`) loads each round, hands the lane its job, scores what the agent did and records it.
+# The tests themselves are the Skynet agent's working files (/opt/appdata/arena/work/tests), not git.
+# The lanes hold no app key and reach no app: their only networks are their world's and the internet.
+# No door: nothing reaches the stack from outside.
 x-python: &python
   image: docker.io/library/python:3.15.2-alpine3.24@sha256:20a82dbc2783112ddb91d1534603f802d222a3e63e593cd002eb2ac534e70211
   restart: unless-stopped
@@ -14,12 +15,12 @@ x-python: &python
 x-world: &world
   <<: *python
   command: [python3, -I, /arena/engine/world.py]
-  # The frozen library's files: sparse, a few MB however big they say they are.
+  # A test's frozen files (the comics test's library): sparse, a few MB however big they say they are.
   tmpfs: [/data, /downloads, /manga]
   volumes:
     - ./engine:/arena/engine:ro
-    - ./suites:/arena/suites:ro
-    # The comics suite's world is comics-tools itself.
+    - /opt/appdata/arena/work/tests:/arena/tests:ro
+    # The comics test's world is comics-tools itself.
     - ../comics-agent/tools:/stacks/comics-agent/tools:ro
   healthcheck:
     test: [CMD, python3, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/healthz', timeout=5)"]
@@ -44,9 +45,8 @@ services:
     command: [python3, -I, /arena/engine/arena.py]
     volumes:
       - ./engine:/arena/engine:ro
-      - ./suites:/arena/suites:ro
-      - ./plans:/arena/plans:ro
-      # The comics agent's instructions and skill, which its suite hands each lane.
+      - /opt/appdata/arena/work/tests:/arena/tests:ro
+      # The comics agent's instructions and skill, which its test hands each lane.
       - ../comics-agent/agent:/stacks/comics-agent/agent:ro
       # The lanes' jobs (owner 1000, the lanes' user; hosts/docker-dmz), and the results.
       - /opt/appdata/arena/jobs:/jobs
@@ -72,11 +72,11 @@ services:
       admin: {}
       lane-claude: { aliases: [comics-tools] }
 
-  # Codex, on Ali's ChatGPT plan: the comics agent's image (its CLI, 0.166).
+  # Codex on Ali's ChatGPT plan: the comics agent's image (its CLI, 0.166) with Python (lanes/).
   arena-codex:
     <<: *lane
     container_name: arena-codex
-    image: ghcr.io/openabdev/openab:nightly-20261103-41653922154.1-codex@sha256:52b5afb9b369dbc92e72b7e713e05f2cdf3f135c73367a17ce8b91dc2dc8ff16
+    build: { context: ./lanes, dockerfile: codex.Dockerfile }
     command: [sh, /arena/harness.sh, codex]
     environment:
       TZ: Asia/Karachi
@@ -89,11 +89,12 @@ services:
       - /opt/appdata/arena/jobs/codex:/jobs
     networks: [lane-codex, egress]
 
-  # Claude Code, on Ali's Claude plan: OpenAB's Claude image, of the same build (its CLI, 2.1.317).
+  # Claude Code on Ali's Claude plan: OpenAB's Claude image of the same build (its CLI, 2.1.317) with
+  # Python (lanes/).
   arena-claude:
     <<: *lane
     container_name: arena-claude
-    image: ghcr.io/openabdev/openab:nightly-20261103-41653922154.1-claude@sha256:992ebd27aeb653057353ea76bac0cce5189248e855777e160b2afb60a34c391b
+    build: { context: ./lanes, dockerfile: claude.Dockerfile }
     command: [sh, /arena/harness.sh, claude]
     env_file: secret.sops.env # CLAUDE_CODE_OAUTH_TOKEN
     environment:

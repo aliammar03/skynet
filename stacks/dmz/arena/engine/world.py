@@ -1,16 +1,27 @@
-"""The arena's world (skynetv2.md → D18), one per lane. The runner loads a suite's round into it on
-:8081 (the runner alone, by name); the lane's agent calls it on :8080 under the suite's tool names
-(this container's aliases on the lane's network). The suite's own world.py answers: load(round),
-log() for the checks, and Handler for the agent's calls."""
+"""The arena's world (skynetv2.md → D18), one per lane. The runner loads a test's round into it on
+:8081 (the runner alone, by name); the lane's agent calls it on :8080 under the test's tool names
+(this container's aliases on the lane's network). The test's own world.py answers: load(round),
+log() for the checks, and Handler for the agent's calls. It's read again whenever it changed."""
+import hashlib
 import http.server
-import importlib
+import importlib.util
 import json
+import os
 import socket
-import sys
 import threading
 
-sys.path.insert(0, "/arena")
-ACTIVE = {}
+ACTIVE, MODULES = {}, {}
+
+
+def module(path):
+    """A test's world.py, loaded again whenever anything in its folder changed."""
+    t = max(os.path.getmtime(os.path.join(r, f)) for r, _, fs in os.walk(os.path.dirname(path)) for f in fs)
+    if MODULES.get(path, (None,))[0] != t:
+        spec = importlib.util.spec_from_file_location("world_" + hashlib.sha1(path.encode()).hexdigest()[:8], path)
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        MODULES[path] = (t, m)
+    return MODULES[path][1]
 
 
 def from_runner(ip):
@@ -45,7 +56,7 @@ class Admin(http.server.BaseHTTPRequestHandler):
         if self.path != "/load":
             return reply(self, 404, {"error": "no such path"})
         a = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
-        world = importlib.import_module(f"suites.{a['suite']}.world")
+        world = module(f"/arena/tests/{a['suite']}/world.py")
         world.load(a["round"])
         ACTIVE["world"] = world
         reply(self, 200, {"loaded": a["round"]})
