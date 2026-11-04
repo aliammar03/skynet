@@ -2397,10 +2397,11 @@ agent's working files** (`/opt/appdata/arena/work/tests`), written, changed and 
   in OpenAB's images of the comics agent's build with Python added. A lane reaches only its world and
   the internet; a lane for Gemini comes the same way.
 - **The runner:** a test's contestants (lane × model × effort × variant) through its rounds, in
-  stages (every model, then the best at other efforts), with repeats and their spread. Each run is
-  scored by the test's checks on what the agent did (the world's log, its steps) and said, and by a
-  judge model for what a pattern can't check; a rule broken is flagged red whatever the score.
-  Ali votes blind on the rounds that are taste.
+  stages (every model, then the best at other efforts), with repeats and their spread. Open-ended
+  (Ali, 2026-11-04): a run is graded on where the world ends up, however the agent got there, and
+  on the help it needed, a hint ladder (a nudge, then a pointed hint, in the same session) telling
+  what it solved alone; a judge model reads its approach. A rule broken is flagged red whatever the
+  score. Ali votes blind on the rounds that are taste.
 - **Usage:** tokens, time, and each run's rise in the plan's 5-hour and weekly windows as the CLI
   reports them. A lane waits while its 5-hour window is above 90 % and stops for the week once the
   arena has used 30 % of it (Ali, 2026-11-04: 60 % and 20 % at first): the plans are shared with the
@@ -2425,7 +2426,7 @@ Astra dropped after three rounds (97.0 at 12 times Terra's plan a run; Ali).
 **Steps:**
 1. **PRs (agent):** the stack (#161), the agent's start (#163), the world's fixes (#164), caps and
    rescoring (#165), Astra out (#166); the bench (tests as working files, the judge, steps,
-   variants, spread, Python in the lanes).
+   variants, spread, the hint ladder, Python in the lanes).
 2. **Ali:** `claude setup-token` into `secret.sops.env`, and Codex's device-code login (done
    2026-11-04).
 3. **Agent:** the Codex lane's qualifier (done 2026-11-04); the Claude lane's once its week resets

@@ -74,6 +74,18 @@
 - `world.py`: `load(round)`, `log()` and `Handler` (an HTTP handler class with `answer(method)`). The
   worlds' network aliases give it its tool names; a new name is a line in `compose.yaml`.
 
+**Open-ended tests** (Ali, 2026-11-04: "let the models think … did it find the correct solution
+itself or would it need more outside help"): a suite with `outcome(round, world_log, collected)`
+(items, each a `weight`, `ok` and a pointed `hint`, read from where the world ended up, however the
+agent got there) and `hint(round, turn, missing)` (what Ali would say: a nudge at turn 1, the missing
+items' hints at turn 2) is run with a **hint ladder**. When the agent finishes and an item isn't
+reached, the runner continues the same session with the hint (`codex exec resume`, `claude -p
+--resume`) and reads the world again. A run scores each item's weight times 1 (reached alone), 0.6
+(after the nudge), 0.3 (after the pointed hint) or 0; `alone` is the share reached without help. Its
+`check()` then holds the rules (red flags) and the judge's items on its approach. The comics test's
+open version is `comics-open`, with variants for the skill as it runs, a proactive one, and cold (its
+role and tools, no know-how).
+
 The comics test (the first): the comics agent's own `AGENTS.md` and skill, in comics-tools itself
 over a frozen copy of the library (Metron's answers, Komga's shelf, the manga sources' listings,
 recorded from Ali's apps; real Usenet posts with stock CLU's scores), seven rounds from the agent's

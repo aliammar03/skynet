@@ -52,6 +52,11 @@ What it did, in order (its tool calls and the world's answers):
 {calls}
 </calls>
 
+The help it was given after it said it was done (none: it worked alone):
+<help>
+{help}
+</help>
+
 Its final reply:
 <reply>
 {reply}
@@ -288,45 +293,98 @@ def hand(lane, d, model, effort, timeout, prompt, files=None, collect=(), env=No
         time.sleep(3)
 
 
+CREDIT = (1.0, 0.6, 0.3)  # an outcome reached alone, after a nudge, after a pointed hint
+
+
+def outcomes(outcome):
+    """A run's score from its outcome items: each item's weight times the credit for the turn it was
+    reached at (none: 0), and `alone`, the share reached without a hint."""
+    weight = sum(o["weight"] for o in outcome) or 1
+    return {"outcome": outcome, "alone": round(100 * sum(o["weight"] for o in outcome if o["turn"] == 0) / weight, 1),
+            "score": round(100 * sum(o["weight"] * CREDIT[o["turn"]] for o in outcome
+                                     if o["turn"] is not None and o["turn"] < len(CREDIT)) / weight, 1)}
+
+
+def collected_in(d):
+    out = {}
+    for root, _, names in os.walk(f"{d}/collected"):
+        for n in names:
+            out[os.path.relpath(os.path.join(root, n), f"{d}/collected")] = open(os.path.join(root, n), errors="replace").read()
+    return out
+
+
+def world_log(lane):
+    try:
+        return http(f"{WORLDS[lane]}/log")
+    except OSError:
+        return None
+
+
 def run(name, p, j):
-    s, lane = suite(p["suite"]), j["lane"]
+    """A run: the round's first turn; then, while the test's outcome isn't reached and it has a hint
+    for that, the same session nudged again (the hint ladder), each outcome item marked with the turn
+    it was reached at; then the checks (rules, the judge's items) and the record."""
+    s, lane, variant = suite(p["suite"]), j["lane"], j.get("variant", "")
     timeout = s.ROUNDS[j["round"]].get("timeout") or p.get("timeout", 1200)
     d = f"/jobs/{lane}/{hashlib.sha1(f'{name}/{j['key']}'.encode()).hexdigest()[:12]}"
     if not os.path.exists(f"{d}/ready"):
         http(f"{WORLDS[lane]}/load", {"suite": p["suite"], "round": j["round"]})
         say(lane, "runs", j["key"])
-    variant = j.get("variant", "")
     hand(lane, d, j["model"], j["effort"], timeout, opt(s.prompt, j["round"], variant=variant),
          opt(s.files, j["round"], lane, variant=variant), s.collect(j["round"]), getattr(s, "ENV", {}), j["key"])
-    try:
-        world = http(f"{WORLDS[lane]}/log")
-    except OSError:
-        world = None
-    usage = USAGE[lane](d)
-    reply, steps = usage.pop("reply"), usage.pop("steps")
-    collected = {}
-    for root, _, names in os.walk(f"{d}/collected"):
-        for n in names:
-            collected[os.path.relpath(os.path.join(root, n), f"{d}/collected")] = open(os.path.join(root, n), errors="replace").read()
+    turns, hints = [d], []
+    world, collected = world_log(lane), collected_in(d)
+    with open(f"{d}/world.json", "w") as out:
+        json.dump(world, out, ensure_ascii=False)
+    outcome, reached = None, {}
+    if hasattr(s, "outcome"):
+        outcome = opt(s.outcome, j["round"], world, collected, variant=variant)
+        reached = {o["item"]: 0 for o in outcome if o["ok"]}
+        while (missing := [o["item"] for o in outcome if not o["ok"]]) and hasattr(s, "hint"):
+            hint = opt(s.hint, j["round"], len(turns), missing, variant=variant)
+            sid = open(f"{turns[-1]}/session").read().strip() if os.path.exists(f"{turns[-1]}/session") else ""
+            if not hint or not sid:
+                break
+            dn = f"{d}-t{len(turns)}"
+            say(lane, "nudges", j["key"], f"({len(turns)}):", hint[:80])
+            hand(lane, dn, j["model"], j["effort"], timeout, hint, None, s.collect(j["round"]),
+                 {**getattr(s, "ENV", {}), "RESUME": sid}, f"{j['key']} (hint {len(turns)})")
+            turns.append(dn)
+            hints.append(hint)
+            world, collected = world_log(lane), collected_in(dn) or collected
+            with open(f"{dn}/world.json", "w") as out:  # each turn's world, for a rescore
+                json.dump(world, out, ensure_ascii=False)
+            outcome = opt(s.outcome, j["round"], world, collected, variant=variant)
+            reached.update({o["item"]: len(turns) - 1 for o in outcome if o["ok"] and o["item"] not in reached})
+        outcome = [{**o, "turn": reached.get(o["item"])} for o in outcome]
+    usages = [USAGE[lane](t) for t in turns]
+    reply, steps = usages[-1]["reply"], [x for u in usages for x in u["steps"]]
+    tokens = usages[-1]["tokens"] if lane == "codex" else {  # Codex's session counts its whole thread; Claude's each call
+        k: sum((u["tokens"].get(k) or 0) for u in usages) for k in usages[0]["tokens"]}
+    usage = {"tokens": tokens, "tools": len(steps), "cost_usd": sum(u.get("cost_usd") or 0 for u in usages) or None,
+             "first": usages[0]["first"], "last": usages[-1]["last"] or usages[0]["last"]}
     checks = [{**c, "ok": c.get("ok")} for c in opt(s.check, j["round"], reply, world, collected, steps=steps, variant=variant)]
-    took = os.path.getmtime(f"{d}/done") - os.path.getmtime(f"{d}/taken") if os.path.exists(f"{d}/done") else None
+    took = sum(os.path.getmtime(f"{t}/done") - os.path.getmtime(f"{t}/taken") for t in turns if os.path.exists(f"{t}/done"))
     rec = {**j, "at": datetime.datetime.now().isoformat(timespec="seconds"), "seconds": round(took) if took else None,
-           "exit": open(f"{d}/exit").read().strip() if os.path.exists(f"{d}/exit") else "no answer", "score": score(checks),
+           "exit": open(f"{d}/exit").read().strip() if os.path.exists(f"{d}/exit") else "no answer",
            "red": [c["check"] for c in checks if c.get("red") and c["ok"] is False], "checks": checks, "usage": usage,
-           "steps": len(steps), "reply": reply}
-    for f, data in (("world.json", world), ("steps.json", steps)):
-        with open(f"{d}/{f}", "w") as out:
-            json.dump(data, out, ensure_ascii=False)
+           "steps": len(steps), "reply": reply, "turns": len(turns), "hints": hints, "replies": [u["reply"] for u in usages]}
+    rec.update(outcomes(outcome) if outcome is not None else {"score": score(checks)})
+    with open(f"{d}/steps.json", "w") as out:
+        json.dump(steps, out, ensure_ascii=False)
     with LOCK:
         recs = records(name)
         rec["n"] = len(recs) + 1
         os.makedirs(f"/results/{name}/runs", exist_ok=True)
         shutil.move(d, f"/results/{name}/runs/{rec['n']:04d}")
+        for k, t in enumerate(turns[1:], 1):
+            shutil.move(t, f"/results/{name}/runs/{rec['n']:04d}/turn-{k}")
         with open(f"/results/{name}/runs.jsonl", "a") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
         summary(name, p, recs + [rec])
     paced(lane, usage.get("first"), usage.get("last"))
-    say(lane, j["key"], "score", rec["score"], "red" if rec["red"] else "", f"{rec['seconds']}s", "exit", rec["exit"])
+    say(lane, j["key"], "score", rec["score"], f"alone {rec.get('alone')}" if outcome is not None else "",
+        f"{len(hints)} hints" if hints else "", "red" if rec["red"] else "", f"{rec['seconds']}s", "exit", rec["exit"])
 
 
 def judging(name, p, lane):
@@ -346,6 +404,7 @@ def judge(name, p, rec):
     calls = "\n".join(f"{c['verb']} {json.dumps(c.get('args'), ensure_ascii=False)[:200]} → {c.get('status')}"
                       for c in (world or {}).get("calls", [])[:120]) or "(none)"
     prompt = JUDGE.format(request=s.ROUNDS[rec["round"]].get("text", rec["round"]), calls=calls, reply=rec["reply"][:12000],
+                          help="\n".join(f"{i}. {h}" for i, h in enumerate(rec.get("hints") or [], 1)) or "(none)",
                           items="\n".join(f"{i}. {c['judge']}" for i, c in enumerate(items, 1)))
     d = f"/jobs/{cfg['lane']}/judge-" + hashlib.sha1(f"{name}/{rec['n']}".encode()).hexdigest()[:10]
     say(cfg["lane"], "judges", name, rec["n"])
@@ -363,8 +422,10 @@ def judge(name, p, rec):
         for i, c in enumerate(pending, 1):
             v = verdicts.get(i) or {"pass": False, "why": "the judge gave no verdict"}
             c.update(ok=bool(v.get("pass")), why=str(v.get("why", ""))[:300])
-        r.update(score=score(r["checks"]), red=[c["check"] for c in r["checks"] if c.get("red") and c["ok"] is False],
+        r.update(red=[c["check"] for c in r["checks"] if c.get("red") and c["ok"] is False],
                  judge={"model": cfg["model"], "effort": cfg.get("effort", "low"), "tokens": usage["tokens"]})
+        if "outcome" not in r:  # an outcome test's score is its outcome; the judge's items are its approach
+            r["score"] = score(r["checks"])
         shutil.rmtree(f"{run_dir}/judge", ignore_errors=True)
         shutil.move(d, f"{run_dir}/judge")
         rewrite(name, p, recs)
@@ -404,6 +465,8 @@ def summary(name, p, recs):
     standings = [{"stage": k[0], "lane": k[1], "model": k[2], "effort": k[3], "variant": k[4], "runs": len(rs),
                   "score": mean(r["score"] for r in rs), "spread": spread(rs), "red": sorted({f for r in rs for f in r["red"]}),
                   "unjudged": sum(1 for r in rs for c in r["checks"] if c.get("judge") and c.get("ok") is None),
+                  "alone": mean(r.get("alone") for r in rs), "hints": mean((len(r.get("hints") or []) for r in rs), 2),
+                  "approach": mean([100 * c["ok"] for r in rs for c in r["checks"] if c.get("judge") and c.get("ok") is not None]),
                   "rounds": {rnd: mean(r["score"] for r in rs if r["round"] == rnd) for rnd in s.ROUNDS},
                   "seconds": mean(r["seconds"] for r in rs), "steps": mean(r.get("steps") for r in rs),
                   "tokens": {t: mean((r["usage"].get("tokens") or {}).get(t) for r in rs) for t in ("input", "cached", "output", "reasoning")},
@@ -457,6 +520,8 @@ def status(only=None):
             for x in json.load(open(f"/results/{name}/summary.json"))["standings"]:
                 who = "/".join(v for v in (x["lane"], x["model"], x["effort"], x.get("variant", "")) if v)
                 out.append(f"  {x['stage']} {who}: {x['score']}" + (f" ±{x['spread']}" if x.get("spread") is not None else "")
+                           + (f", alone {x['alone']}, {x['hints']} hints a run" if x.get("alone") is not None else "")
+                           + (f", approach {x['approach']}" if x.get("approach") is not None else "")
                            + f" ({x['runs']} runs" + (f", 5-hour {x['five_hour']}% and week {x['week']}% a run" if x["five_hour"] is not None else "")
                            + (f", {x['unjudged']} to judge" if x.get("unjudged") else "") + ")"
                            + (f", red: {'; '.join(x['red'])}" if x["red"] else ""))
@@ -499,24 +564,35 @@ def command(args):
 
 
 def rescored(plan, p):
-    """Every run of a plan scored again by the suite's checks as they are now (a check fixed: the runs
-    stand); a judge's verdicts are kept for an item whose rubric didn't change. The runner's own, under
-    the lock its records are written with."""
+    """Every run of a plan scored again by the test's checks and outcome as they are now (a check
+    fixed: the runs stand), each outcome item at the turn it's reached in the turns' recorded worlds;
+    a judge's verdicts are kept for an item whose rubric didn't change. The runner's own, under the
+    lock its records are written with."""
     s = suite(p["suite"])
+    load = lambda f: json.load(open(f)) if os.path.exists(f) else None  # noqa: E731
     with LOCK:
         recs = records(plan)
         for r in recs:
-            d = f"/results/{plan}/runs/{r['n']:04d}"
-            world = json.load(open(f"{d}/world.json")) if os.path.exists(f"{d}/world.json") else None
-            steps = json.load(open(f"{d}/steps.json")) if os.path.exists(f"{d}/steps.json") else []
-            collected = {os.path.relpath(os.path.join(root, n), f"{d}/collected"): open(os.path.join(root, n), errors="replace").read()
-                         for root, _, names in os.walk(f"{d}/collected") for n in names}
+            d, variant = f"/results/{plan}/runs/{r['n']:04d}", r.get("variant", "")
+            dirs = [d] + [f"{d}/turn-{k}" for k in range(1, r.get("turns", 1))]
+            steps, world, collected = load(f"{d}/steps.json") or [], None, {}
+            if hasattr(s, "outcome"):
+                reached = {}
+                for k, td in enumerate(dirs):
+                    world, collected = load(f"{td}/world.json"), collected_in(td) or collected
+                    out = opt(s.outcome, r["round"], world, collected, variant=variant)
+                    reached.update({o["item"]: k for o in out if o["ok"] and o["item"] not in reached})
+                r.update(outcomes([{**o, "turn": reached.get(o["item"])} for o in out]))
+            else:
+                world, collected = load(f"{dirs[-1]}/world.json") or load(f"{d}/world.json"), collected_in(d)
             judged = {(c["check"], c["judge"]): c for c in r["checks"] if c.get("judge") and c.get("ok") is not None}
             checks = []
-            for c in opt(s.check, r["round"], r["reply"], world, collected, steps=steps, variant=r.get("variant", "")):
+            for c in opt(s.check, r["round"], r["reply"], world, collected, steps=steps, variant=variant):
                 old = judged.get((c["check"], c.get("judge"))) if c.get("judge") else None
                 checks.append({**c, "ok": old["ok"], "why": old.get("why")} if old else {**c, "ok": c.get("ok")})
-            r.update(checks=checks, score=score(checks), red=[x["check"] for x in checks if x.get("red") and x["ok"] is False])
+            r.update(checks=checks, red=[x["check"] for x in checks if x.get("red") and x["ok"] is False])
+            if not hasattr(s, "outcome"):
+                r["score"] = score(checks)
         rewrite(plan, p, recs)
         os.remove(f"/results/{plan}/rescore")
     say(plan, "rescored", len(recs), "runs")
