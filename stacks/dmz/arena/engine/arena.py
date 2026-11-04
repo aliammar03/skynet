@@ -11,7 +11,8 @@ Nothing runs until the Skynet agent starts it (Ali, 2026-11-04), from docker-dmz
   docker exec arena python3 -I /arena/engine/arena.py status [plan]
 `start` runs a stage (the plan's first unless named) on the lanes named (all unless named) until it's
 done, across restarts; `stop` lets the run in flight finish, then nothing more (/results/control.json);
-`reset <plan>` sets its results aside (kept, renamed with the time) for a fresh start.
+`reset <plan>` sets its results aside (kept, renamed with the time) for a fresh start; `rescore <plan>`
+scores its runs again with the suite's checks as they are now (a check fixed; the runs stand).
 
 /results/<plan>/runs.jsonl has a line per run (what's done: a restart resumes there); runs/<n>/ the
 run itself (prompt, stream, reply, world log); summary.json the standings and Ali's blind pairs."""
@@ -334,8 +335,8 @@ def command(args):
     plan, *lanes = [a for a in rest if a != "--stage"]
     p, c = plans()[plan], control()
     order = [s["name"] for s in p["stages"]]
-    if set(lanes) - set(p["lanes"]) or (stage and stage not in order) or cmd not in ("start", "stop", "reset"):
-        raise SystemExit(f"start|stop|reset {plan} [{' '.join(p['lanes'])}] [--stage {'|'.join(order)}]")
+    if set(lanes) - set(p["lanes"]) or (stage and stage not in order) or cmd not in ("start", "stop", "reset", "rescore"):
+        raise SystemExit(f"start|stop|reset|rescore {plan} [{' '.join(p['lanes'])}] [--stage {'|'.join(order)}]")
     lanes = lanes or list(p["lanes"])
     if cmd == "reset":  # a fresh start: the plan's results set aside, kept, and nothing of it started
         if [k for k in glob.glob("/jobs/*/*/key") if not os.path.exists(os.path.join(os.path.dirname(k), "done"))]:
@@ -343,6 +344,9 @@ def command(args):
         if os.path.exists(f"/results/{plan}"):
             os.rename(f"/results/{plan}", f"/results/{plan}.{datetime.datetime.now():%Y%m%d-%H%M}")
         c.pop(plan, None)
+    elif cmd == "rescore":  # the runner does it between two records (rescored())
+        open(f"/results/{plan}/rescore", "w").close()
+        return print(f"{plan}: rescoring within a minute")
     elif cmd == "start":
         e = c.setdefault(plan, {"lanes": [], "stages": []})
         e["lanes"] = sorted(set(e["lanes"]) | set(lanes))
@@ -355,6 +359,28 @@ def command(args):
         json.dump(c, f)
     os.replace("/results/control.json.new", "/results/control.json")
     print(status(plan))
+
+
+def rescored(plan, p):
+    """Every run of a plan scored again by the suite's checks as they are now (a check fixed: the runs
+    stand). The runner's own, under the lock its records are written with."""
+    s = suite(p["suite"])
+    with LOCK:
+        recs = records(plan)
+        for r in recs:
+            d = f"/results/{plan}/runs/{r['n']:04d}"
+            world = json.load(open(f"{d}/world.json")) if os.path.exists(f"{d}/world.json") else None
+            collected = {os.path.relpath(os.path.join(root, n), f"{d}/collected"): open(os.path.join(root, n), errors="replace").read()
+                         for root, _, names in os.walk(f"{d}/collected") for n in names}
+            checks = s.check(r["round"], r["reply"], world, collected)
+            r.update(checks=checks, red=[x["check"] for x in checks if x.get("red") and not x["ok"]],
+                     score=round(100 * sum(x["weight"] for x in checks if x["ok"]) / (sum(x["weight"] for x in checks) or 1), 1))
+        with open(f"/results/{plan}/runs.jsonl.new", "w") as f:
+            f.write("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in recs))
+        os.replace(f"/results/{plan}/runs.jsonl.new", f"/results/{plan}/runs.jsonl")
+        summary(plan, p, recs)
+        os.remove(f"/results/{plan}/rescore")
+    say(plan, "rescored", len(recs), "runs")
 
 
 # --- the lanes ----------------------------------------------------------------------------------------
@@ -384,4 +410,10 @@ if __name__ == "__main__":
         threading.Thread(target=lane, args=(name,), daemon=True).start()
     while True:
         open("/tmp/alive", "w").close()
+        for plan, p in plans().items():
+            try:
+                if os.path.exists(f"/results/{plan}/rescore"):
+                    rescored(plan, p)
+            except Exception as e:  # noqa: BLE001 - the runner keeps going; the log says why
+                say(plan, "rescore failed:", repr(e))
         time.sleep(30)
