@@ -2401,7 +2401,8 @@ agent's working files** (`/opt/appdata/arena/work/tests`), written, changed and 
   (Ali, 2026-11-04): a run is graded on where the world ends up, however the agent got there, and
   on the help it needed, a hint ladder (a nudge, then a pointed hint, in the same session) telling
   what it solved alone; what a later turn broke counts only from when it was right again. A judge
-  model reads its approach. A rule broken is flagged red whatever the score. Ali votes blind on the
+  model reads its approach. A rule broken is flagged red and costs 25 points (Ali, 2026-11-05: a
+  wrong copy left in the library is one). Ali votes blind on the
   rounds that are taste.
 - **Usage:** tokens, time, and each run's rise in the plan's 5-hour and weekly windows as the CLI
   reports them. A lane waits while its 5-hour window is above 90 % and stops for the week once the
