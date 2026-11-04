@@ -1,4 +1,4 @@
-"""Fifteen fixes to CLU v7.0 until CLU ships its own (stacks/dmz/clu/README.md → Patches).
+"""Seventeen fixes to CLU v7.0 until CLU ships its own (stacks/dmz/clu/README.md → Patches).
 
 The container runs this as root before CLU's entrypoint. Each fix replaces one exact piece of
 CLU's code. A file is rewritten only when all its fixes apply and the result compiles; when CLU's
@@ -13,6 +13,7 @@ SCORER = "/app/models/getcomics.py"
 SERIES_ROUTES = "/app/routes/series.py"
 DOWNLOAD_ROUTES = "/app/routes/download_clients.py"
 DOWNLOAD_RUNS = "/app/core/download_runs.py"
+COLLECTION = "/app/helpers/collection.py"
 
 # 1. A Usenet download is filed like any other: CLU runs its filing pass once WATCH empties after
 #    a direct download, and never after a Usenet import. A failed download's leftover in WATCH
@@ -115,7 +116,7 @@ NAME_FROM_SERIES_HELPER = (
             return None
         cover = str(issue.get("cover_date") or "")
         month_name, month_num = _format_issue_month(cover[5:7] or None)
-        number = _pad_issue_number(str(issue.get("number") or ""), load_issue_pad_width())
+        number = _pad_issue_number(str(issue.get("number") or "").replace("½", ".5"), load_issue_pad_width())
         stem = apply_custom_pattern(
             {
                 "series_name": issue.get("series_name") or "",
@@ -502,6 +503,62 @@ OTHER_EDITIONS = (
     "    pub_pattern = r'\\b(?:' + '|'.join(_keyword_pattern(p) for p in get_publication_types()) + r')\\b'\n",
 )
 
+# 16. A number later in a post's name is not its issue when the name's issue slot (the number right
+#     after the series) holds another: "Mister Miracle 003 (2017) (2 covers)" read as #2 by its
+#     "2 covers", so CLU accepted #1 and #3 to #10 for Mister Miracle (2017) #2 and took #3, the
+#     biggest. The mismatch check then sees the slot's number, as it always did.
+ISSUE_SLOT = (
+    "issue-slot-wins",
+    "                standalone = re.search(rf'\\b0*{re.escape(issue_num)}\\b', title_lower)\n",
+    "                # Skynet patch: another issue in the issue slot wins over a number later on.\n"
+    "                slot = _skynet_slot_issue(remaining)\n"
+    "                standalone = None if slot not in (None, issue_num.lstrip('0') or '0') else \\\n"
+    "                    re.search(rf'\\b0*{re.escape(issue_num)}\\b', title_lower)\n",
+)
+ISSUE_SLOT_HELPER = (
+    "issue-slot-wins",
+    "def _score_issue(\n",
+    '''def _skynet_slot_issue(remaining):
+    """Skynet patch: the issue number leading the text after the series name, read as the mismatch
+    check reads it; None for a year, a dash, a colon, a bracket or no number."""
+    rem = (remaining or "").lstrip()
+    if rem[:1] in ('-', '–', '—', ':', '(', '['):
+        return None
+    bare = re.match(r'^0*(\\d+(?:\\.\\w+)?)\\b', rem)
+    if not bare:
+        return None
+    token = bare.group(1)
+    int_part = token.split('.')[0]
+    if len(int_part) == 4 and 1900 <= int(int_part) <= 2099:
+        return None
+    return token.lstrip('0') or '0'
+
+
+def _score_issue(
+''',
+)
+
+# 17. A half issue is one number however it's written: Metron's "½", a post's or a renamed
+#     download's "000.5", "1/2". The filing pass compared "½" with ".5" and never matched, so
+#     Ultimate Spider-Man (2000) #½ sat in processed/ as "Ultimate Spider-Man #000.5.cbz". A
+#     file already named with "½" still counts, and the filed name is "#000.5" (patch 4), which
+#     sorts before #1; CLU's padding wrote "00½".
+HALF_NUMBERS = (
+    "half-issues",
+    '    return sign + (text.lstrip("0") or "0")\n',
+    '    # Skynet patch: a half issue is one number however it\'s written ("½", "1/2", "000.5").\n'
+    '    text = ".5" if text == "1/2" else text.replace("½", ".5")\n'
+    '    return sign + (text.lstrip("0") or "0")\n',
+)
+HALF_FILENAMES = (
+    "half-issues",
+    '    body = r"0*" + re.escape(digits) + r"(?!\\d)(?!\\.\\d)"\n',
+    '    body = r"0*" + re.escape(digits) + r"(?!\\d)(?!\\.\\d)"\n'
+    '    # Skynet patch: a half issue\'s file may write "½" (CLU\'s own padding made it "00½").\n'
+    '    if digits.endswith(".5"):\n'
+    '        body = rf"(?:{body}|0*{re.escape(digits[:-2])}½)"\n',
+)
+
 FIXES = {
     USENET: [
         FILE_AFTER_IMPORT,
@@ -523,10 +580,11 @@ FIXES = {
         SEED_ALIASES_BEFORE_SEARCH,
         COVER_YEAR,
     ],
-    SCORER: [HYPHEN_IS_SPACE, FORMAT_WORDS, OTHER_EDITIONS],
+    SCORER: [HYPHEN_IS_SPACE, FORMAT_WORDS, OTHER_EDITIONS, ISSUE_SLOT, ISSUE_SLOT_HELPER],
     SERIES_ROUTES: [SEED_ALIASES, SEED_ALIASES_HELPER],
     DOWNLOAD_ROUTES: [ALIASES_IN_SEARCH_WINDOW],
     DOWNLOAD_RUNS: [RETRY_FAILED],
+    COLLECTION: [HALF_NUMBERS, HALF_FILENAMES],
 }
 
 

@@ -1,4 +1,4 @@
-"""CLU's Usenet matcher on posts.json: real posts for 14 issues that tripped CLU, each labelled.
+"""CLU's Usenet matcher on posts.json: real posts for 15 issues that tripped CLU, each labelled.
 
 Run by run.sh inside CLU's image after apply.py, offline: CLU's indexers are replaced by one that
 answers every query with the issue's posts, and its own search scores them and picks one. Two
