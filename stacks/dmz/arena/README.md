@@ -50,6 +50,8 @@ more than once. A new plan, or a new stage, is a PR.
   on that lane (lanes named, or all); `--stage ladder` starts another. It runs until that stage is
   done there, across restarts (`/results/control.json`).
 - `… stop comics [lane …]`: the run in flight finishes, then nothing more on those lanes.
+- `… reset comics`: its results set aside (kept, renamed with the time), for a fresh start after the
+  suite or its world changed.
 - `… status [plan]`: what's started, each lane's state (logged in, running, waiting and why, its
   plan's windows), what it has left, and the standings.
 

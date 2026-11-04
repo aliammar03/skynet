@@ -10,7 +10,8 @@ Nothing runs until the Skynet agent starts it (Ali, 2026-11-04), from docker-dmz
   docker exec arena python3 -I /arena/engine/arena.py stop <plan> [lane …]
   docker exec arena python3 -I /arena/engine/arena.py status [plan]
 `start` runs a stage (the plan's first unless named) on the lanes named (all unless named) until it's
-done, across restarts; `stop` lets the run in flight finish, then nothing more (/results/control.json).
+done, across restarts; `stop` lets the run in flight finish, then nothing more (/results/control.json);
+`reset <plan>` sets its results aside (kept, renamed with the time) for a fresh start.
 
 /results/<plan>/runs.jsonl has a line per run (what's done: a restart resumes there); runs/<n>/ the
 run itself (prompt, stream, reply, world log); summary.json the standings and Ali's blind pairs."""
@@ -333,10 +334,16 @@ def command(args):
     plan, *lanes = [a for a in rest if a != "--stage"]
     p, c = plans()[plan], control()
     order = [s["name"] for s in p["stages"]]
-    if set(lanes) - set(p["lanes"]) or (stage and stage not in order) or cmd not in ("start", "stop"):
-        raise SystemExit(f"start|stop {plan} [{' '.join(p['lanes'])}] [--stage {'|'.join(order)}]")
+    if set(lanes) - set(p["lanes"]) or (stage and stage not in order) or cmd not in ("start", "stop", "reset"):
+        raise SystemExit(f"start|stop|reset {plan} [{' '.join(p['lanes'])}] [--stage {'|'.join(order)}]")
     lanes = lanes or list(p["lanes"])
-    if cmd == "start":
+    if cmd == "reset":  # a fresh start: the plan's results set aside, kept, and nothing of it started
+        if [k for k in glob.glob("/jobs/*/*/key") if not os.path.exists(os.path.join(os.path.dirname(k), "done"))]:
+            raise SystemExit("a run is in flight: stop the plan, and reset once it's done")
+        if os.path.exists(f"/results/{plan}"):
+            os.rename(f"/results/{plan}", f"/results/{plan}.{datetime.datetime.now():%Y%m%d-%H%M}")
+        c.pop(plan, None)
+    elif cmd == "start":
         e = c.setdefault(plan, {"lanes": [], "stages": []})
         e["lanes"] = sorted(set(e["lanes"]) | set(lanes))
         e["stages"] = [s for s in order if s in e["stages"] or s == (stage or order[0])]
