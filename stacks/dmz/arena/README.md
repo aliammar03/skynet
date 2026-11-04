@@ -58,7 +58,8 @@
 ## Writing a test
 
 `/opt/appdata/arena/work/tests/<name>/`, read again whenever a file in it changes:
-- `test.toml`: `[caps]` (`five_hour`, `week`: percent of each plan's windows), `[lanes.<lane>]`
+- `test.toml`: `[caps]` (`five_hour`, `week`: percent of each plan's windows), `penalty` (the points a
+  rule broken takes off the run's score, 25 unless it says; not below 0), `[lanes.<lane>]`
   `models`, `[judge]` (`lane`, `model`, `effort`: who grades judge items), and `[[stages]]`, run in
   order: one with `effort` runs every model at it, with its `variants` (labels the test's files and
   prompt can differ by: two versions of a skill) and `repeats` (runs each more than once: the

@@ -314,6 +314,13 @@ def held(oks, item):
     return turn
 
 
+def penalized(r, p):
+    """A run's score less the test's `penalty` (25 points unless it says) for each rule it broke (its
+    red flags), not below 0: a broken rule costs, whatever else went right (Ali, 2026-11-05)."""
+    r["score"] = max(0.0, round(r["score"] - p.get("penalty", 25) * len(r.get("red") or []), 1))
+    return r
+
+
 def outcomes(outcome):
     """A run's score from its outcome items: each item's weight times the credit for the turn it was
     reached at and held from (none: 0), and `alone`, the share reached without a hint."""
@@ -388,6 +395,7 @@ def run(name, p, j):
            "red": [c["check"] for c in checks if c.get("red") and c["ok"] is False], "checks": checks, "usage": usage,
            "steps": len(steps), "reply": reply, "turns": len(turns), "hints": hints, "replies": [u["reply"] for u in usages]}
     rec.update(outcomes(outcome) if outcome is not None else {"score": score(checks)})
+    penalized(rec, p)
     with open(f"{d}/steps.json", "w") as out:
         json.dump(steps, out, ensure_ascii=False)
     with LOCK:
@@ -474,7 +482,7 @@ def judge(name, p, rec):
         r.update(red=[c["check"] for c in r["checks"] if c.get("red") and c["ok"] is False],
                  judge={"model": cfg["model"], "effort": cfg.get("effort", "low"), "tokens": usage["tokens"]})
         if "outcome" not in r:  # an outcome test's score is its outcome; the judge's items are its approach
-            r["score"] = score(r["checks"])
+            penalized(r.update(score=score(r["checks"])) or r, p)
         shutil.rmtree(f"{run_dir}/judge", ignore_errors=True)
         shutil.move(d, f"{run_dir}/judge")
         rewrite(name, p, recs)
@@ -642,6 +650,7 @@ def rescored(plan, p):
             r.update(checks=checks, red=[x["check"] for x in checks if x.get("red") and x["ok"] is False])
             if not hasattr(s, "outcome"):
                 r["score"] = score(checks)
+            penalized(r, p)
         rewrite(plan, p, recs)
         os.remove(f"/results/{plan}/rescore")
     say(plan, "rescored", len(recs), "runs")
@@ -657,7 +666,7 @@ def rejudged(plan, p):
                 if c.get("judge"):
                     c.update(ok=None, why=None)
             if "outcome" not in r:
-                r["score"] = score(r["checks"])
+                penalized(r.update(score=score(r["checks"])) or r, p)
         rewrite(plan, p, recs)
         os.remove(f"/results/{plan}/rejudge")
     say(plan, "rejudging", len(recs), "runs")
