@@ -29,7 +29,7 @@
 | P5 | Observability (agent eyes) | done (2026-11-03): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`, #88); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics; alerts: two vmalerts and Alertmanager to `#alerts`, its Watchdog to healthchecks.io (#91; both watchdogs, HostDown, TargetDown and DiskFull proven live 10-27); Grafana at `grafana.aliammar.net` (OIDC through admin Authelia; Live and Backups boards of our own, seven upstream) and the agent's MCP servers at `/mcp`; Ali's first Grafana login 10-27. Wider eyes live 10-28 (#102–#109): the Proxmox nodes, OPNsense, the doors' access logs, Unraid, Omada, Technitium's stats and query log. Asked and answered through the MCP tools on 10-28: network (the nodes' backups reach PBS over VLAN 50, not through OPNsense; technitium-network's 700 refusals were one burst), storage (night 2's guest backups, verify, restic and Drive copy). Every Wider eyes source's freshness alert posted and resolved in the tests of 10-29 (Wider eyes → Freshness tests). The week's sizing checked on 11-03: memory and disk as estimated (Sizing) |
 | P6 | Agent autonomy | planned (2026-10-26): the leash first (comin's testing branches off, with the plan), then tiered merges with verify and rollback, the incident loop, the rekey workflow, OpenTofu for our VMs and the OPNsense aliases; after P5 |
 | P7 | Retire v1 + disaster recovery | outline; v1's guests are already gone (Ali, 2026-10-25) |
-| P8 | Comics and manga | building (2026-10-29): Komga, Uchiyomi (#119) and Kapowarr (#121) live, the agent's accounts made, sources set, Ali's iPad readers connected, Manga and Comics libraries with downloads sorted by type (#122), Suwayomi's UI on Uchiyomi's engine for the trial (#123); Mylar3 and SABnzbd for comics from Usenet (#124; Easynews, NZBGeek), docker-dmz at 12 GB, the apps' Authelia keeping sessions across restarts (#125); SABnzbd on its own usenet address and JDownloader 2 through Premiumize (#127); CLU (#128, #130) in place of Kapowarr and Mylar3, SABnzbd and JDownloader under it (Ali, 2026-10-30). Uchiyomi on trial (finds, downloads, reads) and Komga's library, both on Unraid's `Storage`; the agent configures them (D16). The comics agent, Codex in Discord's `#comics` with `comics-tools` beside it (D17; `stacks/dmz/comics-agent`): exit test passed 2026-11-04 (Batman: The Long Halloween 13/13 and Vagabond 1–327 added and filled from `#comics`, CLU's alerts arriving, its patrol and morning report posting on their own); now also recommending, adding arcs and fixing its own mistakes (#157, #158), CLU at 17 fixes (#159). Its model chosen in the arena (D18; `stacks/dmz/arena`): building 2026-11-04 |
+| P8 | Comics and manga | building (2026-10-29): Komga, Uchiyomi (#119) and Kapowarr (#121) live, the agent's accounts made, sources set, Ali's iPad readers connected, Manga and Comics libraries with downloads sorted by type (#122), Suwayomi's UI on Uchiyomi's engine for the trial (#123); Mylar3 and SABnzbd for comics from Usenet (#124; Easynews, NZBGeek), docker-dmz at 12 GB, the apps' Authelia keeping sessions across restarts (#125); SABnzbd on its own usenet address and JDownloader 2 through Premiumize (#127); CLU (#128, #130) in place of Kapowarr and Mylar3, SABnzbd and JDownloader under it (Ali, 2026-10-30). Uchiyomi on trial (finds, downloads, reads) and Komga's library, both on Unraid's `Storage`; the agent configures them (D16). The comics agent, Codex in Discord's `#comics` with `comics-tools` beside it (D17; `stacks/dmz/comics-agent`): exit test passed 2026-11-04 (Batman: The Long Halloween 13/13 and Vagabond 1–327 added and filled from `#comics`, CLU's alerts arriving, its patrol and morning report posting on their own); now also recommending, adding arcs and fixing its own mistakes (#157, #158), CLU at 17 fixes (#159). Its model chosen in the arena (D18; `stacks/dmz/arena`, live 2026-11-04 (#161); the agent starts its runs) |
 
 ## Target state
 
@@ -2408,14 +2408,18 @@ measured on the agent's own tasks, the same for every model, without touching th
 - **Plan (`plans/comics.toml`):** a qualifier with every model at high (49 runs), then the best two at
   low, medium and xhigh (42); a close call runs the qualifier again first. A lane waits while its
   5-hour window is above 60 % and stops for the week once the arena has used 20 % of it: the plans
-  are shared with the comics agent and the Skynet agent. The Claude lane starts 2026-11-10 08:00,
-  when its week resets.
+  are shared with the comics agent and the Skynet agent.
+- **The agent starts and runs it (Ali, 2026-11-04):** nothing runs on a deploy or a boot. The agent
+  starts each stage on each lane (`arena.py start`), watches it (`status`), stops it if need be, and
+  reports.
 
 **Steps:**
-1. **PR (agent):** the stack, the comics suite, the plan, D18 and Glue rows.
-2. **Ali:** `claude setup-token` into `secret.sops.env` on the PR's branch; after the merge, Codex's
-   device-code login in `arena-codex`.
-3. **Agent:** watches the runs; publishes the standings and the vote page; Ali votes.
+1. **PR (agent, #161):** the stack, the comics suite, the plan, D18 and Glue rows. Live 2026-11-04.
+2. **Ali:** `claude setup-token` into `secret.sops.env` (done 2026-11-04); Codex's device-code login
+   in `arena-codex`.
+3. **Agent:** starts the qualifier on the Codex lane once it's logged in, and on the Claude lane once
+   its week resets (2026-11-10 08:00); then the ladder; posts the standings and the vote page; Ali
+   votes.
 4. **Ali:** the model and effort for `#comics` (a PR if they change).
 
 **Exit:** the qualifier and the ladder recorded, Ali's votes in, `#comics`' model chosen.
