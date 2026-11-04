@@ -528,7 +528,18 @@ def library_find(a):
             "uchiyomi": [{"id": s["id"], "name": s["name"], "books": s.get("booksCount")} for s in uchiyomi]}
 
 
-@verb("GET", "/library/reading", "→ what Ali reads, from Komga: the books he read last, and each series he has started with how far he is")
+@verb("GET", "/library/shelf", "[library: Comics | Manga] → everything on the NAS, from Komga: each series, its books, how many Ali read, its status, publisher and genres")
+def library_shelf(a):
+    libraries = {lib["id"]: lib["name"] for lib in call("GET", f"{KOMGA}/api/v1/libraries")}
+    want = [i for i, n in libraries.items() if not a.get("library") or n.lower() == str(a["library"]).lower()]
+    series = call("GET", f"{KOMGA}/api/v1/series?unpaged=true&deleted=false" + "".join(f"&library_id={q(i)}" for i in want))["content"]
+    return sorted(({"library": libraries.get(s["libraryId"]), "name": s["name"], "books": s["booksCount"],
+                    "read": s["booksReadCount"], "reading": s["booksInProgressCount"], "status": s["metadata"].get("status"),
+                    "publisher": s["metadata"].get("publisher") or None, "genres": s["metadata"].get("genres", [])[:3]}
+                   for s in series), key=lambda r: (r["library"] or "", r["name"].lower()))
+
+
+@verb("GET", "/library/reading","→ what Ali reads, from Komga: the books he read last, and each series he has started with how far he is")
 def library_reading(a):
     books = call("GET", f"{KOMGA}/api/v1/books?read_status=READ&read_status=IN_PROGRESS&sort=readProgress.readDate,desc&size=30")["content"]
     series = call("GET", f"{KOMGA}/api/v1/series?read_status=READ&read_status=IN_PROGRESS&size=200")["content"]
