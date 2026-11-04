@@ -5,6 +5,13 @@ files, the suite's checks score what it did (the world's log) and said, and its 
 share of the plan's windows are kept. One run at a time per lane; a lane waits while its 5-hour
 window is above the plan's cap, and for the next week once the arena has used its weekly cap.
 
+Nothing runs until the Skynet agent starts it (Ali, 2026-11-04), from docker-dmz:
+  docker exec arena python3 -I /arena/engine/arena.py start <plan> [lane …] [--stage <stage>]
+  docker exec arena python3 -I /arena/engine/arena.py stop <plan> [lane …]
+  docker exec arena python3 -I /arena/engine/arena.py status [plan]
+`start` runs a stage (the plan's first unless named) on the lanes named (all unless named) until it's
+done, across restarts; `stop` lets the run in flight finish, then nothing more (/results/control.json).
+
 /results/<plan>/runs.jsonl has a line per run (what's done: a restart resumes there); runs/<n>/ the
 run itself (prompt, stream, reply, world log); summary.json the standings and Ali's blind pairs."""
 import datetime
@@ -112,21 +119,23 @@ def finalists(name, p, recs, stage):
 
 # --- pacing ------------------------------------------------------------------------------------------
 
-def wait(lane, p):
-    """Sleeps (30 minutes at most, then looks again) while the lane mustn't run. True if it slept."""
-    caps, cfg, st, now, until = p.get("caps", {}), p["lanes"][lane], PACE.get(lane, {}), time.time(), []
-    if nb := cfg.get("not_before"):
-        nb = nb.timestamp() if hasattr(nb, "timestamp") else datetime.datetime.fromisoformat(nb).timestamp()
-        until += [nb] if now < nb else []
+def blocked(lane, p):
+    """(until when, why) the lane mustn't run under the plan's caps, or None."""
+    caps, st, now, why = p.get("caps", {}), PACE.get(lane, {}), time.time(), []
     fh, wk, base = st.get("five_hour"), st.get("week"), st.get("week_base")
     if fh and fh["used"] >= caps.get("five_hour", 60) and fh["resets"] > now:
-        until.append(fh["resets"] + 60)
+        why.append((fh["resets"] + 60, f"its 5-hour window is at {fh['used']:.0f}%"))
     if same_window(wk, base) and wk["used"] - base["used"] >= caps.get("week", 20) and wk["resets"] > now:
-        until.append(wk["resets"] + 60)
-    if not until:
+        why.append((wk["resets"] + 60, f"the arena has used {wk['used'] - base['used']:.0f}% of its week"))
+    return max(why) if why else None
+
+
+def wait(lane, p):
+    """Sleeps (30 minutes at most, then looks again) while the lane mustn't run. True if it slept."""
+    if not (b := blocked(lane, p)):
         return False
-    say(lane, "waits until", datetime.datetime.fromtimestamp(max(until)).strftime("%a %d %H:%M"))
-    time.sleep(min(max(until) - now, 1800))
+    say(lane, "waits until", datetime.datetime.fromtimestamp(b[0]).strftime("%a %d %H:%M"), "(" + b[1] + ")")
+    time.sleep(min(b[0] - time.time(), 1800))
     return True
 
 
@@ -189,6 +198,9 @@ def run(name, p, j):
     if not os.path.exists(f"{d}/ready"):  # else a run a restart left going: wait for it
         shutil.rmtree(d, ignore_errors=True)
         http(f"{WORLDS[lane]}/load", {"suite": p["suite"], "round": j["round"]})
+        os.makedirs(d)
+        with open(f"{d}/key", "w") as f:  # for status
+            f.write(j["key"])
         for rel, data in s.files(j["round"], lane).items():
             os.makedirs(os.path.dirname(f"{d}/files/{rel}"), exist_ok=True)
             with open(f"{d}/files/{rel}", "wb") as f:
@@ -270,13 +282,82 @@ def summary(name, p, recs):
                    "blind": blind}, f, ensure_ascii=False, indent=1)
 
 
+# --- what the agent starts ---------------------------------------------------------------------------
+
+def control():
+    try:
+        return json.load(open("/results/control.json"))
+    except (OSError, ValueError):
+        return {}
+
+
+def started(plan, lane, stage):
+    c = control().get(plan) or {}
+    return lane in c.get("lanes", []) and stage in c.get("stages", [])
+
+
+def status(only=None):
+    """What's started, each lane's state and what it has left to run, and the standings so far."""
+    if os.path.exists("/results/pace.json"):
+        PACE.update(json.load(open("/results/pace.json")))
+    out = []
+    for name, p in plans().items():
+        if only and name != only:
+            continue
+        recs, ctl = records(name), control().get(name)
+        out.append(f"{name}: " + (f"started {', '.join(ctl['stages'])} on {', '.join(ctl['lanes'])}" if ctl else "not started"))
+        left = jobs(name, p, recs)
+        for lane in p["lanes"]:
+            st = open(f"/jobs/{lane}/.status").read().strip() if os.path.exists(f"/jobs/{lane}/.status") else "no lane"
+            mine = [j for j in left if j["lane"] == lane and started(name, lane, j["stage"])]
+            now = [open(k).read() for k in glob.glob(f"/jobs/{lane}/*/key") if not os.path.exists(os.path.join(os.path.dirname(k), "done"))]
+            win, b = PACE.get(lane, {}), blocked(lane, p)
+            out.append(f"  {lane}: {st}; {sum(r['lane'] == lane for r in recs)} runs done, {len(mine)} started to go"
+                       + (f"; running {now[0]}" if now else "")
+                       + (f"; waits until {datetime.datetime.fromtimestamp(b[0]):%a %d %H:%M} ({b[1]})" if b and mine else "")
+                       + (f"; its plan's 5-hour window {win['five_hour']['used']:.0f}%, week {win['week']['used']:.0f}%" if win.get("five_hour") else ""))
+        if os.path.exists(f"/results/{name}/summary.json"):
+            for x in json.load(open(f"/results/{name}/summary.json"))["standings"]:
+                out.append(f"  {x['stage']} {x['lane']}/{x['model']}/{x['effort']}: {x['score']} ({x['runs']} runs"
+                           + (f", 5-hour {x['five_hour']}% and week {x['week']}% a run" if x["five_hour"] is not None else "") + ")"
+                           + (f", red: {'; '.join(x['red'])}" if x["red"] else ""))
+    return "\n".join(out)
+
+
+def command(args):
+    """start | stop | status, as the module's docstring says."""
+    cmd, rest = args[0], args[1:]
+    if cmd == "status":
+        return print(status(rest[0] if rest else None))
+    stage = rest.pop(rest.index("--stage") + 1) if "--stage" in rest else None
+    plan, *lanes = [a for a in rest if a != "--stage"]
+    p, c = plans()[plan], control()
+    order = [s["name"] for s in p["stages"]]
+    if set(lanes) - set(p["lanes"]) or (stage and stage not in order) or cmd not in ("start", "stop"):
+        raise SystemExit(f"start|stop {plan} [{' '.join(p['lanes'])}] [--stage {'|'.join(order)}]")
+    lanes = lanes or list(p["lanes"])
+    if cmd == "start":
+        e = c.setdefault(plan, {"lanes": [], "stages": []})
+        e["lanes"] = sorted(set(e["lanes"]) | set(lanes))
+        e["stages"] = [s for s in order if s in e["stages"] or s == (stage or order[0])]
+    elif plan in c:
+        c[plan]["lanes"] = [x for x in c[plan]["lanes"] if x not in lanes]
+        if not c[plan]["lanes"]:
+            del c[plan]
+    with open("/results/control.json.new", "w") as f:
+        json.dump(c, f)
+    os.replace("/results/control.json.new", "/results/control.json")
+    print(status(plan))
+
+
 # --- the lanes ----------------------------------------------------------------------------------------
 
 def lane(name):
     while True:
         try:
             ready = os.path.exists(f"/jobs/{name}/.status") and open(f"/jobs/{name}/.status").read().strip() == "ready"
-            todo = [(plan, p, j) for plan, p in plans().items() if name in p["lanes"] for j in jobs(plan, p, records(plan)) if j["lane"] == name]
+            todo = [(plan, p, j) for plan, p in plans().items() if name in p["lanes"] for j in jobs(plan, p, records(plan))
+                    if j["lane"] == name and started(plan, name, j["stage"])]
             if not todo or not ready:
                 time.sleep(60)
             elif not wait(name, todo[0][1]):
@@ -287,6 +368,9 @@ def lane(name):
 
 
 if __name__ == "__main__":
+    if sys.argv[1:]:
+        command(sys.argv[1:])
+        sys.exit()
     if os.path.exists("/results/pace.json"):
         PACE.update(json.load(open("/results/pace.json")))
     for name in WORLDS:

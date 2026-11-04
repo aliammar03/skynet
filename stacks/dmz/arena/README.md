@@ -6,10 +6,11 @@
   every run's tokens, time and share of the plan's windows are measured. Reusable: a suite is one
   kind of task (`suites/comics` today; Skynet's summaries or media recommendations later), a lane
   one CLI (Gemini's later).
-  - `arena` (`engine/arena.py`): the runner. It runs `plans/*.toml`, a run at a time per lane: loads
-    the round into the lane's world, leaves the job for the lane, scores it with the suite's checks
-    and records it. A lane waits while its 5-hour window is above the plan's cap, and once the arena
-    has used its weekly cap, until that week resets.
+  - `arena` (`engine/arena.py`): the runner. It runs what the Skynet agent has started of
+    `plans/*.toml`, a run at a time per lane: loads the round into the lane's world, leaves the job
+    for the lane, scores it with the suite's checks and records it. A lane waits while its 5-hour
+    window is above the plan's cap, and once the arena has used its weekly cap, until that week
+    resets. Nothing runs on a deploy or a boot until the agent starts it (below).
   - `world-codex`, `world-claude` (`engine/world.py`): a lane's world, answering under the suite's
     tool names (`comics-tools`) on the lane's network; the runner loads it on `admin`.
   - `arena-codex`, `arena-claude` (`engine/harness.sh`): the CLIs, headless, from OpenAB's images:
@@ -39,11 +40,18 @@
 
 ## Plans
 
-`plans/<name>.toml`: the suite, the caps, the lanes' models (and a lane's `not_before`), and stages,
-run in order. A stage with `effort` runs every model at it; one with `top` runs the first stage's
-best `top` at its `efforts`, after any close call (within `close` points of the cut) has run the first
-stage once more. `repeats` runs a stage more than once. A finished plan does nothing more; a new
-plan, or a new stage, is a PR.
+`plans/<name>.toml`: the suite, the caps, the lanes' models, and stages. A stage with `effort` runs
+every model at it; one with `top` runs the first stage's best `top` at its `efforts`, after any close
+call (within `close` points of the cut) has run the first stage once more. `repeats` runs a stage
+more than once. A new plan, or a new stage, is a PR.
+
+**The agent runs them (Ali, 2026-11-04),** on docker-dmz:
+- `docker exec arena python3 -I /arena/engine/arena.py start comics codex`: the plan's first stage
+  on that lane (lanes named, or all); `--stage ladder` starts another. It runs until that stage is
+  done there, across restarts (`/results/control.json`).
+- `… stop comics [lane …]`: the run in flight finishes, then nothing more on those lanes.
+- `… status [plan]`: what's started, each lane's state (logged in, running, waiting and why, its
+  plan's windows), what it has left, and the standings.
 
 ## A suite
 
