@@ -18,7 +18,8 @@ x-world: &world
   # A test's frozen files (the comics test's library): sparse, a few MB however big they say they are.
   tmpfs: [/data, /downloads, /manga]
   volumes:
-    - ./engine:/arena/engine:ro
+    # world.py alone: a world holds the run in flight, so a change to the runner mustn't restart it.
+    - ./engine/world.py:/arena/engine/world.py:ro
     - /opt/appdata/arena/work/tests:/arena/tests:ro
     # The comics test's world is comics-tools itself.
     - ../comics-agent/tools:/stacks/comics-agent/tools:ro

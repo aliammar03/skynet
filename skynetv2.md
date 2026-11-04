@@ -2400,8 +2400,9 @@ agent's working files** (`/opt/appdata/arena/work/tests`), written, changed and 
   stages (every model, then the best at other efforts), with repeats and their spread. Open-ended
   (Ali, 2026-11-04): a run is graded on where the world ends up, however the agent got there, and
   on the help it needed, a hint ladder (a nudge, then a pointed hint, in the same session) telling
-  what it solved alone; a judge model reads its approach. A rule broken is flagged red whatever the
-  score. Ali votes blind on the rounds that are taste.
+  what it solved alone; what a later turn broke counts only from when it was right again. A judge
+  model reads its approach. A rule broken is flagged red whatever the score. Ali votes blind on the
+  rounds that are taste.
 - **Usage:** tokens, time, and each run's rise in the plan's 5-hour and weekly windows as the CLI
   reports them. A lane waits while its 5-hour window is above 90 % and stops for the week once the
   arena has used 30 % of it (Ali, 2026-11-04: 60 % and 20 % at first): the plans are shared with the
@@ -2511,7 +2512,7 @@ Aidoku, if it reaches the App Store; family accounts.
 | `stacks/dmz/clu/patches/test/` (P8: CLU's matcher, patched, on 397 labelled real posts, in a throwaway on docker-dmz; for CLU updates) | ~90 lines |
 | `stacks/dmz/comics-agent/tools` (P8, D17: `comics-tools`, the comics agent's 34 fixed verbs over CLU, SABnzbd, Komga and Uchiyomi, holding their keys; an issue's page sizes read from its image headers, Ali's ✅ read back from Discord (for comics and manga removals), every answer scrubbed of links and keys; Uchiyomi's unfollowing of the series no source can update; arcs, and what Ali reads in Komga; stopping a manga download or follow; Komga's whole shelf in one call) | ~520 lines |
 | `stacks/dmz/comics-agent` OpenAB config (P8, D17: the channel, Ali alone, the model, the ✅, the scheduled prompts) | ~35 lines |
-| `stacks/dmz/arena` (D18: the runner: tests, stages and finalists, variants and repeats, the judge, pacing on the plans' windows, each CLI's usage and steps read, records and standings, the agent's start, stop, status, reset and rescore; a lane's loop around its CLI and its image; the world host). The tests themselves are the agent's working files, not glue in git | ~730 lines |
+| `stacks/dmz/arena` (D18: the runner: tests, stages and finalists, variants and repeats, the open-ended outcome and its hint ladder, the judge, pacing on the plans' windows, each CLI's usage and steps read, records and standings, the agent's start, stop, status, reset, rescore and rejudge; a lane's loop around its CLI and its image; the world host). The tests themselves are the agent's working files, not glue in git | ~880 lines |
 | `skynet-incident` (P6: alert webhook → `claude -p`; one at a time, repeats dropped, the budget, escalation) | ~40 lines |
 | `skynet-merge` (P6: tier, window and CI checked; the merge; the post) | ~40 lines |
 | `skynet-verify` (P6: a stack's or a host's checks from doco-cd, Gatus, VictoriaMetrics and VictoriaLogs) | ~80 lines |
