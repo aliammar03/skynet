@@ -29,7 +29,7 @@
 | P5 | Observability (agent eyes) | done (2026-11-03): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`, #88); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics; alerts: two vmalerts and Alertmanager to `#alerts`, its Watchdog to healthchecks.io (#91; both watchdogs, HostDown, TargetDown and DiskFull proven live 10-27); Grafana at `grafana.aliammar.net` (OIDC through admin Authelia; Live and Backups boards of our own, seven upstream) and the agent's MCP servers at `/mcp`; Ali's first Grafana login 10-27. Wider eyes live 10-28 (#102–#109): the Proxmox nodes, OPNsense, the doors' access logs, Unraid, Omada, Technitium's stats and query log. Asked and answered through the MCP tools on 10-28: network (the nodes' backups reach PBS over VLAN 50, not through OPNsense; technitium-network's 700 refusals were one burst), storage (night 2's guest backups, verify, restic and Drive copy). Every Wider eyes source's freshness alert posted and resolved in the tests of 10-29 (Wider eyes → Freshness tests). The week's sizing checked on 11-03: memory and disk as estimated (Sizing) |
 | P6 | Agent autonomy | planned (2026-10-26): the leash first (comin's testing branches off, with the plan), then tiered merges with verify and rollback, the incident loop, the rekey workflow, OpenTofu for our VMs and the OPNsense aliases; after P5 |
 | P7 | Retire v1 + disaster recovery | outline; v1's guests are already gone (Ali, 2026-10-25) |
-| P8 | Comics and manga | building (2026-10-29): Komga, Uchiyomi (#119) and Kapowarr (#121) live, the agent's accounts made, sources set, Ali's iPad readers connected, Manga and Comics libraries with downloads sorted by type (#122), Suwayomi's UI on Uchiyomi's engine for the trial (#123); Mylar3 and SABnzbd for comics from Usenet (#124; Easynews, NZBGeek), docker-dmz at 12 GB, the apps' Authelia keeping sessions across restarts (#125); SABnzbd on its own usenet address and JDownloader 2 through Premiumize (#127); CLU (#128, #130) in place of Kapowarr and Mylar3, SABnzbd and JDownloader under it (Ali, 2026-10-30). Uchiyomi on trial (finds, downloads, reads) and Komga's library, both on Unraid's `Storage`; the agent configures them (D16). The comics agent, Codex in Discord's `#comics` with `comics-tools` beside it (D17; `stacks/dmz/comics-agent`): exit test passed 2026-11-04 (Batman: The Long Halloween 13/13 and Vagabond 1–327 added and filled from `#comics`, CLU's alerts arriving, its patrol and morning report posting on their own); now also recommending, adding arcs and fixing its own mistakes (#157, #158), CLU at 17 fixes (#159). Its model chosen in the arena (D18; `stacks/dmz/arena`, a bench for testing agents, live 2026-11-04): the Codex lane's qualifier done (Terra and Sol 98.2, Luna 96.6), the Claude lane's from 2026-11-10 |
+| P8 | Comics and manga | building (2026-10-29): Komga, Uchiyomi (#119) and Kapowarr (#121) live, the agent's accounts made, sources set, Ali's iPad readers connected, Manga and Comics libraries with downloads sorted by type (#122), Suwayomi's UI on Uchiyomi's engine for the trial (#123); Mylar3 and SABnzbd for comics from Usenet (#124; Easynews, NZBGeek), docker-dmz at 12 GB, the apps' Authelia keeping sessions across restarts (#125); SABnzbd on its own usenet address and JDownloader 2 through Premiumize (#127); CLU (#128, #130) in place of Kapowarr and Mylar3, SABnzbd and JDownloader under it (Ali, 2026-10-30). Uchiyomi on trial (finds, downloads, reads) and Komga's library, both on Unraid's `Storage`; the agent configures them (D16). The comics agent, Codex in Discord's `#comics` with `comics-tools` beside it (D17; `stacks/dmz/comics-agent`): exit test passed 2026-11-04 (Batman: The Long Halloween 13/13 and Vagabond 1–327 added and filled from `#comics`, CLU's alerts arriving, its patrol and morning report posting on their own); now also recommending, adding arcs and fixing its own mistakes (#157, #158), CLU at 17 fixes (#159). Its model chosen in the arena (D18; `stacks/dmz/arena`, a bench for testing agents, live 2026-11-04): Sol, with a lean skill (rules only, no cases) and `manga/compare` (Ali, 2026-11-05) |
 
 ## Target state
 
@@ -2340,7 +2340,7 @@ not the Skynet agent's budget.
 | Need | Choice | Why | Passed over |
 |---|---|---|---|
 | Discord ↔ agent | OpenAB 0.10 (830★, MIT, a release a week), image `openab:nightly-20261103-…-codex` (0.10.0 and two commits; its ACP adapter 2.5 runs Codex 0.165, whose model list has `gpt-6.1-terra`) | a thread per conversation and a Codex session per thread, channel and user allowlists, scheduled prompts built in; the image carries Codex CLI and its ACP adapter | codex-discord-mcp (one session per channel); a bot of our own (glue); the stable `0.10.0-codex` and `pre-beta-codex` (their adapter 2.0 runs its own Codex 0.158: no `gpt-6.1-terra`) |
-| The model | Codex CLI on Ali's ChatGPT subscription (device-code login), `gpt-6.1-terra` at high reasoning effort with live web search (Ali, 2026-11-03), set by OpenAB at each session | his idle subscription | the Skynet agent through its Discord plugin |
+| The model | Codex CLI on Ali's ChatGPT subscription (device-code login), `gpt-6.1-sol` at high reasoning effort with live web search, chosen in the arena (Ali, 2026-11-05; Terra from 2026-11-03), set by OpenAB at each session | his idle subscription | the Skynet agent through its Discord plugin |
 | Its hands | `comics-tools`, a small service (glue) holding every key, offering a fixed list of verbs | CLU's internal port has no login, and one of its routes rewrites every setting at once; the agent reaches the verbs only and holds no key | the agent on CLU's network with curl; an MCP server (more code) |
 | Its know-how | a skill, `comics` (`SKILL.md` and references), from this phase's lessons | Codex loads skills from `~/.agents/skills` | — |
 
@@ -2423,7 +2423,12 @@ rounds from the agent's first week: Mister Miracle (2017) (CLU takes #3's post f
 stray, a swap for a ✅, a post that gives orders, a job the agent didn't write), Long Halloween's
 1280-px digital, a recommendation, a morning report (Pakistan time). Its qualifier at high on the
 Codex lane (2026-11-04): Terra 98.2 and Sol 98.2, Luna 96.6 at a quarter of Terra's plan a run;
-Astra dropped after three rounds (97.0 at 12 times Terra's plan a run; Ali).
+Astra dropped after three rounds (97.0 at 12 times Terra's plan a run; Ali). Open-ended since
+(`comics-open`): with the skill, Terra and Sol 100; cold (role and tools only), Sol 92.9, Terra
+90.2, Luna 81.0; only the proactive skill made them tell Ali of the post giving orders. The lean
+skill, all six models, in one night (`comics-final`, 2026-11-05): Sol 100, Luna 100, Terra 99.6,
+Sonnet 99.6, Opus 99.3, Haiku 98.9, every miss in the patrol (Opus and Haiku binned a better copy of
+an owned issue as a stray). Sol chosen (Ali): the best unaided, at about 0.3 % of the Plus week a task.
 
 **Steps:**
 1. **PRs (agent):** the stack (#161), the agent's start (#163), the world's fixes (#164), caps and
@@ -2431,9 +2436,9 @@ Astra dropped after three rounds (97.0 at 12 times Terra's plan a run; Ali).
    variants, spread, the hint ladder, Python in the lanes).
 2. **Ali:** `claude setup-token` into `secret.sops.env`, and Codex's device-code login (done
    2026-11-04).
-3. **Agent:** the Codex lane's qualifier (done 2026-11-04); the Claude lane's once its week resets
-   (2026-11-10 08:00); then the ladder; the standings and the vote page; Ali votes.
-4. **Ali:** the model and effort for `#comics` (a PR if they change).
+3. **Agent:** the Codex lane's qualifier (done 2026-11-04); the open-ended test and all six models
+   on the lean skill (done 2026-11-05); then the ladder; the standings and the vote page; Ali votes.
+4. **Ali:** the model and effort for `#comics`: Sol at high (done 2026-11-05).
 
 **Exit:** the comics test's qualifier and ladder recorded, Ali's votes in, `#comics`' model chosen.
 
@@ -2511,7 +2516,7 @@ Aidoku, if it reaches the App Store; family accounts.
 | Technitium's login through admin Authelia: `dns/sso.json` applied by `technitium-sync`, read back after the web service restarts (P5) | ~40 lines |
 | `stacks/dmz/clu/patches/apply.py` (P8: seventeen fixes to CLU v7.0 at each start, until CLU ships its own; a fix that no longer matches is left out) | ~620 lines |
 | `stacks/dmz/clu/patches/test/` (P8: CLU's matcher, patched, on 397 labelled real posts, in a throwaway on docker-dmz; for CLU updates) | ~90 lines |
-| `stacks/dmz/comics-agent/tools` (P8, D17: `comics-tools`, the comics agent's 34 fixed verbs over CLU, SABnzbd, Komga and Uchiyomi, holding their keys; an issue's page sizes read from its image headers, Ali's ✅ read back from Discord (for comics and manga removals), every answer scrubbed of links and keys; Uchiyomi's unfollowing of the series no source can update; arcs, and what Ali reads in Komga; stopping a manga download or follow; Komga's whole shelf in one call) | ~520 lines |
+| `stacks/dmz/comics-agent/tools` (P8, D17: `comics-tools`, the comics agent's 35 fixed verbs over CLU, SABnzbd, Komga and Uchiyomi, holding their keys; an issue's page sizes read from its image headers, a new manga's copies compared across every source from pages read straight from each, Ali's ✅ read back from Discord (for comics and manga removals), every answer scrubbed of links and keys; Uchiyomi's unfollowing of the series no source can update; arcs, and what Ali reads in Komga; stopping a manga download or follow; Komga's whole shelf in one call) | ~715 lines |
 | `stacks/dmz/comics-agent` OpenAB config (P8, D17: the channel, Ali alone, the model, the ✅, the scheduled prompts) | ~35 lines |
 | `stacks/dmz/arena` (D18: the runner: tests, stages and finalists, variants and repeats, the open-ended outcome and its hint ladder, the judge, pacing on the plans' windows, each CLI's usage and steps read, records and standings, the agent's start, stop, status, reset, rescore and rejudge; a lane's loop around its CLI and its image; the world host). The tests themselves are the agent's working files, not glue in git | ~880 lines |
 | `skynet-incident` (P6: alert webhook → `claude -p`; one at a time, repeats dropped, the budget, escalation) | ~40 lines |
