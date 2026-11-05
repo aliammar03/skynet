@@ -10,12 +10,15 @@
   in the library waits for Ali's ✅.
   - `comics-agent`: OpenAB 0.10 (a nightly: 0.10.0 and two commits), whose ACP adapter (codex-acp
     2.5) runs Codex 0.165; the image's own Codex CLI (0.166) is for the login. A Codex session per
-    Discord thread, two at a time; the model is `gpt-6.1-terra` at high reasoning effort (Ali,
-    2026-11-03), set by OpenAB at each session. It runs in Codex's full-access mode: the container is
-    the boundary. Web search is live (`agent/codex.toml`).
+    Discord thread, two at a time; the model is `gpt-6.1-sol` at high reasoning effort, chosen in the
+    arena (D18; Ali, 2026-11-05), set by OpenAB at each session. It runs in Codex's full-access mode:
+    the container is the boundary. Web search is live (`agent/codex.toml`). Its skill is rules, not
+    cases (Ali, 2026-11-05: no specific examples in its context).
   - `comics-tools` (`tools/comics_tools.py`, Python's standard library): the agent's only way to the
     apps, and the only holder of their keys. A fixed list of verbs (`GET /` lists them) over CLU,
-    SABnzbd, Komga and Uchiyomi; anything else is refused, and it answers only the agent's container
+    SABnzbd, Komga and Uchiyomi (`manga/compare`: a new manga's copy on every source side by side,
+    pages read straight from each through Uchiyomi's preview, nothing added); anything else is
+    refused, and it answers only the agent's container
     (by its name on `backend`), not the others on its networks. Grabs are capped at 360 an hour. A trash
     (comics to CLU's trash; manga chapters' files, or a whole series, out of Uchiyomi) is a proposal
     first: it runs only once Ali's ✅ on the agent's proposal (a reaction, or a ✅ reply to it) in

@@ -7,6 +7,7 @@ read back from Discord. Answers carry no URL (an indexer's NZB link holds its AP
 Python's standard library only.
 """
 import collections
+import concurrent.futures
 import http.server
 import json
 import os
@@ -54,6 +55,8 @@ def call(method, url, body=None, timeout=120, raw=False):
             data = r.read()
     except urllib.error.HTTPError as e:
         raise Refused(e.code, e.read().decode("utf-8", "replace")[:400]) from None
+    if raw == "bytes":  # an image
+        return data
     return data.decode("utf-8", "replace") if raw else (json.loads(data) if data.strip() else None)
 
 
@@ -405,6 +408,74 @@ def manga_detail(a):
     return {**{k: d.get(k) for k in ("title", "author", "status", "count", "first", "last", "versions", "genres")},
             "numbering": (d.get("numbering") or {}).get("applied"),
             "groups": [{k: g.get(k) for k in ("name", "releases", "first", "last", "langs")} for g in d.get("groups", [])]}
+
+
+def failed(e):
+    return f"{getattr(e, 'status', type(e).__name__)} {str(e)[:120]}"
+
+
+def number(n):
+    return str(int(n)) if n == int(n) else str(n)
+
+
+def listing(hit):
+    """A source's chapters as an add would take them, one copy a number with its translator
+    (Uchiyomi's preview: nothing added), or why not."""
+    try:
+        return call("GET", f"{UCHIYOMI}/api/sources/preview?source={q(hit['source'])}&sourceId={q(hit['source_id'])}", timeout=60)["content"]
+    except (Refused, OSError, KeyError) as e:
+        return failed(e)
+
+
+def copy_of(hit, listed, numbers):
+    """One source's copy for manga/compare: the work, who translates which chapters, and two interior
+    pages of each sampled chapter read from the source, each page's pixel size and KB."""
+    src, sid = hit["source"], hit["source_id"]
+    out, start = {"name": hit.get("name"), "source": src, "source_id": sid, "title": hit.get("title")}, time.monotonic()
+    try:
+        d = manga_detail({"source": src, "source_id": sid})
+        out.update(author=d.get("author"), status=d.get("status"))
+        if isinstance(listed, str):
+            return {**out, "error": listed, "seconds": round(time.monotonic() - start, 1)}
+        nums = {c["number"] for c in listed}
+        out.update(chapters=len(nums), first=min(nums, default=None), last=max(nums, default=None), translators={})
+        for c in listed:
+            r = out["translators"].setdefault(c.get("scanlator") or "?", [c["number"], c["number"]])
+            r[:] = [min(r[0], c["number"]), max(r[1], c["number"])]
+        out["pages"] = {}
+        for n in numbers:
+            if n not in nums:
+                out["pages"][number(n)] = "not listed"
+                continue
+            at = f"source={q(src)}&sourceId={q(sid)}&number={number(n)}"
+            count = call("GET", f"{UCHIYOMI}/api/sources/preview/pages?{at}", timeout=60)["count"]
+            pages = []
+            for i in sorted({count // 3, 2 * count // 3}):
+                data = call("GET", f"{UCHIYOMI}/img/sources/preview?{at}&i={i}", timeout=60, raw="bytes")
+                pages.append({"px": dims(data[:262144]), "kb": len(data) // 1024})
+            out["pages"][number(n)] = {"of": count, "sampled": pages}
+    except (Refused, OSError, KeyError) as e:
+        out["error"] = failed(e)
+    out["seconds"] = round(time.monotonic() - start, 1)
+    return out
+
+
+@verb("GET", "/manga/compare", "q, [numbers: chapters to sample, comma-separated; default the run's middle and last] → each source's copy side by side: the work (title, author, status), its chapters and who translates which, and two pages of each sampled chapter read straight from the source (pixel size, KB); nothing is added. For a series not in the library yet")
+def manga_compare(a):
+    try:
+        numbers = [float(x) for x in str(a.get("numbers") or "").replace(" ", "").split(",") if x]
+    except ValueError:
+        raise Refused(400, "numbers: chapter numbers, comma-separated") from None
+    hits = manga_search({"q": need(a, "q")[0]})
+    if not hits:
+        return []
+    with concurrent.futures.ThreadPoolExecutor(len(hits)) as pool:
+        lists = list(pool.map(listing, hits))
+        if not numbers:  # the middle and the last of the run, as most sources list it
+            lasts = sorted(max(c["number"] for c in x) for x in lists if isinstance(x, list) and x)
+            last = lasts[len(lasts) // 2] if lasts else 1
+            numbers = sorted({float(max(int(last) // 2, 1)), float(last)})
+        return list(pool.map(lambda h: copy_of(h[0], h[1], numbers), zip(hits, lists)))
 
 
 @verb("POST", "/manga/add", "source, source_id, [chapters: \"none\"], [follow: false] → Uchiyomi adds the series, downloads it, and follows its new chapters; \"none\" downloads nothing yet (an arc: then manga/fill its numbers)")
