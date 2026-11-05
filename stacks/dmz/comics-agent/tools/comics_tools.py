@@ -254,6 +254,27 @@ def comics_cover(a):
     return {"success": bool(r.get("success")), "cover": r.get("thumbnail_path") or f"{folder}/folder.png"}
 
 
+KOMGA_CLU = "/books/Comics/clu/"  # CLU's library (/data here) as Komga sees it
+
+
+@verb("POST", "/comics/dates", "→ each filed issue's release date in Komga set to the day it went on sale (Metron's, through CLU) and locked; an issue Metron has no such day for keeps its cover month, and a date already locked (set before, or by hand) stays")
+def comics_dates(a):
+    days = {d["path"]: d["store_date"] for d in call("GET", f"{CLU}/api/skynet/issue-dates") if d.get("store_date")}
+    lib = next(x["id"] for x in call("GET", f"{KOMGA}/api/v1/libraries") if x["name"] == "Comics")
+    books = call("POST", f"{KOMGA}/api/v1/books/list?unpaged=true", {"condition": {"libraryId": {"operator": "is", "value": lib}}})["content"]
+    out = collections.Counter()
+    for b in books:
+        day = days.get("/data/" + b["url"][len(KOMGA_CLU):]) if b["url"].startswith(KOMGA_CLU) else None
+        if b["metadata"].get("releaseDateLock"):
+            out["locked"] += 1
+        elif not day:
+            out["cover month"] += 1
+        else:
+            call("PATCH", f"{KOMGA}/api/v1/books/{q(b['id'])}/metadata", {"releaseDate": day, "releaseDateLock": True})
+            out["set"] += 1
+    return dict(out)
+
+
 def inside(path):
     real = os.path.realpath(path)
     if not real.startswith(("/data/", "/downloads/", "/manga/")):
@@ -545,31 +566,49 @@ def manga_add(a):
     return call("POST", f"{UCHIYOMI}/api/sources/add", body, timeout=180)
 
 
-@verb("POST", "/manga/wiki", "komga_id (a manga series in Komga, from library/find), url (its fan wiki's page for chapter 1: https://…/wiki/…1) → the series' Wiki link in Komga: komga-wiki fills each chapter's title and summary from that wiki within the hour; answers the page's sections")
-def manga_wiki(a):
-    sid, url = need(a, "komga_id", "url")
+def wiki_page(url, prop):
+    """A MediaWiki page's parse (its `prop`), from its /wiki/ link: Fandom's API, then MediaWiki's own path."""
     u = urllib.parse.urlsplit(url)
-    m = re.fullmatch(r"(.*?)/wiki/(.*?0*1)", urllib.parse.unquote(u.path))
-    if u.scheme != "https" or not m:
+    base, _, name = urllib.parse.unquote(u.path).partition("/wiki/")
+    ask = urllib.parse.urlencode({"action": "parse", "page": name, "prop": prop, "format": "json", "formatversion": 2, "redirects": 1})
+    for api in (f"https://{u.netloc}{base}/api.php", f"https://{u.netloc}{base}/w/api.php"):
+        try:
+            found = call("GET", f"{api}?{ask}", timeout=30)
+        except (Refused, OSError, ValueError):
+            continue
+        if isinstance(found, dict) and "parse" in found:
+            return found["parse"]
+        break  # that API answered: the wiki has no such page
+    raise Refused(404, f"no such page: {url}")
+
+
+@verb("POST", "/manga/wiki", "komga_id (a manga series in Komga, from library/find), and url (its fan wiki's page for chapter 1: https://…/wiki/…1) and/or chapters (its Wikipedia list of chapters: https://en.wikipedia.org/wiki/List_of_…_chapters) → linked in Komga (Wiki, Chapters): within the hour komga-wiki fills each chapter's title, summary and release date from the fan wiki, and a chapter it has no date for gets its volume's from Wikipedia; answers what each page holds")
+def manga_wiki(a):
+    sid = need(a, "komga_id")[0]
+    url, listing = a.get("url"), a.get("chapters")
+    if not url and not listing:
+        raise Refused(400, "missing: url or chapters")
+    if url and (urllib.parse.urlsplit(url).scheme != "https" or not re.fullmatch(r".*?/wiki/.*?0*1", urllib.parse.unquote(urllib.parse.urlsplit(url).path))):
         raise Refused(400, "url: the wiki's page for chapter 1, https://<wiki>/wiki/<its name>1")
+    if listing and not re.fullmatch(r"https://[a-z-]+\.wikipedia\.org/wiki/List_of_.+_chapters(_\(.*\))?", urllib.parse.unquote(listing).replace(" ", "_")):
+        raise Refused(400, "chapters: Wikipedia's list, https://en.wikipedia.org/wiki/List_of_<series>_chapters")
     s = call("GET", f"{KOMGA}/api/v1/series/{q(sid)}")
     if call("GET", f"{KOMGA}/api/v1/libraries/{q(s['libraryId'])}").get("name") != "Manga":
         raise Refused(400, "komga_id: a series in Komga's Manga library")
-    ask = urllib.parse.urlencode({"action": "parse", "page": m.group(2), "prop": "sections", "format": "json",
-                                  "formatversion": 2, "redirects": 1})
-    found = None
-    for api in (f"https://{u.netloc}{m.group(1)}/api.php", f"https://{u.netloc}{m.group(1)}/w/api.php"):
-        try:  # Fandom's API, then MediaWiki's own path
-            found = call("GET", f"{api}?{ask}", timeout=30)
-            break
-        except (Refused, OSError, ValueError):
-            continue
-    if not isinstance(found, dict) or "parse" not in found:
-        raise Refused(404, "that wiki has no such page")
-    links = [x for x in s["metadata"].get("links") or [] if (x.get("label") or "").lower() != "wiki"]
-    call("PATCH", f"{KOMGA}/api/v1/series/{q(sid)}/metadata", {"links": links + [{"label": "Wiki", "url": url}]})
-    return {"success": True, "series": s["metadata"].get("title") or s.get("name"),
-            "sections": [x.get("line") for x in found["parse"].get("sections") or []][:8]}
+    out, add = {"success": True, "series": s["metadata"].get("title") or s.get("name")}, {}
+    if url:
+        out["sections"] = [x.get("line") for x in wiki_page(url, "sections").get("sections") or []][:8]
+        add["wiki"] = {"label": "Wiki", "url": url}
+    if listing:
+        text = wiki_page(listing, "wikitext")["wikitext"]
+        out["volumes"] = len(re.findall(r"\{\{\s*Graphic novel list\s*[|}]", text, re.I))
+        out["sub_pages"] = len(set(re.findall(r"\[\[\s*(List of [^\]|#]*? chapters \([^)\]]*\))", text)))
+        if not out["volumes"] and not out["sub_pages"]:
+            raise Refused(404, "that page lists no volumes")
+        add["chapters"] = {"label": "Chapters", "url": listing}
+    links = [x for x in s["metadata"].get("links") or [] if (x.get("label") or "").lower() not in add]
+    call("PATCH", f"{KOMGA}/api/v1/series/{q(sid)}/metadata", {"links": links + list(add.values())})
+    return out
 
 
 @verb("GET", "/manga/library", "q → series in Uchiyomi's library (id, name, books)")
@@ -684,7 +723,7 @@ def library_find(a):
             "uchiyomi": [{"id": s["id"], "name": s["name"], "books": s.get("booksCount")} for s in uchiyomi]}
 
 
-@verb("GET", "/library/shelf", "[library: Comics | Manga] → everything on the NAS, from Komga: each series, its books, how many Ali read, its status, publisher and genres; a manga's Komga id and whether its fan wiki is linked")
+@verb("GET", "/library/shelf", "[library: Comics | Manga] → everything on the NAS, from Komga: each series, its books, how many Ali read, its status, publisher and genres; a manga's Komga id and whether its fan wiki and its Wikipedia list of chapters are linked")
 def library_shelf(a):
     libraries = {lib["id"]: lib["name"] for lib in call("GET", f"{KOMGA}/api/v1/libraries")}
     want = [i for i, n in libraries.items() if not a.get("library") or n.lower() == str(a["library"]).lower()]
@@ -695,7 +734,8 @@ def library_shelf(a):
              "read": s["booksReadCount"], "reading": s["booksInProgressCount"], "status": s["metadata"].get("status"),
              "publisher": s["metadata"].get("publisher") or None, "genres": s["metadata"].get("genres", [])[:3]}
         if r["library"] == "Manga":  # for manga/wiki
-            r.update(komga_id=s["id"], wiki=any((x.get("label") or "").lower() == "wiki" for x in s["metadata"].get("links") or []))
+            labels = {(x.get("label") or "").lower() for x in s["metadata"].get("links") or []}
+            r.update(komga_id=s["id"], wiki="wiki" in labels, chapters="chapters" in labels)
         return r
     return sorted(map(row, series), key=lambda r: (r["library"] or "", r["name"].lower()))
 

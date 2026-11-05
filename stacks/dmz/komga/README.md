@@ -9,18 +9,25 @@
     score, links, alternative titles, and the series' cover art, which Uchiyomi's files lack. Series
     titles stay as the folders name them; a chapter gets the series' authors and links, not a title
     or the series' summary. A series added is matched when Komga reports it.
-  - `komga-wiki` (`wiki/wiki.py`; Ali, 2026-11-05): a manga chapter's own title and summary, from the
-    series' fan wiki, which the comics agent links (Komga's link labelled "Wiki", to its page for
-    chapter 1; comics-tools' `manga/wiki`). Hourly, it reads each chapter's page through the
-    wiki's MediaWiki API (a request a second), takes the infobox's title and the short summary as
-    plain text, and writes both into Komga, locked: nothing overwrites them, and a chapter with
-    both is never read again. A chapter the wiki hasn't written yet is read again a week later. A
-    Wiki link a later Komf match drops is put back. It also clears the series' description from
-    every manga chapter, linked or not: Uchiyomi writes it into each chapter's ComicInfo, and Komga
-    reads it from there. A chapter shows its own summary or none.
+  - `komga-wiki` (`wiki/wiki.py`; Ali, 2026-11-05): a manga chapter's own title, summary and release
+    date, from the series' fan wiki and Wikipedia, which the comics agent links (Komga's links
+    labelled "Wiki", to the fan wiki's page for chapter 1, and "Chapters", to Wikipedia's "List of …
+    chapters"; comics-tools' `manga/wiki`). Hourly, it reads each chapter's page through the wiki's
+    MediaWiki API (a request a second), takes the infobox's title, the short summary as plain text
+    and the day it came out (from the rendered infobox, where a template like One Piece's shows
+    it), and writes them into Komga, locked: nothing overwrites them, and a chapter with all three
+    is never read again. A chapter the fan wiki gives no date gets the day its volume came out in
+    Japan, from the Wikipedia list (and its sub-pages, for a long series), read at most weekly; an
+    exact date found later replaces it. A chapter in no volume yet, or only in one announced for
+    later, has no date. What the wiki hasn't written yet is read again a week later. Links a later
+    Komf match drops are put back. It also clears the series' description from every manga
+    chapter, linked or not: Uchiyomi writes it into each chapter's ComicInfo, and Komga reads it
+    from there. A chapter shows its own summary or none.
   - Comics need neither: each issue's ComicInfo (Metron, through CLU) is right, and every series'
     cover is its issue #1's, `folder.png` from CLU (its folder art set to Single Image, Ali
-    2026-11-05; a pinned issue in CLU replaces it).
+    2026-11-05; a pinned issue in CLU replaces it). An issue's release date is the day it went on
+    sale (Ali, 2026-11-06), set and locked by comics-tools' `comics/dates` from CLU's Metron data;
+    one Metron has no such day for keeps its ComicInfo's cover month.
 - **URL:** https://komga.aliammar.net (caddy-apps → `komga:25600` on `door-komga`). Inside and over
   Tailscale; not public.
 - **Auth mode:** own, plus oidc: sign-in through the apps' Authelia (client `komga`, policy `admins`).
@@ -44,8 +51,9 @@
 - **Data:** `/opt/appdata/komga/config` → `/config`: its database, thumbnails (Komf's covers among
   them), search index and sessions (backup class: data), and `logs/` (cache:
   `stacks/dmz/backup/excludes.txt`). `/opt/appdata/komga/komf` → Komf's `/config`: its matches
-  (`database.sqlite`; data). `/opt/appdata/komga/wiki` → komga-wiki's `/data`: each series' wiki and
-  when a chapter was last read (`state.json`; data).
+  (`database.sqlite`; data). `/opt/appdata/komga/wiki` → komga-wiki's `/data`: each series' links,
+  when a chapter or list was last read, and which chapters carry their volume's date (`state.json`;
+  data).
 - **Secrets:**
   - `oidc.sops.env`: `SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_AUTHELIA_CLIENT_SECRET`
     (agent-generated; its digest is in `stacks/dmz/authelia/oidc-clients.yml`).
@@ -86,5 +94,8 @@
   covers CLU already gives.
 - A wiki is linked by its page for chapter 1, and that page's name gives every other's: `Chapter_1` →
   `Chapter_1126`, `Chapter_001` → `Chapter_007`. A wiki that names its pages otherwise doesn't fill.
-- A chapter's title or summary edited and locked by hand in Komga stays: komga-wiki writes only what
-  isn't locked.
+- A chapter's title, summary or release date edited and locked by hand in Komga stays: komga-wiki
+  writes only what isn't locked (or a volume's date it set itself). So does an issue's release date:
+  `comics/dates` sets only one that isn't locked.
+- Wikipedia's lists number chapters three ways: `{{Numbered list|start=…}}`, `*001.` at a line's
+  start, or not at all; a volume whose chapters aren't numbered gets no dates (Berserk's first ones).

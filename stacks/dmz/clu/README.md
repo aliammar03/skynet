@@ -89,7 +89,7 @@
   - The agent, in JDownloader, after its first start and while it's stopped: archive extraction off
     (`cfg/org.jdownloader.extensions.extraction.ExtractionExtension.json`: `"enabled": false`), so
     CLU alone unpacks what lands in its `temp/`.
-- **Patches:** `patches/apply.py` fixes seventeen things in CLU v7.0 at each start, before CLU's
+- **Patches:** `patches/apply.py` fixes eighteen things in CLU v7.0 at each start, before CLU's
   entrypoint (its `clu-patch:` lines in the log):
   - a Usenet download is filed once `temp/` empties, as a direct download is (CLU never filed one);
     a failed download's leftover there (`.part`, `.crdownload`) doesn't count, until CLU's hourly
@@ -147,7 +147,10 @@
   - a half issue is one number however it's written (Metron's "½", a download's "000.5", "1/2"):
     filing compared "½" with ".5" and never matched, so Ultimate Spider-Man (2000) #½ sat in
     `processed/`. A file named with "½" still counts, and a filed half issue is named `#000.5`,
-    which sorts before #1 (CLU's own padding wrote `#00½`).
+    which sorts before #1 (CLU's own padding wrote `#00½`);
+  - a read-only route, `GET /api/skynet/issue-dates`, lists each filed issue's file with Metron's
+    cover date and the day it went on sale: an issue's ComicInfo holds only the cover month, and
+    no route of CLU's gives the day. comics-tools' `comics/dates` sets Komga's release dates from it.
 
   A fix whose text CLU's code no longer has (after an update) is left out with a `clu-patch:` line,
   and that file runs as shipped. On a CLU update or a change to `apply.py`: read those lines, drop
