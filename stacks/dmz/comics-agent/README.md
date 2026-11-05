@@ -68,7 +68,7 @@
 
 | When | What it does | Its steps |
 |---|---|---|
-| Ali writes in the desk | talks comics, recommends (adds nothing until he picks), adds and fills a series, an arc or a manga (a comic's cover from its first issue; a manga's source compared first, and its fan wiki linked for its chapters' titles and summaries), judges what landed, fixes what went wrong | `SKILL.md` |
+| Ali writes in the desk | talks comics, recommends (adds nothing until he picks), adds and fills a series, an arc or a manga (a comic's cover from its first issue and its issues' on-sale days; a manga's source compared first, and its fan wiki and Wikipedia list linked for its chapters' titles, summaries and dates), judges what landed, fixes what went wrong | `SKILL.md` |
 | 00:00, 06:00, 12:00, 18:00 | patrol: the wanted list, failed grabs, what waits in `processed/`, Uchiyomi's failed downloads, its own past follow-ups; anything odd told | Patrol |
 | 08:00 | morning report: first fixes what it can, then what landed, what's missing, what waits for Ali, and a next read if he finished a series | Morning report |
 | Sundays 11:00 | upgrades: scans with a digital copy now posted, proposed as swaps | Upgrades |
@@ -102,9 +102,9 @@ belongs in the arena's comics test, where it checks the rules, not in what the a
 
 | Over | Verbs |
 |---|---|
-| CLU (comics) | `comics/find`, `subscribe`, `aliases` (read, replace), `check` and `op`, `skip`, `follow`, `wanted`, `series`, `search`, `grab`, `downloads`, `file`, `inspect` (a file's pages, sizes, ComicInfo: a comic or a manga chapter), `trash`, `cover` (the series' cover, CLU's `folder.png` from its first issue), `unpacked` (an issue CLU's editor left unpacked: listed, and after a day put back as it was) |
+| CLU (comics) | `comics/find`, `subscribe`, `aliases` (read, replace), `check` and `op`, `skip`, `follow`, `wanted`, `series`, `search`, `grab`, `downloads`, `file`, `inspect` (a file's pages, sizes, ComicInfo: a comic or a manga chapter), `trash`, `cover` (the series' cover, CLU's `folder.png` from its first issue), `unpacked` (an issue CLU's editor left unpacked: listed, and after a day put back as it was), `dates` (each issue's release date in Komga: the day it went on sale) |
 | SABnzbd | `sab/queue`, `sab/history` |
-| Uchiyomi (manga) | `manga/search`, `detail`, `compare`, `add`, `library`, `status`, `jobs`, `fill`, `fill-other`, `stop`, `follow`, `trash`; `wiki` (in Komga: the series' fan wiki, below) |
+| Uchiyomi (manga) | `manga/search`, `detail`, `compare`, `add`, `library`, `status`, `jobs`, `fill`, `fill-other`, `stop`, `follow`, `trash`; `wiki` (in Komga: the series' fan wiki and Wikipedia list, below) |
 | Komga (reading) | `library/find` (his links), `library/shelf` (everything on the NAS), `library/reading` (what he read last) |
 | both | `rescan` (Komga and Uchiyomi read their folders now; `deep` after a trash or swap) |
 
@@ -113,10 +113,15 @@ chapters and who translates which (as an add would take them), and two interior 
 chapter named, read straight from the source through Uchiyomi's preview, with their pixel size and
 KB. Nothing is added. The skill runs it before every manga it adds.
 
-`manga/wiki`: the series' fan wiki, linked in Komga (the link labelled "Wiki", to its page for
-chapter 1, checked on the wiki before it's set). `komga-wiki`, in Komga's stack, then writes each
-chapter's title and summary from that wiki into Komga (`stacks/dmz/komga`). The skill links one for
-every manga it adds.
+`manga/wiki`: the series' fan wiki and its Wikipedia list of chapters, linked in Komga (the links
+labelled "Wiki", to the fan wiki's page for chapter 1, and "Chapters", each checked before it's
+set). `komga-wiki`, in Komga's stack, then writes each chapter's title, summary and release date
+into Komga, a volume's date where the fan wiki has none (`stacks/dmz/komga`). The skill links both
+for every manga it adds, and the patrol for any series without them.
+
+`comics/dates`: each filed issue's release date in Komga, the day it went on sale (Metron's, from
+CLU's patched `issue-dates` route), locked. Metron has no such day for some older issues (Watchmen
+#2–#12): those keep their cover month. The skill runs it after adding a series and on patrol.
 
 ## Changing it
 

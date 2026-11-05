@@ -1,4 +1,4 @@
-"""Seventeen fixes to CLU v7.0 until CLU ships its own (stacks/dmz/clu/README.md → Patches).
+"""Eighteen fixes to CLU v7.0 until CLU ships its own (stacks/dmz/clu/README.md → Patches).
 
 The container runs this as root before CLU's entrypoint. Each fix replaces one exact piece of
 CLU's code. A file is rewritten only when all its fixes apply and the result compiles; when CLU's
@@ -559,6 +559,36 @@ HALF_FILENAMES = (
     '        body = rf"(?:{body}|0*{re.escape(digits[:-2])}½)"\n',
 )
 
+# 18. Each filed issue's file with Metron's dates for it, the cover month and the day it went on sale,
+#     read-only: Komga's release date is the day it went on sale (comics-tools' comics/dates), and
+#     an issue's ComicInfo holds only the cover month. No route of CLU's gives the day.
+ISSUE_DATES = (
+    "issue-dates",
+    '@series_bp.route("/api/series/<int:series_id>/check-collection", methods=["GET"])\n'
+    "def check_series_collection(series_id):\n",
+    '''@series_bp.route("/api/skynet/issue-dates", methods=["GET"])
+def skynet_issue_dates():
+    """Skynet patch: each filed issue's file, with Metron's cover date and store (on-sale) date."""
+    from core.database import get_db_connection
+
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "database unavailable"}), 503
+    try:
+        rows = conn.execute(
+            "SELECT cs.file_path, i.number, i.cover_date, i.store_date FROM collection_status cs"
+            " JOIN issues i ON i.id = cs.issue_id WHERE cs.found = 1 AND cs.file_path IS NOT NULL"
+        ).fetchall()
+    finally:
+        conn.close()
+    return jsonify([{"path": r[0], "number": r[1], "cover_date": r[2], "store_date": r[3]} for r in rows])
+
+
+@series_bp.route("/api/series/<int:series_id>/check-collection", methods=["GET"])
+def check_series_collection(series_id):
+''',
+)
+
 FIXES = {
     USENET: [
         FILE_AFTER_IMPORT,
@@ -581,7 +611,7 @@ FIXES = {
         COVER_YEAR,
     ],
     SCORER: [HYPHEN_IS_SPACE, FORMAT_WORDS, OTHER_EDITIONS, ISSUE_SLOT, ISSUE_SLOT_HELPER],
-    SERIES_ROUTES: [SEED_ALIASES, SEED_ALIASES_HELPER],
+    SERIES_ROUTES: [SEED_ALIASES, SEED_ALIASES_HELPER, ISSUE_DATES],
     DOWNLOAD_ROUTES: [ALIASES_IN_SEARCH_WINDOW],
     DOWNLOAD_RUNS: [RETRY_FAILED],
     COLLECTION: [HALF_NUMBERS, HALF_FILENAMES],
