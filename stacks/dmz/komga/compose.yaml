@@ -38,6 +38,7 @@ services:
       # Internal, shared with caddy-apps alone (from the host's Nix config). The issuer's name
       # (login.aliammar.net) is caddy-apps' alias there.
       door-komga: {}
+      backend: {} # Komf calls it here
     healthcheck:
       # The one actuator endpoint that answers without a login.
       test: [CMD, curl, -fsS, -o, /dev/null, http://127.0.0.1:25600/actuator/health]
@@ -45,6 +46,36 @@ services:
       timeout: 5s
       retries: 3
       start_period: 1m
+  # Komf (P8; Ali, 2026-11-05): metadata and covers for both libraries from AniList, MangaUpdates,
+  # MangaDex and Comic Vine (komf.yml), through Komga's API: no file is touched. A new series is
+  # matched when Komga reports it. Its own API has no login: only Komga shares a network with it.
+  komf:
+    container_name: komf
+    image: docker.io/sndxr/komf:2.1.0@sha256:373580779e2e75d4e00e2f05859f789e05691c54600ca83d1cb528f0aad1f7b6
+    restart: unless-stopped
+    # KOMF_KOMGA_PASSWORD (its Komga account, komf@aliammar.net) and
+    # KOMF_METADATA_PROVIDERS_COMIC_VINE_API_KEY, both Ali's.
+    env_file: komf.sops.env
+    environment:
+      TZ: Asia/Karachi
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=60 -XX:+UseSerialGC
+    mem_limit: 512m
+    volumes:
+      - /opt/appdata/komga/komf:/config # its matches (database.sqlite)
+      - ./komf.yml:/config/application.yml:ro
+    networks:
+      backend: {} # Komga, by name
+      egress: {} # the providers
+    healthcheck:
+      # Its API (JSON) is under /komga; any other path is its web page, which answers 200 to anything.
+      test: [CMD, curl, -fsS, -o, /dev/null, http://127.0.0.1:8085/komga/providers]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 networks:
   door-komga:
     external: true
+  # Komga and Komf alone, no way out.
+  backend:
+    internal: true
+  egress: {}

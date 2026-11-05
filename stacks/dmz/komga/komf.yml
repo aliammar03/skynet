@@ -1,0 +1,113 @@
+# Komf (P8; Ali, 2026-11-05): metadata and covers for Komga's two libraries, written through Komga's
+# API only, never into the files (CLU's and Uchiyomi's). Upstream's full example: github.com/Snd-R/komf.
+# From the environment (komf.sops.env): KOMF_KOMGA_PASSWORD, KOMF_METADATA_PROVIDERS_COMIC_VINE_API_KEY.
+komga:
+  baseUri: http://komga:25600 # on the stack's backend
+  komgaUser: komf@aliammar.net # Komga's account for it, an admin (only an admin edits metadata)
+  eventListener:
+    enabled: true # a series added to either library is matched when Komga reports it
+    metadataLibraryFilter: [0S2GKXTMMD47G, 0S2GKXV8CD7Q4]
+    metadataSeriesExcludeFilter: []
+    notificationsLibraryFilter: []
+  metadataUpdate:
+    default:
+      updateModes: [API]
+      seriesCovers: false
+      bookCovers: false
+    library:
+      # Manga: Uchiyomi's chapters carry only a title and a number, and no cover. Everything a
+      # provider has for the series, a field one lacks taken from the next, and its cover art.
+      # Titles stay as Uchiyomi's folders name them (the comics agent's links); the others are
+      # added as alternative titles, for search.
+      0S2GKXTMMD47G:
+        libraryType: MANGA
+        updateModes: [API]
+        aggregate: true
+        mergeTags: false
+        mergeGenres: false
+        seriesCovers: true
+        bookCovers: false
+        overrideExistingCovers: true
+        postProcessing:
+          seriesTitle: false
+          alternativeSeriesTitles: true
+          alternativeSeriesTitleLanguages: [en, ja-ro]
+          orderBooks: false
+      # Comics: each issue's ComicInfo (Metron, through CLU) and its first page (its cover) are
+      # already right; Comic Vine adds the series' cover and nothing else.
+      0S2GKXV8CD7Q4:
+        libraryType: COMIC
+        updateModes: [API]
+        aggregate: false
+        seriesCovers: true
+        bookCovers: false
+        overrideExistingCovers: true
+        postProcessing:
+          seriesTitle: false
+          alternativeSeriesTitles: false
+          orderBooks: false
+
+database:
+  file: /config/database.sqlite # its matches, in /opt/appdata/komga/komf
+
+metadataProviders:
+  defaultProviders:
+    mangaUpdates:
+      priority: 10
+      enabled: false # only the libraries' own providers, below
+  libraryProviders:
+    0S2GKXTMMD47G:
+      aniList:
+        priority: 10
+        enabled: true
+        mediaType: MANGA # manga, manhwa and webtoons; not novels
+        tagsScoreThreshold: 60
+        tagsSizeLimit: 15
+      mangaUpdates:
+        priority: 20
+        enabled: true
+        mediaType: MANGA
+        authorRoles: [WRITER]
+        artistRoles: [PENCILLER, INKER, COLORIST, LETTERER, COVER]
+      mangaDex:
+        priority: 30
+        enabled: true
+        coverLanguages: [en, ja]
+    0S2GKXV8CD7Q4:
+      comicVine:
+        priority: 10
+        enabled: true
+        seriesMetadata:
+          status: false
+          title: false
+          titleSort: false
+          summary: false
+          publisher: false
+          readingDirection: false
+          ageRating: false
+          language: false
+          genres: false
+          tags: false
+          totalBookCount: false
+          authors: false
+          thumbnail: true
+          releaseDate: false
+          links: false
+          score: false
+          books: false
+        bookMetadata:
+          title: false
+          summary: false
+          number: false
+          numberSort: false
+          releaseDate: false
+          authors: false
+          tags: false
+          isbn: false
+          links: false
+          thumbnail: false
+
+server:
+  port: 8085
+
+logLevel: INFO
