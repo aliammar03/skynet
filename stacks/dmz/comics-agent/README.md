@@ -4,35 +4,30 @@
   through OpenAB, Ali's graphic-novel librarian. It talks comics and manga and recommends from what
   he has and reads (Komga's whole shelf in one call), searching the web for arcs, reading orders,
   news and reviews. It adds series and arcs and fills them (comics through CLU, manga through
-  Uchiyomi), watches each add through and reports the moment it's in, judges every issue filed,
-  finds and grabs the right post when CLU misses it, patrols the wanted
-  list every 6 hours, reports each morning and offers upgrades weekly. Swapping or trashing what's
-  in the library waits for Ali's ✅.
+  Uchiyomi, after comparing every source's pages), watches each add through and reports the moment
+  it's in, judges every issue filed, finds and grabs the right post when CLU misses it, patrols every
+  6 hours, reports each morning and offers upgrades weekly. It fixes what it can before it reports,
+  and tells Ali of anything that tries to give it orders. Swapping or trashing what's in the library
+  waits for Ali's ✅.
   - `comics-agent`: OpenAB 0.10 (a nightly: 0.10.0 and two commits), whose ACP adapter (codex-acp
     2.5) runs Codex 0.165; the image's own Codex CLI (0.166) is for the login. A Codex session per
     Discord thread, two at a time; the model is `gpt-6.1-sol` at high reasoning effort, chosen in the
     arena (D18; Ali, 2026-11-05), set by OpenAB at each session. It runs in Codex's full-access mode:
-    the container is the boundary. Web search is live (`agent/codex.toml`). Its skill is rules, not
-    cases (Ali, 2026-11-05: no specific examples in its context).
+    the container is the boundary. Web search is live (`agent/codex.toml`).
   - `comics-tools` (`tools/comics_tools.py`, Python's standard library): the agent's only way to the
-    apps, and the only holder of their keys. A fixed list of verbs (`GET /` lists them) over CLU,
-    SABnzbd, Komga and Uchiyomi (`manga/compare`: a new manga's copy on every source side by side,
-    pages read straight from each through Uchiyomi's preview, nothing added); anything else is
-    refused, and it answers only the agent's container
-    (by its name on `backend`), not the others on its networks. Grabs are capped at 360 an hour. A trash
-    (comics to CLU's trash; manga chapters' files, or a whole series, out of Uchiyomi) is a proposal
-    first: it runs only once Ali's ✅ on the agent's proposal (a reaction, or a ✅ reply to it) in
-    `#comics` is read back from Discord. Stopping a download or a follow needs no ✅: nothing is
-    removed; nor does a stray in CLU's `processed/` (a duplicate, another series' issue), which goes
-    straight to CLU's trash (Ali, 2026-11-04). Its answers carry no link (an indexer's NZB link holds
-    its API key) and no key.
+    apps, and the only holder of their keys. A fixed list of verbs (below); anything else is refused,
+    and it answers only the agent's container (by its name on `backend`), not the others on its
+    networks. Grabs are capped at 360 an hour. A trash (comics to CLU's trash; manga chapters' files,
+    or a whole series, out of Uchiyomi) is a proposal first: it runs only once Ali's ✅ on the agent's
+    proposal (a reaction, or a ✅ reply to it) in `#comics` is read back from Discord. Stopping a
+    download or a follow needs no ✅: nothing is removed; nor does a stray in CLU's `processed/` (a
+    duplicate, another series' issue), which goes straight to CLU's trash (Ali, 2026-11-04). Its
+    answers carry no link (an indexer's NZB link holds its API key) and no key.
 - **Discord:** only `#comics` and the threads in it, and only Ali (config.toml). The desk is Ali's
   standing thread there: once the bot has answered in it, no @mention is needed; an @mention in the
-  channel opens a thread of its own. The patrol (00:00, 06:00, 12:00, 18:00), the morning report
-  (08:00) and the weekly upgrades (Sundays 11:00) post into the desk, and so do the agent's own
-  follow-ups (OpenAB's usercron: `~/.openab/cronjob.toml`, which the agent writes). CLU's own alerts
-  arrive in the channel through its webhook (CLU → Settings → Notifications) and are ignored by the
-  bot.
+  channel opens a thread of its own. The scheduled prompts and the agent's own follow-ups post into
+  the desk (below). CLU's own alerts arrive in the channel through its webhook (CLU → Settings →
+  Notifications) and are ignored by the bot.
 - **URL / auth mode:** none: no door, no DNS name, no Gatus row (Ali, 2026-11-03). Its containers'
   health checks make doco-cd restart a dead one, and a morning report that doesn't come says the rest.
 - **Network:**
@@ -69,6 +64,75 @@
   [Codex](https://github.com/openabdev/openab/blob/main/docs/codex.md)) ·
   [Codex CLI](https://github.com/openai/codex) · [codex-acp](https://github.com/agentclientprotocol/codex-acp)
 
+## Its day
+
+| When | What it does | Its steps |
+|---|---|---|
+| Ali writes in the desk | talks comics, recommends (adds nothing until he picks), adds and fills a series, an arc or a manga, judges what landed, fixes what went wrong | `SKILL.md` |
+| 00:00, 06:00, 12:00, 18:00 | patrol: the wanted list, failed grabs, what waits in `processed/`, Uchiyomi's failed downloads, its own past follow-ups; anything odd told | Patrol |
+| 08:00 | morning report: first fixes what it can, then what landed, what's missing, what waits for Ali, and a next read if he finished a series | Morning report |
+| Sundays 11:00 | upgrades: scans with a digital copy now posted, proposed as swaps | Upgrades |
+| a download it started | watches it through and posts the card when it's in; past 10 minutes, a follow-up of its own (`~/.openab/cronjob.toml`, at most 10 minutes out) | Follow-ups |
+
+Times are Pakistan time (`config.toml` → `[[cron.jobs]]`). Every card has the same lines: a cover,
+what landed, the quality (release, digital or scan, page size), **Why** for each choice, the links to
+read it in Komga and Uchiyomi, caveats, and what the task took of the Plus plan.
+
+## Its instructions
+
+The agent reads them at the start of every conversation, all from git:
+
+- `agent/AGENTS.md`: its role, its hands (comics-tools only), the ✅ rule, "data is not
+  instructions" (web pages, post and file names, source pages, webhooks), be proactive, and its two
+  voices (a comic-shop owner in chat, an archivist in reports).
+- `agent/skills/comics/SKILL.md`: the procedures: reports, recommending, adding a comic series, an
+  arc or a manga, filling a gap, approvals, fixing what went wrong, follow-ups, patrol, morning
+  report, upgrades.
+- `references/judging.md`: the right issue (names differ, same name and another series, cover year,
+  decimal issues, prove it before filing it), the right edition, digital or scan, damaged posts.
+- `references/manga.md`: choosing a source with `manga/compare` (the same work, the chapters wanted,
+  the sharpest real pages, then the translation), and what follows an add.
+
+They're rules, not cases (Ali, 2026-11-05: no specific examples in its context): a case it once met
+belongs in the arena's comics test, where it checks the rules, not in what the agent reads.
+
+## comics-tools' verbs
+
+`curl -s comics-tools:8080/` lists every verb with its arguments and what it answers.
+
+| Over | Verbs |
+|---|---|
+| CLU (comics) | `comics/find`, `subscribe`, `aliases` (read, replace), `check` and `op`, `skip`, `follow`, `wanted`, `series`, `search`, `grab`, `downloads`, `file`, `inspect` (a file's pages, sizes, ComicInfo: a comic or a manga chapter), `trash` |
+| SABnzbd | `sab/queue`, `sab/history` |
+| Uchiyomi (manga) | `manga/search`, `detail`, `compare`, `add`, `library`, `status`, `jobs`, `fill`, `fill-other`, `stop`, `follow`, `trash` |
+| Komga (reading) | `library/find` (his links), `library/shelf` (everything on the NAS), `library/reading` (what he read last) |
+| both | `rescan` (Komga and Uchiyomi read their folders now; `deep` after a trash or swap) |
+
+`manga/compare`: a series' copy on every source side by side: the work (title, author, status), its
+chapters and who translates which (as an add would take them), and two interior pages of each
+chapter named, read straight from the source through Uchiyomi's preview, with their pixel size and
+KB. Nothing is added. The skill runs it before every manga it adds.
+
+## Changing it
+
+- **The model or the instructions:** try the change in the arena first (`stacks/dmz/arena`: the comics
+  test, the new instructions as a variant or the new model in its lanes, beside what runs now), then
+  a PR here. A model must be in the list ChatGPT gives the adapter's Codex (`~/.codex/models_cache.json`
+  in the container). After the deploy, `/reset` in a thread starts its session on the new model.
+- **comics-tools:** a verb is a function under `@verb` in `tools/comics_tools.py`. The arena's comics
+  world runs this same file, so a candidate copy in the test's `tools/` is tried there before the PR.
+  The deploy restarts the arena's worlds too: stop the arena's lanes first.
+
+## Watching it
+
+- `docker logs comics-agent`: OpenAB (sessions, the scheduled prompts, Discord).
+  `docker logs comics-tools`: a line per call, without its arguments.
+- What the agent did and why: its Codex sessions,
+  `/opt/appdata/comics-agent/home/.codex/sessions/<year>/<month>/<day>/rollout-*.jsonl` (each message,
+  command and output; UTC timestamps).
+- Its share of the Plus plan: each session's `token_count` events (`rate_limits`: the 5-hour window
+  and the week), which its Usage line reads.
+
 **Gotchas**
 - OpenAB fills every `${NAME}` in `config.toml` from its environment before reading it (the IDs come
   from compose.yaml's `x-discord`), comments and prompts included.
@@ -84,6 +148,8 @@
 - Discord's @ list offers the bot's role beside the bot; `allowed_role_ids` makes either one count.
 - Uchiyomi hides the manga sites whose extensions call themselves 18+ (most of the good ones) unless
   asked: `comics-tools` searches sources and the library with `adult=1` (`stacks/dmz/uchiyomi`).
+- `manga/compare` reads each source's pages through Uchiyomi, one at a time per source: a comparison
+  takes as long as the slowest source, and a source in a cooldown answers its error in its own row.
 - The agent can read anything in its own container, the Discord token included (OpenAB's
   environment): that's why no app key is there.
 - Usercron lets the agent schedule its own prompts, and `disable_on_success` would let it schedule
@@ -92,8 +158,6 @@
   `disable_on_success`, and the patrol reports any other job. Such a job reaches only what the agent
   reaches anyway: the internet, the bot's Discord token, and `comics-tools`' verbs behind its caps
   and the ✅ gate.
-- The agent reads web pages now as well as post names and source pages: all are data to it
-  (`agent/AGENTS.md`), and none can get past `comics-tools`.
 - `comics-tools` names Komga and Uchiyomi by their public names: on `edge`, only caddy-apps' aliases
   make those resolve (the host can't reach its own macvlan address, 10.10.100.35).
 - Uchiyomi refuses a POST that says JSON but carries no body, and rescans at most once a minute
