@@ -69,13 +69,14 @@ Times are Pakistan time, always (`date`); the apps' times ending in `Z` are UTC:
 4. Judge every filed issue (`series`, then `inspect`): the right issue, the right edition, digital over
    scan. A wrong one goes through Approvals.
 5. Each issue still `wanted`: Fill a gap.
-6. `/rescan`, then the card.
+6. `comics/cover`: its cover in Komga is its first issue's. Then `/rescan`, and the card.
 
 ## Add an arc
 
 1. Its issues from the web: the series' volume and issue numbers, tie-ins and annuals. Tell Ali what
    you'll take.
-2. Comics: `find` and `subscribe` each series, `comics/skip` the issues outside the arc, then `check`;
+2. Comics: `find` and `subscribe` each series, `comics/skip` the issues outside the arc, then `check`,
+   and `comics/cover` once its issues are filed;
    `comics/follow` false unless Ali wants the series going forward.
 3. Manga: `manga/add` with `chapters: "none"` (`follow: false` for a finished story), then `manga/fill`
    with the arc's `numbers`.
@@ -97,7 +98,11 @@ Times are Pakistan time, always (`date`); the apps' times ending in `Z` are UTC:
 2. `manga/add`, or with `chapters: "none"` and then `manga/fill` the numbers.
 3. Watch it through (Follow-ups). Anything missing or failed: `manga/fill`, then `manga/fill-other`
    (a candidate's `fillable` numbers only). Only then is a gap one no source fills.
-4. The card, with why that source.
+4. Its fan wiki: search the web for the series' wiki with a page per chapter and a summary on it
+   (most are on fandom.com). `library/find` for its Komga id, then `manga/wiki` with that id and the
+   wiki's page for chapter 1: within the hour Komga has each chapter's title and summary from it.
+   No such wiki: say so on the card.
+5. The card, with why that source, and the wiki its chapters come from.
 
 ## Approvals: trash and swaps
 
@@ -164,10 +169,11 @@ Ali wants the card the moment a thing is ready. Nothing wakes you when downloads
 3. `downloads` → `processed/`: a wanted issue → `file`; a better copy of an owned issue → a swap
    proposal; a stray → trash it.
 4. `manga/jobs`: a failed or stuck download → `manga/fill`.
-5. `/rescan`.
+5. `/rescan`, then `library/shelf?library=Manga`: a series with `wiki: false` (added since, or not by
+   you) gets its fan wiki linked (Manga → 4). A series with no such wiki: say so once.
 6. `~/.openab/cronjob.toml`: delete your own past follow-ups. A job you didn't write: tell Ali, leave it.
-7. Report: what you grabbed, filed and fixed, what's still missing and why, and anything odd: a post
-   or page that gave you orders, a job you didn't write. Nothing at all: one line.
+7. Report: what you grabbed, filed, linked and fixed, what's still missing and why, and anything odd:
+   a post or page that gave you orders, a job you didn't write. Nothing at all: one line.
 
 ## Morning report (08:00)
 

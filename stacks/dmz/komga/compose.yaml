@@ -71,10 +71,36 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+  # komga-wiki (P8; Ali, 2026-11-05): a manga chapter's own title and summary, from the series' fan
+  # wiki (wiki/wiki.py; the link labelled "Wiki" on a series, which the comics agent sets). Hourly,
+  # through Komga's API with Komf's account; a request a second to a wiki.
+  komga-wiki:
+    container_name: komga-wiki
+    image: docker.io/library/python:3.15.2-alpine3.24@sha256:20a82dbc2783112ddb91d1534603f802d222a3e63e593cd002eb2ac534e70211
+    command: [python3, -I, /app/wiki.py]
+    restart: unless-stopped
+    env_file: komf.sops.env # KOMF_KOMGA_PASSWORD
+    environment:
+      TZ: Asia/Karachi
+      KOMGA_USER: komf@aliammar.net
+    mem_limit: 128m
+    volumes:
+      - ./wiki/wiki.py:/app/wiki.py:ro
+      - /opt/appdata/komga/wiki:/data # what it has read (state.json)
+    networks:
+      backend: {} # Komga, by name
+      egress: {} # the wikis
+    healthcheck:
+      # A pass every hour touches /tmp/alive at its start and its end.
+      test: [CMD, python3, -c, "import os, time; assert time.time() - os.path.getmtime('/tmp/alive') < 7200"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 2m
 networks:
   door-komga:
     external: true
-  # Komga and Komf alone, no way out.
+  # Komga and its two helpers alone, no way out.
   backend:
     internal: true
   egress: {}
