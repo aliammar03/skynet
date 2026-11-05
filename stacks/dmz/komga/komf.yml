@@ -1,12 +1,13 @@
-# Komf (P8; Ali, 2026-11-05): metadata and covers for Komga's two libraries, written through Komga's
-# API only, never into the files (CLU's and Uchiyomi's). Upstream's full example: github.com/Snd-R/komf.
-# From the environment (komf.sops.env): KOMF_KOMGA_PASSWORD, KOMF_METADATA_PROVIDERS_COMIC_VINE_API_KEY.
+# Komf (P8; Ali, 2026-11-05): metadata and covers for Komga's Manga library, written through Komga's
+# API only, never into the files (Uchiyomi's). Upstream's full example: github.com/Snd-R/komf.
+# From the environment (komf.sops.env): KOMF_KOMGA_PASSWORD. Comics are left alone: each issue's
+# ComicInfo (Metron, through CLU) is right, and every series' cover is CLU's issue #1 (folder.png).
 komga:
   baseUri: http://komga:25600 # on the stack's backend
   komgaUser: komf@aliammar.net # Komga's account for it, an admin (only an admin edits metadata)
   eventListener:
-    enabled: true # a series added to either library is matched when Komga reports it
-    metadataLibraryFilter: [0S2GKXTMMD47G, 0S2GKXV8CD7Q4]
+    enabled: true # a series added to the Manga library is matched when Komga reports it
+    metadataLibraryFilter: [0S2GKXTMMD47G]
     metadataSeriesExcludeFilter: []
     notificationsLibraryFilter: []
   metadataUpdate:
@@ -33,19 +34,6 @@ komga:
           alternativeSeriesTitles: true
           alternativeSeriesTitleLanguages: [en, ja-ro]
           orderBooks: false
-      # Comics: each issue's ComicInfo (Metron, through CLU) and its first page (its cover) are
-      # already right; Comic Vine adds the series' cover and nothing else.
-      0S2GKXV8CD7Q4:
-        libraryType: COMIC
-        updateModes: [API]
-        aggregate: false
-        seriesCovers: true
-        bookCovers: false
-        overrideExistingCovers: true
-        postProcessing:
-          seriesTitle: false
-          alternativeSeriesTitles: false
-          orderBooks: false
 
 database:
   file: /config/database.sqlite # its matches, in /opt/appdata/komga/komf
@@ -54,8 +42,10 @@ metadataProviders:
   defaultProviders:
     mangaUpdates:
       priority: 10
-      enabled: false # only the libraries' own providers, below
+      enabled: false # only the library's own providers, below
   libraryProviders:
+    # The series' metadata; a chapter gets its authors and links, but not the series' summary
+    # (Ali, 2026-11-05: none of these sources has a chapter's own).
     0S2GKXTMMD47G:
       aniList:
         priority: 10
@@ -63,49 +53,22 @@ metadataProviders:
         mediaType: MANGA # manga, manhwa and webtoons; not novels
         tagsScoreThreshold: 60
         tagsSizeLimit: 15
+        bookMetadata:
+          summary: false
       mangaUpdates:
         priority: 20
         enabled: true
         mediaType: MANGA
         authorRoles: [WRITER]
         artistRoles: [PENCILLER, INKER, COLORIST, LETTERER, COVER]
+        bookMetadata:
+          summary: false
       mangaDex:
         priority: 30
         enabled: true
         coverLanguages: [en, ja]
-    0S2GKXV8CD7Q4:
-      comicVine:
-        priority: 10
-        enabled: true
-        seriesMetadata:
-          status: false
-          title: false
-          titleSort: false
-          summary: false
-          publisher: false
-          readingDirection: false
-          ageRating: false
-          language: false
-          genres: false
-          tags: false
-          totalBookCount: false
-          authors: false
-          thumbnail: true
-          releaseDate: false
-          links: false
-          score: false
-          books: false
         bookMetadata:
-          title: false
           summary: false
-          number: false
-          numberSort: false
-          releaseDate: false
-          authors: false
-          tags: false
-          isbn: false
-          links: false
-          thumbnail: false
 
 server:
   port: 8085
