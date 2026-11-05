@@ -243,6 +243,17 @@ def comics_file(a):
     return call("POST", f"{CLU}/api/scan-downloads", timeout=600)
 
 
+@verb("POST", "/comics/cover", "series_id → CLU makes the series' cover, folder.png beside its issues: its first issue's cover (or the one Ali pinned in CLU); Komga shows it after /rescan")
+def comics_cover(a):
+    st = collection(int(need(a, "series_id")[0]))["issue_status"]
+    files = [v["file_path"] for v in st.values() if v.get("found") and v.get("file_path")]
+    if not files:
+        raise Refused(409, "no issue of that series is filed yet")
+    folder = os.path.dirname(files[0])
+    r = call("POST", f"{CLU}/api/generate-folder-thumbnail", {"folder_path": folder}, timeout=120)
+    return {"success": bool(r.get("success")), "cover": r.get("thumbnail_path") or f"{folder}/folder.png"}
+
+
 def inside(path):
     real = os.path.realpath(path)
     if not real.startswith(("/data/", "/downloads/", "/manga/")):
@@ -485,6 +496,33 @@ def manga_add(a):
     if a.get("chapters") == "none":  # the row and its listing, no download (Uchiyomi's chapterFrom: none)
         body["chapterFrom"] = "none"
     return call("POST", f"{UCHIYOMI}/api/sources/add", body, timeout=180)
+
+
+@verb("POST", "/manga/wiki", "komga_id (a manga series in Komga, from library/find), url (its fan wiki's page for chapter 1: https://…/wiki/…1) → the series' Wiki link in Komga: komga-wiki fills each chapter's title and summary from that wiki within the hour; answers the page's sections")
+def manga_wiki(a):
+    sid, url = need(a, "komga_id", "url")
+    u = urllib.parse.urlsplit(url)
+    m = re.fullmatch(r"(.*?)/wiki/(.*?0*1)", urllib.parse.unquote(u.path))
+    if u.scheme != "https" or not m:
+        raise Refused(400, "url: the wiki's page for chapter 1, https://<wiki>/wiki/<its name>1")
+    s = call("GET", f"{KOMGA}/api/v1/series/{q(sid)}")
+    if call("GET", f"{KOMGA}/api/v1/libraries/{q(s['libraryId'])}").get("name") != "Manga":
+        raise Refused(400, "komga_id: a series in Komga's Manga library")
+    ask = urllib.parse.urlencode({"action": "parse", "page": m.group(2), "prop": "sections", "format": "json",
+                                  "formatversion": 2, "redirects": 1})
+    found = None
+    for api in (f"https://{u.netloc}{m.group(1)}/api.php", f"https://{u.netloc}{m.group(1)}/w/api.php"):
+        try:  # Fandom's API, then MediaWiki's own path
+            found = call("GET", f"{api}?{ask}", timeout=30)
+            break
+        except (Refused, OSError, ValueError):
+            continue
+    if not isinstance(found, dict) or "parse" not in found:
+        raise Refused(404, "that wiki has no such page")
+    links = [x for x in s["metadata"].get("links") or [] if (x.get("label") or "").lower() != "wiki"]
+    call("PATCH", f"{KOMGA}/api/v1/series/{q(sid)}/metadata", {"links": links + [{"label": "Wiki", "url": url}]})
+    return {"success": True, "series": s["metadata"].get("title") or s.get("name"),
+            "sections": [x.get("line") for x in found["parse"].get("sections") or []][:8]}
 
 
 @verb("GET", "/manga/library", "q → series in Uchiyomi's library (id, name, books)")

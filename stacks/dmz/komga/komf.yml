@@ -44,8 +44,9 @@ metadataProviders:
       priority: 10
       enabled: false # only the library's own providers, below
   libraryProviders:
-    # The series' metadata; a chapter gets its authors and links, but not the series' summary
-    # (Ali, 2026-11-05: none of these sources has a chapter's own).
+    # The series' metadata; a chapter gets its authors and links, not a title or the series' summary:
+    # none of these sources has a chapter's own (Ali, 2026-11-05). Its own come from the series' fan
+    # wiki (komga-wiki).
     0S2GKXTMMD47G:
       aniList:
         priority: 10
@@ -54,6 +55,7 @@ metadataProviders:
         tagsScoreThreshold: 60
         tagsSizeLimit: 15
         bookMetadata:
+          title: false
           summary: false
       mangaUpdates:
         priority: 20
@@ -62,12 +64,14 @@ metadataProviders:
         authorRoles: [WRITER]
         artistRoles: [PENCILLER, INKER, COLORIST, LETTERER, COVER]
         bookMetadata:
+          title: false
           summary: false
       mangaDex:
         priority: 30
         enabled: true
         coverLanguages: [en, ja]
         bookMetadata:
+          title: false
           summary: false
 
 server:

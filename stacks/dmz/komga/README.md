@@ -8,8 +8,15 @@
     then MangaDex, each filling what the one before lacks: summary, status, genres, tags, authors,
     score, links, alternative titles, and the series' cover art (Uchiyomi's chapters carry only a
     title and a number, and no cover). Series titles stay as the folders name them; a chapter gets
-    the series' authors and links, not its summary. A series added is matched when Komga reports
-    it.
+    the series' authors and links, not a title or the series' summary. A series added is matched
+    when Komga reports it.
+  - `komga-wiki` (`wiki/wiki.py`; Ali, 2026-11-05): a manga chapter's own title and summary, from the
+    series' fan wiki, which the comics agent links (Komga's link labelled "Wiki", to its page for
+    chapter 1; comics-tools' `manga/wiki`). Hourly, it reads each chapter's page through the
+    wiki's MediaWiki API (a request a second), takes the infobox's title and the short summary as
+    plain text, and writes both into Komga, locked: nothing overwrites them, and a chapter with
+    both is never read again. A chapter the wiki hasn't written yet is read again a week later. A
+    Wiki link a later Komf match drops is put back.
   - Comics need neither: each issue's ComicInfo (Metron, through CLU) is right, and every series'
     cover is its issue #1's, `folder.png` from CLU (its folder art set to Single Image, Ali
     2026-11-05; a pinned issue in CLU replaces it).
@@ -36,12 +43,13 @@
 - **Data:** `/opt/appdata/komga/config` → `/config`: its database, thumbnails (Komf's covers among
   them), search index and sessions (backup class: data), and `logs/` (cache:
   `stacks/dmz/backup/excludes.txt`). `/opt/appdata/komga/komf` → Komf's `/config`: its matches
-  (`database.sqlite`; data).
+  (`database.sqlite`; data). `/opt/appdata/komga/wiki` → komga-wiki's `/data`: each series' wiki and
+  when a chapter was last read (`state.json`; data).
 - **Secrets:**
   - `oidc.sops.env`: `SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_AUTHELIA_CLIENT_SECRET`
     (agent-generated; its digest is in `stacks/dmz/authelia/oidc-clients.yml`).
-  - `komf.sops.env`, Komf's: `KOMF_KOMGA_PASSWORD` (its Komga account, `komf@aliammar.net`, an
-    administrator: only an admin edits metadata), Ali's. It also holds Ali's
+  - `komf.sops.env`, Komf's and komga-wiki's: `KOMF_KOMGA_PASSWORD` (their Komga account,
+    `komf@aliammar.net`, an administrator: only an admin edits metadata), Ali's. It also holds Ali's
     `KOMF_METADATA_PROVIDERS_COMIC_VINE_API_KEY`, which Komf no longer uses.
 - **Setup (Komf, once):** Ali makes the account (Komga → Server → Users → add `komf@aliammar.net`,
   Administrator) and puts its password into `komf.sops.env`
@@ -71,3 +79,7 @@
 - Komf's Comic Vine provider can't read Comic Vine's answers since Comic Vine changed a field from
   text to a number (Komf #350, open since 2026-10-23); it would only offer smaller copies of the
   covers CLU already gives.
+- A wiki is linked by its page for chapter 1, and that page's name gives every other's: `Chapter_1` →
+  `Chapter_1126`, `Chapter_001` → `Chapter_007`. A wiki that names its pages otherwise doesn't fill.
+- A chapter's title or summary edited and locked by hand in Komga stays: komga-wiki writes only what
+  isn't locked.

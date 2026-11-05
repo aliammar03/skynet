@@ -69,13 +69,14 @@ Times are Pakistan time, always (`date`); the apps' times ending in `Z` are UTC:
 4. Judge every filed issue (`series`, then `inspect`): the right issue, the right edition, digital over
    scan. A wrong one goes through Approvals.
 5. Each issue still `wanted`: Fill a gap.
-6. `/rescan`, then the card.
+6. `comics/cover`: its cover in Komga is its first issue's. Then `/rescan`, and the card.
 
 ## Add an arc
 
 1. Its issues from the web: the series' volume and issue numbers, tie-ins and annuals. Tell Ali what
    you'll take.
-2. Comics: `find` and `subscribe` each series, `comics/skip` the issues outside the arc, then `check`;
+2. Comics: `find` and `subscribe` each series, `comics/skip` the issues outside the arc, then `check`,
+   and `comics/cover` once its issues are filed;
    `comics/follow` false unless Ali wants the series going forward.
 3. Manga: `manga/add` with `chapters: "none"` (`follow: false` for a finished story), then `manga/fill`
    with the arc's `numbers`.
@@ -97,7 +98,11 @@ Times are Pakistan time, always (`date`); the apps' times ending in `Z` are UTC:
 2. `manga/add`, or with `chapters: "none"` and then `manga/fill` the numbers.
 3. Watch it through (Follow-ups). Anything missing or failed: `manga/fill`, then `manga/fill-other`
    (a candidate's `fillable` numbers only). Only then is a gap one no source fills.
-4. The card, with why that source.
+4. Its fan wiki: search the web for the series' wiki with a page per chapter and a summary on it
+   (most are on fandom.com). `library/find` for its Komga id, then `manga/wiki` with that id and the
+   wiki's page for chapter 1: within the hour Komga has each chapter's title and summary from it.
+   No such wiki: say so on the card.
+5. The card, with why that source, and the wiki its chapters come from.
 
 ## Approvals: trash and swaps
 

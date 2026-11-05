@@ -33,5 +33,8 @@ comics CLU can't get: CLU first.
 - `manga/fill` fetches the `missing` and `failed` ones from its own sources; `manga/fill-other` asks
   the others (they answer for a few minutes under one `planId`): fetch a candidate's `fillable`
   numbers only; `numbering_mismatch` means its numbers don't line up.
+- A chapter's own title and summary come from the series' fan wiki, once it's linked
+  (`manga/wiki`); the providers know only the series. A chapter the wiki hasn't written
+  yet is filled in later, by itself.
 - Gaps no source fills: report them by number. A series may skip numbers on purpose (an extra, a
   renumbering); say so when the sources agree.
