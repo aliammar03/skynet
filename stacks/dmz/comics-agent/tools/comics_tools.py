@@ -314,6 +314,53 @@ def comics_inspect(a):
             "comicinfo": ci}
 
 
+IDLE = 24  # hours an unpacked issue sits untouched before it's put back: before that, Ali may be editing it
+
+
+def unpacked_at(folder):
+    """The issue CLU's editor left unpacked into `folder`, or None. Its Edit renames <issue>.cbz to
+    <issue>.zip and unpacks the pages into <issue>_folder; only its Save packs them back, and it has no
+    Cancel. `edited`: the pages there differ from the issue's (a crop, a page deleted)."""
+    base = folder[: -len("_folder")]
+    if not folder.endswith("_folder") or not os.path.isdir(folder) or not os.path.isfile(base + ".zip") \
+            or os.path.exists(base + ".cbz"):
+        return None
+    touched, pages = [], {}
+    for root, _, files in os.walk(folder):
+        touched.append(os.path.getmtime(root))
+        for f in files:
+            p = os.path.join(root, f)
+            touched.append(os.path.getmtime(p))
+            if f.lower().endswith(IMAGES):
+                pages[os.path.relpath(p, folder)] = os.path.getsize(p)
+    with zipfile.ZipFile(base + ".zip") as z:
+        original = {i.filename: i.file_size for i in z.infolist() if i.filename.lower().endswith(IMAGES)}
+    return {"issue": base + ".cbz", "path": folder, "idle_hours": round((time.time() - max(touched)) / 3600, 1),
+            "edited": pages != original}
+
+
+@verb("GET", "/comics/unpacked", "→ issues CLU's editor left unpacked in the library (Ali opened Edit and never saved): each one's path, how many hours it has sat untouched, whether its pages were edited")
+def comics_unpacked(a):
+    out = []
+    for root, dirs, _ in os.walk("/data"):
+        out += filter(None, (unpacked_at(os.path.join(root, d)) for d in dirs if d.endswith("_folder")))
+        dirs[:] = [d for d in dirs if not d.endswith("_folder")]  # not into the pages
+    return out
+
+
+@verb("POST", "/comics/unpacked", f"path (from GET) → the issue back as it was (CLU renames it back to .cbz), the unpacked pages, edits and all, in CLU's trash; only one untouched for {IDLE} hours. Then /rescan with deep")
+def comics_put_back(a):
+    folder = os.path.realpath(need(a, "path")[0])
+    u = unpacked_at(folder) if folder.startswith("/data/") else None
+    if not u:
+        raise Refused(404, "not an issue CLU's editor left unpacked in the library: GET /comics/unpacked")
+    if u["idle_hours"] < IDLE:
+        raise Refused(409, f"touched {u['idle_hours']} hours ago: Ali may still be editing it")
+    call("POST", f"{CLU}/rename", {"old": folder[: -len("_folder")] + ".zip", "new": u["issue"]})  # the issue first
+    trashed = call("POST", f"{CLU}/api/delete-multiple", {"targets": [folder]})["results"][0]
+    return {"issue": u["issue"], "edited": u["edited"], "pages": "in CLU's trash" if trashed.get("success") else trashed.get("error")}
+
+
 @verb("POST", "/comics/trash", "paths: [strays in /downloads/processed] → CLU's trash now; series_id + issues: [numbers] | paths: [other files] → a proposal for Ali's ✅; then code + the ✅'s message_id, thread_id, channel_id → CLU's trash")
 def comics_trash(a):
     if a.get("code"):

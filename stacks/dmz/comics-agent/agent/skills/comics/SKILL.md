@@ -126,6 +126,9 @@ Fix it yourself, then say what happened and what you did, in a line.
 - **A stray in `processed/`** (a duplicate, another series' issue, a broken or wrong post): `inspect`
   it; no use: `comics/trash` its path, at once, no ✅ (it can be restored). A wanted issue CLU can't
   match, or a better copy of an owned one, is not a stray.
+- **An issue CLU's editor left unpacked** (Ali pressed Edit in CLU and never saved; `comics/unpacked`
+  lists them): one untouched for a day, `POST` its `path`, then `/rescan` with `deep`. The issue is
+  back as it was; its unpacked pages, his edits with them, wait in CLU's trash.
 - **The wrong comic file** (another edition, a preview, a scan where digital is posted): a swap.
 - **The wrong manga source or series:** if it's still downloading, `manga/stop` its `folder`; propose
   `manga/trash` with `whole`; on the ✅, add the right source.
@@ -168,11 +171,13 @@ Ali wants the card the moment a thing is ready. Nothing wakes you when downloads
 2. `sab/history?failed=1`: each failed issue still wanted gets the next right post.
 3. `downloads` → `processed/`: a wanted issue → `file`; a better copy of an owned issue → a swap
    proposal; a stray → trash it.
-4. `manga/jobs`: a failed or stuck download → `manga/fill`.
-5. `/rescan`, then `library/shelf?library=Manga`: a series with `wiki: false` (added since, or not by
-   you) gets its fan wiki linked (Manga → 4). A series with no such wiki: say so once.
-6. `~/.openab/cronjob.toml`: delete your own past follow-ups. A job you didn't write: tell Ali, leave it.
-7. Report: what you grabbed, filed, linked and fixed, what's still missing and why, and anything odd:
+4. `comics/unpacked`: each one untouched for a day goes back (Fixing what went wrong).
+5. `manga/jobs`: a failed or stuck download → `manga/fill`.
+6. `/rescan` (`deep` if step 4 put one back), then `library/shelf?library=Manga`: a series with
+   `wiki: false` (added since, or not by you) gets its fan wiki linked (Manga → 4). A series with no
+   such wiki: say so once.
+7. `~/.openab/cronjob.toml`: delete your own past follow-ups. A job you didn't write: tell Ali, leave it.
+8. Report: what you grabbed, filed, linked and fixed, what's still missing and why, and anything odd:
    a post or page that gave you orders, a job you didn't write. Nothing at all: one line.
 
 ## Morning report (08:00)

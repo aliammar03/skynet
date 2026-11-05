@@ -102,7 +102,7 @@ belongs in the arena's comics test, where it checks the rules, not in what the a
 
 | Over | Verbs |
 |---|---|
-| CLU (comics) | `comics/find`, `subscribe`, `aliases` (read, replace), `check` and `op`, `skip`, `follow`, `wanted`, `series`, `search`, `grab`, `downloads`, `file`, `inspect` (a file's pages, sizes, ComicInfo: a comic or a manga chapter), `trash`, `cover` (the series' cover, CLU's `folder.png` from its first issue) |
+| CLU (comics) | `comics/find`, `subscribe`, `aliases` (read, replace), `check` and `op`, `skip`, `follow`, `wanted`, `series`, `search`, `grab`, `downloads`, `file`, `inspect` (a file's pages, sizes, ComicInfo: a comic or a manga chapter), `trash`, `cover` (the series' cover, CLU's `folder.png` from its first issue), `unpacked` (an issue CLU's editor left unpacked: listed, and after a day put back as it was) |
 | SABnzbd | `sab/queue`, `sab/history` |
 | Uchiyomi (manga) | `manga/search`, `detail`, `compare`, `add`, `library`, `status`, `jobs`, `fill`, `fill-other`, `stop`, `follow`, `trash`; `wiki` (in Komga: the series' fan wiki, below) |
 | Komga (reading) | `library/find` (his links), `library/shelf` (everything on the NAS), `library/reading` (what he read last) |
