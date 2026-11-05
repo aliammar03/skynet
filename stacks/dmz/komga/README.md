@@ -6,17 +6,18 @@
   - `komf` (Komf 2.1, `komf.yml`; Ali, 2026-11-05): the Manga library's metadata and covers,
     through Komga's API only: no file is touched (they're Uchiyomi's). AniList, then MangaUpdates,
     then MangaDex, each filling what the one before lacks: summary, status, genres, tags, authors,
-    score, links, alternative titles, and the series' cover art (Uchiyomi's chapters carry only a
-    title and a number, and no cover). Series titles stay as the folders name them; a chapter gets
-    the series' authors and links, not a title or the series' summary. A series added is matched
-    when Komga reports it.
+    score, links, alternative titles, and the series' cover art, which Uchiyomi's files lack. Series
+    titles stay as the folders name them; a chapter gets the series' authors and links, not a title
+    or the series' summary. A series added is matched when Komga reports it.
   - `komga-wiki` (`wiki/wiki.py`; Ali, 2026-11-05): a manga chapter's own title and summary, from the
     series' fan wiki, which the comics agent links (Komga's link labelled "Wiki", to its page for
     chapter 1; comics-tools' `manga/wiki`). Hourly, it reads each chapter's page through the
     wiki's MediaWiki API (a request a second), takes the infobox's title and the short summary as
     plain text, and writes both into Komga, locked: nothing overwrites them, and a chapter with
     both is never read again. A chapter the wiki hasn't written yet is read again a week later. A
-    Wiki link a later Komf match drops is put back.
+    Wiki link a later Komf match drops is put back. It also clears the series' description from
+    every manga chapter, linked or not: Uchiyomi writes it into each chapter's ComicInfo, and Komga
+    reads it from there. A chapter shows its own summary or none.
   - Comics need neither: each issue's ComicInfo (Metron, through CLU) is right, and every series'
     cover is its issue #1's, `folder.png` from CLU (its folder art set to Single Image, Ali
     2026-11-05; a pinned issue in CLU replaces it).
@@ -71,6 +72,10 @@
   `reset/library/<id>[/series/<id>]`); every other path is its web page, which answers 200 to
   anything. A wrong match is fixed with `identify` (the series and the provider's id), or undone
   with `reset`.
+- Komf's `reset` also gives the chapters Komga's defaults: the file's name as title, and their
+  position as number (1, 2, 3…, wrong for a series that starts at chapter 1126). A metadata refresh
+  of the series in Komga reads the files' numbers back (`POST /api/v1/series/<id>/metadata/refresh`);
+  until then komga-wiki leaves those chapters alone.
 - Komf matches a series by its name; a match is checked against the series' author after the first
   pass.
 - Komf's covers are uploaded thumbnails, selected in Komga; Komga's own (the first book's first
