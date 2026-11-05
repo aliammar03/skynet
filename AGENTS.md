@@ -31,6 +31,11 @@ phase are in [`skynetv2.md`](skynetv2.md) — read its Status first.
 - A stack is one folder `stacks/<target>/<name>/`: `compose.yaml`, `secret.sops.env`, `README.md`. Its
   route (a site file in the door) and its Gatus row land in the same PR (`runbooks/new-stack.md`;
   contract in `skynetv2.md` → Conventions).
+- **Ali's steps are exact commands** (Ali, 2026-11-05): whatever he has to run (git, `sops`, ssh),
+  give it complete, in order and ready to paste, in chat and in PRs alike: the `cd`, `git fetch
+  origin`, `git switch <branch>` (not checked out in your worktree), `nix shell nixpkgs#sops -c sops
+  <file>` with the exact lines to set, `git add <file>`, `git commit -m "…"`, `git push origin
+  <branch>`, `git switch main`. Never a step in prose ("put it in, then commit and push").
 - Docs state current truth, tersely. No incident stories in docs.
 - When a phase is an outline, flesh it out in `skynetv2.md` (PR) before executing it.
 - Recurring jobs (a new VM, a new stack, the DNS speed test) follow `runbooks/`. Fix the runbook in the
