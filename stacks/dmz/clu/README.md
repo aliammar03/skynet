@@ -169,8 +169,10 @@
   issues it still wants: a better copy of an issue it has (a digital release for a scan) stays in
   `processed/` until moved into the series folder by hand.
 - An issue's Edit window unpacks it in place, as `<name>.zip` and `<name>_folder`; only Save packs
-  it back, and closing the window leaves it unpacked. Re-packing a CBZ whose pages sit in one
-  subfolder can stop half-way with no error logged, leaving the same pair: grab another copy instead.
+  it back, and closing the window leaves it unpacked. The comics agent's patrol puts an issue left
+  so for a day back as it was (`comics/unpacked`: CLU's rename back to `.cbz`, the unpacked pages to
+  its trash). Re-packing a CBZ whose pages sit in one subfolder can stop half-way with no error
+  logged, leaving the same pair: grab another copy instead.
 - A series page's "check for missing issues" is a real search and download, not a count.
 - It names a download in `temp/` from the release's name, where `{volume_year}` can only be the year
   in that name (the cover year: `Watchmen (1987) #005`); the patch renames it at filing
