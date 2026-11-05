@@ -30,7 +30,10 @@ services:
     restart: unless-stopped
     # Saved to disk each minute something changed, and when it stops: a reboot keeps them too.
     command: [redis-server, --save, "60 1", --appendonly, "no"]
-    mem_limit: 64m # measured 2026-10-29: 6 MiB holding a session
+    # Every cookie-less request through the door leaves a session for a week (~720 B each). Measured
+    # 2026-11-06: 54 MiB holding 72k, nearly all from Gatus; the save each minute forks, which needs
+    # room for a second copy of what changes meanwhile.
+    mem_limit: 256m
     volumes:
       - /opt/appdata/authelia/redis:/data # sessions (backup class: cache)
     networks: [backend]
