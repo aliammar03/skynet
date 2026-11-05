@@ -3,14 +3,16 @@
 - **Purpose:** the comics and manga library (P8): a series per folder at any depth, a web reader
   (right to left, double pages, webtoon scroll), and feeds for iPad apps: OPDS
   (`/opds/v1.2/catalog`, for Panels) and its own API (Komic).
-  - `komf` (Komf 2.1, `komf.yml`; Ali, 2026-11-05): metadata and covers, through Komga's API only:
-    no file is touched (they're CLU's and Uchiyomi's). **Manga:** AniList, then MangaUpdates, then
-    MangaDex, each filling what the one before lacks: summary, status, genres, tags, authors,
+  - `komf` (Komf 2.1, `komf.yml`; Ali, 2026-11-05): the Manga library's metadata and covers,
+    through Komga's API only: no file is touched (they're Uchiyomi's). AniList, then MangaUpdates,
+    then MangaDex, each filling what the one before lacks: summary, status, genres, tags, authors,
     score, links, alternative titles, and the series' cover art (Uchiyomi's chapters carry only a
-    title and a number, and no cover). Series titles stay as the folders name them. **Comics:**
-    Comic Vine, the series' cover only: each issue's own metadata (Metron, through CLU) and cover
-    (its first page) are already right. A series added to either library is matched when Komga
-    reports it.
+    title and a number, and no cover). Series titles stay as the folders name them; a chapter gets
+    the series' authors and links, not its summary. A series added is matched when Komga reports
+    it.
+  - Comics need neither: each issue's ComicInfo (Metron, through CLU) is right, and every series'
+    cover is its issue #1's, `folder.png` from CLU (its folder art set to Single Image, Ali
+    2026-11-05; a pinned issue in CLU replaces it).
 - **URL:** https://komga.aliammar.net (caddy-apps → `komga:25600` on `door-komga`). Inside and over
   Tailscale; not public.
 - **Auth mode:** own, plus oidc: sign-in through the apps' Authelia (client `komga`, policy `admins`).
@@ -39,14 +41,14 @@
   - `oidc.sops.env`: `SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_AUTHELIA_CLIENT_SECRET`
     (agent-generated; its digest is in `stacks/dmz/authelia/oidc-clients.yml`).
   - `komf.sops.env`, Komf's: `KOMF_KOMGA_PASSWORD` (its Komga account, `komf@aliammar.net`, an
-    administrator: only an admin edits metadata) and `KOMF_METADATA_PROVIDERS_COMIC_VINE_API_KEY`
-    (Comic Vine's API page, on Ali's account). Both Ali's.
+    administrator: only an admin edits metadata), Ali's. It also holds Ali's
+    `KOMF_METADATA_PROVIDERS_COMIC_VINE_API_KEY`, which Komf no longer uses.
 - **Setup (Komf, once):** Ali makes the account (Komga → Server → Users → add `komf@aliammar.net`,
-  Administrator) and Comic Vine's key, and puts both into `komf.sops.env`
+  Administrator) and puts its password into `komf.sops.env`
   (`nix shell nixpkgs#sops -c sops stacks/dmz/komga/komf.sops.env`). After the deploy the agent
-  matches what's already there, a library at a time, and spot-checks the result:
-  `docker exec komf curl -fsS -X POST http://127.0.0.1:8085/komga/match/library/<id>` (Manga
-  `0S2GKXTMMD47G`, Comics `0S2GKXV8CD7Q4`).
+  matches what's already there and spot-checks the result:
+  `docker exec komf curl -fsS -X POST http://127.0.0.1:8085/komga/match/library/0S2GKXTMMD47G`
+  (the Manga library).
 - **Upstream:** [Komga](https://komga.org/docs/introduction) ·
   [Authelia's Komga guide](https://www.authelia.com/integration/openid-connect/clients/komga/) ·
   [Komf](https://github.com/Snd-R/komf)
@@ -61,7 +63,11 @@
   `reset/library/<id>[/series/<id>]`); every other path is its web page, which answers 200 to
   anything. A wrong match is fixed with `identify` (the series and the provider's id), or undone
   with `reset`.
-- Komf matches a series by its name. Comic Vine has many volumes of one name (relaunches): a comics
-  series' cover is checked against the series after the first pass.
+- Komf matches a series by its name; a match is checked against the series' author after the first
+  pass.
 - Komf's covers are uploaded thumbnails, selected in Komga; Komga's own (the first book's first
-  page) stays, a click away.
+  page) stays, a click away. A comics series' cover is a sidecar (`folder.png`), which Komga
+  selects at its next scan.
+- Komf's Comic Vine provider can't read Comic Vine's answers since Comic Vine changed a field from
+  text to a number (Komf #350, open since 2026-10-23); it would only offer smaller copies of the
+  covers CLU already gives.

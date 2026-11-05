@@ -46,15 +46,14 @@ services:
       timeout: 5s
       retries: 3
       start_period: 1m
-  # Komf (P8; Ali, 2026-11-05): metadata and covers for both libraries from AniList, MangaUpdates,
-  # MangaDex and Comic Vine (komf.yml), through Komga's API: no file is touched. A new series is
-  # matched when Komga reports it. Its own API has no login: only Komga shares a network with it.
+  # Komf (P8; Ali, 2026-11-05): the Manga library's metadata and covers from AniList, MangaUpdates
+  # and MangaDex (komf.yml), through Komga's API: no file is touched. A new series is matched when
+  # Komga reports it. Its own API has no login: only Komga shares a network with it.
   komf:
     container_name: komf
     image: docker.io/sndxr/komf:2.1.0@sha256:373580779e2e75d4e00e2f05859f789e05691c54600ca83d1cb528f0aad1f7b6
     restart: unless-stopped
-    # KOMF_KOMGA_PASSWORD (its Komga account, komf@aliammar.net) and
-    # KOMF_METADATA_PROVIDERS_COMIC_VINE_API_KEY, both Ali's.
+    # KOMF_KOMGA_PASSWORD (its Komga account, komf@aliammar.net), Ali's.
     env_file: komf.sops.env
     environment:
       TZ: Asia/Karachi
