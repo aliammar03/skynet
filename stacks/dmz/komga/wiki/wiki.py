@@ -5,9 +5,11 @@ chapter 1 (the comics agent sets it: comics-tools' manga/wiki). That page's name
 "Chapter_1" → "Chapter_1126". For each chapter, the job reads its page through the wiki's MediaWiki
 API, takes the title from the infobox and the short summary as plain text, and writes both into
 Komga, locked: nothing overwrites them, and a chapter with both is never read again. A chapter
-whose page or summary isn't written yet is read again a week later. A Wiki link a later match
-dropped (Komf replaces links) is put back. Hourly, a request a second to a wiki. Python's standard
-library only."""
+whose page or summary isn't written yet is read again a week later, and one whose number isn't its
+file's (Komf's reset numbers them 1, 2, 3…) once it is again. A Wiki link a later match dropped
+(Komf replaces links) is put back. Every chapter in the library, linked or not, loses the series'
+description that Uchiyomi writes into each one: a chapter shows its own summary or none. Hourly, a
+request a second to a wiki. Python's standard library only."""
 import base64
 import json
 import os
@@ -119,11 +121,30 @@ def wiki_link(series):
     return next((x["url"] for x in series["metadata"].get("links") or [] if x.get("label", "").lower() == "wiki"), None)
 
 
+def numbered(book):
+    """Whether a chapter's number in Komga is the one its file's name ends with, when it ends with one:
+    renumbered chapters' pages would be other chapters'."""
+    f = re.search(r"(\d+(?:\.\d+)?)\s*$", book["name"])
+    try:
+        return not f or float(f.group(1)) == float(book["metadata"]["number"])
+    except ValueError:
+        return False
+
+
 def run(state, now=None, sleep=time.sleep):
-    """A pass over the library: every linked series' chapters still to fill. Returns what it did."""
+    """A pass over the library: the series' description off every chapter, and every linked series'
+    chapters still to fill. Returns what it read."""
     now, done = now or time.time(), []
     series = komga("GET", f"/api/v1/series?library_id={LIBRARY}&unpaged=true")["content"]
     for s in series:
+        books = komga("GET", f"/api/v1/series/{s['id']}/books?unpaged=true")["content"]
+        cleared = 0
+        for b in books:  # unlocked: from the file's ComicInfo, where Uchiyomi puts the series' description
+            if b["metadata"].get("summary") and not b["metadata"].get("summaryLock"):
+                komga("PATCH", f"/api/v1/books/{b['id']}/metadata", {"summary": ""})
+                cleared += 1
+        if cleared:
+            print(f"{s['name']}: the series' description cleared from {cleared} chapters", flush=True)
         link = wiki_link(s)
         if link:
             state["wikis"][s["id"]] = link
@@ -135,10 +156,13 @@ def run(state, now=None, sleep=time.sleep):
         if not wiki:
             continue
         apis, name = wiki
-        filled = waiting = 0
-        for b in komga("GET", f"/api/v1/series/{s['id']}/books?unpaged=true")["content"]:
+        filled = waiting = renumbered = 0
+        for b in books:
             m = b["metadata"]
             if (m.get("titleLock") and m.get("summaryLock")) or now - state["checked"].get(b["id"], 0) < AGAIN:
+                continue
+            if not numbered(b):
+                renumbered += 1
                 continue
             try:
                 text = page(apis, name(m["number"]))
@@ -161,6 +185,9 @@ def run(state, now=None, sleep=time.sleep):
             done.append((s["name"], m["number"], bool(title), bool(summary)))
         if filled or waiting:
             print(f"{s['name']}: {filled} chapters filled, {waiting} without a page or summary yet", flush=True)
+        if renumbered:
+            print(f"{s['name']}: {renumbered} chapters left alone: their number isn't their file's "
+                  "(a metadata refresh of the series in Komga reads it back)", flush=True)
         save(state)
     return done
 
