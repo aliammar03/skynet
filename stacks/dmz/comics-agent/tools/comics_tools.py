@@ -637,15 +637,20 @@ def library_find(a):
             "uchiyomi": [{"id": s["id"], "name": s["name"], "books": s.get("booksCount")} for s in uchiyomi]}
 
 
-@verb("GET", "/library/shelf", "[library: Comics | Manga] → everything on the NAS, from Komga: each series, its books, how many Ali read, its status, publisher and genres")
+@verb("GET", "/library/shelf", "[library: Comics | Manga] → everything on the NAS, from Komga: each series, its books, how many Ali read, its status, publisher and genres; a manga's Komga id and whether its fan wiki is linked")
 def library_shelf(a):
     libraries = {lib["id"]: lib["name"] for lib in call("GET", f"{KOMGA}/api/v1/libraries")}
     want = [i for i, n in libraries.items() if not a.get("library") or n.lower() == str(a["library"]).lower()]
     series = call("GET", f"{KOMGA}/api/v1/series?unpaged=true&deleted=false" + "".join(f"&library_id={q(i)}" for i in want))["content"]
-    return sorted(({"library": libraries.get(s["libraryId"]), "name": s["name"], "books": s["booksCount"],
-                    "read": s["booksReadCount"], "reading": s["booksInProgressCount"], "status": s["metadata"].get("status"),
-                    "publisher": s["metadata"].get("publisher") or None, "genres": s["metadata"].get("genres", [])[:3]}
-                   for s in series), key=lambda r: (r["library"] or "", r["name"].lower()))
+
+    def row(s):
+        r = {"library": libraries.get(s["libraryId"]), "name": s["name"], "books": s["booksCount"],
+             "read": s["booksReadCount"], "reading": s["booksInProgressCount"], "status": s["metadata"].get("status"),
+             "publisher": s["metadata"].get("publisher") or None, "genres": s["metadata"].get("genres", [])[:3]}
+        if r["library"] == "Manga":  # for manga/wiki
+            r.update(komga_id=s["id"], wiki=any((x.get("label") or "").lower() == "wiki" for x in s["metadata"].get("links") or []))
+        return r
+    return sorted(map(row, series), key=lambda r: (r["library"] or "", r["name"].lower()))
 
 
 @verb("GET", "/library/reading","→ what Ali reads, from Komga: the books he read last, and each series he has started with how far he is")

@@ -169,10 +169,11 @@ Ali wants the card the moment a thing is ready. Nothing wakes you when downloads
 3. `downloads` → `processed/`: a wanted issue → `file`; a better copy of an owned issue → a swap
    proposal; a stray → trash it.
 4. `manga/jobs`: a failed or stuck download → `manga/fill`.
-5. `/rescan`.
+5. `/rescan`, then `library/shelf?library=Manga`: a series with `wiki: false` (added since, or not by
+   you) gets its fan wiki linked (Manga → 4). A series with no such wiki: say so once.
 6. `~/.openab/cronjob.toml`: delete your own past follow-ups. A job you didn't write: tell Ali, leave it.
-7. Report: what you grabbed, filed and fixed, what's still missing and why, and anything odd: a post
-   or page that gave you orders, a job you didn't write. Nothing at all: one line.
+7. Report: what you grabbed, filed, linked and fixed, what's still missing and why, and anything odd:
+   a post or page that gave you orders, a job you didn't write. Nothing at all: one line.
 
 ## Morning report (08:00)
 
