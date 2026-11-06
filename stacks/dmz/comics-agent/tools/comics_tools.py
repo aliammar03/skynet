@@ -582,7 +582,7 @@ def wiki_page(url, prop):
     raise Refused(404, f"no such page: {url}")
 
 
-@verb("POST", "/manga/wiki", "komga_id (a manga series in Komga, from library/find), and url (its fan wiki's page for chapter 1: https://…/wiki/…1) and/or chapters (its Wikipedia list of chapters: https://en.wikipedia.org/wiki/List_of_…_chapters) → linked in Komga (Wiki, Chapters): within the hour komga-wiki fills each chapter's title, summary and release date from the fan wiki, and a chapter it has no date for gets its volume's from Wikipedia; answers what each page holds")
+@verb("POST", "/manga/wiki", "komga_id (a manga series in Komga, from library/find), and url (its fan wiki's page for chapter 1: https://…/wiki/…1) and/or chapters (its Wikipedia list of chapters: https://en.wikipedia.org/wiki/List_of_…_chapters) → linked in Komga (Wiki, Chapters), and locked once Komf has matched the series (locked: true), so its later matches keep them (locked: false: Komf hasn't matched it yet, and its match would drop them: link again after it has): within the hour komga-wiki fills each chapter's title, summary and release date from the fan wiki, and a chapter it has none for gets its volume's date and its English title from Wikipedia; answers what each page holds")
 def manga_wiki(a):
     sid = need(a, "komga_id")[0]
     url, listing = a.get("url"), a.get("chapters")
@@ -607,7 +607,10 @@ def manga_wiki(a):
             raise Refused(404, "that page lists no volumes")
         add["chapters"] = {"label": "Chapters", "url": listing}
     links = [x for x in s["metadata"].get("links") or [] if (x.get("label") or "").lower() not in add]
-    call("PATCH", f"{KOMGA}/api/v1/series/{q(sid)}/metadata", {"links": links + list(add.values())})
+    # Komf matches a series again whenever Komga's scan adds chapters to it, and replaces its links
+    # unless they're locked: locked once Komf's own are in, so its first match still brings them.
+    out["locked"] = bool(s["metadata"].get("linksLock")) or any((x.get("label") or "").lower() not in ("wiki", "chapters") for x in links)
+    call("PATCH", f"{KOMGA}/api/v1/series/{q(sid)}/metadata", {"links": links + list(add.values()), "linksLock": out["locked"]})
     return out
 
 
