@@ -1,5 +1,5 @@
 """komga-wiki (P8; Ali, 2026-11-05): a manga chapter's own title, summary and release date in Komga,
-from the series' fan wiki, and from Wikipedia where the fan wiki has no date. Komga's manga sources
+from the series' fan wiki, and from Wikipedia where the fan wiki has none. Komga's manga sources
 describe series, not chapters; fan wikis have a page per chapter. A series is linked when it has a
 link labelled "Wiki" in Komga, to its wiki's page for chapter 1, and one labelled "Chapters", to its
 Wikipedia list of chapters (the comics agent sets both: comics-tools' manga/wiki). The Wiki page's
@@ -7,12 +7,13 @@ name gives the rest: "Chapter_1" → "Chapter_1126". For each chapter, the job r
 the wiki's MediaWiki API, takes the title from the infobox, the short summary as plain text and the
 release date, and writes them into Komga, locked: nothing overwrites them, and a chapter with all
 three is never read again. A chapter the fan wiki gives no date gets the day its volume came out in
-Japan, from the Wikipedia list; an exact date found later replaces it. A chapter whose page, summary
-or date isn't written yet is read again a week later, and one whose number isn't its file's (Komf's
-reset numbers them 1, 2, 3…) once it is again. Links a later match dropped (Komf replaces links) are
-put back. Every chapter in the library, linked or not, loses the series' description that Uchiyomi
-writes into each one: a chapter shows its own summary or none. Hourly, a request a second to a wiki.
-Python's standard library only."""
+Japan, and one it gives no title its English title, from the Wikipedia list, read at each start and
+weekly; an exact date found later replaces the volume's. A chapter whose page, summary or date isn't
+written yet is read again a week later, and one whose number isn't its file's (Komf's reset numbers
+them 1, 2, 3…) once it is again. Links a later match dropped (Komf replaces links that aren't
+locked) are put back, locked. Every chapter in the library, linked or not, loses the series'
+description that Uchiyomi writes into each one: a chapter shows its own summary or none. Hourly, a
+request a second to a wiki. Python's standard library only."""
 import base64
 import datetime
 import json
@@ -167,8 +168,8 @@ def templates(text, name):
     return out
 
 
-def params(inside):
-    """({name: value}, [unnamed values]) of a template's insides: its top-level | and = only."""
+def split(inside):
+    """A template's insides at its top-level |s: what comes before the first is the name's own line."""
     parts, depth, start, i = [], 0, 0, 0
     while i < len(inside):
         pair = inside[i:i + 2]
@@ -182,9 +183,13 @@ def params(inside):
             parts.append(inside[start:i])
             start = i + 1
         i += 1
-    parts.append(inside[start:])
+    return parts + [inside[start:]]
+
+
+def params(inside):
+    """({name: value}, [unnamed values]) of a template's insides: its top-level | and = only."""
     named, unnamed = {}, []
-    for p in parts[1:]:  # what comes before the first | is the name's own line
+    for p in split(inside)[1:]:
         key, eq, value = p.partition("=")
         if eq and "{{" not in key and "[[" not in key:
             named[key.strip().lower()] = value.strip()
@@ -193,39 +198,66 @@ def params(inside):
     return named, unnamed
 
 
+def english(entry):
+    """A chapter's English title from its entry in a list: {{nihongo|"English"|日本語|rōmaji}}'s first
+    part, or the entry's own words; without quotes, None when it has none."""
+    found = templates(entry, "nihongo")
+    if found:
+        parts = split(found[0])
+        entry = parts[1] if len(parts) > 1 else ""
+    return plain(entry).strip().strip('"“”').strip() or None
+
+
 def volumes(wikitext):
-    """({chapter number: the day its volume came out in Japan}, [sub-pages]) from a Wikipedia list of
-    chapters: each {{Graphic novel list}}'s date and the chapters it holds, counted from a
-    {{Numbered list|start=…}} or numbered at the line's start ("*001."). A volume whose chapters aren't
-    numbered is skipped, not guessed. A long series' list is split into sub-pages, "(1–186)" and on."""
-    text, dates = re.sub(r"<!--.*?-->", "", wikitext, flags=re.S), {}
-    for inside in templates(text, "Graphic novel list"):
-        fields, _ = params(inside)
-        when = day(fields.get("originalreldate") or fields.get("reldate"))
-        for key, value in fields.items():
-            if not (when and key.startswith("chapterlist")):
-                continue
-            numbers = [int(n) for n in re.findall(r"^\s*[*#]+\s*0*(\d+)\s*[.:]", value, re.M)]
-            for numbered_list in templates(value, "Numbered list"):
-                start, items = params(numbered_list)
-                if start.get("start", "").isdigit():
-                    numbers += range(int(start["start"]), int(start["start"]) + len(items))
-            for n in numbers:
-                dates.setdefault(n, when)
-    return dates, sorted(set(re.findall(r"\[\[\s*(List of [^\]|#]*? chapters \([^)\]]*\))", text)))
+    """({chapter number: (the day its volume came out in Japan, its English title)}, [sub-pages]) from
+    a Wikipedia list of chapters: each {{Graphic novel list}}'s date and the chapters it holds,
+    numbered as the page shows them: by a {{Numbered list}} (from its start=, else on from the list
+    before it in the volume, else from 1) or at the line's start ("*001.", or "*008–011." for a run
+    of chapters under one title, which none of them gets). A volume the page numbers from 1 itself
+    (its first list has no start=: 20th Century Boys') is counted on from the volumes before it in
+    its table (a sequel's table starts again). A volume whose chapters aren't numbered is skipped, not
+    guessed, and so is one numbered from 1 after it, the count lost. A long series' list is split into
+    sub-pages, "(1–186)" and on."""
+    text, out = re.sub(r"<!--.*?-->", "", wikitext, flags=re.S), {}
+    for table in re.split(r"\{\{\s*Graphic novel list/header", text, flags=re.I):
+        before = 0  # the chapters in the table's volumes so far; None after one that isn't numbered
+        for inside in templates(table, "Graphic novel list"):
+            fields, _ = params(inside)
+            when, held, from_1 = day(fields.get("originalreldate") or fields.get("reldate")), [], False
+            for key, value in fields.items():
+                if not key.startswith("chapterlist"):
+                    continue
+                for a, b, e in re.findall(r"^\s*[*#]+\s*0*(\d+)(?:\s*[–-]\s*0*(\d+))?\s*[.:]\s*(.*)$", value, re.M):
+                    held += [(n, english(e) if not b else None) for n in range(int(a), int(b or a) + 1)]  # "008–011.": one entry
+                for numbered_list in templates(value, "Numbered list"):
+                    start, entries = params(numbered_list)
+                    if start.get("start", "").isdigit():
+                        first = int(start["start"])
+                    else:
+                        first, from_1 = (held[-1][0] + 1, from_1) if held else (1, True)
+                    held += [(first + i, english(e)) for i, e in enumerate(entries)]
+            if from_1 and before != 0:  # each volume numbered from 1
+                if before is None:
+                    continue
+                held = [(before + n, title) for n, title in held]
+            before = max((n for n, _ in held), default=None)
+            for n, title in held:
+                out.setdefault(n, (when, title))
+    return out, sorted(set(re.findall(r"\[\[\s*(List of [^\]|#]*? chapters \([^)\]]*\))", text)))
 
 
-def volume_dates(link, sleep):
-    """{chapter number: its volume's date} from a link to a Wikipedia list of chapters, sub-pages and all."""
+def list_chapters(link, sleep):
+    """{chapter number: (its volume's date, its English title)} from a link to a Wikipedia list of
+    chapters, sub-pages and all."""
     u = urllib.parse.urlsplit(link)
     apis, name = [f"https://{u.netloc}/w/api.php"], urllib.parse.unquote(u.path.partition("/wiki/")[2])
-    dates, subs = volumes((page(apis, name) or {}).get("wikitext", ""))
+    chapters, subs = volumes((page(apis, name) or {}).get("wikitext", ""))
     for sub in subs:
         sleep(PAUSE)
         more, _ = volumes((page(apis, sub) or {}).get("wikitext", ""))
-        for n, d in more.items():
-            dates.setdefault(n, d)
-    return dates
+        for n, found in more.items():
+            chapters.setdefault(n, found)
+    return chapters
 
 
 def load():
@@ -250,8 +282,8 @@ def linked(s, state):
             state[key][s["id"]] = have[label.lower()]
         elif s["id"] in state[key]:
             back.append({"label": label, "url": state[key][s["id"]]})
-    if back:
-        komga("PATCH", f"/api/v1/series/{s['id']}/metadata", {"links": (s["metadata"].get("links") or []) + back})
+    if back:  # locked: Komf's next match leaves them
+        komga("PATCH", f"/api/v1/series/{s['id']}/metadata", {"links": (s["metadata"].get("links") or []) + back, "linksLock": True})
     return state["wikis"].get(s["id"]), state["lists"].get(s["id"])
 
 
@@ -284,6 +316,7 @@ def run(state, now=None, sleep=time.sleep):
         link, listing = linked(s, state)
         wiki = link and wiki_of(link)
         dated = {b["id"] for b in books if b["metadata"].get("releaseDateLock")}
+        titled = {b["id"] for b in books if b["metadata"].get("titleLock")}
         if wiki:
             apis, name = wiki
             filled = waiting = renumbered = 0
@@ -305,6 +338,7 @@ def run(state, now=None, sleep=time.sleep):
                 patch = {}
                 if title and not m.get("titleLock"):
                     patch.update(title=title, titleLock=True)
+                    titled.add(b["id"])
                 if summary and not m.get("summaryLock"):
                     patch.update(summary=summary, summaryLock=True)
                 if date and need_date:
@@ -323,28 +357,39 @@ def run(state, now=None, sleep=time.sleep):
             if renumbered:
                 print(f"{s['name']}: {renumbered} chapters left alone: their number isn't their file's "
                       "(a metadata refresh of the series in Komga reads it back)", flush=True)
-        undated = [b for b in books if b["id"] not in dated and b["metadata"]["number"].isdigit() and numbered(b)]
-        if listing and undated and now - state["listed"].get(s["id"], 0) >= AGAIN:
+        # what the list can still give: a date (where none is locked, or only a volume's) or a title
+        wanted = [b for b in books if b["metadata"]["number"].isdigit() and numbered(b)
+                  and (b["id"] not in dated or b["id"] in state["approx"] or b["id"] not in titled)]
+        if listing and wanted and now - state["listed"].get(s["id"], 0) >= AGAIN:
             try:
-                dates = volume_dates(listing, sleep)
+                chapters = list_chapters(listing, sleep)
             except (urllib.error.URLError, OSError, ValueError) as e:
                 print(f"{s['name']}: Wikipedia didn't answer ({e}); next pass", flush=True)
-                dates = None
-            if dates is not None:
+                chapters = None
+            if chapters is not None:
                 state["listed"][s["id"]] = now
                 n, today = 0, datetime.date.fromtimestamp(now).isoformat()
-                for b in undated:  # a volume announced for later isn't out yet
-                    if (when := dates.get(int(b["metadata"]["number"]))) and when <= today:
-                        komga("PATCH", f"/api/v1/books/{b['id']}/metadata", {"releaseDate": when, "releaseDateLock": True})
+                for b in wanted:
+                    m, patch = b["metadata"], {}
+                    when, title = chapters.get(int(m["number"]), (None, None))
+                    # a volume's date replaces only a volume's (the list corrected, or read better);
+                    # a volume announced for later isn't out yet
+                    if when and when <= today and when != m.get("releaseDate") and (b["id"] not in dated or b["id"] in state["approx"]):
+                        patch.update(releaseDate=when, releaseDateLock=True)
                         state["approx"][b["id"]] = 1
+                    if title and b["id"] not in titled:
+                        patch.update(title=title, titleLock=True)
+                    if patch:
+                        komga("PATCH", f"/api/v1/books/{b['id']}/metadata", patch)
                         n += 1
-                print(f"{s['name']}: {n} chapters dated by their volume, from Wikipedia", flush=True)
+                print(f"{s['name']}: {n} chapters given their volume's date or their English title, from Wikipedia", flush=True)
         save(state)
     return done
 
 
 def main():
     state = load()
+    state.pop("listed", None)  # each start reads Wikipedia's lists again: how they're read may have changed
     while True:
         open("/tmp/alive", "w").close()
         try:

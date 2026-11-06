@@ -115,9 +115,11 @@ KB. Nothing is added. The skill runs it before every manga it adds.
 
 `manga/wiki`: the series' fan wiki and its Wikipedia list of chapters, linked in Komga (the links
 labelled "Wiki", to the fan wiki's page for chapter 1, and "Chapters", each checked before it's
-set). `komga-wiki`, in Komga's stack, then writes each chapter's title, summary and release date
-into Komga, a volume's date where the fan wiki has none (`stacks/dmz/komga`). The skill links both
-for every manga it adds, and the patrol for any series without them.
+set), and locked once Komf has matched the series: Komf matches it again each time Komga's scan
+adds chapters, and would replace them. `komga-wiki`, in Komga's stack, then writes each chapter's
+title, summary and release date into Komga, a volume's date and the English title from Wikipedia
+where the fan wiki has none (`stacks/dmz/komga`). The skill links both for every manga it adds, and
+the patrol for any series without them.
 
 `comics/dates`: each filed issue's release date in Komga, the day it went on sale (Metron's, from
 CLU's patched `issue-dates` route), locked. Metron has no such day for some older issues (Watchmen
