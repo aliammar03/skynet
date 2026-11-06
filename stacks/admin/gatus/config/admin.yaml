@@ -14,9 +14,11 @@ x-app: &app
   alerts: [{ type: discord }]
 # An app behind the apps' Authelia: its door answers 302 to the login (the app itself is its
 # container's healthcheck). Authelia redirects only a client that asks for HTML; without the header
-# it answers 401.
+# it answers 401. Every 5 minutes, not every minute: each check leaves a new session in Authelia's
+# Redis for a week (no cookie to reuse), so seven doors each minute kept ~70k there.
 x-forward: &forward
   <<: *app
+  interval: 5m
   client: { ignore-redirect: true }
   headers: { Accept: text/html }
   conditions: ["[STATUS] == 302"]

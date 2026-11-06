@@ -25,7 +25,9 @@
   A session lasts a week, or until a day unused; "Remember me" makes it a month however long
   unused. Sessions live in the stack's Redis (`authelia-redis`, on its own internal `backend`),
   encrypted with the session secret, so restarting Authelia (a config change, an update) or
-  docker-dmz signs no one out.
+  docker-dmz signs no one out. A request with no cookie (a status check, a scanner) gets a session
+  too, kept a week: Gatus checks its seven forward-auth doors every 5 minutes, about 14k sessions
+  (~10 MiB) at any time.
 - **Data:** `/opt/appdata/authelia` on docker-dmz: `db.sqlite3` (passkeys, TOTP, consent; backup
   class: app data), `notification.txt` (one-time codes; no mail server) and `redis/` (the sessions,
   saved each minute and at a stop; cache: `stacks/dmz/backup/excludes.txt`).
