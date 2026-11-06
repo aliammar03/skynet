@@ -213,16 +213,17 @@ def volumes(wikitext):
     a Wikipedia list of chapters: each {{Graphic novel list}}'s date and the chapters it holds,
     numbered as the page shows them: by a {{Numbered list}} (from its start=, else on from the list
     before it in the volume, else from 1) or at the line's start ("*001.", or "*008–011." for a run
-    of chapters under one title, which none of them gets). Where a list numbers each volume's
-    chapters from 1, a volume's are counted on from the volumes before it in its table (a sequel's
-    table starts again). A volume whose chapters aren't numbered is skipped, not guessed, and so is
-    one after it numbered from 1. A long series' list is split into sub-pages, "(1–186)" and on."""
+    of chapters under one title, which none of them gets). A volume the page numbers from 1 itself
+    (its first list has no start=: 20th Century Boys') is counted on from the volumes before it in
+    its table (a sequel's table starts again). A volume whose chapters aren't numbered is skipped, not
+    guessed, and so is one numbered from 1 after it, the count lost. A long series' list is split into
+    sub-pages, "(1–186)" and on."""
     text, out = re.sub(r"<!--.*?-->", "", wikitext, flags=re.S), {}
     for table in re.split(r"\{\{\s*Graphic novel list/header", text, flags=re.I):
         before = 0  # the chapters in the table's volumes so far; None after one that isn't numbered
         for inside in templates(table, "Graphic novel list"):
             fields, _ = params(inside)
-            when, held = day(fields.get("originalreldate") or fields.get("reldate")), []
+            when, held, from_1 = day(fields.get("originalreldate") or fields.get("reldate")), [], False
             for key, value in fields.items():
                 if not key.startswith("chapterlist"):
                     continue
@@ -230,9 +231,12 @@ def volumes(wikitext):
                     held += [(n, english(e) if not b else None) for n in range(int(a), int(b or a) + 1)]  # "008–011.": one entry
                 for numbered_list in templates(value, "Numbered list"):
                     start, entries = params(numbered_list)
-                    first = int(start["start"]) if start.get("start", "").isdigit() else held[-1][0] + 1 if held else 1
+                    if start.get("start", "").isdigit():
+                        first = int(start["start"])
+                    else:
+                        first, from_1 = (held[-1][0] + 1, from_1) if held else (1, True)
                     held += [(first + i, english(e)) for i, e in enumerate(entries)]
-            if held and held[0][0] == 1 and before != 0:  # numbered within the volume
+            if from_1 and before != 0:  # each volume numbered from 1
                 if before is None:
                     continue
                 held = [(before + n, title) for n, title in held]
