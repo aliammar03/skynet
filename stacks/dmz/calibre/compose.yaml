@@ -5,7 +5,7 @@ services:
   calibre:
     container_name: calibre
     # linuxserver's build tags; Renovate reads them through a versioning rule (renovate.json).
-    image: lscr.io/linuxserver/calibre:v9.17.0-ls430@sha256:b198fc03a6abc6be7e251a9958e50e74634b00e447c7b25e92c191c8077ba378
+    image: lscr.io/linuxserver/calibre:v9.18.0-ls431@sha256:5b5c0cba9fa70d65b5d92da73b8d486d4acf0d03ea648062586c4e3789700d89
     restart: unless-stopped
     environment:
       PUID: "1000"

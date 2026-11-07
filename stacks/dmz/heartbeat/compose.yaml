@@ -4,7 +4,7 @@
 services:
   heartbeat:
     container_name: heartbeat
-    image: docker.io/curlimages/curl:8.23.0@sha256:6b46ee7c652d53ef17ddf1428b1a365a66d913d21c54df42e2e46d5bd321bb46
+    image: docker.io/curlimages/curl:8.23.0@sha256:3fb7e13e5d179a845c97d78204f3f1064d1907037f26a3ebf91710571151fd93
     entrypoint: ["/bin/sh", "-c"]
     # $$: read at run time, not by compose.
     command: ['curl -fsS -m 10 --retry 3 -o /dev/null "$$HC_PING_URL"']
