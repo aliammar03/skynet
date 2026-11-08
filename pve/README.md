@@ -43,3 +43,5 @@ It shows each file's change as it installs it, then the services and timers. Che
 - Nothing compares the nodes with this folder (the agent has no access to them, unlike PBS), so a
   change made on a node by hand stays invisible until the next run here puts it back.
 - A failed unit the node already had shows as `UnitFailed` once node-exporter runs.
+- Neither node has a BMC (`/sys/class/ipmi` is empty), so the setup purges `openipmi`, which the
+  collectors pull in through ipmitool's recommends and whose boot script then fails.

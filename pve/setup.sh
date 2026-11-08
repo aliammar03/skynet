@@ -24,7 +24,11 @@ apt-get update -q || echo "setup: apt-get update had errors (above)" >&2
 # node lacks), and the journal's upload.
 apt-get install -qy prometheus-node-exporter prometheus-node-exporter-collectors smartmontools \
   nvme-cli systemd-journal-remote
+# The collectors recommend ipmitool, which recommends openipmi, whose boot script fails on a node
+# with no BMC (UnitFailed). Purged, its unit goes with the reload; reset-failed clears its state.
+apt-get purge -qy openipmi
 systemctl daemon-reload
+systemctl reset-failed openipmi.service 2>/dev/null || true
 # Restarted every run, so a changed drop-in applies. The package doesn't enable the upload.
 systemctl enable systemd-journal-upload
 systemctl restart systemd-journald prometheus-node-exporter systemd-journal-upload
