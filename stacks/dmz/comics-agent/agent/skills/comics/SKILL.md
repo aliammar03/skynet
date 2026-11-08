@@ -103,8 +103,10 @@ Times are Pakistan time, always (`date`); the apps' times ending in `Z` are UTC:
    (most are on fandom.com), and its Wikipedia list of chapters (`List of … chapters`, with each
    volume's release date). `library/find` for its Komga id, then `manga/wiki` with that id, the
    wiki's page for chapter 1 as `url` and the list as `chapters`: within the hour Komga has each
-   chapter's title, summary and release date, and a chapter the fan wiki gives no date gets its
-   volume's. Either missing: link the other, and say so on the card.
+   chapter's title, summary and release date, and a chapter the fan wiki has none for gets its
+   volume's date and its English title. Either missing: link the other, and say so on the card.
+   `locked: false`: Komf hasn't matched the series yet, and its match would drop the links: link
+   again when the watch-through ends.
 5. The card, with why that source, and the wiki its chapters come from.
 
 ## Approvals: trash and swaps

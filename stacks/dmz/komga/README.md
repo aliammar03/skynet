@@ -17,12 +17,13 @@
     and the day it came out (from the rendered infobox, where a template like One Piece's shows
     it), and writes them into Komga, locked: nothing overwrites them, and a chapter with all three
     is never read again. A chapter the fan wiki gives no date gets the day its volume came out in
-    Japan, from the Wikipedia list (and its sub-pages, for a long series), read at most weekly; an
-    exact date found later replaces it. A chapter in no volume yet, or only in one announced for
-    later, has no date. What the wiki hasn't written yet is read again a week later. Links a later
-    Komf match drops are put back. It also clears the series' description from every manga
-    chapter, linked or not: Uchiyomi writes it into each chapter's ComicInfo, and Komga reads it
-    from there. A chapter shows its own summary or none.
+    Japan, and one it gives no title its English title, from the Wikipedia list (and its sub-pages,
+    for a long series), read at each start and weekly; an exact date found later replaces the
+    volume's, and a volume's date the list now gives otherwise is put right. A chapter in no volume
+    yet, or only in one announced for later, has no date. What the wiki hasn't written yet is read
+    again a week later. Links a later Komf match drops are put back, locked (below). It also clears
+    the series' description from every manga chapter, linked or not: Uchiyomi writes it into each
+    chapter's ComicInfo, and Komga reads it from there. A chapter shows its own summary or none.
   - Comics need neither: each issue's ComicInfo (Metron, through CLU) is right, and every series'
     cover is its issue #1's, `folder.png` from CLU (its folder art set to Single Image, Ali
     2026-11-05; a pinned issue in CLU replaces it). An issue's release date is the day it went on
@@ -97,5 +98,12 @@
 - A chapter's title, summary or release date edited and locked by hand in Komga stays: komga-wiki
   writes only what isn't locked (or a volume's date it set itself). So does an issue's release date:
   `comics/dates` sets only one that isn't locked.
-- Wikipedia's lists number chapters three ways: `{{Numbered list|start=…}}`, `*001.` at a line's
-  start, or not at all; a volume whose chapters aren't numbered gets no dates (Berserk's first ones).
+- Wikipedia's lists number chapters four ways: `{{Numbered list|start=…}}` through the series,
+  `*001.` at a line's start (`*008–011.` for a run under one title: dates, no titles), each
+  volume's from 1 (20th Century Boys: counted on from the volumes before, a sequel's table starting
+  again), or not at all: a volume whose chapters aren't numbered gets nothing (Berserk's first ones).
+- Komf matches a series again each time Komga's scan adds chapters to it, and replaces its links
+  unless they're locked. `manga/wiki` locks them once Komf's own are in (before Komf's first match,
+  it doesn't, or that match would bring none), and komga-wiki locks those it puts back. Locked,
+  a later Komf match keeps the old links: unlock them in Komga (the series' edit dialog, Links)
+  for Komf to replace them.
