@@ -1,1 +1,27 @@
-* @aliammar03
+# The leash (skynetv2.md → P6 → The leash): what sets the agent's powers and the path to the hosts.
+# With the ruleset's code-owner review, a PR touching any of these merges only with Ali's approval.
+# The rest the agent changes by its tiers (P6 → Merges).
+
+# The contract
+/AGENTS.md              @aliammar03
+/CLAUDE.md              @aliammar03
+/skynetv2.md            @aliammar03
+/.claude/               @aliammar03
+/.mcp.json              @aliammar03
+/runbooks/incident.md   @aliammar03
+
+# The pipeline: CI and the ruleset's checks, the tiers, the flake's inputs (comin's pin), and what
+# doco-cd deploys from and how (a removed stack's volumes are kept)
+/.github/               @aliammar03
+/renovate.json          @aliammar03
+/flake.nix              @aliammar03
+/modules/doco-cd-source.nix @aliammar03
+/.doco-cd.*.yml         @aliammar03
+
+# Access: users, SSH, sudo and comin on every host; the agent on ops; who decrypts what; OpenTofu's
+# code and the firewall's aliases (from their P6 PRs)
+/modules/base.nix       @aliammar03
+/modules/agent.nix      @aliammar03
+/.sops.yaml             @aliammar03
+/infra/                 @aliammar03
+/opnsense/              @aliammar03

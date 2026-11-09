@@ -1,6 +1,6 @@
 # Docker hosts (docker-admin, docker-dmz): Docker, the networks stacks join (stacks never create
 # networks; skynetv2.md → Conventions → Networks), doco-cd, which deploys `stacks/<target>/` from
-# `main`, with Apprise for its Discord notices, and cAdvisor (P5).
+# `main` (doco-cd-source.nix), with Apprise for its Discord notices, and cAdvisor (P5).
 {
   config,
   lib,
@@ -245,12 +245,13 @@ in
         APPRISE_NOTIFY_URLS_FILE = "${creds}/apprise-urls";
         APPRISE_NOTIFY_LEVEL = "success";
         POLL_CONFIG = builtins.toJSON [
-          {
-            url = "https://github.com/aliammar03/skynet.git";
-            reference = "main";
-            interval = "60s";
-            target = docoTarget;
-          }
+          (
+            import ./doco-cd-source.nix
+            // {
+              interval = "60s";
+              target = docoTarget;
+            }
+          )
         ];
       };
     };
