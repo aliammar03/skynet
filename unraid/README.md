@@ -62,8 +62,12 @@ git; this folder is what Ali applies there, so git describes it.
    Apply, then Test: a post lands in `#alerts`.
 5. **OPNsense:** the aliases above.
 6. **The undo copies:**
-   1. Settings → User Scripts → Add New Script `skynet-undo`; its script is `unraid/undo.sh`, whole.
-      Schedule: Custom, `0 4 * * *`. Apply.
+   1. Settings → User Scripts → Add New Script `skynet-undo`. Schedule: Custom, `0 4 * * *`. Apply.
+      Its script is `unraid/undo.sh`, whole; on Unraid's terminal:
+      ```sh
+      curl -fsSL https://raw.githubusercontent.com/aliammar03/skynet/main/unraid/undo.sh \
+        -o /boot/config/plugins/user.scripts/scripts/skynet-undo/script
+      ```
    2. Run Script, once. It ends with `skynet-undo: done`, and Shares now lists `undo-pbs` and
       `undo-Storage`.
    3. Shares → `undo-pbs`: SMB Security Settings → Export `No`, Apply. NFS Security Settings →
