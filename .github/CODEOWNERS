@@ -1,1 +1,18 @@
-* @aliammar03
+# What Ali's review guards (skynetv2.md → P6 → The leash): with the ruleset's code-owner review, a
+# PR touching any of these merges only with his approval. Everything else merges through the gates
+# (P6 → Merges), and what bounds a mistake there is an undo the agent can't reach.
+
+# The contract: what the agent may do, and its tools
+/AGENTS.md              @aliammar03
+/CLAUDE.md              @aliammar03
+/skynetv2.md            @aliammar03
+/.claude/               @aliammar03
+/.mcp.json              @aliammar03
+
+# The gates: CI and this file, and the window's scripts, which stand in for his review (from their
+# P6 PR)
+/.github/               @aliammar03
+/modules/window/        @aliammar03
+
+# The perimeter: the firewall's aliases (from their P6 PR). No snapshot undoes an exposure.
+/opnsense/              @aliammar03

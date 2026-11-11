@@ -129,8 +129,4 @@ in
     pkgs.rsync
     pkgs.python3
   ];
-
-  # The agent is root here (D11): wheel = passwordless sudo (base.nix), each command logged in the
-  # journal. Its key is still accepted from ops only.
-  users.users.skynet.extraGroups = [ "wheel" ];
 }
