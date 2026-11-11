@@ -27,7 +27,7 @@
 | P3 | docker-dmz: apps + public path | done (2026-10-24): docker-dmz with v1's data (#48), its doors (#50) and all ten apps (#51–#61); the apps reach one another only through the door (#64); every image current (#67). Family accounts skipped for now |
 | P4 | Backups → Google Drive | done (2026-11-02): PBS greenfield done (VM 2040, `pbs/`; v1's PBS removed); PBS's datastore nightly to Drive by plain `rclone sync` (`stacks/admin/pbs-offsite/`; PVE already encrypts its chunks); app data nightly to Drive, hot (`stacks/<host>/backup/`): docker-dmz rebuilt onto btrfs and backed up from btrbk snapshots (#81); `skynet-restore` drilled from a snapshot and from Drive; `runbooks/restore.md` (six cases); a guest restored from Drive's copy (2026-10-27); the survival kit stored (Ali, 2026-10-28). seven green nights, 10-26 → 27 through 11-01 → 02 |
 | P5 | Observability (agent eyes) | done (2026-11-03): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`, #88); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics; alerts: two vmalerts and Alertmanager to `#alerts`, its Watchdog to healthchecks.io (#91; both watchdogs, HostDown, TargetDown and DiskFull proven live 10-27); Grafana at `grafana.aliammar.net` (OIDC through admin Authelia; Live and Backups boards of our own, seven upstream) and the agent's MCP servers at `/mcp`; Ali's first Grafana login 10-27. Wider eyes live 10-28 (#102–#109): the Proxmox nodes, OPNsense, the doors' access logs, Unraid, Omada, Technitium's stats and query log. Asked and answered through the MCP tools on 10-28: network (the nodes' backups reach PBS over VLAN 50, not through OPNsense; technitium-network's 700 refusals were one burst), storage (night 2's guest backups, verify, restic and Drive copy). Every Wider eyes source's freshness alert posted and resolved in the tests of 10-29 (Wider eyes → Freshness tests). The week's sizing checked on 11-03: memory and disk as estimated (Sizing) |
-| P6 | Agent autonomy | in progress (2026-11-09): the plan revised for full automation (Ali): tiers by what a rollback can undo, majors included; one PR per stack, each merged just after its own snapshot; the window a script; a dry-run week and a drill before it goes live; hosts keep their keys, so no rekey workflow. The leash: code owners for what sets the agent's powers and the deploy path, `base.nix`'s check of its groups, comin pinned to a commit. Next: the operate PR |
+| P6 | Agent autonomy | in progress (2026-11-12): the plan revised for full automation (Ali): what bounds the agent is an undo it can't delete (Unraid's dated copies of `pbs` and `Storage`), the gates every merge passes, and the credentials it doesn't hold; updates merge by what a rollback can undo, majors, hosts and comin included; one PR per stack, each merged just after its own undo point; a host change activated under a timer that undoes it unless it verifies; the window a script; a dry-run week and a drill before it goes live; hosts keep their keys, so no rekey workflow. The leash: code owners for the contract, the gates and the firewall's aliases; D11's list in `base.nix`; comin pinned to a commit until the timed rollback; `unraid/undo.sh`, for Ali to install. Next: the operate PR |
 | P7 | Retire v1 + disaster recovery | outline; v1's guests are already gone (Ali, 2026-10-25) |
 | P8 | Comics and manga | done (2026-11-05, Ali): Komga, Uchiyomi (#119) and Kapowarr (#121) live, the agent's accounts made, sources set, Ali's iPad readers connected, Manga and Comics libraries with downloads sorted by type (#122), Suwayomi's UI on Uchiyomi's engine for the trial (#123); Mylar3 and SABnzbd for comics from Usenet (#124; Easynews, NZBGeek), docker-dmz at 12 GB, the apps' Authelia keeping sessions across restarts (#125); SABnzbd on its own usenet address and JDownloader 2 through Premiumize (#127); CLU (#128, #130) in place of Kapowarr and Mylar3, SABnzbd and JDownloader under it (Ali, 2026-10-30). Uchiyomi on trial (finds, downloads, reads) and Komga's library, both on Unraid's `Storage`; the agent configures them (D16). The comics agent, Codex in Discord's `#comics` with `comics-tools` beside it (D17; `stacks/dmz/comics-agent`): exit test passed 2026-11-04 (Batman: The Long Halloween 13/13 and Vagabond 1–327 added and filled from `#comics`, CLU's alerts arriving, its patrol and morning report posting on their own); now also recommending, adding arcs and fixing its own mistakes (#157, #158), CLU at 17 fixes (#159). Its model chosen in the arena (D18; `stacks/dmz/arena`, a bench for testing agents, live 2026-11-04): Sol, with a lean skill (rules only, no cases) and `manga/compare` (Ali, 2026-11-05). Komf for Komga's manga metadata and covers; comics' series covers from CLU (issue #1, Single Image); a manga chapter's own title and summary from its fan wiki, which the agent links (komga-wiki). Open: Ali's verdict on the Uchiyomi trial (P8 → Steps 5), the arena's ladder and vote page, Aidoku, family accounts |
 
@@ -68,7 +68,7 @@ Nothing outside the lab pushes into it.
 | D9 | Offsite = **Google Drive** via rclone with Ali's own OAuth client, scope `drive.file`, **published to production** | Drive is what Ali has; "Testing" mode tokens expire every 7 days; `drive.file` lets rclone see only what it created |
 | D10 | No OpenTofu. VMs come from versioned `hosts/<h>/proxmox.sh`; internal DNS records live in `dns/aliammar.net.zone`; the Cloudflare wildcard CNAME is set once by hand | Guests change rarely |
 | D11 | The agent never merges. It is **root on docker-dmz, on PBS** (VM 2040) **and on the DNS servers** (technitium-network, technitium-core). On docker-dmz and the DNS servers: passwordless sudo, every command in the host's journal, which also gives it the host's key and secrets, and on docker-dmz its Docker socket. On PBS: root over SSH from ops. It never prints a secret value or decrypts one on purpose. On docker-dmz's doco-cd MCP it may restart and run jobs. Destroying a project or stack, or on PBS removing a backup, namespace or datastore, asks Ali each time. Everywhere else: no sudo, no Docker socket, no private age key. While it installs a host it is root on the installer, which holds the new host key that `--copy-host-keys` keeps (`runbooks/new-vm.md`); it reads only the public half | The apps host is where operate work happens, and it needs hands; PBS is where P4's offsite copy and its drills happen (both Ali's call, 2026-10-24). The DNS servers too (Ali's call, 2026-10-28): what they refuse or drop shows only on the host, in a capture, and they hold no secret but their own admin password and the `#alerts` webhook. docker-admin (admin portal, Gatus, admin secrets) stays diagnose-only, so GitHub and missing credentials still leash the rest. The install window was already root-equivalent (the agent installs the OS), and it buys a one-PR install |
-| D13 | `aliammar-skynet` has **Write**. The `main` ruleset requires a PR and check `nix`, and Ali's review as code owner for the leash (`.github/CODEOWNERS`, P6); it blocks force-push/deletion (Ali's calls, 2026-10-21 and 2026-11-09) | Branches in one repo, no approval clicks but the leash's. "Never merge" is a **soft wall**: AGENTS.md + Claude Code deny rules; the leash is a hard one |
+| D13 | `aliammar-skynet` has **Write**. The `main` ruleset requires a PR and check `nix`, and Ali's review as code owner for the contract, the gates and the firewall's aliases (`.github/CODEOWNERS`, P6); it blocks force-push/deletion (Ali's calls, 2026-10-21 and 2026-11-09) | Branches in one repo, no approval clicks but the code owners'. "Never merge" is a **soft wall**: AGENTS.md + Claude Code deny rules; code-owner review is a hard one |
 | D12 | v1 archived; fresh repo; new ops VM built alongside the old one, which is then retired | Clean start without a blind spot |
 | D14 | Remote access = **Tailscale**, with `os-tailscale` on OPNsense as the subnet router and split DNS for `aliammar.net`; replaces the WireGuard plan. ops is a node too, `tag:ops`, in userspace (Ali, 2026-10-31) | Nothing inbound to open; it keeps working when docker-admin or a node is down, so it can reach what needs fixing |
 | D15 | Backups = **restic** (run by resticprofile in doco-cd `one_off` jobs) copying `/opt/appdata` **hot**: on docker-dmz from a read-only **btrfs snapshot** taken by **btrbk** a moment before. PBS's datastore goes with **rclone** (PVE encrypts its chunks); both to Drive, nightly. PBS is rebuilt greenfield as VM 2040 from Proxmox's automated installer. Restores: `skynet-restore`, from a local snapshot or from Drive, with doco-cd paused | Battle-tested pieces. A snapshot holds every app's files at one instant, which databases restart from as after a power cut: no dumps, no stopped apps, no stop lists. Holding apps stopped through doco-cd (`stop_services`, the first design) relies on no poll redeploying them mid-job, and doco-cd 0.129.1's can (P4 → Prechecks) |
@@ -103,13 +103,13 @@ Nothing outside the lab pushes into it.
 skynet/
 ├ AGENTS.md  CLAUDE.md (@AGENTS.md)  README.md  skynetv2.md
 ├ flake.nix  flake.lock
-├ modules/            base.nix + observability.nix (all hosts) · agent.nix (ops) · docker-host.nix + doco-cd-source.nix (docker-*)
+├ modules/            base.nix + observability.nix (all hosts) · agent.nix (ops) · docker-host.nix (docker-*) · window/ (ops: the merge gates, P6)
 ├ hosts/<host>/       default.nix · net.nix · disk.nix · hardware.nix · vm.nix (P6; proxmox.sh until then) · ssh_host.pub · README.md
 ├ secrets/<host>.yaml host-level secrets (sops-nix); secrets/shared/ a value two hosts share (P6)
 ├ dns/                aliammar.net.zone · settings.json (Technitium, P2)
 ├ pbs/                PBS, VM 2040: vm.nix (P6) · answer.toml · installer.nix · setup.sh · etc/ (P4)
 ├ pve/                the Proxmox nodes' exporters and log upload: setup.sh · etc/, Ali runs it (P5)
-├ unraid/             README.md: Unraid's exporter containers and syslog target, Ali applies (P5)
+├ unraid/             README.md: Unraid's exporter containers and syslog target (P5) · undo.sh, its dated copies of `pbs` and `Storage` (P6); Ali applies
 ├ infra/proxmox/      OpenTofu: our VMs, from each host's vm.nix (P6)
 ├ opnsense/           aliases.yaml, synced to OPNsense (P6)
 ├ .doco-cd.admin.yml  .doco-cd.dmz.yml
@@ -199,7 +199,7 @@ skynet/
 | Identity | Holds | Scope | Phase |
 |---|---|---|---|
 | Ali | GitHub owner, age master key, SSH CA, Proxmox/OPNsense/Unraid root, Discord owner, Google + Cloudflare accounts | everything | — |
-| aliammar-skynet | classic PAT `public_repo`, `workflow` | **Write**: branches, PRs, labels. Can't push `main` (ruleset), or merge what touches the leash without Ali's review (code owners); could merge the rest, but won't (soft wall, D13) | P0 |
+| aliammar-skynet | classic PAT `public_repo`, `workflow` | **Write**: branches, PRs, labels. Can't push `main` (ruleset), or merge what touches a code owner's file without Ali's review; could merge the rest, but won't (soft wall, D13) | P0 |
 | ops host key | decrypts `secrets/ops.yaml` | ops | P0 |
 | agent (`skynet`) | root on docker-dmz and the DNS servers (sudo) and PBS (SSH key from ops), D11; doco-dmz MCP restart/job tools | those four; everywhere else diagnose-only | P3 / P4 / P5 |
 | Discord bot | bot token | `#skynet` chat | P0 |
@@ -1930,14 +1930,15 @@ a stream lookup), each with a read-only app token (Ali: later).
 **Goal**
 - Ali says "deploy X" or "restore Y to how it was yesterday" in Discord or the Claude app. The agent
   does the rest and reports.
-- Updates land by themselves when a rollback can undo them, majors included: reviewed, merged one
-  stack at a time in a nightly window, each just after its own snapshot, verified, and rolled back,
-  code and data, if they break. One a rollback can't undo reaches Ali as research, a proposal and a
-  ready PR.
-- An alert is investigated before Ali hears of it. A known fix is applied, verified and reported;
-  anything else arrives as research, a proposal and a PR.
+- Updates land by themselves, majors included: reviewed, merged one at a time in a nightly window,
+  each just after its own undo point, verified, and rolled back, code and data, if they break.
+- A host change proves itself before it merges: activated under a timer that undoes it unless it
+  verifies, so a change that cuts a host's network needs no console.
+- An alert is investigated before Ali hears of it. What's in the agent's lane is fixed, verified and
+  reported; the rest arrives as research, a proposal and a PR.
 - The toil goes: ISOs and `proxmox.sh`, editing aliases.
-- The agent's own powers stay Ali's, behind GitHub's walls rather than promises.
+- What bounds a mistake is an undo the agent can't delete, not Ali's review of each change. His
+  review stays for the contract, the gates and the perimeter.
 
 **Why now:** P5 gives the agent numbers to verify and roll back by. Without them, autonomy is
 guessing.
@@ -1946,12 +1947,12 @@ guessing.
 
 | Ali | The agent |
 |---|---|
-| Approves what a rollback can't undo (Merges → C), from the agent's research and a ready PR | Every other update, majors included: reviewed, merged in the window, verified, rolled back if bad |
+| Decides what no undo reaches: the perimeter (OPNsense's rules and aliases, Cloudflare, the tailnet's policy), and any step on OPNsense, a Proxmox node, Unraid or an account (Merges → C) | Every other update, majors, hosts and comin included: reviewed, merged in the window, verified, rolled back if bad |
 | Re-encrypts for a brand-new host: `sops updatekeys`, from the agent's exact commands | The VM, its ISO, the install. A host keeps its key for life, so nothing else needs re-encrypting (Toil) |
 | Mints third-party tokens (Google, Cloudflare, healthchecks.io…) and pastes each with `nix run .#secret` | Every secret it can generate, written whole into the files that need it |
 | Approves anything destructive: deleting data, backups or VMs, replacing a VM | "Deploy X", "restore Y to yesterday", incident fixes within its lane |
-| Reviews the leash (the files that set the agent's powers) and the firewall's aliases | Proposes changes to them |
-| Upgrades PVE, OPNsense and Unraid; physical and account work | Their changelogs and exact steps, in the weekly report |
+| Reviews the contract, the gates and the firewall's aliases (The leash → Code owners) | Proposes changes to them; changes everything else through the gates |
+| Upgrades PVE, OPNsense and Unraid; physical and account work; installs Unraid's undo job, once (`unraid/README.md`) | Their changelogs and exact steps, in the weekly report |
 
 ### Decisions and rules this phase changes
 
@@ -1959,102 +1960,162 @@ Each lands in Decisions, Rules and `AGENTS.md` with the PR that makes it true (P
 
 | Now | From P6 |
 |---|---|
-| D13, Rule 1: Ali merges every PR | The agent merges by tier (Merges). Renovate never merges by itself, so every update gets the same review, verify and rollback. GitHub's code-owner rule keeps the leash Ali's (from the leash PR) |
-| D11: root on docker-dmz, PBS and the DNS servers | also on docker-admin, which includes admin Authelia's secrets, caddy-admin's Cloudflare token and the offsite job's Drive token (read by nobody, Rule 3) |
+| D13, Rule 1: Ali merges every PR | The agent merges through the gates (Merges). Renovate never merges by itself, so every update gets the same review, verify and rollback. GitHub's code-owner rule keeps the contract, the gates and the aliases Ali's (from the leash PR) |
+| D11: root on docker-dmz, PBS and the DNS servers | also on docker-admin, which includes admin Authelia's secrets, caddy-admin's Cloudflare token and the offsite job's Drive token (read by nobody, Rule 3). That is every host it works on; on ops, its home, it stays a plain user |
+| D15: PBS's datastore on Unraid, and Drive | a third copy, which the lab can read and can't delete: Unraid's dated copies of `pbs` and `Storage` (The undo out of reach) |
 | D10: no OpenTofu | OpenTofu creates and changes our VMs (Provisioning) |
 | Rules 3, 5: each file is for one host; Ali types every secret | a value two hosts share lives in `secrets/shared/`, for both; Ali types only third-party tokens, with `nix run .#secret`; the agent writes generated ones whole |
 | Rule 4: OPNsense and PVE config are never | aliases Ali approved reach OPNsense through an alias-only key, and PVE tokens are scoped to pool `skynet`. OPNsense's rules, the nodes, and PVE's users, tokens and storage stay never |
 
 ### The leash (first, before any new power)
 
-- **comin deploys only `main`** (done with the plan): its testing branches are off (`base.nix`).
-  Otherwise comin deploys any `testing-<host>` branch on top of `main` as root, with no PR or merge,
-  and the bot can push branches. doco-cd, likewise, polls only `main` (`modules/doco-cd-source.nix`).
-- **Code owners.** `.github/CODEOWNERS` names Ali, instead of `*`, for what sets the agent's powers
-  and the deploy path:
-  - the contract: `AGENTS.md`, `CLAUDE.md`, `skynetv2.md`, `.claude/`, `.mcp.json`,
-    `runbooks/incident.md` (the fixes it may apply alone);
-  - the pipeline: `.github/`, `renovate.json` (the tiers), `flake.nix` (comin's input, pinned to a
-    commit so the weekly `flake.lock` can't move it; no release is newer than what runs), and what
-    doco-cd deploys: its source (`modules/doco-cd-source.nix`) and its settings (`.doco-cd.*.yml`,
-    which keep a removed stack's volumes);
-  - access: `modules/base.nix` (users, SSH, sudo, comin), `modules/agent.nix`, `.sops.yaml`,
-    `infra/` (OpenTofu's code, not the VM specs), `opnsense/` (the aliases).
+- **What it is.** The agent is root on the hosts it works on (D11), and any Nix or stack file that
+  merges runs as root on its host. So no file in git walls the agent off from a host, and this plan
+  claims none. Three things bound it instead:
+  - **an undo it can't delete** (The undo out of reach): the worst a mistake leaves is an outage
+    and a restore;
+  - **the gates** every merge passes (Merges): scripts and CI, not the agent's judgment of its own
+    work;
+  - **credentials it doesn't hold:** Ali's age key and accounts, PVE's root, OPNsense beyond its
+    aliases, Unraid. Its own tokens are one per capability (Credentials ledger): PVE `read`,
+    `operate` (power) and `provision` (OpenTofu, restores); OPNsense `skynet-alias`.
+- **Only `main` reaches a host** (done with the plan): comin's testing branches are off
+  (`base.nix`). Otherwise comin deploys any `testing-<host>` branch on top of `main` as root, with
+  no PR or merge, and the bot can push branches. doco-cd, likewise, polls only `main`.
+- **Code owners.** `.github/CODEOWNERS` names Ali, instead of `*`, for what his review still
+  guards:
+  - the contract: `AGENTS.md`, `CLAUDE.md`, `skynetv2.md`, `.claude/`, `.mcp.json`;
+  - the gates: `.github/` (CI, and this list), and the window's scripts (`modules/window/`), which
+    stand in for his review;
+  - the perimeter: `opnsense/` (the aliases). No snapshot undoes an exposure.
 - **The ruleset** (Ali): "Require review from Code Owners", with stale approvals dismissed on new
-  commits, so nothing changes after his tap; check `build` required beside `nix` once the hosts PR
-  adds it. The agent then proves it both ways: a PR touching the leash can't merge without Ali, and
-  a stack's PR can.
-- **No other file grants more:** `base.nix` holds D11's list (`agentRoot`) and asserts that each
-  host's agent groups are what it gives (wheel only there, `docker` nowhere), root's SSH login off,
-  and no sudo rule or Nix trusted user naming the agent, so a host file that adds one fails CI.
-- **One scoped token per capability** (Credentials ledger): PVE `read`, `operate` (power) and
-  `provision` (OpenTofu, restores); OPNsense `skynet-alias`.
+  commits, so nothing changes after his tap; check `build` required beside `nix` once the merges PR
+  adds it. The agent then proves it both ways: a PR touching a code owner's file can't merge
+  without Ali, and a stack's PR can.
 - **Limits:** one change at a time, an undo point before each, and a daily budget of headless runs
   (they share Ali's Claude plan).
-- Tiers are the agent's rule, checked by `skynet-merge` (soft); the leash is GitHub's (hard). The
-  agent can change the lab, never its own powers. The outline's MCP filter proxy goes: as root on
-  both Docker hosts, the agent could walk around it.
+- **What it doesn't do:** hold an agent that chooses to go around it. The bot's token can merge
+  anything outside the code owners' files (the soft wall, D13), and root can change a script on
+  disk. The leash bounds a mistake, and a run misled by the text an alert or a release note
+  carries. The outline's MCP filter proxy goes for the same reason: as root on both Docker hosts,
+  the agent could walk around it.
+
+### The undo out of reach
+
+- **Unraid keeps dated copies** of the two shares the lab can write and delete in
+  (`unraid/undo.sh`, a User Script at 04:00, before the window; 14 nights of each):
+  - `pbs`, PBS's datastore: every guest's backups, and in them each Docker host's `/opt/appdata`.
+    The agent is root on PBS;
+  - `Storage`, the library and media, which docker-dmz mounts read-write.
+- **The agent can read them and can't delete them.** It holds no Unraid credential (Rule 4), and
+  Unraid exports the copies' shares read-only: `undo-pbs` to PBS, `undo-Storage` to docker-dmz. So
+  it puts back a deleted backup or a library folder by itself.
+- **What a copy holds.** It shares its files' data with the original and costs space only for what
+  the original later deletes or replaces. `pbs` is hard-linked: PBS never rewrites a chunk, so
+  every copy is a whole datastore. `Storage` is copy-on-write where the disk's XFS has reflinks,
+  which also keeps a file rewritten in place; without them it's hard-linked, which keeps deleted
+  and replaced files only. The job's log line says which, and that decides the library writers'
+  tier (Merges).
+- **What it doesn't hold:** a change since 04:00, and app data newer than the night's guest backup.
+  Those have the local snapshots (btrbk, the undo points), which root on the host could delete.
+- **Drive stays the copy for a lost box** (D9, D15). The agent's hosts hold its tokens, so it isn't
+  out of reach.
+- **Watched:** `UndoCopyMissing`, when Unraid's syslog has no `skynet-undo: done` for 26 hours
+  (`stacks/admin/logs/rules`, from the operate PR).
 
 ### Merges
 
-An update merges by itself when a rollback undoes all of it and verify would see it break: the
-revert puts the code back, and the stack's undo snapshot its data (Verify and roll back). What
-either can't reach is Ali's, whatever the version number says.
+A change merges by itself when a rollback undoes all of it and verify would see it break: the
+revert puts the code back, and an undo point the data. What neither reaches is Ali's, whatever the
+version number says.
 
-| Change | Gate | Merged by |
-|---|---|---|
-| **A:** one stack's images, digest to major | CI; released 3 days ago for a digest or patch, 7 for a minor, 14 for a major; the agent's review; in the window | agent |
-| **B:** host-wide: the weekly `flake.lock` (nixpkgs within its release); an image pinned in Nix (doco-cd, Apprise) | as A, 7 days; every host built; the canaries first (Verify and roll back) | agent |
-| **C:** what a rollback can't undo: a stack that writes outside its snapshot (CLU, Uchiyomi and the comics agent into Unraid's library; `backup` and `pbs-offsite` into Drive); comin; a NixOS release; a database engine's major (its data needs a migration); notes that ask for a step outside git | the agent's research and a ready PR | Ali |
-| What Ali asked for in chat ("deploy X", "a VM for Y") | CI; his message, linked in the PR, is the approval; for a VM, a plan with no destroy or replace | agent |
-| A revert of a merge that broke something | CI | agent |
-| The leash; a plan that destroys or replaces; whatever the agent starts on its own | code-owner review, or Ali | Ali |
+| Change | Undo point | Gate | Merged by |
+|---|---|---|---|
+| **A:** one stack's images, digest to major; a database engine's major, with its migration | a snapshot of `/opt/appdata` seconds before; for a stack that writes the library (CLU, Uchiyomi, the comics agent), that night's copy of `Storage` too | CI; the release's age; the agent's review; in the window | agent |
+| **B:** a host: the weekly `flake.lock`, an image pinned in Nix (doco-cd, Apprise), comin, a NixOS release, a host file | the timed rollback (Verify and roll back → Hosts) | as A, 7 days for Renovate's; every host built; each host verified on the build before the merge | agent |
+| **C:** a step on what the agent doesn't hold: OPNsense, a Proxmox node, Unraid, an account | none | the agent's research and a ready PR | Ali |
+| What Ali asked for in chat ("deploy X", "a VM for Y") | as A or B | as A or B, without the age; his message, linked in the PR; for a VM, a plan with no destroy or replace | agent |
+| The agent's own PR (an incident's fix, a healthcheck, a runbook) | as A or B | as A or B, without the age; reviewed by the evening run, a session that didn't write it | agent |
+| A revert of a merge that broke something | | CI | agent |
+| A code owner's file; a plan that destroys or replaces | | code-owner review, or Ali | Ali |
 
+- **The library's writers** (CLU, Uchiyomi, the comics agent) are A only while `Storage`'s copies
+  are copy-on-write. With hard links a file rewritten in place isn't in the copy, and they are C.
+- **`backup` and `pbs-offsite`** are A: what they write to Drive can be made again from PBS's
+  datastore and its copies. Their verify runs the job and waits for its exit, so they go last in
+  the night.
 - **Doors and Authelia** are stacks like any other: a broken door shows within minutes, and its
-  revert deploys. **comin** is always C: broken, it can't deploy its own revert. **doco-cd** is B:
-  comin deploys it, and its revert too.
+  revert deploys. **comin** and **doco-cd** are B: the timed rollback proves each still fetches and
+  deploys before it merges.
 - **Renovate** opens one PR per stack (grouped by its folder), so a PR is what verify checks and a
-  rollback undoes; labels each with its tier (`renovate.json`, which lists the C stacks); and waits
-  out the release age (`minimumReleaseAge`). The agent may raise a tier, never lower one. A reverted
-  update comes back as a new PR, which the agent labels C.
+  rollback undoes, and labels each with its tier (`renovate.json`). The agent may raise a tier,
+  never lower one.
+- **A release's age:** 3 days for a digest or patch, 7 for a minor, 14 for a major, by Renovate
+  (`minimumReleaseAge`) where the registry gives a release's time. Where it gives none (ghcr.io and
+  quay.io; the dry run lists them), Renovate would hold the update forever. There it writes the
+  PRs on Mondays only, and `skynet-merge` waits until the PR's newest commit is 3 days old,
+  whatever the update.
 - **The review**, written on the PR by an evening run: the release notes between the two versions,
   and for a major its migration, done in the same PR where it touches git; upstream issues opened
-  since the release; the new images pre-pulled on the host. A step outside git raises it to C, with
-  the research and a proposal in the morning digest.
+  since the release; the new images pre-pulled on the host. It names the commit it read, and only
+  that commit merges. A step on Ali's side raises the PR to C, with the research and a proposal in
+  the morning digest.
+- **A step on the agent's own hosts** (a database's dump and load, a file moved): the review writes
+  it out and labels the PR `steps`. The window's script leaves those; after it, still in the
+  window, the agent takes them one at a time: `skynet-merge`, the step, `skynet-verify`, the same
+  rollback.
 - **The window**, nightly 05:00–06:00, while nobody uses the apps: `skynet-window` (ops, a timer, no
   Claude in it) takes the reviewed PRs oldest first, one at a time: `skynet-merge`, the deploy,
   `skynet-verify`. The first failure is rolled back and ends the night. What Ali asks for goes out
   at once.
 - **`skynet-merge <pr>`** (ops) is the agent's only way to merge (`gh pr merge` stays denied): it
-  checks the tier, the window, CI and the review, takes the stack's undo snapshot, merges, and posts
-  what and why to `#alerts`.
+  checks the tier, the window, CI, the review and its commit, and the age; takes the undo point;
+  merges that commit; and posts what and why to `#alerts`.
+- **A rolled-back update isn't tried again as it was.** The agent's next review must name what
+  changed (a newer version, a fix in the PR). A second failure goes to Ali with the evidence.
 
 ### Verify and roll back
 
 - **`skynet-verify`** (ops; deterministic, so the agent doesn't grade its own work):
-  - a stack: doco-cd's run for it succeeded; every container healthy (or running, where it has no
-    healthcheck) for 5 minutes, with no restarts; its Gatus rows green; its error lines in
-    VictoriaLogs not well above the same time the day before;
-  - a host: comin reports `main`'s commit; no failed units; every scrape target up; Gatus green.
+  - a stack: doco-cd's run for it succeeded; every container healthy for 5 minutes, with no
+    restarts; its Gatus rows green on results newer than the deploy; its error lines in
+    VictoriaLogs not well above the same time the day before; its smoke check passing as it did
+    before the merge;
+  - a host: comin reports `main`'s commit (after a merge) and fetches; no failed units; every scrape
+    target up; Gatus green. On ops also: the agent's sessions up, a headless `claude -p` answering,
+    SSH to every host.
 
   It prints its evidence for the PR.
+- **Nothing merges that verify can't see.** CI fails a long-running service with neither a
+  healthcheck nor a stated reason for none, and a routed app with no Gatus row. Where a health
+  endpoint doesn't show use, the stack has a smoke check (`smoke.sh` in its folder, run from ops):
+  a login through each Authelia with an account of the agent's own (generated), a page read from
+  Komga and Uchiyomi (D16's accounts).
 - **The undo point:** seconds before each merge, `skynet-merge` has btrbk snapshot `/opt/appdata`
   (read-only, instant; on both Docker hosts once docker-admin's data is on btrfs, PRs and order).
-- **A failed stack:** the revert PR merges, then `skynet-restore local <stack> <its undo snapshot>`
-  puts its data back, since the new version may already have migrated it. That loses only what the
-  new version wrote. It's posted with the evidence, and the update waits in C.
-- **Hosts:**
-  - **the canaries:** the agent activates the PR's build first on docker-dmz, for the Docker hosts,
-    and on technitium-network, for the DNS pair (`nixos-rebuild test` as root, D11), and verifies:
-    for doco-cd, a poll and a deploy too; for DNS, an internal and an outside name answered and
-    `technitium-sync` run, while technitium-core keeps answering. Then it merges, and comin brings
-    the other hosts along. Re-activating the current generation undoes a canary; if the host's
-    network broke, a reset (PVE `operate`) boots the previous one, since `test` leaves the boot
-    entry alone;
+- **A failed stack:** the revert PR merges and deploys; then `skynet-restore local <stack> <its
+  undo point> --whole` puts its folder back as it was, caches included: an old Redis can't read a
+  newer one's dump. That loses only what the new version wrote. It's posted with the evidence.
+- **A failure found later**, by use and not by verify: the revert only, and the data stays. If the
+  old version can't run on it, the agent restores the stack from its undo point; `skynet-restore`
+  first snapshots what it replaces (kept 7 days, as btrbk keeps any), and the digest says what the
+  gap holds.
+- **Hosts** (B):
+  - ops builds every host from the PR; the hosts fetch from its cache;
+  - each host in turn, the canaries first (docker-dmz, then technitium-network, while
+    technitium-core keeps answering) and ops last, `skynet-activate`: on the host, a 10-minute timer
+    (`systemd-run`) that re-activates the generation running now; then the PR's build activated
+    (`switch-to-configuration test`, which leaves the boot entry alone); then `skynet-verify`, for
+    doco-cd a poll and a deploy too, for DNS an internal and an outside name answered and
+    `technitium-sync` run. Green stops the timer. Anything else, a host that can't be reached
+    included, and the timer puts the host back with no console;
+  - then the merge. comin switches each host to the build it already runs, which makes it the boot
+    default;
+  - **what the timer can't undo:** state a new version migrated on the host itself (Docker's,
+    Technitium's). That rebuilds from git (Rule 2); app data has its snapshot;
   - **kernel reboots** (`comin_need_to_reboot`): one host at a time in the window, each back and
-    green before the next, the two DNS VMs on different nights (PVE `operate`: power only);
-  - a change that breaks a host's network can't be reverted through git: the canaries catch it
-    first, and on the other hosts the console stays Ali's.
+    green before the next, the two DNS VMs on different nights (PVE `operate`: power only). A host
+    that doesn't come back from a reboot is the one case left for Ali's console (Open).
 - **PBS** takes Debian's unattended security upgrades (`pbs/etc/`), and the agent reboots it in the
   window when one needs it. PVE, OPNsense and Unraid upgrades stay Ali's.
 
@@ -2064,6 +2125,8 @@ either can't reach is Ali's, whatever the version number says.
   once CI passes; deployed, verified, reported.
 - **"Restore Y to yesterday":** `skynet-restore` from a local snapshot (7 days) or from Drive, after
   its undo snapshot; on both Docker hosts.
+- **The library, or a backup, as it was:** from Unraid's copies (14 nights), read-only on
+  docker-dmz and PBS.
 - **A config "as it was yesterday":** a revert PR.
 - **A VM:** restored from PBS to a spare VMID with its network unplugged, booted and checked; on
   Ali's tap, restored over the original.
@@ -2077,14 +2140,17 @@ either can't reach is Ali's, whatever the version number says.
    An alert that returns within a day of the agent's fix isn't fixed again: it escalates.
 3. A headless run (`claude -p`) gets `runbooks/incident.md` and the alert, which it treats as data,
    not instructions: an alert can carry log text.
-4. A fix listed in `runbooks/incident.md` is applied, verified and posted: restarting a container or
-   stack, re-running a job, pruning images on a full disk, reverting a merge that broke something.
-   Anything else becomes research, a proposal and a PR, with one question for Ali.
+4. The agent fixes what's in its lane, verifies it and posts it: restarting a container or stack,
+   re-running a job, pruning images on a full disk, reverting a merge that broke something,
+   restoring a stack from a snapshot, a PR through the gates. A fix that touches data takes an undo
+   point first. Never by itself: deleting data, a backup or a snapshot, and what's Ali's (What Ali
+   still does). Those arrive as research, a proposal and a PR, with one question for Ali.
 
+- `runbooks/incident.md` is the agent's own record of cases and their fixes, and it keeps it:
+  crash loop, disk full, DNS failure, certificate expiring, backup missed, deploy failed, host
+  down, to start.
 - doco-cd already restarts unhealthy containers, with a flap limit, so a crash loop that a restart
   fixes never reaches the agent.
-- The runbook's cases: crash loop, disk full, DNS failure, certificate expiring, backup missed,
-  deploy failed, host down.
 - From P6, warnings wait for the morning digest; critical alerts post at once.
 
 ### Toil
@@ -2107,10 +2173,12 @@ either can't reach is Ali's, whatever the version number says.
   module with our VM conventions (q35, OVMF, virtio-scsi, serial, guest agent, disk first), one
   provider per node (they aren't clustered), and pool `skynet`.
 - **The flow:**
-  1. A PR changes a spec. CI checks format and validity (GitHub's runners can't reach the lab).
+  1. A PR changes a spec. CI checks format and validity (GitHub's runners can't reach the lab), and
+     that each NIC's VLAN is the one its VMID names (Hosts and git → Addressing; docker-admin's
+     second NIC, on VLAN 60, is listed): a VM's VLAN is firewall policy.
   2. The agent runs `tofu plan` on ops and posts it on the PR.
-  3. The tier rule decides (Merges). Every VM also has `prevent_destroy`, so a plan that destroys
-     one fails until that line changes, in a PR.
+  3. The gates decide (Merges). Every VM also has `prevent_destroy`, so a plan that destroys one
+     fails until that line changes, in a PR.
   4. After the merge, the agent applies the same plan from `main`; a change that needs a reboot
      applies in the window.
   5. A daily plan alerts on drift: anything changed by hand in PVE.
@@ -2147,34 +2215,40 @@ either can't reach is Ali's, whatever the version number says.
 
 ### Reports
 
-- **Morning digest** (08:00): the night's merges and rollbacks, incidents, backups, and the C
-  proposals waiting.
+- **Morning digest** (08:00): the night's merges and rollbacks, incidents, backups and Unraid's
+  copies, and the C proposals waiting.
 - **Weekly report** (Mondays): trends and capacity, majors coming, upstream end-of-life, and PVE,
   OPNsense and Unraid upgrades with their steps.
 
 ### PRs and order
 
 1. **With the plan:** comin's testing branches off.
-2. **Leash PR, with this plan's revision:** CODEOWNERS, the `base.nix` assertion, comin pinned,
-   doco-cd's source in a file of its own. Ali turns on the ruleset; the agent proves it both ways.
+2. **Leash PR, with this plan's revision:** CODEOWNERS; D11's list in `base.nix`; comin pinned to a
+   commit until step 7; Unraid's undo job (`unraid/undo.sh`), which Ali installs
+   (`unraid/README.md`). Ali turns on the ruleset; the agent proves it both ways.
 3. **Operate PR:** root on docker-admin (D11) and its doco-cd MCP tools; PVE `operate` (Ali mints)
-   and kernel reboots; PBS's security upgrades; `nix run .#secret`; the incident loop,
-   investigating and posting only; the digest and the weekly report.
+   and kernel reboots; PBS's security upgrades; `nix run .#secret`; Unraid's copies mounted
+   read-only on PBS and docker-dmz, `UndoCopyMissing`, their cases in `runbooks/restore.md`, and a
+   drill (a backup deleted on PBS and a folder deleted from the library, each put back; a delete
+   on a copy refused); the incident loop, investigating and posting only; the digest and the weekly
+   report.
 4. **docker-admin's data disk:** Ali adds a second disk to VM 5040 (the command in the PR, sized
    from P5's numbers); the agent makes it btrfs as on docker-dmz (`disk.nix`, btrbk), moves
    `/opt/appdata` onto it with doco-cd held, and drills a restore from a snapshot. Same VM, same
    key.
-5. **Merges PR, as a dry run:** `renovate.json` (one PR per stack, the tiers, the release ages), the
-   evening review, `skynet-merge`, `skynet-verify`, the undo snapshot, the rollback and
-   `skynet-window`, which for a week logs what it would merge and verifies what's live; the incident
-   fixes, logged only.
+5. **Merges PR, as a dry run:** `renovate.json` (one PR per stack, the tiers, the release ages);
+   CI: every host built (`build`, which Ali adds to the ruleset), and the healthcheck and Gatus-row
+   checks, with the healthchecks, rows and smoke checks they ask for; the evening review;
+   `modules/window/`: `skynet-merge`, `skynet-verify`, the undo point, the rollback
+   (`skynet-restore --whole`) and `skynet-window`, which for a week logs what it would merge and
+   verifies what's live; the incident fixes, logged only.
 6. **Live, on Ali's call** after the dry-run week and a drill (a bad update to a real stack, merged
    in a window, rolled back with its data): the window merges and the incident fixes apply; D13,
    Rule 1 and `AGENTS.md`.
-7. **Hosts PR:** every host built in CI (`build`, which Ali adds to the ruleset) and the canaries;
-   then `flake.lock` and the images pinned in Nix take B.
+7. **Hosts PR:** `skynet-activate`, drilled on each host with a change that cuts its network and
+   comes back by the timer; then B merges, and comin's pin goes.
 8. **Provisioning PR:** `vm.nix`, `infra/proxmox/`, the `provision` token (Ali), the import with no
-   changes, the drift check; the `proxmox.sh` files go; D10.
+   changes, the VLAN check, the drift check; the `proxmox.sh` files go; D10.
 9. **Aliases PR:** `opnsense/aliases.yaml`, the alias key (Ali), the sync.
 10. **Game day.**
 
@@ -2182,19 +2256,22 @@ Steps 7–9 can run beside the dry-run week.
 
 ### Exit criteria
 
-- The leash holds: a PR touching it can't merge without Ali, and each host's agent groups are
-  `base.nix`'s list.
+- The leash holds: a PR touching a code owner's file can't merge without Ali.
+- The undo out of reach holds: 14 nights of Unraid's copies; a backup deleted on PBS and a folder
+  deleted from the library, each put back from them by the agent; a delete on a copy refused.
 - Two weeks of windows: every merge verified, each failure rolled back and reported, nothing for
   Ali but tier C.
 - From chat, end to end: a stack deployed, and an app's data put back to yesterday's.
 - docker-admin's data on btrfs with snapshots, on the same VM and key.
 - A game day passes: a bad image update (rolled back with its data), a killed container, a full
-  disk, a bad host change (stopped at the canary) and a failed backup (re-run), each fixed or PR'd
-  with no step from Ali.
+  disk, a host change that cuts the host's network (undone by its timer) and a failed backup
+  (re-run), each fixed or PR'd with no step from Ali.
 
 **Open:**
+- A host that doesn't come back from a kernel reboot: a PVE snapshot before the reboot, rolled back
+  if it stays down, would take `VM.Snapshot` on the `operate` token.
 - Root on ops for deep work: time-boxed SSH-CA certificates (the CA stays on Ali's workstation), if
-  diagnose-only there ever gets in the way.
+  a plain user there ever gets in the way.
 - PVE's and PBS's own notifications (P4 → Open): P5's alerts watch the outcome, and a direct
   webhook would be faster.
 - Re-encrypting without Ali (a key in a GitHub environment that only `main` can use, and a
@@ -2516,7 +2593,7 @@ Aidoku, if it reaches the App Store; family accounts.
 | CI: flake check + `docker compose config` per stack + "every stack has a README and a Gatus row" check | ~60 lines |
 | `runbooks/dns-speed-test/dnsbench.py` (run by hand; nothing deploys it) | ~450 lines |
 | `stacks/<host>/backup/run.sh` (the jobs' entrypoint: a writable `rclone.conf`, the source checks: app data, the marker, the snapshot's age) (P4) | ~30 lines, the same on both hosts |
-| `skynet-restore` (P4: two sources, the undo snapshot, doco-cd held by the marker, a failed restore's hold and its record) | ~185 lines |
+| `skynet-restore` (P4: two sources, the undo snapshot, doco-cd held by the marker, a failed restore's hold and its record; P6: `--whole`, caches included) | ~240 lines |
 | btrbk's hooks on docker-dmz (the stamp, `latest`) (P4) | ~10 lines |
 | `storage-keepalive` on docker-dmz (P8: every container's mounts of Unraid's share read every 2 minutes, so none goes stale) | ~20 lines |
 | `stacks/admin/pbs-offsite/run.sh` (the jobs' entrypoint: the empty-source guard, the sync and its pings, the check) (P4) | ~35 lines |
@@ -2538,13 +2615,14 @@ Aidoku, if it reaches the App Store; family accounts.
 | `stacks/dmz/comics-agent` OpenAB config (P8, D17: the channel, Ali alone, the model, the ✅, the scheduled prompts) | ~35 lines |
 | `stacks/dmz/arena` (D18: the runner: tests, stages and finalists, variants and repeats, the open-ended outcome and its hint ladder, the judge, pacing on the plans' windows, each CLI's usage and steps read, records and standings, the agent's start, stop, status, reset, rescore and rejudge; a lane's loop around its CLI and its image; the world host). The tests themselves are the agent's working files, not glue in git | ~880 lines |
 | `skynet-incident` (P6: alert webhook → `claude -p`; one at a time, repeats dropped, the budget, escalation) | ~40 lines |
-| `skynet-merge` (P6: tier, window, CI and review checked; the undo snapshot; the merge; the post) | ~40 lines |
-| `skynet-verify` (P6: a stack's or a host's checks from doco-cd, Gatus, VictoriaMetrics and VictoriaLogs) | ~80 lines |
+| `skynet-merge` (P6: tier, window, CI, the review and its commit, and the age checked; the undo point; the merge; the post) | ~50 lines |
+| `skynet-verify` (P6: a stack's or a host's checks from doco-cd, Gatus, VictoriaMetrics and VictoriaLogs, and the stack's smoke check) | ~90 lines |
+| the smoke checks (P6: `smoke.sh` in a stack's folder where a health endpoint doesn't show use: a login through each Authelia, a page from Komga and Uchiyomi) | ~40 lines |
 | `skynet-window` (P6: the night's merges one at a time, each verified, the first failure rolled back; no Claude) | ~40 lines |
 | the review, digest and report runs (P6: timers around `claude -p`; what they do is in `runbooks/`) | ~30 lines |
-| the canaries (P6: a PR's build activated with `nixos-rebuild test` on docker-dmz and technitium-network, then verified) | ~30 lines |
-| CI: every host built, OpenTofu's checks (P6) | ~40 lines |
-| `base.nix`'s leash (P6: D11's list, the agent's groups from it, and the assertions: its groups, root's SSH login, sudo rules, Nix trust) | ~45 lines |
+| `skynet-activate` (P6: a host's build activated under a 10-minute timer that re-activates the old one; verified; the timer stopped) | ~40 lines |
+| CI: every host built, a healthcheck or a reason per service, a Gatus row per routed app, each NIC's VLAN from its VMID, OpenTofu's checks (P6) | ~70 lines |
+| `unraid/undo.sh` (P6: Unraid's nightly dated copies of `pbs` and `Storage`, hard-linked or copy-on-write, 14 kept; Ali installs it) | ~75 lines |
 | `nix run .#secret` (P6: a hidden prompt into `sops set`) | ~15 lines |
 | `skynet-tofu` (P6: the VM specs from Nix; plan, apply, drift) | ~40 lines; `infra/proxmox/` itself is config |
 | `opnsense-alias-sync` (P6: aliases through the API, read back) | ~80 lines |

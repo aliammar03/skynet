@@ -15,8 +15,9 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     # Pinned to a commit, so the weekly flake.lock can't move it: comin deploys every host, and a
-    # broken one can't deploy its own revert, so its updates are Ali's (skynetv2.md → P6 → Merges,
-    # C). Its newest release, v0.14.0, is older than this one.
+    # broken one can't deploy its own revert. The pin goes once a host change proves itself under a
+    # timed rollback before it merges (skynetv2.md → P6 → Verify and roll back; the hosts PR). Its
+    # newest release, v0.14.0, is older than this commit.
     comin = {
       url = "github:nlewo/comin/f95451172287f3cb36249a2cdef56efa9bbeef19";
       inputs.nixpkgs.follows = "nixpkgs";
