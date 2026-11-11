@@ -11,6 +11,14 @@ let
     inherit (pkgs.stdenv.hostPlatform) system;
     config.allowUnfree = true;
   };
+  # Claude Code from nixpkgs master's manifest while nixpkgs-unstable lags it; once the unstable
+  # lock catches up, unstable's own build wins and claude-code-manifest.json can go.
+  claudeManifest = lib.importJSON ./claude-code-manifest.json;
+  claude-code =
+    if lib.versionOlder unstable.claude-code.version claudeManifest.version then
+      unstable.claude-code.override { manifest = claudeManifest; }
+    else
+      unstable.claude-code;
   home = "/home/skynet";
   repo = "${home}/skynet";
   hasSecrets = builtins.pathExists (../secrets + "/${config.networking.hostName}.yaml");
@@ -133,7 +141,7 @@ in
       esac
       exec sudo -iu skynet tmux -L claude new-session -A -s "$name" ${claudeSession} "$name"
     '')
-    unstable.claude-code
+    claude-code
     unstable.mcp-nixos
     bun
     nodejs
