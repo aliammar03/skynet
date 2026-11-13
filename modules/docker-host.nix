@@ -219,7 +219,7 @@ in
     };
     # Host networking, so the NixOS firewall governs its ports (a published port would bypass it).
     virtualisation.oci-containers.containers.doco-cd = {
-      image = "ghcr.io/kimdre/doco-cd:0.131.0@sha256:33761af0adb58696bf7892604a4a319cee6164aa5cb17e5b4b4f5c8cb248a603";
+      image = "ghcr.io/kimdre/doco-cd:0.134.0@sha256:1d40f570403689c762c63009ade3d5d0dc24595bf40f9629a8ab3865e4ddb768";
       dependsOn = [ "apprise" ];
       extraOptions = [
         "--network=host"
