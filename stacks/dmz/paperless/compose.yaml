@@ -3,7 +3,7 @@
 services:
   paperless:
     container_name: paperless
-    image: ghcr.io/paperless-ngx/paperless-ngx:3.3.4@sha256:9bc6e8248891bcfa6f52fffe8b81e4ea8cae75790c3ec1b9906961a7ba55c969
+    image: ghcr.io/paperless-ngx/paperless-ngx:3.4.2@sha256:d704e84f88300eb6ab001ab15720a2330ff99169cf9f94d6b8fcc44b63a84c84
     restart: unless-stopped
     env_file: secret.sops.env # PAPERLESS_SECRET_KEY, PAPERLESS_ADMIN_PASSWORD
     environment:
@@ -34,7 +34,7 @@ services:
 
   redis:
     container_name: paperless-redis
-    image: docker.io/library/redis:8.10.3-alpine@sha256:896f241f438ab6a210cfb24f573b84bea721a4cbe67f1b4fd07eb638b3b02a7b
+    image: docker.io/library/redis:8.10.3-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
     restart: unless-stopped
     command: [redis-server, --save, "", --appendonly, "no"] # the broker only: nothing to keep
     mem_limit: 128m
