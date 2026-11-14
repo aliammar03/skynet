@@ -5,7 +5,7 @@ services:
   aiostreams:
     container_name: aiostreams
     # Stable releases (v1 ran nightlies); Renovate proposes each one.
-    image: ghcr.io/viren070/aiostreams:v2.37.0@sha256:bcfd8580695a50c8f464578a0e25af065f3bd17eac35ed82a733a18342ca9718
+    image: ghcr.io/viren070/aiostreams:v2.38.0@sha256:ab78358c1a6897ae53489ee24199661c42c6791fd3a0312076bee1a76ab82a2e
     restart: unless-stopped
     # secret.sops.env (from v1): SECRET_KEY, DATABASE_URI, AIOSTREAMS_AUTH, and v1's unused OIDC
     # client. oidc.sops.env: AIOSTREAMS_OIDC_CLIENT_SECRET for the apps' Authelia (later files win).

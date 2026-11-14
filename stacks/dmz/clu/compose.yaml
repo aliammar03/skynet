@@ -8,7 +8,7 @@
 services:
   clu:
     container_name: clu
-    image: docker.io/allaboutduncan/comic-utils-web:v7.0@sha256:64d14273c891f5a94d5c7d1756cfce6b67dcc948027a2a2e2fce9915f66b037d
+    image: docker.io/allaboutduncan/comic-utils-web:v7.2@sha256:f92fbce4a986b824f4a293b45f5ef5574d583efe7b4e1df9f48faab891a1f3a6
     restart: unless-stopped
     # Seventeen fixes to CLU v7.0 (patches/apply.py; README → Patches), applied before its own
     # entrypoint. The image's command is restated: a new entrypoint drops it.

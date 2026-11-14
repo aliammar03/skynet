@@ -205,7 +205,7 @@ in
     virtualisation.oci-containers.backend = "docker";
     # Stateless Apprise API; doco-cd posts to it on loopback.
     virtualisation.oci-containers.containers.apprise = {
-      image = "docker.io/caronc/apprise:2.0.2@sha256:6ae97e24b3447f85f725a03ba73c6dc3a5f4b99f4273ac126de2d9b5ed6205d5";
+      image = "docker.io/caronc/apprise:2.1.0@sha256:bd7dc73b75882326b97d2963b7c3dd2a5e033df27d84c51f0090465d583fb316";
       ports = [ "127.0.0.1:8000:8000" ];
       # One gevent worker serves a few notices a day; the default is 2 × CPUs + 1 (13 on docker-dmz,
       # ~740 MB).

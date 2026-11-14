@@ -3,7 +3,7 @@
 # The source is btrbk's newest snapshot of /opt/appdata (04:20, hosts/docker-dmz), every app's files
 # at one instant. Restores are skynet-restore's, on the host.
 x-job: &job
-  image: docker.io/creativeprojects/resticprofile:0.33.1@sha256:4c235a1448bea30d69375033fb5c6eb37724e2b155f6ab10fbf8d18c8cf4a347
+  image: docker.io/creativeprojects/resticprofile:0.33.1@sha256:b919f7ae7adfa4b0900ac87ab5314fb88229698b0a8d38ebc3882a27ac9e73d1
   entrypoint: ["/bin/sh", "/etc/resticprofile/run.sh"]
   hostname: docker-dmz # restic's snapshot host, so retention groups every night's together
   env_file: secret.sops.env # RESTIC_PASSWORD, HC_PING_URL

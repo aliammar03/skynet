@@ -4,7 +4,7 @@
 services:
   caddy-apps:
     container_name: caddy-apps
-    image: ghcr.io/caddybuilds/caddy-cloudflare:2.11.7@sha256:9c398a17f826530b99e0a68e63ba85f341ddbadc9c2f23668a1aa8f58ce33fb8
+    image: ghcr.io/caddybuilds/caddy-cloudflare:2.11.9@sha256:17505a5e55432764957953787b065f400a1f1a0c280c3b4da2c99ce4746708d6
     command: [caddy, run, --config, /etc/caddy/Caddyfile, --adapter, caddyfile, --watch]
     restart: unless-stopped
     env_file: secret.sops.env
