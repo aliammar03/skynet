@@ -48,6 +48,18 @@ next restart) / 64 GB.
 - **PBS drift check:** `pbs-drift` (daily 07:00, `modules/pbs-drift.nix`) reads PBS's config over
   the agent's SSH key and compares it with `pbs/etc/` as deployed here. A difference, or a failed
   read, goes to `#alerts` (`discord_alerts_webhook`, passed as a systemd credential).
+- **Unattended runs** (`modules/agent-runs.nix`, P6):
+  - `skynet-incident`, each minute, hands each new alert group in Alertmanager to a headless run, at
+    most 8 a day. `skynet-digest` (08:00) and `skynet-report` (Mondays 08:30) post the morning
+    digest and the weekly report.
+  - Each is a `skynet-run`: `claude -p --restricted` with AGENTS.md, its runbook
+    (`runbooks/incident.md`, `digest.md`, `report.md`) and its data. It only reads: the repo,
+    VictoriaMetrics, VictoriaLogs, and doco-cd's list and get tools.
+  - `skynet-post` posts the answer to `#skynet` as the bot. Its token is `discord-bot.header`, a
+    sops template curl reads.
+  - State is in `/var/lib/skynet-runs`, with the reports kept 14 days.
+  - By hand, as skynet: `DRY_RUN=1 skynet-digest` prints instead of posting, and
+    `touch /var/lib/skynet-runs/paused` stops the incident runs.
 - **LAN Nix cache:** harmonia on :5000 (`modules/nix-cache.nix`) serves ops's store to every other host
   (they're clients via `base.nix`). ops admits 10.10.0.0/16, and the OPNsense alias
   `ROLE_NIX_CACHE_CLIENTS` decides which hosts get through: a new host needs adding there. `nix-cache-key` generates the signing key once

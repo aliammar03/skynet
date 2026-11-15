@@ -20,8 +20,9 @@
   logs only events, hours or days apart, so OmadaBridge's alerts watch it instead),
   `UndoCopyMissing` (Unraid's undo job logged no `done` in 26 hours: `unraid/`),
   `AccessLogsNotArriving` (a door's request lines, missing for 15), `GuestBackupFailed` (a Proxmox
-  node's vzdump error), `FilesystemErrors`, `LogFlood` and `LogsDropped` (journald's own count of
-  what it dropped). Each runs every 5 minutes and queries up to the last 5-minute mark, so a "for
+  node's vzdump error), `DeployFailing` (doco-cd's failed deploys per stack, for the agent alone:
+  doco-cd posts them itself), `FilesystemErrors`, `LogFlood` and `LogsDropped` (journald's own count
+  of what it dropped). Each runs every 5 minutes and queries up to the last 5-minute mark, so a "for
   15 minutes" alert posts 15–25 minutes after the silence begins (measured 2026-10-29).
 - **Auth mode:** `forward` (Authelia). Ops (10.10.90.91) reads `/select/logsql/` without a login:
   `curl -s https://logs.aliammar.net/select/logsql/query --data-urlencode 'query=_time:1h CONTAINER_NAME:doco-cd'`.

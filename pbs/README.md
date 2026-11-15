@@ -127,7 +127,10 @@ PVE's.
 - The disk boots first (`proxmox.sh`), so a reboot never reinstalls, even with the ISO attached.
 - The NFS mount is hard: while Unraid is down, jobs wait for it. PBS never writes the datastore to
   the local disk, which has no `.chunks`.
-- After Unraid comes back, two things stay:
+- After Unraid comes back, even from a clean restart, three things stay:
+  - `proxmox-backup-proxy` keeps the datastore's `.lock` open, and the restart dropped that file's
+    lock state on Unraid. Every backup fails "unable to get shared lock - EBADF: Bad file number"
+    until the proxy restarts (`systemctl restart proxmox-backup-proxy`); reads still work;
   - each backup that failed meanwhile leaves an empty one, with no manifest, that counts as its
     guest's newest for `GuestBackupUnverified` until it's removed (Ali's go, D11);
   - a verify that failed meanwhile stays failed, since the job skips it for 30 days. Verify each by

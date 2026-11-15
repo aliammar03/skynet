@@ -14,7 +14,8 @@
 - **Rules** (`rules/`, PromQL; the tables in `skynetv2.md` → P5 → Alerts and Wider eyes):
   `hosts.yml` (hosts, disks and their health, memory, units), `backups.yml` (each guest's PBS
   backup against PVE's guests, PBS's API, storage), `deploys.yml` (comin, doco-cd, certificates,
-  vlagent's forwarding, the alert path and its two heartbeats to healthchecks.io), `network.yml`
+  Gatus's failed checks for the agent alone (`EndpointDown`), vlagent's forwarding, the alert path
+  and its two heartbeats to healthchecks.io), `network.yml`
   (OPNsense's and Omada's exporters reading their APIs; OPNsense's gateways and pf states),
   `dns.yml` (Technitium's stats: their freshness, SERVFAIL).
   Containers' crash loops are LogsQL (`stacks/admin/logs`). Each alert's `instance` is its host,

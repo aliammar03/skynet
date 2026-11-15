@@ -123,6 +123,29 @@ groups:
         annotations:
           summary: '{{ index $labels "_HOSTNAME" }}: the backup of guest {{ $labels.vmid }} failed: {{ $labels.reason }}'
 
+  - name: deploys
+    type: vlogs
+    interval: 5m
+    rules:
+      # doco-cd retries a failed deploy every minute and posts each failure to #alerts itself
+      # (Apprise), with a different message when its error changes. This hands them to the agent
+      # alone (Alertmanager's `agent` receiver posts nowhere), one alert per stack: doco-cd's runs
+      # (its MCP) hold the error. Of each attempt's three lines, "deployment failed" is the one with
+      # the stack.
+      - alert: DeployFailing
+        expr: >-
+          _time:15m CONTAINER_NAME:=doco-cd "deployment failed"
+          | unpack_json fields (msg, deploy.stack)
+          | filter msg:="deployment failed"
+          | rename deploy.stack as stack
+          | stats by (_HOSTNAME, stack) count() as failures
+        labels:
+          severity: warning
+          agent_only: "true"
+          instance: '{{ index $labels "_HOSTNAME" }}'
+        annotations:
+          summary: '{{ index $labels "_HOSTNAME" }}: doco-cd failed to deploy {{ $labels.stack }} {{ $value }} times in 15 minutes.'
+
   - name: volume
     type: vlogs
     interval: 5m

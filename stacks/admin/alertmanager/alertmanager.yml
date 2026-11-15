@@ -9,6 +9,11 @@ route:
   group_interval: 5m
   repeat_interval: 12h
   routes:
+    # The agent's alone: what Gatus and doco-cd post to #alerts themselves reaches the agent this
+    # way (EndpointDown, DeployFailing). `agent` posts nowhere; skynet-incident on ops reads
+    # Alertmanager's API (modules/agent-runs.nix).
+    - receiver: agent
+      matchers: [agent_only = "true"]
     # Always firing: each minute it pings healthchecks.io's check `alertmanager`, which posts when
     # the pings stop (vmalert, Alertmanager, docker-admin or its egress down).
     - receiver: watchdog
@@ -37,6 +42,7 @@ receivers:
           {{ range .Alerts.Firing }}{{ .Annotations.summary }}
           {{ end }}{{ range .Alerts.Resolved }}{{ if eq $.Status "firing" }}Resolved: {{ end }}{{ .Annotations.summary }}
           {{ end }}
+  - name: agent
   - name: watchdog
     webhook_configs:
       - url_file: /run/alertmanager/watchdog
