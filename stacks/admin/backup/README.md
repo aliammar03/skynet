@@ -1,18 +1,20 @@
 # backup
 
 - **Purpose:** every night at 04:30, `/opt/appdata` goes to Google Drive as an encrypted restic
-  snapshot, copied hot, with nothing stopped. The one database here is Authelia's small SQLite
-  file, read in milliseconds while nobody logs in. Sundays at 10:00 `check` prunes, then reads 5% of
-  the data back.
+  snapshot, copied hot from btrbk's newest snapshot of it (04:20, `modules/docker-host.nix`): every
+  app's files at one instant, with nothing stopped. Sundays at 10:00 `check` prunes, then reads 5%
+  of the data back.
 - **URL / auth:** none (not routed).
 - **Repository:** `rclone:gdrive:skynet/restic/docker-admin`, 64 MiB packs. Keeps 7 daily, 4 weekly
   and 12 monthly snapshots; snapshot host `docker-admin`.
 - **Backed up:** all of `/opt/appdata` except `excludes.txt`: the paths the stacks' READMEs class as
   cache or disposable (Gatus's history, the metrics and logs stores), and the door's certificates.
-- **Source:** `/opt/appdata`, read-only. `run.sh` refuses it with no app data (the marker doesn't
-  count), or without `.data-ready` (a restore under way or failed). This host keeps ext4: no
-  snapshots, so no local restores (docker-dmz has both).
-- **Data:** none of its own. restic's cache is the host's `/var/cache/restic-appdata`.
+- **Source:** `/mnt/appdata-pool/@snapshots/latest`, mounted read-only at `/opt/appdata` in the job,
+  so restic's paths are the live ones. `run.sh` refuses a source with no app data (the stamp and
+  the marker don't count), one without `.data-ready` (a restore under way or failed), or a snapshot
+  more than an hour old (its `.snapshot-stamp`).
+- **Data:** none of its own. restic's cache is the host's `/var/cache/restic-appdata` (ext4,
+  outside the snapshots).
   `/opt/appdata/backup/` holds its old cache, excluded; it can go.
 - **Secrets:** `secret.sops.env`: `RESTIC_PASSWORD` (agent-generated; survival kit) and
   `HC_PING_URL` (healthchecks.io check `backup docker-admin`: daily, grace 3 h). `rclone.sops.conf`:
