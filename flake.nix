@@ -64,6 +64,36 @@
         };
       };
 
+      # `nix run .#secret -- <sops file> <KEY>` (skynetv2.md → P6 → Toil): a third-party token into a
+      # sops file from a hidden prompt, so it never sits in the shell's history or a process list.
+      # Stored as a string; a multi-line value (a key file) still goes in with `sops <file>`.
+      apps.${system}.secret = {
+        type = "app";
+        program = pkgs.lib.getExe (
+          pkgs.writeShellApplication {
+            name = "secret";
+            runtimeInputs = [
+              pkgs.sops
+              pkgs.jq
+            ];
+            text = ''
+              if [ $# -ne 2 ] || [ ! -f "$1" ]; then
+                echo "usage: nix run .#secret -- <sops file> <KEY>" >&2
+                exit 2
+              fi
+              IFS= read -rsp "$2 (hidden): " value
+              echo >&2
+              if [ -z "$value" ]; then
+                echo "secret: nothing typed; $1 unchanged" >&2
+                exit 1
+              fi
+              printf '%s' "$value" | jq -Rs . | sops set --value-stdin "$1" "[\"$2\"]"
+              echo "secret: $2 set in $1" >&2
+            '';
+          }
+        );
+      };
+
       devShells.${system}.default = pkgs.mkShell {
         packages = with pkgs; [
           sops

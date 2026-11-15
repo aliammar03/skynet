@@ -1,0 +1,3 @@
+// Daily: the package lists, then unattended-upgrades, with what 52skynet-unattended-upgrades allows.
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";

@@ -2,7 +2,8 @@
 
 Git rebuilds the system (`skynetv2.md` → Rules, 2). Backups bring back what git doesn't hold: the
 apps' data, and the guests git doesn't describe (OPNsense, HAOS, Omada, athena). A NixOS guest
-restored whole is a shortcut: comin then brings it to `main`. Six cases, smallest first. **Agent** steps run on ops as
+restored whole is a shortcut: comin then brings it to `main`. Six cases, smallest first, then two
+from Unraid's copies, which the lab can't delete (7, 8). **Agent** steps run on ops as
 `skynet`; **Ali** steps are his.
 
 ## The copies
@@ -13,6 +14,8 @@ restored whole is a shortcut: comin then brings it to `main`. Six cases, smalles
 | restic, `gdrive:skynet/restic/<host>` | each Docker host's `/opt/appdata`, caches left out (`excludes.txt`) | 04:30 | 7 daily, 4 weekly, 12 monthly | its restic password |
 | PBS, datastore `skynet` on Unraid's share `pbs` | every guest but Unraid (2020) and PBS (2040) | network node 02:00, core 03:30 | 14 daily, 8 weekly, 12 monthly | the node's PVE encryption key |
 | `gdrive:skynet/pbs` | that datastore, mirrored | 06:00 | as the datastore; what it drops stays 30 days in Drive's trash | the same keys |
+| Unraid's `undo-pbs/<date>`, PBS `/mnt/undo` | that datastore, whole | 04:00 | 14 nights | the same keys; read-only to PBS |
+| Unraid's `undo-Storage/<date>`, docker-dmz `/mnt/undo` | the share `Storage` | 04:00 | 14 nights | read-only to docker-dmz |
 
 The passwords and keys are in the survival kit (`survival-kit.md`).
 
@@ -53,9 +56,9 @@ ssh skynet@10.10.100.10 sudo skynet-restore local <stack> <snapshot>
 ## 2. An app, from Drive
 
 `skynet-restore drive <stack> [<snapshot>]`: case 1's steps, from restic (`latest` by default).
-- **Who:** on docker-dmz the agent; on docker-admin **Ali**
-  (`ssh -t aliammar@10.10.50.40 sudo skynet-restore …`), where the agent has no sudo. docker-admin
-  has no snapshots, so no undo.
+- **Who:** the agent, on either Docker host (root on both, D11):
+  `ssh skynet@10.10.50.40 sudo skynet-restore …` on docker-admin, which has no snapshots, so no
+  undo.
 - `list <stack>` shows Drive's snapshots, and how many entries each one changed in the stack. Pick
   the one before the change.
 - Minutes: librespeed took 26 s in place; karakeep's 1.79 GiB took 75 s into a folder.
@@ -79,7 +82,7 @@ ssh skynet@10.10.100.10 sudo skynet-restore local <stack> <snapshot>
 
 | Host | Not in git | From |
 |---|---|---|
-| docker-dmz, docker-admin | `/opt/appdata` | `skynet-restore drive --all [<snapshot>]` while doco-cd is held (Rebuild, step 4), or the copy on ops if the old host still ran. Ali runs it on docker-admin |
+| docker-dmz, docker-admin | `/opt/appdata` | `skynet-restore drive --all [<snapshot>]` while doco-cd is held (Rebuild, step 4), or the copy on ops if the old host still ran |
 | ops | `~skynet/.claude` (logins, the Discord plugin, memory) and the agent's SSH key | only its guest backup: restore the guest (case 4). Rebuilt, it logs in again and has new keys: `hosts/ops/agent.pub` and `cache.pub` change in the PR (`hosts/ops/README.md`), and Ali puts the new agent key on PBS (`answer.toml` and root's `authorized_keys`) |
 | technitium-network, technitium-core | nothing | — |
 | PBS | nothing on its disk | case 5 |
@@ -219,6 +222,46 @@ chunks, 918 MiB).
   Unmount the bind first: Drive's copy must never sit under a folder being removed. A stopped
   mount's unit stays `failed`, which `UnitFailed` reports after 5 minutes, hence `reset-failed`.
 
+## 7. A backup, from Unraid's copy (PBS)
+
+What PBS lost (a prune, a delete, a broken datastore) is in Unraid's copy of a night before: the
+whole datastore as it was at 04:00, read-only at `/mnt/undo/<YYYY-MM-DD>/` (`undo-pbs`, 14 nights).
+**Agent**, as root on PBS (putting a backup back deletes nothing):
+```sh
+ls /mnt/undo                                   # the nights kept
+ls /mnt/undo/<date>/ns/<ns>/<vm|ct>/<vmid>     # a guest's backups that night
+d=/mnt/undo/<date> s=ns/<ns>/<vm|ct>/<vmid>/<time>
+cp -r --preserve=mode,ownership --update=none "$d/.chunks/." /mnt/datastore/skynet/.chunks/
+cp -a "$d/$s" "/mnt/datastore/skynet/$s"
+```
+- **The chunks first:** only those the datastore lacks are copied (garbage collection removes a
+  deleted backup's own chunks), each with the time of the copy, so a collection running meanwhile
+  keeps it. Minutes: it checks every chunk the night had.
+- **A group gone whole** needs its folder and its `owner` file too:
+  `mkdir -p "/mnt/datastore/skynet/${s%/*}" && cp -a "$d/${s%/*}/owner" "/mnt/datastore/skynet/${s%/*}/"`.
+- **Then verify it.** The copy still says it was verified, so ask for a fresh one:
+  ```sh
+  proxmox-backup-debug api create /admin/datastore/skynet/verify --ns <ns> --backup-type <vm|ct> \
+    --backup-id <vmid> --backup-time "$(date -d <time> +%s)" --ignore-verified false --output-format json
+  ```
+  It returns the task's UPID; `proxmox-backup-manager task log <upid>` ends `TASK OK`.
+- The node sees it at once (`pvesm list pbs --vmid <vmid>`); bringing the guest back is case 4.
+
+## 8. A folder, from Unraid's copy (docker-dmz)
+
+What `Storage` lost is in Unraid's copy of a night before, read-only at docker-dmz's
+`/mnt/undo/<YYYY-MM-DD>/` (`undo-Storage`, 14 nights). **Agent**, as root there:
+```sh
+ssh skynet@10.10.100.10 ls /mnt/undo
+ssh skynet@10.10.100.10 ls '/mnt/undo/<date>/<path>'
+ssh skynet@10.10.100.10 sudo cp -r --preserve=timestamps --update=none '/mnt/undo/<date>/<path>' '/mnt/storage/<its parent>/'
+```
+- `--update=none` adds what's missing and replaces nothing. An older version of a file that's still
+  there means moving the current one aside first: whose file it is decides that.
+- Unraid writes what comes back as `nobody:users`, like everything on the share.
+- **Under `Books/`** the apps index by path, so once the files are back Komga, CLU and Uchiyomi each
+  re-sync: the comics agent's work, which Ali asks for in `#comics` (D17).
+
 ## Last done
 
 | Case | When, what | Result |
@@ -230,3 +273,5 @@ chunks, 918 MiB).
 | 5 | not yet; PBS's first install (2026-10-25) took the same steps | — |
 | 6, one guest | 2026-10-27, technitium-core as 99051, from Drive's copy of its 10-27 03:30 backup | verify 0 errors (916 MiB of chunks in 300 s); restored in 110 s; booted and answered as technitium-core |
 | 6, all of it | not yet | — |
+| 7 | not yet; the copy mounts on PBS and refuses a write (2026-11-15) | — |
+| 8 | not yet; the copy mounts on docker-dmz and refuses a write (2026-11-15) | — |

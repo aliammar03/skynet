@@ -42,12 +42,19 @@ part of its `/etc` that git holds. ops compares that with the host every day.
 - **Secrets:** `secret.sops.yaml` (Ali only): `root_password`, for the UI and the console.
 - **Agent:** root over SSH from ops only (`from=` in `answer.toml`, D11). ops pins the host key
   (`ssh_host.pub`, `modules/agent.nix`).
-- **`etc/`:** `proxmox-backup/`'s config files that hold no secret, the datastore's mount units,
-  node-exporter's and the upload's drop-ins, VLAN 50's NIC and its firewall, the apt sources (no
-  subscription) and `resolv.conf`. `modules/pbs-drift.nix` on ops compares them
+- **`etc/`:** `proxmox-backup/`'s config files that hold no secret, the datastore's and Unraid's
+  copies' mount units, node-exporter's and the upload's drop-ins, VLAN 50's NIC and its firewall,
+  the apt sources (no subscription) and settings, and `resolv.conf`. `modules/pbs-drift.nix` on ops compares them
   with PBS at 07:00, and every allowlisted name too, so a file that appears on PBS (a sync job added
   in the UI) counts. A difference, or a failed check, goes to `#alerts`.
-- **Updates:** `apt full-upgrade` (setup runs one). Proxmox's no-subscription repository.
+- **Updates:** Debian's security updates install each morning by themselves (`unattended-upgrades`,
+  `etc/apt/apt.conf.d/`); the rest with `apt full-upgrade` (setup runs one), Proxmox's
+  no-subscription repository. Neither reboots: when `/run/reboot-required` appears, the agent
+  reboots PBS at night, before the backups (02:00) or after the prune (05:30).
+- **Undo:** Unraid's dated copies of the datastore (`10.10.20.20:/mnt/user/undo-pbs`, 14 nights) at
+  `/mnt/undo`, `ro` and `soft`, mounted on use and let go after 10 idle minutes. Unraid exports them
+  read-only to PBS, so not even root here can change one. Putting a backup back:
+  `runbooks/restore.md`, case 7.
 - **Restores from Drive:** rclone and fuse3 (`setup.sh`) mount Drive's copy for a guest restore
   (`runbooks/restore.md`, case 6). The rclone config holds a Drive token: Ali makes it for the
   restore, and it's removed after.

@@ -70,6 +70,24 @@ in
     ];
   };
 
+  # Unraid's dated copies of `Storage` (unraid/undo.sh): /mnt/undo/<date>/ is the share as it was
+  # that night, to put back what was lost (runbooks/restore.md, case 8). Unraid exports it read-only
+  # to this host, so not even root here can change a copy. soft: a read fails, rather than hangs, if
+  # Unraid goes away mid-restore; unmounted after 10 idle minutes, and no container mounts it.
+  fileSystems."/mnt/undo" = {
+    device = "10.10.20.20:/mnt/user/undo-Storage";
+    fsType = "nfs";
+    options = [
+      "nfsvers=4.2"
+      "ro"
+      "soft"
+      "noauto"
+      "x-systemd.automount"
+      "x-systemd.idle-timeout=10min"
+      "x-systemd.mount-timeout=30s"
+    ];
+  };
+
   # A container's bind mount of a folder on the share goes stale ("Stale file handle", until the
   # container restarts) once nothing has read the folder for a while, whatever Unraid's
   # fuse_remember says (#129). So every 2 minutes each running container's share mounts are listed

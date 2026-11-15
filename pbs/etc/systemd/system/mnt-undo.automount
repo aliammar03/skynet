@@ -1,0 +1,9 @@
+[Unit]
+Description=Mount Unraid's copies of the PBS datastore on first use
+
+[Automount]
+Where=/mnt/undo
+TimeoutIdleSec=10min
+
+[Install]
+WantedBy=remote-fs.target

@@ -18,7 +18,8 @@ git; this folder is what Ali applies there, so git describes it.
   10.10.20.20 on 5515 (`hosts/docker-admin/default.nix`).
 - **Alerts:** the host rules (`HostDown`, `DiskFull` but for the array disks `/mnt/disk*`, which
   Unraid fills past 90% by design; `MemoryLow`, `OOMKill`), `DiskUnhealthy` / `DiskWearing` from
-  smartctl-exporter, and `SyslogNotArriving` when the heartbeat stops. The array's own events (a
+  smartctl-exporter, `SyslogNotArriving` when the heartbeat stops, and `UndoCopyMissing` when no
+  undo copy has finished in 26 hours (below). The array's own events (a
   disk disabled or missing, a parity check's errors, a disk too hot) post through Unraid's own
   notifications, to `#alerts` by its Discord agent: Unraid knows its array best.
 - **Undo copies:** `undo.sh`, a User Script at 04:00, before the merge window: a dated copy of
@@ -30,9 +31,11 @@ git; this folder is what Ali applies there, so git describes it.
     deletes or replaces. `pbs` is hard-linked: PBS never rewrites a chunk, so every copy is a whole
     datastore. `Storage` is copy-on-write where the disk's XFS has reflinks, which also keeps a
     file rewritten in place; without them it's hard-linked, which keeps deleted and replaced files
-    only. The job's log line says which (`copied (reflink)` or `copied (link)`).
+    only. The job's log line says which (`copied (reflink)` or `copied (link)`): on disk1, reflink
+    (2026-11-15). The first night cost 0.64 GB and 0.9 million inodes, mostly `Storage`'s files.
   - It logs to syslog as `skynet-undo`, ending with `done`; a failed copy deletes no older one.
-  - Reading them back: `undo-pbs` is exported read-only to PBS and `undo-Storage` to docker-dmz.
+  - Reading them back: `undo-pbs` is exported read-only to PBS and `undo-Storage` to docker-dmz,
+    each at `/mnt/undo` there (`runbooks/restore.md`, cases 7–8). A write from either is refused.
 
 ## Apply it (Ali)
 

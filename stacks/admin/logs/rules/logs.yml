@@ -74,6 +74,21 @@ groups:
         annotations:
           summary: '{{ index $labels "source" }}: its syslog hasn''t reached VictoriaLogs for 15 minutes (its remote logging, the path or vlagent; on Unraid, also its heartbeat script).'
 
+      # Unraid copies `pbs` and `Storage` at 04:00 (unraid/undo.sh) and logs `done` once every copy
+      # is in place; a failed one logs why. 26 hours without it: the newest copy the lab can't
+      # delete (skynetv2.md → P6 → The undo out of reach) is older than it should be. A count with no
+      # `by` always returns its row, so this fires even when the job logged nothing at all.
+      - alert: UndoCopyMissing
+        expr: >-
+          _time:26h source:=unraid app_name:=skynet-undo _msg:="done"
+          | stats count() as done
+          | filter done:=0
+        labels:
+          severity: warning
+          instance: unraid
+        annotations:
+          summary: 'unraid: no undo copy has finished in 26 hours (skynet-undo; its own lines say why).'
+
       # The doors log every request into the journal (caddy's access log; skynetv2.md → P5 → Wider
       # eyes), each well over 100 in any 15 minutes, Gatus's checks among them. A door seen this
       # week that logs none for 15 minutes stopped logging (its config), and its apps' latency and
