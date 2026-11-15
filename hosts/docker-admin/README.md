@@ -1,7 +1,7 @@
 # docker-admin
 
 Admin Docker host: doco-cd (target `admin`), caddy-admin, Authelia, Gatus (skynetv2.md → P1).
-VMID 5040 · 10.10.50.40 · server-proxmox-network · 2 vCPU / 4 GB / 32 GB.
+VMID 5040 · 10.10.50.40 · server-proxmox-network · 2 vCPU / 4 GB / 32 GB system + 32 GB data.
 
 - **NICs** (MACs pinned in `proxmox.sh`, matched in `net.nix`): `lan` = net0, untagged, because VLAN
   50 is vmbr0's native VLAN on this node; `adm60` = net1, tag 60, no host IP (caddy-admin's macvlan
@@ -10,6 +10,14 @@ VMID 5040 · 10.10.50.40 · server-proxmox-network · 2 vCPU / 4 GB / 32 GB.
   (`nix build .#installer-docker-admin`) boots first, then nixos-anywhere installs with
   `--copy-host-keys` so the host keeps the key its sops recipient was made from. The ISO comes up on
   10.10.50.40 with only the agent's key for root; the installed system doesn't trust that key.
+- **Data** (P6): `/opt/appdata` is the btrfs subvolume `@appdata` on its own disk (scsi1,
+  `disk.nix`).
+  - btrbk snapshots it into `/mnt/appdata-pool/@snapshots` at 04:20, keeping each for 2 days, then
+    one a day for 7. `skynet-restore local` restores a stack from any of them
+    (`runbooks/restore.md`, case 1).
+  - doco-cd starts only once `/opt/appdata/.data-ready` exists (`modules/docker-host.nix`).
+  - The disk came after the install: its first format was by hand to `disk.nix`'s layout (GPT
+    partition `disk-data-appdata`, btrfs label `appdata`).
 - **Docker:** `modules/docker-host.nix`, with journald logs and a weekly prune. The `docker-networks`
   unit creates `edge` (bridge) and `adm60` (macvlan on NIC `adm60`, 10.10.60.0/24); stacks only join them.
 - **doco-cd** (`modules/docker-host.nix`): polls `main` every 60 s, target `admin` →

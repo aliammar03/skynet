@@ -10,7 +10,7 @@ from Unraid's copies, which the lab can't delete (7, 8). **Agent** steps run on 
 
 | Copy | Of | Taken | Kept | Readable with |
 |---|---|---|---|---|
-| btrbk snapshots, docker-dmz `/mnt/appdata-pool/@snapshots/` | its `/opt/appdata` | 04:20 | each 2 days, then one a day for 7 | — |
+| btrbk snapshots, each Docker host's `/mnt/appdata-pool/@snapshots/` | its `/opt/appdata` | 04:20 | each 2 days, then one a day for 7 | — |
 | restic, `gdrive:skynet/restic/<host>` | each Docker host's `/opt/appdata`, caches left out (`excludes.txt`) | 04:30 | 7 daily, 4 weekly, 12 monthly | its restic password |
 | PBS, datastore `skynet` on Unraid's share `pbs` | every guest but Unraid (2020) and PBS (2040) | network node 02:00, core 03:30 | 14 daily, 8 weekly, 12 monthly | the node's PVE encryption key |
 | `gdrive:skynet/pbs` | that datastore, mirrored | 06:00 | as the datastore; what it drops stays 30 days in Drive's trash | the same keys |
@@ -29,12 +29,12 @@ The passwords and keys are in the survival kit (`survival-kit.md`).
 - **Over the original, or beside it:** a restore over an existing guest replaces its disks. That
   destroys it: Ali's call. Beside it means a free VMID.
 
-## 1. An app, from a local snapshot (docker-dmz)
+## 1. An app, from a local snapshot (either Docker host)
 
-**Agent** (root there, D11):
+**Agent** (root there, D11; `<host>` is docker-dmz's 10.10.100.10 or docker-admin's 10.10.50.40):
 ```sh
-ssh skynet@10.10.100.10 sudo skynet-restore list <stack>
-ssh skynet@10.10.100.10 sudo skynet-restore local <stack> <snapshot>
+ssh skynet@<host> sudo skynet-restore list <stack>
+ssh skynet@<host> sudo skynet-restore local <stack> <snapshot>
 ```
 - `list` shows the local snapshots (`@appdata.<YYYYMMDDThhmm>`; `latest` is the newest) and Drive's.
 - Name the snapshot, with or without `@appdata.`. Never "the newest": after a restore, that's the undo
