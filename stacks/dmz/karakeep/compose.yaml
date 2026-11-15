@@ -92,7 +92,7 @@ services:
     container_name: karakeep-chrome
     # Karakeep's own image (Google Chrome stable). Its entrypoint adds --no-sandbox and serves
     # DevTools on 9222 (socat to Chrome's localhost port), so the command leaves both out.
-    image: ghcr.io/karakeep-app/karakeep-chrome:156.0.8078.47-r1@sha256:4ad61127638dd27bfe685222787c5780dd1d083d23a7658c39af657775814c44
+    image: ghcr.io/karakeep-app/karakeep-chrome:157.0.8103.78-r1@sha256:00fb4fa9c37aa74c58e74d0bdd16c4e3b81dddb5f264917c879f9579c3b3ad95
     restart: unless-stopped
     init: true
     command:
