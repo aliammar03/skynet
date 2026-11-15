@@ -30,9 +30,10 @@ services:
       # Go reads SSL_CERT_FILE once, at start. omada.pem's fingerprint here means a re-pinned cert
       # changes this file, so doco-cd recreates the container and it loads the new one.
       skynet.pinned-cert: "D1:CB:06:99:7A:EA:7C:37:E2:F6:DB:FD:A5:FA:68:0E:86:48:81:B5:9A:BA:0F:FD:09:9E:F7:13:C8:C8:74:F8"
-    # Its image's own user (10001); it writes nothing but /tmp.
+    # Its image's own user (10001); it writes nothing but /tmp. The mode keeps /tmp writable after a
+    # restart (runbooks/new-stack.md → tmpfs).
     read_only: true
-    tmpfs: [/tmp]
+    tmpfs: ["/tmp:mode=1777"]
     cap_drop: [ALL]
     networks: [edge]
     healthcheck:
