@@ -19,7 +19,8 @@ let
   # Same path inside and out, so stacks' relative bind mounts resolve. Holds doco-cd's checkout, with
   # the files this host can decrypt decrypted (root-only, like /run/secrets).
   data = "/var/lib/doco-cd";
-  # docker-dmz's btrfs top level (hosts/docker-dmz/disk.nix): @appdata (/opt/appdata), @snapshots.
+  # The btrfs top level of a host with appdataSnapshots (hosts/<host>/disk.nix): @appdata
+  # (/opt/appdata), @snapshots.
   pool = "/mnt/appdata-pool";
   unstable = inputs.nixpkgs-unstable.legacyPackages.${pkgs.stdenv.hostPlatform.system};
 

@@ -59,6 +59,9 @@ in
     gateway = "10.10.60.1";
   };
   skynet.docker.docoTarget = "admin";
+  # /opt/appdata is btrfs on its own disk (disk.nix): btrbk snapshots it for the backup and local
+  # restores.
+  skynet.docker.appdataSnapshots = true;
 
   # Alertmanager runs as nobody (65534) and Grafana as 472; neither takes its folder over by itself
   # (skynetv2.md → Conventions → Data).
