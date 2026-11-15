@@ -14,6 +14,20 @@ let
   hasSecret =
     key:
     builtins.pathExists hostSecrets && lib.hasInfix "\n${key}:" ("\n" + builtins.readFile hostSecrets);
+  # D11: the hosts where the agent is root. wheel = passwordless sudo, each command logged in the
+  # journal; its key is still accepted from ops only. One list, so D11 reads in one place. It isn't
+  # a wall: any Nix that reaches a host is root there, and what guards that is the merge's gates
+  # (skynetv2.md → P6 → The leash).
+  agentRoot = [
+    "docker-dmz"
+    "technitium-network"
+    "technitium-core"
+  ];
+  # The agent's groups on the hosts it SSHes into (ops is its home, with none: agent.nix).
+  agentGroups = [
+    "systemd-journal"
+  ]
+  ++ lib.optional (lib.elem config.networking.hostName agentRoot) "wheel";
   # Posts a failed comin deploy (host, status, commit, error) to Discord #alerts. Successes stay quiet:
   # they'd be one post per host for every merge.
   cominNotify = pkgs.writeShellScript "comin-notify" ''
@@ -87,10 +101,10 @@ in
   security.sudo.wheelNeedsPassword = false;
   # The agent's diagnose lane on the other hosts: from ops only, no shell features (`restrict`), reads
   # the journal (container logs included, via the journald log driver). No sudo, no Docker socket,
-  # except where D11 makes it root: docker-dmz's and the DNS servers' default.nix add wheel.
+  # except where D11 makes it root (agentRoot).
   users.users.skynet = lib.mkIf (config.networking.hostName != "ops") {
     isNormalUser = true;
-    extraGroups = [ "systemd-journal" ];
+    extraGroups = agentGroups;
     # Keeps user@ running between SSH logins. Otherwise a deploy that lands while it stops (10 s
     # after a login) fails to reload its user units, and switch-to-configuration exits 4.
     linger = true;
