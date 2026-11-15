@@ -267,7 +267,7 @@ ssh skynet@10.10.100.10 sudo cp -r --preserve=timestamps --update=none '/mnt/und
 
 | Case | When, what | Result |
 |---|---|---|
-| 1 | 2026-10-25, librespeed in place | 8 s; the folder equal to the snapshot |
+| 1 | 2026-11-15, gatus in place on docker-admin, from its first btrbk snapshot (2026-10-25 on docker-dmz: librespeed, 8 s) | 2 s, its undo snapshot first; back as in the snapshot, all 42 Gatus rows passing again within a minute |
 | 2 | 2026-10-25, librespeed in place; karakeep into a folder | 26 s and 75 s; each equal to its snapshot |
 | 3 | 2026-10-25, docker-dmz rebuilt, its data from ops; `--all` from Drive not yet | under 3 minutes each way, no difference |
 | 4 | 2026-10-27, docker-admin over itself, from its 10-25 backup | back; case 4's after-steps come from it |
