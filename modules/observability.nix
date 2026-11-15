@@ -1,6 +1,6 @@
 # Every host: what docker-admin's VictoriaMetrics scrapes (node-exporter, comin's exporter) and the
-# journal, shipped to its vlagent (skynetv2.md → P5). On the host, not in a stack: each exporter
-# reads the host itself, and ops and the DNS VMs run no Docker.
+# journal, shipped to its vlagent (stacks/admin/metrics, stacks/admin/logs). On the host, not in a
+# stack: each exporter reads the host itself, and ops and the DNS VMs run no Docker.
 { config, lib, ... }:
 let
   dockerAdmin = "10.10.50.40";

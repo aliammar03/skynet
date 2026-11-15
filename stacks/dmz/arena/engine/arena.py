@@ -1,4 +1,4 @@
-"""The arena (skynetv2.md → D18): models side by side on Ali's subscriptions. A test is a folder in
+"""The arena (ADR-0018): models side by side on Ali's subscriptions. A test is a folder in
 /arena/tests, the Skynet agent's working files (not git): test.toml (its contestants, each a lane, an
 agent CLI on one of Ali's plans, × model × effort × variant; its stages, caps and judge), suite.py
 (its rounds and checks) and world.py (the frozen world its agents act in). A run is one round in a

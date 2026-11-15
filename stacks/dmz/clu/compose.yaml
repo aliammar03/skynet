@@ -77,7 +77,7 @@ services:
       # Its `clu` category's folder, at the same path as in CLU.
       - /var/cache/sabnzbd/clu:/usenet
     networks:
-      # Usenet the planned way (skynetv2.md → Conventions → Networks): its own address on the
+      # Usenet the planned way (stacks/README.md → Networks): its own address on the
       # macvlan, which OPNsense names, so it alone leaves on the usenet ports. caddy-apps reaches it
       # here by name; SABnzbd admits only that address to its pages (README).
       dmz:

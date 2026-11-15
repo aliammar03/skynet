@@ -64,14 +64,14 @@ in
   skynet.docker.appdataSnapshots = true;
 
   # Alertmanager runs as nobody (65534) and Grafana as 472; neither takes its folder over by itself
-  # (skynetv2.md → Conventions → Data).
+  # (stacks/README.md → Data).
   systemd.tmpfiles.rules = [
     "d /opt/appdata/alertmanager/data 0700 65534 65534 -"
     "d /opt/appdata/grafana/data 0700 472 472 -"
   ];
 
-  # P5 (stacks/admin/metrics, stacks/admin/logs). This host's own containers reach its exporters and
-  # vlagent from a Docker bridge, not from 10.10.50.40. vlagent runs on the host's network, so this
+  # Observability (stacks/admin/metrics, stacks/admin/logs). This host's own containers reach its
+  # exporters and vlagent from a Docker bridge, not from 10.10.50.40. vlagent runs on the host's network, so this
   # firewall, not a published port, decides who may send it logs: the hosts that ship their journal
   # (modules/observability.nix; PBS from pbs/etc/; the Proxmox nodes from pve/etc/), as OPNsense's
   # ROLE_LOG_SHIPPERS does, and each appliance on its own syslog port.
@@ -88,7 +88,7 @@ in
         "10.10.50.10" # server-proxmox-network
         "10.10.50.11" # server-proxmox-core
       ];
-      # Appliances that log by syslog (skynetv2.md → P5 → Wider eyes): source, protocol and port.
+      # Appliances that log by syslog (stacks/admin/logs): source, protocol and port.
       syslog = [
         {
           src = "10.10.50.1"; # OPNsense, from its VLAN 50 address

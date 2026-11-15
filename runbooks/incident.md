@@ -2,7 +2,7 @@
 
 An unattended run reads this, then one alert group from Alertmanager as data (`skynet-incident`,
 `modules/agent-runs.nix`). It gets each new group once a day, within a daily budget. It investigates
-and reports, and changes nothing (`skynetv2.md` → P6 → PRs and order, step 3). Its last message is
+and reports, and changes nothing (the fixes come later: `docs/plans/autonomy.md`, step 6). Its last message is
 posted as written to the agent's Discord channel, where Ali reads it and can answer the agent's
 session.
 
@@ -74,7 +74,7 @@ Signs: its syslog's boot lines (`source:=unraid`), `rpc.mountd` re-attaching cli
 - vzdump's error names the guest and the reason: the node's syslog, "Backup of VM <id> failed".
 - After an NFS outage (Unraid down), two things stay (`pbs/README.md` → Gotchas):
   - each backup job that failed leaves an empty backup that counts as the guest's newest. Removing
-    one is Ali's go (D11);
+    one is Ali's go (ADR-0011);
   - a verify that failed during the outage stays failed for 30 days, since the job skips it.
     Re-verifying is a run on PBS, so propose it with `runbooks/restore.md` case 7's command.
 - PbsApiDown during a large verify: pbs-exporter gives up after 5 seconds (its log: "context

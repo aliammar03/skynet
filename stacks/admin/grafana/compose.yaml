@@ -1,4 +1,4 @@
-# Grafana: dashboards over VictoriaMetrics and VictoriaLogs (skynetv2.md → P5 → Grafana). Its data
+# Grafana: dashboards over VictoriaMetrics and VictoriaLogs (README.md). Its data
 # sources and boards come from git (provisioning/, dashboards/); you log in through admin
 # Authelia's OIDC, and a local admin (secret.sops.env) is the break-glass.
 services:

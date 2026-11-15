@@ -1,5 +1,5 @@
-# ops: every morning, PBS's config against pbs/etc/ as deployed here from main (skynetv2.md → P4 →
-# PBS's config in git). A difference goes to #alerts with the files' names; so does a failed check.
+# ops: every morning, PBS's config against pbs/etc/ as deployed here from main (pbs/README.md). A
+# difference goes to #alerts with the files' names; so does a failed check.
 {
   config,
   lib,
@@ -73,7 +73,7 @@ in
     startAt = "07:00"; # after the night's backups, prune and offsite start
     serviceConfig = {
       Type = "oneshot";
-      User = "skynet"; # its key is root on PBS (D11); /etc/ssh/ssh_known_hosts pins PBS's
+      User = "skynet"; # its key is root on PBS (ADR-0011); /etc/ssh/ssh_known_hosts pins PBS's
       LoadCredential = "webhook:${config.sops.secrets.discord_alerts_webhook.path}";
       ExecStart = lib.getExe check;
     };

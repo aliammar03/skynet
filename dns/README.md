@@ -1,7 +1,7 @@
 # dns
 
 The internal zone, the settings and the login of both Technitium servers, technitium-network and
-technitium-core (skynetv2.md → P2). `technitium-sync` (`modules/dns.nix`,
+technitium-core (ADR-0005). `technitium-sync` (`modules/dns.nix`,
 `modules/technitium-sync.sh`) applies them through Technitium's API at boot and on every deploy that
 changes them.
 

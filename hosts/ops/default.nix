@@ -22,7 +22,7 @@
     ];
   };
 
-  # On Ali's tailnet as `tag:ops` (D14), in userspace: ops's own routes and DNS stay as they are, and
+  # On Ali's tailnet as `tag:ops` (ADR-0014), in userspace: ops's own routes and DNS stay as they are, and
   # the agent reaches tailnet machines over SSH through `tailscale nc` (`Host *.ts.net`). What
   # `tag:ops` may reach is the tailnet policy's. The auth key serves the first login only; the node
   # key then stays in /var/lib/tailscale.

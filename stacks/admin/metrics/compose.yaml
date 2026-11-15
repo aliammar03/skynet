@@ -1,6 +1,6 @@
 # VictoriaMetrics: the lab's metrics, scraped from scrape.yaml and kept 13 months; vmalert, which
 # turns rules/ into alerts for Alertmanager; and the two exporters that read Proxmox's and PBS's
-# APIs (read-only tokens). The MCP server (agent eyes) joins later (skynetv2.md → P5).
+# APIs (read-only tokens); and mcp-victoriametrics, the agent's read-only queries (README.md).
 services:
   victoriametrics:
     container_name: victoriametrics
@@ -110,7 +110,7 @@ services:
     networks: [backend]
     # No healthcheck: the image is only the binary. VictoriaMetrics' `up` and `pbs_up` cover it.
 
-  # The agent's eyes (skynetv2.md → P5 → Agent eyes): VictoriaMetrics' query tools over MCP, at
+  # The agent's eyes: VictoriaMetrics' query tools over MCP, at
   # metrics.aliammar.net/mcp (the door routes /mcp here; Authelia lets ops through). Read-only: the
   # image's own list of tools off (export, flags, test_rules, the debug ones), plus its documentation
   # search, whose index alone holds ~600 MiB; without it the server needs ~35 MiB.

@@ -8,8 +8,8 @@ decision-makers: Ali
 
 ## Context and Problem Statement
 
-The build is over. Its plan, `skynetv2.md`, had grown to 2,650 lines: the status, the decisions,
-the conventions, the lab's facts and every phase's steps in one file. An agent should find each
+The build is over. Its plan, one Markdown file at the repo's root, had grown to 2,650 lines: the
+status, the decisions, the conventions, the lab's facts and every phase's steps in one file. An agent should find each
 kind of thing by its path, and new work needs a fixed route from idea to done, with no phases.
 
 ## Considered Options
@@ -28,7 +28,7 @@ Established conventions, one per kind of thing:
 ## Decision Outcome
 
 Chosen option: those conventions, and:
-- `skynetv2.md` is deleted once every still-true fact has a home. Git keeps the build's steps;
+- The build's plan is deleted once every still-true fact has a home. Git keeps the build's steps;
   `README.md` names the last commit with the file.
 - A machine is one folder (`hosts/<name>/`, for every machine git configures, NixOS or not, its
   secrets beside it), a stack is one folder, a decision is one file (`docs/decisions/`), a
@@ -52,8 +52,8 @@ Chosen option: those conventions, and:
 
 - Good, because each kind of thing has one home, and `AGENTS.md`'s map reaches it in one hop.
 - Good, because a plan's merge is its approval, and a decision's history is in its own file.
-- Bad, because old paths and links break once: `README.md` names the last commit that had
-  `skynetv2.md`, and git keeps every move as a rename.
+- Bad, because old paths and links break once: `README.md` names the last commit that had the
+  plan, and git keeps every move as a rename.
 
 ## More Information
 

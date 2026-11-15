@@ -1,5 +1,5 @@
-# OpenAB 0.10 (upstream docs/config-reference.md): the comics agent in Discord (skynetv2.md → P8,
-# D17). Codex is the image's agent (codex-acp). ${COMICS_*} come from compose.yaml: OpenAB fills
+# OpenAB 0.10 (upstream docs/config-reference.md): the comics agent in Discord (ADR-0017). Codex is
+# the image's agent (codex-acp). ${COMICS_*} come from compose.yaml: OpenAB fills
 # every ${NAME} in this file from its environment before reading it.
 
 [discord]

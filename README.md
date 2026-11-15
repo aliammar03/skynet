@@ -11,6 +11,7 @@ Ali's homelab, declared in git and run by an AI agent.
 Start with [`AGENTS.md`](AGENTS.md) (the rules and a map) and [`docs/`](docs/README.md) (the lab,
 its credentials, the decisions and the plans in flight).
 
-The build's plan, `skynetv2.md`, was retired once every fact still true had a home; its last
-version is [`c7fe591`](https://github.com/aliammar03/skynet/blob/c7fe591/skynetv2.md). The previous
-lab lives in the archived [`skynet-v1`](https://github.com/aliammar03/skynet-v1).
+The build's plan, a Markdown file at the repo's root that ran the build phase by phase, was retired
+once every fact still true had a home (ADR-0019). Its last version is in commit
+[`c7fe591`](https://github.com/aliammar03/skynet/tree/c7fe591). The previous lab lives in the
+archived [`skynet-v1`](https://github.com/aliammar03/skynet-v1).

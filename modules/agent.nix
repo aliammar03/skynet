@@ -190,7 +190,8 @@ in
     templates."doco-admin.headers.json" = docoHeaders "admin";
     templates."doco-dmz.headers.json" = docoHeaders "dmz";
 
-    # The agent's admin accounts in P8's apps (D16), each password in its own file (agent-generated).
+    # The agent's admin accounts in Komga and Uchiyomi (ADR-0016), each password in its own file
+    # (agent-generated).
     secrets.komga_password.sopsFile = ../secrets/ops.komga.yaml;
     secrets.uchiyomi_password.sopsFile = ../secrets/ops.uchiyomi.yaml;
     templates."komga.netrc" = {

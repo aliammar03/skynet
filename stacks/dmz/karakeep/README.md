@@ -16,7 +16,7 @@
   - `/opt/appdata/karakeep/meili` → `/meili_data`: the search index (backup class: cache; karakeep
     can rebuild it).
 
-  Both copied from v1 (P3 → Data).
+  Both copied from v1.
 - **Secrets** (`secret.sops.env`, from v1): `NEXTAUTH_SECRET` (signs sessions and API keys; keep
   it, or every login and app token breaks), `MEILI_MASTER_KEY`, `PROMETHEUS_AUTH_TOKEN`,
   `OPENAI_API_KEY`.

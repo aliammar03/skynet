@@ -1,4 +1,4 @@
-# The arena (skynetv2.md → D18): a bench for testing agents on Ali's subscriptions. A lane is an agent
+# The arena (ADR-0018): a bench for testing agents on Ali's subscriptions. A lane is an agent
 # CLI on one of his plans (codex: ChatGPT; claude: Claude), with Python and a few tools; each runs a
 # test's rounds against a frozen world of its own, which answers under the test's tool names. The
 # runner (`arena`) loads each round, hands the lane its job, scores what the agent did and records it.

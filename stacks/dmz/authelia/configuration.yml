@@ -31,8 +31,8 @@ webauthn:
 totp:
   issuer: login.aliammar.net
 
-# First match wins: each app's PR adds its rule above the catch-all (skynetv2.md → Conventions →
-# Auth modes).
+# First match wins: each app's PR adds its rule above the catch-all (stacks/README.md → Auth
+# modes).
 access_control:
   default_policy: deny
   rules:

@@ -1,4 +1,4 @@
-# The comics agent (skynetv2.md → P8, D17): Codex on Ali's ChatGPT subscription, in Discord's
+# The comics agent (ADR-0017): Codex on Ali's ChatGPT subscription, in Discord's
 # #comics through OpenAB, runs comics and manga day to day with its `comics` skill. It holds no key:
 # comics-tools, beside it, holds them and offers it a fixed list of verbs over CLU, SABnzbd, Komga and
 # Uchiyomi. No door: nothing reaches the stack from outside.
@@ -61,7 +61,7 @@ services:
     networks:
       # The agent calls it here.
       backend: {}
-      # CLU and SABnzbd, by name (D17's exception to Networks: CLU's port has no login).
+      # CLU and SABnzbd, by name (ADR-0017's exception to the networks: CLU's port has no login).
       clu_backend: {}
       # Komga and Uchiyomi through caddy-apps (its edge aliases), and Discord.
       edge: {}

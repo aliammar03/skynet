@@ -1,8 +1,9 @@
 # shellcheck shell=bash
 # technitium-stats: the local Technitium's last hour (its dashboard: queries by response and by how
 # they were answered, clients, cache) as Prometheus text, for node-exporter's textfile collector
-# (skynetv2.md → P5 → Wider eyes). modules/dns.nix runs it every 5 minutes, logged in with the host's
-# own admin password as technitium-sync is, then moves the file into /var/lib/node-exporter.
+# (stacks/admin/metrics/rules/dns.yml). modules/dns.nix runs it every 5 minutes, logged in with
+# the host's own admin password as technitium-sync is, then moves the file into
+# /var/lib/node-exporter.
 set -euo pipefail
 api=${API:-http://127.0.0.1:5380/api}
 auth=$(mktemp) # the session token as a header file, so it's never on a command line

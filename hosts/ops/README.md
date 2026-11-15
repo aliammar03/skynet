@@ -30,7 +30,7 @@ next restart) / 64 GB.
     caddy-admin for the browser path; their certs name the IPs;
   - `curl -sk --netrc-file /run/secrets/rendered/opnsense.netrc https://10.10.50.1/api/…`: `-k`,
     because its pinned cert names a host, not the IP.
-- **P8's apps (D16):** `komga_password` (`secrets/ops.komga.yaml`) and `uchiyomi_password`
+- **Komga and Uchiyomi (ADR-0016):** `komga_password` (`secrets/ops.komga.yaml`) and `uchiyomi_password`
   (`secrets/ops.uchiyomi.yaml`), the agent's admin accounts, through caddy-apps like any visitor:
   - `curl --netrc-file /run/secrets/rendered/komga.netrc https://komga.aliammar.net/api/…` (HTTP
     Basic as `skynet@aliammar.net`); the claim, once:
@@ -43,12 +43,12 @@ next restart) / 64 GB.
   Claude Code's `headersHelper` prints as the `x-api-key` header. For each server,
   `.claude/settings.json` allows the list/get tools (not `list_stacks`/`get_stack`: Swarm only),
   `trigger_poll`, and the operate lane's `control_project`, `control_stack`, `trigger_scheduled_job`
-  and `compact_mirrors` (D11), and asks Ali before `destroy_project` and `remove_stack`. A session
+  and `compact_mirrors` (ADR-0011), and asks Ali before `destroy_project` and `remove_stack`. A session
   picks up `.mcp.json` and these rules when it starts.
 - **PBS drift check:** `pbs-drift` (daily 07:00, `modules/pbs-drift.nix`) reads PBS's config over
   the agent's SSH key and compares it with `pbs/etc/` as deployed here. A difference, or a failed
   read, goes to `#alerts` (`discord_alerts_webhook`, passed as a systemd credential).
-- **Unattended runs** (`modules/agent-runs.nix`, P6):
+- **Unattended runs** (`modules/agent-runs.nix`):
   - `skynet-incident`, each minute, hands each new alert group in Alertmanager to a headless run, at
     most 8 a day. `skynet-digest` (08:00) and `skynet-report` (Mondays 08:30) post the morning
     digest and the weekly report.
@@ -65,7 +65,7 @@ next restart) / 64 GB.
   `ROLE_NIX_CACHE_CLIENTS` decides which hosts get through: a new host needs adding there. `nix-cache-key` generates the signing key once
   in `/var/lib/nix-cache-key/`. Its public half is `hosts/ops/cache.pub`, which switches the clients
   on. A rebuilt ops gets a new key, so update `cache.pub`.
-- **Tailscale:** on Ali's tailnet as `tag:ops` (D14), userspace, so ops's own routes and DNS are
+- **Tailscale:** on Ali's tailnet as `tag:ops` (ADR-0014), userspace, so ops's own routes and DNS are
   unchanged. `ssh <machine>.<tailnet>.ts.net` goes through `tailscale nc` (`programs.ssh`, `Host
   *.ts.net`); what `tag:ops` may reach is set in the tailnet policy (Ali's admin console).
   `tailscale_authkey` (`secrets/ops.yaml`, tagged `tag:ops`) serves the first login only; the node

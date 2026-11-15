@@ -1,4 +1,4 @@
-# Unraid's exporters (skynetv2.md → P5 → Wider eyes), for docker-admin's VictoriaMetrics. Unraid's
+# Unraid's exporters (README.md), for docker-admin's VictoriaMetrics. Unraid's
 # config isn't in git: Ali applies this on Unraid (README.md), and nothing here deploys it. Renovate
 # keeps the pins current, as for the stacks.
 services:

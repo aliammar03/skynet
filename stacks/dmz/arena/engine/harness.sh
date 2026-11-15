@@ -1,5 +1,5 @@
 #!/bin/sh
-# The arena's lane (skynetv2.md → D18): one agent CLI on one of Ali's subscriptions, headless, one
+# The arena's lane (ADR-0018): one agent CLI on one of Ali's subscriptions, headless, one
 # run at a time. The runner leaves a job in /jobs/<id>/ (job.env, prompt.txt, files/work and
 # files/home, then `ready`); this copies the files into a fresh /tmp/run, runs the CLI in work/ with
 # home/ as its home, and leaves its stream, last message, exit code and the files the job names to

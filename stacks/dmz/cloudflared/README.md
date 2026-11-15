@@ -5,7 +5,7 @@
   inbound.
 - **Routes:** `config.yml`, one line per public name → `https://caddy-apps` (SNI = the name), then
   404. The tunnel is locally managed, so these lines are its whole routing table. Cloudflare holds one
-  proxied `*` CNAME → `<id>.cfargotunnel.com` (D10); a name without a line here gets 404.
+  proxied `*` CNAME → `<id>.cfargotunnel.com` (ADR-0010); a name without a line here gets 404.
 - **Where:** macvlan `dmz` only, 10.10.100.33 = OPNsense `HOST_CLOUDFLARED` (rule 800: TCP/UDP 443 and
   7844 to Cloudflare; QUIC first, HTTP/2 if UDP fails). It reaches caddy-apps (.35) by name on the
   macvlan, and no app directly.

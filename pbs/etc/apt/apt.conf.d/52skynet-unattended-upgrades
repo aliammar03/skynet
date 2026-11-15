@@ -1,4 +1,4 @@
-// Debian's security updates only, each morning (skynetv2.md → P6 → Verify and roll back → PBS).
+// Debian's security updates only, each morning (pbs/README.md → Updates).
 // PBS's own packages and Debian's point releases come with `apt full-upgrade`, which setup.sh runs.
 // No reboot here: the agent reboots PBS at night when /run/reboot-required says it needs one.
 #clear Unattended-Upgrade::Origins-Pattern;

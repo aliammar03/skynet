@@ -88,7 +88,7 @@ endpoints:
   - { <<: *service, name: pbs-vlan50, url: tcp://10.10.50.24:8007 }
   - { <<: *service, name: omada, url: tcp://10.10.50.25:8043 }
   - { <<: *service, name: unraid, url: tcp://10.10.20.20:80 }
-  # P5's stores, by name on `edge`. vlagent runs on the host's network, so Gatus reaches it at the
+  # The observability stores, by name on `edge`. vlagent runs on the host's network, so Gatus reaches it at the
   # host's address (from its bridge: hosts/docker-admin/default.nix).
   - { <<: *service, name: victoriametrics, url: http://victoriametrics:8428/health, conditions: ["[STATUS] == 200"] }
   - { <<: *service, name: victorialogs, url: http://victorialogs:9428/health, conditions: ["[STATUS] == 200"] }

@@ -1,10 +1,11 @@
-# The agent's unattended runs (skynetv2.md → P6 → Incidents, Reports). `skynet-incident` hands each
+# The agent's unattended runs (hosts/ops/README.md → Unattended runs). `skynet-incident` hands each
 # new alert group in Alertmanager to a headless Claude run; timers run the morning digest and the
 # weekly report. A run gets AGENTS.md, its runbook (runbooks/incident.md, digest.md, report.md) as
 # on main, and what it's about as data. It only reads (`--restricted`: no command tools and no
 # settings files; `dontAsk`: nothing beyond the list): the repo, VictoriaMetrics, VictoriaLogs and
 # doco-cd's list and get tools. The runner posts its answer to the agent's Discord channel, so a run
-# holds no token. P6 step 3 investigates and posts only; fixes come with the window.
+# holds no token. The runs investigate and post only; the fixes come with the window
+# (docs/plans/autonomy.md).
 {
   config,
   lib,

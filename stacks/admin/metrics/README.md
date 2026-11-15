@@ -11,7 +11,7 @@
   `/vmui`, the scrape targets at `/targets`, vmalert's rules and alerts at `/vmalert/` (proxied).
   `/mcp` goes to `mcp-victoriametrics:8080` (`.mcp.json`'s `victoriametrics`). Grafana
   (`stacks/admin/grafana`) draws from VictoriaMetrics by name on `edge`.
-- **Rules** (`rules/`, PromQL; the tables in `skynetv2.md` → P5 → Alerts and Wider eyes):
+- **Rules** (`rules/`, PromQL; each rule's `summary` says when it fires):
   `hosts.yml` (hosts, disks and their health, memory, units), `backups.yml` (each guest's PBS
   backup against PVE's guests, PBS's API, storage), `deploys.yml` (comin, doco-cd, certificates,
   Gatus's failed checks for the agent alone (`EndpointDown`), vlagent's forwarding, the alert path

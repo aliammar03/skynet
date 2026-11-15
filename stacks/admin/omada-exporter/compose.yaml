@@ -1,5 +1,5 @@
 # Omada (CT 525): the controller, its APs and switches, their ports, and the client count, through
-# the controller's web API as a viewer (README.md; skynetv2.md → P5 → Wider eyes). OmadaBridge, the
+# the controller's web API as a viewer (README.md). OmadaBridge, the
 # maintained fork of charlie-haley's exporter; its Home Assistant side (MQTT) and device control stay
 # off. A stack of its own: it exits when the controller doesn't answer at its start, and a restart
 # loop then restarts nothing else. VictoriaMetrics scrapes it by name on `edge`

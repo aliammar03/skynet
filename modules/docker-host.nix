@@ -1,6 +1,6 @@
 # Docker hosts (docker-admin, docker-dmz): Docker, the networks stacks join (stacks never create
-# networks; skynetv2.md → Conventions → Networks), doco-cd, which deploys `stacks/<target>/` from
-# `main`, with Apprise for its Discord notices, and cAdvisor (P5).
+# networks; stacks/README.md → Networks), doco-cd, which deploys `stacks/<target>/` from `main`,
+# with Apprise for its Discord notices, and cAdvisor (stacks/admin/metrics).
 {
   config,
   lib,
@@ -55,7 +55,7 @@ let
     '';
   };
 
-  # Restores, from a local snapshot or from Drive (skynetv2.md → P4 → Restores).
+  # Restores, from a local snapshot or from Drive (runbooks/restore.md, cases 1–2).
   skynetRestore = pkgs.writeShellApplication {
     name = "skynet-restore";
     runtimeInputs = [

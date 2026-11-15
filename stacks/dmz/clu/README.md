@@ -1,6 +1,6 @@
 # clu
 
-- **Purpose:** Western comics for P8, in one stack (Ali, 2026-10-30, after CLU found 5× Mylar3's
+- **Purpose:** Western comics, in one stack (Ali, 2026-10-30, after CLU found 5× Mylar3's
   Usenet hits and pulled the Watchmen pack Kapowarr corrupted, cleanly and 10× faster):
   - **CLU** (Comic Library Utilities) follows Ali's series (Metron) and finds their missing issues on
     Usenet (NZBGeek, downloaded by SABnzbd), then GetComics, whose search runs on a local index of
@@ -24,7 +24,7 @@
   - CLU: `door-clu` (internal, with caddy-apps alone, from `hosts/docker-dmz`), the stack's `egress`
     (GetComics, MEGA, Pixeldrain, Metron, NZBGeek, ComicVine) and `backend` (`http://sabnzbd:8080`).
   - SABnzbd: on the `dmz` macvlan at 10.10.100.66, in OPNsense's `ROLE_USENET_CLIENTS` (rule 820:
-    usenet ports 119/563), so it alone leaves on the usenet ports (`skynetv2.md` → Conventions →
+    usenet ports 119/563), so it alone leaves on the usenet ports (`stacks/README.md` →
     Networks); and on the internal `backend`. caddy-apps reaches it on the macvlan by name, and it
     shows its pages to that address only: `local_ranges` 10.10.100.35, `inet_exposure` 3 (from
     anywhere else, its API with its key and nothing more), `verify_xff_header` 0 (the client in
@@ -65,7 +65,7 @@
     (`https://api.nzbgeek.info`, his API key). SABnzbd's wizard: the Easynews login; → Config →
     Servers: the three fill servers as above, with their logins. JDownloader →
     Settings → Account Manager → premiumize.me: the customer ID and API key.
-  - The agent (D16), through CLU's API: Download Packs and CBR→CBZ on; timezone `5` (an hour offset);
+  - The agent (ADR-0016), through CLU's API: Download Packs and CBR→CBZ on; timezone `5` (an hour offset);
     folder monitoring on; sources `usenet`, then `getcomics`; SABnzbd as its Usenet client
     (`sabnzbd`, 8080, SABnzbd's API key, category `clu`); the schedules (CLU takes UTC): the
     GetComics index at 00:30, the auto-download at 03:30, the library index at 04:30, Pakistan time;

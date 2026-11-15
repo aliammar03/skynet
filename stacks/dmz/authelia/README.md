@@ -2,7 +2,7 @@
 
 - **Purpose:** the apps' login portal and forward-auth for caddy-apps, separate from admin Authelia
   (`stacks/admin/authelia`): its own users, sessions and secrets. It's reachable from the internet
-  through the tunnel, so it lives in the DMZ with the apps it guards (D4).
+  through the tunnel, so it lives in the DMZ with the apps it guards (ADR-0004).
 - **URL:** https://login.aliammar.net (caddy-apps → `authelia:9091` on `edge`; public via
   cloudflared).
 - **Auth mode:** it *is* the auth. A caddy-apps site with `import authelia` asks it. Access rules

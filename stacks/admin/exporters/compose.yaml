@@ -1,5 +1,5 @@
-# Exporters for appliances whose API they read with a key of their own (skynetv2.md → P5 → Wider
-# eyes). A stack apart from `metrics`: doco-cd redeploys a whole stack when one of its containers
+# Exporters for appliances whose API they read with a key of their own (README.md). A stack apart
+# from `metrics`: doco-cd redeploys a whole stack when one of its containers
 # dies, so a crash loop here restarts only these, and a missing key fails only this stack's deploy.
 # VictoriaMetrics scrapes them by name on `edge` (stacks/admin/metrics/scrape.yaml).
 services:

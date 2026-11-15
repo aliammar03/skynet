@@ -1,8 +1,8 @@
 # exporters
 
-- **Purpose:** exporters for appliances whose API they read with a key of their own
-  (skynetv2.md → P5 → Wider eyes), kept apart from `metrics`: doco-cd redeploys a whole stack when
-  one of its containers dies, so a crash loop here restarts only these. **opnsense-exporter**
+- **Purpose:** exporters for appliances whose API they read with a key of their own, kept apart
+  from `metrics`: doco-cd redeploys a whole stack when one of its containers dies, so a crash loop
+  here restarts only these. **opnsense-exporter**
   reads OPNsense's gateways (status, loss, latency), interfaces, firewall counters, pf states,
   mbufs and services.
 - **URL / auth:** none (not routed). VictoriaMetrics scrapes `opnsense-exporter:8080` once a minute
