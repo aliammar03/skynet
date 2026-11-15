@@ -242,9 +242,10 @@ cp -a "$d/$s" "/mnt/datastore/skynet/$s"
 - **Then verify it.** The copy still says it was verified, so ask for a fresh one:
   ```sh
   proxmox-backup-debug api create /admin/datastore/skynet/verify --ns <ns> --backup-type <vm|ct> \
-    --backup-id <vmid> --backup-time "$(date -d <time> +%s)" --ignore-verified false --output-format json
+    --backup-id <vmid> --backup-time "$(date -d <time> +%s)" --ignore-verified false --output-format text
   ```
-  It returns the task's UPID; `proxmox-backup-manager task log <upid>` ends `TASK OK`.
+  It follows the task to its end: each archive `(0 errors)`, then `TASK OK`. JSON output would
+  print only the task's UPID, escaped so that `task log` refuses it as printed.
 - The node sees it at once (`pvesm list pbs --vmid <vmid>`); bringing the guest back is case 4.
 
 ## 8. A folder, from Unraid's copy (docker-dmz)
@@ -273,5 +274,5 @@ ssh skynet@10.10.100.10 sudo cp -r --preserve=timestamps --update=none '/mnt/und
 | 5 | not yet; PBS's first install (2026-10-25) took the same steps | — |
 | 6, one guest | 2026-10-27, technitium-core as 99051, from Drive's copy of its 10-27 03:30 backup | verify 0 errors (916 MiB of chunks in 300 s); restored in 110 s; booted and answered as technitium-core |
 | 6, all of it | not yet | — |
-| 7 | not yet; the copy mounts on PBS and refuses a write (2026-11-15) | — |
-| 8 | not yet; the copy mounts on docker-dmz and refuses a write (2026-11-15) | — |
+| 7 | 2026-11-15, Omada's (CT 525) 11-11 02:00 backup deleted on PBS, then put back from the 11-15 copy | chunks in 363 s, the folder in under a second; its five files equal to before; verify 0 errors (1632 MiB of chunks in 18 s); root's delete on the copy refused |
+| 8 | 2026-11-15, a throwaway folder (`.skynet-drill`, 4 MiB) deleted from `Storage`, then put back from the 11-15 copy (made after that day's copy, so Ali added it to the copy by hand) | 3 s; its files, times and owner equal to before; root's delete on the copy refused |
