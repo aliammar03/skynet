@@ -58,6 +58,33 @@
   [journald ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/) ·
   [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/)
 
+**Senders**
+
+Who logs here, and the field that names their lines. Journal lines carry `_HOSTNAME`, syslog lines
+`hostname` and `source` (Omada's only `remote_ip`), so no one field lists them all; this does:
+```
+_time:1h | stats by (_HOSTNAME, hostname, source, remote_ip) count()
+```
+
+| Machine | Ships by | Its lines | Not here |
+|---|---|---|---|
+| ops, docker-admin, docker-dmz, technitium-core, technitium-network | journal upload (`modules/observability.nix`) | `_HOSTNAME:=<name>` | |
+| PBS (VM 2040) | journal upload (`pbs/etc/`) | `_HOSTNAME:=pbs` | |
+| The Proxmox nodes | journal upload (`pve/etc/`) | `_HOSTNAME:=server-proxmox-core`, `server-proxmox-network` | |
+| OPNsense (VM 5001) | syslog, TCP 5514 | `source:=opnsense` | |
+| Unraid (VM 2020) | syslog, TCP 5515 | `source:=unraid` | its own log lives in RAM: what it hadn't sent before a reset is gone |
+| Omada (CT 525) | syslog, UDP 5516 | `source:=omada` | the CT's journal; the controller logs events only |
+| HAOS (VM 3050), athena (CT 10030) | nothing | | all: HAOS keeps its own (its UI → Settings → System → Logs); athena is its own repo's |
+
+A guest's own log can't show what happens beneath it: its passthrough devices (Unraid's boot flash
+on USB, its SATA controller on PCI), a reset, a console session. Those are its node's lines: the
+kernel's (`usb`, `xhci_hcd`), QEMU's and `pvedaemon`'s tasks (`qmreset:<vmid>`, `vncproxy:<vmid>`).
+Its node is the `instance` of `pve_up{id="qemu/<vmid>"}` (or `lxc/<vmid>`) in VictoriaMetrics,
+`proxmox-core` there being `server-proxmox-core` here:
+```
+_HOSTNAME:=server-proxmox-core (_TRANSPORT:=kernel OR SYSLOG_IDENTIFIER:=QEMU OR "<vmid>")
+```
+
 **Gotchas**
 - A new host's first upload sends its whole journal (up to 2 weeks); older than 30 days is dropped.
 - Floods: journald on each host drops what one service logs past about 100 lines a second
