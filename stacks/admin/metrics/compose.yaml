@@ -92,7 +92,7 @@ services:
   # self-signed cert (caddy-admin's pin), whose names are pbs and pbs.aliammar.net, not the IP.
   pbs-exporter:
     container_name: pbs-exporter
-    image: ghcr.io/natrontech/pbs-exporter:v0.9.4@sha256:5ec5ff8b6e4fcbba0c99c78bf2bdab7062ef136a768f1ec3f834b8c2dadff7ac
+    image: ghcr.io/natrontech/pbs-exporter:v0.10.0@sha256:8db6b5ffb94427f69da9ed84b4e57a4ebc94eb887319507827de6689e921c05b
     restart: unless-stopped
     env_file: secret.sops.env # PBS_API_TOKEN
     environment:
