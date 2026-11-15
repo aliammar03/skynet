@@ -64,6 +64,18 @@ groups:
         annotations:
           summary: "{{ $labels.name }}: its certificate expires in {{ $value | humanizeDuration }}."
 
+  - name: checks
+    rules:
+      # Gatus posts its own failures to #alerts; this hands them to the agent alone (Alertmanager's
+      # `agent` receiver posts nowhere). All of Gatus's rows share one group, so one run looks at an
+      # outage's rows together.
+      - alert: EndpointDown
+        expr: gatus_results_endpoint_success == 0
+        for: 5m
+        labels: { severity: warning, agent_only: "true" }
+        annotations:
+          summary: "Gatus: {{ $labels.name }} ({{ $labels.group }}) has failed its check for 5 minutes."
+
   - name: alerting
     rules:
       # Always firing. Alertmanager sends it to healthchecks.io every minute (its own route), which

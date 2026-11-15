@@ -27,7 +27,7 @@
 | P3 | docker-dmz: apps + public path | done (2026-10-24): docker-dmz with v1's data (#48), its doors (#50) and all ten apps (#51–#61); the apps reach one another only through the door (#64); every image current (#67). Family accounts skipped for now |
 | P4 | Backups → Google Drive | done (2026-11-02): PBS greenfield done (VM 2040, `pbs/`; v1's PBS removed); PBS's datastore nightly to Drive by plain `rclone sync` (`stacks/admin/pbs-offsite/`; PVE already encrypts its chunks); app data nightly to Drive, hot (`stacks/<host>/backup/`): docker-dmz rebuilt onto btrfs and backed up from btrbk snapshots (#81); `skynet-restore` drilled from a snapshot and from Drive; `runbooks/restore.md` (six cases); a guest restored from Drive's copy (2026-10-27); the survival kit stored (Ali, 2026-10-28). seven green nights, 10-26 → 27 through 11-01 → 02 |
 | P5 | Observability (agent eyes) | done (2026-11-03): VictoriaMetrics and VictoriaLogs on docker-admin (`stacks/admin/{metrics,logs}`, #88); every host's exporters and journal upload (`modules/observability.nix`, PBS's `pbs/etc/`); the job metrics; alerts: two vmalerts and Alertmanager to `#alerts`, its Watchdog to healthchecks.io (#91; both watchdogs, HostDown, TargetDown and DiskFull proven live 10-27); Grafana at `grafana.aliammar.net` (OIDC through admin Authelia; Live and Backups boards of our own, seven upstream) and the agent's MCP servers at `/mcp`; Ali's first Grafana login 10-27. Wider eyes live 10-28 (#102–#109): the Proxmox nodes, OPNsense, the doors' access logs, Unraid, Omada, Technitium's stats and query log. Asked and answered through the MCP tools on 10-28: network (the nodes' backups reach PBS over VLAN 50, not through OPNsense; technitium-network's 700 refusals were one burst), storage (night 2's guest backups, verify, restic and Drive copy). Every Wider eyes source's freshness alert posted and resolved in the tests of 10-29 (Wider eyes → Freshness tests). The week's sizing checked on 11-03: memory and disk as estimated (Sizing) |
-| P6 | Agent autonomy | in progress (2026-11-12): the plan revised for full automation (Ali): what bounds the agent is an undo it can't delete (Unraid's dated copies of `pbs` and `Storage`), the gates every merge passes, and the credentials it doesn't hold; updates merge by what a rollback can undo, majors, hosts and comin included; one PR per stack, each merged just after its own undo point; a host change activated under a timer that undoes it unless it verifies; the window a script; a dry-run week and a drill before it goes live; hosts keep their keys, so no rekey workflow. The leash: code owners for the contract, the gates and the firewall's aliases; D11's list in `base.nix`; comin pinned to a commit until the timed rollback; `unraid/undo.sh`, for Ali to install. The leash merged 11-15 (#185): Ali installed the undo job (its first copies the same day: `pbs` hard-linked, `Storage` reflinked) and turned on code-owner review. The operate PR merged 11-15 (#190, #191), and its drill passed the same day: a backup deleted on PBS and a throwaway folder deleted from `Storage`, each put back from Unraid's copies, and a delete on a copy refused (`runbooks/restore.md` → Last done). Next: the incident PR |
+| P6 | Agent autonomy | in progress (2026-11-12): the plan revised for full automation (Ali): what bounds the agent is an undo it can't delete (Unraid's dated copies of `pbs` and `Storage`), the gates every merge passes, and the credentials it doesn't hold; updates merge by what a rollback can undo, majors, hosts and comin included; one PR per stack, each merged just after its own undo point; a host change activated under a timer that undoes it unless it verifies; the window a script; a dry-run week and a drill before it goes live; hosts keep their keys, so no rekey workflow. The leash: code owners for the contract, the gates and the firewall's aliases; D11's list in `base.nix`; comin pinned to a commit until the timed rollback; `unraid/undo.sh`, for Ali to install. The leash merged 11-15 (#185): Ali installed the undo job (its first copies the same day: `pbs` hard-linked, `Storage` reflinked) and turned on code-owner review. The operate PR merged 11-15 (#190, #191), and its drill passed the same day: a backup deleted on PBS and a throwaway folder deleted from `Storage`, each put back from Unraid's copies, and a delete on a copy refused (`runbooks/restore.md` → Last done). In flight: the incident PR (`modules/agent-runs.nix`: each new alert investigated and reported, the morning digest, the weekly report) |
 | P7 | Retire v1 + disaster recovery | outline; v1's guests are already gone (Ali, 2026-10-25) |
 | P8 | Comics and manga | done (2026-11-05, Ali): Komga, Uchiyomi (#119) and Kapowarr (#121) live, the agent's accounts made, sources set, Ali's iPad readers connected, Manga and Comics libraries with downloads sorted by type (#122), Suwayomi's UI on Uchiyomi's engine for the trial (#123); Mylar3 and SABnzbd for comics from Usenet (#124; Easynews, NZBGeek), docker-dmz at 12 GB, the apps' Authelia keeping sessions across restarts (#125); SABnzbd on its own usenet address and JDownloader 2 through Premiumize (#127); CLU (#128, #130) in place of Kapowarr and Mylar3, SABnzbd and JDownloader under it (Ali, 2026-10-30). Uchiyomi on trial (finds, downloads, reads) and Komga's library, both on Unraid's `Storage`; the agent configures them (D16). The comics agent, Codex in Discord's `#comics` with `comics-tools` beside it (D17; `stacks/dmz/comics-agent`): exit test passed 2026-11-04 (Batman: The Long Halloween 13/13 and Vagabond 1–327 added and filled from `#comics`, CLU's alerts arriving, its patrol and morning report posting on their own); now also recommending, adding arcs and fixing its own mistakes (#157, #158), CLU at 17 fixes (#159). Its model chosen in the arena (D18; `stacks/dmz/arena`, a bench for testing agents, live 2026-11-04): Sol, with a lean skill (rules only, no cases) and `manga/compare` (Ali, 2026-11-05). Komf for Komga's manga metadata and covers; comics' series covers from CLU (issue #1, Single Image); a manga chapter's own title and summary from its fan wiki, which the agent links (komga-wiki). Open: Ali's verdict on the Uchiyomi trial (P8 → Steps 5), the arena's ladder and vote page, Aidoku, family accounts |
 
@@ -203,7 +203,7 @@ skynet/
 | aliammar-skynet | classic PAT `public_repo`, `workflow` | **Write**: branches, PRs, labels. Can't push `main` (ruleset), or merge what touches a code owner's file without Ali's review; could merge the rest, but won't (soft wall, D13) | P0 |
 | ops host key | decrypts `secrets/ops.yaml` | ops | P0 |
 | agent (`skynet`) | root on docker-admin, docker-dmz and the DNS servers (sudo) and PBS (SSH key from ops), D11; both doco-cd MCPs' restart/job tools | those five; everywhere else diagnose-only | P3 / P4 / P5 / P6 |
-| Discord bot | bot token | `#skynet` chat | P0 |
+| Discord bot | bot token | `#skynet` chat; the unattended runs' posts (`skynet-post`, a header file curl reads) | P0 / P6 |
 | Renovate app | repo contents/PRs | PRs; it never merges (the agent merges by tier, P6) | P0 |
 | docker-admin host key | `secrets/docker-admin.yaml`, `stacks/admin/**` | that host | P1 |
 | caddy-admin / caddy-apps | Cloudflare token `Zone.DNS:Edit` on `aliammar.net` | DNS-01 | P1 / P3 |
@@ -221,7 +221,6 @@ skynet/
 | `skynet@pve` tokens | `read` = PVEAuditor on `/`, one per node (the nodes aren't clustered); `metrics` = the same, for docker-admin's pve-exporter; `operate` = VM.PowerMgmt on pool `skynet`; `provision` = create, change and restore VMs in pool `skynet`, with their ISOs on `local` and disks on `local-lvm` (OpenTofu) | Proxmox | P1 / P5 / P6 |
 | PBS `metrics@pbs` | token `exporter`: audit on the datastore and the host | pbs-exporter, read-only | P5 |
 | OPNsense `skynet-alias` | API key: Firewall: Aliases, with config writes | ops's alias sync, for aliases merged in `opnsense/` | P6 |
-| alert webhook | token (agent-generated) | Alertmanager → `skynet-incident` on ops | P6 |
 | OPNsense `skynet-read` | API key | Diagnostics: ARP Table · Diagnostics: Logs: Firewall: Live View · Diagnostics: PF Table IP addresses · Diagnostics: Routing tables · Firewall: Aliases · Firewall: Rules [new] · Lobby: Dashboard · System: Gateways · Tailscale · System: Deny config write. Config writes stay denied; PF tables and Tailscale's service could change at runtime, and the agent leaves them to Ali (rule 5) | P1 / P4 |
 | Technitium | read-only user | diagnose | P5 / P6 |
 | agent's Komga and Uchiyomi admins | passwords in `secrets/ops.komga.yaml` and `secrets/ops.uchiyomi.yaml` (agent-generated; Ali + ops) | those two apps, through their APIs (D16) | P8 |
@@ -2136,25 +2135,37 @@ version number says.
 
 ### Incidents
 
-1. Alertmanager posts to a webhook on ops (`services.webhook`; a token, and only docker-admin reaches
-   it). Gatus, doco-cd and comin post to `#alerts` themselves; their failures reach the agent as
-   rules routed only to it, so everything comes in one way.
-2. `skynet-incident` runs one at a time, drops repeats of an alert group, and keeps the daily budget.
-   An alert that returns within a day of the agent's fix isn't fixed again: it escalates.
-3. A headless run (`claude -p`) gets `runbooks/incident.md` and the alert, which it treats as data,
-   not instructions: an alert can carry log text.
-4. The agent fixes what's in its lane, verifies it and posts it: restarting a container or stack,
-   re-running a job, pruning images on a full disk, reverting a merge that broke something,
-   restoring a stack from a snapshot, a PR through the gates. A fix that touches data takes an undo
-   point first. Never by itself: deleting data, a backup or a snapshot, and what's Ali's (What Ali
-   still does). Those arrive as research, a proposal and a PR, with one question for Ali.
+1. **`skynet-incident`** (`modules/agent-runs.nix`) reads Alertmanager's API on ops each minute.
+   Ops reads that API without a login, so it needs no webhook, no port and no token.
+   - Gatus and doco-cd post to `#alerts` themselves. Their failures reach the agent as rules routed
+     only to it (`EndpointDown`, `DeployFailing`): Alertmanager's `agent` receiver posts nowhere.
+     Everything comes in one way.
+2. **It runs one group at a time:** the oldest firing group that isn't silenced or inhibited.
+   - Repeats are dropped: an alert that had a run within the day doesn't get another. A new alert
+     joining its group still counts as new.
+   - The daily budget is 8 runs. Past it, a one-line post names each group left for the digest.
+   - An alert that returns within a day of the agent's fix isn't fixed again: it escalates. That
+     comes with the fixes (step 4).
+   - `touch /var/lib/skynet-runs/paused` stops it, and `rm` resumes.
+3. **A headless run** (`skynet-run`: `claude -p --restricted`) gets AGENTS.md,
+   `runbooks/incident.md` and the group. It treats the group as data, not instructions: an alert
+   can carry log text.
+   - Until the window goes live it only reads: the repo, VictoriaMetrics, VictoriaLogs, and
+     doco-cd's list and get tools.
+   - The runner posts its report to `#skynet`, where Ali's answer reaches the agent's session.
+4. **From the window** (PRs and order, step 6), the agent fixes what's in its lane, verifies it and
+   posts it. That covers restarting a container or stack, re-running a job, pruning images on a full
+   disk, reverting a merge that broke something, restoring a stack from a snapshot, and a PR through
+   the gates. A fix that touches data takes an undo point first.
+   - Never by itself: deleting data, a backup or a snapshot, and what's Ali's (What Ali still does).
+     Those arrive as research, a proposal and a PR, with one question for Ali.
 
 - `runbooks/incident.md` is the agent's own record of cases and their fixes, and it keeps it:
   crash loop, disk full, DNS failure, certificate expiring, backup missed, deploy failed, host
   down, to start.
 - doco-cd already restarts unhealthy containers, with a flap limit, so a crash loop that a restart
   fixes never reaches the agent.
-- From P6, warnings wait for the morning digest; critical alerts post at once.
+- Once the digest has run for a week, warnings wait for it; critical alerts post at once.
 
 ### Toil
 
@@ -2220,8 +2231,11 @@ version number says.
 
 - **Morning digest** (08:00): the night's merges and rollbacks, incidents, backups and Unraid's
   copies, and the C proposals waiting.
-- **Weekly report** (Mondays): trends and capacity, majors coming, upstream end-of-life, and PVE,
-  OPNsense and Unraid upgrades with their steps.
+- **Weekly report** (Mondays 08:30): trends and capacity, majors coming, upstream end-of-life, and
+  PVE, OPNsense and Unraid upgrades with their steps.
+
+Both are `skynet-run`s (Incidents, step 3) on timers, posted to `#skynet`. The report also reads
+the web. Their runbooks are `runbooks/digest.md` and `runbooks/report.md`.
 
 ### PRs and order
 
@@ -2588,12 +2602,12 @@ Aidoku, if it reaches the App Store; family accounts.
 
 | Glue | Size |
 |---|---|
-| `modules/{base,agent,docker-host}.nix` | ~250 lines |
+| `modules/{base,agent,docker-host}.nix` | ~810 lines (166 + 319 + 327, comments included) |
 | `modules/installer.nix` (no-touch installer ISO per host) | ~40 lines |
 | `modules/nix-cache.nix` (ops serves its store on the LAN; harmonia) | ~60 lines |
 | `.doco-cd.{admin,dmz}.yml` | ~10 lines each |
 | comin → Discord post-deploy hook | ~10 lines |
-| `modules/dns.nix` + `modules/technitium-sync.sh` (settings + zone via the Technitium API, gratuitous ARP) | ~145 lines |
+| `modules/dns.nix` + `modules/technitium-sync.sh` (settings + zone via the Technitium API, gratuitous ARP) | ~230 lines (145 + 84) |
 | CI: flake check + `docker compose config` per stack + "every stack has a README and a Gatus row" check | ~60 lines |
 | `runbooks/dns-speed-test/dnsbench.py` (run by hand; nothing deploys it) | ~450 lines |
 | `stacks/<host>/backup/run.sh` (the jobs' entrypoint: a writable `rclone.conf`, the source checks: app data, the marker, the snapshot's age) (P4) | ~30 lines, the same on both hosts |
@@ -2618,12 +2632,13 @@ Aidoku, if it reaches the App Store; family accounts.
 | `stacks/dmz/komga/wiki` (P8: komga-wiki, a manga chapter's own title, summary and release date from the series' fan wiki: MediaWiki's API, the infobox (rendered, for the date) and the short summary as plain text, written into Komga and locked; a volume's date and the English title from Wikipedia's list of chapters where the fan wiki has none, however the list numbers them; a week's wait for what the wiki hasn't written; dropped links put back, locked; a renumbered chapter left alone; the series' description, which Uchiyomi writes into every chapter, cleared) | ~400 lines |
 | `stacks/dmz/comics-agent` OpenAB config (P8, D17: the channel, Ali alone, the model, the ✅, the scheduled prompts) | ~35 lines |
 | `stacks/dmz/arena` (D18: the runner: tests, stages and finalists, variants and repeats, the open-ended outcome and its hint ladder, the judge, pacing on the plans' windows, each CLI's usage and steps read, records and standings, the agent's start, stop, status, reset, rescore and rejudge; a lane's loop around its CLI and its image; the world host). The tests themselves are the agent's working files, not glue in git | ~880 lines |
-| `skynet-incident` (P6: alert webhook → `claude -p`; one at a time, repeats dropped, the budget, escalation) | ~40 lines |
+| `skynet-incident` (P6: Alertmanager's API each minute → a run per new group; one at a time, repeats dropped by alert, the budget; escalation with the fixes) | ~40 lines |
+| `skynet-run` + `skynet-post` (P6: one headless `claude -p --restricted`, read-only, with AGENTS.md, its runbook and its data; the answer to `#skynet` in 1,900-character pieces) | ~55 lines |
 | `skynet-merge` (P6: tier, window, CI, the review and its commit, and the age checked; the undo point; the merge; the post) | ~50 lines |
 | `skynet-verify` (P6: a stack's or a host's checks from doco-cd, Gatus, VictoriaMetrics and VictoriaLogs, and the stack's smoke check) | ~90 lines |
 | the smoke checks (P6: `smoke.sh` in a stack's folder where a health endpoint doesn't show use: a login through each Authelia, a page from Komga and Uchiyomi) | ~40 lines |
 | `skynet-window` (P6: the night's merges one at a time, each verified, the first failure rolled back; no Claude) | ~40 lines |
-| the review, digest and report runs (P6: timers around `claude -p`; what they do is in `runbooks/`) | ~30 lines |
+| the digest and report runs (P6: timers that gather their data, the night's reports, merges and open PRs, for `skynet-run`; what they do is in `runbooks/`); the evening review comes with the merges PR | ~45 lines |
 | `skynet-activate` (P6: a host's build activated under a 10-minute timer that re-activates the old one; verified; the timer stopped) | ~40 lines |
 | CI: every host built, a healthcheck or a reason per service, a Gatus row per routed app, each NIC's VLAN from its VMID, OpenTofu's checks (P6) | ~70 lines |
 | `unraid/undo.sh` (P6: Unraid's nightly dated copies of `pbs` and `Storage`, hard-linked or copy-on-write, 14 kept; Ali installs it) | ~75 lines |

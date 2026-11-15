@@ -20,8 +20,8 @@ appdata:
       - url: "{{ .Env.HC_PING_URL }}/fail"
         method: POST
         body: "${ERROR}\n\n${ERROR_STDERR}"
-  # Right after each backup, while the apps are still stopped: forget only. The weekly check job
-  # prunes, so the nightly stop stays short.
+  # Right after each backup (hot: the apps keep running), forget only. The weekly check job prunes,
+  # so the nightly run stays short.
   retention:
     after-backup: true
     keep-daily: 7
