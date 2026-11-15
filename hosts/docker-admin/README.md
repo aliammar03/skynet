@@ -28,6 +28,7 @@ VMID 5040 · 10.10.50.40 · server-proxmox-network · 2 vCPU / 4 GB / 32 GB.
   tmpfiles rules give Alertmanager (`nobody`) and Grafana (472) their folders. Like every host, it runs node-exporter and the
   journal upload (`modules/observability.nix`), and cAdvisor on :9338 (`modules/docker-host.nix`).
 - **Secrets** (`secrets/docker-admin.yaml`): `doco_api_secret`, `discord_alerts_webhook`.
-- **Agent access:** user `skynet`, the agent's key from 10.10.90.91 only, group `systemd-journal`
-  (reads all logs, e.g. `journalctl CONTAINER_NAME=doco-cd`); no sudo, no Docker socket. Its host key
-  is `ssh_host.pub`, pinned in ops's known_hosts.
+- **Agent access:** user `skynet`, the agent's key from 10.10.90.91 only, groups `systemd-journal`
+  and `wheel`: **root via passwordless sudo** (D11, from P6), Docker included (`sudo docker …`), and
+  with it this host's secrets, which it never prints. Every sudo command lands in the journal
+  (`journalctl _COMM=sudo`). Its host key is `ssh_host.pub`, pinned in ops's known_hosts.

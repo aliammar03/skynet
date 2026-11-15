@@ -20,5 +20,6 @@ VMID 7050 · 10.10.70.50 · server-proxmox-network · 2 vCPU / 1 GB / 16 GB.
     clients, cache (`DnsFailing`, `DnsStatsStale`).
 - **Secrets** (`secrets/technitium-network.yaml`): `technitium_admin_password` (agent-generated; it
   sets `admin`'s password on the first start only), `discord_alerts_webhook`.
-- **Agent access:** user `skynet`, the agent's key from 10.10.90.91 only, group `systemd-journal`;
-  no sudo. Its host key is `ssh_host.pub`, pinned in ops's known_hosts for both IPs.
+- **Agent access:** user `skynet`, the agent's key from 10.10.90.91 only, groups `systemd-journal`
+  and `wheel`: **root via passwordless sudo** (D11). Every sudo command lands in the journal
+  (`journalctl _COMM=sudo`). Its host key is `ssh_host.pub`, pinned in ops's known_hosts for both IPs.

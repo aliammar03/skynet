@@ -1,0 +1,12 @@
+# Unraid's dated copies of the share `pbs` (unraid/undo.sh): each <date>/ is the whole datastore as
+# it was that night, to put back what PBS lost (runbooks/restore.md, case 7). Unraid exports it
+# read-only to 10.10.20.40, so not even root here can change a copy. soft: a read fails, rather
+# than hangs, if Unraid goes away mid-restore.
+[Unit]
+Description=Unraid's copies of the PBS datastore (share undo-pbs), read-only
+
+[Mount]
+What=10.10.20.20:/mnt/user/undo-pbs
+Where=/mnt/undo
+Type=nfs
+Options=ro,soft

@@ -11,11 +11,12 @@ phase are in [`skynetv2.md`](skynetv2.md) — read its Status first.
 2. **The system rebuilds from git.** Only app data restores from backup. No hand-made changes on hosts
    that git doesn't describe.
 3. **Secrets:** sops+age only. You never print a secret value or decrypt one on purpose (as root you
-   could); Ali types credentials into `sops`. You may create encrypted files from values you
-   generate (random passwords) using public keys.
+   could); Ali types third-party tokens in with `nix run .#secret -- <file> <KEY>`. You may create
+   encrypted files from values you generate (random passwords) using public keys.
 4. **Lanes:** diagnose (read anything except secrets) · operate (only the verbs granted in
-   `skynetv2.md`: root on docker-dmz, PBS and the two DNS servers, and docker-dmz's doco-cd MCP
-   restart and job tools, D11; admin of Komga and Uchiyomi through their APIs, D16; an
+   `skynetv2.md`: root on docker-admin, docker-dmz, PBS and the two DNS servers, and both Docker
+   hosts' doco-cd MCP restart and job tools, D11; reading Unraid's copies on PBS and docker-dmz
+   to put back what was lost, D15; admin of Komga and Uchiyomi through their APIs, D16; an
    Alertmanager silence for your own planned work, ending within 4 hours, its comment naming the
    work) · change (PR) · never (merge, private keys or a Docker
    socket outside those hosts, OPNsense / Proxmox host / Unraid config, deleting data). Root changes

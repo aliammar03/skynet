@@ -1,7 +1,8 @@
 #!/bin/sh
 # PBS's setup after Proxmox's installer, run by the agent as root (README.md → Install): updates
 # without a subscription, the guest agent, the datastore on Unraid, node-exporter and the journal's
-# upload (P5), VLAN 50's NIC and its firewall, and etc/ copied into /etc.
+# upload (P5), VLAN 50's NIC and its firewall, Debian's security updates and Unraid's copies of the
+# datastore, read-only (P6), and etc/ copied into /etc.
 # Re-runnable; a rebuild runs it the same way and reuses the datastore as it is on Unraid. From ops:
 #   tar -C pbs -c setup.sh etc | ssh root@10.10.20.40 'rm -rf /root/pbs && mkdir /root/pbs &&
 #     tar -C /root/pbs -x && sh /root/pbs/setup.sh; s=$?; rm -r /root/pbs; exit $s'
@@ -23,6 +24,8 @@ done
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -q
 apt-get install -qy qemu-guest-agent nfs-common
+# Debian's security updates each morning (etc/apt/apt.conf.d/); reboots stay the agent's, at night.
+apt-get install -qy unattended-upgrades
 # A guest from Drive's copy (runbooks/restore.md, case 6). The rclone config, with its token, is
 # Ali's, made for a restore and removed after it.
 apt-get install -qy rclone fuse3
@@ -34,6 +37,8 @@ apt-get full-upgrade -qy -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=-
 systemctl start qemu-guest-agent
 systemctl daemon-reload
 systemctl enable --now mnt-datastore-skynet.automount
+# Unraid's dated copies of the datastore, read-only (runbooks/restore.md, case 7).
+systemctl enable --now mnt-undo.automount
 # Restarted every run, so a changed drop-in applies. The package doesn't enable the upload.
 systemctl enable systemd-journal-upload
 systemctl restart systemd-journald prometheus-node-exporter systemd-journal-upload
@@ -83,6 +88,8 @@ proxmox-backup-manager versions
 # The upload waits ("activating") while docker-admin's vlagent is unreachable.
 systemctl is-active prometheus-node-exporter systemd-journal-upload || true
 proxmox-backup-manager datastore list
+# Not fatal: a rebuild before Unraid's undo job has run has no copies yet (unraid/README.md).
+ls /mnt/undo || echo "setup: no Unraid copies at /mnt/undo (share undo-pbs)" >&2
 proxmox-backup-manager prune-job list
 proxmox-backup-manager verify-job list
 proxmox-backup-manager acl list

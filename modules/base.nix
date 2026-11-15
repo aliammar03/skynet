@@ -19,6 +19,7 @@ let
   # a wall: any Nix that reaches a host is root there, and what guards that is the merge's gates
   # (skynetv2.md → P6 → The leash).
   agentRoot = [
+    "docker-admin"
     "docker-dmz"
     "technitium-network"
     "technitium-core"

@@ -174,8 +174,7 @@ snapshot; then `touch /opt/appdata/.data-ready && systemctl start docker-doco-cd
    Both exit 0. The first warns only of sockets, which the apps make again; the second prints
    nothing. `./backup` is restic's old cache, now on `/var/cache`. The marker stays behind, so the
    new host's doco-cd can't start on a half-copied folder: step 6 writes it once the copy checks
-   out. The stacks stay stopped. On a host where the agent has no sudo (docker-admin), Ali runs
-   these from the workstation with his own user.
+   out. The stacks stay stopped.
 2. Ali takes a PBS backup of the VM (Backup now, storage `pbs`), the fallback. Then he stops and
    destroys it: `qm stop <vmid> && qm destroy <vmid>`. Destroying is his call, and `qm create`
    refuses an existing VMID. disko wipes the disk, so `/opt/appdata` comes back only from step 1's

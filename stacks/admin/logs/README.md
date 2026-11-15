@@ -18,6 +18,7 @@
   `LogsNotArriving` (each host's `log-heartbeat` line, every 5 minutes, missing for 15),
   `SyslogNotArriving` (OPNsense's lines, or Unraid's 5-minute heartbeat, missing for 15; Omada
   logs only events, hours or days apart, so OmadaBridge's alerts watch it instead),
+  `UndoCopyMissing` (Unraid's undo job logged no `done` in 26 hours: `unraid/`),
   `AccessLogsNotArriving` (a door's request lines, missing for 15), `GuestBackupFailed` (a Proxmox
   node's vzdump error), `FilesystemErrors`, `LogFlood` and `LogsDropped` (journald's own count of
   what it dropped). Each runs every 5 minutes and queries up to the last 5-minute mark, so a "for
