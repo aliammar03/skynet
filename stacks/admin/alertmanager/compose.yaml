@@ -19,7 +19,9 @@ services:
         printf %s "$$HC_DELIVERY_PING_URL" >/run/alertmanager/delivery &&
         exec /bin/alertmanager --config.file=/etc/alertmanager/alertmanager.yml
         --storage.path=/alertmanager --web.external-url=https://alerts.aliammar.net
-    tmpfs: [/run/alertmanager]
+    # An explicit mode: Docker 29 brings a plain tmpfs back as 755 root after a stop and start (a
+    # crash restart too), and the entrypoint writes here as nobody.
+    tmpfs: ["/run/alertmanager:mode=1777"]
     volumes:
       - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       - /opt/appdata/alertmanager/data:/alertmanager # silences, notification log; data

@@ -16,7 +16,8 @@ x-world: &world
   <<: *python
   command: [python3, -I, /arena/engine/world.py]
   # A test's frozen files (the comics test's library): sparse, a few MB however big they say they are.
-  tmpfs: [/data, /downloads, /manga]
+  # Explicit modes, so a restart keeps them writable (runbooks/new-stack.md → tmpfs).
+  tmpfs: ["/data:mode=1777", "/downloads:mode=1777", "/manga:mode=1777"]
   volumes:
     # world.py alone: a world holds the run in flight, so a change to the runner mustn't restart it.
     - ./engine/world.py:/arena/engine/world.py:ro

@@ -49,6 +49,9 @@ networks:
 - Use the image's own healthcheck if it has one. An exec-form check needs its tool (`wget`, `curl`)
   in the image. An image with neither can't have one: say so in a comment and cover it with Gatus.
 - Write `$$VAR` for a variable the container's shell reads at run time; `$VAR` is compose's.
+- **tmpfs:** give each one an explicit mode (`"/path:mode=1777"`). Docker 29 creates a plain tmpfs
+  as `1777`, but brings it back as `755 root` after a stop and start, a crash restart included. A
+  non-root app then can't write it, and crash-loops.
 - No published ports. The door reaches the container by name on `edge`. Only doors join the host's
   macvlan (a fixed `ipv4_address`, and `gw_priority: 1` beside `edge`), plus an app that a firewall
   rule must name, which joins only the macvlan, with a fixed `ipv4_address` (`skynetv2.md` →
