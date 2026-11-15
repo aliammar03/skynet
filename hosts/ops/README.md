@@ -41,12 +41,10 @@ next restart) / 64 GB.
 - **doco-cd MCP (`doco-admin`, `doco-dmz` in `.mcp.json`):** `doco_<target>_api_key` (= that Docker
   host's `doco_api_secret`) is rendered to `/run/secrets/rendered/doco-<target>.headers.json`, which
   Claude Code's `headersHelper` prints as the `x-api-key` header. For each server,
-  `.claude/settings.json` allows the list/get tools (not `list_stacks`/`get_stack`: Swarm only) and
-  `trigger_poll`. On `doco-admin` it denies `control_project`, `control_stack`, `destroy_project`,
-  `remove_stack`, `trigger_scheduled_job` and `compact_mirrors` (operate lane, P6). On `doco-dmz`
-  (D11) it allows `control_project`, `control_stack`, `trigger_scheduled_job` and `compact_mirrors`,
-  and asks Ali before `destroy_project` and `remove_stack`. A session picks up `.mcp.json` and these
-  rules when it starts.
+  `.claude/settings.json` allows the list/get tools (not `list_stacks`/`get_stack`: Swarm only),
+  `trigger_poll`, and the operate lane's `control_project`, `control_stack`, `trigger_scheduled_job`
+  and `compact_mirrors` (D11), and asks Ali before `destroy_project` and `remove_stack`. A session
+  picks up `.mcp.json` and these rules when it starts.
 - **PBS drift check:** `pbs-drift` (daily 07:00, `modules/pbs-drift.nix`) reads PBS's config over
   the agent's SSH key and compares it with `pbs/etc/` as deployed here. A difference, or a failed
   read, goes to `#alerts` (`discord_alerts_webhook`, passed as a systemd credential).

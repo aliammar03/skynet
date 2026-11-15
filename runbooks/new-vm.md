@@ -155,8 +155,10 @@ snapshot; then `touch /opt/appdata/.data-ready && systemctl start docker-doco-cd
     `nix shell nixpkgs#sops nixpkgs#jq -c bash -c 'set -o pipefail; sops -d --extract "[\"doco_api_secret\"]" secrets/<h>.yaml | jq -R . | sops set --value-stdin secrets/ops.yaml "[\"doco_<target>_api_key\"]"'`
   - `modules/agent.nix`: its header template, as for `doco-admin`;
   - `.mcp.json`: server `doco-<target>` (`http://<ip>:8080/mcp`, `headersHelper`);
-  - `.claude/settings.json`: `doco-<target>` in `enabledMcpjsonServers`, and `doco-admin`'s
-    allow/deny lists with the `mcp__doco-<target>__` prefix.
+  - `.claude/settings.json`, Ali's step (the agent doesn't widen its own permissions; the PR gives
+    him a `jq` command tested on a copy): `doco-<target>` in `enabledMcpjsonServers`, its list/get
+    tools and `trigger_poll` in `allow`, and its other six tools in `deny` until the plan grants
+    them (`AGENTS.md`, rule 4).
 - `runbooks/new-stack.md`: the host's column in "Values per Docker host".
 
 ## Rebuild
