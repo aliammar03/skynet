@@ -51,6 +51,9 @@
 - **Library scan:** Uchiyomi scans its folders only when asked (its Tasks list: "on demand").
   `uchiyomi-scan`, a doco-cd job every 30 minutes, asks (`POST /api/refresh`), so what CLU files
   shows within half an hour.
+- **Sources are Ali's:** Uchiyomi enables none by itself. Ali names a source, and the agent turns
+  it on. Licensed series come from their publishers' apps, or as bought DRM-free files in the
+  library.
 - **Source order** (settings, `sourcePrefs`; set 2026-11-03 from a measurement of every manga
   source, in the comics agent's skill: `references/manga.md` → Sources): Atsumaru, MangaFire, Weeb
   Central, MangaDot, Asura Scans, Flame Comics, Webtoons.com, MangaDex, Kagane, OniSaga. A series that

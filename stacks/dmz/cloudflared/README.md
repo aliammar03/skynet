@@ -17,6 +17,22 @@
 - **Upstream:** [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) ·
   [configuration file](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/configure-tunnels/local-management/configuration-file/)
 
+**Making the tunnel again** (Ali, on the workstation, in the repo, on the PR's branch; needed only if
+the tunnel is lost):
+1. `nix shell nixpkgs#cloudflared -c cloudflared tunnel login`, and pick the zone `aliammar.net`.
+2. `nix shell nixpkgs#cloudflared -c cloudflared tunnel create skynet`. It prints the tunnel's ID (not
+   secret: it goes in `config.yml`, by the agent's PR) and writes `~/.cloudflared/<id>.json`.
+3. The token, straight into sops, never shown:
+   ```sh
+   nix shell nixpkgs#cloudflared nixpkgs#sops -c sh -c 'set -e; t=$(cloudflared tunnel token skynet); printf "TUNNEL_TOKEN=%s\n" "$t" | sops encrypt --filename-override stacks/dmz/cloudflared/secret.sops.env --input-type dotenv --output-type dotenv /dev/stdin > stacks/dmz/cloudflared/secret.sops.env'
+   git add stacks/dmz/cloudflared/secret.sops.env
+   git commit -m "cloudflared: the new tunnel's token"
+   git push origin <branch>
+   ```
+4. The wildcard, while `cert.pem` still exists:
+   `nix shell nixpkgs#cloudflared -c cloudflared tunnel route dns --overwrite-dns skynet '*.aliammar.net'`.
+   Then `rm ~/.cloudflared/<id>.json ~/.cloudflared/cert.pem`.
+
 **Gotchas**
 - Don't migrate the tunnel to dashboard management in Cloudflare: a remotely managed tunnel takes
   its routes from the dashboard and ignores `config.yml`.

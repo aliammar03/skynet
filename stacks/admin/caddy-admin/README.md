@@ -44,7 +44,8 @@
   `pbs.pem` also changes pbs-exporter's `skynet.pinned-cert` label in that PR
   (`stacks/admin/metrics/compose.yaml`).
 - OPNsense rejects proxied logins unless System → Settings → Administration → Alternate Hostnames
-  lists `opnsense.aliammar.net`.
+  lists `opnsense.aliammar.net` and `auth.aliammar.net`: after an Authelia login, the first
+  request's Referer is `auth`.
 - Unraid redirects to absolute `http://` URLs; `header_down Location` rewrites them to https.
 - `gw_priority` puts the default route on `adm60`. Without it, replies to clients could leave via
   Docker's bridge and be NATed to the host's IP.

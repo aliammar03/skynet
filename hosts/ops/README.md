@@ -74,9 +74,29 @@ next restart) / 64 GB.
   actions and sends anything risky to Ali as a Discord prompt. `.claude/settings.json` deny rules
   (merge, force-push, sudo on ops) and ask rules (doco-dmz's destroy and remove) apply in every mode.
 - **Updates:** comin pulls `main` every 60 s.
-- **Rebuild:** `proxmox.sh` on the node → boot the NixOS ISO → `nixos-anywhere --flake .#ops
-  --target-host root@10.10.90.91 --generate-hardware-config nixos-generate-config
-  hosts/ops/hardware.nix` → one-time `/login` and Discord pairing as `skynet`.
-- **`installer.pub`:** the key nixos-anywhere uses to SSH into the NixOS installer (public; the
-  installed system allows no root login).
+- **Rebuild** (not drilled; restoring the guest from PBS is the quicker way back,
+  `runbooks/restore.md`, case 4). ops is the one host the agent can't install, since it runs there:
+  1. **Ali**, on the core node: the NixOS ISO,
+     `wget -P /var/lib/vz/template/iso https://channels.nixos.org/nixos-26.05/latest-nixos-minimal-x86_64-linux.iso`,
+     then `proxmox.sh`.
+  2. **Ali**, in the VM's console: `sudo -i`, `ip -br link`, then
+     `ip addr add 10.10.90.91/24 dev <if>; ip route add default via 10.10.90.1; echo nameserver 10.10.70.51 > /etc/resolv.conf`,
+     and the installing machine's public key into `~/.ssh/authorized_keys`.
+  3. From that machine, on VLAN 90 or the workstation:
+     `nix run github:nix-community/nixos-anywhere -- --flake .#ops --target-host root@10.10.90.91 --generate-hardware-config nixos-generate-config hosts/ops/hardware.nix`.
+     The new `hardware.nix`, the new recipient (`ssh-keyscan -t ed25519 10.10.90.91 | ssh-to-age`
+     in `.sops.yaml`) and the new `agent.pub` and `cache.pub` go in a PR; Ali re-encrypts
+     `secrets/ops*.yaml` for the new key and puts the new agent key on PBS (`runbooks/restore.md`,
+     case 3).
+  4. **Ali**, in the agent's session (`ssh aliammar@10.10.90.91`, then `skynet-attach`):
+     `/login` (the Claude subscription), trust `~/skynet`, accept Remote Control,
+     `/plugin install discord@claude-plugins-official`; DM the bot, then `/discord:access pair <code>`
+     and `/discord:access policy allowlist`; then `claude remote-control` once, interactively, to
+     accept its prompt.
+- **`installer.pub`:** the key the first install's nixos-anywhere used: v1's ops key
+  (`svc-ops@vm-skynet-ops`, VM 9090's, destroyed 2026-10-25). Nothing reads it now; step 2 uses the
+  installing machine's own key.
+- **The Discord bot** "Skynet" (Ali's Developer Portal app): Message Content Intent on, invited to
+  the server with View Channels, Send Messages, Send in Threads, Read Message History, Attach Files
+  and Add Reactions.
 - **State worth keeping:** `/home/skynet/.claude` (logins, plugin, memory), covered by PBS.

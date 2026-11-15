@@ -13,7 +13,9 @@ VMID 10010 · 10.10.100.10 · server-proxmox-core · 6 vCPU / 12 GB (10 guarante
   the installed system doesn't trust that key.
 - **Disk** (`disk.nix`, 193 GiB thin on `local-lvm`): ESP, a 64 GiB ext4 root (NixOS, the Nix
   store, Docker's images), and 128 GiB of btrfs for the apps' data: its top level at
-  `/mnt/appdata-pool`, subvolume `@appdata` at `/opt/appdata`, subvolume `@snapshots`.
+  `/mnt/appdata-pool`, subvolume `@appdata` at `/opt/appdata`, subvolume `@snapshots`. PBS's
+  backup freezes both mounts through the guest agent, which ignores the second freeze's `EBUSY` (one
+  filesystem, mounted twice).
 - **Data:** `/opt/appdata` began as v1's (2026-10-24, skynetv2.md → P3 → Data). It comes back from
   a snapshot or Drive now (`runbooks/restore.md`).
 - **Snapshots** (btrbk, `skynet.docker.appdataSnapshots`): `@appdata`, read-only, at 04:20, as

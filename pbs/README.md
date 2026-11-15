@@ -65,8 +65,10 @@ part of its `/etc` that git holds. ops compares that with the host every day.
 1. **Agent:** `nix build .#installer-pbs --print-out-paths` on ops: Proxmox's PBS 4.2-1 ISO with
    `answer.toml` built in (`installer.nix`).
 2. **Ali, Unraid** (first install only): a share `pbs` with NFS export Yes, security Private, rule
-   `10.10.20.40(sec=sys,rw,no_root_squash)`. PBS creates the datastore as root, then hands it to
-   user `backup`; with root squashed that fails (`setup.sh` checks before it tries).
+   `10.10.20.40(sec=sys,rw,no_root_squash) 10.10.50.40(sec=sys,ro,all_squash,anonuid=34,anongid=34)`.
+   PBS creates the datastore as root, then hands it to user `backup`; with root squashed that fails
+   (`setup.sh` checks before it tries). docker-admin reads it for the offsite copy, every read as
+   uid 34 (`backup`), since the datastore's folders are `750` and `backup`'s own.
 3. **Ali:** the ISO from ops to the core node, from the workstation:
    `scp -3 aliammar@10.10.90.91:<store path> root@10.10.50.11:/var/lib/vz/template/iso/pbs-installer.iso`.
    Then on the node: fetch `proxmox.sh` from the branch, read it, run it, and (first install only)

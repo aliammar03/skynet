@@ -28,7 +28,7 @@
   `targets`, `status/…`, `export`): `curl -s 'https://metrics.aliammar.net/api/v1/query?query=up'`.
   And `/mcp`, the MCP server's tools, which only read. Nothing that writes or deletes is open.
 - **Data:** `/opt/appdata/metrics/data` (the history; backup class: cache, not backed up). About
-  30–45 MB a day, so 12–18 GB at 13 months.
+  30 MB a day at 36,000 series (measured 2026-11-03), so about 12 GB at 13 months.
 - **Memory:** VictoriaMetrics at most 1.5 GiB (`mem_limit`); its caches stay under 512 MiB.
   docker-admin has no swap, so past the limit the kernel kills it and Docker restarts it.
 - **Secrets:** `pve.sops.yml`: one module per Proxmox node (`core`, `network`), with token
