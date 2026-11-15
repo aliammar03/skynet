@@ -1,5 +1,5 @@
 {
-  description = "Skynet v2 — the homelab, declared. Plan: skynetv2.md";
+  description = "Skynet: Ali's homelab, declared. Start at AGENTS.md";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
