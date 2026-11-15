@@ -26,7 +26,9 @@ VMID 10010 · 10.10.100.10 · server-proxmox-core · 6 vCPU / 12 GB (10 guarante
   `door-uchiyomi` (internal, each shared by caddy-apps and one app); stacks only join them, and
   every container on `dmz` sets a fixed `ipv4_address`.
 - **Storage** (P8): Unraid's share `Storage` (`10.10.20.20:/mnt/user/Storage`) at `/mnt/storage`, NFS
-  4.2, mounted on first access and kept (the containers' bind mounts hold it), `hard`. Unraid's
+  4.2, mounted on first access and kept (the containers' bind mounts hold it), `hard`, and
+  `lookupcache=positive` (`/etc/nfsmount.conf`, from the share's next mount): a folder looked up
+  while Unraid boots isn't remembered as missing. Unraid's
   export admits this host read-write and writes everything as `nobody:users` (99:100, all_squash);
   OPNsense rule 300 carries it. Comics and manga live in `Books/Manga/` and `Books/Comics/`, each
   with Ali's own files in `library/` and the downloaders' beside them (`uchiyomi/`, `suwayomi/`, and

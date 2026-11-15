@@ -41,7 +41,8 @@ git; this folder is what Ali applies there, so git describes it.
 
 1. **The containers**, either way:
    - the Docker Compose Manager plugin (Community Apps): a new stack `exporters` with this
-     `compose.yaml` pasted in, then Compose Up;
+     `compose.yaml` pasted in, its Auto Start on, then Compose Up. A clean shutdown stops the
+     stack, and only Auto Start brings it back at boot;
    - or Docker → Add Container, twice, with the same settings: the image (tag and digest), network
      type Host, and for node-exporter `--pid=host` and the path `/` → `/host` read-only (not slave:
      Unraid's root isn't a shared mount) plus the two arguments; for smartctl-exporter Privileged on

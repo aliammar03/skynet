@@ -69,6 +69,14 @@ in
       "x-systemd.mount-timeout=30s"
     ];
   };
+  # The share remembers no "no such file". While Unraid boots, its export briefly lacks folders, and
+  # a remembered miss lasts until the folder above it changes: a stack's bind source stays
+  # "missing" though a listing of its parent shows it. A remount can't change this, so it's in
+  # nfsmount.conf rather than the options above, and it applies from the share's next mount.
+  environment.etc."nfsmount.conf".text = ''
+    [ MountPoint "/mnt/storage" ]
+    lookupcache=positive
+  '';
 
   # Unraid's dated copies of `Storage` (unraid/undo.sh): /mnt/undo/<date>/ is the share as it was
   # that night, to put back what was lost (runbooks/restore.md, case 8). Unraid exports it read-only
