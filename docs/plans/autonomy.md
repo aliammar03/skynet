@@ -288,5 +288,7 @@ Steps 7–9 can run beside the dry-run week.
   if it stays down, would take `VM.Snapshot` on the `operate` token.
 - Root on ops for deep work: time-boxed SSH-CA certificates (the CA on Ali's workstation), if a
   plain user there ever gets in the way.
+- PVE's and PBS's own failure notices: the alerts watch the outcome, and a direct webhook would be
+  faster (#204).
 - Re-encrypting without Ali (a key in a GitHub environment that only `main` can use, and a
   workflow), if new hosts ever come often.

@@ -33,8 +33,8 @@ Each app has an auth mode: `own`, `oidc` or `forward` (`stacks/README.md` → Au
   DMZ reaches the management VLAN for it, and family accounts never exist on the admin side.
 - Bad, because there are two of everything: users, secrets, sessions, and a passkey to register on
   each.
-- Bad, because Authelia's login page can't be made our own. A trial of Authentik for that is an
-  issue: it would supersede this record and move every OIDC client with it.
+- Bad, because Authelia's login page can't be made our own. A trial of Authentik for that is
+  #201: it would supersede this record and move every OIDC client with it.
 
 ## More Information
 
