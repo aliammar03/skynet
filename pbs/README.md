@@ -13,9 +13,10 @@ part of its `/etc` that git holds. ops compares that with the host every day.
 - **Jobs** (`etc/proxmox-backup/`): prune per namespace (core 05:00, network 05:15; 14 daily,
   8 weekly, 12 monthly); verify daily at 04:30, after both nodes' backups, so each guest's newest
   backup is verified the same night (P5's `GuestBackupUnverified` relies on it), skipping verified
-  snapshots until they're 30 days old; GC Sundays 12:00, after the offsite copy. The backups themselves are PVE's jobs (network node
-  02:00, core 03:30), with fleecing on `local-lvm`: a VM's writes during its backup wait on the
-  node's own disk, not on PBS. Core's leaves out 2040, since PBS rebuilds from git.
+  snapshots, failed ones included, until they're 30 days old; GC Sundays 12:00, after the offsite
+  copy. The backups themselves are PVE's jobs (network node 02:00, core 03:30), with fleecing on
+  `local-lvm`: a VM's writes during its backup wait on the node's own disk, not on PBS. Core's
+  leaves out 2040, since PBS rebuilds from git.
 - **Users:** `root@pam` (Ali in the UI; the agent over SSH) and `pve@pbs`. Its tokens `core` and
   `network` each hold `DatastoreBackup` on their own namespace, and `pve@pbs` holds it on both,
   because a token never gets more than its user. The tokens' secrets exist only in PVE's storage
@@ -126,6 +127,11 @@ PVE's.
 - The disk boots first (`proxmox.sh`), so a reboot never reinstalls, even with the ISO attached.
 - The NFS mount is hard: while Unraid is down, jobs wait for it. PBS never writes the datastore to
   the local disk, which has no `.chunks`.
+- After Unraid comes back, two things stay:
+  - each backup that failed meanwhile leaves an empty one, with no manifest, that counts as its
+    guest's newest for `GuestBackupUnverified` until it's removed (Ali's go, D11);
+  - a verify that failed meanwhile stays failed, since the job skips it for 30 days. Verify each by
+    hand with `runbooks/restore.md` case 7's command.
 - caddy-admin pins PBS's self-signed cert. A new one (a rebuild, or `proxmox-backup-manager cert
   update`) needs `certs/pbs.pem` replaced in the same PR.
 - `root@pam`'s mail stays on the box (no relay), so a failed job emails no one.
