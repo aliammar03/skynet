@@ -53,7 +53,7 @@ in
   # fork.
   boot.kernel.sysctl."vm.overcommit_memory" = 1;
 
-  # Unraid's share `Storage`, for every stack's storage and media (P8: comics and manga under
+  # Unraid's share `Storage`, for every stack's storage and media (comics and manga under
   # Books/). Unraid writes everything from here as nobody:users (99:100, all_squash). Mounted on first
   # access, and never idles out: the containers' bind mounts hold it. hard: a lost server stalls a
   # write until it is back, rather than failing it halfway (a torn CBZ); a mount that can't start in
@@ -126,7 +126,7 @@ in
 
   systemd.tmpfiles.rules = [
     # Uchiyomi's extension engine runs as its image's user 1000 and doesn't take its folder over
-    # (skynetv2.md → Conventions → Data).
+    # (stacks/README.md → Data).
     "d /opt/appdata/uchiyomi/engine 0750 1000 1000 -"
     # The comics agent's home (Codex's login and sessions), the same: its image runs as user 1000.
     "d /opt/appdata/comics-agent/home 0750 1000 1000 -"

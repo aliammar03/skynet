@@ -57,7 +57,7 @@ groups:
         annotations:
           summary: '{{ index $labels "_HOSTNAME" }}: no log lines have reached VictoriaLogs for 15 minutes (its journal upload, vlagent or VictoriaLogs).'
 
-      # Appliances log by syslog to vlagent (skynetv2.md → P5 → Wider eyes); each listener stamps
+      # Appliances log by syslog to vlagent (the stack's README → Syslog); each listener stamps
       # its lines with `source`. OPNsense's firewall log alone brings about 8 lines a second. Unraid's
       # own log goes quiet for hours, so a User Script logs a heartbeat there every 5 minutes
       # (unraid/README.md), and only those lines count for it. Omada's controller logs events alone,
@@ -76,7 +76,7 @@ groups:
 
       # Unraid copies `pbs` and `Storage` at 04:00 (unraid/undo.sh) and logs `done` once every copy
       # is in place; a failed one logs why. 26 hours without it: the newest copy the lab can't
-      # delete (skynetv2.md → P6 → The undo out of reach) is older than it should be. A count with no
+      # delete (unraid/README.md → Undo copies) is older than it should be. A count with no
       # `by` always returns its row, so this fires even when the job logged nothing at all.
       - alert: UndoCopyMissing
         expr: >-
@@ -89,8 +89,8 @@ groups:
         annotations:
           summary: 'unraid: no undo copy has finished in 26 hours (skynet-undo; its own lines say why).'
 
-      # The doors log every request into the journal (caddy's access log; skynetv2.md → P5 → Wider
-      # eyes), each well over 100 in any 15 minutes, Gatus's checks among them. A door seen this
+      # The doors log every request into the journal (caddy's access log, in each door's README),
+      # each well over 100 in any 15 minutes, Gatus's checks among them. A door seen this
       # week that logs none for 15 minutes stopped logging (its config), and its apps' latency and
       # errors go unseen. A door that's down is Gatus's to report.
       - alert: AccessLogsNotArriving

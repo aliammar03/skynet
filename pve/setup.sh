@@ -1,5 +1,5 @@
 #!/bin/sh
-# The Proxmox nodes' observability (skynetv2.md → P5 → Wider eyes), run by Ali as root on each node
+# The Proxmox nodes' observability, run by Ali as root on each node
 # (README.md): Debian's node-exporter with its SMART and NVMe timers, and the journal's upload to
 # docker-admin's vlagent, with journald's flood cap and the heartbeat, as on PBS. Re-runnable: it
 # shows each file's change as it installs it.

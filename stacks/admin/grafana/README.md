@@ -1,6 +1,6 @@
 # grafana
 
-- **Purpose:** dashboards over VictoriaMetrics and VictoriaLogs (`skynetv2.md` → P5 → Grafana).
+- **Purpose:** dashboards over VictoriaMetrics and VictoriaLogs.
   Everything it shows comes from git: the data sources (`provisioning/datasources/`) and the boards
   (`dashboards/`), read-only in the UI, so a change is a PR. The stores' own UIs stay for ad-hoc
   queries (`metrics.aliammar.net/vmui`, `logs.aliammar.net/select/vmui`).

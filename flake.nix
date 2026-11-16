@@ -1,5 +1,5 @@
 {
-  description = "Skynet v2 — the homelab, declared. Plan: skynetv2.md";
+  description = "Skynet: Ali's homelab, declared. Start at AGENTS.md";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
@@ -16,7 +16,7 @@
     };
     # Pinned to a commit, so the weekly flake.lock can't move it: comin deploys every host, and a
     # broken one can't deploy its own revert. The pin goes once a host change proves itself under a
-    # timed rollback before it merges (skynetv2.md → P6 → Verify and roll back; the hosts PR). Its
+    # timed rollback before it merges (docs/plans/autonomy.md → Verify and roll back, step 7). Its
     # newest release, v0.14.0, is older than this commit.
     comin = {
       url = "github:nlewo/comin/f95451172287f3cb36249a2cdef56efa9bbeef19";
@@ -64,7 +64,7 @@
         };
       };
 
-      # `nix run .#secret -- <sops file> <KEY>` (skynetv2.md → P6 → Toil): a third-party token into a
+      # `nix run .#secret -- <sops file> <KEY>` (AGENTS.md, rule 3): a third-party token into a
       # sops file from a hidden prompt, so it never sits in the shell's history or a process list.
       # Stored as a string; a multi-line value (a key file) still goes in with `sops <file>`.
       apps.${system}.secret = {

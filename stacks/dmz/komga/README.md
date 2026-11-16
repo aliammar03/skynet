@@ -1,6 +1,6 @@
 # komga
 
-- **Purpose:** the comics and manga library (P8): a series per folder at any depth, a web reader
+- **Purpose:** the comics and manga library: a series per folder at any depth, a web reader
   (right to left, double pages, webtoon scroll), and feeds for iPad apps: OPDS
   (`/opds/v1.2/catalog`, for Panels) and its own API (Komic).
   - `komf` (Komf 2.1, `komf.yml`; Ali, 2026-11-05): the Manga library's metadata and covers,
@@ -33,7 +33,7 @@
   Tailscale; not public.
 - **Auth mode:** own, plus oidc: sign-in through the apps' Authelia (client `komga`, policy `admins`).
   The first sign-in makes the account, matched by email, as a plain user; the agent makes Ali's an
-  admin. The agent's own admin (`skynet@aliammar.net`) claimed the server first (D16; its password
+  admin. The agent's own admin (`skynet@aliammar.net`) claimed the server first (ADR-0016; its password
   is `secrets/ops.komga.yaml`). iPad apps use an API key (`X-API-Key`), one per app, made in the
   account's settings.
 - **Network:** `door-komga`, an internal bridge it shares with caddy-apps alone (from
@@ -45,7 +45,7 @@
   `Books/Manga` → `/books/Manga` and `Books/Comics` → `/books/Comics`, a library each (a Komga
   library is one folder, at any depth). Each holds Ali's own files (`library/`) and the
   downloaders' (`uchiyomi/`, `suwayomi/`, `clu/`). Both scan hourly and empty their trash after a
-  scan (the agent sets it through the API, D16: `PATCH /api/v1/libraries/<id>`
+  scan (the agent sets it through the API, ADR-0016: `PATCH /api/v1/libraries/<id>`
   `{"scanInterval": "HOURLY", "emptyTrashAfterScan": true}`), so CLU's new issues show within the
   hour and a file renamed or removed leaves no entry behind. A library folder it can't read stops
   the scan and marks the library unavailable, so an unreachable share doesn't empty it.

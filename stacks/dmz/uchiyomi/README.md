@@ -1,6 +1,6 @@
 # uchiyomi
 
-- **Purpose:** on trial (P8): finds manga and comics on their sources (MangaDex built in; Mihon's
+- **Purpose:** on trial (#209): finds manga and comics on their sources (MangaDex built in; Mihon's
   extensions through its engine), follows series and downloads their new chapters as CBZ to Unraid,
   and reads them: a webtoon-first reader, a PWA that also reads offline, OPDS and a Komga-compatible
   API for apps.
@@ -9,7 +9,7 @@
 - **Auth mode:** own, plus oidc: sign-in through the apps' Authelia (client `uchiyomi`, policy
   `admins`). The first sign-in makes the account (`OIDC_ALLOW_SIGNUP`), and group `admins` makes it
   an admin at every sign-in (`OIDC_ADMIN_GROUP`). The agent's own admin (`skynet`) made the first-run
-  setup (D16; its password is `secrets/ops.uchiyomi.yaml`).
+  setup (ADR-0016; its password is `secrets/ops.uchiyomi.yaml`).
 - **Services:**
   - `uchiyomi`: the app, with its own Postgres 16 inside (on a socket, no password);
   - `uchiyomi-suwayomi`: the extension engine (Suwayomi v2.4), which runs Mihon's extensions for
@@ -51,6 +51,9 @@
 - **Library scan:** Uchiyomi scans its folders only when asked (its Tasks list: "on demand").
   `uchiyomi-scan`, a doco-cd job every 30 minutes, asks (`POST /api/refresh`), so what CLU files
   shows within half an hour.
+- **Sources are Ali's:** Uchiyomi enables none by itself. Ali names a source, and the agent turns
+  it on. Licensed series come from their publishers' apps, or as bought DRM-free files in the
+  library.
 - **Source order** (settings, `sourcePrefs`; set 2026-11-03 from a measurement of every manga
   source, in the comics agent's skill: `references/manga.md` → Sources): Atsumaru, MangaFire, Weeb
   Central, MangaDot, Asura Scans, Flame Comics, Webtoons.com, MangaDex, Kagane, OniSaga. A series that

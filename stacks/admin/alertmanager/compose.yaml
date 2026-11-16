@@ -1,5 +1,5 @@
 # Alertmanager: vmalert's alerts to Discord #alerts, grouped per alert and host, a downed host
-# muting its own other alerts, and silences (skynetv2.md → P5 → Alerts).
+# muting its own other alerts, and silences (README.md).
 services:
   alertmanager:
     container_name: alertmanager

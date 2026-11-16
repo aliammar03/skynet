@@ -229,7 +229,7 @@ YT = ["www.youtube.com", "m.youtube.com", "music.youtube.com", "youtubei.googlea
       "i9.ytimg.com", "yt3.ggpht.com", "yt3.googleusercontent.com", "www.gstatic.com", "fonts.gstatic.com",
       "jnn-pa.googleapis.com", "play.google.com", "manifest.googlevideo.com"]
 YT_FALLBACK = ["redirector.googlevideo.com"]   # used only when a video server fails
-OTHER = [n for n in CDN if n not in YT + YT_FALLBACK]   # the P2 set: Facebook, Netflix, Microsoft, Apple, AWS, Akamai
+OTHER = [n for n in CDN if n not in YT + YT_FALLBACK]   # the other CDNs: Facebook, Netflix, Microsoft, Apple, AWS, Akamai
 YT_FETCH = {"www.youtube.com": "/generate_204", "youtubei.googleapis.com": "/generate_204",
             "i.ytimg.com": "/vi/jNQXAC9IVRw/hqdefault.jpg"}   # one request on a new HTTPS connection
 TLS = ssl.create_default_context()
@@ -362,7 +362,7 @@ def yt_report(path):
     head = (f"{'':40} {'answer ms':>9} {'':5} {'YouTube servers, ms':>24} {'page':>6} {'thumb':>6}  | {'other CDNs':>16}\n"
             f"{'':40} {'p50':>4} {'p90':>4} {'fail':>5} {'mean':>5} {'p90':>4} {'in-ISP':>5} {'far':>5} {'fetch':>6} {'fetch':>6}"
             f"  | {'mean':>4} {'in-ISP':>5} {'far':>5}  wins")
-    print(f"{len(rounds)} rounds, {len(YT)} YouTube names (servers picked by DNS) + {len(OTHER)} other CDN names (the P2 set).\n"
+    print(f"{len(rounds)} rounds, {len(YT)} YouTube names (servers picked by DNS) + {len(OTHER)} other CDN names.\n"
           "Server: TCP connect ms; mean = the mean over names of each name's median; in-ISP < 10 ms, far > 100 ms.\n"
           "Fetch: a new HTTPS connection + one request (page = www.youtube.com/generate_204, thumb = a thumbnail).\n")
     print("Each resolver alone, best first (Technitium = what the lab's clients get today):\n" + head)

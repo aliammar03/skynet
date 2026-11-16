@@ -1,6 +1,6 @@
 # pve
 
-The Proxmox nodes' observability (skynetv2.md → P5 → Wider eyes): server-proxmox-core (10.10.50.11)
+The Proxmox nodes' observability: server-proxmox-core (10.10.50.11)
 and server-proxmox-network (10.10.50.10), PVE 9.2 on Debian 13. The nodes' config is Ali's to apply;
 this folder is what Ali applies, so git describes it. As on PBS (`pbs/etc/`):
 

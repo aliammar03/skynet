@@ -1,7 +1,7 @@
 # dns
 
 The internal zone, the settings and the login of both Technitium servers, technitium-network and
-technitium-core (skynetv2.md → P2). `technitium-sync` (`modules/dns.nix`,
+technitium-core (ADR-0005). `technitium-sync` (`modules/dns.nix`,
 `modules/technitium-sync.sh`) applies them through Technitium's API at boot and on every deploy that
 changes them.
 
@@ -10,8 +10,9 @@ changes them.
 - **A change** = edit + PR. Both servers apply it within ~2 min of the merge. Check it with
   `dig @10.10.70.50 <name>.aliammar.net` and `@10.10.70.51`.
 - **Format:** Technitium's export format, one record per line. The file is the whole zone: a record
-  missing from it is deleted on the next sync. An export of the zone equals the file, except the SOA
-  serial, which Technitium bumps on every change.
+  missing from it is deleted on the next sync, and one changed through the API or the UI is put
+  back. An export of the zone equals the file, except the SOA serial, which Technitium bumps on
+  every change. A line Technitium can't read fails the sync, and the zone stays as it was.
 - **Primary zone:** inside the lab the file is all of `aliammar.net`. A name missing from it is
   NXDOMAIN, and a type a name lacks (AAAA) is "no record", never NXDOMAIN. A Forwarder zone sent
   missing types to public DNS, and musl and systemd-resolved then dropped the whole name. Public

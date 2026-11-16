@@ -1,8 +1,8 @@
 #!/bin/sh
 # PBS's setup after Proxmox's installer, run by the agent as root (README.md → Install): updates
 # without a subscription, the guest agent, the datastore on Unraid, node-exporter and the journal's
-# upload (P5), VLAN 50's NIC and its firewall, Debian's security updates and Unraid's copies of the
-# datastore, read-only (P6), and etc/ copied into /etc.
+# upload, VLAN 50's NIC and its firewall, Debian's security updates and Unraid's copies of the
+# datastore, read-only, and etc/ copied into /etc.
 # Re-runnable; a rebuild runs it the same way and reuses the datastore as it is on Unraid. From ops:
 #   tar -C pbs -c setup.sh etc | ssh root@10.10.20.40 'rm -rf /root/pbs && mkdir /root/pbs &&
 #     tar -C /root/pbs -x && sh /root/pbs/setup.sh; s=$?; rm -r /root/pbs; exit $s'

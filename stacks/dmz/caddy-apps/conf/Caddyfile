@@ -23,7 +23,7 @@
 }
 
 # Each request as one JSON line on stdout, which Docker's journald driver takes to VictoriaLogs
-# (skynetv2.md → P5 → Wider eyes): its host, method, status, duration and size, and its URI's first
+# (stacks/admin/logs): its host, method, status, duration and size, and its URI's first
 # path segment only. No headers, query or client address: some apps carry tokens in their paths
 # (the Stremio addons), queries and headers. The same in caddy-admin's Caddyfile.
 (access_log) {

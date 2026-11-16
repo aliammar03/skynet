@@ -1,6 +1,6 @@
 # omada-exporter
 
-- **Purpose:** OmadaBridge (skynetv2.md → P5 → Wider eyes) reads the Omada controller (CT 525,
+- **Purpose:** OmadaBridge reads the Omada controller (CT 525,
   Omada 6.2) as a viewer: the controller, each AP and switch (uptime, CPU, memory, radios'
   utilization and interference, ports), site alerts, and the client count. Its Home Assistant side
   (MQTT) and device control are off; per-client metrics too (a series per client, relabelled as it

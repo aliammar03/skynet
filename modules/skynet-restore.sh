@@ -1,6 +1,6 @@
-# skynet-restore: puts a stack's /opt/appdata folder back, from a local btrfs snapshot (docker-dmz)
-# or from Drive (restic), with doco-cd held so nothing restarts the stack meanwhile
-# (skynetv2.md → P4 → Restores). modules/docker-host.nix sets REPO, EXCLUDES (the backup stack's
+# skynet-restore: puts a stack's /opt/appdata folder back, from a local btrfs snapshot (btrbk's) or
+# from Drive (restic), with doco-cd held so nothing restarts the stack meanwhile
+# (runbooks/restore.md). modules/docker-host.nix sets REPO, EXCLUDES (the backup stack's
 # excludes.txt), SNAPSHOTS (the snapshot folder; empty without btrbk), and ENV_FILE and RCLONE_FILE
 # (the backup stack's own secrets, which sops-nix renders whole).
 

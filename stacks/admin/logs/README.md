@@ -51,7 +51,8 @@
   ```
   (IPv4 only; an ICMP line has no ports there.)
 - **Data:** `/opt/appdata/logs/data` (the logs) and `/opt/appdata/logs/buffer` (vlagent's, while
-  VictoriaLogs is down; at most 1 GiB, oldest dropped first). Backup class: cache.
+  VictoriaLogs is down; at most 1 GiB, oldest dropped first). Backup class: cache. About 33 MB a
+  day (measured 2026-11-03), so about 1 GB at 30 days.
 - **Memory:** at most 1 GiB (`mem_limit`); its caches stay under 256 MiB. docker-admin has no swap,
   so past the limit the kernel kills VictoriaLogs and Docker restarts it.
 - **Secrets:** none.

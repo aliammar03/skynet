@@ -36,8 +36,13 @@
 | obsidian · karakeep · paperless | obsidian:5984 · karakeep:3000 · paperless:8000 | own |
 | calibre · sillytavern · marinara | calibre:8080 (`door-calibre`) · sillytavern:8000 · marinara:7860 (`dmz`) | forward (`import authelia`, admins) |
 | aiometadata · aiostreams | aiometadata:3232 · aiostreams:3000 (`dmz`) | oidc |
+| komga · uchiyomi | komga:25600 (`door-komga`) · uchiyomi:3000 (`door-uchiyomi`) | own (OIDC through the apps' Authelia) |
+| suwayomi · clu · jdownloader | uchiyomi-suwayomi:4567 (`door-suwayomi`) · clu:5577 (`door-clu`) · jdownloader:5800 (`door-jdownloader`) | forward (`import authelia`, admins) |
+| sabnzbd | sabnzbd:8080 (`dmz`, .66) | forward (`import authelia`, admins) |
 
 **Gotchas**
+- The app names stay as they are: clients hold them (LiveSync's server, the Stremio addons' links,
+  bookmarks), so a renamed site breaks them.
 - On `edge` it answers `login`, `aiometadata` and `aiostreams` by name (network aliases), for the
   containers that call them from inside (the OIDC issuer, one addon calling another). Through
   Technitium those names are .35, which the host, and so any container on `edge`, can't reach: a

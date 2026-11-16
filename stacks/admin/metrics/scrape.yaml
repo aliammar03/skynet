@@ -1,4 +1,4 @@
-# VictoriaMetrics' targets, in Prometheus' format (skynetv2.md → P5 → Metrics). `instance` names
+# VictoriaMetrics' targets, in Prometheus' format (README.md → Targets). `instance` names
 # each host. The hosts' firewalls admit only docker-admin (modules/observability.nix), and OPNsense's
 # ROLE_METRICS_TARGETS lets it through to the other VLANs. CI checks this file with the image's own
 # -dryRun (.github/workflows/check.yml).

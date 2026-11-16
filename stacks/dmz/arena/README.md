@@ -1,6 +1,6 @@
 # arena
 
-- **Purpose:** a bench for testing agents on Ali's subscriptions (D18). Ali asks "test x, y and z on
+- **Purpose:** a bench for testing agents on Ali's subscriptions (ADR-0018). Ali asks "test x, y and z on
   comics / Home Assistant / …"; the Skynet agent writes the test, runs it here and reports. A
   contestant is a lane (an agent CLI on one of his plans) × model × effort × variant, run through a
   test's rounds in a frozen world: the test scores where the world ends up and what the agent said,

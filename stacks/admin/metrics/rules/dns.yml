@@ -1,5 +1,5 @@
-# Technitium, the DNS servers, from technitium-stats' textfile (modules/dns.nix; skynetv2.md → P5 →
-# Wider eyes): the dashboard's last hour, written every 5 minutes on each host.
+# Technitium, the DNS servers, from technitium-stats' textfile (modules/dns.nix): the dashboard's
+# last hour, written every 5 minutes on each host.
 groups:
   - name: dns
     rules:

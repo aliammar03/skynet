@@ -1,5 +1,5 @@
-# Every host: Nix, users, SSH, secrets, comin (pulls `main` and switches), and what P5 observes
-# (observability.nix).
+# Every host: Nix, users, SSH, secrets, comin (pulls `main` and switches), and what docker-admin
+# watches (observability.nix).
 {
   config,
   lib,
@@ -14,10 +14,10 @@ let
   hasSecret =
     key:
     builtins.pathExists hostSecrets && lib.hasInfix "\n${key}:" ("\n" + builtins.readFile hostSecrets);
-  # D11: the hosts where the agent is root. wheel = passwordless sudo, each command logged in the
-  # journal; its key is still accepted from ops only. One list, so D11 reads in one place. It isn't
-  # a wall: any Nix that reaches a host is root there, and what guards that is the merge's gates
-  # (skynetv2.md → P6 → The leash).
+  # ADR-0011: the hosts where the agent is root. wheel = passwordless sudo, each command logged in
+  # the journal; its key is still accepted from ops only. One list, so the decision reads in one
+  # place. It isn't a wall: any Nix that reaches a host is root there, and what guards that is the
+  # merge's gates (ADR-0013).
   agentRoot = [
     "docker-admin"
     "docker-dmz"
@@ -102,7 +102,7 @@ in
   security.sudo.wheelNeedsPassword = false;
   # The agent's diagnose lane on the other hosts: from ops only, no shell features (`restrict`), reads
   # the journal (container logs included, via the journald log driver). No sudo, no Docker socket,
-  # except where D11 makes it root (agentRoot).
+  # except where ADR-0011 makes it root (agentRoot).
   users.users.skynet = lib.mkIf (config.networking.hostName != "ops") {
     isNormalUser = true;
     extraGroups = agentGroups;

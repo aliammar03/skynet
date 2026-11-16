@@ -1,6 +1,6 @@
 # comics-agent
 
-- **Purpose:** the comics agent (P8, D17): Codex on Ali's ChatGPT subscription, in Discord's `#comics`
+- **Purpose:** the comics agent (ADR-0017): Codex on Ali's ChatGPT subscription, in Discord's `#comics`
   through OpenAB, Ali's graphic-novel librarian. It talks comics and manga and recommends from what
   he has and reads (Komga's whole shelf in one call), searching the web for arcs, reading orders,
   news and reviews. It adds series and arcs and fills them (comics through CLU, manga through
@@ -12,7 +12,7 @@
   - `comics-agent`: OpenAB 0.10 (a nightly: 0.10.0 and two commits), whose ACP adapter (codex-acp
     2.5) runs Codex 0.165; the image's own Codex CLI (0.166) is for the login. A Codex session per
     Discord thread, two at a time; the model is `gpt-6.1-sol` at high reasoning effort, chosen in the
-    arena (D18; Ali, 2026-11-05), set by OpenAB at each session. It runs in Codex's full-access mode:
+    arena (ADR-0018; Ali, 2026-11-05), set by OpenAB at each session. It runs in Codex's full-access mode:
     the container is the boundary. Web search is live (`agent/codex.toml`).
   - `comics-tools` (`tools/comics_tools.py`, Python's standard library): the agent's only way to the
     apps, and the only holder of their keys. A fixed list of verbs (below); anything else is refused,
@@ -33,7 +33,7 @@
 - **Network:**
   - `comics-agent`: the stack's `egress` (OpenAI, Discord) and its internal `backend`, nothing else.
   - `comics-tools`: `backend`; CLU's `clu_backend` (CLU and SABnzbd by name: CLU's port has no login,
-    hence D17's exception to Networks); `edge`, for Komga and Uchiyomi through caddy-apps (its `edge`
+    hence ADR-0017's exception to the networks); `edge`, for Komga and Uchiyomi through caddy-apps (its `edge`
     aliases `komga.aliammar.net`, `uchiyomi.aliammar.net`) and for Discord.
 - **Data:**
   - `/opt/appdata/comics-agent/home` → `/home/node`: Codex's login (`.codex/auth.json`) and sessions,

@@ -17,7 +17,7 @@
   outside the snapshots).
 - **Secrets:** `secret.sops.env`: `RESTIC_PASSWORD` (agent-generated; survival kit) and
   `HC_PING_URL` (healthchecks.io check `backup docker-dmz`: daily, grace 3 h). `rclone.sops.conf`:
-  Ali's rclone config with remote `gdrive` (`skynetv2.md` → P4 → Drive access). The host reads
+  Ali's rclone config with remote `gdrive` (`runbooks/drive-access.md`). The host reads
   both too, through sops-nix, for `skynet-restore`.
 - **Restore:** as root on the host, `skynet-restore` (`modules/docker-host.nix`):
   - `skynet-restore list [<stack>]`: the local snapshots and the Drive snapshots;
@@ -30,7 +30,7 @@
   stops the stack, puts `/opt/appdata/<stack>` back exactly as in the snapshot (its cache folders
   stay as they are), then puts the marker back and starts the stack and doco-cd again. Failing
   halfway, it leaves the stack stopped and doco-cd held until the same restore, its undo or
-  `--all` succeeds (`skynetv2.md` → P4 → Restores).
+  `--all` succeeds (`runbooks/restore.md`).
 - **Alerts:** healthchecks.io (start, success and failure pings, and a missed night) and doco-cd's
   `notify_on: failure` on each job, both to `#alerts`. Gatus row `docker-dmz backup` from the
   check's badge. A failed snapshot shows as a failed backup (the snapshot's age).

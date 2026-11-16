@@ -54,13 +54,13 @@ networks:
   non-root app then can't write it, and crash-loops.
 - No published ports. The door reaches the container by name on `edge`. Only doors join the host's
   macvlan (a fixed `ipv4_address`, and `gw_priority: 1` beside `edge`), plus an app that a firewall
-  rule must name, which joins only the macvlan, with a fixed `ipv4_address` (`skynetv2.md` →
-  Conventions → Networks).
+  rule must name, which joins only the macvlan, with a fixed `ipv4_address` (`stacks/README.md`
+  → Networks).
 - An app with no login of its own (auth mode `forward`) stays off `edge`. On the macvlan, it admits
   only the door's address. Otherwise add `door-<name>` to the host's `skynet.docker.doorNetworks`
   and join it from the app and the door. doco-cd can't deploy a stack whose network doesn't exist
   yet, so merge the host change first (on docker-dmz the agent may instead create it by hand with
-  the same `docker network create --internal`, D11).
+  the same `docker network create --internal`, ADR-0011).
 
 ## 2. Secrets: `stacks/<target>/<name>/secret.sops.env`
 

@@ -1,6 +1,6 @@
 # DNS servers (technitium-network, technitium-core): Technitium, configured only from dns/ in git.
 # technitium-sync applies dns/settings.json, dns/aliammar.net.zone and dns/sso.json through
-# Technitium's HTTP API at boot and on every deploy that changes them (skynetv2.md → P2,
+# Technitium's HTTP API at boot and on every deploy that changes them (ADR-0005,
 # dns/README.md).
 {
   config,
@@ -93,8 +93,9 @@ in
     };
   };
 
-  # The dashboard's last hour, every 5 minutes, for node-exporter's textfile collector (skynetv2.md →
-  # P5 → Wider eyes): DnsFailing, and the answers' mix for the agent. It logs in as the sync does; a
+  # The dashboard's last hour, every 5 minutes, for node-exporter's textfile collector
+  # (stacks/admin/metrics/rules/dns.yml): DnsFailing, and the answers' mix for the agent. It logs in
+  # as the sync does; a
   # failed run is UnitFailed, and a stale file DnsStatsStale. node-exporter's folder is root's, so a
   # root step (+) moves the file in whole: a scrape never reads half of it.
   systemd.services.technitium-stats = {

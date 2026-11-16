@@ -1,7 +1,7 @@
 # VictoriaLogs: every host's journal, containers' logs included, kept 30 days and never more than
 # 4 GiB. Hosts send to vlagent, which only takes logs in: it has no query API, so a host that ships
-# its journal can read no one's. vmalert-logs turns rules/ (LogsQL) into alerts. The MCP server
-# (agent eyes) joins later (skynetv2.md → P5).
+# its journal can read no one's. vmalert-logs turns rules/ (LogsQL) into alerts, and
+# mcp-victorialogs gives the agent its read-only queries (README.md).
 services:
   victorialogs:
     container_name: victorialogs
@@ -39,7 +39,7 @@ services:
       - -remoteWrite.maxDiskUsagePerURL=1GiB
       # Each container is a stream of its own, beside each host and unit.
       - -journald.streamFields=_MACHINE_ID,_HOSTNAME,_SYSTEMD_UNIT,CONTAINER_NAME
-      # Appliances that log by syslog (skynetv2.md → P5 → Wider eyes), one port each; the host
+      # Appliances that log by syslog (README.md → Syslog), one port each; the host
       # firewall admits only that appliance. Each listener stamps its lines with `source`, the
       # appliance (each extraFields flag goes with the listenAddr flag in the same position). A line
       # keeps its hostname and app_name (the stream), its severity as `level`, and its own time
@@ -104,7 +104,7 @@ services:
       timeout: 5s
       retries: 3
 
-  # The agent's eyes (skynetv2.md → P5 → Agent eyes): VictoriaLogs' query tools over MCP, at
+  # The agent's eyes: VictoriaLogs' query tools over MCP, at
   # logs.aliammar.net/mcp (the door routes /mcp here; Authelia lets ops through). Its tools only
   # read: queries, stats, fields, streams, flags. Its documentation search is off: its index is
   # most of the server's memory (~95 MiB with it, ~16 without).

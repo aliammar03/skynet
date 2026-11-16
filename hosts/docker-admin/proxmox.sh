@@ -2,8 +2,8 @@
 # Creates the docker-admin VM on server-proxmox-network. Run as root on the node; the installer ISO
 # (`nix build .#installer-docker-admin`) must be in local:iso. MACs must match net.nix.
 # net0: VLAN 50 is vmbr0's untagged VLAN on this node, so no tag. net1: VLAN 60, macvlan parent.
-# Ballooning: 3 GB guaranteed (~2 GB in use with P5's stores); the rest, mostly page cache, goes
-# back to the node when it passes 80%.
+# Ballooning: 3 GB guaranteed (~2 GB in use with the observability stacks); the rest, mostly page
+# cache, goes back to the node when it passes 80%.
 # scsi0: the system (ext4). scsi1: the apps' data, btrfs (disk.nix), thin.
 set -eu
 qm create 5040 --name docker-admin --machine q35 --bios ovmf --ostype l26 --cpu host --cores 2 \

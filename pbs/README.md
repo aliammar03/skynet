@@ -12,7 +12,7 @@ part of its `/etc` that git holds. ops compares that with the host every day.
   copy on Drive (`stacks/admin/pbs-offsite/`, nightly at 06:00), can't be read.
 - **Jobs** (`etc/proxmox-backup/`): prune per namespace (core 05:00, network 05:15; 14 daily,
   8 weekly, 12 monthly); verify daily at 04:30, after both nodes' backups, so each guest's newest
-  backup is verified the same night (P5's `GuestBackupUnverified` relies on it), skipping verified
+  backup is verified the same night (`GuestBackupUnverified` relies on it), skipping verified
   snapshots, failed ones included, until they're 30 days old; GC Sundays 12:00, after the offsite
   copy. The backups themselves are PVE's jobs (network node 02:00, core 03:30), with fleecing on
   `local-lvm`: a VM's writes during its backup wait on the node's own disk, not on PBS. Core's
@@ -22,7 +22,7 @@ part of its `/etc` that git holds. ops compares that with the host every day.
   because a token never gets more than its user. The tokens' secrets exist only in PVE's storage
   config. `metrics@pbs` and its token `exporter` hold `DatastoreAudit` on the datastore and `Audit`
   on `/system`, for docker-admin's pbs-exporter (its secret: `stacks/admin/metrics/secret.sops.env`).
-- **Observed** (`skynetv2.md` → P5): Debian's node-exporter on :9100 (with the systemd collector,
+- **Observed:** Debian's node-exporter on :9100 (with the systemd collector,
   `etc/systemd/system/prometheus-node-exporter.service.d/`), and `systemd-journal-upload` sending
   the journal to docker-admin's vlagent (`etc/systemd/journal-upload.conf.d/`; its unit retries
   forever, `etc/systemd/system/systemd-journal-upload.service.d/`). journald drops what one service
@@ -41,7 +41,7 @@ part of its `/etc` that git holds. ops compares that with the host every day.
   - `etc/nftables.conf` filters `mgmt50` only, where OPNsense isn't in the way: :8007 and ping from
     the two nodes and docker-admin (Gatus's `pbs-vlan50` row).
 - **Secrets:** `secret.sops.yaml` (Ali only): `root_password`, for the UI and the console.
-- **Agent:** root over SSH from ops only (`from=` in `answer.toml`, D11). ops pins the host key
+- **Agent:** root over SSH from ops only (`from=` in `answer.toml`, ADR-0011). ops pins the host key
   (`ssh_host.pub`, `modules/agent.nix`).
 - **`etc/`:** `proxmox-backup/`'s config files that hold no secret, the datastore's and Unraid's
   copies' mount units, node-exporter's and the upload's drop-ins, VLAN 50's NIC and its firewall,
@@ -65,8 +65,10 @@ part of its `/etc` that git holds. ops compares that with the host every day.
 1. **Agent:** `nix build .#installer-pbs --print-out-paths` on ops: Proxmox's PBS 4.2-1 ISO with
    `answer.toml` built in (`installer.nix`).
 2. **Ali, Unraid** (first install only): a share `pbs` with NFS export Yes, security Private, rule
-   `10.10.20.40(sec=sys,rw,no_root_squash)`. PBS creates the datastore as root, then hands it to
-   user `backup`; with root squashed that fails (`setup.sh` checks before it tries).
+   `10.10.20.40(sec=sys,rw,no_root_squash) 10.10.50.40(sec=sys,ro,all_squash,anonuid=34,anongid=34)`.
+   PBS creates the datastore as root, then hands it to user `backup`; with root squashed that fails
+   (`setup.sh` checks before it tries). docker-admin reads it for the offsite copy, every read as
+   uid 34 (`backup`), since the datastore's folders are `750` and `backup`'s own.
 3. **Ali:** the ISO from ops to the core node, from the workstation:
    `scp -3 aliammar@10.10.90.91:<store path> root@10.10.50.11:/var/lib/vz/template/iso/pbs-installer.iso`.
    Then on the node: fetch `proxmox.sh` from the branch, read it, run it, and (first install only)
@@ -132,7 +134,7 @@ PVE's.
     lock state on Unraid. Every backup fails "unable to get shared lock - EBADF: Bad file number"
     until the proxy restarts (`systemctl restart proxmox-backup-proxy`); reads still work;
   - each backup that failed meanwhile leaves an empty one, with no manifest, that counts as its
-    guest's newest for `GuestBackupUnverified` until it's removed (Ali's go, D11);
+    guest's newest for `GuestBackupUnverified` until it's removed (Ali's go, ADR-0011);
   - a verify that failed meanwhile stays failed, since the job skips it for 30 days. Verify each by
     hand with `runbooks/restore.md` case 7's command.
 - caddy-admin pins PBS's self-signed cert. A new one (a rebuild, or `proxmox-backup-manager cert

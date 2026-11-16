@@ -1,4 +1,4 @@
-"""comics-tools (skynetv2.md → P8 → The comics agent, D17): the comics agent's hands.
+"""comics-tools (ADR-0017): the comics agent's hands.
 
 A fixed list of verbs over CLU, SABnzbd, Komga and Uchiyomi, for the agent in `comics-agent`, which
 reaches this on the stack's `backend` and holds no key: every key is here. `GET /` lists the verbs;

@@ -30,7 +30,7 @@ next restart) / 64 GB.
     caddy-admin for the browser path; their certs name the IPs;
   - `curl -sk --netrc-file /run/secrets/rendered/opnsense.netrc https://10.10.50.1/api/…`: `-k`,
     because its pinned cert names a host, not the IP.
-- **P8's apps (D16):** `komga_password` (`secrets/ops.komga.yaml`) and `uchiyomi_password`
+- **Komga and Uchiyomi (ADR-0016):** `komga_password` (`secrets/ops.komga.yaml`) and `uchiyomi_password`
   (`secrets/ops.uchiyomi.yaml`), the agent's admin accounts, through caddy-apps like any visitor:
   - `curl --netrc-file /run/secrets/rendered/komga.netrc https://komga.aliammar.net/api/…` (HTTP
     Basic as `skynet@aliammar.net`); the claim, once:
@@ -43,12 +43,12 @@ next restart) / 64 GB.
   Claude Code's `headersHelper` prints as the `x-api-key` header. For each server,
   `.claude/settings.json` allows the list/get tools (not `list_stacks`/`get_stack`: Swarm only),
   `trigger_poll`, and the operate lane's `control_project`, `control_stack`, `trigger_scheduled_job`
-  and `compact_mirrors` (D11), and asks Ali before `destroy_project` and `remove_stack`. A session
+  and `compact_mirrors` (ADR-0011), and asks Ali before `destroy_project` and `remove_stack`. A session
   picks up `.mcp.json` and these rules when it starts.
 - **PBS drift check:** `pbs-drift` (daily 07:00, `modules/pbs-drift.nix`) reads PBS's config over
   the agent's SSH key and compares it with `pbs/etc/` as deployed here. A difference, or a failed
   read, goes to `#alerts` (`discord_alerts_webhook`, passed as a systemd credential).
-- **Unattended runs** (`modules/agent-runs.nix`, P6):
+- **Unattended runs** (`modules/agent-runs.nix`):
   - `skynet-incident`, each minute, hands each new alert group in Alertmanager to a headless run, at
     most 8 a day. `skynet-digest` (08:00) and `skynet-report` (Mondays 08:30) post the morning
     digest and the weekly report.
@@ -65,7 +65,7 @@ next restart) / 64 GB.
   `ROLE_NIX_CACHE_CLIENTS` decides which hosts get through: a new host needs adding there. `nix-cache-key` generates the signing key once
   in `/var/lib/nix-cache-key/`. Its public half is `hosts/ops/cache.pub`, which switches the clients
   on. A rebuilt ops gets a new key, so update `cache.pub`.
-- **Tailscale:** on Ali's tailnet as `tag:ops` (D14), userspace, so ops's own routes and DNS are
+- **Tailscale:** on Ali's tailnet as `tag:ops` (ADR-0014), userspace, so ops's own routes and DNS are
   unchanged. `ssh <machine>.<tailnet>.ts.net` goes through `tailscale nc` (`programs.ssh`, `Host
   *.ts.net`); what `tag:ops` may reach is set in the tailnet policy (Ali's admin console).
   `tailscale_authkey` (`secrets/ops.yaml`, tagged `tag:ops`) serves the first login only; the node
@@ -74,9 +74,29 @@ next restart) / 64 GB.
   actions and sends anything risky to Ali as a Discord prompt. `.claude/settings.json` deny rules
   (merge, force-push, sudo on ops) and ask rules (doco-dmz's destroy and remove) apply in every mode.
 - **Updates:** comin pulls `main` every 60 s.
-- **Rebuild:** `proxmox.sh` on the node → boot the NixOS ISO → `nixos-anywhere --flake .#ops
-  --target-host root@10.10.90.91 --generate-hardware-config nixos-generate-config
-  hosts/ops/hardware.nix` → one-time `/login` and Discord pairing as `skynet`.
-- **`installer.pub`:** the key nixos-anywhere uses to SSH into the NixOS installer (public; the
-  installed system allows no root login).
+- **Rebuild** (not drilled; restoring the guest from PBS is the quicker way back,
+  `runbooks/restore.md`, case 4). ops is the one host the agent can't install, since it runs there:
+  1. **Ali**, on the core node: the NixOS ISO,
+     `wget -P /var/lib/vz/template/iso https://channels.nixos.org/nixos-26.05/latest-nixos-minimal-x86_64-linux.iso`,
+     then `proxmox.sh`.
+  2. **Ali**, in the VM's console: `sudo -i`, `ip -br link`, then
+     `ip addr add 10.10.90.91/24 dev <if>; ip route add default via 10.10.90.1; echo nameserver 10.10.70.51 > /etc/resolv.conf`,
+     and the installing machine's public key into `~/.ssh/authorized_keys`.
+  3. From that machine, on VLAN 90 or the workstation:
+     `nix run github:nix-community/nixos-anywhere -- --flake .#ops --target-host root@10.10.90.91 --generate-hardware-config nixos-generate-config hosts/ops/hardware.nix`.
+     The new `hardware.nix`, the new recipient (`ssh-keyscan -t ed25519 10.10.90.91 | ssh-to-age`
+     in `.sops.yaml`) and the new `agent.pub` and `cache.pub` go in a PR; Ali re-encrypts
+     `secrets/ops*.yaml` for the new key and puts the new agent key on PBS (`runbooks/restore.md`,
+     case 3).
+  4. **Ali**, in the agent's session (`ssh aliammar@10.10.90.91`, then `skynet-attach`):
+     `/login` (the Claude subscription), trust `~/skynet`, accept Remote Control,
+     `/plugin install discord@claude-plugins-official`; DM the bot, then `/discord:access pair <code>`
+     and `/discord:access policy allowlist`; then `claude remote-control` once, interactively, to
+     accept its prompt.
+- **`installer.pub`:** the key the first install's nixos-anywhere used: v1's ops key
+  (`svc-ops@vm-skynet-ops`, VM 9090's, destroyed 2026-10-25). Nothing reads it now; step 2 uses the
+  installing machine's own key.
+- **The Discord bot** "Skynet" (Ali's Developer Portal app): Message Content Intent on, invited to
+  the server with View Channels, Send Messages, Send in Threads, Read Message History, Attach Files
+  and Add Reactions.
 - **State worth keeping:** `/home/skynet/.claude` (logins, plugin, memory), covered by PBS.

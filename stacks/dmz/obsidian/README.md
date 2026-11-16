@@ -8,7 +8,7 @@
   login in the LiveSync plugin. Only `/_up` answers without it. The plugin also encrypts the notes
   end to end, so the server holds ciphertext.
 - **Data:** `/opt/appdata/obsidian/couchdb` → `/opt/couchdb/data` (the databases, owner 5984; backup
-  class: data). Copied from v1's `obsidian-livesync_data` volume (P3 → Data).
+  class: data). Copied from v1's `obsidian-livesync_data` volume.
 - **Secrets** (`secret.sops.env`): `COUCHDB_PASSWORD`, `COUCHDB_SECRET` (cookie signing). Both carried
   over from v1, so the devices keep syncing without a change.
 - **Config:** `local.ini` (CORS for the Obsidian apps, single node, request and document limits),

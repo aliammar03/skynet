@@ -1,4 +1,4 @@
-# Uchiyomi (uchiyomi.aliammar.net), on trial (skynetv2.md → P8): finds manga and comics on their
+# Uchiyomi (uchiyomi.aliammar.net), on trial (#209): finds manga and comics on their
 # sources, follows series and downloads their new chapters to Unraid, and reads them (a PWA on the
 # iPad). Its own login beside sign-in through the apps' Authelia (OIDC). Inside and over Tailscale
 # only. Its extension engine and Cloudflare solver sit on the stack's own network; only Uchiyomi
@@ -26,7 +26,7 @@ services:
       SUWAYOMI_URL: http://uchiyomi-suwayomi:4567
       FLARESOLVERR_URL: http://uchiyomi-flaresolverr:8191
       # Sign-in through the apps' Authelia (client `uchiyomi`): the first sign-in makes the account,
-      # and group `admins` makes it an admin. Password sign-in stays, for the agent's account (D16).
+      # and group `admins` makes it an admin. Password sign-in stays, for the agent's account (ADR-0016).
       OIDC_ISSUER: https://login.aliammar.net
       OIDC_CLIENT_ID: uchiyomi
       OIDC_NAME: Authelia

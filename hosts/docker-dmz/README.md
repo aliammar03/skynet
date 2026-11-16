@@ -1,7 +1,7 @@
 # docker-dmz
 
 Apps Docker host: doco-cd (target `dmz`), the apps, their doors caddy-apps (10.10.100.35) and
-cloudflared (.33), and the apps' own Authelia (portal `login`) (skynetv2.md → P3).
+cloudflared (.33), and the apps' own Authelia (portal `login`) (ADR-0006).
 VMID 10010 · 10.10.100.10 · server-proxmox-core · 6 vCPU / 12 GB (10 guaranteed) / 193 GB.
 
 - **NIC** (MAC pinned in `proxmox.sh`, matched in `net.nix`): `dmz` = net0, tag 100. It carries the
@@ -13,8 +13,10 @@ VMID 10010 · 10.10.100.10 · server-proxmox-core · 6 vCPU / 12 GB (10 guarante
   the installed system doesn't trust that key.
 - **Disk** (`disk.nix`, 193 GiB thin on `local-lvm`): ESP, a 64 GiB ext4 root (NixOS, the Nix
   store, Docker's images), and 128 GiB of btrfs for the apps' data: its top level at
-  `/mnt/appdata-pool`, subvolume `@appdata` at `/opt/appdata`, subvolume `@snapshots`.
-- **Data:** `/opt/appdata` began as v1's (2026-10-24, skynetv2.md → P3 → Data). It comes back from
+  `/mnt/appdata-pool`, subvolume `@appdata` at `/opt/appdata`, subvolume `@snapshots`. PBS's
+  backup freezes both mounts through the guest agent, which ignores the second freeze's `EBUSY` (one
+  filesystem, mounted twice).
+- **Data:** `/opt/appdata` began as v1's, copied over on 2026-10-24. It comes back from
   a snapshot or Drive now (`runbooks/restore.md`).
 - **Snapshots** (btrbk, `skynet.docker.appdataSnapshots`): `@appdata`, read-only, at 04:20, as
   `@snapshots/@appdata.<YYYYMMDDThhmm>`, with `latest` pointing at the newest. Every one is kept for
@@ -25,7 +27,7 @@ VMID 10010 · 10.10.100.10 · server-proxmox-core · 6 vCPU / 12 GB (10 guarante
   the door networks `door-calibre`, `door-clu`, `door-jdownloader`, `door-komga`, `door-suwayomi`,
   `door-uchiyomi` (internal, each shared by caddy-apps and one app); stacks only join them, and
   every container on `dmz` sets a fixed `ipv4_address`.
-- **Storage** (P8): Unraid's share `Storage` (`10.10.20.20:/mnt/user/Storage`) at `/mnt/storage`, NFS
+- **Storage:** Unraid's share `Storage` (`10.10.20.20:/mnt/user/Storage`) at `/mnt/storage`, NFS
   4.2, mounted on first access and kept (the containers' bind mounts hold it), `hard`, and
   `lookupcache=positive` (`/etc/nfsmount.conf`, from the share's next mount): a folder looked up
   while Unraid boots isn't remembered as missing. Unraid's
@@ -36,18 +38,18 @@ VMID 10010 · 10.10.100.10 · server-proxmox-core · 6 vCPU / 12 GB (10 guarante
   stale once nothing has read the folder for a while, so `storage-keepalive` lists every
   container's share mounts from inside it every 2 minutes; a mount it finds stale already is a
   warning in the journal (`stale: <container> <path>`), and that container needs a restart.
-- **Undo** (P6): Unraid's dated copies of `Storage` (`10.10.20.20:/mnt/user/undo-Storage`, 14 nights)
+- **Undo:** Unraid's dated copies of `Storage` (`10.10.20.20:/mnt/user/undo-Storage`, 14 nights)
   at `/mnt/undo`, `ro` and `soft`, mounted on use and let go after 10 idle minutes. Unraid exports
   them read-only to this host, so not even root here can change one; no container mounts them.
   Putting a folder back: `runbooks/restore.md`, case 8.
 - **doco-cd** (`modules/docker-host.nix`): polls `main` every 60 s, target `dmz` → `.doco-cd.dmz.yml`
   → every folder in `stacks/dmz/`. API, `/mcp` and `/v1/health` on :8080 are for ops only (MCP
   `doco-dmz`). Deploy notices go to `#alerts` via Apprise (loopback :8000).
-- **Observability** (P5): node-exporter :9100, cAdvisor :9338, comin :4243 and doco-cd's :9120,
+- **Observability:** node-exporter :9100, cAdvisor :9338, comin :4243 and doco-cd's :9120,
   for docker-admin only (`modules/observability.nix`). The journal goes to docker-admin's vlagent
   (:9429): the DMZ's one opening into the management VLAN, write-only.
 - **Secrets** (`secrets/docker-dmz.yaml`): `doco_api_secret`, `discord_alerts_webhook`.
 - **Agent access:** user `skynet`, the agent's key from 10.10.90.91 only, groups `systemd-journal`
-  and `wheel`: **root via passwordless sudo** (D11), Docker included (`sudo docker …`). Every sudo
+  and `wheel`: **root via passwordless sudo** (ADR-0011), Docker included (`sudo docker …`). Every sudo
   command lands in the journal (`journalctl _COMM=sudo`). Its host key is `ssh_host.pub`, pinned in
   ops's known_hosts. MCP `doco-dmz` may also restart stacks and run jobs (`hosts/ops/README.md`).

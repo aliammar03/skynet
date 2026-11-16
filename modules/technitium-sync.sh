@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# technitium-sync: applies dns/ to the local Technitium through its HTTP API (skynetv2.md → P2):
+# technitium-sync: applies dns/ to the local Technitium through its HTTP API (dns/README.md):
 # the settings, then the aliammar.net zone, replaced whole by the file, then the SSO login if SSO
 # is set. Idempotent. modules/dns.nix runs it at boot and on every deploy that changes dns/. By
 # hand, e.g. against a test server:

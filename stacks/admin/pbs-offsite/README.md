@@ -15,7 +15,7 @@
 - **Data:** none on the host.
 - **Secrets:** `secret.sops.env`: `HC_PING_URL` (healthchecks.io check `pbs-offsite`: daily, grace
   6 h). `rclone.sops.conf`: Ali's rclone config with remote `gdrive`, the same file as the backup
-  stacks' (`skynetv2.md` → P4 → Drive access).
+  stacks' (`runbooks/drive-access.md`).
 - **Restore (a guest from Drive):** `runbooks/restore.md`, case 6: one guest through a read-only
   mount of this copy, or all of it back into a datastore PBS made.
 - **Alerts:** healthchecks.io (start, success and failure pings, and a missed night) and doco-cd's

@@ -1,4 +1,4 @@
-"""The arena's world (skynetv2.md → D18), one per lane. The runner loads a test's round into it on
+"""The arena's world (ADR-0018), one per lane. The runner loads a test's round into it on
 :8081 (the runner alone, by name); the lane's agent calls it on :8080 under the test's tool names
 (this container's aliases on the lane's network). The test's own world.py answers: load(round),
 log() for the checks, and Handler for the agent's calls. It's read again whenever it changed."""

@@ -1,6 +1,6 @@
 # technitium-network
 
-DNS server: Technitium, configured only from `dns/` (skynetv2.md → P2, `dns/README.md`).
+DNS server: Technitium, configured only from `dns/` (ADR-0005, `dns/README.md`).
 VMID 7050 · 10.10.70.50 · server-proxmox-network · 2 vCPU / 1 GB / 16 GB.
 
 - **NIC** (MAC pinned in `proxmox.sh`, matched in `net.nix`): `lan` = net0, tag 70.
@@ -21,5 +21,5 @@ VMID 7050 · 10.10.70.50 · server-proxmox-network · 2 vCPU / 1 GB / 16 GB.
 - **Secrets** (`secrets/technitium-network.yaml`): `technitium_admin_password` (agent-generated; it
   sets `admin`'s password on the first start only), `discord_alerts_webhook`.
 - **Agent access:** user `skynet`, the agent's key from 10.10.90.91 only, groups `systemd-journal`
-  and `wheel`: **root via passwordless sudo** (D11). Every sudo command lands in the journal
+  and `wheel`: **root via passwordless sudo** (ADR-0011). Every sudo command lands in the journal
   (`journalctl _COMM=sudo`). Its host key is `ssh_host.pub`, pinned in ops's known_hosts for both IPs.

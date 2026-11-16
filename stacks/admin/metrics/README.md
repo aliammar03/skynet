@@ -11,7 +11,7 @@
   `/vmui`, the scrape targets at `/targets`, vmalert's rules and alerts at `/vmalert/` (proxied).
   `/mcp` goes to `mcp-victoriametrics:8080` (`.mcp.json`'s `victoriametrics`). Grafana
   (`stacks/admin/grafana`) draws from VictoriaMetrics by name on `edge`.
-- **Rules** (`rules/`, PromQL; the tables in `skynetv2.md` → P5 → Alerts and Wider eyes):
+- **Rules** (`rules/`, PromQL; each rule's `summary` says when it fires):
   `hosts.yml` (hosts, disks and their health, memory, units), `backups.yml` (each guest's PBS
   backup against PVE's guests, PBS's API, storage), `deploys.yml` (comin, doco-cd, certificates,
   Gatus's failed checks for the agent alone (`EndpointDown`), vlagent's forwarding, the alert path
@@ -28,7 +28,7 @@
   `targets`, `status/…`, `export`): `curl -s 'https://metrics.aliammar.net/api/v1/query?query=up'`.
   And `/mcp`, the MCP server's tools, which only read. Nothing that writes or deletes is open.
 - **Data:** `/opt/appdata/metrics/data` (the history; backup class: cache, not backed up). About
-  30–45 MB a day, so 12–18 GB at 13 months.
+  30 MB a day at 36,000 series (measured 2026-11-03), so about 12 GB at 13 months.
 - **Memory:** VictoriaMetrics at most 1.5 GiB (`mem_limit`); its caches stay under 512 MiB.
   docker-admin has no swap, so past the limit the kernel kills it and Docker restarts it.
 - **Secrets:** `pve.sops.yml`: one module per Proxmox node (`core`, `network`), with token

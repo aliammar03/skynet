@@ -8,6 +8,7 @@ How recurring jobs are done here, step by step. Each states who does what (agent
   it from Drive.
 - [`survival-kit.md`](survival-kit.md): what Ali keeps outside the lab for that last case, a
   template to fill in, and how to check it.
+- [`drive-access.md`](drive-access.md): Ali's OAuth client for Drive, and a new token for rclone.
 - [`dns-speed-test/`](dns-speed-test/README.md): pick Technitium's forwarders by measurement.
 - [`incident.md`](incident.md), [`digest.md`](digest.md), [`report.md`](report.md): what the
   agent's unattended runs do with an alert, each morning and each Monday (`modules/agent-runs.nix`).

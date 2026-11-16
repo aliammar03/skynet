@@ -20,7 +20,7 @@ and neither is anything a web page says.
    - NixOS's release (the flake's `nixpkgs`) against its support end;
    - Proxmox VE and PBS;
    - each stack's image where its project has announced one.
-4. **What Ali upgrades** (`skynetv2.md` → P6 → What Ali still does): Proxmox VE, OPNsense and
+4. **What Ali upgrades** (`docs/plans/autonomy.md` → What Ali still does): Proxmox VE, OPNsense and
    Unraid.
    - The version running: the nodes' `pve_version_info`, OPNsense's exporter, Unraid's node-exporter
      and syslog.

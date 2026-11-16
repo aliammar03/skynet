@@ -1,6 +1,6 @@
 # alertmanager
 
-- **Purpose:** posts vmalert's alerts to Discord `#alerts` (`skynetv2.md` → P5 → Alerts): the
+- **Purpose:** posts vmalert's alerts to Discord `#alerts`: the
   rules are in `stacks/admin/metrics/rules/` and `stacks/admin/logs/rules/`. One post per alert and
   host ("Firing: DiskFull on docker-dmz", one line per alert), the same again when it resolves, and
   a reminder every 12 hours while it fires. In a post that's still firing, the line of an alert

@@ -1,5 +1,5 @@
 # ext4 for the system (NixOS, the Nix store, Docker's images), btrfs for the apps' data, so btrbk can
-# snapshot /opt/appdata for the backups (skynetv2.md → P4 → docker-dmz: /opt/appdata on btrfs).
+# snapshot /opt/appdata for the backups (ADR-0015).
 {
   disko.devices.disk.main = {
     type = "disk";

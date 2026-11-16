@@ -29,8 +29,7 @@ Commands run on the workstation, in the repo, unless the row says otherwise. `so
 - **Keys 2 and 3** are JSON files, kept whole. PVE generated them with no passphrase, so the file
   alone opens the backups. For paper, as root on the node:
   `proxmox-backup-client key paperkey /etc/pve/priv/storage/pbs.enc --output-format text`.
-- **The OAuth client** belongs to Google Cloud project `skynet-backup` (`skynetv2.md` → P4 → Drive
-  access). With it, a new login gives a new token.
+- **The OAuth client** belongs to Google Cloud project `skynet-backup` (`drive-access.md`). With it, a new login gives a new token.
 
 ## Accounts the lab hangs on
 

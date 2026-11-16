@@ -4,7 +4,7 @@
 identity_providers:
   oidc:
     # The two addons take a password (one factor) from Ali's group or the family's. Komga and
-    # Uchiyomi take Ali's group alone, until family accounts are decided (skynetv2.md → P8 → Open).
+    # Uchiyomi take Ali's group alone, until family accounts are made (#213).
     authorization_policies:
       apps:
         default_policy: deny

@@ -1,4 +1,4 @@
-"""komga-wiki (P8; Ali, 2026-11-05): a manga chapter's own title, summary and release date in Komga,
+"""komga-wiki (Ali, 2026-11-05): a manga chapter's own title, summary and release date in Komga,
 from the series' fan wiki, and from Wikipedia where the fan wiki has none. Komga's manga sources
 describe series, not chapters; fan wikis have a page per chapter. A series is linked when it has a
 link labelled "Wiki" in Komga, to its wiki's page for chapter 1, and one labelled "Chapters", to its

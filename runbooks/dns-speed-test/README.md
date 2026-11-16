@@ -40,9 +40,9 @@ Run it on ops as `skynet`. `quick` takes ~3 min; the log runs as long as you lea
 
 ## Firewall
 
-- DoH (:443) works from ops as-is. Plain DNS (:53) from ops reaches only 1.1.1.1, 8.8.8.8 and 9.9.9.9
-  through rule 150, until P2 removes that rule. The script skips anything it can't reach.
-- For the other resolvers over UDP, and for `recursion`, Ali adds a temporary rule. He clones rule
+- DoH (:443) works from ops as-is. Plain DNS (:53) from ops reaches no public resolver: rule 140
+  blocks every DNS but Technitium's. The script skips anything it can't reach.
+- For the resolvers over UDP, and for `recursion`, Ali adds a temporary rule. He clones rule
   110 ("CORE — Resolvers → approved upstreams", which passes `ROLE_DNS_RESOLVERS` → any :53), and
   sets sequence `115`, source `HOST_SKYNET_OPS`, description `TEST — ops DNS benchmark`. He deletes it
   when the test is done.
@@ -82,7 +82,7 @@ survives.
 - YouTube report: "mean" is the YouTube server a resolver hands out (the mean over names of each
   name's median connect ms); "page" and "thumb" are a new HTTPS connection plus one request. Raced
   sets list only those whose every member wins 2%+ of lookups; "other CDNs" shows what the same set
-  does to the P2 names (TikTok and Steam's in-ISP caches).
+  does to the other CDN names (TikTok and Steam's in-ISP caches).
 - Pick the fastest raced pair whose CDN column matches the best one. Change `dns/settings.json`
   by PR.
 - The script prints where a resolver answered from, never the lab's public IP. Some debug answers

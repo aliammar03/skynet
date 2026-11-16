@@ -1,6 +1,6 @@
 # Restores
 
-Git rebuilds the system (`skynetv2.md` → Rules, 2). Backups bring back what git doesn't hold: the
+Git rebuilds the system (`AGENTS.md`, rule 2). Backups bring back what git doesn't hold: the
 apps' data, and the guests git doesn't describe (OPNsense, HAOS, Omada, athena). A NixOS guest
 restored whole is a shortcut: comin then brings it to `main`. Six cases, smallest first, then two
 from Unraid's copies, which the lab can't delete (7, 8). **Agent** steps run on ops as
@@ -31,7 +31,7 @@ The passwords and keys are in the survival kit (`survival-kit.md`).
 
 ## 1. An app, from a local snapshot (either Docker host)
 
-**Agent** (root there, D11; `<host>` is docker-dmz's 10.10.100.10 or docker-admin's 10.10.50.40):
+**Agent** (root there, ADR-0011; `<host>` is docker-dmz's 10.10.100.10 or docker-admin's 10.10.50.40):
 ```sh
 ssh skynet@<host> sudo skynet-restore list <stack>
 ssh skynet@<host> sudo skynet-restore local <stack> <snapshot>
@@ -56,9 +56,8 @@ ssh skynet@<host> sudo skynet-restore local <stack> <snapshot>
 ## 2. An app, from Drive
 
 `skynet-restore drive <stack> [<snapshot>]`: case 1's steps, from restic (`latest` by default).
-- **Who:** the agent, on either Docker host (root on both, D11):
-  `ssh skynet@10.10.50.40 sudo skynet-restore …` on docker-admin, which has no snapshots, so no
-  undo.
+- **Who:** the agent, on either Docker host (root on both, ADR-0011), e.g.
+  `ssh skynet@10.10.50.40 sudo skynet-restore …` on docker-admin. Both take an undo snapshot first.
 - `list <stack>` shows Drive's snapshots, and how many entries each one changed in the stack. Pick
   the one before the change.
 - Minutes: librespeed took 26 s in place; karakeep's 1.79 GiB took 75 s into a folder.
@@ -142,7 +141,7 @@ guest backup before any host is rebuilt.
 1. **Ali:** a Proxmox node and a network. Neither is in this repo: a node is installed by hand, and
    OPNsense's config is in `skynet-opnsense`.
 2. **Ali:** rclone. The repo's `rclone.sops.conf` files hold a working token unless it was revoked;
-   otherwise make a new one from the kit's client (`skynetv2.md` → P4 → Drive access, steps 5–6).
+   otherwise make a new one from the kit's client (`drive-access.md` → A token).
    Any token of that client sees what the client created (`drive.file`).
 3. **Ali:** PBS (case 5), its ISO built on the workstation
    (`nix build github:aliammar03/skynet#installer-pbs`). It accepts his key as well as the agent's.
@@ -207,7 +206,7 @@ chunks, 918 MiB).
   pvesm remove <s>
   ```
   Done before the node's next backup job, which would take the new VM too.
-- **Agent**, last: the scratch datastore's grants and the datastore go (on Ali's go, D11: the
+- **Agent**, last: the scratch datastore's grants and the datastore go (on Ali's go, ADR-0011: the
   drill's go covers it), then the mount and its cache, then Ali's rclone config:
   ```sh
   umount /mnt/datastore/<s>/.chunks
@@ -261,7 +260,7 @@ ssh skynet@10.10.100.10 sudo cp -r --preserve=timestamps --update=none '/mnt/und
   there means moving the current one aside first: whose file it is decides that.
 - Unraid writes what comes back as `nobody:users`, like everything on the share.
 - **Under `Books/`** the apps index by path, so once the files are back Komga, CLU and Uchiyomi each
-  re-sync: the comics agent's work, which Ali asks for in `#comics` (D17).
+  re-sync: the comics agent's work, which Ali asks for in `#comics` (ADR-0017).
 
 ## Last done
 

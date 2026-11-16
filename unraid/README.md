@@ -1,7 +1,7 @@
 # unraid
 
-Unraid (VM 2020, 10.10.20.20) as docker-admin sees it (skynetv2.md → P5 → Wider eyes), and the
-undo copies it keeps for the lab (P6 → The undo out of reach). Unraid's config is Ali's and isn't in
+Unraid (VM 2020, 10.10.20.20) as docker-admin sees it, and the
+undo copies it keeps for the lab (ADR-0015). Unraid's config is Ali's and isn't in
 git; this folder is what Ali applies there, so git describes it.
 
 - **Metrics:** `compose.yaml`, two upstream exporters as Unraid containers, on Unraid's own network:

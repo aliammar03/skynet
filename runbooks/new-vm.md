@@ -22,7 +22,7 @@ existing host (e.g. `hosts/docker-admin/`) is the template for each file.
 
 ## 1. Branch (agent)
 
-On `p<N>/<h>`:
+On `<h>/install`:
 - `hosts/<h>/net.nix`: MACs, address, gateway, DNS. Both the installer and the host read it.
 - `hosts/<h>/proxmox.sh`: copy an existing host's, then change the VMID, name, cores, memory, disk
   size and NICs (pinned MACs, tags). Keep the rest:
@@ -116,7 +116,7 @@ Once ops has applied the merge, its known_hosts pins the key
   it directly. `--copy-host-keys` keeps its host key: the one in `ssh_host.pub`, so sops decrypts on
   the first boot.
 - While this runs, the agent is root on the installer, which holds that private key. It reads only
-  the public half (D11).
+  the public half (ADR-0011).
 - The closure goes from ops over the LAN, with the flake's pinned nixos-anywhere. The VM reboots
   into NixOS from its disk (the ISO can stay attached). From now on there's no root login.
 - A Docker host's doco-cd starts only once `/opt/appdata/.data-ready` exists
@@ -163,8 +163,7 @@ snapshot; then `touch /opt/appdata/.data-ready && systemctl start docker-doco-cd
 
 ## Rebuild
 
-1. A Docker host that still runs copies its data to ops first, cold (skynetv2.md → P4 → The
-   rebuild). On the host, comin and doco-cd first, so nothing restarts what stops next (a comin
+1. A Docker host that still runs copies its data to ops first, cold. On the host, comin and doco-cd first, so nothing restarts what stops next (a comin
    switch would start doco-cd again):
    `sudo systemctl stop comin docker-doco-cd && sudo docker ps -q | xargs -r sudo docker stop`.
    Then on ops, `/opt/appdata` into one tar, and the tar compared with it file by file:
