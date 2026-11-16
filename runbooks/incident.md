@@ -117,6 +117,46 @@ Signs: its syslog's boot lines (`source:=unraid`), `rpc.mountd` re-attaching cli
 - Each rule's comment in `stacks/admin/logs/rules/logs.yml` says what stopped or flooded. Check the
   sender's other signals (metrics, Gatus) before blaming the sender.
 
+### DiskUnhealthy, DiskWearing, FilesystemErrors
+- Which disk, on which host: the alert's `disk` or `device`. The Proxmox nodes' SMART and NVMe
+  series come from Debian's timers, every 15 minutes (`hosts/pve/README.md`); Unraid's from
+  smartctl-exporter (`hosts/unraid/README.md`).
+- FilesystemErrors: the kernel lines themselves (`_HOSTNAME`, `_TRANSPORT:=kernel`). A guest's disk
+  is on its node, so check the node's kernel lines and its disks for the same minutes (Senders → a
+  guest's node).
+- A failing disk is Ali's. The report names the disk, what it reports, and the guests on that node
+  (`docs/lab.md`).
+
+### GatewayDown, GatewayLossy, FirewallStatesHigh
+- OPNsense's own verdict per gateway (`opnsense_gateways_status`,
+  `opnsense_gateways_loss_percentage`) and its log (`source:=opnsense`).
+- What still works tells a dead line from a dead monitor address: Gatus's `public` row, and each
+  DNS server's `forwarding` step.
+- FirewallStatesHigh: `opnsense_pf_states_current` over the last day, and who opens the states:
+  the firewall log (`app_name:=filterlog`) by source address.
+- OPNsense's config is Ali's.
+
+### ExporterBlind, OmadaDeviceDown
+- ExporterBlind: the exporter's log (`CONTAINER_NAME:=opnsense-exporter` or `omada-exporter`) names
+  the call that failed: a key or user that changed, a page the user lost, or the API down. Gatus's
+  `opnsense` or `omada` row says whether the appliance answers at all. The key and the user are
+  Ali's (`stacks/admin/exporters/README.md`, `stacks/admin/omada-exporter/README.md`).
+- OmadaDeviceDown: the device and its state (`omada_device_uptime_seconds`, `device_status`), and
+  the controller's events (`source:=omada`). An access point or the switch is hardware: Ali's.
+
+### LogForwardingStuck, LogsLost
+- vlagent holds lines VictoriaLogs won't take: VictoriaLogs' health (Gatus's `victorialogs` row,
+  `CONTAINER_NAME:=victorialogs`), its disk (`stacks/admin/logs/README.md`), and vlagent's own log
+  (`CONTAINER_NAME:=vlagent`).
+
+### RuleFailing, AlertmanagerSendFailing
+- RuleFailing: the `rule` label names the rule, and vmalert's log (`CONTAINER_NAME:=vmalert` or
+  `vmalert-logs`) has the query's error. A rule that can't evaluate can't fire, so the report says
+  which alert is blind.
+- AlertmanagerSendFailing: the `integration` label, and Alertmanager's log
+  (`CONTAINER_NAME:=alertmanager`). When it is Discord, `DeliveryWatchdog` stops too, and
+  healthchecks.io reports that by its own path (`stacks/admin/alertmanager/README.md`).
+
 ### UnitFailed, UndoCopyMissing, and anything else
 - The unit's journal on its host. For UndoCopyMissing, Unraid's `skynet-undo` lines (`FAILED: …`).
 - For an alert with no case here, the report says so. A new case belongs here, in the agent's next
