@@ -57,11 +57,19 @@
         installer-technitium-network = mkInstaller "technitium-network";
         installer-technitium-core = mkInstaller "technitium-core";
         installer-docker-dmz = mkInstaller "docker-dmz";
-        # PBS isn't NixOS: Proxmox's own ISO, with pbs/answer.toml built in. The assistant comes from
-        # unstable to match the ISO's installer (9.2; 26.05 has 9.1).
-        installer-pbs = pkgs.callPackage ./pbs/installer.nix {
+        # PBS isn't NixOS: Proxmox's own ISO, with hosts/pbs/answer.toml built in. The assistant
+        # comes from unstable to match the ISO's installer (9.2; 26.05 has 9.1).
+        installer-pbs = pkgs.callPackage ./hosts/pbs/installer.nix {
           inherit (inputs.nixpkgs-unstable.legacyPackages.${system}) proxmox-auto-install-assistant;
         };
+        # Our own programs (packages/). Their modules build them with each host's values; building
+        # one here checks it (shellcheck, for the shell ones).
+        skynet-restore = pkgs.callPackage ./packages/skynet-restore {
+          inherit (inputs.nixpkgs-unstable.legacyPackages.${system}) restic;
+        };
+        technitium-sync = pkgs.callPackage ./packages/technitium-sync { };
+        technitium-stats = pkgs.callPackage ./packages/technitium-stats { };
+        dnsbench = pkgs.callPackage ./packages/dnsbench { };
       };
 
       # `nix run .#secret -- <sops file> <KEY>` (AGENTS.md, rule 3): a third-party token into a

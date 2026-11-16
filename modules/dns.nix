@@ -15,22 +15,8 @@ let
   credential = "admin-password:${config.sops.secrets.technitium_admin_password.path}";
   # This server's OIDC client secret (admin Authelia's client, named after the host), for the sync.
   oidcCredential = "oidc-client-secret:${config.sops.secrets.technitium_oidc_client_secret.path}";
-  sync = pkgs.writeShellApplication {
-    name = "technitium-sync";
-    runtimeInputs = [
-      pkgs.curl
-      pkgs.jq
-    ];
-    text = builtins.readFile ./technitium-sync.sh;
-  };
-  stats = pkgs.writeShellApplication {
-    name = "technitium-stats";
-    runtimeInputs = [
-      pkgs.curl
-      pkgs.jq
-    ];
-    text = builtins.readFile ./technitium-stats.sh;
-  };
+  sync = pkgs.callPackage ../packages/technitium-sync { };
+  stats = pkgs.callPackage ../packages/technitium-stats { };
 in
 {
   services.resolved.enable = false; # its stub would hold :53
@@ -50,7 +36,7 @@ in
   # In a file of its own: the agent generated it, and can't add a key to the host's file. A new
   # value re-runs the sync, which hands it to Technitium.
   sops.secrets.technitium_oidc_client_secret = {
-    sopsFile = ../secrets + "/${config.networking.hostName}.oidc.yaml";
+    sopsFile = ../hosts + "/${config.networking.hostName}/oidc.sops.yaml";
     restartUnits = [ "technitium-sync.service" ];
   };
   systemd.services.technitium-dns-server = {

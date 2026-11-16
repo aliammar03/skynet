@@ -56,20 +56,9 @@ let
   };
 
   # Restores, from a local snapshot or from Drive (runbooks/restore.md, cases 1–2).
-  skynetRestore = pkgs.writeShellApplication {
-    name = "skynet-restore";
-    runtimeInputs = [
-      config.virtualisation.docker.package
-      unstable.restic # the backup image's version (0.19)
-      pkgs.rclone
-      pkgs.rsync
-      pkgs.coreutils
-      pkgs.findutils
-      pkgs.gnugrep
-      pkgs.gnused
-      pkgs.util-linux # flock
-      pkgs.systemd
-    ];
+  skynetRestore = pkgs.callPackage ../packages/skynet-restore {
+    docker = config.virtualisation.docker.package;
+    restic = unstable.restic; # the backup image's version (0.19)
     runtimeEnv = {
       REPO = "rclone:gdrive:skynet/restic/${config.networking.hostName}";
       EXCLUDES = "${../stacks/${docoTarget}/backup/excludes.txt}";
@@ -77,7 +66,6 @@ let
       ENV_FILE = config.sops.secrets.restic-appdata-env.path;
       RCLONE_FILE = config.sops.secrets.restic-appdata-rclone.path;
     };
-    text = builtins.readFile ./skynet-restore.sh;
   };
 in
 {

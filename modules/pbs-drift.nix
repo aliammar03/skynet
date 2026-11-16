@@ -1,5 +1,5 @@
-# ops: every morning, PBS's config against pbs/etc/ as deployed here from main (pbs/README.md). A
-# difference goes to #alerts with the files' names; so does a failed check.
+# ops: every morning, PBS's config against hosts/pbs/etc/ as deployed here from main
+# (hosts/pbs/README.md). A difference goes to #alerts with the files' names; so does a failed check.
 {
   config,
   lib,
@@ -25,7 +25,7 @@ let
     "user.cfg"
     "verification.cfg"
   ];
-  want = ../pbs/etc;
+  want = ../hosts/pbs/etc;
   check = pkgs.writeShellApplication {
     name = "pbs-drift";
     runtimeInputs = with pkgs; [
