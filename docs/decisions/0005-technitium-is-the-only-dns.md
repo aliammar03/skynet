@@ -13,7 +13,7 @@ from Pakistan. v1 ran AdGuard beside two Technitium containers set up by hand.
 
 ## Considered Options
 
-Upstreams, measured from the lab over two nights and a day (`runbooks/dns-speed-test/` → Last
+Upstreams, measured from the lab over two nights and a day (`runbooks/dns-speed-test.md` → Last
 result):
 - recursion of our own (Unbound): the same CDN servers, but 3–7 times slower on names not cached;
 - DoH: 100–230 ms lost each time the connection went idle, which the providers close within a

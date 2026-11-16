@@ -78,7 +78,7 @@ values.
    ```
    Step 5 keeps this key, so it becomes the installed host's key.
 2. `.sops.yaml`: a key `&<h>` = `ssh-to-age < hosts/<h>/ssh_host.pub`, and a creation rule
-   `^secrets/<h>\.yaml$` for `*aliammar` + `*<h>`.
+   `^hosts/<h>/.*\.sops\.[^/]+$` for `*aliammar` + `*<h>`.
 3. `modules/agent.nix`: `programs.ssh.knownHosts.<h> = { hostNames = [ "<ip>" ]; publicKeyFile = ../hosts/<h>/ssh_host.pub; };`
    List every IP the host will have (e.g. a build IP and a final IP). This pins the key for the
    agent's log access; `base.nix` already creates user `skynet` there (agent key from ops only,
@@ -90,18 +90,18 @@ values.
    `base.nix` already runs its exporters and ships its journal.
 5. **All** random secrets in one command, before Ali adds his. The agent can't decrypt, so it can
    only create the file whole, never add to it:
-   `printf 'one: %s\ntwo: %s\n' "$(python3 -c 'import secrets; print(secrets.token_hex(32))')" "$(python3 -c 'import secrets; print(secrets.token_hex(32))')" | sops encrypt --filename-override secrets/<h>.yaml --input-type yaml --output-type yaml /dev/stdin > secrets/<h>.yaml`
+   `printf 'one: %s\ntwo: %s\n' "$(python3 -c 'import secrets; print(secrets.token_hex(32))')" "$(python3 -c 'import secrets; print(secrets.token_hex(32))')" | sops encrypt --filename-override hosts/<h>/secret.sops.yaml --input-type yaml --output-type yaml /dev/stdin > hosts/<h>/secret.sops.yaml`
    The values are never shown. With no random secrets, Ali creates the file in step 4.
 6. `nix fmt -- <changed .nix files>`, `nix flake check`, push, open the PR. It says which values
    Ali must add.
 
 ## 4. Secrets and merge (Ali)
 
-On the branch, `nix shell nixpkgs#sops -c sops secrets/<h>.yaml` to add the values only he holds:
+On the branch, `nix shell nixpkgs#sops -c sops hosts/<h>/secret.sops.yaml` to add the values only he holds:
 `discord_alerts_webhook` (the `#alerts` URL; every host needs it, so comin can post failed deploys)
 and whatever the role needs. Commit and push.
 
-CI fails while `secrets/<h>.yaml` lacks any secret the config uses, the webhook included
+CI fails while `hosts/<h>/secret.sops.yaml` lacks any secret the config uses, the webhook included
 (`base.nix`), so green means the host's secrets are complete. Stack secrets aren't checked by CI: a
 missing one fails that stack's deploy, which posts to `#alerts`. Merge.
 
@@ -143,16 +143,16 @@ snapshot; then `touch /opt/appdata/.data-ready && systemctl start docker-doco-cd
 - `.doco-cd.<target>.yml`: a copy of `.doco-cd.admin.yml` with `working_dir: stacks/<target>`.
   `stacks/<target>/` gets its first stack.
 - `.sops.yaml`: also `^stacks/<target>/.*\.sops\.[^/]+$` for `*aliammar` + `*<h>`.
-- `secrets/<h>.yaml`: `doco_api_secret` among the random values (step 3.5), next to Ali's
+- `hosts/<h>/secret.sops.yaml`: `doco_api_secret` among the random values (step 3.5), next to Ali's
   `discord_alerts_webhook`.
 - A dead-man: copy `compose.yaml`, `.doco-cd.yml` and `README.md` from `stacks/admin/heartbeat/`
   into `stacks/<target>/heartbeat/`. Not its `secret.sops.env`: that's encrypted for docker-admin.
   Drop the `gatus:8080` condition, because Gatus runs only on docker-admin. Ali adds a healthchecks.io
   check and creates the secret file with its `HC_PING_URL`.
 - The agent's read-only MCP, on ops:
-  - `secrets/ops.yaml` gets `doco_<target>_api_key`, the same value. Ali copies it (it fails rather
+  - `hosts/ops/secret.sops.yaml` gets `doco_<target>_api_key`, the same value. Ali copies it (it fails rather
     than writing an empty value):
-    `nix shell nixpkgs#sops nixpkgs#jq -c bash -c 'set -o pipefail; sops -d --extract "[\"doco_api_secret\"]" secrets/<h>.yaml | jq -R . | sops set --value-stdin secrets/ops.yaml "[\"doco_<target>_api_key\"]"'`
+    `nix shell nixpkgs#sops nixpkgs#jq -c bash -c 'set -o pipefail; sops -d --extract "[\"doco_api_secret\"]" hosts/<h>/secret.sops.yaml | jq -R . | sops set --value-stdin hosts/ops/secret.sops.yaml "[\"doco_<target>_api_key\"]"'`
   - `modules/agent.nix`: its header template, as for `doco-admin`;
   - `.mcp.json`: server `doco-<target>` (`http://<ip>:8080/mcp`, `headersHelper`);
   - `.claude/settings.json`, Ali's step (the agent doesn't widen its own permissions; the PR gives
@@ -184,7 +184,7 @@ snapshot; then `touch /opt/appdata/.data-ready && systemctl start docker-doco-cd
    `ssh_host.pub`, the `.sops.yaml` recipient and the agent's pin (the old pin would refuse the new
    key). Ali re-encrypts every file of the host's for it, then pushes. sops takes a file's format
    from its extension and doesn't know `.conf`, so the rclone configs (INI) need `--input-type`:
-   `nix shell nixpkgs#sops -c sh -c 'for f in secrets/<h>.yaml stacks/<target>/*/*.sops.*; do case "$f" in *.conf) sops updatekeys -y --input-type ini "$f" ;; *) sops updatekeys -y "$f" ;; esac || echo "FAILED: $f"; done'`.
+   `nix shell nixpkgs#sops -c sh -c 'for f in hosts/<h>/*.sops.* stacks/<target>/*/*.sops.*; do case "$f" in *.conf) sops updatekeys -y --input-type ini "$f" ;; *) sops updatekeys -y "$f" ;; esac || echo "FAILED: $f"; done'`.
    `git status --short` then lists every one of them, and the agent checks each file's recipients
    before the merge. Install with `--copy-host-keys` again; a Docker host's doco-cd waits by itself.
 4. A Docker host's data, as root, while doco-cd is still held:

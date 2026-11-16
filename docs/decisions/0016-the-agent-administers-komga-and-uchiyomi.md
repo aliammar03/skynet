@@ -16,8 +16,8 @@ documented APIs.
 
 Chosen option: the agent **administers Komga and Uchiyomi** through their APIs, with an admin
 account of its own in each: libraries, sources, extensions, series, settings, users' roles. The
-passwords are agent-generated, encrypted to Ali and ops (`secrets/ops.komga.yaml`,
-`secrets/ops.uchiyomi.yaml`), and rendered on ops for its calls. What can live in git (their
+passwords are agent-generated, encrypted to Ali and ops (`hosts/ops/komga.sops.yaml`,
+`hosts/ops/uchiyomi.sops.yaml`), and rendered on ops for its calls. What can live in git (their
 environment) still does. Deleting a series' files, a library or an account asks Ali each time.
 
 ### Consequences

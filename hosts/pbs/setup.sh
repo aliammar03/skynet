@@ -4,7 +4,7 @@
 # upload, VLAN 50's NIC and its firewall, Debian's security updates and Unraid's copies of the
 # datastore, read-only, and etc/ copied into /etc.
 # Re-runnable; a rebuild runs it the same way and reuses the datastore as it is on Unraid. From ops:
-#   tar -C pbs -c setup.sh etc | ssh root@10.10.20.40 'rm -rf /root/pbs && mkdir /root/pbs &&
+#   tar -C hosts/pbs -c setup.sh etc | ssh root@10.10.20.40 'rm -rf /root/pbs && mkdir /root/pbs &&
 #     tar -C /root/pbs -x && sh /root/pbs/setup.sh; s=$?; rm -r /root/pbs; exit $s'
 set -eu
 cd "$(dirname "$0")/etc"
@@ -88,7 +88,7 @@ proxmox-backup-manager versions
 # The upload waits ("activating") while docker-admin's vlagent is unreachable.
 systemctl is-active prometheus-node-exporter systemd-journal-upload || true
 proxmox-backup-manager datastore list
-# Not fatal: a rebuild before Unraid's undo job has run has no copies yet (unraid/README.md).
+# Not fatal: a rebuild before Unraid's undo job has run has no copies yet (hosts/unraid/README.md).
 ls /mnt/undo || echo "setup: no Unraid copies at /mnt/undo (share undo-pbs)" >&2
 proxmox-backup-manager prune-job list
 proxmox-backup-manager verify-job list

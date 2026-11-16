@@ -7,31 +7,30 @@ keys:
   - &technitium-core age1z04wgrdkynk2ez3hlqh67x65ayd2hq743z64wlrc8vvcfrcwqefsgu8ed2  # ssh-to-age < hosts/technitium-core/ssh_host.pub
   - &docker-dmz age1tkp56dteeem3l4jc6vjjfy82aepghf6fe0dxtlqqmqrk5p90ryequsakza  # ssh-to-age < hosts/docker-dmz/ssh_host.pub
 creation_rules:
-  # ops's own file, and the agent's admin passwords for Komga and Uchiyomi (ADR-0016; agent-generated:
-  # the agent can't add a key to a file it can't decrypt).
-  - path_regex: ^secrets/ops(\.komga|\.uchiyomi)?\.yaml$
+  # Each host's own files, beside it: its secret.sops.yaml, and what the agent generates for it in a
+  # file of its own (it can't add a key to a file it can't decrypt): the admin passwords for Komga
+  # and Uchiyomi on ops (ADR-0016), each DNS server's login client.
+  - path_regex: ^hosts/ops/.*\.sops\.[^/]+$
     key_groups:
       - age:
           - *aliammar
           - *ops
-  - path_regex: ^secrets/docker-admin\.yaml$
+  - path_regex: ^hosts/docker-admin/.*\.sops\.[^/]+$
     key_groups:
       - age:
           - *aliammar
           - *docker-admin
-  # A host's own file, and its OIDC client's secret (agent-generated: the agent can't add a key to
-  # a file it can't decrypt).
-  - path_regex: ^secrets/technitium-network(\.oidc)?\.yaml$
+  - path_regex: ^hosts/technitium-network/.*\.sops\.[^/]+$
     key_groups:
       - age:
           - *aliammar
           - *technitium-network
-  - path_regex: ^secrets/technitium-core(\.oidc)?\.yaml$
+  - path_regex: ^hosts/technitium-core/.*\.sops\.[^/]+$
     key_groups:
       - age:
           - *aliammar
           - *technitium-core
-  - path_regex: ^secrets/docker-dmz\.yaml$
+  - path_regex: ^hosts/docker-dmz/.*\.sops\.[^/]+$
     key_groups:
       - age:
           - *aliammar
@@ -54,7 +53,7 @@ creation_rules:
           - *aliammar
           - *docker-dmz
   # PBS reads no sops files: these are for Ali alone (its root password).
-  - path_regex: ^pbs/.*\.sops\.[^/]+$
+  - path_regex: ^hosts/pbs/.*\.sops\.[^/]+$
     key_groups:
       - age:
           - *aliammar

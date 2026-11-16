@@ -1,4 +1,4 @@
-# DNS speed test from the lab (runbooks/dns-speed-test/README.md). Modes:
+# DNS speed test from the lab (runbooks/dns-speed-test.md). Modes:
 #   quick              answer times per resolver (UDP, DoH; cached vs uncached) + CDN servers handed out
 #   recursion          a local Unbound on 127.0.0.1:5353 vs OpenDNS/Google
 #   log CSV [--until HH:MM | --minutes N] [--recursion]   one round a minute

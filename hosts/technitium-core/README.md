@@ -18,8 +18,8 @@ VMID 7051 · 10.10.70.51 · server-proxmox-core · 2 vCPU / 1 GB / 16 GB.
   - `technitium-stats.timer` writes the dashboard's last hour every 5 minutes for node-exporter
     (`/var/lib/node-exporter/technitium.prom`): queries by response and by how they were answered,
     clients, cache (`DnsFailing`, `DnsStatsStale`).
-- **Secrets** (`secrets/technitium-core.yaml`): `technitium_admin_password` (agent-generated; it
-  sets `admin`'s password on the first start only), `discord_alerts_webhook`.
+- **Secrets** (`hosts/technitium-core/secret.sops.yaml`): `technitium_admin_password`
+  (agent-generated; it sets `admin`'s password on the first start only), `discord_alerts_webhook`.
 - **Agent access:** user `skynet`, the agent's key from 10.10.90.91 only, groups `systemd-journal`
   and `wheel`: **root via passwordless sudo** (ADR-0011). Every sudo command lands in the journal
   (`journalctl _COMM=sudo`). Its host key is `ssh_host.pub`, pinned in ops's known_hosts for both IPs.

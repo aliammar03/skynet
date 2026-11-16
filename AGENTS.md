@@ -52,11 +52,12 @@ each kind of thing lives; work in flight is in `docs/plans/`.
 | What | Where |
 |---|---|
 | The lab: nodes, VLANs, every guest, what only Ali applies | `docs/lab.md` |
-| A machine | `hosts/<name>/` (contract: `hosts/README.md`); PBS `pbs/`, the Proxmox nodes `pve/`, Unraid `unraid/` |
+| A machine, NixOS or not | `hosts/<name>/` (contract: `hosts/README.md`) |
 | A stack | `stacks/<target>/<name>/` (contract: `stacks/README.md`) |
 | NixOS modules | `modules/` |
+| Programs of our own | `packages/<name>/` (contract: `packages/README.md`) |
 | The zone and Technitium's settings | `dns/` |
-| Secrets | `*.sops.*` beside what reads them, a host's own in `secrets/`; who holds what: `docs/credentials.md` |
+| Secrets | `*.sops.*` beside what reads them; who holds what: `docs/credentials.md` |
 | What was decided, by whom | `docs/decisions/`, cited as `ADR-0011` |
 | Work in flight | `docs/plans/` |
 | Procedures | `runbooks/` |

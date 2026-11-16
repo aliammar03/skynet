@@ -49,14 +49,16 @@ Run it on ops as `skynet`. `quick` takes ~3 min; the log runs as long as you lea
 
 ## Run
 
+The tool is `packages/dnsbench/` (`nix run .#dnsbench -- <mode>`: Python with httpx and h2).
+
 ```sh
 cd ~/skynet
-PY=(nix shell --impure --expr '(builtins.getFlake "nixpkgs").legacyPackages.x86_64-linux.python3.withPackages (p: [ p.httpx p.h2 ])' -c python3 -I runbooks/dns-speed-test/dnsbench.py)
+PY=(nix run .#dnsbench --)
 
 "${PY[@]}" quick          # where each resolver answers from; cached/uncached p50 p90; CDN servers
 
 # recursion: a throwaway Unbound on 127.0.0.1:5353 (needs rule 115)
-d=$(mktemp -d); sed "s#@DIR@#$d#g" runbooks/dns-speed-test/unbound.conf > "$d/unbound.conf"
+d=$(mktemp -d); sed "s#@DIR@#$d#g" packages/dnsbench/unbound.conf > "$d/unbound.conf"
 nix shell nixpkgs#unbound -c unbound-anchor -a "$d/root.key"   # exit 1 just means "anchor written"
 nix shell nixpkgs#unbound -c unbound -d -c "$d/unbound.conf" & ub=$!
 "${PY[@]}" recursion; kill $ub      # recursion waits up to 10 s for Unbound to answer

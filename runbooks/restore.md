@@ -106,8 +106,8 @@ Beside the original (a drill, or files out of it): a free VMID and `--unique 1` 
 address.
 
 After a VM comes back from an older backup:
-- **Its PVE config is the backup's.** Re-apply what `hosts/<h>/proxmox.sh` (or `pbs/proxmox.sh`)
-  sets differently now, e.g. docker-admin's `qm set 5040 --balloon 3072`.
+- **Its PVE config is the backup's.** Re-apply what `hosts/<h>/proxmox.sh` (or
+  `hosts/pbs/proxmox.sh`) sets differently now, e.g. docker-admin's `qm set 5040 --balloon 3072`.
 - **A NixOS guest boots the backup's generation.** comin then builds `main` and switches to it
   (docker-admin: 7 minutes at a load of 10 on its 2 vCPUs). Judge the host after the switch.
 - **A Docker host whose backup predates the marker** (before 2026-10-27) waits with doco-cd held. As
@@ -115,10 +115,10 @@ After a VM comes back from an older backup:
 - **Job metrics** (`/var/lib/node-exporter/*.prom`) stay the backup's until each job runs again.
   docker-admin's metrics and logs lose everything after the backup.
 
-## 5. PBS, rebuilt from `pbs/etc/`
+## 5. PBS, rebuilt from `hosts/pbs/etc/`
 
-`pbs/README.md` → Rebuild. A fresh VM 2040 from `answer.toml`, then `setup.sh` (agent) brings back
-`etc/` and mounts the datastore on Unraid as it is, so every backup is still there. Then:
+`hosts/pbs/README.md` → Rebuild. A fresh VM 2040 from `answer.toml`, then `setup.sh` (agent) brings
+back `etc/` and mounts the datastore on Unraid as it is, so every backup is still there. Then:
 - **Ali** regenerates the three tokens' secrets: `pve@pbs!core` and `pve@pbs!network` into each node's
   storage `pbs`, with the new fingerprint, and `metrics@pbs!exporter` into
   `stacks/admin/metrics/secret.sops.env`;
@@ -146,7 +146,7 @@ guest backup before any host is rebuilt.
 3. **Ali:** PBS (case 5), its ISO built on the workstation
    (`nix build github:aliammar03/skynet#installer-pbs`). It accepts his key as well as the agent's.
    Its datastore needs a new, empty Unraid share `pbs` with room for `rclone size gdrive:skynet/pbs`
-   (`pbs/README.md` → Install, step 2): `setup.sh` makes a new datastore there. Anything else
+   (`hosts/pbs/README.md` → Install, step 2): `setup.sh` makes a new datastore there. Anything else
    needs `etc/`'s mount units changed first (a PR).
 4. **The datastore back,** as root on PBS, into the new one: `apt-get install -y rclone`, `rclone
    config` (remote `gdrive`), then

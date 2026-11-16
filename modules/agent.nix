@@ -21,7 +21,7 @@ let
       unstable.claude-code;
   home = "/home/skynet";
   repo = "${home}/skynet";
-  hasSecrets = builtins.pathExists (../secrets + "/${config.networking.hostName}.yaml");
+  hasSecrets = builtins.pathExists (../hosts + "/${config.networking.hostName}/secret.sops.yaml");
   # The Proxmox nodes are standalone (no cluster), so each has its own `skynet@pve!read` token.
   pveHeader = node: {
     owner = "skynet";
@@ -117,7 +117,7 @@ in
   # PBS (VM 2040) isn't a NixOS host; its key from the install, checked through the guest agent.
   programs.ssh.knownHosts.pbs = {
     hostNames = [ "10.10.20.40" ];
-    publicKeyFile = ../pbs/ssh_host.pub;
+    publicKeyFile = ../hosts/pbs/ssh_host.pub;
   };
 
   environment.systemPackages = with pkgs; [
@@ -192,8 +192,8 @@ in
 
     # The agent's admin accounts in Komga and Uchiyomi (ADR-0016), each password in its own file
     # (agent-generated).
-    secrets.komga_password.sopsFile = ../secrets/ops.komga.yaml;
-    secrets.uchiyomi_password.sopsFile = ../secrets/ops.uchiyomi.yaml;
+    secrets.komga_password.sopsFile = ../hosts/ops/komga.sops.yaml;
+    secrets.uchiyomi_password.sopsFile = ../hosts/ops/uchiyomi.sops.yaml;
     templates."komga.netrc" = {
       owner = "skynet";
       content = ''

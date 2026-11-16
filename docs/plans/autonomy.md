@@ -17,10 +17,10 @@
 - the leash: code-owner review (ADR-0013, `.github/CODEOWNERS`), root where the agent works
   (ADR-0011, `agentRoot` in `modules/base.nix`), comin pinned (`flake.nix`), comin's testing
   branches off (`modules/base.nix`);
-- the undo out of reach: Unraid's dated copies (ADR-0015, `unraid/README.md`), drilled 2026-11-15
-  (`runbooks/restore.md`, cases 7–8);
+- the undo out of reach: Unraid's dated copies (ADR-0015, `hosts/unraid/README.md`), drilled
+  2026-11-15 (`runbooks/restore.md`, cases 7–8);
 - operate: root on docker-admin and its doco-cd tools, PBS's security updates
-  (`pbs/README.md` → Updates), `nix run .#secret` (`AGENTS.md`, rule 3);
+  (`hosts/pbs/README.md` → Updates), `nix run .#secret` (`AGENTS.md`, rule 3);
 - incidents, investigated and reported only; the morning digest and the weekly report
   (`hosts/ops/README.md` → Unattended runs, `runbooks/incident.md`, `digest.md`, `report.md`);
 - docker-admin's data on a btrfs disk of its own (`hosts/docker-admin/README.md` → Data).
@@ -220,7 +220,7 @@ through the gates. A fix that touches data takes an undo point first.
   - the backup jobs: managing them takes `Sys.Modify` on `/`, which would let the token change the
     nodes. The stale-backup alert watches their outcome.
 - **The token:** `skynet@pve!provision` on each node (`docs/credentials.md` → Planned); Ali mints it
-  once into `secrets/ops.yaml`.
+  once into `hosts/ops/secret.sops.yaml`.
 - **State** stays on ops, backed up with it, and holds no secrets. If it's lost, `tofu import`
   rebuilds it from the live VMs.
 - **The import:** `import {}` blocks for the six VMs. The migration is done when `plan` shows no

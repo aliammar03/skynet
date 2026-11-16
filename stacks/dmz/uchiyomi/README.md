@@ -9,7 +9,7 @@
 - **Auth mode:** own, plus oidc: sign-in through the apps' Authelia (client `uchiyomi`, policy
   `admins`). The first sign-in makes the account (`OIDC_ALLOW_SIGNUP`), and group `admins` makes it
   an admin at every sign-in (`OIDC_ADMIN_GROUP`). The agent's own admin (`skynet`) made the first-run
-  setup (ADR-0016; its password is `secrets/ops.uchiyomi.yaml`).
+  setup (ADR-0016; its password is `hosts/ops/uchiyomi.sops.yaml`).
 - **Services:**
   - `uchiyomi`: the app, with its own Postgres 16 inside (on a socket, no password);
   - `uchiyomi-suwayomi`: the extension engine (Suwayomi v2.4), which runs Mihon's extensions for

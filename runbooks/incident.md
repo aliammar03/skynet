@@ -52,8 +52,8 @@ What to check first for each alert, and the causes seen before.
   Gatus says, and, for a guest, `pve_up{id="qemu/<vmid>"}` with its CPU and network on its node.
 - Unraid (`unraid`): node-exporter and smartctl-exporter are containers in Compose Manager's
   `exporters` stack. After a clean shutdown they come back only if the stack's Auto Start is on
-  (`unraid/README.md`). With Unraid answering ping and NFS but not :9100, that's Ali's step: Docker
-  tab → Compose → `exporters`, Auto Start on, then Compose Up.
+  (`hosts/unraid/README.md`). With Unraid answering ping and NFS but not :9100, that's Ali's step:
+  Docker tab → Compose → `exporters`, Auto Start on, then Compose Up.
 - A guest that's off: its node's log (Senders → a guest's node).
 
 ### Unraid restarted
@@ -72,7 +72,7 @@ Signs: its syslog's boot lines (`source:=unraid`), `rpc.mountd` re-attaching cli
 
 ### Backups: GuestBackup*, GuestNeverBackedUp, PbsApiDown
 - vzdump's error names the guest and the reason: the node's syslog, "Backup of VM <id> failed".
-- After an NFS outage (Unraid down), two things stay (`pbs/README.md` → Gotchas):
+- After an NFS outage (Unraid down), two things stay (`hosts/pbs/README.md` → Gotchas):
   - each backup job that failed leaves an empty backup that counts as the guest's newest. Removing
     one is Ali's go (ADR-0011);
   - a verify that failed during the outage stays failed for 30 days, since the job skips it.

@@ -10,7 +10,7 @@
   response time and certificate expiry.
 - **Data:** `/opt/appdata/gatus/data.db` (check history; backup class: disposable).
 - **Secrets:** `secret.sops.env`: `DISCORD_ALERTS_WEBHOOK` (the `#alerts` webhook URL, same value as
-  `discord_alerts_webhook` in `secrets/docker-admin.yaml`); `HC_BADGE_URL_ADMIN` (healthchecks.io project
+  `discord_alerts_webhook` in `hosts/docker-admin/secret.sops.yaml`); `HC_BADGE_URL_ADMIN` (healthchecks.io project
   `skynet` → Badges, 2-state, the `docker-admin` row's JSON URL; it answers
   `{"status": "up", ...}`); `HC_BADGE_URL_DMZ` (the same for the `docker-dmz` row);
   `HC_BADGE_URL_BACKUP_ADMIN` and `HC_BADGE_URL_BACKUP_DMZ` (the same for checks

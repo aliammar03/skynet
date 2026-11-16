@@ -9,7 +9,7 @@
 }:
 let
   aliammarKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMY3q277EOHizg5Ji/WUU7WvUi4X/ezbRPebk65lQVBJ aliammar@RK-W";
-  hostSecrets = ../secrets + "/${config.networking.hostName}.yaml";
+  hostSecrets = ../hosts + "/${config.networking.hostName}/secret.sops.yaml";
   # Key names in a sops file are plaintext, so evaluation can tell which secrets a host has.
   hasSecret =
     key:
@@ -126,7 +126,8 @@ in
     tmux
   ];
 
-  # Every host has secrets/<host>.yaml, with at least the #alerts webhook (runbooks/new-vm.md).
+  # Every host has hosts/<host>/secret.sops.yaml, with at least the #alerts webhook
+  # (runbooks/new-vm.md).
   sops = {
     defaultSopsFile = hostSecrets;
     secrets.discord_alerts_webhook = { };
@@ -154,12 +155,12 @@ in
   assertions = [
     {
       assertion = builtins.pathExists hostSecrets;
-      message = "secrets/${config.networking.hostName}.yaml is missing: every host needs one, with discord_alerts_webhook.";
+      message = "hosts/${config.networking.hostName}/secret.sops.yaml is missing: every host needs one, with discord_alerts_webhook.";
     }
   ]
   ++ lib.mapAttrsToList (name: s: {
     assertion = s.sopsFile != hostSecrets || hasSecret s.key;
-    message = "secrets/${config.networking.hostName}.yaml has no key `${s.key}`: add it with sops before merging.";
+    message = "hosts/${config.networking.hostName}/secret.sops.yaml has no key `${s.key}`: add it with sops before merging.";
   }) config.sops.secrets;
 
   system.stateVersion = "26.05";

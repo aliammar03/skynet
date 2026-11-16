@@ -23,7 +23,7 @@ Commands run on the workstation, in the repo, unless the row says otherwise. `so
 | 4 | restic password, docker-dmz | its app data on Drive (`gdrive:skynet/restic/docker-dmz`) | `sops -d --extract '["RESTIC_PASSWORD"]' stacks/dmz/backup/secret.sops.env` | it lists the snapshots |
 | 5 | restic password, docker-admin | its app data on Drive (`gdrive:skynet/restic/docker-admin`) | `sops -d --extract '["RESTIC_PASSWORD"]' stacks/admin/backup/secret.sops.env` | it lists the snapshots |
 | 6 | Google OAuth client: ID and secret | Drive, through rclone (scope `drive.file`: what rclone made) | `sops -d --input-type ini --output-type ini stacks/admin/backup/rclone.sops.conf`: `client_id`, `client_secret` (not the token) | `rclone lsd gdrive:skynet` lists `pbs` and `restic` |
-| 7 | PBS root password | PBS's UI (realm Linux PAM) and console | `sops -d --extract '["root_password"]' pbs/secret.sops.yaml` | it logs in at https://10.10.20.40:8007 |
+| 7 | PBS root password | PBS's UI (realm Linux PAM) and console | `sops -d --extract '["root_password"]' hosts/pbs/secret.sops.yaml` | it logs in at https://10.10.20.40:8007 |
 
 - **Key 1** is the file's three lines: the date, the public key, and `AGE-SECRET-KEY-1…`.
 - **Keys 2 and 3** are JSON files, kept whole. PVE generated them with no passphrase, so the file

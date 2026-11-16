@@ -34,7 +34,7 @@
 - **Auth mode:** own, plus oidc: sign-in through the apps' Authelia (client `komga`, policy `admins`).
   The first sign-in makes the account, matched by email, as a plain user; the agent makes Ali's an
   admin. The agent's own admin (`skynet@aliammar.net`) claimed the server first (ADR-0016; its password
-  is `secrets/ops.komga.yaml`). iPad apps use an API key (`X-API-Key`), one per app, made in the
+  is `hosts/ops/komga.sops.yaml`). iPad apps use an API key (`X-API-Key`), one per app, made in the
   account's settings.
 - **Network:** `door-komga`, an internal bridge it shares with caddy-apps alone (from
   `hosts/docker-dmz`), and the stack's internal `backend`, which it shares with Komf alone: nothing
