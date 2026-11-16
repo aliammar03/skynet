@@ -1,0 +1,4 @@
+# Merged over .doco-cd.dmz.yml for this stack only. A job's container is stopped between runs, and
+# each run's exit is a `die`; reconciliation would redeploy the stack for both (and post to
+# #alerts). The schedule alone runs it.
+reconciliation: false
