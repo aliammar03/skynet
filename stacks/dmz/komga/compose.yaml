@@ -46,7 +46,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 1m
-  # Komf (Ali, 2026-11-05): the Manga library's metadata and covers from AniList, MangaUpdates
+  # Komf: the Manga library's metadata and covers from AniList, MangaUpdates
   # and MangaDex (komf.yml), through Komga's API: no file is touched. A new series is matched when
   # Komga reports it. Its own API has no login: only Komga shares a network with it.
   komf:
@@ -71,7 +71,7 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-  # komga-wiki (Ali, 2026-11-05): a manga chapter's own title and summary, from the series' fan
+  # komga-wiki: a manga chapter's own title and summary, from the series' fan
   # wiki (wiki/wiki.py; the link labelled "Wiki" on a series, which the comics agent sets). Hourly,
   # through Komga's API with Komf's account; a request a second to a wiki.
   komga-wiki:

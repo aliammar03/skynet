@@ -32,7 +32,7 @@ each kind of thing lives; work in flight is in `docs/plans/`.
 - Start every change from fresh `origin/main`: `git fetch origin`, then branch from `origin/main`.
 - One PR = one reviewable change, CI green, written so Ali learns from it. Its title is
   `<area>: <sentence>`: the area is the plan's slug, else the stack, host or top folder.
-- **Ali's steps are exact commands** (Ali, 2026-11-05): whatever he has to run (git, `sops`, ssh),
+- **Ali's steps are exact commands:** whatever he has to run (git, `sops`, ssh),
   give it complete, in order and ready to paste, in chat and in PRs alike: the `cd`, `git fetch
   origin`, `git switch <branch>` (not checked out in your worktree), `nix shell nixpkgs#sops -c sops
   <file>` with the exact lines to set, `git add <file>`, `git commit -m "…"`, `git push origin
@@ -70,7 +70,7 @@ each kind of thing lives; work in flight is in `docs/plans/`.
 | An idea kept for later | a GitHub issue | nothing in git |
 | A new app | `runbooks/new-stack.md` | one PR: the stack, its route, its Gatus row |
 | A new machine | `runbooks/new-vm.md` | one PR: `hosts/<name>/` |
-| An app gone | a PR deleting its folder, route and row (`runbooks/new-stack.md` → Gotchas) | its data stays; deleting it, or a guest, is Ali's |
+| A stack or a machine gone | `runbooks/retire.md` | one PR: its folder, route, row, records and `docs/lab.md` line; destroying its data or the guest is Ali's |
 | Something back as it was | `runbooks/restore.md` | the restore, then its PR if git changes |
 | A decision changed | `docs/decisions/README.md` | a new record, superseding the old |
 | Work of several PRs | `docs/plans/<slug>.md` | the plan, then its PRs; the last deletes the plan |

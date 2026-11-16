@@ -94,9 +94,6 @@ next restart) / 64 GB.
      `/plugin install discord@claude-plugins-official`; DM the bot, then `/discord:access pair <code>`
      and `/discord:access policy allowlist`; then `claude remote-control` once, interactively, to
      accept its prompt.
-- **`installer.pub`:** the key the first install's nixos-anywhere used: v1's ops key
-  (`svc-ops@vm-skynet-ops`, VM 9090's, destroyed 2026-10-25). Nothing reads it now; step 2 uses the
-  installing machine's own key.
 - **The Discord bot** "Skynet" (Ali's Developer Portal app): Message Content Intent on, invited to
   the server with View Channels, Send Messages, Send in Threads, Read Message History, Attach Files
   and Add Reactions.

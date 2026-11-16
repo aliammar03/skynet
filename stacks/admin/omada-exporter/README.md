@@ -5,8 +5,9 @@
   utilization and interference, ports), site alerts, and the client count. Its Home Assistant side
   (MQTT) and device control are off; per-client metrics too (a series per client, relabelled as it
   roams).
-- **URL / auth:** none (not routed). VictoriaMetrics scrapes `omada-exporter:9202` once a minute on
+- **URL:** none (not routed). VictoriaMetrics scrapes `omada-exporter:9202` once a minute on
   `edge` (`stacks/admin/metrics/scrape.yaml`); Gatus checks `/healthz`.
+- **Auth mode:** none.
 - **The controller's user** (Ali, once): Global View → Account → Role: a viewer role (read only);
   Account → Add New User, e.g. `exporter`, with that role and the site, `Omada Network Skynet`.
   Log in once as it to confirm the password. `OMADA_SITE` names the site exactly, so renaming the

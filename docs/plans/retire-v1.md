@@ -31,8 +31,8 @@ Read through `skynet-read` on 2026-11-16 (Ali applies; the PR names each):
   - a host rebuilt from git: `runbooks/new-vm.md` → Rebuild, from docker-dmz's rebuild; its data
     from Drive with `skynet-restore drive --all` is not yet drilled (`runbooks/restore.md` → Last
     done, case 3);
-  - ops rebuilt from scratch (`hosts/ops/README.md` → Rebuild): not drilled, and `installer.pub` is
-    v1's key, so the steps use the installing machine's own key;
+  - ops rebuilt from scratch (`hosts/ops/README.md` → Rebuild): not drilled; its first install's
+    key was v1's, so the steps use the installing machine's own key;
   - PBS rebuilt (`runbooks/restore.md`, case 5) and everything from Drive (case 6, all of it): not
     yet drilled;
   - OPNsense restored from the `skynet-opnsense` repo (os-git-backup, unchanged);

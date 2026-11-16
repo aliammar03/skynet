@@ -12,7 +12,7 @@
   - `comics-agent`: OpenAB 0.10 (a nightly: 0.10.0 and two commits), whose ACP adapter (codex-acp
     2.5) runs Codex 0.165; the image's own Codex CLI (0.166) is for the login. A Codex session per
     Discord thread, two at a time; the model is `gpt-6.1-sol` at high reasoning effort, chosen in the
-    arena (ADR-0018; Ali, 2026-11-05), set by OpenAB at each session. It runs in Codex's full-access mode:
+    arena (ADR-0018), set by OpenAB at each session. It runs in Codex's full-access mode:
     the container is the boundary. Web search is live (`agent/codex.toml`).
   - `comics-tools` (`tools/comics_tools.py`, Python's standard library): the agent's only way to the
     apps, and the only holder of their keys. A fixed list of verbs (below); anything else is refused,
@@ -21,15 +21,16 @@
     or a whole series, out of Uchiyomi) is a proposal first: it runs only once Ali's ✅ on the agent's
     proposal (a reaction, or a ✅ reply to it) in `#comics` is read back from Discord. Stopping a
     download or a follow needs no ✅: nothing is removed; nor does a stray in CLU's `processed/` (a
-    duplicate, another series' issue), which goes straight to CLU's trash (Ali, 2026-11-04). Its
+    duplicate, another series' issue), which goes straight to CLU's trash. Its
     answers carry no link (an indexer's NZB link holds its API key) and no key.
 - **Discord:** only `#comics` and the threads in it, and only Ali (config.toml). The desk is Ali's
   standing thread there: once the bot has answered in it, no @mention is needed; an @mention in the
   channel opens a thread of its own. The scheduled prompts and the agent's own follow-ups post into
   the desk (below). CLU's own alerts arrive in the channel through its webhook (CLU → Settings →
   Notifications) and are ignored by the bot.
-- **URL / auth mode:** none: no door, no DNS name, no Gatus row (Ali, 2026-11-03). Its containers'
+- **URL:** none: no door, no DNS name, no Gatus row. Its containers'
   health checks make doco-cd restart a dead one, and a morning report that doesn't come says the rest.
+- **Auth mode:** none.
 - **Network:**
   - `comics-agent`: the stack's `egress` (OpenAI, Discord) and its internal `backend`, nothing else.
   - `comics-tools`: `backend`; CLU's `clu_backend` (CLU and SABnzbd by name: CLU's port has no login,
@@ -93,7 +94,7 @@ The agent reads them at the start of every conversation, all from git:
 - `references/manga.md`: choosing a source with `manga/compare` (the same work, the chapters wanted,
   the sharpest real pages, then the translation), and what follows an add.
 
-They're rules, not cases (Ali, 2026-11-05: no specific examples in its context): a case it once met
+They're rules, not cases (no specific examples in its context): a case it once met
 belongs in the arena's comics test, where it checks the rules, not in what the agent reads.
 
 ## comics-tools' verbs

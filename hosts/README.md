@@ -24,7 +24,7 @@ One folder per machine git configures, NixOS or not, with its README and its sec
 
 ops, the first host and the agent's home, keeps its address in `default.nix` and has no
 `ssh_host.pub`: the agent works from it, not into it. Its folder also holds the agent's public key
-(`agent.pub`), the LAN cache's (`cache.pub`) and the installer's (`installer.pub`).
+(`agent.pub`) and the LAN cache's (`cache.pub`).
 
 ## Secrets
 

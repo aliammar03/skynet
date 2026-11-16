@@ -2,6 +2,7 @@
 
 - **Purpose:** the apps door. One wildcard site `*.aliammar.net` (cert via Cloudflare DNS-01) in
   front of the apps on docker-dmz; unknown names get 404. cloudflared hands it the public names.
+- **URL:** every app name, `https://<name>.aliammar.net` (the sites below), at 10.10.100.35.
 - **DNS-01 without a propagation check** (the site's `tls` block), as on caddy-admin: inside the lab
   Technitium answers for `aliammar.net` itself, so Caddy waits 60 s and Let's Encrypt checks
   Cloudflare. Gatus's `caddy-apps + authelia` row alerts within 7 days of expiry.
@@ -23,7 +24,7 @@
   `_time:1h CONTAINER_NAME:=caddy-apps | unpack_json fields (request.host, duration, status) | stats by (request.host) quantile(0.9, duration) as p90, count() as requests`.
 - **Data:** `/opt/appdata/caddy-apps/{data,config}`: certs and ACME account. Re-issuable; no backup
   needed.
-- **Secrets** (`secret.sops.env`): `CLOUDFLARE_API_TOKEN` (Zone → DNS → Edit, `aliammar.net` only;
+- **Secrets:** `secret.sops.env`: `CLOUDFLARE_API_TOKEN` (Zone → DNS → Edit, `aliammar.net` only;
   its own token, not caddy-admin's).
 - **Upstream:** [caddybuilds/caddy-cloudflare](https://github.com/caddybuilds/caddy-cloudflare) ·
   [Caddy reverse_proxy](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy)

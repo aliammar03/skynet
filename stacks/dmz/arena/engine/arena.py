@@ -8,7 +8,7 @@ share of the plan's windows are kept. One run at a time per lane; a lane waits w
 is above the test's cap, and for the next week once the arena has used its weekly cap. A test's files
 are read again whenever they change.
 
-Nothing runs until the Skynet agent starts it (Ali, 2026-11-04), from docker-dmz:
+Nothing runs until the Skynet agent starts it, from docker-dmz:
   docker exec arena python3 -I /arena/engine/arena.py start <test> [lane …] [--stage <stage>]
   docker exec arena python3 -I /arena/engine/arena.py stop <test> [lane …]
   docker exec arena python3 -I /arena/engine/arena.py status [test]
@@ -316,7 +316,7 @@ def held(oks, item):
 
 def penalized(r, p):
     """A run's score less the test's `penalty` (25 points unless it says) for each rule it broke (its
-    red flags), not below 0: a broken rule costs, whatever else went right (Ali, 2026-11-05)."""
+    red flags), not below 0: a broken rule costs, whatever else went right."""
     r["score"] = max(0.0, round(r["score"] - p.get("penalty", 25) * len(r.get("red") or []), 1))
     return r
 

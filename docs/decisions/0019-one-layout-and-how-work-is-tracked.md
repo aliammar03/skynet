@@ -1,6 +1,6 @@
 ---
 status: accepted
-date: 2026-11-15
+date: 2026-11-16
 decision-makers: Ali
 ---
 
@@ -41,8 +41,8 @@ Chosen option: those conventions, and:
   README.
 - Ali's review as code owner guards `docs/decisions/` and `docs/plans/`, beside what it guarded
   already: the root `AGENTS.md` and `CLAUDE.md`, `.claude/`, `.mcp.json`, `.github/`, and the gates
-  and aliases the autonomy plan adds. Reference pages, READMEs and runbooks are the agent's to keep
-  current.
+  and aliases the autonomy plan adds. An `AGENTS.md` or `CLAUDE.md` deeper in the tree isn't
+  guarded. Reference pages, READMEs and runbooks are the agent's to keep current.
 - The Glue budget goes. Mature tools stay first (`AGENTS.md`, rule 6), and a new program of our
   own needs a decision record naming the mature tools it ruled out.
 - A branch is `<area>/<slug>` and a PR's title `<area>: <sentence>`; the area is the plan's slug,
@@ -57,4 +57,6 @@ Chosen option: those conventions, and:
 
 ## More Information
 
-Ali's answers, 2026-11-15, recorded in the restructure plan (#199, merged 2026-11-16).
+Ali's answers, 2026-11-15, recorded in the restructure plan (#199, merged 2026-11-16). 2026-11-16,
+Ali: code-owner review stays on the root `AGENTS.md` and `CLAUDE.md`, not every one at any depth
+(the plan's open question). The restructure ran as #214, #215 and the PR that deleted its plan.

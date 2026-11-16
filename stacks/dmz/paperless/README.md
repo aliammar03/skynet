@@ -10,7 +10,7 @@
   - `media`: the documents themselves;
   - `consume`: the inbox; a file dropped here is imported and removed;
   - `export`: `document_exporter` output.
-- **Secrets** (`secret.sops.env`, from v1): `PAPERLESS_SECRET_KEY` (signs sessions), and
+- **Secrets:** `secret.sops.env`, from v1: `PAPERLESS_SECRET_KEY` (signs sessions), and
   `PAPERLESS_ADMIN_PASSWORD` (used only to create the admin on an empty database).
 - **Upstream:** [Paperless-ngx](https://docs.paperless-ngx.com/configuration/)
 

@@ -6,7 +6,7 @@
   test's rounds in a frozen world: the test scores where the world ends up and what the agent said,
   and every run's tokens, time and share of the plan's windows are measured. The bench is in git;
   **the tests are the agent's working files** (`/opt/appdata/arena/work/tests`), changed and run
-  without a PR (Ali, 2026-11-04). The comics agent's model and skill were chosen here (Sol on a lean
+  without a PR. The comics agent's model and skill were chosen here (Sol on a lean
   skill, 2026-11-05).
   - `arena` (`engine/arena.py`): the runner. It runs what the agent has started, a run at a time per
     lane: loads the round into the lane's world, leaves the job for the lane, nudges it when the test
@@ -20,8 +20,9 @@
     on Ali's ChatGPT Plus (Terra, Sol, Luna; Astra left out for its usage) and Claude Code 2.1.317 on
     his Claude Pro (Haiku, Sonnet, Opus). Each sees only its job (the prompt, the agent's files) and
     its world. Full access inside its container, which is the boundary.
-- **URL / auth mode:** none: no door, no DNS name, no Gatus row. The containers' health checks make
+- **URL:** none: no door, no DNS name, no Gatus row. The containers' health checks make
   doco-cd restart a dead one.
+- **Auth mode:** none.
 - **Network:** `admin` (the runner and the worlds), `lane-codex` and `lane-claude` (each lane and its
   world, alone), all internal; the lanes also on `egress` (OpenAI, Anthropic, web search). No lane
   reaches an app or holds a key to one.
@@ -67,15 +68,15 @@ A start at a set time: a one-off timer on docker-dmz, gone once it has run or at
 ## How a run is scored
 
 - **Checks:** each a `weight` and `ok`; the score is the share of weight passed.
-- **Outcome** (an open-ended test, Ali 2026-11-04: "did it find the correct solution itself or would
-  it need more outside help"): items read from where the world ended up, however the agent got there.
+- **Outcome** (an open-ended test: did it find the correct solution itself, or would it need more
+  outside help?): items read from where the world ended up, however the agent got there.
   When the agent stops with an item missing, the runner continues the same session (`codex exec
   resume`, `claude -p --resume`) with a nudge, then the missing items' pointed hints, and reads the
   world again each time. An item scores its weight × 1 (reached alone), 0.6 (after the nudge), 0.3
   (after the pointed hint) or 0, and counts only if the world ends with it: one a later turn broke
   counts from when it was right again, or not at all. `alone` is the share reached without help.
 - **Rules** (red flags): a rule broken costs `penalty` points (25 unless the test says), not below 0,
-  whatever else went right (Ali, 2026-11-05).
+  whatever else went right.
 - **Judge items:** rubrics a judge model grades from the request, the agent's transcript (its
   messages, commands and searches, every turn), the help it got, the world's end state and the reply.
   They count once judged; a test without `[judge]` leaves them out, and the agent reads the

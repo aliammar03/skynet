@@ -151,7 +151,7 @@ in
   ];
 
   # So copies can arrive over SSH (`--rsync-path='sudo rsync'`), as v1's data did; and Python, for
-  # the agent's checks on the host, such as reading the arena's results (Ali, 2026-11-04).
+  # the agent's checks on the host, such as reading the arena's results.
   environment.systemPackages = [
     pkgs.rsync
     pkgs.python3

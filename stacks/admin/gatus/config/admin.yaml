@@ -84,7 +84,7 @@ endpoints:
   - { <<: *service, name: proxmox-core, url: tcp://10.10.50.11:8006 }
   - { <<: *service, name: proxmox-network, url: tcp://10.10.50.10:8006 }
   - { <<: *service, name: pbs, url: tcp://10.10.20.40:8007 }
-  # The nodes' way to PBS, on VLAN 50 (pbs/README.md → Network).
+  # The nodes' way to PBS, on VLAN 50 (hosts/pbs/README.md → Network).
   - { <<: *service, name: pbs-vlan50, url: tcp://10.10.50.24:8007 }
   - { <<: *service, name: omada, url: tcp://10.10.50.25:8043 }
   - { <<: *service, name: unraid, url: tcp://10.10.20.20:80 }

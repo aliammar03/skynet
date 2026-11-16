@@ -3,6 +3,7 @@
 - **Purpose:** the public path. An outbound-only connector for Cloudflare Tunnel `skynet`
   (`f550cc58-fc42-4300-a774-1619888fe700`), so internet visitors reach caddy-apps with nothing open
   inbound.
+- **URL:** none of its own: it carries the public names to caddy-apps (Routes).
 - **Routes:** `config.yml`, one line per public name → `https://caddy-apps` (SNI = the name), then
   404. The tunnel is locally managed, so these lines are its whole routing table. Cloudflare holds one
   proxied `*` CNAME → `<id>.cfargotunnel.com` (ADR-0010); a name without a line here gets 404.
@@ -12,7 +13,7 @@
 - **Auth mode:** none of its own. Each public app keeps its own login, or goes through the apps'
   Authelia (`login`).
 - **Data:** none.
-- **Secrets** (`secret.sops.env`): `TUNNEL_TOKEN` (the tunnel's credentials as one token, from
+- **Secrets:** `secret.sops.env`: `TUNNEL_TOKEN` (the tunnel's credentials as one token, from
   `cloudflared tunnel token skynet`).
 - **Upstream:** [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) ·
   [configuration file](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/configure-tunnels/local-management/configuration-file/)

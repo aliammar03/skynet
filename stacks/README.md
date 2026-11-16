@@ -10,10 +10,24 @@ A stack is one folder, `stacks/<target>/<name>/`, deployed by its Docker host's 
 |---|---|---|
 | `compose.yaml` | always | `container_name: <name>` (not compose's `<project>-<service>-1`); images pinned `tag@sha256:…`; a healthcheck; `restart: unless-stopped`; network `edge` (the doors also join their macvlan; the exceptions are in Networks) |
 | `secret.sops.env` | it has secrets | dotenv, sops-encrypted for that host only; used through `env_file` |
-| `README.md` | always | purpose · URL · auth mode · data paths + backup class · secret key *names* · upstream link · gotchas |
+| `README.md` | always | the labels below |
 
 A scheduled job (a doco-cd `one_off` job) has no `restart` and no healthcheck, and its folder's
 `.doco-cd.yml` turns reconciliation off (`runbooks/new-stack.md`, step 5).
+
+## The README
+
+These labels, spelled so and in this order, each a top-level bullet; other labels of the stack's
+own may sit between them:
+- `- **Purpose:**` what it's for;
+- `- **URL:**` where it answers, or `none (not routed)`;
+- `- **Auth mode:**` `own`, `oidc`, `forward` (below), or `none`;
+- `- **Data:**` each path under `/opt/appdata` with its backup class, or `none`;
+- `- **Secrets:**` each file's key *names*, never a value, or `none`;
+- `- **Upstream:**` its docs;
+- then `**Gotchas**` on a line of its own, and its bullets.
+
+CI checks every stack for `compose.yaml`, `README.md` and these labels (`.github/check-layout.sh`).
 
 ## Routing
 

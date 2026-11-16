@@ -44,3 +44,11 @@ Ali's idle subscription runs it, not the Skynet agent's budget.
 
 Ali, 2026-10-30; the plan PR #138 (2026-11-03); its exit test passed 2026-11-04. Its model is Sol at
 high effort, chosen in the arena (ADR-0018; Ali, 2026-11-05). The stack: `stacks/dmz/comics-agent`.
+
+Ali's rulings since:
+- 2026-11-03: no door, no DNS name and no Gatus row for its stack; its containers' health checks
+  and the morning report watch it.
+- 2026-11-04: a stray in CLU's `processed/` (a duplicate, another series' issue) goes to CLU's
+  trash without a ✅, since nothing in the library is removed.
+- 2026-11-05: its skill holds rules, not cases; a case it once met becomes a round of the arena's
+  comics test.

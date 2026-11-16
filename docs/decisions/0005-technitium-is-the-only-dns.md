@@ -1,6 +1,6 @@
 ---
 status: accepted
-date: 2026-10-24
+date: 2026-10-28
 decision-makers: Ali
 ---
 
@@ -43,4 +43,6 @@ records and settings are reviewed in PRs, and a rebuilt VM comes back complete.
 ## More Information
 
 Ali, 2026-10-21 (Technitium only); 2026-10-23, with the DNS plan (#36): two VMs configured from
-git; 2026-10-24 (#46): PTCL, OpenDNS and Google, raced. The settings and why: `dns/README.md`.
+git; 2026-10-24 (#46): PTCL, OpenDNS and Google, raced; 2026-10-28: every query logged, so
+VictoriaLogs keeps 30 days of who asked what, every device's lookups, the family's included. The
+settings and why: `dns/README.md`.

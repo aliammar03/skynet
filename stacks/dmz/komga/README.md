@@ -3,13 +3,13 @@
 - **Purpose:** the comics and manga library: a series per folder at any depth, a web reader
   (right to left, double pages, webtoon scroll), and feeds for iPad apps: OPDS
   (`/opds/v1.2/catalog`, for Panels) and its own API (Komic).
-  - `komf` (Komf 2.1, `komf.yml`; Ali, 2026-11-05): the Manga library's metadata and covers,
+  - `komf` (Komf 2.1, `komf.yml`): the Manga library's metadata and covers,
     through Komga's API only: no file is touched (they're Uchiyomi's). AniList, then MangaUpdates,
     then MangaDex, each filling what the one before lacks: summary, status, genres, tags, authors,
     score, links, alternative titles, and the series' cover art, which Uchiyomi's files lack. Series
     titles stay as the folders name them; a chapter gets the series' authors and links, not a title
     or the series' summary. A series added is matched when Komga reports it.
-  - `komga-wiki` (`wiki/wiki.py`; Ali, 2026-11-05): a manga chapter's own title, summary and release
+  - `komga-wiki` (`wiki/wiki.py`): a manga chapter's own title, summary and release
     date, from the series' fan wiki and Wikipedia, which the comics agent links (Komga's links
     labelled "Wiki", to the fan wiki's page for chapter 1, and "Chapters", to Wikipedia's "List of …
     chapters"; comics-tools' `manga/wiki`). Hourly, it reads each chapter's page through the wiki's
@@ -25,9 +25,9 @@
     the series' description from every manga chapter, linked or not: Uchiyomi writes it into each
     chapter's ComicInfo, and Komga reads it from there. A chapter shows its own summary or none.
   - Comics need neither: each issue's ComicInfo (Metron, through CLU) is right, and every series'
-    cover is its issue #1's, `folder.png` from CLU (its folder art set to Single Image, Ali
-    2026-11-05; a pinned issue in CLU replaces it). An issue's release date is the day it went on
-    sale (Ali, 2026-11-06), set and locked by comics-tools' `comics/dates` from CLU's Metron data;
+    cover is its issue #1's, `folder.png` from CLU (its folder art set to Single Image;
+    a pinned issue in CLU replaces it). An issue's release date is the day it went on
+    sale, set and locked by comics-tools' `comics/dates` from CLU's Metron data;
     one Metron has no such day for keeps its ComicInfo's cover month.
 - **URL:** https://komga.aliammar.net (caddy-apps → `komga:25600` on `door-komga`). Inside and over
   Tailscale; not public.

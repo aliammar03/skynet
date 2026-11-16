@@ -391,7 +391,7 @@ def comics_trash(a):
         for path in a["paths"]:
             real = inside(path)
             act = lambda real=real: call("POST", f"{CLU}/api/delete-multiple", {"targets": [real]})
-            if real.startswith("/downloads/processed/"):  # a stray CLU won't file: no ✅ (Ali, 2026-11-04)
+            if real.startswith("/downloads/processed/"):  # a stray CLU won't file: no ✅
                 strays.append((real, act))
             else:
                 acts.append(act)

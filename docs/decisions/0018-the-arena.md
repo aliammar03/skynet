@@ -1,6 +1,6 @@
 ---
 status: accepted
-date: 2026-11-04
+date: 2026-11-05
 decision-makers: Ali
 ---
 
@@ -50,3 +50,6 @@ Ali, 2026-11-04 (#161, #167). The first test, the comics agent's own tasks in a 
 
 Ali chose Sol for `#comics` (2026-11-05): the best unaided, at about 0.3% of the Plus week a task.
 The bench's parts: `stacks/dmz/arena/README.md`.
+
+Ali's rulings since: a test is open-ended, graded on where the world ends up and the help the agent
+needed (2026-11-04); a broken rule costs 25 points, whatever else went right (2026-11-05).
