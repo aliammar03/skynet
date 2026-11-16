@@ -191,7 +191,7 @@ if [ -e "$held" ]; then
     die "a restore of $t failed partway and holds this host: restore it again, or undo it, first"
   undo=$(sed -n 2p "$held")
 elif [ -e "$ready" ]; then
-  # Undo point (docker-dmz): a snapshot of what is about to be replaced. Then the marker goes, its
+  # Undo point (a host with snapshots): what is about to be replaced. Then the marker goes, its
   # record written first. A fresh host has neither yet.
   if [ -n "$SNAPSHOTS" ]; then
     systemctl start btrbk-appdata

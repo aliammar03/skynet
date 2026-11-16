@@ -36,6 +36,8 @@ On `<h>/install`:
   (docker-dmz's: ESP, a 64 GiB ext4 root and 128 GiB of btrfs for `/opt/appdata`, with
   `skynet.docker.appdataSnapshots`).
 - `hosts/<h>/README.md`: VMID · IP · node · size, its NICs, install line, secrets, agent access.
+- Where the lab lists its machines: its row in `docs/lab.md` → Guests, its name in
+  `hosts/README.md`'s first table, and its host key's row in `docs/credentials.md`.
 - `flake.nix`: `nixosConfigurations.<h> = mkHost "<h>";` and
   `packages.${system}.installer-<h> = mkInstaller "<h>";`
 - A Docker host also needs the files under **Docker host** below.
@@ -82,7 +84,8 @@ values.
 3. `modules/agent.nix`: `programs.ssh.knownHosts.<h> = { hostNames = [ "<ip>" ]; publicKeyFile = ../hosts/<h>/ssh_host.pub; };`
    List every IP the host will have (e.g. a build IP and a final IP). This pins the key for the
    agent's log access; `base.nix` already creates user `skynet` there (agent key from ops only,
-   journal only).
+   journal only). Root there is a decision: a record that supersedes ADR-0011, then the host's name
+   in `agentRoot` (`modules/base.nix`).
 4. The Gatus row for what the host serves (`stacks/admin/gatus/config/admin.yaml`). It alerts until
    step 5 finishes, so expect one DOWN and one RESOLVED. Its metrics and logs: its `node` and
    `comin` targets in `stacks/admin/metrics/scrape.yaml` (and `cadvisor`, `doco-cd` for a Docker
@@ -97,9 +100,12 @@ values.
 
 ## 4. Secrets and merge (Ali)
 
-On the branch, `nix shell nixpkgs#sops -c sops hosts/<h>/secret.sops.yaml` to add the values only he holds:
-`discord_alerts_webhook` (the `#alerts` URL; every host needs it, so comin can post failed deploys)
-and whatever the role needs. Commit and push.
+On the branch, the values only he holds, one command a value, typed at a hidden prompt (`AGENTS.md`,
+rule 3): `nix run .#secret -- hosts/<h>/secret.sops.yaml discord_alerts_webhook` (the `#alerts` URL;
+every host needs it, so comin can post failed deploys), and the same for whatever the role needs. It
+adds to a file that exists: with no random secrets (step 3.5) he makes the file with its first
+value, `nix shell nixpkgs#sops -c sops hosts/<h>/secret.sops.yaml`. Then he commits and pushes. The
+PR gives him every command in order (`AGENTS.md` → Ali's steps are exact commands).
 
 CI fails while `hosts/<h>/secret.sops.yaml` lacks any secret the config uses, the webhook included
 (`base.nix`), so green means the host's secrets are complete. Stack secrets aren't checked by CI: a
@@ -149,6 +155,15 @@ snapshot; then `touch /opt/appdata/.data-ready && systemctl start docker-doco-cd
   into `stacks/<target>/heartbeat/`. Not its `secret.sops.env`: that's encrypted for docker-admin.
   Drop the `gatus:8080` condition, because Gatus runs only on docker-admin. Ali adds a healthchecks.io
   check and creates the secret file with its `HC_PING_URL`.
+- The nightly backup: `stacks/<target>/backup/`, a copy of `stacks/admin/backup/` with the host's
+  name in `compose.yaml` (`hostname`), `profiles.yaml` (`repository`) and the README, and an
+  `excludes.txt` of its own. `modules/docker-host.nix` reads its `excludes.txt`, `secret.sops.env`
+  and `rclone.sops.conf` for `skynet-restore`, so all three are in the PR: `RESTIC_PASSWORD` among
+  the random values (agent), then Ali's `HC_PING_URL` (another healthchecks.io check: daily, grace
+  3 h) and the Drive token (`runbooks/drive-access.md`, step 2, with the new folder in its list).
+  The password joins the survival kit (`runbooks/survival-kit.md` → Keep it current).
+- Gatus: a `job` row for each of the two checks, from its badge (`HC_BADGE_URL_…` in
+  `stacks/admin/gatus/secret.sops.env`, Ali's; `stacks/admin/gatus/README.md`).
 - The agent's read-only MCP, on ops:
   - `hosts/ops/secret.sops.yaml` gets `doco_<target>_api_key`, the same value. Ali copies it (it fails rather
     than writing an empty value):
@@ -157,8 +172,8 @@ snapshot; then `touch /opt/appdata/.data-ready && systemctl start docker-doco-cd
   - `.mcp.json`: server `doco-<target>` (`http://<ip>:8080/mcp`, `headersHelper`);
   - `.claude/settings.json`, Ali's step (the agent doesn't widen its own permissions; the PR gives
     him a `jq` command tested on a copy): `doco-<target>` in `enabledMcpjsonServers`, its list/get
-    tools and `trigger_poll` in `allow`, and its other six tools in `deny` until the plan grants
-    them (`AGENTS.md`, rule 4).
+    tools and `trigger_poll` in `allow`, and its other six tools in `deny` until a decision record
+    grants them (ADR-0011 names today's two hosts; `AGENTS.md`, rule 4).
 - `runbooks/new-stack.md`: the host's column in "Values per Docker host".
 
 ## Rebuild

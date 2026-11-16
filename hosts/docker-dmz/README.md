@@ -10,7 +10,8 @@ VMID 10010 · 10.10.100.10 · server-proxmox-core · 6 vCPU / 12 GB (10 guarante
 - **Install / rebuild:** `runbooks/new-vm.md`: the installer ISO (`nix build .#installer-docker-dmz`)
   boots first, then nixos-anywhere installs with `--copy-host-keys` so the host keeps the key its
   sops recipient was made from. The ISO comes up on 10.10.100.10 with only the agent's key for root;
-  the installed system doesn't trust that key.
+  the installed system has no root login, and takes that key for user `skynet` alone (Agent
+  access, below).
 - **Disk** (`disk.nix`, 193 GiB thin on `local-lvm`): ESP, a 64 GiB ext4 root (NixOS, the Nix
   store, Docker's images), and 128 GiB of btrfs for the apps' data: its top level at
   `/mnt/appdata-pool`, subvolume `@appdata` at `/opt/appdata`, subvolume `@snapshots`. PBS's

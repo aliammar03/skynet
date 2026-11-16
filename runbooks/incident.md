@@ -96,11 +96,14 @@ Signs: its syslog's boot lines (`source:=unraid`), `rpc.mountd` re-attaching cli
 
 ### DiskFull, DiskFillsWithinADay, StorageFull, DatastoreFull
 - What grew: `node_filesystem_avail_bytes` over the last day, then the stacks that write there.
-  docker-dmz's `/opt/appdata` holds btrbk's snapshots (`hosts/docker-dmz/README.md`).
+  On both Docker hosts `/opt/appdata`'s filesystem holds btrbk's snapshots too
+  (`hosts/<host>/README.md`), so what is deleted there frees its space only once the snapshots
+  holding it age out (7 days).
 
 ### DnsFailing, DnsStatsStale
-- Each Technitium's stats (`technitium_*`), its log, and `technitium-sync`'s last run on ops
-  (`stacks/admin/logs/README.md` → Senders).
+- Each Technitium's stats (`technitium_*`), its log, and `technitium-sync`'s last run, on that
+  server (`_HOSTNAME`, `_SYSTEMD_UNIT:=technitium-sync.service`; `stacks/admin/logs/README.md` →
+  Senders).
 
 ### CertificateExpiring
 - Caddy renews 30 days ahead. Fourteen days left means renewal failed: caddy's log

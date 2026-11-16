@@ -1,6 +1,7 @@
 # A no-touch NixOS installer for one host: boots straight to SSH on the host's static IP (NIC
 # matched by MAC) with the agent's key for root, so nixos-anywhere runs from ops and nobody types
-# in a console. Only the installer trusts the agent's key; the installed system doesn't.
+# in a console. Only the installer takes the agent's key for root: the installed system has no root
+# login, and takes that key for user `skynet` alone (base.nix).
 net:
 { lib, modulesPath, ... }:
 let

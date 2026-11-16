@@ -76,7 +76,7 @@ let
       Restart = "always";
       RestartSec = 10;
       EnvironmentFile = "-${config.sops.templates."agent.env".path or "/dev/null"}";
-      # Start on current main, so the session reads today's plan, AGENTS.md and .mcp.json (work
+      # Start on current main, so the session reads today's AGENTS.md, docs and .mcp.json (work
       # happens in worktrees). `-`: a dirty checkout or no network still starts the session.
       # Both sessions start together, so a lock keeps their git runs from colliding.
       ExecStartPre = "-${pkgs.writeShellScript "skynet-fresh-main" ''
@@ -275,8 +275,9 @@ in
     '';
   };
 
-  # The agent's SSH key, for nixos-anywhere into installer ISOs (hosts/ops/agent.pub; the installed
-  # systems don't trust it). Generated once; a rebuilt ops gets a new key → update agent.pub.
+  # The agent's SSH key (hosts/ops/agent.pub): root on an installer ISO, for nixos-anywhere
+  # (installer.nix); user `skynet` on the installed hosts (base.nix); root on PBS
+  # (hosts/pbs/answer.toml). Generated once; a rebuilt ops gets a new key → update agent.pub.
   systemd.services.skynet-ssh-key = {
     description = "Generate the agent's SSH key";
     wantedBy = [ "multi-user.target" ];

@@ -12,7 +12,8 @@ average, 2.5 GB at most.
 - **Install / rebuild:** `runbooks/new-vm.md`: the installer ISO
   (`nix build .#installer-docker-admin`) boots first, then nixos-anywhere installs with
   `--copy-host-keys` so the host keeps the key its sops recipient was made from. The ISO comes up on
-  10.10.50.40 with only the agent's key for root; the installed system doesn't trust that key.
+  10.10.50.40 with only the agent's key for root; the installed system has no root login, and
+  takes that key for user `skynet` alone (Agent access, below).
 - **Data:** `/opt/appdata` is the btrfs subvolume `@appdata` on its own disk (scsi1,
   `disk.nix`).
   - btrbk snapshots it into `/mnt/appdata-pool/@snapshots` at 04:20, keeping each for 2 days, then
