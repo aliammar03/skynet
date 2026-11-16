@@ -9,9 +9,10 @@ jobs:
   nix:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      # The layout's contracts: every stack's files and README labels, every host's README, every
-      # *.sops.* file encrypted (.github/check-layout.sh).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The layout's contracts: every stack's files, README labels and compose contract, every
+      # host's README, every *.sops.* file encrypted, every repo path a file names
+      # (.github/check-layout.sh).
       - run: .github/check-layout.sh
       # Relative links between files resolve; nothing remote is fetched.
       - uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
@@ -19,7 +20,16 @@ jobs:
           lycheeVersion: v0.24.2
           args: --offline --no-progress './**/*.md'
           jobSummary: false
-      - uses: cachix/install-nix-action@v31
+      - uses: cachix/install-nix-action@3dc140bfc76c49fbd4dd958429132e3746bcb086 # v31.11.5
+      # Our own scripts, with the flake's nixpkgs: every shell script through shellcheck (the ones
+      # in packages/ have no shebang: writeShellApplication runs them as bash) and every Python
+      # file through ruff's syntax and undefined-name rules. SC1091: a file sourced at run time
+      # isn't there to follow. The scripts written inside Nix files are checked when their host
+      # builds.
+      - run: |
+          git ls-files -z 'packages/*.sh' | xargs -0 nix run --inputs-from . nixpkgs#shellcheck -- --shell=bash
+          git ls-files -z '*.sh' ':!packages' | xargs -0 nix run --inputs-from . nixpkgs#shellcheck -- --exclude=SC1091
+          git ls-files -z '*.py' | xargs -0 nix run --inputs-from . nixpkgs#ruff -- check --no-cache --isolated --select E9,F63,F7,F82
       # Evaluate every host and output; building happens on the host (comin keeps the current
       # generation if a build fails), so a full build here would only cost time.
       - run: nix flake check --no-build

@@ -64,7 +64,7 @@
 - Until its first-run setup, whoever opens it first makes the admin. A fresh `/opt/appdata/uchiyomi`
   is set up again by the agent (`POST /api/setup`).
 - The engine's tag moves only with an Uchiyomi release that names it: it upgrades its database one
-  way, so back up `engine/` first (upstream's `docs/extensions.md`).
+  way, so back up `engine/` first (upstream's docs, `extensions.md`).
 - The engine's Chromium logs D-Bus errors at start; they're harmless.
 - The library folders are `create_host_path: false`: with Unraid down, the app doesn't start
   (doco-cd retries it) rather than download onto docker-dmz's own disk.
