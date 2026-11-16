@@ -146,5 +146,4 @@ The backup class takes effect in the host's backup stack (`stacks/<target>/backu
 
 - `container_name` is unique on the host.
 - Renovate opens a PR when the pinned image has an update. Merging it deploys it.
-- Deleting the folder (PR) removes the containers. `/opt/appdata/<name>` stays; deleting data is
-  Ali's call.
+- Deleting the folder (PR) removes the containers, and `/opt/appdata/<name>` stays: `retire.md`.
