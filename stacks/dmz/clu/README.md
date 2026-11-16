@@ -1,7 +1,6 @@
 # clu
 
-- **Purpose:** Western comics, in one stack (Ali, 2026-10-30, after CLU found 5× Mylar3's
-  Usenet hits and pulled the Watchmen pack Kapowarr corrupted, cleanly and 10× faster):
+- **Purpose:** Western comics, in one stack:
   - **CLU** (Comic Library Utilities) follows Ali's series (Metron) and finds their missing issues on
     Usenet (NZBGeek, downloaded by SABnzbd), then GetComics, whose search runs on a local index of
     GetComics' sitemap and scores every result against the wanted issue (with Download Packs on,
@@ -28,8 +27,8 @@
     Networks); and on the internal `backend`. caddy-apps reaches it on the macvlan by name, and it
     shows its pages to that address only: `local_ranges` 10.10.100.35, `inet_exposure` 3 (from
     anywhere else, its API with its key and nothing more), `verify_xff_header` 0 (the client in
-    `X-Forwarded-For` is Ali's, not the door's). Easynews: `news.us.easynews.com`, port 119, no SSL
-    (Ali, 2026-10-29); its US hosts, not its EU ones (0.25 MB/s from here against 17–25 MB/s).
+    `X-Forwarded-For` is Ali's, not the door's). Easynews: `news.us.easynews.com`, port 119, no SSL;
+    its US hosts, not its EU ones (0.25 MB/s from here against 17–25 MB/s).
     Ali's three block or fill accounts, each on another backbone than Easynews (Omicron), at
     priority 1, so SABnzbd asks them only for articles Easynews lacks: Thundernews
     (UsenetExpress, `news.thundernews.com`), Bulknews (Abavia, `news.bulknews.eu`) and Blocknews
@@ -71,11 +70,10 @@
     GetComics index at 00:30, the auto-download at 03:30, the library index at 04:30, Pakistan time;
     the local ComicVine database: its path `/comicvine/localcv.db`, its two-weekly refresh on, a
     first download (`POST /api/providers/comicvine_sqlite/update`); the library's metadata providers
-    in the order ComicVine (local), ComicVine (its API, for issues newer than the copy), Metron
-    (Ali, 2026-10-30); file names `{series_name} ({volume_year}) #{issue_number}` (Ali,
-    2026-10-30), the issue number padded to three digits (its default):
+    in the order ComicVine (local), ComicVine (its API, for issues newer than the copy), Metron;
+    file names `{series_name} ({volume_year}) #{issue_number}`, the issue number padded to three digits (its default):
     `Ultimate Spider-Man (2000) #004.cbz`; series folders `{publisher}/{series_name} ({start_year})`
-    (`CUSTOM_MOVE_PATTERN`, Ali, 2026-10-30), which the Subscribe dialog suggests:
+    (`CUSTOM_MOVE_PATTERN`), which the Subscribe dialog suggests:
     `DC Comics/Watchmen (1986)`. That one through `core.settings.set_setting` in the container and a
     restart: its Settings page saves every field at once, so a partial save resets the rest. WATCH
     `/downloads/temp` and TARGET `/downloads/processed`, saved (`POST /api/config/folder-paths`):

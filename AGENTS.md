@@ -32,7 +32,7 @@ each kind of thing lives; work in flight is in `docs/plans/`.
 - Start every change from fresh `origin/main`: `git fetch origin`, then branch from `origin/main`.
 - One PR = one reviewable change, CI green, written so Ali learns from it. Its title is
   `<area>: <sentence>`: the area is the plan's slug, else the stack, host or top folder.
-- **Ali's steps are exact commands** (Ali, 2026-11-05): whatever he has to run (git, `sops`, ssh),
+- **Ali's steps are exact commands:** whatever he has to run (git, `sops`, ssh),
   give it complete, in order and ready to paste, in chat and in PRs alike: the `cd`, `git fetch
   origin`, `git switch <branch>` (not checked out in your worktree), `nix shell nixpkgs#sops -c sops
   <file>` with the exact lines to set, `git add <file>`, `git commit -m "…"`, `git push origin

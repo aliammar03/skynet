@@ -9,7 +9,7 @@ What the lab decided, and who decided it when: one file per decision, in
 | [0002](0002-hosts-are-nixos-kept-current-by-comin.md) | Hosts are NixOS, kept current by comin | accepted | 2026-10-26 |
 | [0003](0003-public-repo-the-lab-pulls.md) | The repo is public, the lab pulls, and CI is static checks | accepted | 2026-10-21 |
 | [0004](0004-authelia-one-per-door.md) | Authelia, one per door, with an auth mode per app | accepted | 2026-10-24 |
-| [0005](0005-technitium-is-the-only-dns.md) | Technitium is the only DNS, configured from git | accepted | 2026-10-24 |
+| [0005](0005-technitium-is-the-only-dns.md) | Technitium is the only DNS, configured from git | accepted | 2026-10-28 |
 | [0006](0006-two-docker-hosts.md) | Two Docker hosts: docker-dmz for apps, docker-admin for the rest | accepted | 2026-10-21 |
 | [0007](0007-the-agent-is-claude-code-on-ops.md) | The agent is Claude Code on ops, reached through Discord and the Claude app | accepted | 2026-10-21 |
 | [0008](0008-all-alerts-go-to-discord.md) | Every alert goes to Discord `#alerts` | accepted | 2026-10-27 |
@@ -22,8 +22,8 @@ What the lab decided, and who decided it when: one file per decision, in
 | [0015](0015-backups.md) | Backups: restic from btrfs snapshots, PBS's datastore to Drive, and Unraid's copies out of reach | accepted | 2026-11-15 |
 | [0016](0016-the-agent-administers-komga-and-uchiyomi.md) | The agent administers Komga and Uchiyomi through their APIs | accepted | 2026-10-29 |
 | [0017](0017-a-comics-agent-of-its-own.md) | A comics agent of its own runs the library's day to day | accepted | 2026-11-05 |
-| [0018](0018-the-arena.md) | The arena: a bench for testing agents on Ali's subscriptions | accepted | 2026-11-04 |
-| [0019](0019-one-layout-and-how-work-is-tracked.md) | One layout, and work tracked as issues, plans and records | accepted | 2026-11-15 |
+| [0018](0018-the-arena.md) | The arena: a bench for testing agents on Ali's subscriptions | accepted | 2026-11-05 |
+| [0019](0019-one-layout-and-how-work-is-tracked.md) | One layout, and work tracked as issues, plans and records | accepted | 2026-11-16 |
 
 ## A new record
 

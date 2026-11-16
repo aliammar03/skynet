@@ -45,8 +45,8 @@ doesn't read back as written (a typo, say), so the deploy fails and comin posts 
 
 ## The query log
 
-Each query is a line in the journal, so VictoriaLogs keeps 30 days of who asked what (Ali's call,
-2026-10-28; every device's lookups, the family's included):
+Each query is a line in the journal, so VictoriaLogs keeps 30 days of who asked what (every
+device's lookups, the family's included):
 `[<client>:<port>] [UDP] QNAME: <name>; QTYPE: A; QCLASS: IN; RCODE: Refused; ANSWER: […]`. Both
 servers together write about 160,000 a day. Who was refused in the last hour, and for what:
 ```

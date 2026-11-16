@@ -1,4 +1,4 @@
-# Komf (Ali, 2026-11-05): metadata and covers for Komga's Manga library, written through Komga's
+# Komf: metadata and covers for Komga's Manga library, written through Komga's
 # API only, never into the files (Uchiyomi's). Upstream's full example: github.com/Snd-R/komf.
 # From the environment (komf.sops.env): KOMF_KOMGA_PASSWORD. Comics are left alone: each issue's
 # ComicInfo (Metron, through CLU) is right, and every series' cover is CLU's issue #1 (folder.png).
@@ -45,7 +45,7 @@ metadataProviders:
       enabled: false # only the library's own providers, below
   libraryProviders:
     # The series' metadata; a chapter gets its authors and links, not a title or the series' summary:
-    # none of these sources has a chapter's own (Ali, 2026-11-05). Its own come from the series' fan
+    # none of these sources has a chapter's own. Its own come from the series' fan
     # wiki (komga-wiki).
     0S2GKXTMMD47G:
       aniList:
