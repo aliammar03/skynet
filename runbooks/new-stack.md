@@ -113,7 +113,7 @@ container counts as missing and is redeployed, with an `#alerts` post, every pol
 
 ## 6. `README.md`
 
-Purpose · URL · auth mode · data paths + backup class · secret key *names* · upstream link · gotchas.
+The labels of `stacks/README.md` → The README, spelled and ordered as there; CI checks them.
 
 The backup class takes effect in the host's backup stack (`stacks/<target>/backup/`, same PR):
 - `data`: nothing to do. The nightly backup copies a snapshot of `/opt/appdata`, every file at one

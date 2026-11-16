@@ -4,7 +4,8 @@
   snapshot, copied hot from btrbk's newest snapshot of it (04:20, `modules/docker-host.nix`): every
   app's files at one instant, with nothing stopped. Sundays at 10:00 `check` prunes, then reads 5%
   of the data back.
-- **URL / auth:** none (not routed).
+- **URL:** none (not routed).
+- **Auth mode:** none.
 - **Repository:** `rclone:gdrive:skynet/restic/docker-dmz`, 64 MiB packs. Keeps 7 daily, 4 weekly
   and 12 monthly snapshots; snapshot host `docker-dmz`.
 - **Backed up:** all of `/opt/appdata` except `excludes.txt`: the paths the stacks' READMEs class as
@@ -42,9 +43,10 @@
   [resticprofile](https://creativeprojects.github.io/resticprofile/) ·
   [btrbk](https://digint.ch/btrbk/) ·
   [doco-cd job scheduling](https://doco.cd/latest/Advanced/Job-Scheduling/)
-- **Gotchas:**
-  - A new stack: a `cache` path joins `excludes.txt` (`runbooks/new-stack.md`); nothing else.
-  - `create_host_path: false` on the source: with no snapshot yet, the job fails rather than back up
-    an empty folder. A fresh host takes its first snapshot before doco-cd's release
-    (`runbooks/new-vm.md`, step 6, or `skynet-restore … --all`).
-  - `run.sh` is the same in both Docker hosts' backup stacks.
+
+**Gotchas**
+- A new stack: a `cache` path joins `excludes.txt` (`runbooks/new-stack.md`); nothing else.
+- `create_host_path: false` on the source: with no snapshot yet, the job fails rather than back up
+  an empty folder. A fresh host takes its first snapshot before doco-cd's release
+  (`runbooks/new-vm.md`, step 6, or `skynet-restore … --all`).
+- `run.sh` is the same in both Docker hosts' backup stacks.

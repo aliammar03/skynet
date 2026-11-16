@@ -15,7 +15,7 @@
   reaches it.
 - **Data:** `/opt/appdata/marinara/data` → `/app/data` (owner 1000; backup class: data). Copied from
   v1.
-- **Secrets** (`secret.sops.env`, from v1): `ENCRYPTION_KEY` (encrypts the API keys it stores; lose it
+- **Secrets:** `secret.sops.env`, from v1: `ENCRYPTION_KEY` (encrypts the API keys it stores; lose it
   and they're unreadable), `ADMIN_SECRET`, `SSL_CERT`, `SSL_KEY`, `BASIC_AUTH_USER`,
   `BASIC_AUTH_PASS`, `GIPHY_API_KEY`.
 - **Upstream:** [Marinara Engine](https://github.com/Pasta-Devs/Marinara-Engine)

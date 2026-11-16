@@ -4,7 +4,8 @@
   snapshot, copied hot from btrbk's newest snapshot of it (04:20, `modules/docker-host.nix`): every
   app's files at one instant, with nothing stopped. Sundays at 10:00 `check` prunes, then reads 5%
   of the data back.
-- **URL / auth:** none (not routed).
+- **URL:** none (not routed).
+- **Auth mode:** none.
 - **Repository:** `rclone:gdrive:skynet/restic/docker-admin`, 64 MiB packs. Keeps 7 daily, 4 weekly
   and 12 monthly snapshots; snapshot host `docker-admin`.
 - **Backed up:** all of `/opt/appdata` except `excludes.txt`: the paths the stacks' READMEs class as
@@ -41,6 +42,7 @@
 - **Upstream:** [restic](https://restic.readthedocs.io/) ·
   [resticprofile](https://creativeprojects.github.io/resticprofile/) ·
   [doco-cd job scheduling](https://doco.cd/latest/Advanced/Job-Scheduling/)
-- **Gotchas:**
-  - A new stack: a `cache` path joins `excludes.txt` (`runbooks/new-stack.md`); nothing else.
-  - `run.sh` is the same in both Docker hosts' backup stacks.
+
+**Gotchas**
+- A new stack: a `cache` path joins `excludes.txt` (`runbooks/new-stack.md`); nothing else.
+- `run.sh` is the same in both Docker hosts' backup stacks.

@@ -20,8 +20,9 @@
     on Ali's ChatGPT Plus (Terra, Sol, Luna; Astra left out for its usage) and Claude Code 2.1.317 on
     his Claude Pro (Haiku, Sonnet, Opus). Each sees only its job (the prompt, the agent's files) and
     its world. Full access inside its container, which is the boundary.
-- **URL / auth mode:** none: no door, no DNS name, no Gatus row. The containers' health checks make
+- **URL:** none: no door, no DNS name, no Gatus row. The containers' health checks make
   doco-cd restart a dead one.
+- **Auth mode:** none.
 - **Network:** `admin` (the runner and the worlds), `lane-codex` and `lane-claude` (each lane and its
   world, alone), all internal; the lanes also on `egress` (OpenAI, Anthropic, web search). No lane
   reaches an app or holds a key to one.

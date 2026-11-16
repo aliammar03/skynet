@@ -15,7 +15,7 @@
 
   Manga stays in Uchiyomi: CLU tags manga but has no manga sources, and its scorer rejects
   volume-numbered releases (2026-10-30).
-- **URLs** (caddy-apps; inside and over Tailscale, not public): https://clu.aliammar.net (→
+- **URL:** through caddy-apps, inside and over Tailscale, not public: https://clu.aliammar.net (→
   `clu:5577` on `door-clu`), https://sabnzbd.aliammar.net (→ `sabnzbd:8080` on the `dmz` macvlan),
   https://jdownloader.aliammar.net (→ `jdownloader:5800` on `door-jdownloader`: its desktop).
 - **Auth mode:** forward, all three: the apps' Authelia, group `admins`, a password (`one_factor`).

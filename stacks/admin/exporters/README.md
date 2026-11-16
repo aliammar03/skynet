@@ -5,8 +5,9 @@
   here restarts only these. **opnsense-exporter**
   reads OPNsense's gateways (status, loss, latency), interfaces, firewall counters, pf states,
   mbufs and services.
-- **URL / auth:** none (not routed). VictoriaMetrics scrapes `opnsense-exporter:8080` once a minute
+- **URL:** none (not routed). VictoriaMetrics scrapes `opnsense-exporter:8080` once a minute
   on `edge` (`stacks/admin/metrics/scrape.yaml`); Gatus checks its landing page, which calls no API.
+- **Auth mode:** none.
 - **OPNsense's API user** (Ali, once; System → Access → Users): a user with no login of its own
   (a scrambled password) and only the pages its collectors read, plus the privilege that denies
   config writes, as ops's `skynet-read`:

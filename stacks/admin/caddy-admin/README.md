@@ -2,6 +2,7 @@
 
 - **Purpose:** the admin door. One wildcard site `*.aliammar.net` (cert via Cloudflare DNS-01) in
   front of the lab's admin UIs; unknown names get 404.
+- **URL:** every admin name, `https://<name>.aliammar.net` (the sites below), at 10.10.60.60.
 - **DNS-01 without a propagation check** (the site's `tls` block): inside the lab Technitium answers
   for `aliammar.net` itself (`dns/README.md`), so Caddy can't see its challenge record. It waits 60 s,
   then Let's Encrypt checks Cloudflare. A failed renewal retries; Gatus's door row alerts within 7
@@ -21,7 +22,7 @@
   URI's first path segment only; no headers, query or client address.
 - **Data:** `/opt/appdata/caddy-admin/{data,config}`: certs and ACME account. Re-issuable; no backup
   needed.
-- **Secrets** (`secret.sops.env`): `CLOUDFLARE_API_TOKEN` (Zone → DNS → Edit, `aliammar.net` only).
+- **Secrets:** `secret.sops.env`: `CLOUDFLARE_API_TOKEN` (Zone → DNS → Edit, `aliammar.net` only).
 - **Upstream:** [caddybuilds/caddy-cloudflare](https://github.com/caddybuilds/caddy-cloudflare) ·
   [Caddy reverse_proxy](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy)
 

@@ -28,8 +28,9 @@
   channel opens a thread of its own. The scheduled prompts and the agent's own follow-ups post into
   the desk (below). CLU's own alerts arrive in the channel through its webhook (CLU → Settings →
   Notifications) and are ignored by the bot.
-- **URL / auth mode:** none: no door, no DNS name, no Gatus row (Ali, 2026-11-03). Its containers'
+- **URL:** none: no door, no DNS name, no Gatus row (Ali, 2026-11-03). Its containers'
   health checks make doco-cd restart a dead one, and a morning report that doesn't come says the rest.
+- **Auth mode:** none.
 - **Network:**
   - `comics-agent`: the stack's `egress` (OpenAI, Discord) and its internal `backend`, nothing else.
   - `comics-tools`: `backend`; CLU's `clu_backend` (CLU and SABnzbd by name: CLU's port has no login,
