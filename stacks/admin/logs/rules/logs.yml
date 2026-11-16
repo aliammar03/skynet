@@ -44,8 +44,8 @@ groups:
     interval: 5m
     rules:
       # Every host logs a heartbeat line every 5 minutes (log-heartbeat, modules/observability.nix;
-      # PBS's pbs/etc/). A host seen this week with none in 15 minutes: its lines stopped arriving
-      # (its upload, vlagent or VictoriaLogs), and every log rule is blind to it.
+      # PBS's hosts/pbs/etc/). A host seen this week with none in 15 minutes: its lines stopped
+      # arriving (its upload, vlagent or VictoriaLogs), and every log rule is blind to it.
       - alert: LogsNotArriving
         expr: >-
           _time:7d {_SYSTEMD_UNIT="log-heartbeat.service"}
@@ -57,12 +57,12 @@ groups:
         annotations:
           summary: '{{ index $labels "_HOSTNAME" }}: no log lines have reached VictoriaLogs for 15 minutes (its journal upload, vlagent or VictoriaLogs).'
 
-      # Appliances log by syslog to vlagent (the stack's README → Syslog); each listener stamps
-      # its lines with `source`. OPNsense's firewall log alone brings about 8 lines a second. Unraid's
+      # Appliances log by syslog to vlagent (the stack's README → Syslog); each listener stamps its
+      # lines with `source`. OPNsense's firewall log alone brings about 8 lines a second. Unraid's
       # own log goes quiet for hours, so a User Script logs a heartbeat there every 5 minutes
-      # (unraid/README.md), and only those lines count for it. Omada's controller logs events alone,
-      # hours or days apart: OmadaBridge's alerts watch it instead (network.yml). 15 minutes without
-      # a line means the appliance's remote logging, the path or vlagent stopped.
+      # (hosts/unraid/README.md), and only those lines count for it. Omada's controller logs events
+      # alone, hours or days apart: OmadaBridge's alerts watch it instead (network.yml). 15 minutes
+      # without a line means the appliance's remote logging, the path or vlagent stopped.
       - alert: SyslogNotArriving
         expr: >-
           _time:7d (source:=opnsense OR (source:=unraid app_name:=log-heartbeat))
@@ -74,9 +74,9 @@ groups:
         annotations:
           summary: '{{ index $labels "source" }}: its syslog hasn''t reached VictoriaLogs for 15 minutes (its remote logging, the path or vlagent; on Unraid, also its heartbeat script).'
 
-      # Unraid copies `pbs` and `Storage` at 04:00 (unraid/undo.sh) and logs `done` once every copy
-      # is in place; a failed one logs why. 26 hours without it: the newest copy the lab can't
-      # delete (unraid/README.md → Undo copies) is older than it should be. A count with no
+      # Unraid copies `pbs` and `Storage` at 04:00 (hosts/unraid/undo.sh) and logs `done` once every
+      # copy is in place; a failed one logs why. 26 hours without it: the newest copy the lab can't
+      # delete (hosts/unraid/README.md → Undo copies) is older than it should be. A count with no
       # `by` always returns its row, so this fires even when the job logged nothing at all.
       - alert: UndoCopyMissing
         expr: >-

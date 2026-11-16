@@ -1,7 +1,7 @@
 #!/bin/bash
 # skynet-undo: a dated copy of each share the lab can write or delete (PBS's datastore; Storage),
 # kept on the same array disk in a share of its own, `undo-<share>`, which the lab can at most read
-# (ADR-0015). A User Script on Unraid, nightly; unraid/README.md
+# (ADR-0015). A User Script on Unraid, nightly; hosts/unraid/README.md
 # has the install.
 #
 # A copy shares its files' data with the original, so it costs space only for what the original

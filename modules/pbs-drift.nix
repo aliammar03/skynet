@@ -59,7 +59,7 @@ let
       if diff=$(diff -rq ${want} "$have"); then
         exit 0
       fi
-      post "**PBS** config differs from \`pbs/etc/\` on main:
+      post "**PBS** config differs from \`hosts/pbs/etc/\` on main:
       $(printf '%s\n' "$diff" | sed -e 's|${want}|git|g' -e "s|$have|pbs|g")"
       exit 1
     '';
@@ -67,7 +67,7 @@ let
 in
 {
   systemd.services.pbs-drift = {
-    description = "Compare PBS's config with pbs/etc/ on main";
+    description = "Compare PBS's config with hosts/pbs/etc/ on main";
     wants = [ "network-online.target" ];
     after = [ "network-online.target" ];
     startAt = "07:00"; # after the night's backups, prune and offsite start

@@ -13,10 +13,11 @@ groups:
           summary: "pbs-exporter can't read PBS's API, so no guest's backup is watched."
 
       # The next two watch the guests PVE has now (pve_guest_info), but templates, Unraid (2020) and
-      # PBS (2040), which the core node's job leaves out by design (pbs/README.md). Each is matched
-      # to its backups by vm_id and namespace (one per node, named after it), so a retired guest's
-      # kept backups, or those a guest left on its old node, don't alert. They go quiet while
-      # pve-exporter fails, which TargetDown reports: pve-exporter answers 500 when PVE's API fails.
+      # PBS (2040), which the core node's job leaves out by design (hosts/pbs/README.md). Each is
+      # matched to its backups by vm_id and namespace (one per node, named after it), so a retired
+      # guest's kept backups, or those a guest left on its old node, don't alert. They go quiet
+      # while pve-exporter fails, which TargetDown reports: pve-exporter answers 500 when PVE's API
+      # fails.
 
       # A guest with no backup in its node's namespace (new, left out of a job, its first backup
       # failed, or moved to the other node): GuestBackupStale has nothing to measure. PBS's own
@@ -45,9 +46,10 @@ groups:
         annotations:
           summary: "{{ with $labels.vm_name }}{{ . }} {{ end }}({{ $labels.vm_id }}, {{ $labels.namespace }}): its newest backup is {{ $value | humanizeDuration }} old."
 
-      # PBS verifies new backups at 04:30 (pbs/README.md), after both nodes' jobs, so the newest is
-      # unverified for about 3 hours on a normal night. Still unverified, or failed, 5 hours on: alert.
-      # Every group counts, a retired guest's too: PBS verifies kept backups again every 30 days.
+      # PBS verifies new backups at 04:30 (hosts/pbs/README.md), after both nodes' jobs, so the
+      # newest is unverified for about 3 hours on a normal night. Still unverified, or failed, 5
+      # hours on: alert. Every group counts, a retired guest's too: PBS verifies kept backups again
+      # every 30 days.
       - alert: GuestBackupUnverified
         expr: pbs_snapshot_vm_last_verify == 0
         for: 5h

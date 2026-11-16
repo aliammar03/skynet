@@ -7,8 +7,8 @@ global:
   scrape_timeout: 10s
 
 scrape_configs:
-  # Every host (modules/observability.nix; PBS from pbs/etc/; the Proxmox nodes from pve/, named by
-  # their hostnames like the rest, so their log alerts match).
+  # Every host (modules/observability.nix; PBS from hosts/pbs/etc/; the Proxmox nodes from
+  # hosts/pve/, named by their hostnames like the rest, so their log alerts match).
   - job_name: node
     static_configs:
       - { targets: [10.10.50.40:9100], labels: { instance: docker-admin } }
@@ -19,11 +19,11 @@ scrape_configs:
       - { targets: [10.10.20.40:9100], labels: { instance: pbs } }
       - { targets: [10.10.50.11:9100], labels: { instance: server-proxmox-core } }
       - { targets: [10.10.50.10:9100], labels: { instance: server-proxmox-network } }
-      # Unraid's node-exporter, an Unraid container (unraid/), through OPNsense's rule 236.
+      # Unraid's node-exporter, an Unraid container (hosts/unraid/), through OPNsense's rule 236.
       - { targets: [10.10.20.20:9100], labels: { instance: unraid } }
 
-  # Unraid's disks: SMART health, wear, temperature (smartctl-exporter, unraid/). Each scrape runs
-  # smartctl per disk, skipping disks in standby; once a minute.
+  # Unraid's disks: SMART health, wear, temperature (smartctl-exporter, hosts/unraid/). Each scrape
+  # runs smartctl per disk, skipping disks in standby; once a minute.
   - job_name: smartctl
     scrape_interval: 1m
     scrape_timeout: 30s

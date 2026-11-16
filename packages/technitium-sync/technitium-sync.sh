@@ -5,7 +5,7 @@
 # hand, e.g. against a test server:
 #   API=http://127.0.0.1:15380/api PASSWORD_FILE=… SETTINGS=dns/settings.json \
 #     ZONE_FILE=dns/aliammar.net.zone [SSO=dns/sso.json SSO_CLIENT_ID=… SSO_SECRET_FILE=…] \
-#     bash modules/technitium-sync.sh
+#     bash packages/technitium-sync/technitium-sync.sh
 set -euo pipefail
 api=${API:-http://127.0.0.1:5380/api}
 zone=aliammar.net
