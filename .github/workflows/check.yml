@@ -10,6 +10,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      # The layout's contracts: every stack's files and README labels, every host's README, every
+      # *.sops.* file encrypted (.github/check-layout.sh).
+      - run: .github/check-layout.sh
+      # Relative links between files resolve; nothing remote is fetched.
+      - uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
+        with:
+          lycheeVersion: v0.24.2
+          args: --offline --no-progress './**/*.md'
+          jobSummary: false
       - uses: cachix/install-nix-action@v31
       # Evaluate every host and output; building happens on the host (comin keeps the current
       # generation if a build fails), so a full build here would only cost time.
