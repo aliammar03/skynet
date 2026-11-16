@@ -78,10 +78,11 @@ in
     lookupcache=positive
   '';
 
-  # Unraid's dated copies of `Storage` (unraid/undo.sh): /mnt/undo/<date>/ is the share as it was
-  # that night, to put back what was lost (runbooks/restore.md, case 8). Unraid exports it read-only
-  # to this host, so not even root here can change a copy. soft: a read fails, rather than hangs, if
-  # Unraid goes away mid-restore; unmounted after 10 idle minutes, and no container mounts it.
+  # Unraid's dated copies of `Storage` (hosts/unraid/undo.sh): /mnt/undo/<date>/ is the share as it
+  # was that night, to put back what was lost (runbooks/restore.md, case 8). Unraid exports it
+  # read-only to this host, so not even root here can change a copy. soft: a read fails, rather than
+  # hangs, if Unraid goes away mid-restore; unmounted after 10 idle minutes, and no container mounts
+  # it.
   fileSystems."/mnt/undo" = {
     device = "10.10.20.20:/mnt/user/undo-Storage";
     fsType = "nfs";

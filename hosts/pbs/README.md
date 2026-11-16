@@ -74,7 +74,7 @@ part of its `/etc` that git holds. ops compares that with the host every day.
    Then on the node: fetch `proxmox.sh` from the branch, read it, run it, and (first install only)
    leave 2040 out of the core node's backup job:
    ```sh
-   curl -fsSL https://raw.githubusercontent.com/aliammar03/skynet/refs/heads/<branch>/pbs/proxmox.sh -o /root/proxmox-pbs.sh
+   curl -fsSL https://raw.githubusercontent.com/aliammar03/skynet/refs/heads/<branch>/hosts/pbs/proxmox.sh -o /root/proxmox-pbs.sh
    sh /root/proxmox-pbs.sh
    pvesh set /cluster/backup/backup-c59694d0-3593 --exclude 2020,2040
    ```
@@ -82,8 +82,8 @@ part of its `/etc` that git holds. ops compares that with the host every day.
 4. **Agent:** scan the host key, run `setup.sh`, reboot, check. The scanned key is new, so ssh
    can't ask about it:
    ```sh
-   kh=$(mktemp); ssh-keyscan -q -t ed25519 10.10.20.40 > "$kh"; cut -d' ' -f2- "$kh" > pbs/ssh_host.pub
-   tar -C pbs -c setup.sh etc | ssh -o UserKnownHostsFile="$kh" -o GlobalKnownHostsFile=/dev/null root@10.10.20.40 \
+   kh=$(mktemp); ssh-keyscan -q -t ed25519 10.10.20.40 > "$kh"; cut -d' ' -f2- "$kh" > hosts/pbs/ssh_host.pub
+   tar -C hosts/pbs -c setup.sh etc | ssh -o UserKnownHostsFile="$kh" -o GlobalKnownHostsFile=/dev/null root@10.10.20.40 \
      'rm -rf /root/pbs && mkdir /root/pbs && tar -C /root/pbs -x && sh /root/pbs/setup.sh; s=$?; rm -r /root/pbs; exit $s'
    ```
    `setup.sh` prints each file's diff as it installs it. A difference worth keeping (something the
@@ -91,7 +91,7 @@ part of its `/etc` that git holds. ops compares that with the host every day.
 5. **Ali:**
    - on the core node, `qm guest exec 2040 -- ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`
      shows the fingerprint the PR names;
-   - PBS's UI at https://10.10.20.40:8007, as root (`nix shell nixpkgs#sops -c sops -d --extract '["root_password"]' pbs/secret.sops.yaml`):
+   - PBS's UI at https://10.10.20.40:8007, as root (`nix shell nixpkgs#sops -c sops -d --extract '["root_password"]' hosts/pbs/secret.sops.yaml`):
      Configuration → Access Control → API Token → `pve@pbs!core` → **Regenerate**, and copy the
      secret. The ACLs stay. (In its Shell instead:
      `proxmox-backup-debug api set /access/users/pve@pbs/token/core --regenerate true`.)

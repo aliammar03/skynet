@@ -71,10 +71,11 @@ in
   ];
 
   # Observability (stacks/admin/metrics, stacks/admin/logs). This host's own containers reach its
-  # exporters and vlagent from a Docker bridge, not from 10.10.50.40. vlagent runs on the host's network, so this
-  # firewall, not a published port, decides who may send it logs: the hosts that ship their journal
-  # (modules/observability.nix; PBS from pbs/etc/; the Proxmox nodes from pve/etc/), as OPNsense's
-  # ROLE_LOG_SHIPPERS does, and each appliance on its own syslog port.
+  # exporters and vlagent from a Docker bridge, not from 10.10.50.40. vlagent runs on the host's
+  # network, so this firewall, not a published port, decides who may send it logs: the hosts that
+  # ship their journal (modules/observability.nix; PBS from hosts/pbs/etc/; the Proxmox nodes from
+  # hosts/pve/etc/), as OPNsense's ROLE_LOG_SHIPPERS does, and each appliance on its own syslog
+  # port.
   networking.firewall.extraCommands =
     let
       ports = lib.concatMapStringsSep "," toString (config.skynet.metricsPorts ++ [ 9429 ]);
@@ -84,7 +85,7 @@ in
         "10.10.70.50" # technitium-network
         "10.10.70.51" # technitium-core
         "10.10.20.40" # PBS
-        "10.10.50.24" # PBS on VLAN 50: its upload to this host leaves by that NIC (pbs/README.md)
+        "10.10.50.24" # PBS on VLAN 50: its upload here leaves by that NIC (hosts/pbs/README.md)
         "10.10.50.10" # server-proxmox-network
         "10.10.50.11" # server-proxmox-core
       ];

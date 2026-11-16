@@ -1,7 +1,16 @@
 # hosts
 
-One folder per NixOS host, each built by `flake.nix` (`mkHost`) and kept current by comin
-(ADR-0002). A new one follows `runbooks/new-vm.md`, in one PR.
+One folder per machine git configures, NixOS or not, with its README and its secrets beside it
+(ADR-0019). A new NixOS host follows `runbooks/new-vm.md`, in one PR.
+
+| Machine | Folder | What git holds, and who applies it |
+|---|---|---|
+| ops, docker-admin, docker-dmz, technitium-network, technitium-core | `hosts/<name>/` | NixOS, built by `flake.nix` (`mkHost`) and kept current by comin (ADR-0002) |
+| PBS (VM 2040) | `hosts/pbs/` | Proxmox's appliance: its installer's answer file, `setup.sh` and `etc/`, which the agent applies and ops compares with PBS every morning |
+| The Proxmox nodes | `hosts/pve/` | their exporters and log upload: `setup.sh` and `etc/`, which Ali applies |
+| Unraid (VM 2020) | `hosts/unraid/` | its exporters' `compose.yaml` and the undo job, `undo.sh`, which Ali applies |
+
+## A NixOS host's folder
 
 | File | Content |
 |---|---|
@@ -17,8 +26,14 @@ ops, the first host and the agent's home, keeps its address in `default.nix` and
 `ssh_host.pub`: the agent works from it, not into it. Its folder also holds the agent's public key
 (`agent.pub`), the LAN cache's (`cache.pub`) and the installer's (`installer.pub`).
 
-A host's own secrets are `secrets/<host>.yaml` (sops-nix). The machines git configures that
-aren't NixOS have folders of their own: PBS `pbs/`, the Proxmox nodes `pve/`, Unraid `unraid/`.
+## Secrets
+
+- A host's own are `hosts/<name>/secret.sops.yaml`, sops-nix's default file for it. A value the
+  agent generates goes in a file of its own beside it, because the agent can't add a key to a file
+  it can't decrypt: `oidc.sops.yaml` on the DNS servers, `komga.sops.yaml` and `uchiyomi.sops.yaml`
+  on ops.
+- `.sops.yaml` encrypts `hosts/<name>/*.sops.*` for Ali and that host; `hosts/pbs/`'s for Ali
+  alone, since PBS reads no sops file.
 
 ## Addressing
 

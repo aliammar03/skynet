@@ -2,7 +2,7 @@
 
 The Proxmox nodes' observability: server-proxmox-core (10.10.50.11)
 and server-proxmox-network (10.10.50.10), PVE 9.2 on Debian 13. The nodes' config is Ali's to apply;
-this folder is what Ali applies, so git describes it. As on PBS (`pbs/etc/`):
+this folder is what Ali applies, so git describes it. As on PBS (`hosts/pbs/etc/`):
 
 - **Metrics:** Debian's `prometheus-node-exporter` on :9100, with the systemd collector (a failed
   unit alerts) and the textfile collector, which `prometheus-node-exporter-collectors`' timers fill
@@ -31,8 +31,8 @@ when VictoriaMetrics starts scraping it:
 ```sh
 ref=main
 d=$(mktemp -d) && curl -fsSL "https://codeload.github.com/aliammar03/skynet/tar.gz/refs/heads/$ref" | tar -xz -C "$d" --strip-components=1
-less "$d/pve/setup.sh"
-sh "$d/pve/setup.sh" && rm -r "$d"
+less "$d/hosts/pve/setup.sh"
+sh "$d/hosts/pve/setup.sh" && rm -r "$d"
 ```
 It shows each file's change as it installs it, then the services and timers. Check: the node's
 `node` target is up in VictoriaMetrics, and its heartbeat reaches VictoriaLogs within 5 minutes.

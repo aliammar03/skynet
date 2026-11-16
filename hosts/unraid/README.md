@@ -62,14 +62,14 @@ git; this folder is what Ali applies there, so git describes it.
    (`source:=unraid app_name:=log-heartbeat`).
 4. **The array's alerts:** Settings → Notification Settings → Notification entity: Agents on for
    Warnings and Alerts; Notification agents → Discord: enable it, Webhook URL = `#alerts`' webhook
-   (`nix shell nixpkgs#sops -c sops -d --extract '["discord_alerts_webhook"]' secrets/docker-admin.yaml`),
+   (`nix shell nixpkgs#sops -c sops -d --extract '["discord_alerts_webhook"]' hosts/docker-admin/secret.sops.yaml`),
    Apply, then Test: a post lands in `#alerts`.
 5. **OPNsense:** the aliases above.
 6. **The undo copies:**
    1. Settings → User Scripts → Add New Script `skynet-undo`. Schedule: Custom, `0 4 * * *`. Apply.
-      Its script is `unraid/undo.sh`, whole; on Unraid's terminal:
+      Its script is `hosts/unraid/undo.sh`, whole; on Unraid's terminal:
       ```sh
-      curl -fsSL https://raw.githubusercontent.com/aliammar03/skynet/main/unraid/undo.sh \
+      curl -fsSL https://raw.githubusercontent.com/aliammar03/skynet/main/hosts/unraid/undo.sh \
         -o /boot/config/plugins/user.scripts/scripts/skynet-undo/script
       ```
    2. Run Script, once. It ends with `skynet-undo: done`, and Shares now lists `undo-pbs` and

@@ -12,5 +12,5 @@ stack's in its folder.
   - [`autonomy.md`](plans/autonomy.md): the agent merges, verifies and rolls back by itself.
   - [`retire-v1.md`](plans/retire-v1.md): v1's last credentials, and disaster recovery proven.
 
-The contracts: `stacks/README.md` (a stack), `hosts/README.md` (a machine), `AGENTS.md` (the
-agent). Procedures: `runbooks/`.
+The contracts: `stacks/README.md` (a stack), `hosts/README.md` (a machine), `packages/README.md`
+(a program of our own), `AGENTS.md` (the agent). Procedures: `runbooks/`.

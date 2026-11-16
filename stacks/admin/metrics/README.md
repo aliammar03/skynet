@@ -39,8 +39,8 @@
 
   | Job | Where | What |
   |---|---|---|
-  | `node` | every host :9100, the Proxmox nodes (`pve/`) and Unraid (`unraid/`) too | node-exporter: the host, its failed units, and job results from `/var/lib/node-exporter/*.prom`; on the nodes, SMART and NVMe health from Debian's timers; on the DNS hosts, Technitium's last hour (`technitium_*`, `modules/dns.nix`) |
-  | `smartctl` | Unraid :9633 (`unraid/`), once a minute | each disk's SMART status, critical warning, wear and temperature (`smartctl_device_*`) |
+  | `node` | every host :9100, the Proxmox nodes (`hosts/pve/`) and Unraid (`hosts/unraid/`) too | node-exporter: the host, its failed units, and job results from `/var/lib/node-exporter/*.prom`; on the nodes, SMART and NVMe health from Debian's timers; on the DNS hosts, Technitium's last hour (`technitium_*`, `modules/dns.nix`) |
+  | `smartctl` | Unraid :9633 (`hosts/unraid/`), once a minute | each disk's SMART status, critical warning, wear and temperature (`smartctl_device_*`) |
   | `comin` | every NixOS host :4243 | fetch, build and deploy failures; `comin_need_to_reboot` |
   | `cadvisor` | both Docker hosts :9338 | each container's CPU, memory, network and disk I/O, with its compose project |
   | `doco-cd` | both Docker hosts :9120 | polls, deploys, scheduled jobs |

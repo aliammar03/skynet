@@ -2,7 +2,7 @@
 
 The internal zone, the settings and the login of both Technitium servers, technitium-network and
 technitium-core (ADR-0005). `technitium-sync` (`modules/dns.nix`,
-`modules/technitium-sync.sh`) applies them through Technitium's API at boot and on every deploy that
+`packages/technitium-sync/`) applies them through Technitium's API at boot and on every deploy that
 changes them.
 
 ## Records: `aliammar.net.zone`
@@ -33,7 +33,7 @@ doesn't read back as written (a typo, say), so the deploy fails and comin posts 
 |---|---|---|
 | `recursion`, `recursionNetworkACL` | loopback, 10.10.0.0/16, 100.64.0.0/10 | the lab and Tailscale only |
 | `qpmLimitBypassList` | 10.10.0.0/16, 100.64.0.0/10 | Technitium rate-limits every client by default (600 queries/min per IP, 6000 per /24), and a Docker host's containers count as one IP |
-| `forwarders`, `forwarderProtocol` | PTCL 39.39.39.39, OpenDNS 208.67.222.222, Google 8.8.8.8; UDP | PTCL (the ISP's own) answers names it holds in ~5 ms; OpenDNS is fastest on names nobody asked for yet; all three hand out the same YouTube servers and the in-ISP CDN caches (`runbooks/dns-speed-test/`) |
+| `forwarders`, `forwarderProtocol` | PTCL 39.39.39.39, OpenDNS 208.67.222.222, Google 8.8.8.8; UDP | PTCL (the ISP's own) answers names it holds in ~5 ms; OpenDNS is fastest on names nobody asked for yet; all three hand out the same YouTube servers and the in-ISP CDN caches (`runbooks/dns-speed-test.md`) |
 | `concurrentForwarding`, `forwarderConcurrency` | on, 3 | all three are asked; the first answer wins. PTCL answers REFUSED for sites on Pakistan's blocklist, and Technitium then takes OpenDNS's or Google's answer |
 | `forwarderTimeout`, `forwarderRetries` | 1000 ms, 2 | a dead forwarder is skipped quickly |
 | `dnssecValidation` | off | no extra key lookups on misses. Nothing checks answers over plain UDP; accepted for speed |
@@ -62,16 +62,16 @@ behind admin Authelia), or http://10.10.70.50:5380 and .51. It's read-only in pr
 the keys above are overwritten on the next sync, and a setting changed only in the UI isn't in git.
 
 - **Log in with SSO**, through admin Authelia (`sso.json`). Each server is an OIDC client of its
-  own, named after it, its secret in `secrets/<server>.oidc.yaml` (agent-generated) and its digest
-  in `stacks/admin/authelia/oidc-clients.yml`. Your first login creates your Technitium user; every
-  login makes it an Administrator while your Authelia groups include `admins` (`ssoGroupMap`), and
-  a user with no mapped group can't sign up. The server itself calls `auth.aliammar.net` for the
+  own, named after it, its secret in `hosts/<server>/oidc.sops.yaml` (agent-generated) and its
+  digest in `stacks/admin/authelia/oidc-clients.yml`. Your first login creates your Technitium user;
+  every login makes it an Administrator while your Authelia groups include `admins` (`ssoGroupMap`),
+  and a user with no mapped group can't sign up. The server itself calls `auth.aliammar.net` for the
   metadata, the pushed request, the token and userinfo, so OPNsense passes `ROLE_DNS_RESOLVERS` →
   `HOST_PROXY_ADMIN` :443. A change to `sso.json` or a secret restarts the web UI (2 s).
 - **`admin`**, the local user: the sync and the stats timer log in with it, and it's the way in
   while Authelia is down. The password is `technitium_admin_password` in
-  `secrets/technitium-<node>.yaml`:
-  `nix shell nixpkgs#sops -c sops -d --extract '["technitium_admin_password"]' secrets/technitium-network.yaml`.
+  `hosts/technitium-<node>/secret.sops.yaml`:
+  `nix shell nixpkgs#sops -c sops -d --extract '["technitium_admin_password"]' hosts/technitium-network/secret.sops.yaml`.
   It's used on the server's first start only, so changing it in sops doesn't change the server's.
 
 A failed sync shows in `journalctl -u technitium-sync`.

@@ -48,7 +48,7 @@ VMID 10010 · 10.10.100.10 · server-proxmox-core · 6 vCPU / 12 GB (10 guarante
 - **Observability:** node-exporter :9100, cAdvisor :9338, comin :4243 and doco-cd's :9120,
   for docker-admin only (`modules/observability.nix`). The journal goes to docker-admin's vlagent
   (:9429): the DMZ's one opening into the management VLAN, write-only.
-- **Secrets** (`secrets/docker-dmz.yaml`): `doco_api_secret`, `discord_alerts_webhook`.
+- **Secrets** (`hosts/docker-dmz/secret.sops.yaml`): `doco_api_secret`, `discord_alerts_webhook`.
 - **Agent access:** user `skynet`, the agent's key from 10.10.90.91 only, groups `systemd-journal`
   and `wheel`: **root via passwordless sudo** (ADR-0011), Docker included (`sudo docker …`). Every sudo
   command lands in the journal (`journalctl _COMM=sudo`). Its host key is `ssh_host.pub`, pinned in

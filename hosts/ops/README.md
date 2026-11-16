@@ -17,8 +17,8 @@ next restart) / 64 GB.
   a link (Ctrl+Shift+click if tmux takes it). tmux passes the clipboard (OSC 52) and links (OSC 8) to
   the terminal, so this works over SSH in Windows Terminal; sessions set `FORCE_HYPERLINK=1` so Claude
   Code prints real links.
-- **Secrets:** `secrets/ops.yaml` → `discord_bot_token`, `github_token` (aliammar-skynet PAT).
-  `GH_TOKEN` reaches the sessions via their environment. The Discord token is written by
+- **Secrets:** `hosts/ops/secret.sops.yaml` → `discord_bot_token`, `github_token` (aliammar-skynet
+  PAT). `GH_TOKEN` reaches the sessions via their environment. The Discord token is written by
   `skynet-discord-token` to `~/.claude/channels/discord/.env`, the file the plugin reads, because
   Claude doesn't pass the session environment to plugin servers.
 - **Read-only lab APIs:** `pve_core_read_token`, `pve_network_read_token` (`skynet@pve!read`,
@@ -30,8 +30,9 @@ next restart) / 64 GB.
     caddy-admin for the browser path; their certs name the IPs;
   - `curl -sk --netrc-file /run/secrets/rendered/opnsense.netrc https://10.10.50.1/api/…`: `-k`,
     because its pinned cert names a host, not the IP.
-- **Komga and Uchiyomi (ADR-0016):** `komga_password` (`secrets/ops.komga.yaml`) and `uchiyomi_password`
-  (`secrets/ops.uchiyomi.yaml`), the agent's admin accounts, through caddy-apps like any visitor:
+- **Komga and Uchiyomi (ADR-0016):** `komga_password` (`hosts/ops/komga.sops.yaml`) and
+  `uchiyomi_password` (`hosts/ops/uchiyomi.sops.yaml`), the agent's admin accounts, through
+  caddy-apps like any visitor:
   - `curl --netrc-file /run/secrets/rendered/komga.netrc https://komga.aliammar.net/api/…` (HTTP
     Basic as `skynet@aliammar.net`); the claim, once:
     `curl -X POST -H @/run/secrets/rendered/komga-claim.header https://komga.aliammar.net/api/v1/claim`;
@@ -46,8 +47,8 @@ next restart) / 64 GB.
   and `compact_mirrors` (ADR-0011), and asks Ali before `destroy_project` and `remove_stack`. A session
   picks up `.mcp.json` and these rules when it starts.
 - **PBS drift check:** `pbs-drift` (daily 07:00, `modules/pbs-drift.nix`) reads PBS's config over
-  the agent's SSH key and compares it with `pbs/etc/` as deployed here. A difference, or a failed
-  read, goes to `#alerts` (`discord_alerts_webhook`, passed as a systemd credential).
+  the agent's SSH key and compares it with `hosts/pbs/etc/` as deployed here. A difference, or a
+  failed read, goes to `#alerts` (`discord_alerts_webhook`, passed as a systemd credential).
 - **Unattended runs** (`modules/agent-runs.nix`):
   - `skynet-incident`, each minute, hands each new alert group in Alertmanager to a headless run, at
     most 8 a day. `skynet-digest` (08:00) and `skynet-report` (Mondays 08:30) post the morning
@@ -65,11 +66,11 @@ next restart) / 64 GB.
   `ROLE_NIX_CACHE_CLIENTS` decides which hosts get through: a new host needs adding there. `nix-cache-key` generates the signing key once
   in `/var/lib/nix-cache-key/`. Its public half is `hosts/ops/cache.pub`, which switches the clients
   on. A rebuilt ops gets a new key, so update `cache.pub`.
-- **Tailscale:** on Ali's tailnet as `tag:ops` (ADR-0014), userspace, so ops's own routes and DNS are
-  unchanged. `ssh <machine>.<tailnet>.ts.net` goes through `tailscale nc` (`programs.ssh`, `Host
+- **Tailscale:** on Ali's tailnet as `tag:ops` (ADR-0014), userspace, so ops's own routes and DNS
+  are unchanged. `ssh <machine>.<tailnet>.ts.net` goes through `tailscale nc` (`programs.ssh`, `Host
   *.ts.net`); what `tag:ops` may reach is set in the tailnet policy (Ali's admin console).
-  `tailscale_authkey` (`secrets/ops.yaml`, tagged `tag:ops`) serves the first login only; the node
-  key then stays in `/var/lib/tailscale`. A rebuilt ops needs a fresh key.
+  `tailscale_authkey` (`hosts/ops/secret.sops.yaml`, tagged `tag:ops`) serves the first login only;
+  the node key then stays in `/var/lib/tailscale`. A rebuilt ops needs a fresh key.
 - **Permissions:** both sessions run in Claude Code **auto mode**: a classifier approves routine
   actions and sends anything risky to Ali as a Discord prompt. `.claude/settings.json` deny rules
   (merge, force-push, sudo on ops) and ask rules (doco-dmz's destroy and remove) apply in every mode.
@@ -86,7 +87,7 @@ next restart) / 64 GB.
      `nix run github:nix-community/nixos-anywhere -- --flake .#ops --target-host root@10.10.90.91 --generate-hardware-config nixos-generate-config hosts/ops/hardware.nix`.
      The new `hardware.nix`, the new recipient (`ssh-keyscan -t ed25519 10.10.90.91 | ssh-to-age`
      in `.sops.yaml`) and the new `agent.pub` and `cache.pub` go in a PR; Ali re-encrypts
-     `secrets/ops*.yaml` for the new key and puts the new agent key on PBS (`runbooks/restore.md`,
+     `hosts/ops/*.sops.yaml` for the new key and puts the new agent key on PBS (`runbooks/restore.md`,
      case 3).
   4. **Ali**, in the agent's session (`ssh aliammar@10.10.90.91`, then `skynet-attach`):
      `/login` (the Claude subscription), trust `~/skynet`, accept Remote Control,

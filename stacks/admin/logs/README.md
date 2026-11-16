@@ -2,8 +2,8 @@
 
 - **Purpose:** VictoriaLogs, every host's journal in one place, containers' logs included (Docker's
   journald driver), kept 30 days and never more than 4 GiB. Each host ships with
-  `systemd-journal-upload` (`modules/observability.nix`; PBS from `pbs/etc/`, the Proxmox nodes from
-  `pve/etc/`), which keeps a cursor: after an outage it resumes where it stopped, and until then the
+  `systemd-journal-upload` (`modules/observability.nix`; PBS from `hosts/pbs/etc/`, the Proxmox nodes from
+  `hosts/pve/etc/`), which keeps a cursor: after an outage it resumes where it stopped, and until then the
   host's own journal (2 weeks) holds the logs. Appliances log by syslog (OPNsense, Unraid, Omada).
   **vmalert-logs** runs `rules/*.yml` (LogsQL; vmalert adds `_time:<interval>` to a query without
   its own) and sends what fires to Alertmanager. Its alerts' state lives in VictoriaMetrics and
@@ -18,7 +18,7 @@
   `LogsNotArriving` (each host's `log-heartbeat` line, every 5 minutes, missing for 15),
   `SyslogNotArriving` (OPNsense's lines, or Unraid's 5-minute heartbeat, missing for 15; Omada
   logs only events, hours or days apart, so OmadaBridge's alerts watch it instead),
-  `UndoCopyMissing` (Unraid's undo job logged no `done` in 26 hours: `unraid/`),
+  `UndoCopyMissing` (Unraid's undo job logged no `done` in 26 hours: `hosts/unraid/`),
   `AccessLogsNotArriving` (a door's request lines, missing for 15), `GuestBackupFailed` (a Proxmox
   node's vzdump error), `DeployFailing` (doco-cd's failed deploys per stack, for the agent alone:
   doco-cd posts them itself), `FilesystemErrors`, `LogFlood` and `LogsDropped` (journald's own count
@@ -37,7 +37,7 @@
 - **Syslog** (vlagent's listeners, on the host's network), one port per appliance, each admitted
   from that appliance only, its lines stamped with `source`:
   - TCP 5514: OPNsense (System → Settings → Logging → Remote, RFC 5424; `source:=opnsense`);
-  - TCP 5515: Unraid (Settings → Syslog Server; `source:=unraid`; `unraid/`);
+  - TCP 5515: Unraid (Settings → Syslog Server; `source:=unraid`; `hosts/unraid/`);
   - UDP 5516: Omada (its controller's global Remote Logging; `source:=omada`), from VLAN 50.
 
   A line carries `hostname`, `app_name` (the stream, with `proc_id`), `format`, `severity` (also as
@@ -72,8 +72,8 @@ _time:1h | stats by (_HOSTNAME, hostname, source, remote_ip) count()
 | Machine | Ships by | Its lines | Not here |
 |---|---|---|---|
 | ops, docker-admin, docker-dmz, technitium-core, technitium-network | journal upload (`modules/observability.nix`) | `_HOSTNAME:=<name>` | |
-| PBS (VM 2040) | journal upload (`pbs/etc/`) | `_HOSTNAME:=pbs` | |
-| The Proxmox nodes | journal upload (`pve/etc/`) | `_HOSTNAME:=server-proxmox-core`, `server-proxmox-network` | |
+| PBS (VM 2040) | journal upload (`hosts/pbs/etc/`) | `_HOSTNAME:=pbs` | |
+| The Proxmox nodes | journal upload (`hosts/pve/etc/`) | `_HOSTNAME:=server-proxmox-core`, `server-proxmox-network` | |
 | OPNsense (VM 5001) | syslog, TCP 5514 | `source:=opnsense` | |
 | Unraid (VM 2020) | syslog, TCP 5515 | `source:=unraid` | its own log lives in RAM: what it hadn't sent before a reset is gone |
 | Omada (CT 525) | syslog, UDP 5516 | `source:=omada` | the CT's journal; the controller logs events only |

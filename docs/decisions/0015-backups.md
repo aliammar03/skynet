@@ -45,7 +45,7 @@ Chosen option:
   chunks first);
 - **`skynet-restore`** puts a stack back from a local snapshot or from Drive, with doco-cd held;
 - a **third copy** the lab can read and can't delete: Unraid's nightly dated copies of `pbs` and
-  `Storage`, 14 kept (`unraid/undo.sh`), read-only at `/mnt/undo` on PBS and docker-dmz.
+  `Storage`, 14 kept (`hosts/unraid/undo.sh`), read-only at `/mnt/undo` on PBS and docker-dmz.
 
 Because a snapshot holds every app's files at one instant, which databases restart from as after a
 power cut, so there are no dumps, no stopped apps and no stop lists; and because the pieces are

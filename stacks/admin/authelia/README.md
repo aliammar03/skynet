@@ -11,7 +11,7 @@
     `grafana` (`preferred_username`, `groups`, … in the ID token too; Technitium reads userinfo);
   - `oidc.sops.yml`: the provider's HMAC secret and RS256 signing key (agent-generated);
   - the clients' plaintext secrets, agent-generated: `stacks/admin/grafana/oidc.sops.env` and
-    `secrets/technitium-{network,core}.oidc.yaml` (`dns/README.md`).
+    `hosts/technitium-{network,core}/oidc.sops.yaml` (`dns/README.md`).
 
   `X_AUTHELIA_CONFIG` merges the three files. The client list lives in one file only: a second
   file's `clients` would replace it, not add to it. Containers on `edge` reach this portal by

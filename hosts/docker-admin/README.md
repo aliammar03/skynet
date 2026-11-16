@@ -40,7 +40,7 @@ average, 2.5 GB at most.
   TCP 5515; Omada's devices from VLAN 50, UDP 5516);
   tmpfiles rules give Alertmanager (`nobody`) and Grafana (472) their folders. Like every host, it runs node-exporter and the
   journal upload (`modules/observability.nix`), and cAdvisor on :9338 (`modules/docker-host.nix`).
-- **Secrets** (`secrets/docker-admin.yaml`): `doco_api_secret`, `discord_alerts_webhook`.
+- **Secrets** (`hosts/docker-admin/secret.sops.yaml`): `doco_api_secret`, `discord_alerts_webhook`.
 - **Agent access:** user `skynet`, the agent's key from 10.10.90.91 only, groups `systemd-journal`
   and `wheel`: **root via passwordless sudo** (ADR-0011), Docker included (`sudo docker …`), and
   with it this host's secrets, which it never prints. Every sudo command lands in the journal

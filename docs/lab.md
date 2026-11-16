@@ -11,7 +11,7 @@ number.
 | server-proxmox-core | 10.10.50.11 | 12, 31 GiB | `local` (ISOs), `local-lvm` (disks), `pbs` (VM 2040) |
 | server-proxmox-network | 10.10.50.10 | 8, 14.5 GiB | the same |
 
-PVE 9.2 on Debian 13. The nodes aren't clustered. What the lab adds to them is `pve/`; their
+PVE 9.2 on Debian 13. The nodes aren't clustered. What the lab adds to them is `hosts/pve/`; their
 config otherwise is Ali's.
 
 ## VLANs
@@ -27,8 +27,8 @@ native VLAN on both nodes) · 60 Admin access · 70 Net services · 80 Identity 
 | ops, VM 9091 | core | 10.10.90.91 | 4 vCPU, 8 GB (6 from its next restart) | `hosts/ops/` |
 | docker-dmz, VM 10010 | core | 10.10.100.10; caddy-apps .35, cloudflared .33 | 6 vCPU, 12 GB | `hosts/docker-dmz/`, `stacks/dmz/` |
 | technitium-core, VM 7051 | core | 10.10.70.51 | 2 vCPU, 1 GB | `hosts/technitium-core/`, `dns/` |
-| PBS, VM 2040 | core | 10.10.20.40, and 10.10.50.24 for the nodes | 2 vCPU, 4 GB | `pbs/` |
-| Unraid, VM 2020 | core | 10.10.20.20 | 4 vCPU, 4 GB | Ali; `unraid/` describes what the lab adds |
+| PBS, VM 2040 | core | 10.10.20.40, and 10.10.50.24 for the nodes | 2 vCPU, 4 GB | `hosts/pbs/` |
+| Unraid, VM 2020 | core | 10.10.20.20 | 4 vCPU, 4 GB | Ali; `hosts/unraid/` describes what the lab adds |
 | Home Assistant OS, VM 3050 | core | 10.10.30.50 | 2 vCPU, 2 GB | Ali |
 | athena, CT 10030 | core | 10.10.100.30 | 2 vCPU, 2 GB | its own repo |
 | OPNsense, VM 5001 | network | 10.10.50.1 | 4 vCPU, 4 GB | Ali (below); its config to `skynet-opnsense` through os-git-backup |
