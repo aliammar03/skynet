@@ -8,7 +8,6 @@ stack's in its folder.
 - [`credentials.md`](credentials.md): who holds what, and the credentials still planned.
 - [`decisions/`](decisions/README.md): what was decided, by whom and when, one record each.
 - [`plans/`](plans/): projects in flight, one file each; the folder is empty when nothing is.
-  - [`restructure.md`](plans/restructure.md): this layout; its last PR deletes it.
   - [`autonomy.md`](plans/autonomy.md): the agent merges, verifies and rolls back by itself.
   - [`retire-v1.md`](plans/retire-v1.md): v1's last credentials, and disaster recovery proven.
 
