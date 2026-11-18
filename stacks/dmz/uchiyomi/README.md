@@ -47,7 +47,7 @@
   `stacks/dmz/authelia/oidc-clients.yml`). The engine has no password: only this stack's network
   reaches it.
 - **Library scan:** Uchiyomi scans its folders only when asked (its Tasks list: "on demand").
-  `stacks/dmz/uchiyomi-scan`, a doco-cd job every 30 minutes, asks (`POST /api/refresh`), so what
+  `stacks/dmz/scan-uchiyomi`, a doco-cd job every 30 minutes, asks (`POST /api/refresh`), so what
   CLU files shows within half an hour.
 - **Sources are Ali's:** Uchiyomi enables none by itself. Ali names a source, and the agent turns
   it on. Licensed series come from their publishers' apps, or as bought DRM-free files in the

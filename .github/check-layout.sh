@@ -5,6 +5,7 @@
 # - every compose.yaml keeps the contract: a container_name and an image pinned by digest for each
 #   service, no named volumes, no mount of the stack's folder, and a job in a stack of jobs alone
 #   with reconciliation off;
+# - no stack's name begins with another's on the same host;
 # - every host folder has a README;
 # - every *.sops.* file has sops's metadata, so none sits in git unencrypted;
 # - every repo path a file names exists, or is planned (named in docs/plans/).
@@ -46,6 +47,21 @@ for d in stacks/*/*/; do
     [ "$(yq '.reconciliation == false or .reconciliation.enabled == false' "$d/.doco-cd.yml" 2>/dev/null)" = true ] ||
       err "$d" "$d holds a job, so its .doco-cd.yml turns reconciliation off (stacks/README.md → The folder)"
   fi
+done
+
+# doco-cd gives a container's event to the first stack whose name begins the container's own,
+# followed by -, _ or . (matchCandidateStackName in its source), so `x-job`'s events would go to `x`.
+for t in stacks/*/; do
+  for a in "$t"*/; do
+    a=$(basename "$a")
+    for b in "$t"*/; do
+      b=$(basename "$b")
+      case "$b" in
+        "$a"-* | "$a"_* | "$a".*)
+          err "$t$b" "stack $b's name begins with stack $a's: doco-cd would give $b's container events to $a (stacks/README.md → The folder)" ;;
+      esac
+    done
+  done
 done
 
 for d in hosts/*/; do

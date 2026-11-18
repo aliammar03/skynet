@@ -155,6 +155,8 @@ Also in the PR, where they apply (`retire.md` takes the same lines out):
 
 ## Gotchas
 
-- `container_name` is unique on the host.
+- `container_name` is unique on the host, and the stack's name doesn't begin with another stack's
+  name followed by `-`, `_` or `.`, and no other stack's begins with its own that way
+  (`stacks/README.md` → The folder; CI checks it).
 - Renovate opens a PR when the pinned image has an update. Merging it deploys it.
 - Deleting the folder (PR) removes the containers, and `/opt/appdata/<name>` stays: `retire.md`.
