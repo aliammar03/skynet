@@ -51,7 +51,8 @@ A Docker host's stacks go first, each as above, or move to the other host.
        `nix shell nixpkgs#sops -c sops unset hosts/ops/secret.sops.yaml '["doco_<target>_api_key"]'`),
        and its column in `runbooks/new-stack.md`. Its entries in `.claude/settings.json` are Ali's,
        as a `jq` command in the PR;
-     - `docs/lab.md`'s row and `docs/credentials.md`'s rows.
+     - `docs/lab.md`'s row, `docs/credentials.md`'s rows and its name in `hosts/README.md`'s first
+       table.
 2. **After the merge** (agent): every other host still builds and deploys (comin's metrics, each
    host's journal). `LogsNotArriving` fires for its name until it has been silent for a week
    (`stacks/admin/logs/README.md` → Gotchas); that silence is Ali's, below.
@@ -66,4 +67,7 @@ A Docker host's stacks go first, each as above, or move to the other host.
      ```
      Its PBS backups stay until PBS's prune ages them out; removing them sooner is PBS's UI →
      Datastore `skynet` → Content → the guest's group → Remove;
-   - its healthchecks.io checks, and its Tailscale node if it had one.
+   - its healthchecks.io checks, and its Tailscale node if it had one;
+   - a Docker host: its restic repository on Drive (`gdrive:skynet/restic/<name>`), once nothing is
+     wanted from it, and its password's line in his survival kit (`survival-kit.md`, whose table
+     and template lose the row in the PR).

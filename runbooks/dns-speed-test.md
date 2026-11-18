@@ -114,5 +114,3 @@ Plain UDP to PTCL (39.39.39.39) + OpenDNS + Google, all three raced.
 - **Blocked sites:** PTCL answers REFUSED for sites on Pakistan's blocklist (pornhub.com,
   xvideos.com, 1337x.to). Technitium counts that as a failure and takes the next forwarder's answer
   (41–60 ms).
-
-Still to do: a run that covers the evening peak.

@@ -86,7 +86,7 @@ ssh skynet@<host> sudo skynet-restore local <stack> <snapshot>
 | technitium-network, technitium-core | nothing | — |
 | PBS | nothing on its disk | case 5 |
 
-- `--all` restores every stack from one snapshot, takes the first local snapshot (docker-dmz), then
+- `--all` restores every stack from one snapshot, takes the host's first local snapshot, then
   writes the marker and starts doco-cd, which deploys the stacks onto their data. A failed `--all`
   writes no marker, so nothing starts on half the data.
 - docker-admin's metrics and logs start empty.

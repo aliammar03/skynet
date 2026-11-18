@@ -44,6 +44,9 @@ door the restore needs.
 | Discord | the server, `#alerts` and its webhook, the bot |
 | Tailscale | remote access (signs in through another account: note which) |
 | healthchecks.io | the heartbeat checks |
+| GitHub `aliammar-skynet` | the agent's account, where its token is made (`github_token`, `hosts/ops/secret.sops.yaml`) |
+| Claude (Anthropic) | the agent's login on ops and the arena's Claude lane; asked for again when ops is rebuilt, not restored |
+| ChatGPT (OpenAI) | the comics agent's and the arena's Codex logins, in docker-dmz's `/opt/appdata` |
 
 ## Logins git doesn't hold
 
@@ -100,7 +103,8 @@ Restore with: github.com/aliammar03/skynet → runbooks/restore.md, case 6
 Accounts: login, second factor, recovery codes stored
    [ ] GitHub aliammar03        [ ] Google        [ ] Cloudflare
    [ ] Discord                  [ ] Tailscale (signs in with: __________)
-   [ ] healthchecks.io
+   [ ] healthchecks.io          [ ] GitHub aliammar-skynet
+   [ ] Claude (Anthropic)       [ ] ChatGPT (OpenAI)
 
 Appliance logins stored
    [ ] Proxmox root@pam, core   [ ] Proxmox root@pam, network   [ ] OPNsense root

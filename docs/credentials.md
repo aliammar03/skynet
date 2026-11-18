@@ -50,4 +50,4 @@ Not made yet; each comes with its step in `docs/plans/autonomy.md`.
 | `skynet@pve!operate` | VM.PowerMgmt on pool `skynet`, one per node, held by ops (Ali mints) | power only: the window's kernel reboots |
 | `skynet@pve!provision` | create, change and restore VMs in pool `skynet`, their ISOs on `local` and disks on `local-lvm` (Ali mints) | OpenTofu's plans and applies |
 | OPNsense `skynet-alias` | API key: Firewall: Aliases, with config writes (Ali mints) | the alias sync, for aliases merged in `hosts/opnsense/` |
-| `secrets/shared/` | a generated value two hosts both read, encrypted for both | those two hosts |
+| a value two hosts share | one generated value both read: a file of its own beside the host it belongs to, encrypted for both by its own rule in `.sops.yaml` | those two hosts |

@@ -59,8 +59,8 @@ networks:
 - An app with no login of its own (auth mode `forward`) stays off `edge`. On the macvlan, it admits
   only the door's address. Otherwise add `door-<name>` to the host's `skynet.docker.doorNetworks`
   and join it from the app and the door. doco-cd can't deploy a stack whose network doesn't exist
-  yet, so merge the host change first (on docker-dmz the agent may instead create it by hand with
-  the same `docker network create --internal`, ADR-0011).
+  yet, so merge the host change first (or the agent creates it by hand on the host, with the same
+  `docker network create --internal`, ADR-0011).
 
 ## 2. Secrets: `stacks/<target>/<name>/secret.sops.env`
 
@@ -68,8 +68,12 @@ A changed value recreates the container on the next deploy. Order matters:
 1. Random values first (agent), all in one command. It can only create the file whole, never add
    to it, and the values are never shown:
    `python3 -c 'import secrets; print("MY_SECRET=" + secrets.token_hex(32))' | sops encrypt --filename-override stacks/<target>/<name>/secret.sops.env --input-type dotenv --output-type dotenv /dev/stdin > stacks/<target>/<name>/secret.sops.env`
-2. Then Ali's values, on the PR's branch:
-   `nix shell nixpkgs#sops -c sops stacks/<target>/<name>/secret.sops.env`, commit, push.
+2. Then Ali's values, on the PR's branch, one command a value, typed at a hidden prompt
+   (`AGENTS.md`, rule 3): `nix run .#secret -- stacks/<target>/<name>/secret.sops.env <KEY>`. It
+   adds to a file that exists. A file with no random values he makes with its first value:
+   `nix shell nixpkgs#sops -c sops stacks/<target>/<name>/secret.sops.env`.
+   The PR gives him every command in order, the `git` ones included (`AGENTS.md` → Ali's steps are
+   exact commands).
 
 ## 3. Route (if it has a UI): a site file in the door's sites folder, `<name>.conf`
 
@@ -119,6 +123,13 @@ The backup class takes effect in the host's backup stack (`stacks/<target>/backu
 - `data`: nothing to do. The nightly backup copies a snapshot of `/opt/appdata`, every file at one
   instant, so a database is caught as after a power cut, which it restarts from;
 - `cache`: the path joins `excludes.txt`. Everything else in `/opt/appdata` is backed up.
+
+Also in the PR, where they apply (`retire.md` takes the same lines out):
+- `docs/credentials.md`: a row for a credential the stack holds (a third-party token, an OIDC
+  client, an account of its own);
+- `docs/lab.md`: its address, for an app on the macvlan;
+- `hosts/<host>/default.nix`: a `systemd.tmpfiles` rule for a folder its image can't make itself
+  (`stacks/README.md` → Data).
 
 ## 7. Check before the PR (agent)
 

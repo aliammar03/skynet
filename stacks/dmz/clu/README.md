@@ -64,7 +64,8 @@
     (`https://api.nzbgeek.info`, his API key). SABnzbd's wizard: the Easynews login; → Config →
     Servers: the three fill servers as above, with their logins. JDownloader →
     Settings → Account Manager → premiumize.me: the customer ID and API key.
-  - The agent (ADR-0016), through CLU's API: Download Packs and CBR→CBZ on; timezone `5` (an hour offset);
+  - The agent, as root on docker-dmz (ADR-0011), through CLU's API: Download Packs and CBR→CBZ on;
+    timezone `5` (an hour offset);
     folder monitoring on; sources `usenet`, then `getcomics`; SABnzbd as its Usenet client
     (`sabnzbd`, 8080, SABnzbd's API key, category `clu`); the schedules (CLU takes UTC): the
     GetComics index at 00:30, the auto-download at 03:30, the library index at 04:30, Pakistan time;

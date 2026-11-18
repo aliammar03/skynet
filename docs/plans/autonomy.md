@@ -46,7 +46,7 @@ makes it true.
 | ADR-0013, rule 1: Ali merges every PR | The agent merges through the gates (Merges). Renovate never merges by itself, so every update gets the same review, verify and rollback. Code owners keep the contract, the gates and the aliases Ali's | 6 |
 | ADR-0011: root where the agent works | plus a PVE token for power only, scoped to pool `skynet`, for the window's kernel reboots | 5 |
 | ADR-0010: no OpenTofu | OpenTofu creates and changes our VMs (Provisioning) | 8 |
-| Rule 3: each file is for one host | a generated value two hosts share lives in `secrets/shared/`, for both | the first such value |
+| Rule 3: each file is for one host | a generated value two hosts share lives in a file of its own beside the host it belongs to (`hosts/<name>/<what>.sops.yaml`), encrypted for both | the first such value |
 | Rule 4: OPNsense and PVE config are never | aliases Ali approved reach OPNsense through an alias-only key, and PVE tokens are scoped to pool `skynet`. OPNsense's rules, the nodes, and PVE's users, tokens and storage stay never | 8, 9 |
 
 ## The leash, still
@@ -191,7 +191,8 @@ through the gates. A fix that touches data takes an undo point first.
   re-encrypted: the agent's PR adds its key (`ssh_host.pub`, `.sops.yaml`) and its aliases, and
   gives Ali the `sops updatekeys` commands.
 - **Generated secrets** go in files of their own, written whole for every host that needs them (a
-  value two hosts share lives in `secrets/shared/`), so nobody copies a value.
+  value two hosts share lives beside the host it belongs to, encrypted for both), so nobody copies
+  a value.
 - **ISOs and VMs:** Provisioning. **Aliases:** OPNsense aliases.
 
 ## Provisioning: OpenTofu with bpg/proxmox

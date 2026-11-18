@@ -22,9 +22,10 @@ One folder per machine git configures, NixOS or not, with its README and its sec
 | `ssh_host.pub` | the host key, pinned in ops's known_hosts (`modules/agent.nix`) |
 | `README.md` | VMID · address · node · size, its NICs, install line, secrets, agent access |
 
-ops, the first host and the agent's home, keeps its address in `default.nix` and has no
-`ssh_host.pub`: the agent works from it, not into it. Its folder also holds the agent's public key
-(`agent.pub`) and the LAN cache's (`cache.pub`).
+ops, the first host and the agent's home, differs. Its address is in `default.nix`: it has no
+`net.nix`, so no installer of its own (`hosts/ops/README.md` → Rebuild). Its NIC is matched by
+name, and its MAC isn't pinned. It has no `ssh_host.pub`: the agent works from it, not into it. Its
+folder also holds the agent's public key (`agent.pub`) and the LAN cache's (`cache.pub`).
 
 ## Secrets
 
