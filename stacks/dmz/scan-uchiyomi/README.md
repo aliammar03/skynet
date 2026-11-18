@@ -1,4 +1,4 @@
-# uchiyomi-scan
+# scan-uchiyomi
 
 - **Purpose:** asks Uchiyomi to rescan its library folders. Uchiyomi scans only when asked (its
   Tasks list: "on demand"), and CLU files new comics into one of its folders. Every 30 minutes a
@@ -16,6 +16,9 @@
 **Gotchas**
 - A job is a stack of its own, with reconciliation off (`.doco-cd.yml`; `stacks/README.md` → The
   folder): no `restart` policy and no healthcheck.
+- Its name begins with `scan-`, not `uchiyomi-`: doco-cd gives a container's events to the first
+  stack whose name begins the container's own, and Uchiyomi's stack is one that takes a `die`. So
+  each run's exit redeployed `uchiyomi` while the job was named `uchiyomi-scan`.
 - It reaches Uchiyomi through caddy-apps, at `https://uchiyomi.aliammar.net`: the name is the
   door's alias on `edge` (`stacks/dmz/caddy-apps/compose.yaml`). Uchiyomi's own network stays its
   own.

@@ -17,6 +17,11 @@ A scheduled job (a doco-cd job) has no `restart` and no healthcheck, and its fol
 its own, never a service beside long-running ones: there reconciliation stays on, each run's exit
 is a `die`, and doco-cd redeploys the stack and posts to `#alerts`.
 
+No stack's name begins with another's followed by `-`, `_` or `.` on the same host. doco-cd gives a
+container's event to the first stack whose name begins the container's own, among the stacks
+whose reconciliation takes that event (`matchCandidateStackName` in its source). So `x-job`'s
+events would redeploy `x`, and a job's stack, with reconciliation off, can't claim its own.
+
 ## The README
 
 These labels, spelled so and in this order, each a top-level bullet; other labels of the stack's
@@ -31,8 +36,8 @@ own may sit between them:
 
 CI checks every stack for `compose.yaml`, `README.md` and these labels, and each `compose.yaml` for
 the folder's rules: a `container_name` and a pinned image for every service, no named volumes, no
-mount of the folder itself, and a job in a stack of its own with reconciliation off
-(`.github/check-layout.sh`).
+mount of the folder itself, a job in a stack of its own with reconciliation off, and no stack name
+that begins with another's (`.github/check-layout.sh`).
 
 ## Routing
 
