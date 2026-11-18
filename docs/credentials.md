@@ -35,7 +35,7 @@ outside the lab: `runbooks/survival-kit.md`.
 | Authelia's OIDC clients | admin's `grafana`, `technitium-network`, `technitium-core`; the apps' `aiostreams`, `aiometadata`, `komga`, `uchiyomi`: secrets agent-generated into each app's `oidc.sops.*` (Technitium's in its host's folder), digests in each Authelia's `oidc-clients.yml` | each app's login |
 | the agent's Komga and Uchiyomi admins | passwords in `hosts/ops/komga.sops.yaml` and `hosts/ops/uchiyomi.sops.yaml` (agent-generated; Ali and ops) | those two apps, through their APIs (ADR-0016) |
 | Komf's Komga account `komf@aliammar.net` | password in `stacks/dmz/komga/komf.sops.env` (Ali) | Komga's metadata, as an administrator; komga-wiki uses it too |
-| uchiyomi-scan | Ali's Uchiyomi API token, read + write (`stacks/dmz/uchiyomi/scan.sops.env`) | Uchiyomi's library scans |
+| uchiyomi-scan | Ali's Uchiyomi API token, read + write (`stacks/dmz/uchiyomi-scan/secret.sops.env`) | Uchiyomi's library scans |
 | the comics bot (Discord; its own, not Skynet's) | bot token, `stacks/dmz/comics-agent/secret.sops.env` (Ali) | `#comics`, Ali alone; `comics-tools` reads Ali's ✅ with it |
 | `comics-tools`' Komga API key and Uchiyomi API token | made by Ali under his accounts, `stacks/dmz/comics-agent/tools.sops.env` | Komga's scans; Uchiyomi read + write + admin |
 | the comics agent's Codex login | Ali's ChatGPT subscription (device code), in `/opt/appdata/comics-agent/home` | its model (ADR-0017) |

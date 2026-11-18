@@ -12,8 +12,10 @@ A stack is one folder, `stacks/<target>/<name>/`, deployed by its Docker host's 
 | `secret.sops.env` | it has secrets | dotenv, sops-encrypted for that host only; used through `env_file` |
 | `README.md` | always | the labels below |
 
-A scheduled job (a doco-cd `one_off` job) has no `restart` and no healthcheck, and its folder's
-`.doco-cd.yml` turns reconciliation off (`runbooks/new-stack.md`, step 5).
+A scheduled job (a doco-cd job) has no `restart` and no healthcheck, and its folder's
+`.doco-cd.yml` turns reconciliation off (`runbooks/new-stack.md`, step 5). So a job is a stack of
+its own, never a service beside long-running ones: there reconciliation stays on, each run's exit
+is a `die`, and doco-cd redeploys the stack and posts to `#alerts`.
 
 ## The README
 
