@@ -1,0 +1,22 @@
+name: clu-patches
+# CLU's patches (stacks/dmz/clu/patches) against CLU's pinned image, whenever the stack changes: a
+# Renovate bump of the image runs them against the new one before it merges
+# (stacks/dmz/clu/README.md → Patches). Offline, in a throwaway container on the runner.
+on:
+  pull_request:
+    paths:
+      - stacks/dmz/clu/**
+      - .github/workflows/clu-patches.yml
+  push:
+    branches: [main]
+    paths:
+      - stacks/dmz/clu/**
+      - .github/workflows/clu-patches.yml
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: stacks/dmz/clu/patches/test/run.sh --local

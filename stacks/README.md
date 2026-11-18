@@ -29,7 +29,10 @@ own may sit between them:
 - `- **Upstream:**` its docs;
 - then `**Gotchas**` on a line of its own, and its bullets.
 
-CI checks every stack for `compose.yaml`, `README.md` and these labels (`.github/check-layout.sh`).
+CI checks every stack for `compose.yaml`, `README.md` and these labels, and each `compose.yaml` for
+the folder's rules: a `container_name` and a pinned image for every service, no named volumes, no
+mount of the folder itself, and a job in a stack of its own with reconciliation off
+(`.github/check-layout.sh`).
 
 ## Routing
 
