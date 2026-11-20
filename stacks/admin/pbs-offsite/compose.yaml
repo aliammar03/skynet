@@ -3,7 +3,7 @@
 # chunks before they reached PBS, so rclone copies them as they are.
 x-job: &job
   # The backup stacks' image: it ships rclone and curl, so one pinned image covers all their jobs.
-  image: docker.io/creativeprojects/resticprofile:0.33.1@sha256:4c235a1448bea30d69375033fb5c6eb37724e2b155f6ab10fbf8d18c8cf4a347
+  image: docker.io/creativeprojects/resticprofile:0.35.0@sha256:188ba0f18cf710459de0f2780bcf1df9d454689f69de479ffb79f7f4ff8c7569
   entrypoint: ["/bin/sh", "/etc/pbs-offsite/run.sh"]
   env_file: secret.sops.env # HC_PING_URL
   environment:
