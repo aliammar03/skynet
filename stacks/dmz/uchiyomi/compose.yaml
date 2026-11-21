@@ -69,7 +69,7 @@ services:
   # tag moves only with an Uchiyomi release that names it: it upgrades its database one way.
   uchiyomi-suwayomi:
     container_name: uchiyomi-suwayomi # the name Uchiyomi knows as its bundled engine
-    image: ghcr.io/suwayomi/suwayomi-server:v2.4.2366@sha256:1fac27c387dc2ea9949e1a01ad7f6d6de9d72d3988338a95476748e5c45c4582
+    image: ghcr.io/suwayomi/suwayomi-server:v2.4.2490@sha256:d2ec1264bebcd9cd5d658cd2760571b1ae41409584b89afce7c72b6713640fb1
     restart: unless-stopped
     environment:
       TZ: Asia/Karachi
