@@ -43,6 +43,25 @@ Times are PKT (UTC+5). Report only what the evidence shows; "not found" is an an
 names only addresses, IDs and paths read in the repo or the logs, never guessed ones. Stop once the
 cause is clear: a run has 20 minutes.
 
+## The fix
+
+The report's last line names the fix, exactly one of these. The runner checks it and, until
+`docs/plans/autonomy.md` step 6, only logs it: nothing is applied.
+- `Fix: restart <target>/<stack>`: its containers, when a restart clears it (a stuck worker, a
+  lost mount);
+- `Fix: rerun <target>/<stack>/<job>`: a doco-cd job whose run failed for a passing cause;
+- `Fix: prune <host>`: unused images, on a Docker host's full disk;
+- `Fix: revert #<pr>`: the merge that broke it, by its PR;
+- `Fix: restore <target>/<stack> <snapshot>`: its data from a local snapshot (`skynet-restore list`
+  names them), after an undo point;
+- `Fix: pr <what it changes>`: a change through the gates, for the agent's session to write;
+- `Fix: ali <why>`: Ali's (What Ali still does, in the plan): a step on what the agent doesn't hold,
+  or deleting anything;
+- `Fix: none`: it cleared by itself, or there is nothing to fix.
+
+The target is `admin` or `dmz`, the stack and the job as named in the repo. An alert back within a
+day of a fix gets no second fix: the runner escalates it to Ali.
+
 ## Cases
 
 What to check first for each alert, and the causes seen before.

@@ -131,13 +131,17 @@ let
 
   # `skynet-incident`, each minute: the oldest firing group Alertmanager holds (not silenced, not
   # inhibited, not the watchdogs) that no run has had in a day goes to one run; one a start, so the
-  # timer brings the next. Its report stays in ${state}/reports for the digest.
+  # timer brings the next. The report's fix (runbooks/incident.md → The fix) is checked and, until
+  # step 6, only logged; the report goes to the channel with that note, and stays in
+  # ${state}/reports for the digest.
   incident = pkgs.writeShellApplication {
     name = "skynet-incident";
     runtimeInputs = with pkgs; [
       coreutils
       curl
       findutils
+      git
+      gnused
       jq
       post
       run
@@ -145,11 +149,43 @@ let
     text = ''
       # Paused by hand: `touch ${state}/paused` (the agent or Ali); `rm` resumes.
       [ -e ${state}/paused ] && exit 0
-      mkdir -p ${state}/seen ${state}/reports
-      find ${state}/seen -mindepth 1 -mtime +2 -delete
+      mkdir -p ${state}/seen ${state}/reports ${state}/fixes
+      find ${state}/seen ${state}/fixes -mindepth 1 -mtime +2 -delete
       find ${state} -maxdepth 1 -name 'budget-*' -mtime +2 -delete
       find ${state}/reports -mindepth 1 -mtime +14 -delete
       now=$(date +%s) today=$(date +%F)
+      # <key> <report>: the note on the report's last `Fix:` line. A verb the runner knows, on a
+      # stack that's in the repo, is what it would apply (from step 6); an alert back within a day of
+      # a fix gets none, but Ali.
+      fix_note() {
+        local fix stack
+        fix=$(sed -nE 's/^[*_ ]*Fix[*_ ]*:[*_ ]* *//p' <<<"$2" | tail -n 1)
+        case "$fix" in
+        restart\ * | rerun\ * | restore\ *)
+          stack=$(cut -d' ' -f2 <<<"$fix" | cut -d/ -f1,2)
+          if ! [[ $stack =~ ^(admin|dmz)/[a-z0-9-]+$ ]] || ! git -C ${repo} cat-file -e "origin/main:stacks/$stack/compose.yaml" 2>/dev/null; then
+            echo "_\`Fix: $fix\` names no stack in the repo: nothing would be applied._"
+            return
+          fi
+          ;;
+        "prune docker-admin" | "prune docker-dmz" | revert\ \#[0-9]*) ;;
+        pr\ * | ali\ * | none) return ;;
+        "")
+          echo "_The report names no fix._"
+          return
+          ;;
+        *)
+          echo "_\`Fix: $fix\` isn't one the runner takes (runbooks/incident.md → The fix)._"
+          return
+          ;;
+        esac
+        if [ -e ${state}/fixes/"$1" ] && [ $((now - $(stat -c %Y ${state}/fixes/"$1"))) -lt 86400 ]; then
+          echo "_Back within a day of a fix, so no second one: it's Ali's._"
+        else
+          touch ${state}/fixes/"$1"
+          echo "_Fix (a dry run until step 6): would \`$fix\`. Nothing was applied._"
+        fi
+      }
       # Ops reads Alertmanager's API without a login (stacks/admin/alertmanager/README.md).
       curl -fsS --max-time 20 'https://alerts.aliammar.net/api/v2/alerts/groups?active=true&silenced=false&inhibited=false' |
         jq -c '[.[] | select(any(.alerts[]; .labels.severity != "none" and .status.state == "active"))]
@@ -175,7 +211,9 @@ let
           continue
         fi
         echo $((spent + 1)) >${state}/budget-"$today"
-        jq . <<<"$g" | skynet-run incident "$key" >${state}/reports/"$(date +%F-%H%M)-$key.md"
+        report=$(jq . <<<"$g" | DRY_RUN=1 skynet-run incident "$key") || true
+        printf '%s\n%s\n' "$report" "$(fix_note "$key" "$report")" |
+          tee ${state}/reports/"$(date +%F-%H%M)-$key.md" | skynet-post
         break
       done <${state}/groups
     '';

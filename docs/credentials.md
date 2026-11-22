@@ -9,8 +9,8 @@ outside the lab: `runbooks/survival-kit.md`.
 |---|---|---|
 | Ali | GitHub owner, the age master key, root on the Proxmox nodes, OPNsense and Unraid, the Discord server, the Google, Cloudflare, Tailscale and healthchecks.io accounts | everything |
 | `aliammar-skynet` | classic PAT `public_repo`, `workflow` (`github_token`, `hosts/ops/secret.sops.yaml`) | **Write**: branches, PRs, labels, issues. Can't push `main` (the ruleset), or merge what touches a code owner's file without Ali's review; could merge the rest, but won't (ADR-0013) |
-| ops host key | `hosts/ops/secret.sops.yaml`, `hosts/ops/komga.sops.yaml`, `hosts/ops/uchiyomi.sops.yaml` | ops |
-| the agent (`skynet` on ops) | root on docker-admin, docker-dmz and both DNS servers (sudo), and on PBS (its SSH key from ops, `hosts/ops/agent.pub`); both doco-cd MCPs' restart and job tools (ADR-0011) | those five; everywhere else diagnose only |
+| ops host key | `hosts/ops/secret.sops.yaml`, `hosts/ops/komga.sops.yaml`, `hosts/ops/uchiyomi.sops.yaml`, `hosts/ops/authelia-smoke.sops.yaml` | ops |
+| the agent (`skynet` on ops) | root on docker-admin, docker-dmz and both DNS servers (sudo), and on PBS (its SSH key from ops, `hosts/ops/agent.pub`); both doco-cd MCPs' restart and job tools; power over the guests in pool `skynet` (ADR-0021) | those five, and the pool's guests' power; everywhere else diagnose only |
 | Discord bot "Skynet" | bot token (`discord_bot_token`, `hosts/ops/secret.sops.yaml`) | `#skynet`; the unattended runs' posts (`skynet-post`, a header file curl reads) |
 | Renovate app | the repo's contents and PRs | PRs; it never merges |
 | docker-admin host key | `hosts/docker-admin/secret.sops.yaml`, `stacks/admin/**` | that host |
@@ -28,12 +28,14 @@ outside the lab: `runbooks/survival-kit.md`.
 | PBS `pve@pbs` tokens | `core`, `network`: `DatastoreBackup` on their own namespace; their secrets only in each node's storage entry | PVE's backup jobs; they can't remove a backup |
 | PVE's PBS encryption keys | one per node (PVE-generated); copies in the survival kit | every guest backup's chunks |
 | `skynet@pve` tokens | `read`, PVEAuditor on `/`, one per node (the nodes aren't clustered), held by ops; `metrics`, the same, held by docker-admin's pve-exporter (`stacks/admin/metrics/pve.sops.yml`) | Proxmox, read-only |
+| `skynet@pve!operate` | role `SkynetPower` (VM.PowerMgmt, VM.Audit) on pool `skynet`, one per node, held by ops (`pve_<node>_operate_token`, Ali mints) | power only, over the pool's guests: the window's kernel reboots (ADR-0021) |
 | PBS `metrics@pbs` | token `exporter`: audit on the datastore and the host (`stacks/admin/metrics/secret.sops.env`) | pbs-exporter, read-only |
 | OPNsense `skynet-read` | API key, held by ops: Diagnostics: ARP Table · Diagnostics: Logs: Firewall: Live View · Diagnostics: PF Table IP addresses · Diagnostics: Routing tables · Firewall: Aliases · Firewall: Rules [new] · Lobby: Dashboard · System: Gateways · Tailscale · System: Deny config write | config writes denied; PF tables and Tailscale's service could change at runtime, and the agent leaves them to Ali |
 | OPNsense's exporter user | API key (`stacks/admin/exporters/secret.sops.env`, Ali) | the pages its collectors read; config writes denied |
 | Omada's viewer `exporter` | user and password (`stacks/admin/omada-exporter/secret.sops.env`, Ali) | the controller, read only |
 | Authelia's OIDC clients | admin's `grafana`, `technitium-network`, `technitium-core`; the apps' `aiostreams`, `aiometadata`, `komga`, `uchiyomi`: secrets agent-generated into each app's `oidc.sops.*` (Technitium's in its host's folder), digests in each Authelia's `oidc-clients.yml` | each app's login |
 | the agent's Komga and Uchiyomi admins | passwords in `hosts/ops/komga.sops.yaml` and `hosts/ops/uchiyomi.sops.yaml` (agent-generated; Ali and ops) | those two apps, through their APIs (ADR-0016) |
+| the smoke checks' Authelia account `skynet-smoke` | password and its digest in `hosts/ops/authelia-smoke.sops.yaml` (agent-generated); the digest in both Authelias' `users.sops.yml` (Ali) | a login and nothing more: each Authelia denies it every site |
 | Komf's Komga account `komf@aliammar.net` | password in `stacks/dmz/komga/komf.sops.env` (Ali) | Komga's metadata, as an administrator; komga-wiki uses it too |
 | scan-uchiyomi | Ali's Uchiyomi API token, read + write (`stacks/dmz/scan-uchiyomi/secret.sops.env`) | Uchiyomi's library scans |
 | the comics bot (Discord; its own, not Skynet's) | bot token, `stacks/dmz/comics-agent/secret.sops.env` (Ali) | `#comics`, Ali alone; `comics-tools` reads Ali's ✅ with it |
@@ -47,7 +49,6 @@ Not made yet; each comes with its step in `docs/plans/autonomy.md`.
 
 | Identity | Would hold | Scope |
 |---|---|---|
-| `skynet@pve!operate` | VM.PowerMgmt on pool `skynet`, one per node, held by ops (Ali mints) | power only: the window's kernel reboots |
 | `skynet@pve!provision` | create, change and restore VMs in pool `skynet`, their ISOs on `local` and disks on `local-lvm` (Ali mints) | OpenTofu's plans and applies |
 | OPNsense `skynet-alias` | API key: Firewall: Aliases, with config writes (Ali mints) | the alias sync, for aliases merged in `hosts/opnsense/` |
 | a value two hosts share | one generated value both read: a file of its own beside the host it belongs to, encrypted for both by its own rule in `.sops.yaml` | those two hosts |

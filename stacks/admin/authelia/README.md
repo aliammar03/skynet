@@ -20,7 +20,8 @@
   and `notification.txt` (the one-time codes, since there is no mail server yet).
 - **Secrets:** `secret.sops.env`: `AUTHELIA_SESSION_SECRET`, `AUTHELIA_STORAGE_ENCRYPTION_KEY`,
   `AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET` (random, agent-generated).
-  `users.sops.yml`: the user list with argon2 hashes (Ali).
+  `users.sops.yml`: the user list with argon2 hashes (Ali), and `skynet-smoke`, the smoke check's
+  account, which an access rule denies every site (`smoke.sh`, from ops; `docs/credentials.md`).
 - **Upstream:** [Authelia](https://www.authelia.com/configuration/prologue/introduction/) ·
   [Caddy integration](https://www.authelia.com/integration/proxies/caddy/)
 

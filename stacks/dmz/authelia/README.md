@@ -35,7 +35,8 @@
   `AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET` (random, agent-generated).
   `users.sops.yml`: the users with argon2 hashes: Ali, in `admins`. The family's accounts, in
   `family`, aren't made yet (#213); they keep their Authentik usernames, because both addons name
-  accounts by `preferred_username`.
+  accounts by `preferred_username`. And `skynet-smoke`, the smoke check's account, in no group,
+  which an access rule denies every site (`smoke.sh`, from ops; `docs/credentials.md`).
 - **Upstream:** [Authelia](https://www.authelia.com/configuration/prologue/introduction/) ·
   [Caddy integration](https://www.authelia.com/integration/proxies/caddy/)
 

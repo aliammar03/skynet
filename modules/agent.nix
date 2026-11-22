@@ -22,11 +22,12 @@ let
   home = "/home/skynet";
   repo = "${home}/skynet";
   hasSecrets = builtins.pathExists (../hosts + "/${config.networking.hostName}/secret.sops.yaml");
-  # The Proxmox nodes are standalone (no cluster), so each has its own `skynet@pve!read` token.
-  pveHeader = node: {
+  # The Proxmox nodes are standalone (no cluster), so each has its own `skynet@pve` tokens: `read`
+  # (PVEAuditor on /) and `operate` (power only, on pool skynet: ADR-0021).
+  pveHeader = token: node: {
     owner = "skynet";
     content = ''
-      Authorization: PVEAPIToken=skynet@pve!read=${config.sops.placeholder."pve_${node}_read_token"}
+      Authorization: PVEAPIToken=skynet@pve!${token}=${config.sops.placeholder."pve_${node}_${token}_token"}
     '';
   };
   # A Docker host's doco-cd API key (= its `doco_api_secret`); Claude Code's `headersHelper`
@@ -177,8 +178,14 @@ in
     secrets.pve_network_read_token = { };
     secrets.opnsense_read_key = { };
     secrets.opnsense_read_secret = { };
-    templates."pve-core.header" = pveHeader "core";
-    templates."pve-network.header" = pveHeader "network";
+    templates."pve-core.header" = pveHeader "read" "core";
+    templates."pve-network.header" = pveHeader "read" "network";
+    # Power only, on pool skynet (ADR-0021): the window's kernel reboots, and a guest that doesn't
+    # come back started again. Minted by Ali.
+    secrets.pve_core_operate_token = { };
+    secrets.pve_network_operate_token = { };
+    templates."pve-core-operate.header" = pveHeader "operate" "core";
+    templates."pve-network-operate.header" = pveHeader "operate" "network";
     templates."opnsense.netrc" = {
       owner = "skynet";
       content = ''
@@ -214,6 +221,17 @@ in
       content = builtins.toJSON {
         username = "skynet";
         password = config.sops.placeholder.uchiyomi_password;
+      };
+    };
+    # The smoke checks' account in both Authelias (agent-generated; its digest is in both users
+    # files, and an access rule denies it everything): the body of POST /api/firstfactor.
+    secrets.authelia_smoke_password.sopsFile = ../hosts/ops/authelia-smoke.sops.yaml;
+    templates."authelia-smoke.json" = {
+      owner = "skynet";
+      content = builtins.toJSON {
+        username = "skynet-smoke";
+        password = config.sops.placeholder.authelia_smoke_password;
+        keepMeLoggedIn = false;
       };
     };
   };
