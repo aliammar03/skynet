@@ -307,7 +307,10 @@ verify_host() {
   if [ -z "$down" ]; then pass "scrape: every target up"; else fail "scrape: down: $down"; fi
   if [ "$h" = ops ]; then
     if systemctl is-active --quiet skynet-agent skynet-spawn; then pass "sessions: skynet-agent and skynet-spawn active"; else fail "sessions: $(systemctl is-active skynet-agent skynet-spawn | paste -sd' ')"; fi
-    if timeout 120 claude -p --no-session-persistence 'Reply with the one word: ready' 2>/dev/null | grep -qi ready; then
+    # As bare as skynet-run's runs: no settings (so no plugins: not the Discord one), no MCP server,
+    # no tool.
+    if timeout 120 claude -p --restricted --strict-mcp-config --mcp-config '{"mcpServers":{}}' --tools "" \
+      --no-session-persistence 'Reply with the one word: ready' 2>/dev/null | grep -qi ready; then
       pass "claude: a headless run answers"
     else
       fail "claude: a headless run doesn't answer"
