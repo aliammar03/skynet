@@ -62,10 +62,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: cachix/install-nix-action@3dc140bfc76c49fbd4dd958429132e3746bcb086 # v31.11.5
-      # One build for all of them, so what they share is fetched once. The disk left is printed
-      # because the runner's is small (about 14 GB free).
+      # One build for all of them, so what they share is fetched once.
       - run: |
           hosts=$(nix eval --json .#nixosConfigurations --apply builtins.attrNames | jq -r '.[]')
           nix build --no-link --print-build-logs \
             $(printf '.#nixosConfigurations.%s.config.system.build.toplevel ' $hosts)
-          df -h /
