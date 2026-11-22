@@ -204,6 +204,11 @@ let
         done || true
         printf '\n## Merged to main, the last 24 hours\n'
         git log origin/main --since=24.hours --format='%h %ad %s' --date=format:'%m-%d %H:%M'
+        # The night's window (modules/window.nix): what it would merge and why not, then every
+        # stack's and host's verify; its full log stays in /var/lib/skynet-window/log.
+        printf '\n## The window, last night (a dry run)\n'
+        grep -E '^(# |## |== #|would merge|not merging|  no |verified|  FAIL)' \
+          "/var/lib/skynet-window/log/$(date +%F).txt" 2>/dev/null || echo "no window log for today"
         printf '\n## Open PRs\n'
         (
           set -a

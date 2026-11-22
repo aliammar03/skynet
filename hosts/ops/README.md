@@ -61,6 +61,18 @@ next restart) / 64 GB.
   - State is in `/var/lib/skynet-runs`, with the reports kept 14 days.
   - By hand, as skynet: `DRY_RUN=1 skynet-digest` prints instead of posting, and
     `touch /var/lib/skynet-runs/paused` stops the incident runs.
+- **The merge window** (`modules/window.nix`, ADR-0020), a dry run until `docs/plans/autonomy.md`
+  step 6: it merges nothing.
+  - `skynet-review` (19:00) reviews up to 6 open PRs a night that the window could take
+    (Renovate's and the agent's, tier A or B), each once per commit (`runbooks/review.md`). It
+    pulls a stack's new images on its host first, then posts the run's answer on the PR, marked
+    with the commit and its verdict.
+  - `skynet-window` (05:00) puts every open PR through `skynet-merge` and logs what would merge,
+    then `skynet-verify all`. The log is `/var/lib/skynet-window/log/<date>.txt`, kept 30 days,
+    and the morning digest reads it.
+  - By hand, as skynet: `skynet-verify stack dmz/komga --now`, `skynet-verify host docker-dmz`,
+    `skynet-merge <pr>`, `skynet-review <pr>` (with `DRY_RUN=1`, it prints instead of posting).
+    `touch /var/lib/skynet-window/paused` stops the window.
 - **LAN Nix cache:** harmonia on :5000 (`modules/nix-cache.nix`) serves ops's store to every other host
   (they're clients via `base.nix`). ops admits 10.10.0.0/16, and the OPNsense alias
   `ROLE_NIX_CACHE_CLIENTS` decides which hosts get through: a new host needs adding there. `nix-cache-key` generates the signing key once

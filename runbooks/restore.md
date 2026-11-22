@@ -49,6 +49,9 @@ ssh skynet@<host> sudo skynet-restore local <stack> <snapshot>
   5. puts the marker back, starts the containers, then doco-cd.
 
   It ends by printing the undo: `skynet-restore local <stack> <undo snapshot>`.
+- A rollback after a bad update: `--whole` puts the cache folders back too, since an old version
+  can't read a newer one's cache (an older Redis, a newer dump). It loses only what the new version
+  wrote (`docs/plans/autonomy.md` → Verify and roll back).
 - One file: `--to <dir>` copies the stack's folder there, with nothing stopped; take the file from it.
 - Check: the app's Gatus row, and `journalctl CONTAINER_NAME=<container> -n 50 -o cat`.
 - A stack whose search index is a cache (karakeep's meilisearch) may need a reindex in the app.

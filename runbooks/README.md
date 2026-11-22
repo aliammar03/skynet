@@ -15,3 +15,5 @@ How recurring jobs are done here, step by step. Each states who does what (agent
 - [`incident.md`](incident.md), [`digest.md`](digest.md), [`report.md`](report.md): what the
   agent's unattended runs do with an alert, each morning and each Monday (`modules/agent-runs.nix`).
   Each run reads one as its instructions.
+- [`review.md`](review.md): the evening review of each PR the merge window could take
+  (`modules/window.nix`); code-owned, since the window merges on what it says.
