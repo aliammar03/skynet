@@ -4,7 +4,7 @@
 services:
   aiometadata:
     container_name: aiometadata
-    image: ghcr.io/cedya77/aiometadata:3.8.3@sha256:8a24bd90711e42a817baa20594cba3e08bbd340d859c6c5c9222be6f5f3eafd8
+    image: ghcr.io/cedya77/aiometadata:4.1.0@sha256:c17e1aa7c670055e14dea99087cfe18ff07fa6ea4dfce9c3484830a718e066ce
     restart: unless-stopped
     init: true
     # secret.sops.env (from v1): ADMIN_KEY, IMAGE_PROXY_SIGNING_SECRET, DATABASE_URI, the TMDB, TVDB,
