@@ -1,9 +1,15 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "The window's input (docs/plans/autonomy.md → Merges): one PR per stack, labelled with its tier, written on Monday mornings only and left alone the rest of the week, so the evening review and the window see one fixed commit. Renovate never merges. A release whose time the registry gives waits its age here; one with none (every ghcr.io, quay.io and lscr.io image, several of docker.io's, every digest) waits in skynet-merge, 3 days from the PR's newest commit.",
   "extends": ["config:recommended"],
   "timezone": "Asia/Karachi",
   "dependencyDashboard": true,
   "nix": { "enabled": true },
+  "schedule": ["before 6am on monday"],
+  "updateNotScheduled": false,
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 0,
+  "minimumReleaseAgeBehaviour": "timestamp-optional",
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": ["before 6am on monday"]
@@ -31,18 +37,6 @@
       "matchDatasources": ["docker"],
       "matchPackageNames": ["ghcr.io/karakeep-app/karakeep-chrome"],
       "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)\\.(?<build>\\d+)-r(?<revision>\\d+)$"
-    },
-    {
-      "description": "VictoriaMetrics and vmalert are one release: one PR for the store and both vmalerts",
-      "matchDatasources": ["docker"],
-      "matchPackageNames": ["docker.io/victoriametrics/victoria-metrics", "docker.io/victoriametrics/vmalert"],
-      "groupName": "VictoriaMetrics"
-    },
-    {
-      "description": "VictoriaLogs and vlagent are one release (one repository, one version): one PR, so vlagent never runs ahead of the store it writes to",
-      "matchDatasources": ["docker"],
-      "matchPackageNames": ["docker.io/victoriametrics/victoria-logs", "docker.io/victoriametrics/vlagent"],
-      "groupName": "VictoriaLogs"
     },
     {
       "description": "Meilisearch follows karakeep's own pin (its docker/docker-compose.yml): a newer one can't open the index without a migration",
@@ -73,19 +67,40 @@
       "allowedVersions": "!/^v?1\\.120\\./"
     },
     {
-      "description": "Until the agent merges updates in its nightly window (docs/plans/autonomy.md → Merges), the low-risk ones come as one PR a week, opened or updated on Monday morning: every digest and patch, and minors from 1.0 up. Majors, 0.x minors (semver lets those break) and doco-cd (it deploys everything else) still come one PR each. Last in the list, so it wins over the groups above; those stay together inside it.",
-      "matchUpdateTypes": ["digest", "patch"],
-      "matchPackageNames": ["!ghcr.io/kimdre/doco-cd"],
-      "groupName": "weekly updates",
-      "schedule": ["before 6am on monday"]
+      "description": "A release's age, where the registry gives its time: 3 days for a digest or patch",
+      "matchUpdateTypes": ["digest", "pin", "pinDigest", "patch"],
+      "minimumReleaseAge": "3 days"
     },
     {
-      "description": "Minors from 1.0 up join the weekly PR (see above)",
+      "description": "7 days for a minor",
       "matchUpdateTypes": ["minor"],
-      "matchCurrentVersion": "/^v?[1-9]/",
-      "matchPackageNames": ["!ghcr.io/kimdre/doco-cd"],
-      "groupName": "weekly updates",
-      "schedule": ["before 6am on monday"]
+      "minimumReleaseAge": "7 days"
+    },
+    {
+      "description": "14 days for a major",
+      "matchUpdateTypes": ["major"],
+      "minimumReleaseAge": "14 days"
+    },
+    {
+      "description": "One PR per stack, so a PR is what verify checks and a rollback undoes (a major gets its own). Tier A: the window merges it",
+      "matchFileNames": ["stacks/**"],
+      "groupName": "{{packageFileDir}}",
+      "addLabels": ["tier:A"]
+    },
+    {
+      "description": "Tier B, a host's: the flake's inputs and the images pinned in Nix (doco-cd, Apprise). Each its own PR",
+      "matchFileNames": ["flake.nix", "flake.lock", "**/*.nix"],
+      "addLabels": ["tier:B"]
+    },
+    {
+      "description": "The weekly flake.lock is a host change too",
+      "matchUpdateTypes": ["lockFileMaintenance"],
+      "addLabels": ["tier:B"]
+    },
+    {
+      "description": "Tier C, Ali's: Unraid's exporters, which he applies, and CI's actions, which are code-owned",
+      "matchFileNames": ["hosts/unraid/**", ".github/**"],
+      "addLabels": ["tier:C"]
     }
   ]
 }

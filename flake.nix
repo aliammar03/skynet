@@ -70,6 +70,14 @@
         technitium-sync = pkgs.callPackage ./packages/technitium-sync { };
         technitium-stats = pkgs.callPackage ./packages/technitium-stats { };
         dnsbench = pkgs.callPackage ./packages/dnsbench { };
+        # The merge window's (modules/window.nix builds them with ops's values).
+        skynet-verify = pkgs.callPackage ./packages/skynet-verify { };
+        skynet-merge = pkgs.callPackage ./packages/skynet-merge {
+          inherit (self.packages.${system}) skynet-verify;
+        };
+        skynet-window = pkgs.callPackage ./packages/skynet-window {
+          inherit (self.packages.${system}) skynet-merge skynet-verify;
+        };
       };
 
       # `nix run .#secret -- <sops file> <KEY>` (AGENTS.md, rule 3): a third-party token into a

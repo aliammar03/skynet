@@ -24,6 +24,7 @@ What the lab decided, and who decided it when: one file per decision, in
 | [0017](0017-a-comics-agent-of-its-own.md) | A comics agent of its own runs the library's day to day | accepted | 2026-11-05 |
 | [0018](0018-the-arena.md) | The arena: a bench for testing agents on Ali's subscriptions | accepted | 2026-11-05 |
 | [0019](0019-one-layout-and-how-work-is-tracked.md) | One layout, and work tracked as issues, plans and records | accepted | 2026-11-16 |
+| [0020](0020-the-window-is-ours-around-mature-tools.md) | The merge window is three small programs of our own, around mature tools | accepted | 2026-11-22 |
 
 ## A new record
 

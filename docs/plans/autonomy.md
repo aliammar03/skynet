@@ -81,7 +81,8 @@ version number says.
   Unraid's disk has reflinks (2026-11-15), so they are A.
 - **`backup` and `pbs-offsite`** are A: what they write to Drive can be made again from PBS's
   datastore and its copies. Their verify runs the job and waits for its exit, so they go last in
-  the night.
+  the night. A run goes through doco-cd's own trigger (step 6); until then `skynet-merge` leaves a
+  stack of jobs alone, and verify reads doco-cd's counts of each job's runs and failures.
 - **Doors and Authelia** are stacks like any other: a broken door shows within minutes, and its
   revert deploys. **comin** and **doco-cd** are B: the timed rollback proves each still fetches and
   deploys before it merges.
@@ -89,10 +90,12 @@ version number says.
   rollback undoes, and labels each with its tier (`renovate.json`). The agent may raise a tier,
   never lower one.
 - **A release's age:** 3 days for a digest or patch, 7 for a minor, 14 for a major, by Renovate
-  (`minimumReleaseAge`) where the registry gives a release's time. Where it gives none (ghcr.io and
-  quay.io; the dry run lists them), Renovate would hold the update forever. There it writes the PRs
-  on Mondays only, and `skynet-merge` waits until the PR's newest commit is 3 days old, whatever the
-  update.
+  (`minimumReleaseAge`) where the registry gives a release's time. Most give none: Renovate's lookup
+  on 2026-11-22 found no time for any ghcr.io, quay.io or lscr.io image, for several of docker.io's
+  (grafana, victoria-metrics, vmalert, cloudflared) or for any digest. Renovate would hold those
+  forever, so it takes them as released (`timestamp-optional`). It writes every PR on Mondays only
+  and leaves it alone the rest of the week, and `skynet-merge` waits until a Renovate PR's newest
+  commit is 3 days old, whatever the update: the week's updates go out from Thursday.
 - **The review**, written on the PR by an evening run: the release notes between the two versions,
   and for a major its migration, done in the same PR where it touches git; upstream issues opened
   since the release; the new images pre-pulled on the host. It names the commit it read, and only
@@ -112,16 +115,17 @@ version number says.
 - **A rolled-back update isn't tried again as it was.** The agent's next review must name what
   changed (a newer version, a fix in the PR). A second failure goes to Ali with the evidence.
 - **Where they live:** `packages/skynet-merge/`, `packages/skynet-verify/` and
-  `packages/skynet-window/`, flake packages that `modules/window.nix` runs on ops. All four paths
-  are code-owned: they stand in for Ali's review.
+  `packages/skynet-window/`, flake packages that `modules/window.nix` runs on ops, with the evening
+  review (`skynet-review` there, `runbooks/review.md`). All five paths are code-owned: they stand
+  in for Ali's review (ADR-0020).
 
 ## Verify and roll back
 
 - **`skynet-verify`** (ops; deterministic, so the agent doesn't grade its own work):
-  - a stack: doco-cd's run for it succeeded; every container healthy for 5 minutes, with no
-    restarts; its Gatus rows green on results newer than the deploy; its error lines in
-    VictoriaLogs not well above the same time the day before; its smoke check passing as it did
-    before the merge;
+  - a stack: each container runs the image the commit names, and doco-cd counted no failed deploy
+    of it; every container healthy for 5 minutes, with no restarts; its Gatus rows green on results
+    newer than the deploy; its error lines in VictoriaLogs not well above the same time the day
+    before (3 times, plus 10, to begin with); its smoke check passing as it did before the merge;
   - a host: comin reports `main`'s commit (after a merge) and fetches; no failed units; every scrape
     target up; Gatus green. On ops also: the agent's sessions up, a headless `claude -p` answering,
     SSH to every host.
@@ -130,8 +134,8 @@ version number says.
 - **Nothing merges that verify can't see.** CI fails a long-running service with neither a
   healthcheck nor a stated reason for none, and a routed app with no Gatus row. Where a health
   endpoint doesn't show use, the stack has a smoke check (`smoke.sh` in its folder, run from ops):
-  a login through each Authelia with an account of the agent's own (generated), a page read from
-  Komga and Uchiyomi (ADR-0016's accounts).
+  a page read from Komga and Uchiyomi (ADR-0016's accounts), and a login through each Authelia with
+  an account of the agent's own (generated; Ali adds it to each users file, with the new verbs).
 - **The undo point:** seconds before each merge, `skynet-merge` has btrbk snapshot `/opt/appdata`,
   read-only and instant, on both Docker hosts.
 - **A failed stack:** the revert PR merges and deploys; then

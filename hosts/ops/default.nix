@@ -8,6 +8,7 @@
     ../../modules/agent.nix
     ../../modules/agent-runs.nix
     ../../modules/pbs-drift.nix
+    ../../modules/window.nix
   ];
 
   networking.hostName = "ops";

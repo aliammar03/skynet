@@ -12,6 +12,9 @@ decision record naming the mature tools it ruled out (`AGENTS.md`, rule 6).
 | `technitium-sync` | both DNS servers (`modules/dns.nix`) | `dns/` applied to Technitium (`dns/README.md`) |
 | `technitium-stats` | both DNS servers (`modules/dns.nix`) | Technitium's last hour, for node-exporter |
 | `dnsbench` | by hand, on ops | Technitium's forwarders chosen by measurement (`runbooks/dns-speed-test.md`) |
+| `skynet-verify` | ops (`modules/window.nix`), and by hand | whether a stack or a host is well after a change, with its evidence (ADR-0020) |
+| `skynet-merge` | ops (`modules/window.nix`) | whether the window may merge a PR now, gate by gate (ADR-0020) |
+| `skynet-window` | ops, 05:00 (`modules/window.nix`) | the night's merge window: every open PR through `skynet-merge`, then `skynet-verify all`; a dry run until `docs/plans/autonomy.md` step 6 |
 
 ## Our own programs elsewhere
 
@@ -21,6 +24,8 @@ a stack's stays in its folder. So the whole list is this table and the one above
 | Program | Where | What |
 |---|---|---|
 | `skynet-run`, `skynet-incident`, `skynet-digest`, `skynet-report`, `skynet-post` | `modules/agent-runs.nix` | the agent's unattended runs (`hosts/ops/README.md` → Unattended runs) |
+| `skynet-review` | `modules/window.nix` | the evening review of the PRs the window could take (`runbooks/review.md`) |
+| the smoke checks, `smoke.sh` | `stacks/dmz/komga/`, `stacks/dmz/uchiyomi/` | a page read through the app, for `skynet-verify` |
 | `skynet-claude`, `skynet-attach` | `modules/agent.nix` | the agent's sessions on ops |
 | `pbs-drift` | `modules/pbs-drift.nix` | PBS's config against `hosts/pbs/etc/`, every morning |
 | the hooks: comin's notice, btrbk's stamp and `latest` link, `storage-keepalive` | `modules/base.nix`, `modules/docker-host.nix`, `hosts/docker-dmz/default.nix` | a few lines each, beside what calls them |

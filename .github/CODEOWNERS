@@ -19,6 +19,8 @@
 /packages/skynet-merge/   @aliammar03
 /packages/skynet-verify/  @aliammar03
 /packages/skynet-window/  @aliammar03
+# The evening review's runbook: the window merges on what that run says.
+/runbooks/review.md       @aliammar03
 
 # The perimeter: the firewall's aliases (from their PR, step 9). No snapshot undoes an exposure.
 /hosts/opnsense/          @aliammar03

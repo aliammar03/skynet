@@ -7,8 +7,9 @@
 usage() {
   cat >&2 <<'EOF'
 usage: skynet-restore list [<stack>]
-       skynet-restore local <stack>|--all <snapshot> [--to <dir>]
+       skynet-restore local <stack>|--all <snapshot> [--whole] [--to <dir>]
        skynet-restore drive <stack>|--all [<snapshot>] [--to <dir>]   (default: latest)
+--whole: the caches too (a rollback: an older version can't read a newer one's cache)
 EOF
   exit 2
 }
@@ -74,8 +75,15 @@ restic_env() {
 name_ok() { [[ $1 =~ ^[a-z0-9][a-z0-9-]*$ ]] || die "'$1' isn't a stack name"; }
 
 # <stack>: its cache folders, relative to its own folder. A restore neither restores nor deletes
-# them.
-keep() { sed -n "s|^$appdata/$1/|/|p" "$EXCLUDES" >"$tmp/keep-$1"; }
+# them, but --whole does: a rollback puts back the cache the old version wrote, since an old Redis
+# can't read a newer one's dump.
+keep() {
+  if [ -n "$whole" ]; then
+    : >"$tmp/keep-$1"
+  else
+    sed -n "s|^$appdata/$1/|/|p" "$EXCLUDES" >"$tmp/keep-$1"
+  fi
+}
 
 # --all | <stack>…: doco-cd stopped, then the stacks' running containers (every Compose project's
 # for --all), caches included. The record lists them first, so the restore that ends the hold
@@ -128,8 +136,14 @@ target=${1:-}
 shift
 [ "$target" = --all ] || name_ok "$target"
 snap=
-if [ -n "${1:-}" ] && [ "$1" != --to ]; then
+if [ -n "${1:-}" ] && [ "$1" != --to ] && [ "$1" != --whole ]; then
   snap=$1
+  shift
+fi
+whole=
+if [ "${1:-}" = --whole ]; then
+  [ "$source" = local ] || die "--whole is for a local snapshot: Drive's copies hold no caches"
+  whole=true
   shift
 fi
 dir=
