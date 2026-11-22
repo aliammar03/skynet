@@ -25,7 +25,7 @@ services:
     # door and Gatus use `edge`.
     ports: ["127.0.0.1:9428:9428"]
     networks: [edge]
-    # No healthcheck: the image is only the binary. Gatus checks /health.
+    x-no-healthcheck: the image is only the binary; Gatus checks /health
 
   vlagent:
     container_name: vlagent
@@ -66,7 +66,7 @@ services:
     # The host's network, so the host firewall decides which hosts may send
     # (hosts/docker-admin/default.nix): a published port would bypass it.
     network_mode: host
-    # No healthcheck: the image is only the binary. Gatus checks /health.
+    x-no-healthcheck: the image is only the binary; Gatus checks /health
 
   # vmalert for LogsQL rules (one datasource per vmalert, as VictoriaMetrics advises). Its alerts'
   # state goes to VictoriaMetrics, beside the metrics vmalert's, and comes back on its first

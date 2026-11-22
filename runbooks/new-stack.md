@@ -46,8 +46,12 @@ networks:
 ```
 
 - **Never mount the stack folder itself.** doco-cd decrypts `secret.sops.env` into it on deploy.
-- Use the image's own healthcheck if it has one. An exec-form check needs its tool (`wget`, `curl`)
-  in the image. An image with neither can't have one: say so in a comment and cover it with Gatus.
+- Use the image's own healthcheck if it has one
+  (`nix run nixpkgs#skopeo -- inspect --config --raw docker://<image>@sha256:<digest>` →
+  `.config.Healthcheck`), and say so in a comment. An exec-form check needs its tool (`wget`,
+  `curl`) in the image. An image with neither can't have one: say why in
+  `x-no-healthcheck: <why>` on the service, and cover it with Gatus. CI fails a long-running service
+  with none of the three (`.github/check-health.sh`).
 - Write `$$VAR` for a variable the container's shell reads at run time; `$VAR` is compose's.
 - **tmpfs:** give each one an explicit mode (`"/path:mode=1777"`). Docker 29 creates a plain tmpfs
   as `1777`, but brings it back as `755 root` after a stop and start, a crash restart included. A
@@ -106,6 +110,8 @@ handle @<name> {
 - A stack on another host: through its door, `https://<name>.aliammar.net`, expecting `302` behind
   Authelia. That resolves through Technitium to the door's IP and crosses OPNsense, so docker-admin
   needs a rule to that door on :443. Rule 235 covers the doors in `ROLE_ADMIN_TARGETS`.
+- CI fails a site file with no row: one whose URL's host is the site's host or its upstream
+  (`.github/check-layout.sh`).
 
 ## 5. A scheduled job instead of a service
 

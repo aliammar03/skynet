@@ -15,8 +15,9 @@ services:
       - ./config:/config:ro
       - /opt/appdata/gatus:/data # sqlite: check history
     networks: [edge]
-    # No healthcheck: the image is only the binary (no shell or curl). heartbeat pings healthchecks.io
-    # only while Gatus answers /health, so a dead Gatus pages from outside.
+    # heartbeat pings healthchecks.io only while Gatus answers /health, so a dead Gatus pages from
+    # outside.
+    x-no-healthcheck: the image is only the binary, with no shell or curl
 networks:
   edge:
     external: true

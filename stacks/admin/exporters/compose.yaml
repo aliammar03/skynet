@@ -44,7 +44,7 @@ services:
     read_only: true
     cap_drop: [ALL]
     networks: [edge]
-    # No healthcheck: the image is only the binary. VictoriaMetrics' `up` and `opnsense_up` cover it.
+    x-no-healthcheck: the image is only the binary; VictoriaMetrics' `up` and `opnsense_up` cover it
 
 networks:
   edge:

@@ -64,6 +64,19 @@ for t in stacks/*/; do
   done
 done
 
+# Every routed app has a Gatus row, so verify sees it answer through its door
+# (docs/plans/autonomy.md → Verify and roll back): a row or suite step whose URL's host is one of the
+# site's hosts or one of its upstreams. A site with none says why in a line `# No Gatus row: <why>`.
+rows=$(for g in stacks/admin/gatus/config/*.yaml; do
+  yq -o=json 'explode(.)' "$g" | jq -r '(.endpoints // [])[], ((.suites // [])[].endpoints[]) | .url'
+done | sed -E 's#^[a-z]+://##; s#[:/].*$##' | sort -u)
+for f in stacks/*/caddy-*/conf/sites/*.conf; do
+  grep -q '^# No Gatus row: ' "$f" && continue
+  hosts=$(sed -nE 's#^@[^ ]+ host (.+)$#\1#p; s#^\s*reverse_proxy\s+(https?://)?([^:/ {]+).*#\2#p' "$f" | tr ' ' '\n')
+  grep -qxFf <(printf '%s\n' "$hosts") <<<"$rows" ||
+    err "$f" "$f routes $(sed -nE 's#^@[^ ]+ host (.+)$#\1#p' "$f" | head -n1), which has no Gatus row: add one, or say why in '# No Gatus row: <why>' (stacks/README.md → Routing)"
+done
+
 for d in hosts/*/; do
   [ -f "${d}README.md" ] || err "${d%/}" "${d%/} has no README.md (hosts/README.md)"
 done
