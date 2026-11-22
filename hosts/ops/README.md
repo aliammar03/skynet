@@ -30,6 +30,15 @@ next restart) / 64 GB.
     caddy-admin for the browser path; their certs name the IPs;
   - `curl -sk --netrc-file /run/secrets/rendered/opnsense.netrc https://10.10.50.1/api/…`: `-k`,
     because its pinned cert names a host, not the IP.
+- **Power over its guests (ADR-0021):** `pve_core_operate_token`, `pve_network_operate_token`
+  (`skynet@pve!operate`, role `SkynetPower`: VM.PowerMgmt and VM.Audit on pool `skynet`, which
+  holds ops, docker-dmz, technitium-core and PBS on core, docker-admin and technitium-network on
+  network). Rendered as `pve-core-operate.header` and `pve-network-operate.header`, used like the
+  read ones; for the window's reboots alone.
+- **The smoke checks' Authelia account** `skynet-smoke`: `authelia_smoke_password`
+  (`hosts/ops/authelia-smoke.sops.yaml`), rendered whole as `authelia-smoke.json`, the body of
+  `POST /api/firstfactor` that `stacks/<target>/authelia/smoke.sh` sends. Each Authelia denies it
+  every site.
 - **Komga and Uchiyomi (ADR-0016):** `komga_password` (`hosts/ops/komga.sops.yaml`) and
   `uchiyomi_password` (`hosts/ops/uchiyomi.sops.yaml`), the agent's admin accounts, through
   caddy-apps like any visitor:

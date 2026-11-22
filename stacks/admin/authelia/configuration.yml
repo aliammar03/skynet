@@ -76,6 +76,11 @@ access_control:
       methods: [DELETE]
       networks: [10.10.90.91/32]
       policy: bypass
+    # The smoke checks' account (skynet-verify, smoke.sh): its login is the check, and it reaches
+    # nothing.
+    - domain: '*.aliammar.net'
+      subject: ['user:skynet-smoke']
+      policy: deny
     - domain: '*.aliammar.net'
       policy: two_factor
 

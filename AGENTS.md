@@ -16,10 +16,11 @@ each kind of thing lives; work in flight is in `docs/plans/`.
 4. **Lanes:** diagnose (read anything except secrets) · operate (only the granted verbs: root on
    docker-admin, docker-dmz, PBS and the two DNS servers, both Docker hosts' doco-cd MCP restart and
    job tools, and an Alertmanager silence for your own planned work, ending within 4 hours, its
-   comment naming the work, ADR-0011; reading Unraid's copies on PBS and docker-dmz to put back what
-   was lost, ADR-0015; admin of Komga and Uchiyomi through their APIs, ADR-0016) · change (PR) ·
-   never (merge, private keys or a Docker socket outside those hosts, OPNsense / Proxmox host /
-   Unraid config, deleting data). Root changes nothing about rule 2: a fix by hand is followed by
+   comment naming the work; power over the guests in Proxmox pool `skynet` for the window's
+   reboots, ADR-0021; reading Unraid's copies on PBS and docker-dmz to put back what was lost,
+   ADR-0015; admin of Komga and Uchiyomi through their APIs, ADR-0016) · change (PR) · never
+   (merge, private keys or a Docker socket outside those hosts, OPNsense / Proxmox host / Unraid
+   config, deleting data). Root changes nothing about rule 2: a fix by hand is followed by
    its PR, or undone.
 5. **Hard checkpoints — stop and ask Ali:** credentials, destroying anything, OPNsense / Proxmox host /
    Unraid / Cloudflare / Google account changes, work of several PRs without a merged plan, or work

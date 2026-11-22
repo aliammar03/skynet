@@ -36,6 +36,11 @@ totp:
 access_control:
   default_policy: deny
   rules:
+    # The smoke checks' account (skynet-verify, smoke.sh): its login is the check, and it reaches
+    # nothing.
+    - domain: '*.aliammar.net'
+      subject: ['user:skynet-smoke']
+      policy: deny
     # Ali only: none of these has a login of its own (Marinara's, Suwayomi's, SABnzbd's and
     # JDownloader's are switched off; CLU is single-user, which has none).
     - domain:

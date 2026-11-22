@@ -7,7 +7,9 @@ An outline: it is fleshed out into steps, in a PR, before any of it runs. v1's g
 
 ## v1's credentials, revoked
 
-- Proxmox: the `svc-ops` tokens.
+- Proxmox, on both nodes (read 2026-11-22): user `svc-ops@pve` with its tokens `operate` and
+  `readonly`; its role `OpsOperator` (on core, granted on `/`: VM.Allocate, VM.Config.*,
+  VM.GuestAgent.FileWrite, VM.Snapshot.Rollback and more); its pool `ops-managed` (HAOS and athena).
 - The Technitium, Cloudflare and Authentik tokens.
 - OPNsense's `svc-skynet-recon`; Omada's viewer; the v1 GitHub PAT; v1's healthchecks.io checks;
   v1's rclone client.
