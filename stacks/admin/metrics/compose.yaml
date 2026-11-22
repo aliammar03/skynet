@@ -108,7 +108,7 @@ services:
       # changes this file, so doco-cd recreates the container and it loads the new one.
       skynet.pinned-cert: "12:56:6E:42:12:42:CF:17:1C:94:79:75:E2:07:DE:7B:2C:B1:2C:62:32:1B:DA:EB:8E:8B:6A:20:39:4F:3E:B7"
     networks: [backend]
-    # No healthcheck: the image is only the binary. VictoriaMetrics' `up` and `pbs_up` cover it.
+    x-no-healthcheck: the image is only the binary; VictoriaMetrics' `up` and `pbs_up` cover it
 
   # The agent's eyes: VictoriaMetrics' query tools over MCP, at
   # metrics.aliammar.net/mcp (the door routes /mcp here; Authelia lets ops through). Read-only: the

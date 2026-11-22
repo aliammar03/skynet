@@ -23,7 +23,9 @@
   (`hosts/pbs/README.md` → Updates), `nix run .#secret` (`AGENTS.md`, rule 3);
 - incidents, investigated and reported only; the morning digest and the weekly report
   (`hosts/ops/README.md` → Unattended runs, `runbooks/incident.md`, `digest.md`, `report.md`);
-- docker-admin's data on a btrfs disk of its own (`hosts/docker-admin/README.md` → Data).
+- docker-admin's data on a btrfs disk of its own (`hosts/docker-admin/README.md` → Data);
+- step 5's checks: CI builds every host, and fails a long-running service with no healthcheck and a
+  routed app with no Gatus row (`.github/workflows/check.yml`, `stacks/README.md`).
 
 ## What Ali still does
 
@@ -249,13 +251,16 @@ through the gates. A fix that touches data takes an undo point first.
 
 Steps 1–4 are built (above).
 
-5. **Merges PR, as a dry run:** `renovate.json` (one PR per stack, the tiers, the release ages);
-   CI: every host built (`build`, which Ali adds to the ruleset), and the healthcheck and Gatus-row
-   checks, with the healthchecks, rows and smoke checks they ask for; the evening review;
-   `packages/skynet-merge/`, `skynet-verify/` and `skynet-window/` with `modules/window.nix`: the
-   undo point, the rollback (`skynet-restore --whole`) and the window, which for a week logs what it
-   would merge and verifies what's live; PVE `operate` (Ali mints) and the kernel reboots, which run in the window;
-   the incident fixes, logged only.
+5. **Merges, as a dry run,** in three PRs:
+   - **the checks** (built): CI builds every host (`build`, which Ali adds to the ruleset), and fails
+     a long-running service with no healthcheck and a routed app with no Gatus row;
+   - **the window:** `renovate.json` (one PR per stack, the tiers, the release ages); the evening
+     review; `packages/skynet-merge/`, `skynet-verify/` and `skynet-window/` with
+     `modules/window.nix`: the undo point, the smoke checks, the rollback
+     (`skynet-restore --whole`) and the window, which for a week logs what it would merge and
+     verifies what's live;
+   - **the new verbs, logged only:** the incident fixes; PVE `operate` (Ali mints) and the kernel
+     reboots, which run in the window.
 6. **Live, on Ali's call** after the dry-run week and a drill (a bad update to a real stack, merged
    in a window, rolled back with its data): the window merges and the incident fixes apply; a
    record superseding ADR-0013, rule 1 and `AGENTS.md`.

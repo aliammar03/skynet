@@ -30,8 +30,10 @@ jobs:
           git ls-files -z 'packages/*.sh' | xargs -0 nix run --inputs-from . nixpkgs#shellcheck -- --shell=bash
           git ls-files -z '*.sh' ':!packages' | xargs -0 nix run --inputs-from . nixpkgs#shellcheck -- --exclude=SC1091
           git ls-files -z '*.py' | xargs -0 nix run --inputs-from . nixpkgs#ruff -- check --no-cache --isolated --select E9,F63,F7,F82
-      # Evaluate every host and output; building happens on the host (comin keeps the current
-      # generation if a build fails), so a full build here would only cost time.
+      # Every long-running service shows its health, the image's own read from its registry
+      # (.github/check-health.sh).
+      - run: nix shell --inputs-from . nixpkgs#skopeo -c .github/check-health.sh
+      # Every output evaluates; the job `build` builds the hosts.
       - run: nix flake check --no-build
       # The observability configs, each checked by the image that runs it (taken from its
       # compose.yaml, so a Renovate bump checks with the new version): the scrape targets (unknown
@@ -51,3 +53,19 @@ jobs:
             "$(img alertmanager alertmanager)" check-config /am.yml
           # Grafana's boards parse (Grafana skips one that doesn't, with only a log line).
           for f in stacks/admin/grafana/dashboards/*/*.json; do jq -e . "$f" >/dev/null || { echo "bad JSON: $f"; exit 1; }; done
+
+  # Every host built, as comin builds it on the host, so a host change merges only once it builds
+  # (docs/plans/autonomy.md → Merges, tier B). The lab's cache is out of reach (ADR-0003), so this
+  # takes cache.nixos.org's and builds what it lacks: our own scripts and configs, and claude-code.
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: cachix/install-nix-action@3dc140bfc76c49fbd4dd958429132e3746bcb086 # v31.11.5
+      # One build for all of them, so what they share is fetched once. The disk left is printed
+      # because the runner's is small (about 14 GB free).
+      - run: |
+          hosts=$(nix eval --json .#nixosConfigurations --apply builtins.attrNames | jq -r '.[]')
+          nix build --no-link --print-build-logs \
+            $(printf '.#nixosConfigurations.%s.config.system.build.toplevel ' $hosts)
+          df -h /

@@ -8,7 +8,7 @@ A stack is one folder, `stacks/<target>/<name>/`, deployed by its Docker host's 
 
 | File | When | Content |
 |---|---|---|
-| `compose.yaml` | always | `container_name: <name>` (not compose's `<project>-<service>-1`); images pinned `tag@sha256:…`; a healthcheck; `restart: unless-stopped`; network `edge` (the doors also join their macvlan; the exceptions are in Networks) |
+| `compose.yaml` | always | `container_name: <name>` (not compose's `<project>-<service>-1`); images pinned `tag@sha256:…`; a healthcheck, the image's own or one here (an image with none and no tool to run one: `x-no-healthcheck: <why>`); `restart: unless-stopped`; network `edge` (the doors also join their macvlan; the exceptions are in Networks) |
 | `secret.sops.env` | it has secrets | dotenv, sops-encrypted for that host only; used through `env_file` |
 | `README.md` | always | the labels below |
 
@@ -37,7 +37,10 @@ own may sit between them:
 CI checks every stack for `compose.yaml`, `README.md` and these labels, and each `compose.yaml` for
 the folder's rules: a `container_name` and a pinned image for every service, no named volumes, no
 mount of the folder itself, a job in a stack of its own with reconciliation off, and no stack name
-that begins with another's (`.github/check-layout.sh`).
+that begins with another's (`.github/check-layout.sh`). It also checks that every long-running
+service has a healthcheck, reading an image's own from its registry, or `x-no-healthcheck`
+(`.github/check-health.sh`): verify reads a stack's health after each update
+(`docs/plans/autonomy.md` → Verify and roll back).
 
 ## Routing
 
@@ -48,7 +51,8 @@ that begins with another's (`.github/check-layout.sh`).
 - A routed app's site file lives in its door: `conf/sites/<name>.conf` (`@x host x.aliammar.net` +
   `handle @x { [import authelia] reverse_proxy <container>:<port> }`); the door reloads it in place.
 - Every app gets a row in Gatus's `config/admin.yaml`: Gatus runs on docker-admin and checks every
-  host.
+  host. CI fails a site file with none: a row whose URL's host is one of the site's hosts or
+  upstreams. A site with no row says why in a line `# No Gatus row: <why>` (Gatus's own site).
 - No container mounts a stack's folder itself, because doco-cd writes the decrypted secrets into
   it. Mount single files, or subfolders without `*.sops.*` files.
 
