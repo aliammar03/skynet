@@ -6,7 +6,7 @@
 services:
   uchiyomi:
     container_name: uchiyomi
-    image: ghcr.io/angelosha/uchiyomi:v0.102.1@sha256:9cd0c77aa904d90180d4804653d6fd39278e8e6813fe3d6cc5424a0c42c73605
+    image: ghcr.io/angelosha/uchiyomi:v0.109.0@sha256:06ae606993cec99664d8ea86fe0be9b18fb3b65c88c8090018f533aff54550a6
     restart: unless-stopped
     # It finishes the chapter it is writing (up to 20 s), then its Postgres checkpoints and stops.
     stop_grace_period: 40s
