@@ -5,7 +5,7 @@ services:
   marinara:
     container_name: marinara
     # It migrates its storage on upgrade, one way (README).
-    image: ghcr.io/pasta-devs/marinara-engine:2.5.1@sha256:2d17e6a8fe1f2eefc4f61b6af2a62d51cd8f4746b35b8b068df71a2259aae663
+    image: ghcr.io/pasta-devs/marinara-engine:2.5.2@sha256:a3b30f9247eefc1ac41f8823812d472765ecb4465903a18dc9e5a6bc4bd79394
     restart: unless-stopped
     init: true
     # ENCRYPTION_KEY (encrypts the stored API keys: keep v1's), ADMIN_SECRET, SSL_CERT, SSL_KEY,

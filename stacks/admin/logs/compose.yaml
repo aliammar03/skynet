@@ -5,7 +5,7 @@
 services:
   victorialogs:
     container_name: victorialogs
-    image: docker.io/victoriametrics/victoria-logs:v1.53.0@sha256:251121fa882af99b95ba0c230a4a2f412ea602d2698c64a96c58dc9842bb755d
+    image: docker.io/victoriametrics/victoria-logs:v1.55.0@sha256:7bec543b83cbff641e4b568c6f28d8e9cd779e4eab3add9f8806c32af23ea1e1
     restart: unless-stopped
     command:
       - -storageDataPath=/storage
@@ -29,7 +29,7 @@ services:
 
   vlagent:
     container_name: vlagent
-    image: docker.io/victoriametrics/vlagent:v1.53.0@sha256:a82f93ffecc153fb068606903e512368b070272739d823abe99fad0eff6e1849
+    image: docker.io/victoriametrics/vlagent:v1.55.0@sha256:8a021af6e46f9fda22d3c7b7152617ef4c55cccd34c855735697083cd9d52e5d
     restart: unless-stopped
     command:
       - -httpListenAddr=:9429
@@ -73,7 +73,7 @@ services:
   # evaluation only: like that one, it starts once both stores answer.
   vmalert-logs:
     container_name: vmalert-logs
-    image: docker.io/victoriametrics/vmalert:v1.155.0@sha256:3256cba5ddaca5974eae6141105cec4ce37871f1c213f0a5c267ec0111bc68e1
+    image: docker.io/victoriametrics/vmalert:v1.157.0@sha256:c550cfc345a1f3e130a3c78b3f5a910122448c66b3008d9a29eaa0559e9a23dd
     restart: unless-stopped
     # $$: the container's shell reads it, not compose.
     entrypoint:
@@ -110,7 +110,7 @@ services:
   # most of the server's memory (~95 MiB with it, ~16 without).
   mcp-victorialogs:
     container_name: mcp-victorialogs
-    image: ghcr.io/victoriametrics/mcp-victorialogs:v1.9.0@sha256:753bb4fbe402ca1a782842f44636830f9895736f11d7fe783b924f8a0daf083d
+    image: ghcr.io/victoriametrics/mcp-victorialogs:v1.11.0@sha256:0b3acd058159adc196ace66b2168895d4fbe6cb2ed75bbad49799863ac4dc56e
     restart: unless-stopped
     environment:
       VL_INSTANCE_ENTRYPOINT: http://victorialogs:9428
