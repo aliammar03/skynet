@@ -19,7 +19,7 @@
     # timed rollback before it merges (docs/plans/autonomy.md → Verify and roll back, step 7). Its
     # newest release, v0.14.0, is older than this commit.
     comin = {
-      url = "github:nlewo/comin/f95451172287f3cb36249a2cdef56efa9bbeef19";
+      url = "github:nlewo/comin/dfd3392af1ad22b8b9f1f5a06449c0525a17bc07";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
